@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="go build main.go" type="GoApplicationRunConfiguration" factoryName="Go Application" nameIsGenerated="true">
+    <module name="parigot" />
+    <working_directory value="$PROJECT_DIR$/sys" />
+    <envs>
+      <env name="PARIGOT_FS_ROOT" value="$PROJECT_DIR$/example" />
+    </envs>
+    <kind value="FILE" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/sys/init/main.go" />
+    <method v="2" />
+  </configuration>
+</component>
