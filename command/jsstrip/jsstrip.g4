@@ -1,29 +1,38 @@
 grammar jsstrip;
 
-program: (sexpr)*;
-
-sexpr: list
-    |  atom            {fmt.Printf("matched sexpr\n");}
-    ;
+sexpr:
+   list
+   |
+   atom
+   ;
 
 list:
-   '('')'              {fmt.Printf("matched empty list\n");}
-   | '(' members ')'   {fmt.Printf("matched list\n");}
-
+    Lparen Rparen
+    | Lparen members Rparen
     ;
 
-members: (sexpr)+      {fmt.Printf("members  1\n");};
-
-atom: Id               {fmt.Printf("ID ");}
-    | Num              {fmt.Printf("NUM ");}
-    | String_           {fmt.Printf("STRING ");}
+members:
+    (sexpr)+
     ;
 
+atom:
+    Ident
+    | Num
+    | QuotedString
+    ;
 
+Whitespace: ( ' ' | '\r' '\n' | '\n' | '\t' ) -> skip;
+
+// need to put these simple ones ahead of the complex ones
+Lparen: '(';
+Rparen: ')';
+Quote: '"';
+
+// LineComment: ';;' ~('\r' | '\n')*;
 Num: ( '0' .. '9')+;
-HexDigit: ( '0' .. '9' | 'a' .. 'f')+;
-Id: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_')+;
-Whitespace : ( ' ' | '\r' '\n' | '\n' | '\t' ) -> skip;
-String_ : '"' (~["\\] | HexByteValue )* '"';
-HexByteValue: '\\' HexDigit HexDigit;
-LineComment: ';' ~[\r\n]*      -> skip;
+fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | ';');
+fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | ';' | '0'..'9');
+Ident: IdentFirst IdentAfter* ;
+
+fragment HexByteValue: '\\' ( '0' .. '9' | 'a' .. 'f') ( '0' .. '9' | 'a' .. 'f');
+QuotedString: '"' ( HexByteValue | ~('"') )* '"';

@@ -25,4 +25,4 @@ clean:
 	rm -rf $(TINYGO_MOD_CACHE)
 
 jsstrip:
-	java -Xmx500M -cp "tools/lib/antlr-4.9-complete.jar:$CLASSPATH" org.antlr.v4.Tool -Dlanguage=Go -package parser -o parser command/jsstrip/jsstrip.g4
+	java -Xmx500M -cp "tools/lib/antlr-4.9-complete.jar" org.antlr.v4.Tool -Xlog -Dlanguage=Go -package main command/jsstrip/jsstrip.g4

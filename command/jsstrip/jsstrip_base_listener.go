@@ -20,12 +20,6 @@ func (s *BasejsstripListener) EnterEveryRule(ctx antlr.ParserRuleContext) {}
 // ExitEveryRule is called when any rule is exited.
 func (s *BasejsstripListener) ExitEveryRule(ctx antlr.ParserRuleContext) {}
 
-// EnterProgram is called when production program is entered.
-func (s *BasejsstripListener) EnterProgram(ctx *ProgramContext) {}
-
-// ExitProgram is called when production program is exited.
-func (s *BasejsstripListener) ExitProgram(ctx *ProgramContext) {}
-
 // EnterSexpr is called when production sexpr is entered.
 func (s *BasejsstripListener) EnterSexpr(ctx *SexprContext) {}
 

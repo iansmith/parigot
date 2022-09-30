@@ -7,9 +7,6 @@ import "github.com/antlr/antlr4/runtime/Go/antlr"
 type jsstripListener interface {
 	antlr.ParseTreeListener
 
-	// EnterProgram is called when entering the program production.
-	EnterProgram(c *ProgramContext)
-
 	// EnterSexpr is called when entering the sexpr production.
 	EnterSexpr(c *SexprContext)
 
@@ -21,9 +18,6 @@ type jsstripListener interface {
 
 	// EnterAtom is called when entering the atom production.
 	EnterAtom(c *AtomContext)
-
-	// ExitProgram is called when exiting the program production.
-	ExitProgram(c *ProgramContext)
 
 	// ExitSexpr is called when exiting the sexpr production.
 	ExitSexpr(c *SexprContext)

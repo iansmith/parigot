@@ -1,9 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="runner" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="jsstring" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="parigot" />
     <working_directory value="$PROJECT_DIR$/" />
+    <parameters value="build/id.wat" />
     <kind value="PACKAGE" />
-    <package value="github.com/iansmith/parigot/sys/init" />
+    <package value="github.com/iansmith/parigot/command/jsstrip" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/sys/init/main.go" />
     <method v="2" />
