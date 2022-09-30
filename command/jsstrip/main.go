@@ -87,5 +87,5 @@ func main() {
 	p := NewjsstripParser(stream)
 
 	// Finally parse the expression
-	antlr.ParseTreeWalkerDefault.Walk(&sexprListener{}, p.Sexpr())
+	antlr.ParseTreeWalkerDefault.Walk(&sexprListener{}, p.Module())
 }
