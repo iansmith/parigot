@@ -1,0 +1,11 @@
+T__0=1
+T__1=2
+Num=3
+HexDigit=4
+Id=5
+Whitespace=6
+String_=7
+HexByteValue=8
+LineComment=9
+'('=1
+')'=2
