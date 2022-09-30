@@ -15,24 +15,33 @@ var _ = reflect.Copy
 var _ = strconv.Itoa
 
 var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 9, 30, 4,
+	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 16, 43, 4,
 	2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 3, 2, 3, 2, 5, 2, 13, 10,
 	2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 5, 3, 21, 10, 3, 3, 4, 6, 4, 24,
-	10, 4, 13, 4, 14, 4, 25, 3, 5, 3, 5, 3, 5, 2, 2, 6, 2, 4, 6, 8, 2, 3, 3,
-	2, 7, 9, 2, 28, 2, 12, 3, 2, 2, 2, 4, 20, 3, 2, 2, 2, 6, 23, 3, 2, 2, 2,
-	8, 27, 3, 2, 2, 2, 10, 13, 5, 4, 3, 2, 11, 13, 5, 8, 5, 2, 12, 10, 3, 2,
-	2, 2, 12, 11, 3, 2, 2, 2, 13, 3, 3, 2, 2, 2, 14, 15, 7, 4, 2, 2, 15, 21,
-	7, 5, 2, 2, 16, 17, 7, 4, 2, 2, 17, 18, 5, 6, 4, 2, 18, 19, 7, 5, 2, 2,
-	19, 21, 3, 2, 2, 2, 20, 14, 3, 2, 2, 2, 20, 16, 3, 2, 2, 2, 21, 5, 3, 2,
-	2, 2, 22, 24, 5, 2, 2, 2, 23, 22, 3, 2, 2, 2, 24, 25, 3, 2, 2, 2, 25, 23,
-	3, 2, 2, 2, 25, 26, 3, 2, 2, 2, 26, 7, 3, 2, 2, 2, 27, 28, 9, 2, 2, 2,
-	28, 9, 3, 2, 2, 2, 5, 12, 20, 25,
+	10, 4, 13, 4, 14, 4, 25, 3, 5, 3, 5, 5, 5, 30, 10, 5, 3, 5, 5, 5, 33, 10,
+	5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 3, 5, 5, 5, 41, 10, 5, 3, 5, 2, 2, 6,
+	2, 4, 6, 8, 2, 2, 2, 49, 2, 12, 3, 2, 2, 2, 4, 20, 3, 2, 2, 2, 6, 23, 3,
+	2, 2, 2, 8, 40, 3, 2, 2, 2, 10, 13, 5, 4, 3, 2, 11, 13, 5, 8, 5, 2, 12,
+	10, 3, 2, 2, 2, 12, 11, 3, 2, 2, 2, 13, 3, 3, 2, 2, 2, 14, 15, 7, 5, 2,
+	2, 15, 21, 7, 6, 2, 2, 16, 17, 7, 5, 2, 2, 17, 18, 5, 6, 4, 2, 18, 19,
+	7, 6, 2, 2, 19, 21, 3, 2, 2, 2, 20, 14, 3, 2, 2, 2, 20, 16, 3, 2, 2, 2,
+	21, 5, 3, 2, 2, 2, 22, 24, 5, 2, 2, 2, 23, 22, 3, 2, 2, 2, 24, 25, 3, 2,
+	2, 2, 25, 23, 3, 2, 2, 2, 25, 26, 3, 2, 2, 2, 26, 7, 3, 2, 2, 2, 27, 29,
+	7, 9, 2, 2, 28, 30, 7, 11, 2, 2, 29, 28, 3, 2, 2, 2, 29, 30, 3, 2, 2, 2,
+	30, 32, 3, 2, 2, 2, 31, 33, 7, 12, 2, 2, 32, 31, 3, 2, 2, 2, 32, 33, 3,
+	2, 2, 2, 33, 41, 3, 2, 2, 2, 34, 41, 7, 8, 2, 2, 35, 41, 7, 16, 2, 2, 36,
+	41, 7, 14, 2, 2, 37, 41, 7, 13, 2, 2, 38, 41, 7, 10, 2, 2, 39, 41, 7, 15,
+	2, 2, 40, 27, 3, 2, 2, 2, 40, 34, 3, 2, 2, 2, 40, 35, 3, 2, 2, 2, 40, 36,
+	3, 2, 2, 2, 40, 37, 3, 2, 2, 2, 40, 38, 3, 2, 2, 2, 40, 39, 3, 2, 2, 2,
+	41, 9, 3, 2, 2, 2, 8, 12, 20, 25, 29, 32, 40,
 }
 var literalNames = []string{
-	"", "", "'('", "')'", "'\"'",
+	"", "", "", "'('", "')'", "'\"'",
 }
 var symbolicNames = []string{
-	"", "Whitespace", "Lparen", "Rparen", "Quote", "Num", "Ident", "QuotedString",
+	"", "Whitespace", "Comment", "Lparen", "Rparen", "Quote", "Num", "Ident",
+	"HexPointer", "Offset", "Align", "ConstAnnotation", "BlockAnnotation",
+	"ConstValue", "QuotedString",
 }
 
 var ruleNames = []string{
@@ -70,14 +79,21 @@ func NewjsstripParser(input antlr.TokenStream) *jsstripParser {
 
 // jsstripParser tokens.
 const (
-	jsstripParserEOF          = antlr.TokenEOF
-	jsstripParserWhitespace   = 1
-	jsstripParserLparen       = 2
-	jsstripParserRparen       = 3
-	jsstripParserQuote        = 4
-	jsstripParserNum          = 5
-	jsstripParserIdent        = 6
-	jsstripParserQuotedString = 7
+	jsstripParserEOF             = antlr.TokenEOF
+	jsstripParserWhitespace      = 1
+	jsstripParserComment         = 2
+	jsstripParserLparen          = 3
+	jsstripParserRparen          = 4
+	jsstripParserQuote           = 5
+	jsstripParserNum             = 6
+	jsstripParserIdent           = 7
+	jsstripParserHexPointer      = 8
+	jsstripParserOffset          = 9
+	jsstripParserAlign           = 10
+	jsstripParserConstAnnotation = 11
+	jsstripParserBlockAnnotation = 12
+	jsstripParserConstValue      = 13
+	jsstripParserQuotedString    = 14
 )
 
 // jsstripParser rules.
@@ -197,7 +213,7 @@ func (p *jsstripParser) Sexpr() (localctx ISexprContext) {
 			p.List()
 		}
 
-	case jsstripParserNum, jsstripParserIdent, jsstripParserQuotedString:
+	case jsstripParserNum, jsstripParserIdent, jsstripParserHexPointer, jsstripParserConstAnnotation, jsstripParserBlockAnnotation, jsstripParserConstValue, jsstripParserQuotedString:
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(9)
@@ -448,7 +464,7 @@ func (p *jsstripParser) Members() (localctx IMembersContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	for ok := true; ok; ok = (((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<jsstripParserLparen)|(1<<jsstripParserNum)|(1<<jsstripParserIdent)|(1<<jsstripParserQuotedString))) != 0) {
+	for ok := true; ok; ok = (((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<jsstripParserLparen)|(1<<jsstripParserNum)|(1<<jsstripParserIdent)|(1<<jsstripParserHexPointer)|(1<<jsstripParserConstAnnotation)|(1<<jsstripParserBlockAnnotation)|(1<<jsstripParserConstValue)|(1<<jsstripParserQuotedString))) != 0) {
 		{
 			p.SetState(20)
 			p.Sexpr()
@@ -504,12 +520,36 @@ func (s *AtomContext) Ident() antlr.TerminalNode {
 	return s.GetToken(jsstripParserIdent, 0)
 }
 
+func (s *AtomContext) Offset() antlr.TerminalNode {
+	return s.GetToken(jsstripParserOffset, 0)
+}
+
+func (s *AtomContext) Align() antlr.TerminalNode {
+	return s.GetToken(jsstripParserAlign, 0)
+}
+
 func (s *AtomContext) Num() antlr.TerminalNode {
 	return s.GetToken(jsstripParserNum, 0)
 }
 
 func (s *AtomContext) QuotedString() antlr.TerminalNode {
 	return s.GetToken(jsstripParserQuotedString, 0)
+}
+
+func (s *AtomContext) BlockAnnotation() antlr.TerminalNode {
+	return s.GetToken(jsstripParserBlockAnnotation, 0)
+}
+
+func (s *AtomContext) ConstAnnotation() antlr.TerminalNode {
+	return s.GetToken(jsstripParserConstAnnotation, 0)
+}
+
+func (s *AtomContext) HexPointer() antlr.TerminalNode {
+	return s.GetToken(jsstripParserHexPointer, 0)
+}
+
+func (s *AtomContext) ConstValue() antlr.TerminalNode {
+	return s.GetToken(jsstripParserConstValue, 0)
 }
 
 func (s *AtomContext) GetRuleContext() antlr.RuleContext {
@@ -553,17 +593,83 @@ func (p *jsstripParser) Atom() (localctx IAtomContext) {
 		}
 	}()
 
-	p.EnterOuterAlt(localctx, 1)
-	{
-		p.SetState(25)
+	p.SetState(38)
+	p.GetErrorHandler().Sync(p)
+
+	switch p.GetTokenStream().LA(1) {
+	case jsstripParserIdent:
+		p.EnterOuterAlt(localctx, 1)
+		{
+			p.SetState(25)
+			p.Match(jsstripParserIdent)
+		}
+		p.SetState(27)
+		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<jsstripParserNum)|(1<<jsstripParserIdent)|(1<<jsstripParserQuotedString))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+		if _la == jsstripParserOffset {
+			{
+				p.SetState(26)
+				p.Match(jsstripParserOffset)
+			}
+
 		}
+		p.SetState(30)
+		p.GetErrorHandler().Sync(p)
+		_la = p.GetTokenStream().LA(1)
+
+		if _la == jsstripParserAlign {
+			{
+				p.SetState(29)
+				p.Match(jsstripParserAlign)
+			}
+
+		}
+
+	case jsstripParserNum:
+		p.EnterOuterAlt(localctx, 2)
+		{
+			p.SetState(32)
+			p.Match(jsstripParserNum)
+		}
+
+	case jsstripParserQuotedString:
+		p.EnterOuterAlt(localctx, 3)
+		{
+			p.SetState(33)
+			p.Match(jsstripParserQuotedString)
+		}
+
+	case jsstripParserBlockAnnotation:
+		p.EnterOuterAlt(localctx, 4)
+		{
+			p.SetState(34)
+			p.Match(jsstripParserBlockAnnotation)
+		}
+
+	case jsstripParserConstAnnotation:
+		p.EnterOuterAlt(localctx, 5)
+		{
+			p.SetState(35)
+			p.Match(jsstripParserConstAnnotation)
+		}
+
+	case jsstripParserHexPointer:
+		p.EnterOuterAlt(localctx, 6)
+		{
+			p.SetState(36)
+			p.Match(jsstripParserHexPointer)
+		}
+
+	case jsstripParserConstValue:
+		p.EnterOuterAlt(localctx, 7)
+		{
+			p.SetState(37)
+			p.Match(jsstripParserConstValue)
+		}
+
+	default:
+		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 	}
 
 	return localctx
