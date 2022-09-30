@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
@@ -9,11 +10,15 @@ import (
 func main() {
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
-	module, err := wasmtime.NewModuleFromFile(engine, "/Users/iansmith/parigot/hello_go.wasm")
+	wd, _ := os.Getwd()
+	print("cwd:", wd, "\n")
+	module, err := wasmtime.NewModuleFromFile(engine, "build/hello-go.wasm")
 	check(err)
+	print("exports---\n")
 	for _, exp := range module.Exports() {
 		print("exp:", exp.Name(), "\n")
 	}
+	print("imports---\n")
 	for _, imp := range module.Imports() {
 		print("imp:", imp.Module(), ",", *imp.Name(), "\n")
 	}

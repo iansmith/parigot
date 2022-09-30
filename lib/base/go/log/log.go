@@ -3,27 +3,24 @@ package log
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"github.com/iansmith/parigot/abi"
+	"time"
 )
 
-//import "go.uber.org/zap"
-
-// type Log zap.Logger
-
-type LogLevel int64
+type LevelMask int64
 
 const (
-	DebugLevel LogLevel = 1 << 1
-	InfoLevel  LogLevel = 1 << 2
-	WarnLevel  LogLevel = 1 << 3
-	ErrorLevel LogLevel = 1 << 4
-	FatalLevel LogLevel = 1 << 5
+	DebugLevel LevelMask = 1 << 1
+	InfoLevel  LevelMask = 1 << 2
+	WarnLevel  LevelMask = 1 << 3
+	ErrorLevel LevelMask = 1 << 4
+	FatalLevel LevelMask = 1 << 5
 
-	DevMask  LogLevel = DebugLevel | InfoLevel | WarnLevel | ErrorLevel | FatalLevel
-	ProdMask LogLevel = WarnLevel | ErrorLevel | FatalLevel
+	DevMask = DebugLevel | InfoLevel | WarnLevel | ErrorLevel | FatalLevel
+	// ProdMask  = WarnLevel | ErrorLevel | FatalLevel
 )
 
-func (lvl LogLevel) String() string {
+func (lvl LevelMask) String() string {
 	var buf bytes.Buffer
 	prefix := ""
 
@@ -32,7 +29,7 @@ func (lvl LogLevel) String() string {
 		return "[no logs]"
 	}
 
-	for _, s := range []LogLevel{DebugLevel, InfoLevel, WarnLevel, ErrorLevel,
+	for _, s := range []LevelMask{DebugLevel, InfoLevel, WarnLevel, ErrorLevel,
 		FatalLevel} {
 		switch s {
 		case DebugLevel:
@@ -52,8 +49,8 @@ func (lvl LogLevel) String() string {
 }
 
 type T interface {
-	LogMask() LogLevel
-	SetLogMask(LogLevel)
+	LogMask() LevelMask
+	SetLogMask(LevelMask)
 	AbortOnFatal()
 	SetAbortOnFatal(bool)
 	Debug(string, ...string)
@@ -64,15 +61,15 @@ type T interface {
 }
 
 type LocalT struct {
-	levelMask    LogLevel
+	levelMask    LevelMask
 	abortOnFatal bool
 }
 
-func (l *LocalT) SetLogMask(mask LogLevel) {
+func (l *LocalT) SetLogMask(mask LevelMask) {
 	l.levelMask = mask
 }
 
-func (l *LocalT) LogMask() LogLevel {
+func (l *LocalT) LogMask() LevelMask {
 	return l.levelMask
 }
 
@@ -116,14 +113,19 @@ func (l *LocalT) Fatal(f string, rest ...string) {
 	} else {
 		// if you are aborting, then you probably want to print something
 		outputString("FATAL", f, rest...)
-		exit(1)
+		abi.Exit(1)
 	}
 }
 
-func exit(code int) {
-	os.Exit(code)
-}
-
+//export foo
 func outputString(prefix, f string, rest ...string) {
-	fmt.Printf(prefix+":"+f, rest)
+	var buf bytes.Buffer
+	now := abi.Now()
+	stamp := now.Format(time.Stamp)
+	buf.WriteString(stamp)
+	buf.WriteString(" ")
+	buf.WriteString(prefix)
+	buf.WriteString(":")
+	buf.WriteString(fmt.Sprintf(f, rest)) // xxx should not be using reflection
+	abi.OutputString(buf.String())
 }
