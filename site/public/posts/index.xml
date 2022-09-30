@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Parigot Blog and Docs</title>
+    <link>http://parigot.github.io/posts/</link>
+    <description>Recent content in Posts on Parigot Blog and Docs</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Thu, 29 Sep 2022 19:42:04 -0400</lastBuildDate><atom:link href="http://parigot.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>First Post</title>
+      <link>http://parigot.github.io/posts/firstpost/</link>
+      <pubDate>Thu, 29 Sep 2022 19:42:04 -0400</pubDate>
+      
+      <guid>http://parigot.github.io/posts/firstpost/</guid>
+      <description>I woke up at about 5am with an idea in my head. The idea was to build an operating system (of sorts) in go, but with user processes created from WASM binaries. After some thinking, the idea started to congeal a bit and I realized I was trying to fix something that had bugged me about microservices for some time: microservices are good (great?) for the deployment and operational problems of devops, but it is radically harder to develop and debug an array of microservices once you get to about 6 or 8 services.</description>
+    </item>
+    
+  </channel>
+</rss>

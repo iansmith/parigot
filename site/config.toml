@@ -1,0 +1,4 @@
+baseURL = 'http://parigot.github.io/'
+languageCode = 'en-us'
+title = 'Parigot Blog and Docs'
+theme = "cactus"
