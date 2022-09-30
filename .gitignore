@@ -1,3 +1,5 @@
-enable-parigot
+antlr-*.log
 .idea
 build/*
+enable-parigot
+

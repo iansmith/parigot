@@ -4,6 +4,6 @@ use ./lib
 use ./sys
 use ./example/hello-go
 use ./abi/go
-use ./command/jsstrip
+use ./command
 
 

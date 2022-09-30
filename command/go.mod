@@ -1,4 +1,4 @@
-module github.com/iansmith/parigot/command/jsstrip
+module github.com/iansmith/parigot/command
 
 go 1.19
 

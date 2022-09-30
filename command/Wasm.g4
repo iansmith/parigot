@@ -1,4 +1,5 @@
-grammar jsstrip;
+grammar Wasm;
+
 module:
     Lparen ModuleWord (Lparen topLevel Rparen)* Rparen
     ;
