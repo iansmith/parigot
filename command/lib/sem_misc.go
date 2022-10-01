@@ -35,7 +35,7 @@ const (
 )
 
 type TypeNameSeq struct {
-	Name []*WasmTypeName
+	Name []string
 }
 
 func (t *TypeNameSeq) String() string {
@@ -44,7 +44,7 @@ func (t *TypeNameSeq) String() string {
 		if i != 0 {
 			buf.WriteString(" ")
 		}
-		buf.WriteString(tn.String())
+		buf.WriteString(tn)
 	}
 	return buf.String()
 }

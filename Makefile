@@ -26,9 +26,9 @@ clean:
 	rm -f build/*
 	rm -rf $(TINYGO_MOD_CACHE)
 
-build/jsstrip: command/Wasm.g4 command/lib/wasm_lexer.go command/lib/wasm_parser.go command/jsstrip/main.go
+build/jsstrip: command/Wasm.g4 command/lib/*.go command/jsstrip/main.go
 	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip
 
-## evil and hackish, really all the generated files should depend on the .g4
-command/lib/wasm_lexer.go command/lib/wasm_parser.go: command/Wasm.g4
-	pushd command && java -Xmx500M -cp "../tools/lib/antlr-4.9-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o lib -package lib Wasm.g4 && popd
+# only need to run the generator once, not once per file
+command/lib/wasm_parser.go: command/Wasm.g4
+	pushd command >& /dev/null && java -Xmx500M -cp "../tools/lib/antlr-4.9-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o lib -package lib Wasm.g4 && popd >& /dev/null

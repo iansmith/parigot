@@ -6,23 +6,23 @@ module:
 
 topLevel:
     typeDef
-    | importOp
+    | importDef
     | funcDef
     ;
 
 typeDef:
-    TypeWord typeAnnotation funcSpec
+    TypeWord typeAnno funcSpec
     ;
 
-importOp:
-    ImportWord QuotedString QuotedString funcRef
+importDef:
+    ImportWord QuotedString QuotedString funcNameRef
     ;
 
 typeRef:
     Lparen TypeWord Num Rparen
     ;
 
-typeAnnotation:
+typeAnno:
     Lparen TypeAnnotation Rparen
     ;
 
@@ -30,25 +30,17 @@ funcSpec:
     Lparen FuncWord paramDef? resultDef? Rparen
     ;
 
-funcRef:
-    Lparen FuncWord Ident Lparen TypeWord Num Rparen Rparen
+funcNameRef:
+    Lparen FuncWord Ident typeRef Rparen
     ;
 
-type_:
-    I32 | I64 | F64
+paramDef: Lparen ParamWord TypeName+ Rparen
     ;
 
-typeSeq:
-    type_+
+resultDef: Lparen ResultWord TypeName+ Rparen
     ;
 
-paramDef: Lparen ParamWord typeSeq Rparen
-    ;
-
-resultDef: Lparen ResultWord typeSeq Rparen
-    ;
-
-localDef: Lparen LocalWord typeSeq Rparen
+localDef: Lparen LocalWord TypeName+ Rparen
     ;
 
 funcDef:
@@ -58,6 +50,7 @@ funcDef:
 funcBody:
     stmt+
     ;
+
 
 stmt:
     block
@@ -104,9 +97,10 @@ ImportWord: 'import';
 LocalWord: 'local';
 BlockWord: 'block';
 
-I32: 'i32';
-I64: 'i64';
-F64: 'f64';
+fragment I32: 'i32';
+fragment I64: 'i64';
+fragment F64: 'f64';
+TypeName: I32 | I64 | F64;
 
 Whitespace: ( ' ' | '\r' '\n' | '\n' | '\t' ) -> skip;
 

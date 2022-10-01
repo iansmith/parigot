@@ -5,16 +5,24 @@ type Builder struct {
 	*BaseWasmListener
 
 	// current here means "it is being constructed if the value is not nil"
-	currentModule   *Module
-	currentTopLevel TopLevel
+	currentModule *Module
+
+	currentTopLevelDef TopLevelDef
+
+	currentTypeRef     *TypeRef
+	currentParamDef    *ParamDef
+	currentLocalDef    *LocalDef
+	currentFuncNameRef *FuncNameRef
+	currentFuncSpec    *FuncSpec
+	currentResultDef   *ResultDef
+	currentTypeNameSeq *TypeNameSeq
+
+	currentTypeAnnotation *TypeAnnotation
+
+	module []*Module
 }
 
-// EnterModule is called when entering the module production.
-func (b *Builder) EnterModule(c *ModuleContext) {
-	b.currentModule = &Module{}
-}
-
-// ExitModule is called when exiting the module production.
-func (b *Builder) ExitModule(c *ModuleContext) {
-	// post tree build should happen here
+// Module returns the first Module in the list of parsed Modules()
+func (b *Builder) Module() *Module {
+	return b.module[0]
 }

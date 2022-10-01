@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/iansmith/parigot/command/lib"
 	"log"
@@ -26,5 +27,7 @@ func main() {
 	p := lib.NewWasmParser(stream)
 
 	// Finally parse the expression
-	antlr.ParseTreeWalkerDefault.Walk(&lib.SexprListener{}, p.Module())
+	builder := &lib.Builder{}
+	antlr.ParseTreeWalkerDefault.Walk(builder, p.Module())
+	fmt.Printf("%s", builder.Module().IndentedString(0))
 }
