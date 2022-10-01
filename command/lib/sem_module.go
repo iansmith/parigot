@@ -19,7 +19,9 @@ func (m *Module) IndentedString(indented int) string {
 	for _, tl := range m.topLevel {
 		buf.WriteString(tl.(IndentedStringer).IndentedString(indented + 2))
 	}
-	buf.WriteString("\n") // for the module closing
+	buf.WriteString("\n")
+	// ugh, leading space... why oh why?
+	buf.WriteString(" )\n") // for the module closing
 	return buf.String()
 }
 

@@ -15,10 +15,16 @@ func (b *Builder) EnterInt1Op(_ *Int1OpContext) {}
 
 // ExitInt1Op is called when production int1Op is exited.
 func (b *Builder) ExitInt1Op(ctx *Int1OpContext) {
-	b.currentStmt = &Int1Op{
+	op := &Int1Op{
 		Op:  ctx.GetToken(WasmLexerInt1OpWord, 0).GetText(),
 		Arg: numTerminalToInt(ctx.GetToken(WasmLexerNum, 0).GetSymbol()),
 	}
+	anno := ctx.GetToken(WasmLexerBlockAnnotation, 0)
+	if anno != nil {
+		op.BranchTarget = new(int)
+		*op.BranchTarget = blockAnnotationTerminalToInt(anno.GetSymbol())
+	}
+	b.currentStmt = op
 }
 
 // EnterI64Store is called when production i64Store is entered.
@@ -96,17 +102,21 @@ func i64LoadStore(isStore bool, ctx *antlr.BaseParserRuleContext) *I64LoadStore 
 	return op
 }
 
-// EnterBrIfOp is called when production brIfOp is entered.
-func (b *Builder) EnterBrIfOp(_ *BrIfOpContext) {}
+// EnterBrTable is called when production brTable is entered.
+func (b *Builder) EnterBrTable(_ *BrTableContext) {}
 
-// ExitBrIfOp is called when production brIfOp is exited.
-func (b *Builder) ExitBrIfOp(ctx *BrIfOpContext) {
-	b.currentStmt = &BrIfOp{
-		Int1Op: &Int1Op{
-			Op:  "br_if",
-			Arg: numTerminalToInt(ctx.GetToken(WasmLexerNum, 0).GetSymbol()),
-		},
-		BranchTarget: blockAnnotationTerminalToInt(ctx.GetToken(WasmLexerBlockAnnotation, 0).GetSymbol()),
+// ExitBrTable is called when production brTable is exited.
+func (b *Builder) ExitBrTable(ctx *BrTableContext) {
+	num := ctx.GetTokens(WasmLexerNum)
+	block := ctx.GetTokens(WasmLexerBlockAnnotation)
+	if len(num) != len(block) {
+		panic("misatched num and block inside BrTable target") // should never happen
 	}
-
+	jump := &BrTable{}
+	jump.Target = make([]*BranchTarget, len(num))
+	for i := range num {
+		jump.Target[i].Num = numTerminalToInt(num[i].GetSymbol())
+		jump.Target[i].Block = blockAnnotationTerminalToInt(block[i].GetSymbol())
+	}
+	b.currentStmt = jump
 }

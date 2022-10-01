@@ -56,11 +56,12 @@ func (i *ImportDef) IndentedString(indented int) string {
 
 // FuncDef represents WAT like this:   (func $_*internal/task.gcData_.swap (type 1) (param i32) (local i32) ...statements )
 type FuncDef struct {
-	Name  string
-	Type  *TypeRef
-	Param *ParamDef
-	Local *LocalDef
-	Code  []Stmt
+	Name   string
+	Type   *TypeRef
+	Param  *ParamDef
+	Local  *LocalDef
+	Result *ResultDef
+	Code   []Stmt
 }
 
 func (f *FuncDef) TopLevelType() TopLevelDefT {
@@ -84,7 +85,7 @@ func (f *FuncDef) IndentedString(indented int) string {
 		}
 		buf.WriteString(f.Local.String())
 	}
-	buf.WriteString(stmtsToString(f.Code, indented))
+	buf.WriteString(stmtsToString(f.Code, indented+2))
 	// strangely this is not terminated with a "\n"
 	return buf.String() + ")"
 }

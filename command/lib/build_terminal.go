@@ -3,6 +3,7 @@ package lib
 import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"strconv"
+	"strings"
 )
 
 // remove leading and trailing semicolon, should never fail because it parsed ok
@@ -23,6 +24,23 @@ func blockAnnotationTerminalToInt(node antlr.Token) int {
 		panic("badly formed number in block annotation") // should never happen
 	}
 	return i
+}
+
+// remove annotation cruft
+func targetTerminalToBranchTarget(node antlr.Token) *BranchTarget {
+	parts := strings.Split(node.GetText(), " ")
+	if len(parts) != 2 {
+		panic("unable to understand branch target") //should never happen
+	}
+	n, err := strconv.Atoi(parts[0])
+	if err != nil {
+		panic("unable to understand branch target field num") //should never happen
+	}
+	b, err := strconv.Atoi(parts[1][2 : len(parts[1])-1])
+	if err != nil {
+		panic("unable to understand branch target field block") //should never happen
+	}
+	return &BranchTarget{Num: n, Block: b}
 }
 
 // remove leading and trailing semicolon, should never fail because it parsed ok

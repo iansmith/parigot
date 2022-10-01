@@ -24,9 +24,10 @@ const (
 
 type BlockStmt struct {
 	PreviousContainer Container
+	PreviousResult    *ResultDef
 	nestingLevel      int
 	Result            *ResultDef
-	Block             []Stmt
+	Code              []Stmt
 }
 
 func (b *BlockStmt) StmtType() StmtT {
@@ -35,19 +36,20 @@ func (b *BlockStmt) StmtType() StmtT {
 
 func (b *BlockStmt) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(controlStmtToString("block", indented, b.nestingLevel, b.Result))
-	buf.WriteString(stmtsToString(b.Block, indented))
-	buf.WriteString("\nend")
+	controlStmtToString("block", b.nestingLevel, b.Result, buf)
+	buf.WriteString(stmtsToString(b.Code, indented+2))
+	outputEnd(indented, buf)
 	return buf.String()
 }
 
 func (b *BlockStmt) AddStmt(s Stmt) {
-	b.Block = append(b.Block, s)
+	b.Code = append(b.Code, s)
 }
 
 type IfStmt struct {
 	nestingLevel      int
 	PreviousContainer Container
+	PreviousResult    *ResultDef
 	Result            *ResultDef
 	IfPart            []Stmt
 	ElsePart          []Stmt
@@ -59,13 +61,13 @@ func (i *IfStmt) StmtType() StmtT {
 
 func (i *IfStmt) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(controlStmtToString("if", indented, i.nestingLevel, i.Result))
+	controlStmtToString("if", i.nestingLevel, i.Result, buf)
 	buf.WriteString(stmtsToString(i.IfPart, indented+2))
 	if i.ElsePart != nil {
-		buf.WriteString(controlStmtToString("else", indented, i.nestingLevel, nil))
+		buf.WriteString(controlStmtToString("else", i.nestingLevel, nil, buf))
 		buf.WriteString(stmtsToString(i.ElsePart, indented+2))
 	}
-	buf.WriteString("\nend")
+	outputEnd(indented, buf)
 	return buf.String()
 }
 
@@ -77,23 +79,41 @@ func (i *IfStmt) AddStmt(s Stmt) {
 	}
 }
 
+type LoopStmt struct {
+	*BlockStmt
+}
+
+func (l *LoopStmt) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	controlStmtToString("loop", l.nestingLevel, l.Result, buf)
+	buf.WriteString(stmtsToString(l.Code, indented+2))
+	return buf.String()
+}
+
+// helpers
+
 func stmtsToString(stmt []Stmt, indented int) string {
 	var buf bytes.Buffer
 	for _, s := range stmt {
-		// weird, they prefix the \n not suffix it
-		buf.WriteString("\n")
-		buf.WriteString(s.IndentedString(indented + 2))
+		buf.WriteString("\n" + s.IndentedString(indented))
 	}
 	return buf.String()
 }
 
-func controlStmtToString(name string, indented int, nestingLevel int, result *ResultDef) string {
-	buf := NewIndentedBuffer(indented)
+func controlStmtToString(name string, nestingLevel int, result *ResultDef, buf *bytes.Buffer) string {
 	buf.WriteString(name)
 	if result != nil {
 		buf.WriteString(" " + result.String())
 	}
-	buf.WriteString(fmt.Sprintf(";; label = @%d\n",
+	buf.WriteString(fmt.Sprintf("  ;; label = @%d",
 		nestingLevel))
 	return buf.String()
+}
+
+func outputEnd(indented int, buf *bytes.Buffer) {
+	buf.WriteString("\n")
+	for i := 0; i < indented; i++ {
+		buf.WriteString(" ")
+	}
+	buf.WriteString("end")
 }

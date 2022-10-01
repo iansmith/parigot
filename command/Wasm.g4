@@ -44,7 +44,7 @@ localDef: Lparen LocalWord TypeName+ Rparen
     ;
 
 funcDef:
-    FuncWord Ident typeRef paramDef localDef? funcBody
+    FuncWord Ident typeRef paramDef resultDef? localDef? funcBody
     ;
 
 funcBody:
@@ -56,11 +56,7 @@ zeroOp:
     ;
 
 int1Op:
-    Int1OpWord ( StackPointerWord | Num)
-    ;
-
-brIfOp:
-    BrIfWord Num Lparen BlockAnnotation Rparen
+    Int1OpWord ( StackPointerWord | Num) (Lparen BlockAnnotation Rparen)?
     ;
 
 id1Op:
@@ -83,9 +79,14 @@ i32Load:
     I32LoadWord (Offset)?
     ;
 
+brTable:
+    BrTableWord (Num Lparen BlockAnnotation Rparen)+
+    ;
+
 stmt:
     blockStmt
     | ifStmt
+    | loopStmt
     | zeroOp
     | int1Op
     | i32Store
@@ -93,11 +94,15 @@ stmt:
     | i64Store
     | i64Load
     | id1Op
-    | brIfOp
+    | brTable
     ;
 
 blockStmt:
     BlockWord resultDef? stmt+ EndWord
+    ;
+
+loopStmt:
+    LoopWord stmt+ EndWord
     ;
 
 ifStmt:
@@ -148,6 +153,8 @@ BlockWord: 'block';
 IfWord: 'if';
 ElseWord: 'else';
 EndWord: 'end';
+LoopWord: 'loop';
+BrTableWord: 'br_table';
 
 fragment I32: 'i32';
 fragment I64: 'i64';
@@ -155,10 +162,11 @@ fragment F64: 'f64';
 TypeName: I32 | I64 | F64;
 
 // opcodish
-ZeroOpWord: 'i32.sub' | 'select' | 'i32.eqz' |
-    'return' | 'i32.eq' | 'drop' | 'unreachable' | 'i32.add';
+ZeroOpWord: 'i32.sub' | 'select' | 'i32.eqz' | 'i32.shr_u' | 'i32.ne' | 'i32.and' | 'i32.shl' |
+    'return' | 'i32.eq' | 'drop' | 'unreachable' | 'i32.add' | 'i32.load8_u' | 'i32.ge_u' | 'i32.xor' |
+    'memory.size'| 'memory.grow'| 'memory.copy' | 'memory.fill'| 'i32.store8' | 'i32.le_u';
 
-Int1OpWord: 'global.get' | 'i32.const' | 'local.tee' | 'local.get' | 'local.set' | 'global.set';
+Int1OpWord: 'global.get' | 'i32.const' | 'local.tee' | 'local.get' | 'local.set' | 'global.set' | 'i64.const' |'br';
 BrIfWord: 'br_if';
 
 Id1OpWord: 'call';

@@ -27,6 +27,7 @@ func (b *Builder) ExitFuncDef(ctx *FuncDefContext) {
 	fd.Type = b.currentTypeRef
 	fd.Param = b.currentParamDef
 	fd.Local = b.currentLocalDef
+	fd.Result = b.currentResultDef
 	b.currentTypeRef = nil
 	b.currentParamDef = nil
 	b.currentLocalDef = nil

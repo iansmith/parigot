@@ -14,6 +14,7 @@ const (
 	I32LoadStoreT OpT = 3
 	I64LoadStoreT OpT = 4
 	Id1T          OpT = 5
+	BrTableT      OpT = 6
 )
 
 type ZeroOp struct {
@@ -35,13 +36,9 @@ func (z *ZeroOp) IndentedString(indented int) string {
 }
 
 type Int1Op struct {
-	Op  string
-	Arg int
-}
-
-type BrIfOp struct {
-	*Int1Op
-	BranchTarget int
+	Op           string
+	Arg          int
+	BranchTarget *int
 }
 
 func (i *Int1Op) OpType() OpT {
@@ -55,8 +52,10 @@ func (i *Int1Op) StmtType() StmtT {
 func (i *Int1Op) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
 	buf.WriteString(fmt.Sprintf("%s %d", i.Op, i.Arg))
-	return "\n" + buf.String()
-
+	if i.BranchTarget != nil {
+		buf.WriteString(fmt.Sprintf(" (;@%d;)"))
+	}
+	return buf.String()
 }
 
 type I64LoadStore struct {
@@ -86,7 +85,7 @@ func (i *I64LoadStore) IndentedString(indented int) string {
 	if i.Align != nil {
 		buf.WriteString(fmt.Sprintf(" align=%d", i.Align))
 	}
-	return "\n" + buf.String()
+	return buf.String()
 }
 func (i *I64LoadStore) SetOffset(offset int) {
 	i.Offset = new(int)
@@ -120,7 +119,7 @@ func (i *I32LoadStore) IndentedString(indented int) string {
 	if i.Offset != nil {
 		buf.WriteString(fmt.Sprintf(" offset=%d", i.Offset))
 	}
-	return "\n" + buf.String()
+	return buf.String()
 }
 
 func (i *I32LoadStore) SetOffset(offset int) {
@@ -129,8 +128,9 @@ func (i *I32LoadStore) SetOffset(offset int) {
 }
 
 type Id1Op struct {
-	Op  string
-	Arg string
+	Op     string
+	Arg    string
+	Branch int
 }
 
 func (i *Id1Op) OpType() OpT {
@@ -144,5 +144,31 @@ func (i *Id1Op) StmtType() StmtT {
 func (i *Id1Op) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
 	buf.WriteString(fmt.Sprintf("%s %s", i.Op, i.Arg))
-	return "\n" + buf.String()
+	return buf.String()
+}
+
+type BranchTarget struct {
+	Num   int
+	Block int
+}
+
+type BrTable struct {
+	Target []*BranchTarget
+}
+
+func (i *BrTable) OpType() OpT {
+	return BrTableT
+}
+
+func (i *BrTable) StmtType() StmtT {
+	return OpStmtT
+}
+
+func (b *BrTable) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("br_table")
+	for _, t := range b.Target {
+		buf.WriteString(fmt.Sprintf(" %d (;@%d;)", t.Num, t.Block))
+	}
+	return buf.String()
 }
