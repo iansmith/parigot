@@ -17,16 +17,16 @@ func (b *Builder) ExitTypeDef(_ *TypeDefContext) {
 
 // EnterFuncDef is called when entering the funcDef production.
 func (b *Builder) EnterFuncDef(_ *FuncDefContext) {
+	b.currentContainer = &FuncDef{}
 }
 
 // ExitFuncDef is called when exiting the funcDef production.
 func (b *Builder) ExitFuncDef(ctx *FuncDefContext) {
-	fd := &FuncDef{
-		Name:  stringTerminalToString(ctx.GetToken(WasmLexerIdent, 0).GetSymbol()),
-		Type:  b.currentTypeRef,
-		Param: b.currentParamDef,
-		Local: b.currentLocalDef,
-	}
+	fd := b.currentContainer.(*FuncDef)
+	fd.Name = stringTerminalToString(ctx.GetToken(WasmLexerIdent, 0).GetSymbol())
+	fd.Type = b.currentTypeRef
+	fd.Param = b.currentParamDef
+	fd.Local = b.currentLocalDef
 	b.currentTypeRef = nil
 	b.currentParamDef = nil
 	b.currentLocalDef = nil

@@ -60,6 +60,7 @@ type FuncDef struct {
 	Type  *TypeRef
 	Param *ParamDef
 	Local *LocalDef
+	Code  []Stmt
 }
 
 func (f *FuncDef) TopLevelType() TopLevelDefT {
@@ -77,8 +78,17 @@ func (f *FuncDef) IndentedString(indented int) string {
 		buf.WriteString(" " + f.Param.String())
 	}
 	if f.Local != nil {
-		buf.WriteString(" " + f.Local.String())
+		buf.WriteString("\n")
+		for i := 0; i < indented+2; i++ {
+			buf.WriteString(" ")
+		}
+		buf.WriteString(f.Local.String())
 	}
-	buf.WriteString("\n")
-	return buf.String()
+	buf.WriteString(stmtsToString(f.Code, indented))
+	// strangely this is not terminated with a "\n"
+	return buf.String() + ")"
+}
+
+func (f *FuncDef) AddStmt(s Stmt) {
+	f.Code = append(f.Code, s)
 }

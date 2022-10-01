@@ -38,7 +38,18 @@ The former of these services can also be used in a debugging scenario to remove 
 of the program that are not needed.
 
 A closely related feature would be one where a monolith is created for the purpose easing
-testing--no more complex and unreliable setup scripts for running tests!
+testing--no more complex and unreliable setup scripts for running tests!  This is
+even more crucial for integration tests.
+
+## worlds
+I think a collection of services that work together to reach a common
+goal or "app" should be called a world.
+
+When you wind all the services into a binary that is a single
+process, or more precisely "WASM module", you can call it a "one world".
+
+Somehow, I need to figure out how to work "one world government"
+into all this.
 
 
 

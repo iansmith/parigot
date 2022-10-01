@@ -51,13 +51,62 @@ funcBody:
     stmt+
     ;
 
-
-stmt:
-    block
+zeroOp:
+    ZeroOpWord
     ;
 
-block:
-    BlockWord resultDef
+int1Op:
+    Int1OpWord ( StackPointerWord | Num)
+    ;
+
+brIfOp:
+    BrIfWord Num Lparen BlockAnnotation Rparen
+    ;
+
+id1Op:
+    Id1OpWord Ident
+    ;
+
+i64Store:
+    I64StoreWord (Offset)? (Align)?
+    ;
+
+i64Load:
+    I64LoadWord (Offset)? (Align)?
+    ;
+
+i32Store:
+    I32StoreWord (Offset)?
+    ;
+
+i32Load:
+    I32LoadWord (Offset)?
+    ;
+
+stmt:
+    blockStmt
+    | ifStmt
+    | zeroOp
+    | int1Op
+    | i32Store
+    | i32Load
+    | i64Store
+    | i64Load
+    | id1Op
+    | brIfOp
+    ;
+
+blockStmt:
+    BlockWord resultDef? stmt+ EndWord
+    ;
+
+ifStmt:
+    IfWord resultDef? stmt+ (elsePart stmt+)? EndWord
+    ;
+
+// slightly hacky: I use this construction to get a call Enter/ExitElsePart on the builder
+elsePart:
+    ElseWord
     ;
 
     ////////// older ////////
@@ -96,12 +145,32 @@ ResultWord: 'result' ;
 ImportWord: 'import';
 LocalWord: 'local';
 BlockWord: 'block';
+IfWord: 'if';
+ElseWord: 'else';
+EndWord: 'end';
 
 fragment I32: 'i32';
 fragment I64: 'i64';
 fragment F64: 'f64';
 TypeName: I32 | I64 | F64;
 
+// opcodish
+ZeroOpWord: 'i32.sub' | 'select' | 'i32.eqz' |
+    'return' | 'i32.eq' | 'drop' | 'unreachable' | 'i32.add';
+
+Int1OpWord: 'global.get' | 'i32.const' | 'local.tee' | 'local.get' | 'local.set' | 'global.set';
+BrIfWord: 'br_if';
+
+Id1OpWord: 'call';
+
+I64StoreWord: 'i64.store';
+I64LoadWord: 'i64.load';
+I32StoreWord: 'i32.store';
+I32LoadWord: 'i32.load';
+
+StackPointerWord: '$__stack_pointer';
+
+// regular Lexer rules after here
 Whitespace: ( ' ' | '\r' '\n' | '\n' | '\t' ) -> skip;
 
 // need to put these simple ones ahead of the complex ones

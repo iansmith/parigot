@@ -36,5 +36,69 @@
   (func $_*internal/task.gcData_.swap (type 1) (param i32)
     (local i32)
     block (result i32)  ;; label = @1
-    )
+      global.get 1
+      i32.const 2
+      i32.eq
+      if  ;; label = @2
+        global.get 2
+        global.get 2
+        i32.load
+        i32.const 4
+        i32.sub
+        i32.store
+        global.get 2
+        i32.load
+        i32.load
+        local.set 1
+      end
+      global.get 1
+      i32.const 1
+      local.get 0
+      select
+      i32.eqz
+      if  ;; label = @2
+        local.get 0
+        i32.load
+        local.set 1
+        local.get 0
+        i32.const 66380
+        i32.load
+        i32.store
+        i32.const 66380
+        local.get 1
+        i32.store
+        return
+      end
+      local.get 1
+      i32.const 0
+      global.get 1
+      select
+      i32.eqz
+      if  ;; label = @2
+        call $runtime.nilPanic
+        i32.const 0
+        global.get 1
+        i32.const 1
+        i32.eq
+        br_if 1 (;@1;)
+        drop
+      end
+      global.get 1
+      i32.eqz
+      if  ;; label = @2
+        unreachable
+      end
+      return
+    end
+    local.set 0
+    global.get 2
+    i32.load
+    local.get 0
+    i32.store
+    global.get 2
+    global.get 2
+    i32.load
+    i32.const 4
+    i32.add
+    i32.store)
  )

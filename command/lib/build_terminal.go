@@ -15,6 +15,16 @@ func typeAnnotationTerminalToInt(node antlr.Token) int {
 	return i
 }
 
+// remove leading and trailing ; and the @
+func blockAnnotationTerminalToInt(node antlr.Token) int {
+	text := node.GetText()[2 : len(node.GetText())-1]
+	i, e := strconv.Atoi(text)
+	if e != nil {
+		panic("badly formed number in block annotation") // should never happen
+	}
+	return i
+}
+
 // remove leading and trailing semicolon, should never fail because it parsed ok
 func numTerminalToInt(node antlr.Token) int {
 	text := node.GetText()
@@ -28,6 +38,28 @@ func numTerminalToInt(node antlr.Token) int {
 // remove leading and trailing quote
 func quotedStringTerminalToString(node antlr.Token) string {
 	return node.GetText()[1 : len(node.GetText())-1]
+}
+
+// just return the text
+func identTerminalToString(node antlr.Token) string {
+	return node.GetText()
+}
+
+func offsetTerminalToInt(node antlr.Token) int {
+	return alignmentOrOffset(node, "offset=")
+}
+
+func alignTerminalToInt(node antlr.Token) int {
+	return alignmentOrOffset(node, "align=")
+}
+
+func alignmentOrOffset(node antlr.Token, prefix string) int {
+	t := node.GetText()[len(prefix):]
+	i, err := strconv.Atoi(t)
+	if err != nil {
+		panic("unable to understand alignment value") // should never happen
+	}
+	return i
 }
 
 func stringTerminalToString(node antlr.Token) string {

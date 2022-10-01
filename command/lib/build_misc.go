@@ -19,6 +19,10 @@ type Builder struct {
 
 	currentTypeAnnotation *TypeAnnotation
 
+	currentContainer    Container
+	currentStmt         Stmt // ops are also stmts
+	currentNestingLevel int
+
 	module []*Module
 }
 
