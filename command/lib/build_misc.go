@@ -4,25 +4,8 @@ package lib
 type Builder struct {
 	*BaseWasmListener
 
-	// current here means "it is being constructed if the value is not nil"
-	currentModule *Module
-
-	currentTopLevelDef TopLevelDef
-
-	currentParamDef    *ParamDef
-	currentLocalDef    *LocalDef
-	currentFuncNameRef *FuncNameRef
-	currentFuncSpec    *FuncSpec
-	currentResultDef   *ResultDef
-	currentTypeNameSeq *TypeNameSeq
-
-	currentTypeAnnotation *TypeAnnotation
-
-	currentContainer    Container
-	currentStmt         Stmt // ops are also stmts
 	currentNestingLevel int
-
-	module []*Module
+	module              []*Module
 }
 
 // Module returns the first Module in the list of parsed Modules()

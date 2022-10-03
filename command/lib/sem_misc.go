@@ -1,6 +1,9 @@
 package lib
 
-import "bytes"
+import (
+	"bytes"
+	"github.com/antlr/antlr4/runtime/Go/antlr"
+)
 
 type IndentedStringer interface {
 	IndentedString(int) string
@@ -36,6 +39,14 @@ const (
 
 type TypeNameSeq struct {
 	Name []string
+}
+
+func NewTypeNameSeq(tokenSeq []antlr.Token) *TypeNameSeq {
+	result := make([]string, len(tokenSeq))
+	for i, t := range tokenSeq {
+		result[i] = t.GetText()
+	}
+	return &TypeNameSeq{Name: result}
 }
 
 func (t *TypeNameSeq) String() string {

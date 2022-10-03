@@ -4,33 +4,33 @@ import (
 	"fmt"
 )
 
-type TopLevelDefT int
+type TopLevelT int
 
 const (
-	TypeDefT   TopLevelDefT = 1
-	ImportDefT TopLevelDefT = 2
-	FuncDefT   TopLevelDefT = 3
+	TypeDefT   TopLevelT = 1
+	ImportDefT TopLevelT = 2
+	FuncDefT   TopLevelT = 3
 )
 
-// TopLevelDef instances are the decls at the top level of a module
-type TopLevelDef interface {
+// TopLevel instances are the decls at the top level of a module
+type TopLevel interface {
 	IndentedStringer
-	TopLevelType() TopLevelDefT
+	TopLevelType() TopLevelT
 }
 
 // TypeDef represents WAT like this:   (type (;9;) (func (param i64 i32 i32 i32) (result i64)))
 type TypeDef struct {
-	Annotation *TypeAnnotation
+	Annotation int
 	Func       *FuncSpec
 }
 
-func (t *TypeDef) TopLevelType() TopLevelDefT {
+func (t *TypeDef) TopLevelType() TopLevelT {
 	return TypeDefT
 }
 
 func (t *TypeDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("(type %s %s)", t.Annotation.String(),
+	buf.WriteString(fmt.Sprintf("(type (;%d;) %s)", t.Annotation,
 		t.Func.String()))
 	return buf.String()
 }
@@ -42,7 +42,7 @@ type ImportDef struct {
 	FuncNameRef *FuncNameRef
 }
 
-func (i *ImportDef) TopLevelType() TopLevelDefT {
+func (i *ImportDef) TopLevelType() TopLevelT {
 	return ImportDefT
 }
 
@@ -64,7 +64,7 @@ type FuncDef struct {
 	Code   []Stmt
 }
 
-func (f *FuncDef) TopLevelType() TopLevelDefT {
+func (f *FuncDef) TopLevelType() TopLevelT {
 	return FuncDefT
 }
 

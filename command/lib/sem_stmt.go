@@ -24,11 +24,11 @@ const (
 )
 
 type BlockStmt struct {
-	PreviousContainer Container
-	PreviousResult    *ResultDef
-	nestingLevel      int
-	Result            *ResultDef
-	Code              []Stmt
+	//PreviousContainer Container
+	//PreviousResult    *ResultDef
+	nestingLevel int
+	Result       *ResultDef
+	Code         []Stmt
 }
 
 func (b *BlockStmt) StmtType() StmtT {

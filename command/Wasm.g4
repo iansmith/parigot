@@ -1,127 +1,322 @@
 grammar Wasm;
 
-module:
-    Lparen ModuleWord (Lparen topLevel Rparen)* Rparen
+module returns [*Module m]:
+    Lparen ModuleWord t=topLevelSeq Rparen Rparen
+    {
+        m:=&Module{
+            Code: localctx.GetT().GetT(),
+        }
+        localctx.SetM(m)
+    }
     ;
 
-topLevel:
-    typeDef
-    | importDef
-    | funcDef
+topLevelSeq returns [[]TopLevel t]:
+    | tl+=topLevel (tl+=topLevel)*
     ;
 
-typeDef:
-    TypeWord typeAnno funcSpec
+topLevel returns [TopLevel t]:
+    Lparen
+    (
+        ty=typeDef { localctx.SetT(localctx.GetTy().GetT()) }
+        | i=importDef { localctx.SetT(localctx.GetI().GetI()) }
+        | f=funcDef { localctx.SetT(localctx.GetF().GetF()) }
+    )
+    Rparen
     ;
 
-importDef:
-    ImportWord QuotedString QuotedString funcNameRef
+typeDef returns [*TypeDef t]:
+    TypeWord a=typeAnno f=funcSpec
+    {
+        localctx.SetT(
+            &TypeDef{
+                Annotation: localctx.GetA().GetT(),
+                Func: localctx.GetF().GetF(),
+            },
+         );
+    }
+    ;
+
+importDef returns [*ImportDef i]:
+    ImportWord m=QuotedString im=QuotedString funcNameRef
+    {
+        moduleName:=localctx.GetM().GetText()[1:len(localctx.GetM().GetText())-1]
+        importedAs:=localctx.GetIm().GetText()[1:len(localctx.GetIm().GetText())-1]
+        localctx.SetI(
+            &ImportDef{
+                ModuleName:moduleName,
+                ImportedAs:importedAs,
+            },
+         );
+    }
     ;
 
 typeRef returns [*TypeRef t]:
     Lparen TypeWord Num Rparen
     {
-        localctx.SetT(&TypeRef{Num:TokenToInt($Num)})
+        localctx.SetT(&TypeRef{Num:NumToInt($Num)})
     }
     ;
 
-typeAnno:
-    Lparen TypeAnnotation Rparen
+typeAnno returns [int t]:
+    Lparen a=TypeAnnotation Rparen
+    {
+        localctx.SetT(annoToInt(localctx.GetA().GetText(),false))
+    }
     ;
 
-funcSpec:
-    Lparen FuncWord paramDef? resultDef? Rparen
+branchAnno returns [int t]:
+    Lparen a=BranchAnnotation Rparen
+    {
+        localctx.SetT(annoToInt(localctx.GetA().GetText(),true))
+    }
     ;
 
-funcNameRef:
-    Lparen FuncWord Ident typeRef Rparen
+constAnno returns [string t]:
+    Lparen a=ConstAnnotation Rparen
+    {
+        localctx.SetT(annoToString(localctx.GetA().GetText(),true))
+    }
     ;
 
-paramDef: Lparen ParamWord TypeName+ Rparen
+funcSpec returns [*FuncSpec f]:
+    Lparen FuncWord p=paramDef? r=resultDef? Rparen
+    {
+        localctx.SetF(&FuncSpec{
+            Param: localctx.GetP().GetP(),
+            Result: localctx.GetR().GetR(),
+        });
+    }
     ;
 
-resultDef: Lparen ResultWord TypeName+ Rparen
+funcNameRef returns [*FuncNameRef f]:
+    Lparen FuncWord i=Ident t=typeRef Rparen
+    {
+        localctx.SetF(
+            &FuncNameRef{
+                Name: localctx.GetI().GetText(),
+                Type: localctx.GetT().GetT(),
+            },
+        )
+    }
     ;
 
-localDef: Lparen LocalWord TypeName+ Rparen
+paramDef returns [*ParamDef p]: Lparen ParamWord seq=typeNameSeq Rparen
+    {
+        localctx.SetP(&ParamDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+    }
     ;
 
-funcDef:
-    FuncWord Ident typeRef paramDef? resultDef? localDef? funcBody
+typeNameSeq:
+    tn+=TypeName (tn+=TypeName)*
     ;
 
-funcBody:
-    stmt+
+resultDef returns [*ResultDef r]: Lparen ResultWord seq=typeNameSeq Rparen
+    {
+        localctx.SetR(&ResultDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+    }
     ;
 
-zeroOp:
-    ZeroOpWord
+localDef returns [*LocalDef l]: Lparen LocalWord seq=typeNameSeq Rparen
+    {
+        localctx.SetL(&LocalDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+    }
     ;
 
-argOp:
-    ArgWord ( StackPointerWord | Num | HexFloatConst) (Lparen (BlockAnnotation|ConstAnnotation) Rparen)?
+funcDef returns [*FuncDef f]:
+    FuncWord Ident t=typeRef p=paramDef? r=resultDef? l=localDef? fb=funcBody
+    {
+        localctx.SetF(
+        &FuncDef{
+            Type: localctx.GetT().GetT(),
+            Param: localctx.GetP().GetP(),
+            Result: localctx.GetR().GetR(),
+            Local: localctx.GetL().GetL(),
+            Code: localctx.GetFb().GetF(),
+        })
+    }
     ;
 
-callOp:
-    CallWord Ident
+funcBody returns [[]Stmt f]:
+    s=stmtSeq
+    {
+        localctx.SetF(localctx.GetS().GetS())
+    }
     ;
 
-callIndirectOp:
-    CallIndirectWord typeRef
+stmtSeq returns [[]Stmt s]:
+    st+=stmt (st+=stmt)*
     ;
 
-loadStore:
-    LoadStore (Offset)? (Align)?
+zeroOp returns [Stmt z]:
+    o=ZeroOpWord
+    {
+        localctx.SetZ(&ZeroOp{localctx.GetO().GetText()})
+    }
     ;
 
-brTable:
-    BrTableWord (Num Lparen BlockAnnotation Rparen)+
+argOp returns [Stmt a]:
+    o=ArgWord ( s=StackPointerWord | n=Num | h=HexFloatConst) (Lparen (b=branchAnno|c=constAnno) Rparen)?
+    {
+        op:=&ArgOp{Op:localctx.GetO().GetText()}
+        if localctx.GetS()!=nil {
+            op.Special=new(SpecialIdT)
+            *op.Special=StackPointer
+        }
+        if localctx.GetN()!=nil {
+            op.IntArg=new(int)
+            *op.IntArg=numToInt(localctx.GetN().GetText())
+        }
+        if localctx.GetH()!=nil {
+            op.FloatArg=new(string)
+            *op.FloatArg=localctx.GetH().GetText()
+        }
+        if localctx.GetB()!=nil {
+            op.BranchAnno = new(int)
+            *op.BranchAnno= annoToInt(localctx.GetB().GetText(),true)
+        }
+        if localctx.GetC()!=nil {
+            op.ConstAnno = new(string)
+            *op.ConstAnno= annoToString(localctx.GetC().GetText(),true)
+        }
+
+    }
     ;
 
-intConst:
-    ConstIntWord Num
+callOp returns [Stmt c]:
+    CallWord i=Ident
+    {
+        localctx.SetC(
+            &CallOp{
+                Arg:localctx.GetI().GetText(),
+            },
+        )
+    }
     ;
 
-globalDef:
-    GlobalWord TypeAnnotation? Ident typeStmt valueStmt
+callIndirectOp returns [Stmt c]:
+    CallIndirectWord t=typeRef
+    {
+        localctx.SetC(
+            &IndirectCallOp{
+                Type: localctx.GetT().GetT(),
+            },
+        )
+    }
     ;
 
-typeStmt:
-    stmt
+loadStore returns [Stmt l]:
+    lo=LoadStore (o=Offset)? (a=Align)?
+    {
+        op:=&LoadStoreOp{
+            Op:localctx.GetLo().GetText(),
+        }
+        if localctx.GetO()!=nil {
+            op.Offset=new(int)
+            *op.Offset=numToInt(localctx.GetO().GetText()[len("offset="):])
+        }
+        if localctx.GetA()!=nil {
+            op.Align=new(int)
+            *op.Align=numToInt(localctx.GetA().GetText()[len("align="):])
+        }
+        localctx.SetL(op)
+    }
     ;
 
-valueStmt:
-    stmt
+brTable returns [Stmt b]:
+    BrTableWord br=brTableTargetSeq
+    {
+        localctx.SetB(
+            &BrTableOp{Target:localctx.GetBr().GetB()},
+        )
+    }
     ;
 
-stmt:
-    blockStmt
-    | ifStmt
-    | loopStmt
-    | zeroOp
-    | argOp
-    | loadStore
-    | callOp
-    | callIndirectOp
-    | brTable
-    | globalDef
+brTableTargetSeq returns [[]*BranchTarget b]:
+    t+=brTableTarget (t+=brTableTarget)*
     ;
 
-blockStmt:
-    BlockWord resultDef? stmt+ EndWord
+brTableTarget returns [*BranchTarget b]:
+    n=Num Lparen br=BranchAnnotation Rparen
+    {
+        localctx.SetB(&BranchTarget{
+            Num:numToInt(localctx.GetN().GetText()),
+            Branch:annoToInt(localctx.GetBr().GetText(),true),
+            })
+    }
     ;
 
-loopStmt:
-    LoopWord stmt+ EndWord
+globalDef returns [Stmt g]:
+    GlobalWord a=TypeAnnotation? i=Ident t=stmt v=stmt
+    {
+        op:=&GlobalOp{
+            Name:localctx.GetI().GetText(),
+            Type: localctx.GetT().GetS(),
+            Value: localctx.GetV().GetS(),
+        }
+        if localctx.GetA()!=nil {
+            op.Anno=new(int)
+            *op.Anno=annoToInt(localctx.GetA().GetText(),false)
+        }
+        localctx.SetG(op)
+    }
     ;
 
-ifStmt:
-    IfWord resultDef? stmt+ (elsePart stmt+)? EndWord
+mut returns [Stmt m]:
+    MutWord t=TypeName
+    {
+        localctx.SetM(&MutOp{localctx.GetT().GetText()})
+    }
     ;
 
-// slightly hacky: I use this construction to get a call Enter/ExitElsePart on the builder
-elsePart:
-    ElseWord
+stmt returns [Stmt s]:
+    b=blockStmt { localctx.SetS(localctx.GetB().GetB()) }
+    | f=ifStmt  { localctx.SetS(localctx.GetF().GetI()) }
+    | l=loopStmt  { localctx.SetS(localctx.GetL().GetL()) }
+    | z=zeroOp { localctx.SetS(localctx.GetZ().GetZ()) }
+    | a=argOp { localctx.SetS(localctx.GetA().GetA()) }
+    | ls=loadStore { localctx.SetS(localctx.GetLs().GetL()) }
+    | c=callOp { localctx.SetS(localctx.GetC().GetC()) }
+    | i=callIndirectOp { localctx.SetS(localctx.GetI().GetC()) }
+    | br=brTable { localctx.SetS(localctx.GetBr().GetB()) }
+    | g=globalDef { localctx.SetS(localctx.GetG().GetG()) }
+    {
+    }
+    ;
+
+blockStmt returns [Stmt b]:
+    BlockWord r=resultDef? s=stmtSeq EndWord
+    {
+        block:=&BlockStmt{
+            Code:localctx.GetS().GetS(),
+        }
+        if localctx.GetR()!=nil {
+            block.Result = localctx.GetR().GetR()
+        }
+    }
+    ;
+
+loopStmt returns [Stmt l]:
+    LoopWord s=stmtSeq EndWord
+    {
+        localctx.SetL(&LoopStmt{&BlockStmt{Code:localctx.GetS().GetS()}})
+    }
+    ;
+
+ifStmt returns [Stmt i]:
+    IfWord r=resultDef? s1=stmtSeq (elsePart s2=stmtSeq)? EndWord
+    {
+        ifStmt:=&IfStmt{
+            IfPart:localctx.GetS1().GetS(),
+        }
+        if localctx.
+        GetS2()!=nil {
+            ifStmt.ElsePart=localctx.GetS2().GetS()
+        }
+        if localctx.GetR()!=nil {
+            ifStmt.Result = localctx.GetR().GetR()
+        }
+        localctx.SetI(ifStmt)
+    }
     ;
 
     ////////// older ////////
@@ -142,6 +337,7 @@ EndWord: 'end';
 LoopWord: 'loop';
 BrTableWord: 'br_table';
 GlobalWord: 'global';
+MutWord: 'mut';
 
 TypeName: 'i32' | 'i64' | 'f64' | 'f32';
 
@@ -238,7 +434,8 @@ Quote: '"';
 Num: ('-')? ( '0' .. '9')+;
 fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@') ;
 fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| '0'..'9');
-Ident: IdentFirst IdentAfter* ;
+Ident:IdentFirst IdentAfter*;
+
 fragment Digit: '0'..'9';
 ConstValue: ('-')?  '0' | ('-')? Digit '.' Digit+ 'e' ('+'|'-') Digit (Digit)? ;
 
@@ -249,7 +446,7 @@ Align: 'align=' ( '0' .. '9')+;
 
 // annotations look like ;blah;
 ConstAnnotation: ';' '=' ConstValue ';' ;
-BlockAnnotation: ';' '@' Digit+ ';' ;
+BranchAnnotation: ';' '@' Digit+ ';' ;
 TypeAnnotation: ';'  Digit+ ';' ;
 
 fragment HexByteValue: '\\' ( '0' .. '9' | 'a' .. 'f') ( '0' .. '9' | 'a' .. 'f');

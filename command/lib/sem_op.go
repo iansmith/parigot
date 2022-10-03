@@ -19,6 +19,7 @@ const (
 	IndirectCallT OpT = 6
 	TableT        OpT = 7
 	GlobalT       OpT = 8
+	MutOpT        OpT = 9
 )
 
 type SpecialIdT int
@@ -132,10 +133,10 @@ func (i *IndirectCallOp) IndentedString(indented int) string {
 }
 
 type CallOp struct {
-	Op         string
-	Arg        string
-	Branch     int
-	ConstValue *string
+	//Op         string
+	Arg string
+	//Branch     int
+	//ConstValue *string
 }
 
 func (i *CallOp) OpType() OpT {
@@ -148,40 +149,40 @@ func (i *CallOp) StmtType() StmtT {
 
 func (i *CallOp) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("%s %s", i.Op, i.Arg))
+	buf.WriteString(fmt.Sprintf("call %s", i.Arg))
 	return buf.String()
 }
 
 type BranchTarget struct {
-	Num   int
-	Block int
+	Num    int
+	Branch int
 }
 
-type BrTable struct {
+type BrTableOp struct {
 	Target []*BranchTarget
 }
 
-func (i *BrTable) OpType() OpT {
+func (i *BrTableOp) OpType() OpT {
 	return BrTableT
 }
 
-func (i *BrTable) StmtType() StmtT {
+func (i *BrTableOp) StmtType() StmtT {
 	return OpStmtT
 }
 
-func (b *BrTable) IndentedString(indented int) string {
+func (b *BrTableOp) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
 	buf.WriteString("br_table")
 	for _, t := range b.Target {
-		buf.WriteString(fmt.Sprintf(" %d (;@%d;)", t.Num, t.Block))
+		buf.WriteString(fmt.Sprintf(" %d (;@%d;)", t.Num, t.Branch))
 	}
 	return buf.String()
 }
 
 type GlobalOp struct {
 	Name  string
-	Value string
-	Type  string
+	Value Stmt
+	Type  Stmt
 	Anno  *int
 }
 
@@ -200,5 +201,23 @@ func (g *GlobalOp) IndentedString(indented int) string {
 		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
 	}
 	buf.WriteString(fmt.Sprintf("global %s %s %s", g.Name, g.Value, g.Type))
+	return buf.String()
+}
+
+type MutOp struct {
+	Type string
+}
+
+func (g *MutOp) OpType() OpT {
+	return MutOpT
+}
+
+func (g *MutOp) StmtType() StmtT {
+	return OpStmtT
+}
+
+func (g *MutOp) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("mut " + g.Type)
 	return buf.String()
 }
