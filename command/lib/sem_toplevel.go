@@ -10,6 +10,9 @@ const (
 	TypeDefT   TopLevelT = 1
 	ImportDefT TopLevelT = 2
 	FuncDefT   TopLevelT = 3
+	TableDefT  TopLevelT = 4
+	MemoryDefT TopLevelT = 5
+	GlobalDefT TopLevelT = 6
 )
 
 // TopLevel instances are the decls at the top level of a module
@@ -95,4 +98,61 @@ func (f *FuncDef) IndentedString(indented int) string {
 
 func (f *FuncDef) AddStmt(s Stmt) {
 	f.Code = append(f.Code, s)
+}
+
+type TableDef struct {
+	Type     *int
+	Min, Max int
+}
+
+func (t *TableDef) TopLevelType() TopLevelT {
+	return TableDefT
+}
+func (t *TableDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("table")
+	if t.Type != nil {
+		buf.WriteString(fmt.Sprintf(" ;%d;", t.Type))
+	}
+	buf.WriteString(fmt.Sprintf("%d %d funcref", t.Min, t.Max))
+	return buf.String()
+}
+
+type MemoryDef struct {
+	Type *int
+	Size int
+}
+
+func (m *MemoryDef) TopLevelType() TopLevelT {
+	return MemoryDefT
+}
+func (m *MemoryDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("memory")
+	if m.Type != nil {
+		buf.WriteString(fmt.Sprintf(" ;%d;", *m.Type))
+	}
+	buf.WriteString(fmt.Sprintf(" %d", m.Size))
+	return buf.String()
+}
+
+type GlobalDef struct {
+	Name  string
+	Value Stmt
+	Type  Stmt
+	Anno  *int
+}
+
+func (g *GlobalDef) TopLevelType() TopLevelT {
+	return GlobalDefT
+}
+
+func (g *GlobalDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("global ")
+	if g.Anno != nil {
+		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
+	}
+	buf.WriteString(fmt.Sprintf("global %s %s %s", g.Name, g.Value, g.Type))
+	return buf.String()
 }

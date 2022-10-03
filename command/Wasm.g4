@@ -1,10 +1,10 @@
 grammar Wasm;
 
 module returns [*Module m]:
-    Lparen ModuleWord t=topLevelSeq Rparen Rparen
+    Lparen ModuleWord topLevelSeq Rparen Rparen
     {
         m:=&Module{
-            Code: localctx.GetT().GetT(),
+            Code: $topLevelSeq.t,
         }
         localctx.SetM(m)
     }
@@ -12,24 +12,34 @@ module returns [*Module m]:
 
 topLevelSeq returns [[]TopLevel t]:
     | tl+=topLevel (tl+=topLevel)*
+    {
+        result:=make([]TopLevel,len(localctx.GetTl()))
+        for i,n:=range localctx.GetTl() {
+            result[i]=n.GetT()
+        }
+        localctx.SetT(result)
+    }
     ;
 
 topLevel returns [TopLevel t]:
     Lparen
     (
-        ty=typeDef { localctx.SetT(localctx.GetTy().GetT()) }
-        | i=importDef { localctx.SetT(localctx.GetI().GetI()) }
-        | f=funcDef { localctx.SetT(localctx.GetF().GetF()) }
+        typeDef { $t=$typeDef.t }
+        | importDef { $t=$importDef.i }
+        | funcDef { $t=$funcDef.f }
+        | tableDef { $t=$tableDef.t}
+        | memoryDef { $t=$memoryDef.m }
+        | globalDef { $t=$globalDef.g }
     )
     Rparen
     ;
 
 typeDef returns [*TypeDef t]:
-    TypeWord a=typeAnno f=funcSpec
+    TypeWord typeAnno f=funcSpec
     {
         localctx.SetT(
             &TypeDef{
-                Annotation: localctx.GetA().GetT(),
+                Annotation: $typeAnno.t,
                 Func: localctx.GetF().GetF(),
             },
          );
@@ -53,37 +63,47 @@ importDef returns [*ImportDef i]:
 typeRef returns [*TypeRef t]:
     Lparen TypeWord Num Rparen
     {
-        localctx.SetT(&TypeRef{Num:NumToInt($Num)})
+        localctx.SetT(&TypeRef{Num:numToInt($Num.GetText())})
     }
     ;
 
 typeAnno returns [int t]:
-    Lparen a=TypeAnnotation Rparen
+    Lparen TypeAnnotation Rparen
     {
-        localctx.SetT(annoToInt(localctx.GetA().GetText(),false))
+        localctx.SetT(annoToInt($TypeAnnotation.GetText(),false))
     }
     ;
 
 branchAnno returns [int t]:
-    Lparen a=BranchAnnotation Rparen
+    Lparen BranchAnnotation Rparen
     {
-        localctx.SetT(annoToInt(localctx.GetA().GetText(),true))
+        localctx.SetT(annoToInt($BranchAnnotation.GetText(),true))
     }
     ;
 
 constAnno returns [string t]:
-    Lparen a=ConstAnnotation Rparen
+    Lparen ConstAnnotation Rparen
     {
-        localctx.SetT(annoToString(localctx.GetA().GetText(),true))
+        localctx.SetT(annoToString($ConstAnnotation.GetText(),true))
     }
     ;
 
 funcSpec returns [*FuncSpec f]:
-    Lparen FuncWord p=paramDef? r=resultDef? Rparen
+    Lparen FuncWord paramDef? resultDef? Rparen
     {
+        var pd *ParamDef
+        var r *ResultDef
+
+        if localctx.Get_paramDef()!=nil {
+            pd=$paramDef.p
+        }
+        if localctx.Get_resultDef()!=nil {
+            r=$resultDef.r
+        }
+
         localctx.SetF(&FuncSpec{
-            Param: localctx.GetP().GetP(),
-            Result: localctx.GetR().GetR(),
+            Param: pd,
+            Result: r,
         });
     }
     ;
@@ -100,51 +120,84 @@ funcNameRef returns [*FuncNameRef f]:
     }
     ;
 
-paramDef returns [*ParamDef p]: Lparen ParamWord seq=typeNameSeq Rparen
+paramDef returns [*ParamDef p]: Lparen ParamWord typeNameSeq Rparen
     {
-        localctx.SetP(&ParamDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+        result:=TypeNameSeq{Name:$typeNameSeq.t}
+        localctx.SetP(&ParamDef{&result})
     }
     ;
 
-typeNameSeq:
+typeNameSeq returns [[]string t]:
     tn+=TypeName (tn+=TypeName)*
+    {
+        result:=make([]string,len(localctx.GetTn()))
+        for i,n:=range localctx.GetTn() {
+            result[i]=n.GetText()
+        }
+        $t=result
+    }
+
     ;
 
-resultDef returns [*ResultDef r]: Lparen ResultWord seq=typeNameSeq Rparen
+resultDef returns [*ResultDef r]: Lparen ResultWord typeNameSeq Rparen
     {
-        localctx.SetR(&ResultDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+        result:=TypeNameSeq{Name:$typeNameSeq.t}
+        localctx.SetR(&ResultDef{&result})
     }
     ;
 
-localDef returns [*LocalDef l]: Lparen LocalWord seq=typeNameSeq Rparen
+localDef returns [*LocalDef l]: Lparen LocalWord typeNameSeq Rparen
     {
-        localctx.SetL(&LocalDef{NewTypeNameSeq(localctx.GetSeq().GetTn())})
+        result:=TypeNameSeq{Name:$typeNameSeq.t}
+        localctx.SetL(&LocalDef{&result})
     }
     ;
 
 funcDef returns [*FuncDef f]:
-    FuncWord Ident t=typeRef p=paramDef? r=resultDef? l=localDef? fb=funcBody
+    FuncWord Ident typeRef paramDef? resultDef? localDef? funcBody
     {
+        var pd *ParamDef
+        var r *ResultDef
+        var l *LocalDef
+
+        if localctx.Get_paramDef()!=nil {
+            pd=$paramDef.p
+        }
+        if localctx.Get_resultDef()!=nil {
+            r=$resultDef.r
+        }
+        if localctx.Get_localDef()!=nil {
+            l=$localDef.l
+        }
+
         localctx.SetF(
         &FuncDef{
-            Type: localctx.GetT().GetT(),
-            Param: localctx.GetP().GetP(),
-            Result: localctx.GetR().GetR(),
-            Local: localctx.GetL().GetL(),
-            Code: localctx.GetFb().GetF(),
+            Name:$Ident.GetText(),
+            Type: $typeRef.t,
+            Param: pd,
+            Result: r,
+            Local: l,
+            Code: $funcBody.f,
         })
     }
     ;
 
 funcBody returns [[]Stmt f]:
-    s=stmtSeq
+    stmtSeq
     {
-        localctx.SetF(localctx.GetS().GetS())
+        $f=($stmtSeq.s)
     }
     ;
 
 stmtSeq returns [[]Stmt s]:
     st+=stmt (st+=stmt)*
+    {
+        result:=make([]Stmt,len(localctx.GetSt()))
+        for i,n:=range localctx.GetSt() {
+            result[i]=n.GetS()
+        }
+        localctx.SetS(result)
+    }
     ;
 
 zeroOp returns [Stmt z]:
@@ -155,7 +208,7 @@ zeroOp returns [Stmt z]:
     ;
 
 argOp returns [Stmt a]:
-    o=ArgWord ( s=StackPointerWord | n=Num | h=HexFloatConst) (Lparen (b=branchAnno|c=constAnno) Rparen)?
+    o=ArgWord ( s=StackPointerWord | n=Num | h=HexFloatConst) (branchAnno|c=constAnno) ?
     {
         op:=&ArgOp{Op:localctx.GetO().GetText()}
         if localctx.GetS()!=nil {
@@ -170,13 +223,13 @@ argOp returns [Stmt a]:
             op.FloatArg=new(string)
             *op.FloatArg=localctx.GetH().GetText()
         }
-        if localctx.GetB()!=nil {
+        if localctx.Get_branchAnno()!=nil {
             op.BranchAnno = new(int)
-            *op.BranchAnno= annoToInt(localctx.GetB().GetText(),true)
+            *op.BranchAnno= $branchAnno.t
         }
         if localctx.GetC()!=nil {
             op.ConstAnno = new(string)
-            *op.ConstAnno= annoToString(localctx.GetC().GetText(),true)
+            *op.ConstAnno= $constAnno.t
         }
 
     }
@@ -236,26 +289,26 @@ brTableTargetSeq returns [[]*BranchTarget b]:
     ;
 
 brTableTarget returns [*BranchTarget b]:
-    n=Num Lparen br=BranchAnnotation Rparen
+    n=Num branchAnno
     {
         localctx.SetB(&BranchTarget{
             Num:numToInt(localctx.GetN().GetText()),
-            Branch:annoToInt(localctx.GetBr().GetText(),true),
+            Branch:$branchAnno.t,
             })
     }
     ;
 
-globalDef returns [Stmt g]:
-    GlobalWord a=TypeAnnotation? i=Ident t=stmt v=stmt
+globalDef returns [TopLevel g]:
+    GlobalWord typeAnno i=Ident t=stmt v=stmt
     {
         op:=&GlobalOp{
-            Name:localctx.GetI().GetText(),
-            Type: localctx.GetT().GetS(),
-            Value: localctx.GetV().GetS(),
+            Name:$i.GetText(),
+            Type: $t.s,
+            Value: $v.s,
         }
-        if localctx.GetA()!=nil {
+        if localctx.Get_typeAnno!=nil {
             op.Anno=new(int)
-            *op.Anno=annoToInt(localctx.GetA().GetText(),false)
+            *op.Anno=$typeAnno.t
         }
         localctx.SetG(op)
     }
@@ -269,7 +322,7 @@ mut returns [Stmt m]:
     ;
 
 stmt returns [Stmt s]:
-    b=blockStmt { localctx.SetS(localctx.GetB().GetB()) }
+    b=blockStmt {  $s = $blockStmt.b }
     | f=ifStmt  { localctx.SetS(localctx.GetF().GetI()) }
     | l=loopStmt  { localctx.SetS(localctx.GetL().GetL()) }
     | z=zeroOp { localctx.SetS(localctx.GetZ().GetZ()) }
@@ -278,49 +331,69 @@ stmt returns [Stmt s]:
     | c=callOp { localctx.SetS(localctx.GetC().GetC()) }
     | i=callIndirectOp { localctx.SetS(localctx.GetI().GetC()) }
     | br=brTable { localctx.SetS(localctx.GetBr().GetB()) }
-    | g=globalDef { localctx.SetS(localctx.GetG().GetG()) }
-    {
-    }
     ;
 
 blockStmt returns [Stmt b]:
-    BlockWord r=resultDef? s=stmtSeq EndWord
+    BlockWord resultDef? stmtSeq EndWord
     {
         block:=&BlockStmt{
-            Code:localctx.GetS().GetS(),
+            Code:$stmtSeq.s,
         }
-        if localctx.GetR()!=nil {
-            block.Result = localctx.GetR().GetR()
+        if localctx.Get_resultDef()!=nil {
+            block.Result = $resultDef.r
         }
+        $b=block
     }
     ;
 
 loopStmt returns [Stmt l]:
-    LoopWord s=stmtSeq EndWord
+    LoopWord stmtSeq EndWord
     {
-        localctx.SetL(&LoopStmt{&BlockStmt{Code:localctx.GetS().GetS()}})
+        localctx.SetL(&LoopStmt{&BlockStmt{Code:$stmtSeq.s}})
     }
     ;
 
 ifStmt returns [Stmt i]:
-    IfWord r=resultDef? s1=stmtSeq (elsePart s2=stmtSeq)? EndWord
+    IfWord resultDef? s1=stmtSeq (ElseWord s2=stmtSeq)? EndWord
     {
+        var r *ResultDef
+        if localctx.Get_resultDef() !=nil {
+            r = $resultDef.r
+        }
         ifStmt:=&IfStmt{
-            IfPart:localctx.GetS1().GetS(),
+            IfPart:$s1.s,
+            Result: r,
         }
-        if localctx.
-        GetS2()!=nil {
-            ifStmt.ElsePart=localctx.GetS2().GetS()
+        if $ctx.s2!=nil {
+            ifStmt.ElsePart=$s2.s
         }
-        if localctx.GetR()!=nil {
-            ifStmt.Result = localctx.GetR().GetR()
-        }
-        localctx.SetI(ifStmt)
+        $i=ifStmt
     }
     ;
 
-    ////////// older ////////
+tableDef returns [TopLevel t]:
+    TableWord typeAnno? min=Num max=Num FuncRefWord
+    {
+        op:=&TableDef{Min:numToInt($min.GetText()),Max:numToInt($max.GetText())}
+        if localctx.Get_typeAnno()!=nil {
+            op.Type = new(int)
+            *op.Type = $typeAnno.t
+        }
+        $t=op
+    }
+    ;
 
+memoryDef returns [TopLevel m]:
+    MemoryWord typeAnno? size=Num
+    {
+        op:=&MemoryDef{Size:numToInt($size.GetText())}
+        if localctx.Get_typeAnno()!=nil {
+            op.Type = new(int)
+            *op.Type = $typeAnno.t
+        }
+        $m=op
+    }
+    ;
 
 // keywordish
 ModuleWord: 'module' ;
@@ -338,8 +411,10 @@ LoopWord: 'loop';
 BrTableWord: 'br_table';
 GlobalWord: 'global';
 MutWord: 'mut';
-
+TableWord: 'table';
+FuncRefWord: 'funcref';
 TypeName: 'i32' | 'i64' | 'f64' | 'f32';
+MemoryWord:'memory';
 
 fragment HexDigit: ('0' .. '9' | 'a'..'f');
 HexFloatConst: ('-')? ('0x')? HexDigit+ ('.' HexDigit+)? 'p' ('+' | '-') Digit+ ;

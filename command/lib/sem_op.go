@@ -17,9 +17,7 @@ const (
 	CallT         OpT = 4
 	BrTableT      OpT = 5
 	IndirectCallT OpT = 6
-	TableT        OpT = 7
-	GlobalT       OpT = 8
-	MutOpT        OpT = 9
+	MutOpT        OpT = 7
 )
 
 type SpecialIdT int
@@ -133,10 +131,7 @@ func (i *IndirectCallOp) IndentedString(indented int) string {
 }
 
 type CallOp struct {
-	//Op         string
 	Arg string
-	//Branch     int
-	//ConstValue *string
 }
 
 func (i *CallOp) OpType() OpT {
@@ -176,31 +171,6 @@ func (b *BrTableOp) IndentedString(indented int) string {
 	for _, t := range b.Target {
 		buf.WriteString(fmt.Sprintf(" %d (;@%d;)", t.Num, t.Branch))
 	}
-	return buf.String()
-}
-
-type GlobalOp struct {
-	Name  string
-	Value Stmt
-	Type  Stmt
-	Anno  *int
-}
-
-func (g *GlobalOp) OpType() OpT {
-	return GlobalT
-}
-
-func (g *GlobalOp) StmtType() StmtT {
-	return OpStmtT
-}
-
-func (g *GlobalOp) IndentedString(indented int) string {
-	buf := NewIndentedBuffer(indented)
-	buf.WriteString("global ")
-	if g.Anno != nil {
-		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
-	}
-	buf.WriteString(fmt.Sprintf("global %s %s %s", g.Name, g.Value, g.Type))
 	return buf.String()
 }
 
