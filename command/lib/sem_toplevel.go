@@ -13,6 +13,8 @@ const (
 	TableDefT  TopLevelT = 4
 	MemoryDefT TopLevelT = 5
 	GlobalDefT TopLevelT = 6
+	ExportDefT TopLevelT = 7
+	ElemDefT   TopLevelT = 8
 )
 
 // TopLevel instances are the decls at the top level of a module
@@ -137,10 +139,11 @@ func (m *MemoryDef) IndentedString(indented int) string {
 }
 
 type GlobalDef struct {
-	Name  string
-	Value Stmt
-	Type  Stmt
-	Anno  *int
+	Name    *string
+	Value   Stmt
+	Type    Stmt
+	Special *SpecialIdT
+	Anno    *int
 }
 
 func (g *GlobalDef) TopLevelType() TopLevelT {
@@ -150,9 +153,63 @@ func (g *GlobalDef) TopLevelType() TopLevelT {
 func (g *GlobalDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
 	buf.WriteString("global ")
+	if g.Name != nil {
+		buf.WriteString(*g.Name)
+	}
+	if g.Special != nil {
+		buf.WriteString(g.Special.String())
+	}
 	if g.Anno != nil {
 		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
 	}
-	buf.WriteString(fmt.Sprintf("global %s %s %s", g.Name, g.Value, g.Type))
+	buf.WriteString(fmt.Sprintf("%s %s", g.Type.IndentedString(0), g.Value.IndentedString(0)))
+	return buf.String()
+}
+
+type ExportDef struct {
+	Name   string
+	Func   *FuncNameRef
+	Memory *MemoryDef
+}
+
+func (e *ExportDef) TopLevelType() TopLevelT {
+	return ExportDefT
+}
+
+func (e *ExportDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("export " + e.Name)
+	if e.Func != nil {
+		buf.WriteString(fmt.Sprintf(" %s)", e.Func.String()))
+	}
+	if e.Memory != nil {
+		buf.WriteString(fmt.Sprintf(" %s)", e.Memory.IndentedString(0)))
+	}
+	buf.WriteString(fmt.Sprintf("export %s %s", e.Name, e.Func.String()))
+	return buf.String()
+}
+
+type ElemDef struct {
+	Const Stmt
+	Ident []string
+	Anno  *int
+}
+
+func (e *ElemDef) TopLevelType() TopLevelT {
+	return ElemDefT
+}
+
+func (e *ElemDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	if e.Anno != nil {
+		buf.WriteString(fmt.Sprintf(" (;%d;)", e.Anno))
+	}
+	buf.WriteString(fmt.Sprintf(" %s)", e.Const.IndentedString(0)))
+	for i := 0; i < len(e.Ident); i++ {
+		if i != 0 {
+			buf.WriteString(" ")
+		}
+		buf.WriteString(e.Ident[i])
+	}
 	return buf.String()
 }

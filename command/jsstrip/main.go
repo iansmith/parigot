@@ -29,5 +29,6 @@ func main() {
 	// Finally parse the expression
 	builder := &lib.Builder{}
 	antlr.ParseTreeWalkerDefault.Walk(builder, p.Module())
-	fmt.Printf("%s", builder.Module().IndentedString(0))
+	mod := builder.Module()
+	fmt.Printf("%s", mod.IndentedString(0))
 }

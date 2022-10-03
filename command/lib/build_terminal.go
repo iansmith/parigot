@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"strconv"
 )
@@ -34,20 +35,7 @@ func annoToString(raw string, p bool) string {
 	return raw[start : len(raw)-1]
 }
 
-// remove leading and trailing quote
-func quotedStringToString(node antlr.Token) string {
-	return node.GetText()[1 : len(node.GetText())-1]
-}
-
-func TokenToInt(node antlr.Token) int {
-	i, e := strconv.Atoi(node.GetText())
-	if e != nil {
-		panic("unable to understand token for int conversion") // should never happen
-	}
-	return i
-}
-
 // VisitTerminal is called when a terminal node is visited.
 func (b *Builder) VisitTerminal(node antlr.TerminalNode) {
-	//	fmt.Printf("xxx terminal %s\n", node.GetText())
+	fmt.Printf("xxx terminal %s\n", node.GetText())
 }
