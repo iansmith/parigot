@@ -15,6 +15,7 @@ const (
 	GlobalDefT TopLevelT = 6
 	ExportDefT TopLevelT = 7
 	ElemDefT   TopLevelT = 8
+	DataDefT   TopLevelT = 9
 )
 
 // TopLevel instances are the decls at the top level of a module
@@ -211,5 +212,22 @@ func (e *ElemDef) IndentedString(indented int) string {
 		}
 		buf.WriteString(e.Ident[i])
 	}
+	return buf.String()
+}
+
+type DataDef struct {
+	Segment    string
+	Const      Stmt
+	QuotedData string
+}
+
+func (d *DataDef) TopLevelType() TopLevelT {
+	return DataDefT
+}
+
+func (d *DataDef) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString(fmt.Sprintf("data %s %s %s %s", d.Segment, d.Const.IndentedString(0),
+		d.QuotedData))
 	return buf.String()
 }

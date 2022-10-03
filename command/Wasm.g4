@@ -1,7 +1,7 @@
 grammar Wasm;
 
 module returns [*Module m]:
-    Lparen ModuleWord topLevelSeq Rparen Rparen
+    Lparen ModuleWord topLevelSeq Rparen
     {
         m:=&Module{
             Code: $topLevelSeq.t,
@@ -32,6 +32,7 @@ topLevel returns [TopLevel t]:
         | globalDef { $t=$globalDef.g }
         | exportDef { $t=$exportDef.e }
         | elemDef { $t=$elemDef.e}
+        | dataDef { $t=$dataDef.d}
     )
     Rparen
     ;
@@ -137,10 +138,10 @@ funcSpec returns [*FuncSpec f]:
     ;
 
 funcNameRef returns [*FuncNameRef f]:
-    Lparen FuncWord i=Ident typeRef Rparen
+    Lparen FuncWord Ident typeRef? Rparen
     {
         op:=&FuncNameRef{
-            Name: localctx.GetI().GetText(),
+            Name: $Ident.GetText(),
         }
         if localctx.Get_typeRef()!=nil {
             op.Type = $typeRef.t
@@ -169,6 +170,18 @@ elemDef returns [*ElemDef e]:
             *op.Anno = $typeAnno.t
         }
         localctx.SetE(op)
+    }
+    ;
+
+dataDef returns [*DataDef d]:
+    DataWord Ident constStmt QuotedString
+    {
+        op:=&DataDef{
+            Segment: $Ident.GetText(),
+            Const: $constStmt.c,
+            QuotedData: $QuotedString.GetText(),
+        }
+        localctx.SetD(op)
     }
     ;
 
@@ -355,14 +368,14 @@ brTableTarget returns [*BranchTarget b]:
     ;
 
 constStmt returns [Stmt c]:
-    argOp
+    Lparen argOp Rparen
     {
         $c=$argOp.a
     }
     ;
 
 globalDef returns [TopLevel g]:
-    GlobalWord (i=Ident | s=StackPointerWord| typeAnno) Lparen mutDef Rparen Lparen constStmt Rparen
+    GlobalWord (i=Ident | s=StackPointerWord| typeAnno) Lparen mutDef Rparen constStmt
     {
         op:=&GlobalDef{
             Type: $mutDef.m,
@@ -487,7 +500,8 @@ FuncRefWord: 'funcref';
 TypeName: 'i32' | 'i64' | 'f64' | 'f32';
 MemoryWord:'memory';
 ExportWord: 'export';
-ElemWord:'elem';
+ElemWord: 'elem';
+DataWord: 'data';
 
 fragment HexDigit: ('0' .. '9' | 'a'..'f');
 HexFloatConst: ('-')? ('0x')? HexDigit+ ('.' HexDigit+)? 'p' ('+' | '-') Digit+ ;
