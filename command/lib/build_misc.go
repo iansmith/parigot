@@ -9,7 +9,6 @@ type Builder struct {
 
 	currentTopLevelDef TopLevelDef
 
-	currentTypeRef     *TypeRef
 	currentParamDef    *ParamDef
 	currentLocalDef    *LocalDef
 	currentFuncNameRef *FuncNameRef

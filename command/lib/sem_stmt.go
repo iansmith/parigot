@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"fmt"
+	"math"
 )
 
 type Stmt interface {
@@ -64,7 +65,11 @@ func (i *IfStmt) IndentedString(indented int) string {
 	controlStmtToString("if", i.nestingLevel, i.Result, buf)
 	buf.WriteString(stmtsToString(i.IfPart, indented+2))
 	if i.ElsePart != nil {
-		buf.WriteString(controlStmtToString("else", i.nestingLevel, nil, buf))
+		buf.WriteString("\n") //terminate previous line
+		for j := 0; j < indented; j++ {
+			buf.WriteString(" ")
+		}
+		controlStmtToString("else", math.MinInt, nil, buf)
 		buf.WriteString(stmtsToString(i.ElsePart, indented+2))
 	}
 	outputEnd(indented, buf)
@@ -105,8 +110,10 @@ func controlStmtToString(name string, nestingLevel int, result *ResultDef, buf *
 	if result != nil {
 		buf.WriteString(" " + result.String())
 	}
-	buf.WriteString(fmt.Sprintf("  ;; label = @%d",
-		nestingLevel))
+	if nestingLevel > 0 {
+		buf.WriteString(fmt.Sprintf("  ;; label = @%d",
+			nestingLevel))
+	}
 	return buf.String()
 }
 

@@ -1,6 +1,8 @@
 package lib
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Op interface {
 	IndentedStringer
@@ -10,12 +12,24 @@ type OpT int
 
 const (
 	ZeroT         OpT = 1
-	Int1T         OpT = 2
-	I32LoadStoreT OpT = 3
-	I64LoadStoreT OpT = 4
-	Id1T          OpT = 5
-	BrTableT      OpT = 6
+	ArgT          OpT = 2
+	LoadStoreT    OpT = 3
+	CallT         OpT = 4
+	BrTableT      OpT = 5
+	IndirectCallT OpT = 6
+	TableT        OpT = 7
+	GlobalT       OpT = 8
 )
+
+type SpecialIdT int
+
+const (
+	StackPointer SpecialIdT = 1
+)
+
+func (s *SpecialIdT) String() string {
+	return "$__stack_pointer"
+}
 
 type ZeroOp struct {
 	Op string
@@ -35,113 +49,104 @@ func (z *ZeroOp) IndentedString(indented int) string {
 	return buf.String()
 }
 
-type Int1Op struct {
-	Op           string
-	Arg          int
-	BranchTarget *int
+type ArgOp struct {
+	Op         string
+	IntArg     *int
+	FloatArg   *string
+	BranchAnno *int
+	ConstAnno  *string
+	Special    *SpecialIdT
 }
 
-func (i *Int1Op) OpType() OpT {
-	return Int1T
+func (i *ArgOp) OpType() OpT {
+	return ArgT
 }
 
-func (i *Int1Op) StmtType() StmtT {
+func (i *ArgOp) StmtType() StmtT {
 	return OpStmtT
 }
 
-func (i *Int1Op) IndentedString(indented int) string {
+func (i *ArgOp) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("%s %d", i.Op, i.Arg))
-	if i.BranchTarget != nil {
-		buf.WriteString(fmt.Sprintf(" (;@%d;)"))
+	var arg string
+	switch {
+	case i.Special != nil:
+		arg = i.Special.String()
+	case i.IntArg != nil:
+		arg = fmt.Sprint(*i.IntArg)
+	case i.FloatArg != nil:
+		arg = fmt.Sprint(*i.FloatArg)
+	}
+	buf.WriteString(fmt.Sprintf("%s %s", i.Op, arg))
+	if i.BranchAnno != nil {
+		buf.WriteString(fmt.Sprintf(" (;@%d;)", *i.BranchAnno))
+	}
+	if i.ConstAnno != nil {
+		buf.WriteString(fmt.Sprintf(" (;@=%s;)", *i.ConstAnno))
 	}
 	return buf.String()
 }
 
-type I64LoadStore struct {
-	IsStore bool
-	Align   *int
-	Offset  *int
-}
-
-func (i *I64LoadStore) OpType() OpT {
-	return I64LoadStoreT
-}
-
-func (i *I64LoadStore) StmtType() StmtT {
-	return OpStmtT
-}
-
-func (i *I64LoadStore) IndentedString(indented int) string {
-	buf := NewIndentedBuffer(indented)
-	op := "i64.load"
-	if i.IsStore {
-		op = "i64.store"
-	}
-	buf.WriteString(op)
-	if i.Offset != nil {
-		buf.WriteString(fmt.Sprintf(" offset=%d", i.Offset))
-	}
-	if i.Align != nil {
-		buf.WriteString(fmt.Sprintf(" align=%d", i.Align))
-	}
-	return buf.String()
-}
-func (i *I64LoadStore) SetOffset(offset int) {
-	i.Offset = new(int)
-	*i.Offset = offset
-}
-func (i *I64LoadStore) SetAlign(align int) {
-	i.Align = new(int)
-	*i.Align = align
-}
-
-type I32LoadStore struct {
-	IsStore bool
-	Offset  *int
-}
-
-func (i *I32LoadStore) OpType() OpT {
-	return I32LoadStoreT
-}
-
-func (i *I32LoadStore) StmtType() StmtT {
-	return OpStmtT
-}
-
-func (i *I32LoadStore) IndentedString(indented int) string {
-	buf := NewIndentedBuffer(indented)
-	op := "i32.load"
-	if i.IsStore {
-		op = "i32.store"
-	}
-	buf.WriteString(op)
-	if i.Offset != nil {
-		buf.WriteString(fmt.Sprintf(" offset=%d", i.Offset))
-	}
-	return buf.String()
-}
-
-func (i *I32LoadStore) SetOffset(offset int) {
-	i.Offset = new(int)
-	*i.Offset = offset
-}
-
-type Id1Op struct {
+type LoadStoreOp struct {
 	Op     string
-	Arg    string
-	Branch int
+	Align  *int
+	Offset *int
 }
 
-func (i *Id1Op) OpType() OpT {
-	return Id1T
+func (m *LoadStoreOp) OpType() OpT {
+	return LoadStoreT
 }
 
-func (i *Id1Op) StmtType() StmtT {
+func (m *LoadStoreOp) StmtType() StmtT {
+	return OpStmtT
+}
+func (m *LoadStoreOp) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	align := ""
+	offset := ""
+	if m.Align != nil {
+		align = fmt.Sprintf(" align=%d", *m.Align)
+	}
+	if m.Offset != nil {
+		offset = fmt.Sprintf(" offset=%d", *m.Offset)
+	}
+	buf.WriteString(fmt.Sprintf("%s%s%s", m.Op, offset, align))
+	return buf.String()
+}
+
+type IndirectCallOp struct {
+	Type *TypeRef
+}
+
+func (i *IndirectCallOp) OpType() OpT {
+	return IndirectCallT
+}
+
+func (i *IndirectCallOp) StmtType() StmtT {
+	return OpStmtT
+}
+func (i *IndirectCallOp) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString(fmt.Sprintf("call_indirect %s", i.Type.String()))
+	return buf.String()
+}
+
+type CallOp struct {
+	Op         string
+	Arg        string
+	Branch     int
+	ConstValue *string
+}
+
+func (i *CallOp) OpType() OpT {
+	return CallT
+}
+
+func (i *CallOp) StmtType() StmtT {
 	return OpStmtT
 }
 
-func (i *Id1Op) IndentedString(indented int) string {
+func (i *CallOp) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
 	buf.WriteString(fmt.Sprintf("%s %s", i.Op, i.Arg))
 	return buf.String()
@@ -170,5 +175,30 @@ func (b *BrTable) IndentedString(indented int) string {
 	for _, t := range b.Target {
 		buf.WriteString(fmt.Sprintf(" %d (;@%d;)", t.Num, t.Block))
 	}
+	return buf.String()
+}
+
+type GlobalOp struct {
+	Name  string
+	Value string
+	Type  string
+	Anno  *int
+}
+
+func (g *GlobalOp) OpType() OpT {
+	return GlobalT
+}
+
+func (g *GlobalOp) StmtType() StmtT {
+	return OpStmtT
+}
+
+func (g *GlobalOp) IndentedString(indented int) string {
+	buf := NewIndentedBuffer(indented)
+	buf.WriteString("global ")
+	if g.Anno != nil {
+		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
+	}
+	buf.WriteString(fmt.Sprintf("global %s %s %s", g.Name, g.Value, g.Type))
 	return buf.String()
 }

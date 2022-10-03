@@ -26,6 +26,11 @@ func blockAnnotationTerminalToInt(node antlr.Token) int {
 	return i
 }
 
+// remove leading and trailing ; and the =
+func constAnnotationTerminalToString(node antlr.Token) string {
+	return node.GetText()[2 : len(node.GetText())-1]
+}
+
 // remove annotation cruft
 func targetTerminalToBranchTarget(node antlr.Token) *BranchTarget {
 	parts := strings.Split(node.GetText(), " ")
@@ -86,11 +91,20 @@ func stringTerminalToString(node antlr.Token) string {
 
 func getTypeNameSeq(r *antlr.BaseParserRuleContext) []string {
 	tok := r.GetTokens(WasmLexerTypeName)
+	r.GetStart()
 	result := make([]string, len(tok))
 	for i, t := range tok {
 		result[i] = t.GetText()
 	}
 	return result
+}
+
+func TokenToInt(node antlr.Token) int {
+	i, e := strconv.Atoi(node.GetText())
+	if e != nil {
+		panic("unable to understand token for int conversion") // should never happen
+	}
+	return i
 }
 
 // VisitTerminal is called when a terminal node is visited.

@@ -10,9 +10,8 @@ func (b *Builder) ExitFuncNameRef(ctx *FuncNameRefContext) {
 	}
 	b.currentFuncNameRef = &FuncNameRef{
 		Name: ctx.GetToken(WasmLexerIdent, 0).GetText(),
-		Type: b.currentTypeRef,
+		Type: ctx.TypeRef().GetT(),
 	}
-	b.currentTypeRef = nil
 }
 
 // EnterFuncSpec is called when production funcSpec is entered.
@@ -67,13 +66,18 @@ func (b *Builder) ExitLocalDef(ctx *LocalDefContext) {
 	}
 }
 
-// EnterTypeRef is called when entering the typeRef production.
-func (b *Builder) EnterTypeRef(_ *TypeRefContext) {}
-
-// ExitTypeRef is called when production typeRef is exited.
-func (b *Builder) ExitTypeRef(ctx *TypeRefContext) {
-	if b.currentTypeRef != nil {
-		panic("previous TypeRef was not consumed")
-	}
-	b.currentTypeRef = &TypeRef{Num: numTerminalToInt(ctx.GetToken(WasmLexerNum, 0).GetSymbol())}
-}
+//// EnterTypeRef is called when entering the typeRef production.
+//func (b *Builder) EnterTypeRef(_ *TypeRefContext) {}
+//
+//// ExitTypeRef is called when production typeRef is exited.
+//func (b *Builder) ExitTypeRef(ctx *TypeRefContext) {
+//	//if b.currentTypeRef != nil {
+//	//	panic("previous TypeRef was not consumed")
+//	//}
+//	if ctx.GetToken(WasmLexerNum, 0) == nil {
+//		fmt.Printf("%x\n", ctx.Num())
+//	}
+//	b.currentTypeRef = &TypeRef{
+//		Num: numTerminalToInt(ctx.GetToken(WasmLexerNum, 0).GetSymbol()),
+//	}
+//}

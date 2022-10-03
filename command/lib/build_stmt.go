@@ -4,7 +4,7 @@ package lib
 func (b *Builder) EnterStmt(_ *StmtContext) {}
 
 // ExitStmt is called when production stmt is exited.
-func (b *Builder) ExitStmt(_ *StmtContext) {
+func (b *Builder) ExitStmt(ctx *StmtContext) {
 	// this is null when the most recent statement IS the container
 	if b.currentStmt != nil {
 		b.currentContainer.AddStmt(b.currentStmt)

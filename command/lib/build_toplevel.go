@@ -24,13 +24,13 @@ func (b *Builder) EnterFuncDef(_ *FuncDefContext) {
 func (b *Builder) ExitFuncDef(ctx *FuncDefContext) {
 	fd := b.currentContainer.(*FuncDef)
 	fd.Name = stringTerminalToString(ctx.GetToken(WasmLexerIdent, 0).GetSymbol())
-	fd.Type = b.currentTypeRef
+	fd.Type = ctx.TypeRef().GetT()
 	fd.Param = b.currentParamDef
 	fd.Local = b.currentLocalDef
 	fd.Result = b.currentResultDef
-	b.currentTypeRef = nil
 	b.currentParamDef = nil
 	b.currentLocalDef = nil
+	b.currentResultDef = nil
 	b.currentTopLevelDef = fd
 }
 

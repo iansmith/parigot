@@ -12,7 +12,7 @@ const (
 	FuncDefT   TopLevelDefT = 3
 )
 
-// TopLevelDef instances write a carriage return after they are printed.
+// TopLevelDef instances are the decls at the top level of a module
 type TopLevelDef interface {
 	IndentedStringer
 	TopLevelType() TopLevelDefT
@@ -30,7 +30,7 @@ func (t *TypeDef) TopLevelType() TopLevelDefT {
 
 func (t *TypeDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("(type %s %s)\n", t.Annotation.String(),
+	buf.WriteString(fmt.Sprintf("(type %s %s)", t.Annotation.String(),
 		t.Func.String()))
 	return buf.String()
 }
@@ -48,7 +48,7 @@ func (i *ImportDef) TopLevelType() TopLevelDefT {
 
 func (i *ImportDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("(import \"%s\" \"%s\" %s)\n",
+	buf.WriteString(fmt.Sprintf("(import \"%s\" \"%s\" %s)",
 		i.ModuleName, i.ImportedAs, i.FuncNameRef.String()))
 	return buf.String()
 
@@ -77,6 +77,9 @@ func (f *FuncDef) IndentedString(indented int) string {
 	}
 	if f.Param != nil {
 		buf.WriteString(" " + f.Param.String())
+	}
+	if f.Result != nil {
+		buf.WriteString(" " + f.Result.String())
 	}
 	if f.Local != nil {
 		buf.WriteString("\n")

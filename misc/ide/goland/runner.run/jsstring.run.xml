@@ -2,7 +2,7 @@
   <configuration default="false" name="jsstring" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="parigot" />
     <working_directory value="$PROJECT_DIR$/" />
-    <parameters value="command/jsstrip/testdata/module.wat" />
+    <parameters value="build/hello-go.wat" />
     <kind value="PACKAGE" />
     <package value="github.com/iansmith/parigot/command/jsstrip" />
     <directory value="$PROJECT_DIR$" />

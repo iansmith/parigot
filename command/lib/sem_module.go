@@ -15,9 +15,13 @@ func (m *Module) IndentedString(indented int) string {
 	for i := 0; i < indented; i++ {
 		buf.WriteString(" ")
 	}
-	buf.WriteString(fmt.Sprintf("(module\n"))
+	buf.WriteString(fmt.Sprintf("(module"))
 	for _, tl := range m.topLevel {
-		buf.WriteString(tl.(IndentedStringer).IndentedString(indented + 2))
+		if tl == nil {
+			fmt.Printf("xxx BAILBAIL\n%s\n", buf.String())
+			panic("bad topLevel")
+		}
+		buf.WriteString("\n" + tl.(IndentedStringer).IndentedString(indented+2))
 	}
 	buf.WriteString("\n")
 	// ugh, leading space... why oh why?
