@@ -3,7 +3,6 @@ package lib
 // Builder is the "listener" that one uses to build the AST of the wat file
 type Builder struct {
 	*BaseWasmListener
-	currentModule       *Module
 	currentNestingLevel int
 	module              []*Module
 }

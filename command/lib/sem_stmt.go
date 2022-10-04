@@ -99,7 +99,10 @@ func (l *LoopStmt) IndentedString(indented int) string {
 
 func stmtsToString(stmt []Stmt, indented int) string {
 	var buf bytes.Buffer
-	for _, s := range stmt {
+	for i, s := range stmt {
+		if s == nil {
+			panic("stmt is nil:#" + fmt.Sprint(i))
+		}
 		buf.WriteString("\n" + s.IndentedString(indented))
 	}
 	return buf.String()

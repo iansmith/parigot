@@ -78,12 +78,13 @@ simpleMemory returns[*MemoryDef m]:
 importDef returns [*ImportDef i]:
     ImportWord m=QuotedString im=QuotedString funcNameRef
     {
-        moduleName:=localctx.GetM().GetText()[1:len(localctx.GetM().GetText())-1]
-        importedAs:=localctx.GetIm().GetText()[1:len(localctx.GetIm().GetText())-1]
+        moduleName:=$m.GetText()[1:len($m.GetText())-1]
+        importedAs:=$im.GetText()[1:len($im.GetText())-1]
         localctx.SetI(
             &ImportDef{
                 ModuleName:moduleName,
                 ImportedAs:importedAs,
+                FuncNameRef:$funcNameRef.f,
             },
          );
     }
@@ -205,7 +206,6 @@ typeNameSeq returns [[]string t]:
         }
         $t=result
     }
-
     ;
 
 resultDef returns [*ResultDef r]: Lparen ResultWord typeNameSeq Rparen
@@ -300,7 +300,7 @@ argOp returns [Stmt a]:
             op.ConstAnno = new(string)
             *op.ConstAnno= $constAnno.t
         }
-
+        $a = op
     }
     ;
 

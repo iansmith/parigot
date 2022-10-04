@@ -54,8 +54,12 @@ func (i *ImportDef) TopLevelType() TopLevelT {
 
 func (i *ImportDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("(import \"%s\" \"%s\" %s)",
-		i.ModuleName, i.ImportedAs, i.FuncNameRef.String()))
+	buf.WriteString(fmt.Sprintf("(import \"%s\" \"%s\"",
+		i.ModuleName, i.ImportedAs))
+	if i.FuncNameRef != nil {
+		buf.WriteString(" " + i.FuncNameRef.String())
+	}
+	buf.WriteString(")")
 	return buf.String()
 
 }
@@ -186,7 +190,6 @@ func (e *ExportDef) IndentedString(indented int) string {
 	if e.Memory != nil {
 		buf.WriteString(fmt.Sprintf(" %s)", e.Memory.IndentedString(0)))
 	}
-	buf.WriteString(fmt.Sprintf("export %s %s", e.Name, e.Func.String()))
 	return buf.String()
 }
 
