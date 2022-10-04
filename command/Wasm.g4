@@ -355,6 +355,13 @@ brTable returns [Stmt b]:
 
 brTableTargetSeq returns [[]*BranchTarget b]:
     t+=brTableTarget (t+=brTableTarget)*
+    {
+        result:=make([]*BranchTarget,len(localctx.GetT()))
+        for i,n:=range localctx.GetT() {
+            result[i]=n.GetB()
+        }
+        localctx.SetB(result)
+    }
     ;
 
 brTableTarget returns [*BranchTarget b]:

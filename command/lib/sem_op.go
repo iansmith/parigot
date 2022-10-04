@@ -81,7 +81,7 @@ func (i *ArgOp) IndentedString(indented int) string {
 		buf.WriteString(fmt.Sprintf(" (;@%d;)", *i.BranchAnno))
 	}
 	if i.ConstAnno != nil {
-		buf.WriteString(fmt.Sprintf(" (;@=%s;)", *i.ConstAnno))
+		buf.WriteString(fmt.Sprintf(" (;=%s;)", *i.ConstAnno))
 	}
 	return buf.String()
 }

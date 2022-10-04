@@ -117,11 +117,11 @@ func (t *TableDef) TopLevelType() TopLevelT {
 }
 func (t *TableDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString("table")
+	buf.WriteString("(table")
 	if t.Type != nil {
-		buf.WriteString(fmt.Sprintf(" ;%d;", t.Type))
+		buf.WriteString(fmt.Sprintf(" (;%d;)", *t.Type))
 	}
-	buf.WriteString(fmt.Sprintf("%d %d funcref", t.Min, t.Max))
+	buf.WriteString(fmt.Sprintf(" %d %d funcref)", t.Min, t.Max))
 	return buf.String()
 }
 
@@ -135,11 +135,11 @@ func (m *MemoryDef) TopLevelType() TopLevelT {
 }
 func (m *MemoryDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString("memory")
+	buf.WriteString("(memory")
 	if m.Type != nil {
-		buf.WriteString(fmt.Sprintf(" ;%d;", *m.Type))
+		buf.WriteString(fmt.Sprintf(" (;%d;)", *m.Type))
 	}
-	buf.WriteString(fmt.Sprintf(" %d", m.Size))
+	buf.WriteString(fmt.Sprintf(" %d)", m.Size))
 	return buf.String()
 }
 
@@ -157,17 +157,17 @@ func (g *GlobalDef) TopLevelType() TopLevelT {
 
 func (g *GlobalDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString("global ")
+	buf.WriteString("(global ")
 	if g.Name != nil {
-		buf.WriteString(*g.Name)
+		buf.WriteString(*g.Name + " ")
 	}
 	if g.Special != nil {
-		buf.WriteString(g.Special.String())
+		buf.WriteString(g.Special.String() + " ")
 	}
 	if g.Anno != nil {
-		buf.WriteString(fmt.Sprintf(";%d; ", *g.Anno))
+		buf.WriteString(fmt.Sprintf("(;%d;) ", *g.Anno))
 	}
-	buf.WriteString(fmt.Sprintf("%s %s", g.Type.IndentedString(0), g.Value.IndentedString(0)))
+	buf.WriteString(fmt.Sprintf("(%s) (%s))", g.Type.IndentedString(0), g.Value.IndentedString(0)))
 	return buf.String()
 }
 
@@ -183,7 +183,7 @@ func (e *ExportDef) TopLevelType() TopLevelT {
 
 func (e *ExportDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString("export " + e.Name)
+	buf.WriteString(fmt.Sprintf("(export \"%s\"", e.Name))
 	if e.Func != nil {
 		buf.WriteString(fmt.Sprintf(" %s)", e.Func.String()))
 	}
@@ -205,17 +205,20 @@ func (e *ElemDef) TopLevelType() TopLevelT {
 
 func (e *ElemDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
+	buf.WriteString("(elem")
 	if e.Anno != nil {
-		buf.WriteString(fmt.Sprintf(" (;%d;)", e.Anno))
+		buf.WriteString(fmt.Sprintf(" (;%d;)", *e.Anno))
 	}
-	buf.WriteString(fmt.Sprintf(" %s)", e.Const.IndentedString(0)))
+	buf.WriteString(fmt.Sprintf(" (%s) ", e.Const.IndentedString(0)))
 	for i := 0; i < len(e.Ident); i++ {
 		if i != 0 {
 			buf.WriteString(" ")
+		} else {
+			buf.WriteString("func ")
 		}
 		buf.WriteString(e.Ident[i])
 	}
-	return buf.String()
+	return buf.String() + ")"
 }
 
 type DataDef struct {
@@ -230,7 +233,7 @@ func (d *DataDef) TopLevelType() TopLevelT {
 
 func (d *DataDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("data %s %s %s %s", d.Segment, d.Const.IndentedString(0),
+	buf.WriteString(fmt.Sprintf("(data %s (%s) %s)", d.Segment, d.Const.IndentedString(0),
 		d.QuotedData))
 	return buf.String()
 }

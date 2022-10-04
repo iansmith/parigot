@@ -37,9 +37,9 @@ func (b *BlockStmt) StmtType() StmtT {
 
 func (b *BlockStmt) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	controlStmtToString("block", b.nestingLevel, b.Result, buf)
+	outputControlStmt("block", b.nestingLevel, b.Result, buf)
 	buf.WriteString(stmtsToString(b.Code, indented+2))
-	outputEnd(indented, buf)
+	outputControlStmtEnd(indented, buf)
 	return buf.String()
 }
 
@@ -62,17 +62,17 @@ func (i *IfStmt) StmtType() StmtT {
 
 func (i *IfStmt) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	controlStmtToString("if", i.nestingLevel, i.Result, buf)
+	outputControlStmt("if", i.nestingLevel, i.Result, buf)
 	buf.WriteString(stmtsToString(i.IfPart, indented+2))
 	if i.ElsePart != nil {
 		buf.WriteString("\n") //terminate previous line
 		for j := 0; j < indented; j++ {
 			buf.WriteString(" ")
 		}
-		controlStmtToString("else", math.MinInt, nil, buf)
+		outputControlStmt("else", math.MinInt, nil, buf)
 		buf.WriteString(stmtsToString(i.ElsePart, indented+2))
 	}
-	outputEnd(indented, buf)
+	outputControlStmtEnd(indented, buf)
 	return buf.String()
 }
 
@@ -90,8 +90,9 @@ type LoopStmt struct {
 
 func (l *LoopStmt) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	controlStmtToString("loop", l.nestingLevel, l.Result, buf)
+	outputControlStmt("loop", l.nestingLevel, l.Result, buf)
 	buf.WriteString(stmtsToString(l.Code, indented+2))
+	outputControlStmtEnd(indented, buf)
 	return buf.String()
 }
 
@@ -108,7 +109,7 @@ func stmtsToString(stmt []Stmt, indented int) string {
 	return buf.String()
 }
 
-func controlStmtToString(name string, nestingLevel int, result *ResultDef, buf *bytes.Buffer) string {
+func outputControlStmt(name string, nestingLevel int, result *ResultDef, buf *bytes.Buffer) string {
 	buf.WriteString(name)
 	if result != nil {
 		buf.WriteString(" " + result.String())
@@ -120,7 +121,7 @@ func controlStmtToString(name string, nestingLevel int, result *ResultDef, buf *
 	return buf.String()
 }
 
-func outputEnd(indented int, buf *bytes.Buffer) {
+func outputControlStmtEnd(indented int, buf *bytes.Buffer) {
 	buf.WriteString("\n")
 	for i := 0; i < indented; i++ {
 		buf.WriteString(" ")
