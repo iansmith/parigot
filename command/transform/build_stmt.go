@@ -1,4 +1,4 @@
-package lib
+package transform
 
 // EnterBlockStmt is called when production blockStmt is entered.
 func (b *Builder) EnterBlockStmt(_ *BlockStmtContext) {

@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/antlr/antlr4/runtime/Go/antlr"
-	"github.com/iansmith/parigot/command/lib"
 	"log"
 	"os"
+
+	"github.com/iansmith/parigot/command/transform"
+
+	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
 
 func main() {
@@ -20,14 +22,14 @@ func main() {
 		log.Fatalf("failed trying to open input file, %v", err)
 	}
 	// make lexer
-	lexer := lib.NewWasmLexer(fs)
+	lexer := transform.NewWasmLexer(fs)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 
 	// Create the Parser
-	p := lib.NewWasmParser(stream)
+	p := transform.NewWasmParser(stream)
 
 	// Finally parse the expression
-	builder := &lib.Builder{}
+	builder := &transform.Builder{}
 	antlr.ParseTreeWalkerDefault.Walk(builder, p.Module())
 	mod := builder.Module()
 	fmt.Printf("%s", mod.IndentedString(0))

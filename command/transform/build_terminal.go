@@ -1,4 +1,4 @@
-package lib
+package transform
 
 import (
 	"github.com/antlr/antlr4/runtime/Go/antlr"

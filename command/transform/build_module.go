@@ -1,4 +1,4 @@
-package lib
+package transform
 
 // EnterModule is called when entering the module production.
 func (b *Builder) EnterModule(c *ModuleContext) {

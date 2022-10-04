@@ -1,4 +1,4 @@
-package lib
+package transform
 
 // Builder is the "listener" that one uses to build the AST of the wat file
 type Builder struct {
