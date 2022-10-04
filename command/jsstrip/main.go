@@ -16,16 +16,35 @@ import (
 
 const (
 	WasiModule    = "wasi_snapshot_preview1"
-	ParigotModule = "parigot_abi"
+	parigotModule = "parigot_abi"
 	JSModule      = "env"
 	FdWrite       = "fd_write"
 	wat2wasm      = "wat2wasm"
 	wasm2wat      = "wasm2wat"
 
-	parigotFilename      = "parigot-transformed.wat"
-	jsNotImplemented     = "$github.com/iansmith/parigot/abi.JSNotImplemented"
-	tinygoNotImplemented = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
+	parigotFilename          = "parigot-transformed.wat"
+	jsNotImplementedImpl     = "$github.com/iansmith/parigot/abi.JSNotImplemented"
+	tinygoNotImplementedImpl = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
+	jsEventImpl              = "$github.com/iansmith/parigot/abi.JSHandleEvent"
+
+	jsNotImplImportName     = "JSNotImplemented"
+	tinygoNotImplImportName = "TinyGoNotImplemented"
+	jsEventImportName       = "JSHandleEvent"
+
+	jsHandleEvent = "$syscall/js.handleEvent"
 )
+
+var importNameToImplName = map[string]string{
+	tinygoNotImplImportName: tinygoNotImplementedImpl,
+	jsNotImplImportName:     jsNotImplementedImpl,
+	jsEventImportName:       jsEventImpl,
+}
+
+var importNameToTypeNumber = map[string]int{
+	tinygoNotImplImportName: 0,
+	jsNotImplImportName:     0,
+	jsEventImportName:       1,
+}
 
 // poisoning? gunshots?
 var methodsToKillImport = []string{
@@ -98,13 +117,59 @@ func parigotProcessing(inputFilename, tmp string) string {
 	return outName
 }
 
+// this is dead code with respect to the compiler tinygo, but we are doing binary
+// code patching, so we are creating new "live" functions and they need to be imported
+func addDeadCode(result []transform.TopLevel) []transform.TopLevel {
+	for _, fn := range []string{jsNotImplImportName, tinygoNotImplImportName, jsEventImportName} {
+		imp := &transform.ImportDef{
+			ModuleName: parigotModule,
+			ImportedAs: fn,
+			FuncNameRef: &transform.FuncNameRef{
+				Name: importNameToImplName[fn],
+				Type: &transform.TypeRef{
+					Num: importNameToTypeNumber[fn],
+				},
+			},
+		}
+		result = append(result, imp)
+	}
+	return result
+}
+
 func patchingPass(mod *transform.Module) {
+	addedDead := false
 	result := []transform.TopLevel{}
 	// walk all the toplevels
 	for _, tl := range mod.Code {
 		switch tl.TopLevelType() {
 		case transform.FuncDefT:
 			tl = processFuncPass2(tl.(*transform.FuncDef))
+			if tl != nil {
+				//walk all the stmts looking for calls to the JS.handleEvent call
+				for _, stmt := range tl.(*transform.FuncDef).Code {
+					if stmt.StmtType() == transform.OpStmtT &&
+						stmt.(transform.Op).OpType() == transform.CallT {
+						call := stmt.(*transform.CallOp)
+						if call.Arg == jsHandleEvent {
+							call.Arg = jsEventImpl
+						}
+					}
+					if stmt.StmtType() == transform.OpStmtT &&
+						stmt.(transform.Op).OpType() == transform.ArgT {
+						argOp := stmt.(*transform.ArgOp)
+						if argOp.Op == "call" {
+							panic("call")
+						}
+					}
+				}
+			}
+		case transform.ImportDefT:
+			if !addedDead {
+				// have to keep all the imports before all the other stuff
+				result = addDeadCode(result)
+				addedDead = true
+			}
+			break
 		default:
 			break
 		}
@@ -112,7 +177,6 @@ func patchingPass(mod *transform.Module) {
 			result = append(result, tl)
 		}
 	}
-
 	mod.Code = result
 }
 
@@ -144,7 +208,7 @@ func parigotMangleMethod(category, name string) string {
 func processImport(importDef *transform.ImportDef) transform.TopLevel {
 	if importDef.ImportedAs == WasiModule {
 		if importDef.ImportedAs == FdWrite {
-			importDef.ModuleName = ParigotModule
+			importDef.ModuleName = parigotModule
 			importDef.ImportedAs = parigotMangleMethod("wasi_emulation", "fd_write")
 			return importDef
 		}
@@ -165,25 +229,26 @@ func processExport(export *transform.ExportDef) transform.TopLevel {
 	return export
 }
 
+var jsErrorCall = &transform.CallOp{
+	Arg: jsNotImplementedImpl,
+}
+var tgErrorCall = &transform.CallOp{
+	Arg: tinygoNotImplementedImpl,
+}
+
 func processFuncPass2(fn *transform.FuncDef) transform.TopLevel {
-	jsErrorCall := &transform.CallOp{
-		Arg: jsNotImplemented,
-	}
-	tgErrorCall := &transform.CallOp{
-		Arg: tinygoNotImplemented,
-	}
 
 	switch fn.Name {
 	case "$runtime.printitf":
 		fn.Code = []transform.Stmt{tgErrorCall}
 	case "$_syscall/js.Value_.String",
 		"$_syscall/js.Type_String",
-		"$_syscall/js.Value_.Get",
-		"$syscall/js.handleEvent":
+		"$_syscall/js.Value_.Get":
 		fn.Code = []transform.Stmt{jsErrorCall}
 	default:
 		break
 	}
+	changeStatement(fn.Code, fixEventHandle2)
 	return fn
 }
 
@@ -251,4 +316,48 @@ func convertInputToFormat(filename, tmp, outFile, program, path string) (string,
 	}
 	out.Close()
 	return outputName, nil
+}
+
+func fixEventHandle2(stmt transform.Stmt) {
+	if stmt.StmtType() == transform.OpStmtT &&
+		stmt.(transform.Op).OpType() == transform.CallT {
+		call := stmt.(*transform.CallOp)
+		if call.Arg == jsHandleEvent {
+			call.Arg = jsEventImpl
+		}
+	}
+
+}
+func changeStatement(code []transform.Stmt, fn func(stmt transform.Stmt)) {
+	for _, stmt := range code {
+		fn(stmt)
+		if stmt.StmtType() == transform.IfStmtT ||
+			stmt.StmtType() == transform.BlockStmtT {
+			if stmt.StmtType() == transform.IfStmtT {
+				ifStmt := stmt.(*transform.IfStmt)
+				if ifStmt.IfPart != nil {
+					changeStatement(ifStmt.IfPart, fn)
+				}
+				if ifStmt.ElsePart != nil {
+					changeStatement(ifStmt.ElsePart, fn)
+				}
+			}
+			if stmt.StmtType() == transform.BlockStmtT {
+				bl, ok := stmt.(*transform.BlockStmt)
+				if ok {
+					if bl.Code != nil {
+						changeStatement(bl.Code, fn)
+					}
+				}
+				loop, ok := stmt.(*transform.LoopStmt)
+				if ok {
+					bl = loop.BlockStmt
+					if bl.Code != nil {
+						changeStatement(bl.Code, fn)
+					}
+				}
+
+			}
+		}
+	}
 }

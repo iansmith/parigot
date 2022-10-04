@@ -8,11 +8,13 @@
 // Documentation for the golang version of the ABI is provided here, again for the
 // convenience of IDE users.
 
-package _go
+package abi
 
 import "time"
 
 func OutputString(string) {}
+
+func JSHandleEvent() {}
 
 func JSNotImplemented() {}
 
