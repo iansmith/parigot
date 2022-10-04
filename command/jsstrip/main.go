@@ -275,9 +275,12 @@ func processFuncPass1(fn *transform.FuncDef) transform.TopLevel {
 func convertInputToFormat(filename, tmp, outFile, program, path string) (string, error) {
 	var outputName string
 
+	var fp *os.File
+
 	if outFile != "" {
 		outputName = outFile
 	} else {
+		var err error
 		// maybe has more than 1 component
 		_, basename := filepath.Split(filename)
 		if outFile != "" {
@@ -290,17 +293,22 @@ func convertInputToFormat(filename, tmp, outFile, program, path string) (string,
 			outputName = outputName + ".wat"
 		}
 		outputName = filepath.Join(tmp, outputName)
-	}
-	out, err := os.Create(outputName)
-	if err != nil {
-		log.Printf("converting input file ("+path+") failed, cannot create temp file: %v", err)
-		return "", err
+		fp, err = os.Create(outputName)
+		if err != nil {
+			log.Printf("converting input file ("+path+") failed, cannot create temp file: %v", err)
+			return "", err
+		}
 	}
 	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 		log.Fatalf("converting input file ("+path+") failed, input file does not exist: %v", err)
 	}
-	cmd := exec.Command(program, filename)
-	cmd.Stdout = out
+	var cmd *exec.Cmd
+	if outFile == "" {
+		cmd = exec.Command(program, filename)
+		cmd.Stdout = fp
+	} else {
+		cmd = exec.Command(program, filename, "-o", outputName)
+	}
 	// stderr file
 	errFile := filepath.Join(tmp, "wat2wasm-errors")
 	errFp, err := os.Create(errFile)
@@ -314,7 +322,9 @@ func convertInputToFormat(filename, tmp, outFile, program, path string) (string,
 		log.Printf("conversion of %s failed, errors of %s are in :%s", path, program, errFile)
 		return "", err
 	}
-	out.Close()
+	if fp != nil {
+		fp.Close()
+	}
 	return outputName, nil
 }
 
