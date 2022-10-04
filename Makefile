@@ -1,6 +1,3 @@
-
-.PHONY: all example example-hello-go runner clean jsstrip
-
 TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
@@ -10,14 +7,18 @@ TINYGO_WASM_OPTS=-target wasm -wasm-abi generic
 
 TINYGO_BUILD_TAGS=parigot_abi
 
-all: example runner
+all: build/hello-go.p.wasm runner build/jsstrip
 
 example: example-hello-go
 
-jsstrip: build/jsstrip
-
-example-hello-go:
+build/hello-go.wasm: example/hello-go/main.go
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/hello-go.wasm github.com/iansmith/parigot/example/hello-go
+
+build/hello-go.wat: build/hello-go.wasm
+	wasm2wat build/hello-go.wasm > build/hello-go.wat
+
+build/hello-go.p.wasm: build/jsstrip build/hello-go.wat build/hello-go.wasm
+	build/jsstrip build/hello-go.wasm build/hello-go.p.wasm
 
 runner:
 	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/init

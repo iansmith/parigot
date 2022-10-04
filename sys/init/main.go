@@ -2,23 +2,24 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	"log"
+	"os"
 )
 
+var libs = []string{}
+
 func main() {
+	if len(os.Args) != 2 {
+		log.Fatalf("pass one wasm file")
+	}
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
-	wd, _ := os.Getwd()
-	print("cwd:", wd, "\n")
-	module, err := wasmtime.NewModuleFromFile(engine, "build/hello-go.wasm")
+	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
 	check(err)
-	print("exports---\n")
 	for _, exp := range module.Exports() {
 		print("exp:", exp.Name(), "\n")
 	}
-	print("imports---\n")
 	for _, imp := range module.Imports() {
 		print("imp:", imp.Module(), ",", *imp.Name(), "\n")
 	}

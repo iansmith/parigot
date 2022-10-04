@@ -6,14 +6,25 @@ package abi
 import "time"
 
 //go:wasm-module parigot_abi
-//export outputString
+//export OutputString
 func OutputString(string)
 
-//export exit
+//go:wasm-module parigot_abi
+//export JSNotImplemented
+func JSNotImplemented()
+
+//go:wasm-module parigot_abi
+//export TinyGoNotImplemented
+func TinyGoNotImplemented()
+
+//go:wasm-module parigot_abi
+//export Exit
 func Exit(int)
 
-//export now
+//go:wasm-module parigot_abi
+//export Now
 func Now() time.Time
 
-//export setNow
+//go:wasm-module parigot_abi
+//export SetNow
 func SetNow(time.Time)
