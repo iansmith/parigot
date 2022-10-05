@@ -29,7 +29,7 @@ func convertWatToWasm(tmpDir, source string, target *string) error {
 			log.Printf("unable to create temporary file for wasm output: %v", err)
 			return err
 		}
-		tempFd.Close()
+		_ = tempFd.Close()
 		extraArgs = []string{source, "-o", tempTargetFile}
 	} else {
 		extraArgs = []string{source, "-o", *target}
@@ -40,14 +40,16 @@ func convertWatToWasm(tmpDir, source string, target *string) error {
 		return err
 	}
 	cmd := exec.Command(watProgram, extraArgs...)
-	defer errFp.Close()
+	defer func() {
+		_ = errFp.Close()
+	}()
 	cmd.Stderr = errFp
 	err = cmd.Run()
 	if err != nil {
 		if *target == "" {
-			os.Remove(*target) // don't want to confuse make
+			_ = os.Remove(*target) // don't want to confuse make
 		}
-		log.Printf("conversion of %s to wasm failed, errors in %s: %v", source, errFile, err)
+		log.Printf("conversion of %s to wasm failed,\n\t errors in %s: %v", source, errFile, err)
 		return err
 	}
 	if *target == "" {
@@ -71,7 +73,9 @@ func convertWasmToWat(tmpDir string, source string) (string, error) {
 		log.Printf("converting input file ("+source+") failed, cannot create temp file: %v", err)
 		return "", err
 	}
-	defer targetFp.Close()
+	defer func() {
+		_ = targetFp.Close()
+	}()
 	if _, err := os.Stat(source); errors.Is(err, os.ErrNotExist) {
 		log.Fatalf("converting input file ("+source+") failed, input file does not exist: %v", err)
 		return "", err
@@ -82,12 +86,14 @@ func convertWasmToWat(tmpDir string, source string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer errFp.Close()
+	defer func() {
+		_ = errFp.Close()
+	}()
 	cmd.Stderr = errFp
 
 	err = cmd.Run()
 	if err != nil {
-		log.Printf("conversion of %s to wat failed, errors in %s (or possibly %s): %v", source, target, errPath, err)
+		log.Printf("conversion of %s to wat failed,\n\terrors in %s (or possibly %s): %v", source, target, errPath, err)
 		return "", err
 	}
 	return target, nil
@@ -128,7 +134,13 @@ func parigotProcessing(inputFilename, tmpDir string) (string, error) {
 		log.Printf("unable to create intermediate output file: %v", err)
 		return "", err
 	}
-	defer fp.Close()
-	fp.WriteString(mod.IndentedString(0))
+	defer func() {
+		_ = fp.Close()
+	}()
+	_, err = fp.WriteString(mod.IndentedString(0))
+	if err != nil {
+		log.Printf("unable to write to intermediate output file: %v", err)
+		return "", err
+	}
 	return path, nil
 }

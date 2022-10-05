@@ -18,7 +18,7 @@ build/hello-go.wat: build/hello-go.wasm
 	wasm2wat build/hello-go.wasm > build/hello-go.wat
 
 build/hello-go.p.wasm: build/jsstrip build/hello-go.wat build/hello-go.wasm
-	build/jsstrip build/hello-go.wasm build/hello-go.p.wasm
+	build/jsstrip -o build/hello-go.p.wasm build/hello-go.wasm
 
 build/runner: sys/cmd/runner/main.go sys/abi/*.go abi/go/abi/*.go
 	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/cmd/runner

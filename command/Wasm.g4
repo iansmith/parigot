@@ -504,7 +504,7 @@ GlobalWord: 'global';
 MutWord: 'mut';
 TableWord: 'table';
 FuncRefWord: 'funcref';
-TypeName: 'i32' | 'i64' | 'f64' | 'f32';
+TypeName: 'i32' | 'i64' | 'f64' | 'f32' | 'externref';
 MemoryWord:'memory';
 ExportWord: 'export';
 ElemWord: 'elem';

@@ -12,7 +12,8 @@ package abi
 
 import "time"
 
-func OutputString(string) {}
+func OutputString(string)              {}
+func OutputStringConvert(int32, int32) {}
 
 func JSNotImplemented() {}
 
@@ -26,7 +27,11 @@ func FdWrite(int32, int32, int32, int32) int32 {
 
 func Exit(int) {}
 
-func Now() int64 {
+func Now() time.Time {
+	return time.Time{}
+}
+
+func NowConvert() int64 {
 	return 0
 }
 

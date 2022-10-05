@@ -23,6 +23,7 @@ func main() {
 	//for _, exp := range module.Exports() {
 	//	log.Printf("exp: %s", exp.Name())
 	//}
+	linkFailed := false
 	linkage := []wasmtime.AsExtern{}
 	for _, imp := range module.Imports() {
 		n := "$$ANON$$"
@@ -33,9 +34,13 @@ func main() {
 		ext, ok := wrappers[importName]
 		if !ok {
 			log.Printf("unable to find linkage for %s", importName)
+			linkFailed = true
 		} else {
 			linkage = append(linkage, ext)
 		}
+	}
+	if linkFailed {
+		os.Exit(1)
 	}
 	instance, err := wasmtime.NewInstance(store, module, linkage)
 	check(err)
@@ -51,14 +56,16 @@ func check(err error) {
 		panic(err)
 	}
 }
-func generateWrappersForABI(store wasmtime.Storelike) map[string]wasmtime.AsExtern {
-	var result = make(map[string]wasmtime.AsExtern)
+func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func {
+	var result = make(map[string]*wasmtime.Func)
 	result["parigot_abi.TinyGoNotImplemented"] = wasmtime.WrapFunc(store, abi.TinyGoNotImplemented)
 	result["parigot_abi.JSHandleEvent"] = wasmtime.WrapFunc(store, abi.JSHandleEvent)
 	result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
 	result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
-	result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi.Now)
-	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputString)
+	//result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi.Now)
+	result["parigot_abi.NowConvert"] = wasmtime.WrapFunc(store, abi.NowConvert)
+	//result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputString)
+	result["parigot_abi.OutputStringConvert"] = wasmtime.WrapFunc(store, abi.OutputStringConvert)
 	result["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi.Exit)
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 

@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/iansmith/parigot/command/transform"
 	"log"
+	"sort"
 	"strings"
+
+	"github.com/iansmith/parigot/command/transform"
 )
 
 var tgErrorCall = &transform.CallOp{
@@ -20,6 +22,63 @@ func modifyParigotAbiFuncNames(tl transform.TopLevel) transform.TopLevel {
 		}
 	}
 	return fn
+}
+
+func mapAllImports(t transform.TopLevel) {
+	idef := t.(*transform.ImportDef)
+	name := idef.FuncNameRef.Name
+	num := idef.FuncNameRef.Type.Num
+	importedFuncNameToTypeNum[name] = num
+}
+
+// this is used to populate typeNumberToReturnValueType
+func mapNeededNewTypesForExternalRef(tl transform.TopLevel) {
+	idef := tl.(*transform.ImportDef)
+	// called for effect
+	importedFunctionToExternalRefTypeNum(idef.FuncNameRef.Name)
+}
+func changeImportsToTrap(tl transform.TopLevel) transform.TopLevel {
+	idef := tl.(*transform.ImportDef)
+	tModifiedTypeNum := importedFunctionToExternalRefTypeNum(idef.FuncNameRef.Name)
+	if idef.ModuleName != parigotModule && idef.FuncNameRef.Type.Num != tModifiedTypeNum {
+		log.Printf("updating for trap, changed %s from type %d to %d", idef.FuncNameRef.Name,
+			idef.FuncNameRef.Type.Num, tModifiedTypeNum)
+		idef.FuncNameRef.Type.Num = tModifiedTypeNum
+	}
+	return tl
+}
+
+func addNewExternRefTypes(mod *transform.Module) {
+	allNewTypes := []int{}
+	reverse := make(map[int]retValueType)
+	for retT, typeNum := range asExternalRetTypeToNewFunc {
+		allNewTypes = append(allNewTypes, typeNum)
+		reverse[typeNum] = retT
+	}
+	sort.Ints(allNewTypes)
+	for _, typeNum := range allNewTypes {
+		retT := reverse[typeNum]
+		tdef := &transform.TypeDef{
+			Annotation: typeNum,
+			Func: &transform.FuncSpec{
+				Param: &transform.ParamDef{
+					Type: &transform.TypeNameSeq{
+						Name: []string{"externref"},
+					}},
+				Result: &transform.ResultDef{
+					Type: &transform.TypeNameSeq{
+						Name: []string{retValueTToString(retT)},
+					},
+				},
+			},
+		}
+		// this is easier than trying to construct a diff tree
+		if retT == retNone {
+			//chop it off
+			tdef.Func.Result = nil
+		}
+		addToplevelToModule(mod, tdef, true)
+	}
 }
 
 func changeWasiImportToEmulation(tl transform.TopLevel) transform.TopLevel {

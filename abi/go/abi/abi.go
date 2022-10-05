@@ -7,7 +7,8 @@ import "time"
 
 //go:wasm-module parigot_abi
 //export OutputString
-func OutputString(string)
+func OutputString(string) {}
+func OutputStringConvert(int32, int32)
 
 //go:wasm-module parigot_abi
 //export JSNotImplemented
@@ -28,6 +29,7 @@ func Exit(int)
 //go:wasm-module parigot_abi
 //export Now
 func Now() time.Time
+func NowConvert() int64
 
 //go:wasm-module parigot_abi
 //export SetNow

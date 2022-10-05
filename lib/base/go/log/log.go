@@ -3,8 +3,9 @@ package log
 import (
 	"bytes"
 	"fmt"
-	"github.com/iansmith/parigot/abi"
 	"time"
+
+	"github.com/iansmith/parigot/abi/go/abi"
 )
 
 type LevelMask int64
