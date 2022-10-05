@@ -16,48 +16,28 @@ const (
 	JSModule      = "env"
 	FdWrite       = "fd_write"
 
-	parigotFilename           = "parigot-transformed.wat"
-	jsNotImplementedImpl      = "$github.com/iansmith/parigot/abi.JSNotImplemented"
-	tinygoNotImplementedImpl  = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
-	jsNotImplementedImpl1     = "$github.com/iansmith/parigot/abi.JSNotImplemented1"
-	tinygoNotImplementedImpl1 = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented1"
-	jsEventImpl               = "$github.com/iansmith/parigot/abi.JSHandleEvent"
+	parigotFilename = "parigot-transformed.wat"
 
-	jsNotImplImportName      = "JSNotImplemented"
-	tinygoNotImplImportName  = "TinyGoNotImplemented"
-	jsNotImplImportName1     = "JSNotImplemented1"
-	tinygoNotImplImportName1 = "TinyGoNotImplemented1"
-	jsEventImportName        = "JSHandleEvent"
+	tinygoNotImplementedImpl = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
+	jsNotImplementedImpl     = "$github.com/iansmith/parigot/abi.JSNotImplemented"
 
-	jsHandleEvent = "$syscall/js.handleEvent"
+	jsNotImplImportName     = "JSNotImplemented"
+	tinygoNotImplImportName = "TinyGoNotImplemented"
 )
 
 var importNameToImplName = map[string]string{
-	tinygoNotImplImportName:  tinygoNotImplementedImpl,
-	jsNotImplImportName:      jsNotImplementedImpl,
-	tinygoNotImplImportName1: tinygoNotImplementedImpl1,
-	jsNotImplImportName1:     jsNotImplementedImpl1,
-	jsEventImportName:        jsEventImpl,
+	tinygoNotImplImportName: tinygoNotImplementedImpl,
+	jsNotImplImportName:     jsNotImplementedImpl,
 }
 
 var importNameToTypeNumber = map[string]int{
 	tinygoNotImplImportName: 0,
 	jsNotImplImportName:     0,
-	jsEventImportName:       1,
 }
 
-// poisoning? gunshots?
-var methodsToKillImport = []string{
-	"syscall/js.valueGet",
-	"syscall/js.valuePrepareString",
-	"syscall/js.valueLoadString",
-	"syscall/js.finalizeRef",
-	"syscall/js.stringVal",
-	"syscall/js.valueSet",
-	"syscall/js.valueLength",
-	"syscall/js.valueIndex",
-	"syscall/js.valueCall",
-}
+var typeToReturnValue = make(map[int]int)
+var replacementFuncTypeTable = make(map[string]int)
+var importFuncTypeTable = make(map[string]int)
 
 func main() {
 
@@ -90,119 +70,109 @@ func main() {
 	os.Exit(0)
 }
 
-// this is dead code with respect to the compiler tinygo, but we are doing binary
-// code patching, so we are creating new "live" functions and they need to be imported
-func deadCode(name string) transform.TopLevel {
-	imp := &transform.ImportDef{
-		ModuleName: parigotModule,
-		ImportedAs: name,
-		FuncNameRef: &transform.FuncNameRef{
-			Name: importNameToImplName[name],
-			Type: &transform.TypeRef{
-				Num: importNameToTypeNumber[name],
+// addNotImplImports adds our two functions to the list of imports from our
+// module that will be linked in later.
+func addNotImplImports(mod *transform.Module) {
+	for _, name := range []string{jsNotImplImportName, tinygoNotImplImportName} {
+		imp := &transform.ImportDef{
+			ModuleName: parigotModule,
+			ImportedAs: name,
+			FuncNameRef: &transform.FuncNameRef{
+				Name: importNameToImplName[name],
+				Type: &transform.TypeRef{
+					Num: importNameToTypeNumber[name],
+				},
 			},
-		},
+		}
+		addToplevelToModule(mod, imp)
 	}
-	return imp
+}
+func modifyJSImports(tl transform.TopLevel) {
+	fn := tl.(*transform.ImportDef)
+	if isJSFunction(fn.FuncNameRef.Name) {
+		log.Printf("js function imported: (%s:%s) %s:%d\n", fn.ModuleName, fn.ImportedAs, fn.FuncNameRef.Name, fn.FuncNameRef.Type.Num)
+		importFuncTypeTable[fn.ImportedAs] = fn.FuncNameRef.Type.Num
+	}
 }
 
-func changeJSEventHandle(stmt transform.Stmt) transform.Stmt {
-	if stmt.StmtType() != transform.OpStmtT ||
-		stmt.(transform.Op).OpType() != transform.CallT {
-		return stmt
+func mapTypeReturnValues(tl transform.TopLevel) {
+	td := tl.(*transform.TypeDef)
+	typeToReturnValue[td.Annotation] = 0
+	if td.Func.Result != nil {
+		if len(td.Func.Result.Type.Name) > 1 {
+			panic("unable to handle mapping return types with multiple values")
+		}
+		rType := td.Func.Result.Type.Name[0]
+		log.Printf("return type of type %d is %s", td.Annotation, rType)
+		switch rType {
+		case "i32":
+			typeToReturnValue[td.Annotation] = 32
+		case "i64":
+			typeToReturnValue[td.Annotation] = 64
+		default:
+			panic("unable to handle mapping return types with type " + rType)
+		}
 	}
-	call := stmt.(*transform.CallOp)
-	if call.Arg != jsHandleEvent {
-		return stmt
-	}
-	// we have the target
-	call.Arg = jsEventImpl
-	return stmt
+}
+func transformation(mod *transform.Module) {
+	findToplevelInModule(mod, transform.FuncDefT, mapReplacementFunctions)
+	findToplevelInModule(mod, transform.TypeDefT, mapTypeReturnValues)
+	addNotImplImports(mod)
+	findToplevelInModule(mod, transform.ImportDefT, modifyJSImports)
+	changeToplevelInModule(mod, transform.FuncDefT, changeFuncsToNotImplemented)
 }
 
-func patchingPass(mod *transform.Module) {
-	for _, fnName := range []string{jsNotImplImportName, tinygoNotImplImportName, jsEventImportName, jsNotImplImportName1, tinygoNotImplementedImpl1} {
-		addToplevelToModule(mod, deadCode(fnName))
-	}
-	changeStatementInModule(mod, changeJSEventHandle)
+var returnStmt = &transform.ZeroOp{
+	Op: "return",
 }
 
-func strippingPass(mod *transform.Module) {
-	changeToplevelInModule(mod, transform.ImportDefT, changeWasiImportToEmulation)
-	changeToplevelInModule(mod, transform.ImportDefT, deleteJSImports)
-	changeToplevelInModule(mod, transform.FuncDefT, changeFunctionsToNotImplemented)
-	changeToplevelInModule(mod, transform.FuncDefT, deleteFunctionDefinitions)
+func changeFuncsToNotImplemented(tl transform.TopLevel) transform.TopLevel {
+	fn := tl.(*transform.FuncDef)
+	if isJSFunction(fn.Name) {
+		_, ok := replacementFuncTypeTable[fn.Name]
+		log.Printf("replace: %s->%d->%d [%v]", fn.Name, replacementFuncTypeTable[fn.Name],
+			typeToReturnValue[replacementFuncTypeTable[fn.Name]], ok)
+		if typeToReturnValue[replacementFuncTypeTable[fn.Name]] != 0 {
+			op := "i32.const"
+			if typeToReturnValue[replacementFuncTypeTable[fn.Name]] == 64 {
+				op = "i64.const"
+			}
+			// for now, we always return
+			argOp := &transform.ArgOp{
+				Op:     op,
+				IntArg: new(int),
+			}
+			*argOp.IntArg = 0
+			fn.Code = []transform.Stmt{
+				jsErrorCall,
+				argOp,
+				returnStmt,
+			}
+		} else {
+			fn.Code = []transform.Stmt{
+				jsErrorCall,
+			}
+		}
+	}
+	return fn
+}
+
+func isJSFunction(name string) bool {
+	return strings.Index(name, "/js") != -1
 }
 
 func parigotMangleMethod(category, name string) string {
 	return fmt.Sprintf("%s_%s", category, name)
 }
-func changeWasiImportToEmulation(tl transform.TopLevel) transform.TopLevel {
-	imp := tl.(*transform.ImportDef)
-	if imp.ModuleName == WasiModule && imp.ImportedAs == FdWrite {
-		imp.ImportedAs = parigotMangleMethod("WasiEmulation", "FdWrite")
-		return imp
-	}
-	return imp
-}
-func deleteJSImports(tl transform.TopLevel) transform.TopLevel {
-	importDef := tl.(*transform.ImportDef)
-	if importDef.ModuleName == JSModule {
-		for _, s := range methodsToKillImport {
-			if importDef.ImportedAs == s {
-				return nil // drops the import
-			}
-		}
-		log.Fatalf("to understand what to do with import of %s from module env (js runtime?)", importDef.ImportedAs)
-	}
-	return importDef
-}
 
 var jsErrorCall = &transform.CallOp{
 	Arg: jsNotImplementedImpl,
 }
-var tgErrorCall = &transform.CallOp{
-	Arg: tinygoNotImplementedImpl,
-}
 
-func changeFunctionsToNotImplemented(tl transform.TopLevel) transform.TopLevel {
-	if tl.TopLevelType() != transform.FuncDefT {
-		return tl
+func mapReplacementFunctions(level transform.TopLevel) {
+	fn := level.(*transform.FuncDef)
+	if isJSFunction(fn.Name) {
+		log.Printf("%s:type %d\n", fn.Name, fn.Type.Num)
+		replacementFuncTypeTable[fn.Name] = fn.Type.Num
 	}
-	fn := tl.(*transform.FuncDef)
-	switch fn.Name {
-	case "$runtime.printitf":
-		fn.Code = []transform.Stmt{tgErrorCall}
-	case "$_syscall/js.Value_.String",
-		"$_syscall/js.Type_String",
-		"$_syscall/js.Value_.Get":
-		fn.Code = []transform.Stmt{jsErrorCall}
-	default:
-		break
-	}
-	return fn
-}
-
-func deleteFunctionDefinitions(tl transform.TopLevel) transform.TopLevel {
-	if tl.TopLevelType() != transform.FuncDefT {
-		return tl
-	}
-	fn := tl.(*transform.FuncDef)
-	switch fn.Name {
-	case "$runtime.printitf",
-		"$_syscall/js.Value_.String",
-		"$_syscall/js.Type_String",
-		"$_syscall/js.Value_.Get":
-		return fn
-	default:
-		break
-	}
-	if strings.HasPrefix(fn.Name, "$_syscall/js.") ||
-		strings.HasPrefix(fn.Name, "$syscall/js.") ||
-		strings.HasPrefix(fn.Name, "$_struct_syscall/js") ||
-		strings.HasPrefix(fn.Name, "$_*struct_syscall/js") ||
-		strings.HasPrefix(fn.Name, "$_*syscall/js") {
-		return nil
-	}
-	return fn
 }

@@ -30,6 +30,10 @@ func TinyGoNotImplemented()
 func TinyGoNotImplemented1(int32)
 
 //go:wasm-module parigot_abi
+//export WasiEmulation_FdWrite
+func FdWrite(int32, int32, int32, int32) int32
+
+//go:wasm-module parigot_abi
 //export Exit
 func Exit(int)
 

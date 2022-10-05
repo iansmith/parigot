@@ -27,7 +27,7 @@ clean:
 	rm -f build/*
 	rm -rf $(TINYGO_MOD_CACHE)
 
-build/jsstrip: command/Wasm.g4 command/transform/*.go command/jsstrip/*.go command/transform/wasm_parser.go
+build/jsstrip: command/Wasm.g4 command/transform/*.go command/jsstrip/*.go command/transform/wasm_parser.go abi/go/abi/*.go
 	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip
 
 # only need to run the generator once, not once per file

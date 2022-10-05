@@ -93,8 +93,7 @@ func createFileInTmpdir(tmpDir, base string, isErrorFile bool) (*os.File, string
 
 func parigotProcessing(inputFilename, tmpDir string) (string, error) {
 	mod := parse(inputFilename)
-	strippingPass(mod)
-	patchingPass(mod)
+	transformation(mod)
 	fp, path, err := createFileInTmpdir(tmpDir, parigotFilename, false)
 	if err != nil {
 		log.Printf("unable to create intermediate output file: %v", err)

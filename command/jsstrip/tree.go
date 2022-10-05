@@ -101,3 +101,12 @@ func changeToplevelInModule(m *transform.Module, tlType transform.TopLevelT, fn 
 	}
 	m.Code = newTL
 }
+
+func findToplevelInModule(mod *transform.Module, tlType transform.TopLevelT, fn func(transform.TopLevel)) {
+	for _, tl := range mod.Code {
+		if tl.TopLevelType() != tlType {
+			continue
+		}
+		fn(tl)
+	}
+}
