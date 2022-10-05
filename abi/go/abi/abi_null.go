@@ -14,15 +14,19 @@ import "time"
 
 func OutputString(string) {}
 
-func JSHandleEvent() {}
+func JSNotImplemented()
 
-func JSNotImplemented() {}
+func JSNotImplemented1(int32)
 
-func TinyGoNotImplemented() {}
+func JSHandleEvent()
+
+func TinyGoNotImplemented()
+
+func TinyGoNotImplemented1(int32)
 
 func Exit(int) {}
 
-func Now() time.Time {
+func Now() int64 {
 	return time.Time{}
 }
 

@@ -1,17 +1,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/iansmith/parigot/command/transform"
-
-	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
 
 const (
@@ -19,25 +15,29 @@ const (
 	parigotModule = "parigot_abi"
 	JSModule      = "env"
 	FdWrite       = "fd_write"
-	wat2wasm      = "wat2wasm"
-	wasm2wat      = "wasm2wat"
 
-	parigotFilename          = "parigot-transformed.wat"
-	jsNotImplementedImpl     = "$github.com/iansmith/parigot/abi.JSNotImplemented"
-	tinygoNotImplementedImpl = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
-	jsEventImpl              = "$github.com/iansmith/parigot/abi.JSHandleEvent"
+	parigotFilename           = "parigot-transformed.wat"
+	jsNotImplementedImpl      = "$github.com/iansmith/parigot/abi.JSNotImplemented"
+	tinygoNotImplementedImpl  = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented"
+	jsNotImplementedImpl1     = "$github.com/iansmith/parigot/abi.JSNotImplemented1"
+	tinygoNotImplementedImpl1 = "$github.com/iansmith/parigot/abi.TinyGoNotImplemented1"
+	jsEventImpl               = "$github.com/iansmith/parigot/abi.JSHandleEvent"
 
-	jsNotImplImportName     = "JSNotImplemented"
-	tinygoNotImplImportName = "TinyGoNotImplemented"
-	jsEventImportName       = "JSHandleEvent"
+	jsNotImplImportName      = "JSNotImplemented"
+	tinygoNotImplImportName  = "TinyGoNotImplemented"
+	jsNotImplImportName1     = "JSNotImplemented1"
+	tinygoNotImplImportName1 = "TinyGoNotImplemented1"
+	jsEventImportName        = "JSHandleEvent"
 
 	jsHandleEvent = "$syscall/js.handleEvent"
 )
 
 var importNameToImplName = map[string]string{
-	tinygoNotImplImportName: tinygoNotImplementedImpl,
-	jsNotImplImportName:     jsNotImplementedImpl,
-	jsEventImportName:       jsEventImpl,
+	tinygoNotImplImportName:  tinygoNotImplementedImpl,
+	jsNotImplImportName:      jsNotImplementedImpl,
+	tinygoNotImplImportName1: tinygoNotImplementedImpl1,
+	jsNotImplImportName1:     jsNotImplementedImpl1,
+	jsEventImportName:        jsEventImpl,
 }
 
 var importNameToTypeNumber = map[string]int{
@@ -71,13 +71,15 @@ func main() {
 		log.Fatalf("cannot create temp dir: %v", err)
 	}
 
-	// their output is our input
-	watVersion, err := convertInputToFormat(os.Args[1], tmp, "", wasm2wat, "wasm to wat")
+	watVersion, err := convertWasmToWat(tmp, os.Args[1])
 	if err != nil {
 		os.Exit(1)
 	}
-	modifiedWat := parigotProcessing(watVersion, tmp)
-	_, err = convertInputToFormat(modifiedWat, tmp, os.Args[2], wat2wasm, "wat to wasm")
+	modifiedWat, err := parigotProcessing(watVersion, tmp)
+	if err != nil {
+		os.Exit(1)
+	}
+	err = convertWatToWasm(tmp, modifiedWat, os.Args[2])
 	if err != nil {
 		os.Exit(1)
 	}
@@ -88,132 +90,63 @@ func main() {
 	os.Exit(0)
 }
 
-func parigotProcessing(inputFilename, tmp string) string {
-	// Set up the input
-	fs, err := antlr.NewFileStream(inputFilename)
-	if err != nil {
-		log.Fatalf("failed trying to open input file, %v", err)
-	}
-	// make lexer
-	lexer := transform.NewWasmLexer(fs)
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-
-	// Create the Parser
-	p := transform.NewWasmParser(stream)
-
-	// Finally parse the expression
-	builder := &transform.Builder{}
-	antlr.ParseTreeWalkerDefault.Walk(builder, p.Module())
-	mod := builder.Module() // only one module right now
-	strippingPass(mod)
-	patchingPass(mod)
-	outName := filepath.Join(tmp, parigotFilename)
-	out, err := os.Create(outName)
-	if err != nil {
-		log.Fatalf("unable to create output file: %v", err)
-	}
-	out.WriteString(mod.IndentedString(0))
-	out.Close()
-	return outName
-}
-
 // this is dead code with respect to the compiler tinygo, but we are doing binary
 // code patching, so we are creating new "live" functions and they need to be imported
-func addDeadCode(result []transform.TopLevel) []transform.TopLevel {
-	for _, fn := range []string{jsNotImplImportName, tinygoNotImplImportName, jsEventImportName} {
-		imp := &transform.ImportDef{
-			ModuleName: parigotModule,
-			ImportedAs: fn,
-			FuncNameRef: &transform.FuncNameRef{
-				Name: importNameToImplName[fn],
-				Type: &transform.TypeRef{
-					Num: importNameToTypeNumber[fn],
-				},
+func deadCode(name string) transform.TopLevel {
+	imp := &transform.ImportDef{
+		ModuleName: parigotModule,
+		ImportedAs: name,
+		FuncNameRef: &transform.FuncNameRef{
+			Name: importNameToImplName[name],
+			Type: &transform.TypeRef{
+				Num: importNameToTypeNumber[name],
 			},
-		}
-		result = append(result, imp)
+		},
 	}
-	return result
+	return imp
+}
+
+func changeJSEventHandle(stmt transform.Stmt) transform.Stmt {
+	if stmt.StmtType() != transform.OpStmtT ||
+		stmt.(transform.Op).OpType() != transform.CallT {
+		return stmt
+	}
+	call := stmt.(*transform.CallOp)
+	if call.Arg != jsHandleEvent {
+		return stmt
+	}
+	// we have the target
+	call.Arg = jsEventImpl
+	return stmt
 }
 
 func patchingPass(mod *transform.Module) {
-	addedDead := false
-	result := []transform.TopLevel{}
-	// walk all the toplevels
-	for _, tl := range mod.Code {
-		switch tl.TopLevelType() {
-		case transform.FuncDefT:
-			tl = processFuncPass2(tl.(*transform.FuncDef))
-			if tl != nil {
-				//walk all the stmts looking for calls to the JS.handleEvent call
-				for _, stmt := range tl.(*transform.FuncDef).Code {
-					if stmt.StmtType() == transform.OpStmtT &&
-						stmt.(transform.Op).OpType() == transform.CallT {
-						call := stmt.(*transform.CallOp)
-						if call.Arg == jsHandleEvent {
-							call.Arg = jsEventImpl
-						}
-					}
-					if stmt.StmtType() == transform.OpStmtT &&
-						stmt.(transform.Op).OpType() == transform.ArgT {
-						argOp := stmt.(*transform.ArgOp)
-						if argOp.Op == "call" {
-							panic("call")
-						}
-					}
-				}
-			}
-		case transform.ImportDefT:
-			if !addedDead {
-				// have to keep all the imports before all the other stuff
-				result = addDeadCode(result)
-				addedDead = true
-			}
-			break
-		default:
-			break
-		}
-		if tl != nil {
-			result = append(result, tl)
-		}
+	for _, fnName := range []string{jsNotImplImportName, tinygoNotImplImportName, jsEventImportName, jsNotImplImportName1, tinygoNotImplementedImpl1} {
+		addToplevelToModule(mod, deadCode(fnName))
 	}
-	mod.Code = result
+	changeStatementInModule(mod, changeJSEventHandle)
 }
 
 func strippingPass(mod *transform.Module) {
-	result := []transform.TopLevel{}
-	// walk all the toplevels
-	for _, tl := range mod.Code {
-		switch tl.TopLevelType() {
-		case transform.ImportDefT:
-			tl = processImport(tl.(*transform.ImportDef))
-		case transform.ExportDefT:
-			tl = processExport(tl.(*transform.ExportDef))
-		case transform.FuncDefT:
-			tl = processFuncPass1(tl.(*transform.FuncDef))
-		default:
-			break
-		}
-		if tl != nil {
-			result = append(result, tl)
-		}
-	}
-	mod.Code = result
+	changeToplevelInModule(mod, transform.ImportDefT, changeWasiImportToEmulation)
+	changeToplevelInModule(mod, transform.ImportDefT, deleteJSImports)
+	changeToplevelInModule(mod, transform.FuncDefT, changeFunctionsToNotImplemented)
+	changeToplevelInModule(mod, transform.FuncDefT, deleteFunctionDefinitions)
 }
 
 func parigotMangleMethod(category, name string) string {
-	return fmt.Sprintf("%s_%s")
+	return fmt.Sprintf("%s_%s", category, name)
 }
-
-func processImport(importDef *transform.ImportDef) transform.TopLevel {
-	if importDef.ImportedAs == WasiModule {
-		if importDef.ImportedAs == FdWrite {
-			importDef.ModuleName = parigotModule
-			importDef.ImportedAs = parigotMangleMethod("wasi_emulation", "fd_write")
-			return importDef
-		}
-		log.Fatalf("parigot emulation of %s not implemented yet", importDef.ImportedAs)
+func changeWasiImportToEmulation(tl transform.TopLevel) transform.TopLevel {
+	imp := tl.(*transform.ImportDef)
+	if imp.ModuleName == WasiModule && imp.ImportedAs == FdWrite {
+		imp.ImportedAs = parigotMangleMethod("WasiEmulation", "FdWrite")
+		return imp
 	}
+	return imp
+}
+func deleteJSImports(tl transform.TopLevel) transform.TopLevel {
+	importDef := tl.(*transform.ImportDef)
 	if importDef.ModuleName == JSModule {
 		for _, s := range methodsToKillImport {
 			if importDef.ImportedAs == s {
@@ -225,10 +158,6 @@ func processImport(importDef *transform.ImportDef) transform.TopLevel {
 	return importDef
 }
 
-func processExport(export *transform.ExportDef) transform.TopLevel {
-	return export
-}
-
 var jsErrorCall = &transform.CallOp{
 	Arg: jsNotImplementedImpl,
 }
@@ -236,8 +165,11 @@ var tgErrorCall = &transform.CallOp{
 	Arg: tinygoNotImplementedImpl,
 }
 
-func processFuncPass2(fn *transform.FuncDef) transform.TopLevel {
-
+func changeFunctionsToNotImplemented(tl transform.TopLevel) transform.TopLevel {
+	if tl.TopLevelType() != transform.FuncDefT {
+		return tl
+	}
+	fn := tl.(*transform.FuncDef)
 	switch fn.Name {
 	case "$runtime.printitf":
 		fn.Code = []transform.Stmt{tgErrorCall}
@@ -248,11 +180,14 @@ func processFuncPass2(fn *transform.FuncDef) transform.TopLevel {
 	default:
 		break
 	}
-	changeStatement(fn.Code, fixEventHandle2)
 	return fn
 }
 
-func processFuncPass1(fn *transform.FuncDef) transform.TopLevel {
+func deleteFunctionDefinitions(tl transform.TopLevel) transform.TopLevel {
+	if tl.TopLevelType() != transform.FuncDefT {
+		return tl
+	}
+	fn := tl.(*transform.FuncDef)
 	switch fn.Name {
 	case "$runtime.printitf",
 		"$_syscall/js.Value_.String",
@@ -270,104 +205,4 @@ func processFuncPass1(fn *transform.FuncDef) transform.TopLevel {
 		return nil
 	}
 	return fn
-}
-
-func convertInputToFormat(filename, tmp, outFile, program, path string) (string, error) {
-	var outputName string
-
-	var fp *os.File
-
-	if outFile != "" {
-		outputName = outFile
-	} else {
-		var err error
-		// maybe has more than 1 component
-		_, basename := filepath.Split(filename)
-		if outFile != "" {
-			panic("unable to understand input params to convertInputToFormat")
-		}
-		outputName = basename
-		if len(basename) > 5 && strings.HasSuffix(basename, ".wasm") {
-			outputName = basename[0:len(basename)-5] + ".wat"
-		} else {
-			outputName = outputName + ".wat"
-		}
-		outputName = filepath.Join(tmp, outputName)
-		fp, err = os.Create(outputName)
-		if err != nil {
-			log.Printf("converting input file ("+path+") failed, cannot create temp file: %v", err)
-			return "", err
-		}
-	}
-	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
-		log.Fatalf("converting input file ("+path+") failed, input file does not exist: %v", err)
-	}
-	var cmd *exec.Cmd
-	if outFile == "" {
-		cmd = exec.Command(program, filename)
-		cmd.Stdout = fp
-	} else {
-		cmd = exec.Command(program, filename, "-o", outputName)
-	}
-	// stderr file
-	errFile := filepath.Join(tmp, "wat2wasm-errors")
-	errFp, err := os.Create(errFile)
-	if err != nil {
-		log.Fatalf("converting input file ("+path+") failed, cannot create temporary error file: %v", err)
-	}
-	cmd.Stderr = errFp
-	err = cmd.Run()
-	if err != nil {
-		os.Remove(outputName) // so as not to confuse make
-		log.Printf("conversion of %s failed, errors of %s are in :%s", path, program, errFile)
-		return "", err
-	}
-	if fp != nil {
-		fp.Close()
-	}
-	return outputName, nil
-}
-
-func fixEventHandle2(stmt transform.Stmt) {
-	if stmt.StmtType() == transform.OpStmtT &&
-		stmt.(transform.Op).OpType() == transform.CallT {
-		call := stmt.(*transform.CallOp)
-		if call.Arg == jsHandleEvent {
-			call.Arg = jsEventImpl
-		}
-	}
-
-}
-func changeStatement(code []transform.Stmt, fn func(stmt transform.Stmt)) {
-	for _, stmt := range code {
-		fn(stmt)
-		if stmt.StmtType() == transform.IfStmtT ||
-			stmt.StmtType() == transform.BlockStmtT {
-			if stmt.StmtType() == transform.IfStmtT {
-				ifStmt := stmt.(*transform.IfStmt)
-				if ifStmt.IfPart != nil {
-					changeStatement(ifStmt.IfPart, fn)
-				}
-				if ifStmt.ElsePart != nil {
-					changeStatement(ifStmt.ElsePart, fn)
-				}
-			}
-			if stmt.StmtType() == transform.BlockStmtT {
-				bl, ok := stmt.(*transform.BlockStmt)
-				if ok {
-					if bl.Code != nil {
-						changeStatement(bl.Code, fn)
-					}
-				}
-				loop, ok := stmt.(*transform.LoopStmt)
-				if ok {
-					bl = loop.BlockStmt
-					if bl.Code != nil {
-						changeStatement(bl.Code, fn)
-					}
-				}
-
-			}
-		}
-	}
 }

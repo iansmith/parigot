@@ -14,12 +14,20 @@ func OutputString(string)
 func JSNotImplemented()
 
 //go:wasm-module parigot_abi
+//export JSNotImplemented1
+func JSNotImplemented1(int32)
+
+//go:wasm-module parigot_abi
 //export JSHandleEvent
 func JSHandleEvent()
 
 //go:wasm-module parigot_abi
 //export TinyGoNotImplemented
 func TinyGoNotImplemented()
+
+//go:wasm-module parigot_abi
+//export TinyGoNotImplemented1
+func TinyGoNotImplemented1(int32)
 
 //go:wasm-module parigot_abi
 //export Exit

@@ -7,7 +7,7 @@ TINYGO_WASM_OPTS=-target wasm -wasm-abi generic
 
 TINYGO_BUILD_TAGS=parigot_abi
 
-all: build/hello-go.p.wasm runner build/jsstrip
+all: build/hello-go.p.wasm build/runner build/jsstrip
 
 example: example-hello-go
 
@@ -20,14 +20,14 @@ build/hello-go.wat: build/hello-go.wasm
 build/hello-go.p.wasm: build/jsstrip build/hello-go.wat build/hello-go.wasm
 	build/jsstrip build/hello-go.wasm build/hello-go.p.wasm
 
-runner:
-	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/init
+build/runner: sys/cmd/runner/main.go sys/abi/*.go abi/go/abi/*.go
+	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/cmd/runner
 
 clean:
 	rm -f build/*
 	rm -rf $(TINYGO_MOD_CACHE)
 
-build/jsstrip: command/Wasm.g4 command/transform/*.go command/jsstrip/main.go command/transform/wasm_parser.go
+build/jsstrip: command/Wasm.g4 command/transform/*.go command/jsstrip/*.go command/transform/wasm_parser.go
 	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip
 
 # only need to run the generator once, not once per file
