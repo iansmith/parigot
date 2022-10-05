@@ -23,6 +23,12 @@ func parse(inputFilename string) *transform.Module {
 
 	// Finally parse the expression
 	builder := &transform.Builder{}
+	builder.SetFile(inputFilename)
 	antlr.ParseTreeWalkerDefault.Walk(builder, p.Module())
+	if builder.Error() != nil {
+		sym := builder.Error().GetSymbol()
+		log.Fatalf("aborting due to parse failure: (error token=%s) %s:%d:%d",
+			sym.GetText(), builder.File(), sym.GetLine(), sym.GetColumn())
+	}
 	return builder.Module() // only one module right now
 }

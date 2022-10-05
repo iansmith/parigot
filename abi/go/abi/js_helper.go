@@ -40,7 +40,7 @@ func ValueSet(int64, int32, int32, int64, int32) {
 
 //go:wasm-module env
 //export syscall/js.valueLength
-func ValueLength() int32 {
+func ValueLength(int64, int32) int32 {
 	JSNotImplemented()
 	return 0
 }
@@ -55,5 +55,17 @@ func ValueIndex(int64, int32, int32) int64 {
 //go:wasm-module env
 //export syscall/js.valueCall
 func ValueCall(int32, int64, int32, int32, int32, int32, int32, int32) {
+	JSNotImplemented()
+}
+
+//go:wasm-module env
+//export syscall/js.valueNew
+func ValueNew(int32, int64, int32, int32, int32, int32) {
+	JSNotImplemented()
+}
+
+//go:wasm-module env
+//export syscall/js.valueSetIndex
+func ValueSetIndex(int64, int32, int64, int32) {
 	JSNotImplemented()
 }

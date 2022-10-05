@@ -13,7 +13,7 @@ var libs = []string{}
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatalf("pass one wasm file")
+		log.Fatalf("pass one wasm file on the command line")
 	}
 	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
@@ -48,7 +48,7 @@ func main() {
 	start := instance.GetExport(store, "_start").Func()
 	result, err := start.Call(store)
 	check(err)
-	fmt.Printf("done! %v\n", result)
+	fmt.Printf("done with success!")
 }
 
 func check(err error) {
@@ -65,7 +65,7 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	//result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi.Now)
 	result["parigot_abi.NowConvert"] = wasmtime.WrapFunc(store, abi.NowConvert)
 	//result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputString)
-	result["parigot_abi.OutputStringConvert"] = wasmtime.WrapFunc(store, abi.OutputStringConvert)
+	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputStringConvert)
 	result["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi.Exit)
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 
@@ -78,5 +78,10 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	result["env.syscall/js.valueLength"] = wasmtime.WrapFunc(store, abi.ValueLength)
 	result["env.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, abi.ValueIndex)
 	result["env.syscall/js.valueCall"] = wasmtime.WrapFunc(store, abi.ValueCall)
+	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, abi.ValueSetIndex)
+	result["env.syscall/js.valueNew"] = wasmtime.WrapFunc(store, abi.ValueNew)
+
+	result["env.runtime.ticks"] = wasmtime.WrapFunc(store, abi.Ticks)
+	result["env.runtime.sleepTicks"] = wasmtime.WrapFunc(store, abi.SleepTicks)
 	return result
 }

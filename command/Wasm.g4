@@ -11,6 +11,7 @@ module returns [*Module m]:
     ;
 
 topLevelSeq returns [[]TopLevel t]:
+    // can be empty
     | tl+=topLevel (tl+=topLevel)*
     {
         result:=make([]TopLevel,len(localctx.GetTl()))
@@ -259,6 +260,8 @@ funcBody returns [[]Stmt f]:
     ;
 
 stmtSeq returns [[]Stmt s]:
+    // can be empty
+    |
     st+=stmt (st+=stmt)*
     {
         result:=make([]Stmt,len(localctx.GetSt()))
@@ -549,13 +552,14 @@ FloatUnary:
 
 TypeRepresentation:
     'i32.wrap_i64' |
-    'i32.trunc_f32' | 'i32.trunc_sat_f32' | 'i32.trunc_f64'| 'i32.trunc_sat_f64_u' | 'i32.trunc_sat_f64_s'| 'i32.reinterpret_f32'|
-    'i64.trunc_f32' | 'i64.trunc_sat_f32' | 'i64.trunc_f64'| 'i64.trunc_sat_f64_u' | 'i64.trunc_sat_f64_s'| 'i64.reinterpret_f64'|
+    'i32.trunc_f32' | 'i32.trunc_sat_f32_s' | 'i32.trunc_f64'| 'i32.trunc_sat_f64_u' | 'i32.trunc_sat_f64_s'| 'i32.reinterpret_f32'|
+    'i64.trunc_f32' | 'i64.trunc_sat_f32_s' | 'i64.trunc_f64'| 'i64.trunc_sat_f64_u' | 'i64.trunc_sat_f64_s'| 'i64.reinterpret_f64'|
     'f32.demote_f64' | 'f32.convert_i32_s' | 'f32.convert_i64_s' | 'f32.convert_i32_u' | 'f32.convert_i64_u' | 'f32.reinterpret_i32' |
     'f64.promote_f32' | 'f64.convert_i32_s'| 'f64.convert_i64_s' | 'f64.convert_i32_u' | 'f64.convert_i64_u' | 'f64.reinterpret_i64';
 
 Extend:
-    'i64.extend_i32_s' | 'i64.extend_i32_u';
+    'i32.extend8_s' | 'i32.extend8_u' | 'i32.extend16_s' | 'i32.extend16_u' |
+    'i64.extend8_s' | 'i64.extend8_u' | 'i64.extend16_s' | 'i64.extend16_u' | 'i64.extend_i32_s' | 'i64.extend_i32_u';
 
 ControlFlow0:
    'nop'|'unreachable'|'drop'|'return'|'select';
@@ -601,12 +605,12 @@ Rparen: ')';
 Quote: '"';
 
 Num: ('-')? ( '0' .. '9')+;
-fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@') ;
-fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| '0'..'9');
+fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':') ;
+fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':'|'0'..'9');
 Ident:IdentFirst IdentAfter*;
 
 fragment Digit: '0'..'9';
-ConstValue: ('-')?  '0' | ('-')? Digit '.' Digit+ 'e' ('+'|'-') Digit (Digit)? ;
+ConstValue: ('-')?  Digit+ ('.' Digit+ 'e' ('+'|'-') Digit (Digit)?)? ;
 
 //HexPointer: ('-')? '0x' ( '0' .. '9')+ 'p+' ('0'..'9')+;
 Offset: 'offset=' ( '0' .. '9')+;

@@ -3,7 +3,7 @@ TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
 TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
 
-TINYGO_WASM_OPTS=-target wasm -wasm-abi generic
+TINYGO_WASM_OPTS=-target wasm -wasm-abi generic -opt=0
 
 TINYGO_BUILD_TAGS=parigot_abi
 
@@ -14,10 +14,7 @@ example: example-hello-go
 build/hello-go.wasm: example/hello-go/main.go
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/hello-go.wasm github.com/iansmith/parigot/example/hello-go
 
-build/hello-go.wat: build/hello-go.wasm
-	wasm2wat build/hello-go.wasm > build/hello-go.wat
-
-build/hello-go.p.wasm: build/jsstrip build/hello-go.wat build/hello-go.wasm
+build/hello-go.p.wasm: build/jsstrip build/hello-go.wasm
 	build/jsstrip -o build/hello-go.p.wasm build/hello-go.wasm
 
 build/runner: sys/cmd/runner/main.go sys/abi/*.go abi/go/abi/*.go

@@ -8,6 +8,11 @@ import (
 	"github.com/iansmith/parigot/command/transform"
 )
 
+// for the trap version
+var asExternalRetTypeToNewFunc = make(map[retValueType]int)
+var importedFuncNameToTypeNum = make(map[string]int)
+var maxTypeNum = -1
+
 var tgErrorCall = &transform.CallOp{
 	Arg: tinygoNotImplementedImpl,
 }
@@ -156,4 +161,66 @@ func deleteFunctionDefinitions(tl transform.TopLevel) transform.TopLevel {
 		return nil
 	}
 	return fn
+}
+
+func changeFuncsToNotImplemented(tl transform.TopLevel) transform.TopLevel {
+	fn := tl.(*transform.FuncDef)
+	if isJSFunction(fn.Name) {
+		_, ok := replacementFuncTypeTable[fn.Name]
+		log.Printf("replace: %s->%d->%d [%v]", fn.Name, replacementFuncTypeTable[fn.Name],
+			typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]], ok)
+		if typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]] != 0 {
+			op := "i32.const"
+			if typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]] == 64 {
+				op = "i64.const"
+			}
+			// for now, we always return
+			argOp := &transform.ArgOp{
+				Op:     op,
+				IntArg: new(int),
+			}
+			*argOp.IntArg = 0
+			fn.Code = []transform.Stmt{
+				jsErrorCall,
+				argOp,
+				returnStmt,
+			}
+		} else {
+			fn.Code = []transform.Stmt{
+				jsErrorCall,
+			}
+		}
+	}
+	return fn
+}
+func countTypeDefs(_ transform.TopLevel) {
+	maxTypeNum++
+}
+
+func mapReplacementFunctions(level transform.TopLevel) {
+	fn := level.(*transform.FuncDef)
+	if isJSFunction(fn.Name) {
+		log.Printf("%s:type %d\n", fn.Name, fn.Type.Num)
+		replacementFuncTypeTable[fn.Name] = fn.Type.Num
+	}
+}
+func modifyWasiCall(stmt transform.Stmt) transform.Stmt {
+	if stmt.StmtType() == transform.OpStmtT && stmt.(transform.Op).OpType() == transform.CallT {
+		call := stmt.(*transform.CallOp)
+		if call.Arg == oldWasiCallTarget {
+			call.Arg = parigotBaseFnName + "." + FdWriteEmulName
+			log.Printf("adjusted call from runtime.fd_write to %s", call.Arg)
+		}
+	}
+	return stmt
+}
+
+func modifyWasiImport(tl transform.TopLevel) transform.TopLevel {
+	idef := tl.(*transform.ImportDef)
+	if idef.ModuleName == WasiModule && idef.ImportedAs == FdWrite {
+		idef.FuncNameRef.Name = parigotBaseFnName + "." + FdWriteEmulName
+		importedFuncNameToTypeNum[idef.FuncNameRef.Name] = idef.FuncNameRef.Type.Num
+		log.Printf("flipped WASI interface to parigot emulation")
+	}
+	return idef
 }

@@ -38,3 +38,7 @@ func annoToString(raw string, p bool) string {
 func (b *Builder) VisitTerminal(node antlr.TerminalNode) {
 	//fmt.Printf("xxx terminal %s\n", node.GetText())
 }
+
+func (b *Builder) VisitErrorNode(node antlr.ErrorNode) {
+	b.error = node
+}

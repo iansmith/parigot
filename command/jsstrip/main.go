@@ -77,11 +77,6 @@ var typeNumberToReturnValueType = make(map[int]retValueType)
 var replacementFuncTypeTable = make(map[string]int)
 var importFuncTypeTable = make(map[string]int)
 
-// for the trap version
-var asExternalRetTypeToNewFunc = make(map[retValueType]int)
-var importedFuncNameToTypeNum = make(map[string]int)
-var maxTypeNum = -1
-
 // command line args
 var outputFile *string = flag.String("o", "", "set to the output file you want to produce, otherwise output goes to stdout")
 var useTrapForParigot *bool = flag.Bool("trap", false, "set if you want generate kernel traps for all parigot_abi calls")
@@ -217,60 +212,9 @@ func mapTypeReturnValues(tl transform.TopLevel) {
 		typeNumberToReturnValueType[td.Annotation] = retNone
 	}
 }
-func modifyWasiCall(stmt transform.Stmt) transform.Stmt {
-	if stmt.StmtType() == transform.OpStmtT && stmt.(transform.Op).OpType() == transform.CallT {
-		call := stmt.(*transform.CallOp)
-		if call.Arg == oldWasiCallTarget {
-			call.Arg = parigotBaseFnName + "." + FdWriteEmulName
-			log.Printf("adjusted call from runtime.fd_write to %s", call.Arg)
-		}
-	}
-	return stmt
-}
-
-func modifyWasiImport(tl transform.TopLevel) transform.TopLevel {
-	idef := tl.(*transform.ImportDef)
-	if idef.ModuleName == WasiModule && idef.ImportedAs == FdWrite {
-		idef.FuncNameRef.Name = parigotBaseFnName + "." + FdWriteEmulName
-		importedFuncNameToTypeNum[idef.FuncNameRef.Name] = idef.FuncNameRef.Type.Num
-		log.Printf("flipped WASI interface to parigot emulation")
-	}
-	return idef
-}
 
 var returnStmt = &transform.ZeroOp{
 	Op: "return",
-}
-
-func changeFuncsToNotImplemented(tl transform.TopLevel) transform.TopLevel {
-	fn := tl.(*transform.FuncDef)
-	if isJSFunction(fn.Name) {
-		_, ok := replacementFuncTypeTable[fn.Name]
-		log.Printf("replace: %s->%d->%d [%v]", fn.Name, replacementFuncTypeTable[fn.Name],
-			typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]], ok)
-		if typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]] != 0 {
-			op := "i32.const"
-			if typeNumberToReturnValueType[replacementFuncTypeTable[fn.Name]] == 64 {
-				op = "i64.const"
-			}
-			// for now, we always return
-			argOp := &transform.ArgOp{
-				Op:     op,
-				IntArg: new(int),
-			}
-			*argOp.IntArg = 0
-			fn.Code = []transform.Stmt{
-				jsErrorCall,
-				argOp,
-				returnStmt,
-			}
-		} else {
-			fn.Code = []transform.Stmt{
-				jsErrorCall,
-			}
-		}
-	}
-	return fn
 }
 
 func isJSFunction(name string) bool {
@@ -279,18 +223,6 @@ func isJSFunction(name string) bool {
 
 func isParigotModule(name string) bool {
 	return name == parigotModule
-}
-
-func countTypeDefs(_ transform.TopLevel) {
-	maxTypeNum++
-}
-
-func mapReplacementFunctions(level transform.TopLevel) {
-	fn := level.(*transform.FuncDef)
-	if isJSFunction(fn.Name) {
-		log.Printf("%s:type %d\n", fn.Name, fn.Type.Num)
-		replacementFuncTypeTable[fn.Name] = fn.Type.Num
-	}
 }
 
 func importedFunctionToExternalRefTypeNum(name string) int {
@@ -312,11 +244,7 @@ func importedFunctionToExternalRefTypeNum(name string) int {
 
 func changeImportsToPointToConversions(tl transform.TopLevel) transform.TopLevel {
 	idef := tl.(*transform.ImportDef)
-	if strings.HasPrefix(idef.FuncNameRef.Name, "$github.com/iansmith") {
-		log.Printf("xxx found one %s", idef.FuncNameRef.Name)
-	}
 	if idef.FuncNameRef.Name == "$github.com/iansmith/parigot/abi/go/abi.OutputString" {
-		log.Printf("xxx updating output string function name")
 		idef.FuncNameRef.Name = "$github.com/iansmith/parigot/abi/go/abi.OutputStringConvert"
 		idef.FuncNameRef.Type.Num = 2
 	}
@@ -326,7 +254,7 @@ func changeCallsToUseConversion(stmt transform.Stmt) transform.Stmt {
 	if stmt.StmtType() == transform.OpStmtT &&
 		stmt.(transform.Op).OpType() == transform.CallT &&
 		stmt.(*transform.CallOp).Arg == "$github.com/iansmith/parigot/abi/go/abi.OutputString" {
-		log.Printf("xxx found a call to output string")
+		log.Printf("adjusting call... %#v", stmt)
 		stmt.(*transform.CallOp).Arg = "$github.com/iansmith/parigot/abi/go/abi.OutputStringConvert"
 	}
 	return stmt
