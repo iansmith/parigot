@@ -6,20 +6,38 @@ import (
 
 // addToplevelToModule adds a TopLevel t into the code of a module m.  If module m
 // has no TopLevel's that are the same type as t, this function panics.
-func addToplevelToModule(m *transform.Module, t transform.TopLevel) {
-	location := -1
-	//walk all the TopLevels looking for existing TLs of same type
-	for i, tl := range m.Code {
-		if tl.TopLevelType() == t.TopLevelType() {
-			location = i
-			break
-		}
-	}
-	if location == -1 {
-		// xxx should we just put it after the imports?
-		panic("can't place new TopLevel, unable to find any TopLevel in module to combine with same type ")
-	}
+func addToplevelToModule(m *transform.Module, t transform.TopLevel, atEnd bool) {
+	location := findTopLevelLocation(m, t.TopLevelType(), atEnd)
 	m.Code = append(m.Code[:location], append([]transform.TopLevel{t}, m.Code[location:]...)...)
+}
+
+func findTopLevelLocation(m *transform.Module, t transform.TopLevelT, atEnd bool) int {
+	if !atEnd {
+		// xxx assumes all the TLs of a type are together
+		for i := 0; i < len(m.Code); i++ {
+			if m.Code[i].TopLevelType() == t {
+				return i
+			}
+		}
+		// xxx should we just put it after the imports?
+		panic("can't place new TopLevel at beginning of group, unable to find any TopLevel in module to combine with same type ")
+	} else {
+		if len(m.Code) == 0 || len(m.Code) == 1 {
+			return len(m.Code)
+		}
+		// xxx assumes all the top levels of a type are together
+		prevType := m.Code[0].TopLevelType()
+		for i := 1; i < len(m.Code); i++ {
+			if prevType == t && m.Code[i].TopLevelType() != t {
+				return i
+			}
+			prevType = m.Code[i].TopLevelType()
+		}
+		if m.Code[len(m.Code)-1].TopLevelType() == t {
+			return len(m.Code) - 1
+		}
+		panic("unable to place new top level type at end of the group, maybe there are no other top levels of that type?")
+	}
 }
 
 // changeStmtCodeOnly walks all the stmts in a sequence and then calls fn at each stmt.

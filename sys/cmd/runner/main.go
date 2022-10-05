@@ -6,7 +6,7 @@ import (
 	"os"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
-	"github.com/iansmith/parigot/sys/abi"
+	"github.com/iansmith/parigot/abi/go/abi"
 )
 
 var libs = []string{}
@@ -19,14 +19,25 @@ func main() {
 	store := wasmtime.NewStore(engine)
 	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
 	check(err)
-	for _, exp := range module.Exports() {
-		print("exp:", exp.Name(), "\n")
-	}
-	for _, imp := range module.Imports() {
-		print("imp:", imp.Module(), ",", *imp.Name(), "\n")
-	}
 	wrappers := generateWrappersForABI(store)
-	instance, err := wasmtime.NewInstance(store, module, wrappers)
+	//for _, exp := range module.Exports() {
+	//	log.Printf("exp: %s", exp.Name())
+	//}
+	linkage := []wasmtime.AsExtern{}
+	for _, imp := range module.Imports() {
+		n := "$$ANON$$"
+		if imp.Name() != nil {
+			n = *imp.Name()
+		}
+		importName := fmt.Sprintf("%s.%s", imp.Module(), n)
+		ext, ok := wrappers[importName]
+		if !ok {
+			log.Printf("unable to find linkage for %s", importName)
+		} else {
+			linkage = append(linkage, ext)
+		}
+	}
+	instance, err := wasmtime.NewInstance(store, module, linkage)
 	check(err)
 
 	start := instance.GetExport(store, "_start").Func()
@@ -40,15 +51,25 @@ func check(err error) {
 		panic(err)
 	}
 }
+func generateWrappersForABI(store wasmtime.Storelike) map[string]wasmtime.AsExtern {
+	var result = make(map[string]wasmtime.AsExtern)
+	result["parigot_abi.TinyGoNotImplemented"] = wasmtime.WrapFunc(store, abi.TinyGoNotImplemented)
+	result["parigot_abi.JSHandleEvent"] = wasmtime.WrapFunc(store, abi.JSHandleEvent)
+	result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
+	result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
+	result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi.Now)
+	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputString)
+	result["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi.Exit)
+	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 
-func generateWrappersForABI(store wasmtime.Storelike) []wasmtime.AsExtern {
-	result := []wasmtime.AsExtern{}
-	result = append(result, wasmtime.WrapFunc(store, abi.TinyGoNotImplemented))
-	result = append(result, wasmtime.WrapFunc(store, abi.JSHandleEvent))
-	result = append(result, wasmtime.WrapFunc(store, abi.JSNotImplemented))
-	result = append(result, wasmtime.WrapFunc(store, abi.SetNow))
-	result = append(result, wasmtime.WrapFunc(store, abi.Now))
-	result = append(result, wasmtime.WrapFunc(store, abi.OutputString))
-
+	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, abi.ValueGet)
+	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, abi.ValuePrepareString)
+	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, abi.ValueLoadString)
+	result["env.syscall/js.finalizeRef"] = wasmtime.WrapFunc(store, abi.FinalizeRef)
+	result["env.syscall/js.stringVal"] = wasmtime.WrapFunc(store, abi.StringVal)
+	result["env.syscall/js.valueSet"] = wasmtime.WrapFunc(store, abi.ValueSet)
+	result["env.syscall/js.valueLength"] = wasmtime.WrapFunc(store, abi.ValueLength)
+	result["env.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, abi.ValueIndex)
+	result["env.syscall/js.valueCall"] = wasmtime.WrapFunc(store, abi.ValueCall)
 	return result
 }

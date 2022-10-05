@@ -16,13 +16,13 @@ func OutputString(string) {}
 
 func JSNotImplemented() {}
 
-func JSNotImplemented1(int32) {}
-
 func JSHandleEvent() {}
 
 func TinyGoNotImplemented() {}
 
-func TinyGoNotImplemented1(int32) {}
+func FdWrite(int32, int32, int32, int32) int32 {
+	return 0
+}
 
 func Exit(int) {}
 

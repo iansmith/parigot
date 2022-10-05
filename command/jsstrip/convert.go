@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -17,19 +18,47 @@ const (
 )
 
 // wat2wasm takes an argument for it's output file, puts errors on stderr
-func convertWatToWasm(tmpDir, source, target string) error {
+func convertWatToWasm(tmpDir, source string, target *string) error {
+	extraArgs := []string{}
+	var tempTargetFile string
+	if *target == "" {
+		var tempFd *os.File
+		var err error
+		tempFd, tempTargetFile, err = createFileInTmpdir(tmpDir, watProgram, false)
+		if err != nil {
+			log.Printf("unable to create temporary file for wasm output: %v", err)
+			return err
+		}
+		tempFd.Close()
+		extraArgs = []string{source, "-o", tempTargetFile}
+	} else {
+		extraArgs = []string{source, "-o", *target}
+	}
 	errFp, errFile, err := createFileInTmpdir(tmpDir, watProgram, true)
 	if err != nil {
+		log.Printf("unable to create temporary file for wasm output: %v", err)
 		return err
 	}
-	cmd := exec.Command(watProgram, source, "-o", target)
+	cmd := exec.Command(watProgram, extraArgs...)
 	defer errFp.Close()
 	cmd.Stderr = errFp
 	err = cmd.Run()
 	if err != nil {
-		os.Remove(target) // don't want to confuse make
+		if *target == "" {
+			os.Remove(*target) // don't want to confuse make
+		}
 		log.Printf("conversion of %s to wasm failed, errors in %s: %v", source, errFile, err)
 		return err
+	}
+	if *target == "" {
+		fp, err := os.Open(tempTargetFile)
+		if err != nil {
+			log.Printf("unable to read file %s to print to stdout: %v", tempTargetFile, err)
+		}
+		_, err = io.Copy(os.Stdout, fp)
+		if err != nil {
+			log.Printf("unable to copy file %s content tto stdout: %v", tempTargetFile, err)
+		}
 	}
 	return nil
 }

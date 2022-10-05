@@ -10,11 +10,23 @@ var tgErrorCall = &transform.CallOp{
 	Arg: tinygoNotImplementedImpl,
 }
 
+func modifyParigotAbiFuncNames(tl transform.TopLevel) transform.TopLevel {
+	fn := tl.(*transform.ImportDef)
+	if isParigotModule(fn.ModuleName) {
+		log.Printf("parigot function imported: (%s:%s) %s:%d\n", fn.ModuleName, fn.ImportedAs, fn.FuncNameRef.Name, fn.FuncNameRef.Type.Num)
+		if strings.HasPrefix(fn.FuncNameRef.Name, "$") {
+			fn.FuncNameRef.Name = fn.FuncNameRef.Name[1:]
+			log.Printf("    --> removed $ to make it %s", fn.FuncNameRef.Name)
+		}
+	}
+	return fn
+}
+
 func changeWasiImportToEmulation(tl transform.TopLevel) transform.TopLevel {
 	imp := tl.(*transform.ImportDef)
 	if imp.ModuleName == WasiModule && imp.ImportedAs == FdWrite {
 		imp.ModuleName = "parigot_abi"
-		imp.ImportedAs = parigotMangleMethod("WasiEmulation", "FdWrite")
+		//		imp.ImportedAs = parigotMangleMethod("WasiEmulation", "FdWrite")
 		return imp
 	}
 	return imp
