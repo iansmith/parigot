@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/abi/go/abi"
 	"io"
 	"log"
 	"os"
+	"reflect"
+	"unsafe"
 
+	"github.com/iansmith/parigot/abi/go/abi"
 	"github.com/iansmith/parigot/abi/go/jspatch"
 	"github.com/iansmith/parigot/abi/go/tinygopatch"
-	"github.com/iansmith/parigot/sys/abi_impl"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
@@ -33,12 +34,7 @@ func main() {
 	check(err)
 	module, err := wasmtime.NewModule(engine, buffer)
 	check(err)
-	//module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
-	//check(err)
 	wrappers := generateWrappersForABI(store)
-	//for _, exp := range module.Exports() {
-	//	log.Printf("exp: %s", exp.Name())
-	//}
 	linkFailed := false
 	linkage := []wasmtime.AsExtern{}
 	for _, imp := range module.Imports() {
@@ -83,12 +79,7 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
 	result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
 
-	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, func(a int32, b int32) {
-		abi_impl.OutputString_(memPtr, a, b)
-	})
-
-	result["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi_impl.Exit_)
-	result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi_impl.Now_)
+	addABIToStore(store, memPtr, result)
 
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
@@ -106,4 +97,15 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	result["env.runtime.ticks"] = wasmtime.WrapFunc(store, tinygopatch.Ticks)
 	result["env.runtime.sleepTicks"] = wasmtime.WrapFunc(store, tinygopatch.SleepTicks)
 	return result
+}
+
+func strConvert(mem uintptr, ptr int32, length int32) string {
+	addr := mem + uintptr(ptr)
+	var data []byte
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
+	sh.Data = addr
+	sh.Len = int(length)
+	sh.Cap = int(length)
+	// this assumes there is no GC running!
+	return string(data)
 }

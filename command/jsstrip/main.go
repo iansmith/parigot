@@ -12,6 +12,7 @@ import (
 const (
 	parigotModule   = "parigot_abi"
 	abiGoLinkerPath = "$github.com/iansmith/parigot/abi/go"
+	parigotSuffix   = "_Stub"
 )
 
 // command line args
@@ -57,26 +58,10 @@ func transformation(mod *transform.Module) {
 	changeStatementInModule(mod, changeCallsToUseStub)
 }
 
-//func appendFuncDefForNow(mod *transform.Module) {
-//	td := &transform.TypeDef{
-//		Annotation: funcDefCount,
-//		Func: &transform.FuncSpec{
-//			Param: nil,
-//			Result: &transform.ResultDef{
-//				Type: &transform.TypeNameSeq{
-//					Name: []string{"i64"},
-//				},
-//			},
-//		},
-//	}
-//	mod.AppendTopLevelDef(td)
-//	funcDefCount++
-//}
-
 func changeImportsToPointToStub(tl transform.TopLevel) transform.TopLevel {
 	idef := tl.(*transform.ImportDef)
 	if idef.ModuleName == parigotModule {
-		idef.FuncNameRef.Name = idef.FuncNameRef.Name + "_"
+		idef.FuncNameRef.Name = idef.FuncNameRef.Name + parigotSuffix
 	}
 	return idef
 }
@@ -85,7 +70,7 @@ func changeCallsToUseStub(stmt transform.Stmt) transform.Stmt {
 	if stmt.StmtType() == transform.OpStmtT &&
 		stmt.(transform.Op).OpType() == transform.CallT {
 		if strings.HasPrefix(stmt.(*transform.CallOp).Arg, abiGoLinkerPath) {
-			stmt.(*transform.CallOp).Arg = stmt.(*transform.CallOp).Arg + "_"
+			stmt.(*transform.CallOp).Arg = stmt.(*transform.CallOp).Arg + parigotSuffix
 		}
 	}
 
