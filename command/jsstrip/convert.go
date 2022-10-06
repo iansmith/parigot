@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	wasmSuffix  = ".wasm"
-	watSuffix   = ".wat"
-	wasmProgram = "wasm2wat"
-	watProgram  = "wat2wasm"
+	wasmSuffix      = ".wasm"
+	watSuffix       = ".wat"
+	wasmProgram     = "wasm2wat"
+	watProgram      = "wat2wasm"
+	parigotFilename = "parigot_transformed.wat"
 )
 
 // wat2wasm takes an argument for it's output file, puts errors on stderr

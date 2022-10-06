@@ -32,11 +32,7 @@ func FdWrite(int32, int32, int32, int32) int32 {
 
 func Exit(int32) {}
 
-func Now() time.Time {
-	return time.Time{}
-}
-
-func NowConvert() int64 {
+func Now() int64 {
 	return 0
 }
 

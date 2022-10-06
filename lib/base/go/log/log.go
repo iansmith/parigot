@@ -2,7 +2,6 @@ package log
 
 import (
 	"bytes"
-	"fmt"
 	"time"
 
 	"github.com/iansmith/parigot/abi/go/abi"
@@ -20,6 +19,8 @@ const (
 	DevMask = DebugLevel | InfoLevel | WarnLevel | ErrorLevel | FatalLevel
 	// ProdMask  = WarnLevel | ErrorLevel | FatalLevel
 )
+
+var Dev = NewLocalT(DevMask, true)
 
 func (lvl LevelMask) String() string {
 	var buf bytes.Buffer
@@ -52,7 +53,7 @@ func (lvl LevelMask) String() string {
 type T interface {
 	LogMask() LevelMask
 	SetLogMask(LevelMask)
-	AbortOnFatal()
+	AbortOnFatal() bool
 	SetAbortOnFatal(bool)
 	Debug(string, ...string)
 	Info(string, ...string)
@@ -118,15 +119,34 @@ func (l *LocalT) Fatal(f string, rest ...string) {
 	}
 }
 
-//export foo
+func NewLocalT(m LevelMask, abortOnFatal bool) T {
+	return &LocalT{
+		levelMask:    m,
+		abortOnFatal: true,
+	}
+}
+
 func outputString(prefix, f string, rest ...string) {
 	var buf bytes.Buffer
-	now := abi.Now()
-	stamp := now.Format(time.Stamp)
-	buf.WriteString(stamp)
+	t := time.Unix(0, abi.Now())
+	t = t.UTC()
+	stamp := t.Format(time.Stamp)
+	buf.WriteString(stamp + " UTC")
 	buf.WriteString(" ")
 	buf.WriteString(prefix)
 	buf.WriteString(":")
-	buf.WriteString(fmt.Sprintf(f, rest)) // xxx should not be using reflection
+	buf.WriteString(f)
+	last := f
+	for _, r := range rest {
+		last = r
+	}
+	addNewlineIfDontHaveOne(last, &buf)
 	abi.OutputString(buf.String())
+}
+func addNewlineIfDontHaveOne(s string, buf *bytes.Buffer) {
+	// could do this with converting the buffer to bytes or string but this
+	// seems least bad option
+	if s[len(s)-1] != '\n' {
+		buf.WriteString("\n")
+	}
 }

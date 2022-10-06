@@ -23,6 +23,18 @@ func (m *Module) IndentedString(indented int) string {
 	return buf.String()
 }
 
-func (m *Module) AddTopLevelDef(def TopLevel) {
-	m.Code = append(m.Code, def)
+func (m *Module) AppendTopLevelDef(def TopLevel) {
+	if len(m.Code) == 0 || len(m.Code) == 1 {
+		m.Code = append(m.Code, def)
+		return
+	}
+	prev := m.Code[0].TopLevelType()
+	for i := range m.Code {
+		if prev == def.TopLevelType() && m.Code[i].TopLevelType() != def.TopLevelType() {
+			//change point
+			m.Code = append(m.Code[:i], append([]TopLevel{def}, m.Code[i:]...)...)
+			return
+		}
+	}
+	panic("unable to find the sequence of toplevels to append to")
 }

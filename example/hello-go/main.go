@@ -2,9 +2,10 @@ package main
 
 import (
 	"github.com/iansmith/parigot/abi/go/abi"
+	"github.com/iansmith/parigot/lib/base/go/log"
 )
 
 func main() {
-	abi.OutputString("bleah")
-	abi.Exit(107)
+	log.Dev.Debug("hello, logger")
+	abi.Exit(1)
 }

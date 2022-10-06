@@ -3,9 +3,11 @@ TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
 TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
 
-TINYGO_WASM_OPTS=-target wasm -wasm-abi generic -opt=0
+TINYGO_WASM_OPTS=-target wasm -wasm-abi generic
 
 TINYGO_BUILD_TAGS=parigot_abi
+
+TRANSFORM=command/transform
 
 all: build/hello-go.p.wasm build/runner build/jsstrip
 
@@ -17,12 +19,14 @@ build/hello-go.wasm: example/hello-go/main.go
 build/hello-go.p.wasm: build/jsstrip build/hello-go.wasm
 	build/jsstrip -o build/hello-go.p.wasm build/hello-go.wasm
 
-build/runner: sys/cmd/runner/main.go sys/abi/*.go abi/go/abi/*.go
+build/runner: sys/cmd/runner/main.go sys/abi_impl/*.go abi/go/abi/*.go
 	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/cmd/runner
 
 clean:
 	rm -f build/*
 	rm -rf $(TINYGO_MOD_CACHE)
+	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
+
 
 build/jsstrip: command/Wasm.g4 command/transform/*.go command/jsstrip/*.go command/transform/wasm_parser.go abi/go/abi/*.go
 	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip

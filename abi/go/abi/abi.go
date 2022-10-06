@@ -12,8 +12,8 @@ import (
 func OutputString(string)
 
 //go:wasm-module parigot_abi
-//export OutputStringConvert
-func OutputStringConvert(a int32, b int32)
+//export OutputString_
+func OutputString_(a int32, b int32)
 
 //go:wasm-module parigot_abi
 //export JSNotImplemented
@@ -29,12 +29,11 @@ func TinyGoNotImplemented()
 
 //go:wasm-module parigot_abi
 //export Exit
-func Exit(int32)
+func Exit(exitCode int32)
 
 //go:wasm-module parigot_abi
 //export Now
-func Now() time.Time
-func NowConvert() int64
+func Now() int64
 
 //go:wasm-module parigot_abi
 //export SetNow
