@@ -559,7 +559,8 @@ TypeRepresentation:
 
 Extend:
     'i32.extend8_s' | 'i32.extend8_u' | 'i32.extend16_s' | 'i32.extend16_u' |
-    'i64.extend8_s' | 'i64.extend8_u' | 'i64.extend16_s' | 'i64.extend16_u' | 'i64.extend_i32_s' | 'i64.extend_i32_u';
+    'i64.extend8_s' | 'i64.extend8_u' | 'i64.extend16_s' | 'i64.extend16_u' | 'i64.extend32_s' | 'i64.extend32_u' |'i64.extend_i32_s' | 'i64.extend_i32_u';
+
 
 ControlFlow0:
    'nop'|'unreachable'|'drop'|'return'|'select';
@@ -605,12 +606,12 @@ Rparen: ')';
 Quote: '"';
 
 Num: ('-')? ( '0' .. '9')+;
-fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':') ;
-fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':'|'0'..'9');
+fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':' | '#') ;
+fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':' | '#' | Digit);
 Ident:IdentFirst IdentAfter*;
 
 fragment Digit: '0'..'9';
-ConstValue: ('-')?  Digit+ ('.' Digit+ 'e' ('+'|'-') Digit (Digit)?)? ;
+ConstValue: ('-')?  Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)?)? ;
 
 //HexPointer: ('-')? '0x' ( '0' .. '9')+ 'p+' ('0'..'9')+;
 Offset: 'offset=' ( '0' .. '9')+;

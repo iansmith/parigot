@@ -3,7 +3,9 @@
 
 package abi
 
-import "time"
+import (
+	"time"
+)
 
 //go:wasm-module parigot_abi
 //export OutputString
@@ -11,7 +13,7 @@ func OutputString(string)
 
 //go:wasm-module parigot_abi
 //export OutputStringConvert
-func OutputStringConvert(int32, int32)
+func OutputStringConvert(a int32, b int32)
 
 //go:wasm-module parigot_abi
 //export JSNotImplemented

@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/abi/go/abi"
+	"log"
+	"os"
+	"unsafe"
 )
 
 var libs = []string{}
+
+var memPtr unsafe.Pointer
 
 func main() {
 	if len(os.Args) != 2 {
@@ -39,16 +41,19 @@ func main() {
 			linkage = append(linkage, ext)
 		}
 	}
+
 	if linkFailed {
 		os.Exit(1)
 	}
 	instance, err := wasmtime.NewInstance(store, module, linkage)
 	check(err)
+	ext := instance.GetExport(store, "memory")
+	memPtr = ext.Memory().Data(store)
 
 	start := instance.GetExport(store, "_start").Func()
-	result, err := start.Call(store)
+	_, err = start.Call(store)
 	check(err)
-	fmt.Printf("done with success!")
+	print("done with success!\n")
 }
 
 func check(err error) {
@@ -65,7 +70,17 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	//result["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi.Now)
 	result["parigot_abi.NowConvert"] = wasmtime.WrapFunc(store, abi.NowConvert)
 	//result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputString)
-	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputStringConvert)
+	//result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, abi.OutputStringConvert)
+	result["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, func(a int32, b int32) {
+		print("a=", a, " b=", b, "\n")
+		ptr := uintptr(memPtr)
+		for i := int32(0); i < b; i++ {
+			addr := ptr + uintptr(a+i)
+			p := (*byte)(unsafe.Pointer(addr))
+			fmt.Printf("%c", *p)
+		}
+	})
+
 	result["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi.Exit)
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 
