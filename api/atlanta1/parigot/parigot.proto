@@ -1,0 +1,39 @@
+syntax = "proto3";
+package atlanta1.parigot;
+option go_package = "github.com/iansmith/parigot/api/gen/atlanta1/parigot;parigot";
+// import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service App {
+  // buf:lint:ignore PACKAGE_VERSION_SUFFIX
+  rpc Exit(ExitRequest) returns(google.protobuf.Empty);  // won't return
+}
+
+service Terminal {
+  rpc OutputString(OutputStringRequest) returns (OutputStringResponse);
+}
+
+service Time {
+  rpc Now(NowRequest) returns(NowResponse);
+}
+
+message ExitRequest {
+  int32 exit_code = 1;
+}
+
+message ExitResponse {
+}
+
+message OutputStringRequest{
+  string content = 1;
+}
+
+message OutputStringResponse{
+}
+
+message NowRequest{
+}
+
+message NowResponse{
+  int64 current_time = 1;
+}

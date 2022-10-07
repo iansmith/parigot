@@ -1,7 +1,10 @@
 go 1.19
 
-use ./lib
-use ./sys
-use ./example/hello-go
-use ./abi
-use ./command
+use lib
+use sys
+use abi
+use command
+use api
+
+use example/greet
+use example/hello-go

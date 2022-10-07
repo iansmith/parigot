@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package greet;
+
+// keep in mind this is quite dependent on the go.mod file that is in
+// ../../go.mod
+option go_package = "example/greet/proto/gen/greet;greet";
+
+message GreetRequest {
+  string name = 1;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}
+
+service Greet {
+  rpc Greet(GreetRequest) returns (GreetResponse) {}
+}
