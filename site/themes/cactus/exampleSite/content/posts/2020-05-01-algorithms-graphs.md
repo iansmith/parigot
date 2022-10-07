@@ -226,7 +226,7 @@ public class Digraph {
 }
 ```
 
-### Digraph search
+### Digraph searchModules
 
 Reachabiliity problem: Find all vertices reachable from s along a directed path.
 

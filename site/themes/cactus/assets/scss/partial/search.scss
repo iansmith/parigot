@@ -1,4 +1,4 @@
-.search-input {
+.searchModules-input {
   padding: 4px 7px;
   width: 100%;
   outline: none;
@@ -14,35 +14,35 @@
     border: solid 1px $color-accent-1;
   }
 }
-#search-result {
-  ul.search-result-list {
+#searchModules-result {
+  ul.searchModules-result-list {
     padding: 0;
     list-style-type: none;
   }
   li {
     margin: 2em auto;
   }
-  a.search-result-title {
+  a.searchModules-result-title {
     background-image: none;
     color: $color-text;
     text-transform: capitalize;
     font-weight: bold;
     line-height: 1.2;
   }
-  p.search-result {
+  p.searchModules-result {
     overflow: hidden;
     margin: .4em auto;
     max-height: 13em;
     text-align: justify;
     font-size: .8em;
   }
-  em.search-keyword {
+  em.searchModules-keyword {
     border-bottom: 1px dashed $color-link;
     color: $color-link;
     font-weight: bold;
   }
 }
-.search-no-result {
+.searchModules-no-result {
   display: none;
   padding-bottom: .5em;
   color: $color-text;
