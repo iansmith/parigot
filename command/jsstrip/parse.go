@@ -9,7 +9,7 @@ import (
 )
 
 func parse(inputFilename string) *transform.Module {
-	log.Printf("xxx parse called on %s", inputFilename)
+	//log.Printf("xxx parse called on %s", inputFilename)
 	// Set up the input
 	fs, err := antlr.NewFileStream(inputFilename)
 	if err != nil {

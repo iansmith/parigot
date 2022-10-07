@@ -79,9 +79,9 @@ func main() {
 		}
 	}
 	//os.RemoveAll(tmp)
-	log.Printf("(1) %s -> %s\n", flag.Arg(0), watVersion)
-	log.Printf("(2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
-	log.Printf("(3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
+	log.Printf("\t jsstrip: (1) %s -> %s\n", flag.Arg(0), watVersion)
+	log.Printf("\t jsstrip: (2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
+	log.Printf("\t jsstrip: (3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
 	os.Exit(0)
 }
 
