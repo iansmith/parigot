@@ -11,12 +11,16 @@ TRANSFORM=command/transform
 
 ABI_GO=command/runner/abi.go
 
-all: build/hello-go.p.wasm build/runner build/jsstrip build/genabi
-
-example: example-hello-go
+all: build/hello-go.p.wasm build/ex1.p.wasm build/runner build/jsstrip build/genabi
 
 build/hello-go.wasm: example/hello-go/main.go
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/hello-go.wasm github.com/iansmith/parigot/example/hello-go
+
+build/ex1.wasm: command/jsstrip/testdata/ex1.go
+	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -opt=0 -tags $(TINYGO_BUILD_TAGS) -o build/ex1.wasm github.com/iansmith/parigot/command/jsstrip/testdata
+
+build/ex1.p.wasm: build/ex1.wasm
+	build/jsstrip -o build/ex1.p.wasm build/ex1.wasm
 
 build/hello-go.p.wasm: build/jsstrip build/hello-go.wasm
 	build/jsstrip -o build/hello-go.p.wasm build/hello-go.wasm

@@ -17,6 +17,9 @@ const (
 
 // command line args
 var outputFile *string = flag.String("o", "", "set to the output file you want to produce, otherwise output goes to stdout")
+var first *bool = flag.Bool("1", false, "1st pass")
+var second *bool = flag.Bool("2", false, "2nd pass")
+var third *bool = flag.Bool("3", false, "3rd pass")
 
 func main() {
 
@@ -32,26 +35,59 @@ func main() {
 		log.Fatalf("cannot create temp dir: %v", err)
 	}
 
-	watVersion, err := convertWasmToWat(tmp, flag.Arg(0))
-	if err != nil {
-		os.Exit(1)
+	watVersion := ""
+	if allPasses() || *first {
+		watVersion, err = convertWasmToWat(tmp, flag.Arg(0))
+		if err != nil {
+			os.Exit(1)
+		}
+		if *first {
+			log.Printf("(1) %s -> %s\n", flag.Arg(0), watVersion)
+			os.Exit(0)
+		}
 	}
-	modifiedWat, err := parigotProcessing(watVersion, tmp)
-	if err != nil {
-		os.Exit(1)
+	modifiedWat := ""
+	if allPasses() || *second {
+		source := watVersion
+		if *second {
+			source = flag.Arg(0)
+		}
+		modifiedWat, err = parigotProcessing(source, tmp)
+		if err != nil {
+			os.Exit(1)
+		}
+		if *second {
+			log.Printf("(2) %s -> %s\n", source, filepath.Join(tmp, parigotFilename))
+			os.Exit(0)
+		}
 	}
-	err = convertWatToWasm(tmp, modifiedWat, outputFile)
-	if err != nil {
-		os.Exit(1)
+	if allPasses() || *third {
+		if *third && outputFile == nil {
+			panic("cannot handle third pass without output file")
+		}
+		source := modifiedWat
+		if *third {
+			source = flag.Arg(0)
+		}
+		err = convertWatToWasm(tmp, source, outputFile)
+		if err != nil {
+			os.Exit(1)
+		}
+		if *third {
+			log.Printf("(3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
+			os.Exit(0)
+		}
 	}
 	//os.RemoveAll(tmp)
-	log.Printf("%s -> %s\n", os.Args[1], watVersion)
-	log.Printf("%s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
-	log.Printf("%s -> %s\n", filepath.Join(tmp, parigotFilename), os.Args[2])
+	log.Printf("(1) %s -> %s\n", flag.Arg(1), watVersion)
+	log.Printf("(2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
+	log.Printf("(3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
 	os.Exit(0)
 }
 
-var funcDefCount int
+func allPasses() bool {
+	return *first == false && *second == false && *third == false
+}
 
 func transformation(mod *transform.Module) {
 	changeToplevelInModule(mod, transform.ImportDefT, changeImportsToPointToStub)

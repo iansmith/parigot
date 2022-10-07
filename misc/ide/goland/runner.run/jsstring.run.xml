@@ -2,7 +2,7 @@
   <configuration default="false" name="jsstring" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="parigot" />
     <working_directory value="$PROJECT_DIR$/" />
-    <parameters value="-o build/hello-go.p.wasm build/hello-go.wasm" />
+    <parameters value="-o build/ex1.p.wasm -3 /var/folders/rb/kx7jc4cd7yl_6lp5sgjp50z80000gn/T/jsstrip677322948/parigot_transformed.wat " />
     <envs>
       <env name="PATH" value="$PROJECT_DIR$/tools/prepath:/usr/bin:/bin:/usr/sbin:/sbin:$PROJECT_DIR$/tools/go1.19.1/bin:$PROJECT_DIR$/tools/tinygo0.25.0/bin:$PROJECT_DIR$/tools/wabt/bin:$PROJECT_DIR$/tools/node16.17.1/bin:/usr/local/opt/openjdk@17/bin:$PROJECT_DIR$/tools/bin" />
     </envs>

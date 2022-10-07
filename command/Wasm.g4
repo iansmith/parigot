@@ -528,6 +528,7 @@ ZeroOpWord:
     | TypeRepresentation
     | ControlFlow0
     | Extend
+    | 'trap'
     ;
 
 Memory: 'memory.size'| 'memory.grow'| 'memory.copy' | 'memory.fill';

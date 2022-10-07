@@ -239,10 +239,8 @@ func (t *tdesc) APIWrapper() string {
 	count := 0
 	for i := 0; i < t.NumTrueParams(); i++ {
 		if t.IsStringParam(i) {
-			buf.WriteString(fmt.Sprintf("strConvert(memPtr,"+
-				"int32(uintptr(p%d)+memPtr),"+
-				"int32(uintptr(p%d)+memPtr+uintptr(p%d)))",
-				count, count+1, count))
+			buf.WriteString(fmt.Sprintf("strConvert(memPtr,p%d,p%d)",
+				count, count+1))
 			count += 2
 		} else {
 			buf.WriteString(fmt.Sprintf("p%d", count))

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"github.com/iansmith/parigot/sys/abi_impl"
 	"log"
 	"os"
 	"reflect"
@@ -23,16 +23,9 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatalf("pass one wasm file on the command line")
 	}
-	config := wasmtime.NewConfig()
-	config.SetDebugInfo(true)
-
-	engine := wasmtime.NewEngineWithConfig(config)
+	engine := wasmtime.NewEngine()
 	store := wasmtime.NewStore(engine)
-	fp, err := os.Open(os.Args[1])
-	check(err)
-	buffer, err := io.ReadAll(fp)
-	check(err)
-	module, err := wasmtime.NewModule(engine, buffer)
+	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
 	check(err)
 	wrappers := generateWrappersForABI(store)
 	linkFailed := false
@@ -48,6 +41,7 @@ func main() {
 			log.Printf("unable to find linkage for %s", importName)
 			linkFailed = true
 		} else {
+			log.Printf("linked %s", importName)
 			linkage = append(linkage, ext)
 		}
 	}
@@ -60,6 +54,7 @@ func main() {
 	ext := instance.GetExport(store, "memory")
 	memPtr = uintptr(ext.Memory().Data(store))
 
+	log.Printf("about to start")
 	start := instance.GetExport(store, "_start").Func()
 	_, err = start.Call(store)
 	check(err)
@@ -108,4 +103,18 @@ func strConvert(mem uintptr, ptr int32, length int32) string {
 	sh.Cap = int(length)
 	// this assumes there is no GC running!
 	return string(data)
+}
+
+func addABIToStore2(store wasmtime.Storelike, memPtr uintptr, linkage map[string]*wasmtime.Func) {
+
+	linkage["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, func(p0 int32, p1 int32) {
+		abi_impl.OutputString(strConvert(memPtr, int32(uintptr(p0)+memPtr), int32(uintptr(p1)+memPtr+uintptr(p0))))
+	})
+	linkage["parigot_abi.Now"] = wasmtime.WrapFunc(store, func() int64 {
+		result := abi_impl.Now()
+		return result
+	})
+	linkage["parigot_abi.Exit"] = wasmtime.WrapFunc(store, func(p0 int32) {
+		abi_impl.Exit(p0)
+	})
 }
