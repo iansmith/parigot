@@ -3,7 +3,7 @@ TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
 TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
 
-TINYGO_WASM_OPTS=-target wasm -wasm-abi generic
+TINYGO_WASM_OPTS=-target wasm -opt 0 -wasm-abi generic
 
 TINYGO_BUILD_TAGS=parigot_abi
 
@@ -16,8 +16,8 @@ all: build/hello-go.p.wasm build/ex1.p.wasm build/runner build/jsstrip build/gen
 build/hello-go.wasm: example/hello-go/main.go
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/hello-go.wasm github.com/iansmith/parigot/example/hello-go
 
-build/ex1.wasm: command/jsstrip/testdata/ex1.go
-	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -opt=0 -tags $(TINYGO_BUILD_TAGS) -o build/ex1.wasm github.com/iansmith/parigot/command/jsstrip/testdata
+build/ex1.wasm: command/jsstrip/testdata/ex1/ex1.go
+	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/ex1.wasm github.com/iansmith/parigot/command/jsstrip/testdata
 
 build/ex1.p.wasm: build/ex1.wasm
 	build/jsstrip -o build/ex1.p.wasm build/ex1.wasm

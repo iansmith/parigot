@@ -12,10 +12,6 @@ import (
 func OutputString(string)
 
 //go:wasm-module parigot_abi
-//export OutputString_
-func OutputString_(a int32, b int32)
-
-//go:wasm-module parigot_abi
 //export JSNotImplemented
 func JSNotImplemented()
 

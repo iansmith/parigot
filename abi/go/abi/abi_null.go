@@ -12,13 +12,7 @@ package abi
 
 import "time"
 
-//go:wasm-module parigot_abi
-//export OutputString
 func OutputString(string) {}
-
-//go:wasm-module parigot_abi
-//export OutputStringConvert
-func OutputStringConvert(int32, int32) {}
 
 func JSNotImplemented() {}
 

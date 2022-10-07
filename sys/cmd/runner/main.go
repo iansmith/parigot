@@ -5,7 +5,6 @@ import (
 	"github.com/iansmith/parigot/sys/abi_impl"
 	"log"
 	"os"
-	"reflect"
 	"unsafe"
 
 	"github.com/iansmith/parigot/abi/go/abi"
@@ -74,7 +73,7 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 	result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
 	result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
 
-	addABIToStore(store, memPtr, result)
+	addABIToStoreExternref(store, result)
 
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
@@ -95,26 +94,21 @@ func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func 
 }
 
 func strConvert(mem uintptr, ptr int32, length int32) string {
-	addr := mem + uintptr(ptr)
-	var data []byte
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&data))
-	sh.Data = addr
-	sh.Len = int(length)
-	sh.Cap = int(length)
-	// this assumes there is no GC running!
-	return string(data)
+	buf := make([]byte, length)
+	for i := int32(0); i < length; i++ {
+		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
+		buf[i] = *b
+	}
+	s := string(buf)
+	return s
 }
 
-func addABIToStore2(store wasmtime.Storelike, memPtr uintptr, linkage map[string]*wasmtime.Func) {
+func addABIToStoreExternref(store wasmtime.Storelike, linkage map[string]*wasmtime.Func) {
 
-	linkage["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, func(p0 int32, p1 int32) {
-		abi_impl.OutputString(strConvert(memPtr, int32(uintptr(p0)+memPtr), int32(uintptr(p1)+memPtr+uintptr(p0))))
+	linkage["parigot_abi.OutputString"] = wasmtime.WrapFunc(store, func(p0, p1 int32) {
+		fmt.Print(strConvert(memPtr, p0, p1))
+		return
 	})
-	linkage["parigot_abi.Now"] = wasmtime.WrapFunc(store, func() int64 {
-		result := abi_impl.Now()
-		return result
-	})
-	linkage["parigot_abi.Exit"] = wasmtime.WrapFunc(store, func(p0 int32) {
-		abi_impl.Exit(p0)
-	})
+	linkage["parigot_abi.Now"] = wasmtime.WrapFunc(store, abi_impl.Now)
+	linkage["parigot_abi.Exit"] = wasmtime.WrapFunc(store, abi_impl.Exit)
 }

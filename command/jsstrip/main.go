@@ -79,7 +79,7 @@ func main() {
 		}
 	}
 	//os.RemoveAll(tmp)
-	log.Printf("(1) %s -> %s\n", flag.Arg(1), watVersion)
+	log.Printf("(1) %s -> %s\n", flag.Arg(0), watVersion)
 	log.Printf("(2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
 	log.Printf("(3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
 	os.Exit(0)
@@ -90,8 +90,8 @@ func allPasses() bool {
 }
 
 func transformation(mod *transform.Module) {
-	changeToplevelInModule(mod, transform.ImportDefT, changeImportsToPointToStub)
-	changeStatementInModule(mod, changeCallsToUseStub)
+	//changeToplevelInModule(mod, transform.ImportDefT, changeImportsToPointToStub)
+	//changeStatementInModule(mod, changeCallsToUseStub)
 }
 
 func changeImportsToPointToStub(tl transform.TopLevel) transform.TopLevel {
