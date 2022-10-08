@@ -361,7 +361,7 @@ legend {
 ::-webkit-inner-spin-button {
   height: auto; }
 
-[type="searchModules"] {
+[type="searchForProjects"] {
   outline-offset: -2px;
   -webkit-appearance: textfield; }
 
@@ -373,7 +373,7 @@ legend {
   direction: ltr;
 }
 */
-::-webkit-searchModules-decoration {
+::-webkit-searchForProjects-decoration {
   -webkit-appearance: none; }
 
 ::-webkit-color-swatch-wrapper {
@@ -1682,7 +1682,7 @@ progress {
   font-size: 0.875em;
   color: rgba(var(--bs-body-color-rgb), 0.75); }
 
-.form-control, .searchModules-form .searchModules-field, .comment-form input[type="text"],
+.form-control, .searchForProjects-form .searchForProjects-field, .comment-form input[type="text"],
 .comment-form input[type="email"],
 .comment-form input[type="url"],
 .comment-form textarea {
@@ -1700,22 +1700,22 @@ progress {
   border-radius: 0.375rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .form-control, .searchModules-form .searchModules-field, .comment-form input[type="text"],
+    .form-control, .searchForProjects-form .searchForProjects-field, .comment-form input[type="text"],
     .comment-form input[type="email"],
     .comment-form input[type="url"],
     .comment-form textarea {
       transition: none; } }
-  .form-control[type="file"], .searchModules-form [type="file"].searchModules-field, .comment-form input[type="file"][type="text"],
+  .form-control[type="file"], .searchForProjects-form [type="file"].searchForProjects-field, .comment-form input[type="file"][type="text"],
   .comment-form input[type="file"][type="email"],
   .comment-form input[type="file"][type="url"],
   .comment-form textarea[type="file"] {
     overflow: hidden; }
-    .form-control[type="file"]:not(:disabled):not([readonly]), .searchModules-form [type="file"].searchModules-field:not(:disabled):not([readonly]), .comment-form input[type="file"][type="text"]:not(:disabled):not([readonly]),
+    .form-control[type="file"]:not(:disabled):not([readonly]), .searchForProjects-form [type="file"].searchForProjects-field:not(:disabled):not([readonly]), .comment-form input[type="file"][type="text"]:not(:disabled):not([readonly]),
     .comment-form input[type="file"][type="email"]:not(:disabled):not([readonly]),
     .comment-form input[type="file"][type="url"]:not(:disabled):not([readonly]),
     .comment-form textarea[type="file"]:not(:disabled):not([readonly]) {
       cursor: pointer; }
-  .form-control:focus, .searchModules-form .searchModules-field:focus, .comment-form input[type="text"]:focus,
+  .form-control:focus, .searchForProjects-form .searchForProjects-field:focus, .comment-form input[type="text"]:focus,
   .comment-form input[type="email"]:focus,
   .comment-form input[type="url"]:focus,
   .comment-form textarea:focus {
@@ -1724,27 +1724,27 @@ progress {
     border-color: #ae97c3;
     outline: 0;
     box-shadow: 0 0 0 0 rgba(93, 47, 134, 0.25); }
-  .form-control::-webkit-date-and-time-value, .searchModules-form .searchModules-field::-webkit-date-and-time-value, .comment-form input[type="text"]::-webkit-date-and-time-value,
+  .form-control::-webkit-date-and-time-value, .searchForProjects-form .searchForProjects-field::-webkit-date-and-time-value, .comment-form input[type="text"]::-webkit-date-and-time-value,
   .comment-form input[type="email"]::-webkit-date-and-time-value,
   .comment-form input[type="url"]::-webkit-date-and-time-value,
   .comment-form textarea::-webkit-date-and-time-value {
     height: 1.5em; }
-  .form-control::placeholder, .searchModules-form .searchModules-field::placeholder, .comment-form input[type="text"]::placeholder,
+  .form-control::placeholder, .searchForProjects-form .searchForProjects-field::placeholder, .comment-form input[type="text"]::placeholder,
   .comment-form input[type="email"]::placeholder,
   .comment-form input[type="url"]::placeholder,
   .comment-form textarea::placeholder {
     color: #6c757d;
     opacity: 1; }
-  .form-control:disabled, .searchModules-form .searchModules-field:disabled, .comment-form input[type="text"]:disabled,
+  .form-control:disabled, .searchForProjects-form .searchForProjects-field:disabled, .comment-form input[type="text"]:disabled,
   .comment-form input[type="email"]:disabled,
   .comment-form input[type="url"]:disabled,
-  .comment-form textarea:disabled, .form-control[readonly], .searchModules-form [readonly].searchModules-field, .comment-form input[readonly][type="text"],
+  .comment-form textarea:disabled, .form-control[readonly], .searchForProjects-form [readonly].searchForProjects-field, .comment-form input[readonly][type="text"],
   .comment-form input[readonly][type="email"],
   .comment-form input[readonly][type="url"],
   .comment-form textarea[readonly] {
     background-color: #e9ecef;
     opacity: 1; }
-  .form-control::file-selector-button, .searchModules-form .searchModules-field::file-selector-button, .comment-form input[type="text"]::file-selector-button,
+  .form-control::file-selector-button, .searchForProjects-form .searchForProjects-field::file-selector-button, .comment-form input[type="text"]::file-selector-button,
   .comment-form input[type="email"]::file-selector-button,
   .comment-form input[type="url"]::file-selector-button,
   .comment-form textarea::file-selector-button {
@@ -1761,12 +1761,12 @@ progress {
     border-radius: 0;
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
     @media (prefers-reduced-motion: reduce) {
-      .form-control::file-selector-button, .searchModules-form .searchModules-field::file-selector-button, .comment-form input[type="text"]::file-selector-button,
+      .form-control::file-selector-button, .searchForProjects-form .searchForProjects-field::file-selector-button, .comment-form input[type="text"]::file-selector-button,
       .comment-form input[type="email"]::file-selector-button,
       .comment-form input[type="url"]::file-selector-button,
       .comment-form textarea::file-selector-button {
         transition: none; } }
-  .form-control:hover:not(:disabled):not([readonly])::file-selector-button, .searchModules-form .searchModules-field:hover:not(:disabled):not([readonly])::file-selector-button, .comment-form input[type="text"]:hover:not(:disabled):not([readonly])::file-selector-button,
+  .form-control:hover:not(:disabled):not([readonly])::file-selector-button, .searchForProjects-form .searchForProjects-field:hover:not(:disabled):not([readonly])::file-selector-button, .comment-form input[type="text"]:hover:not(:disabled):not([readonly])::file-selector-button,
   .comment-form input[type="email"]:hover:not(:disabled):not([readonly])::file-selector-button,
   .comment-form input[type="url"]:hover:not(:disabled):not([readonly])::file-selector-button,
   .comment-form textarea:hover:not(:disabled):not([readonly])::file-selector-button {
@@ -1806,7 +1806,7 @@ progress {
     margin: -0.5rem -1rem;
     margin-inline-end: 1rem; }
 
-textarea.form-control, .searchModules-form textarea.searchModules-field {
+textarea.form-control, .searchForProjects-form textarea.searchForProjects-field {
   min-height: calc(1.5em + 0.75rem + 2px); }
 
 textarea.form-control-sm {
@@ -1967,7 +1967,7 @@ textarea.form-control-lg {
   position: absolute;
   clip: rect(0, 0, 0, 0);
   pointer-events: none; }
-  .btn-check[disabled] + .btn, .searchModules-form .btn-check[disabled] + .searchModules-submit, .comment-form .btn-check[disabled] + input[type="submit"], .btn-check:disabled + .btn, .searchModules-form .btn-check:disabled + .searchModules-submit, .comment-form .btn-check:disabled + input[type="submit"] {
+  .btn-check[disabled] + .btn, .searchForProjects-form .btn-check[disabled] + .searchForProjects-submit, .comment-form .btn-check[disabled] + input[type="submit"], .btn-check:disabled + .btn, .searchForProjects-form .btn-check:disabled + .searchForProjects-submit, .comment-form .btn-check:disabled + input[type="submit"] {
     pointer-events: none;
     filter: none;
     opacity: 0.65; }
@@ -2038,7 +2038,7 @@ textarea.form-control-lg {
 
 .form-floating {
   position: relative; }
-  .form-floating > .form-control, .searchModules-form .form-floating > .searchModules-field, .comment-form .form-floating > input[type="text"],
+  .form-floating > .form-control, .searchForProjects-form .form-floating > .searchForProjects-field, .comment-form .form-floating > input[type="text"],
   .comment-form .form-floating > input[type="email"],
   .comment-form .form-floating > input[type="url"],
   .comment-form .form-floating > textarea,
@@ -2059,22 +2059,22 @@ textarea.form-control-lg {
     @media (prefers-reduced-motion: reduce) {
       .form-floating > label {
         transition: none; } }
-  .form-floating > .form-control, .searchModules-form .form-floating > .searchModules-field, .comment-form .form-floating > input[type="text"],
+  .form-floating > .form-control, .searchForProjects-form .form-floating > .searchForProjects-field, .comment-form .form-floating > input[type="text"],
   .comment-form .form-floating > input[type="email"],
   .comment-form .form-floating > input[type="url"],
   .comment-form .form-floating > textarea,
   .form-floating > .form-control-plaintext {
     padding: 1rem 0.75rem; }
-    .form-floating > .form-control::placeholder, .searchModules-form .form-floating > .searchModules-field::placeholder, .comment-form .form-floating > input[type="text"]::placeholder,
+    .form-floating > .form-control::placeholder, .searchForProjects-form .form-floating > .searchForProjects-field::placeholder, .comment-form .form-floating > input[type="text"]::placeholder,
     .comment-form .form-floating > input[type="email"]::placeholder,
     .comment-form .form-floating > input[type="url"]::placeholder,
     .comment-form .form-floating > textarea::placeholder,
     .form-floating > .form-control-plaintext::placeholder {
       color: transparent; }
-    .form-floating > .form-control:focus, .searchModules-form .form-floating > .searchModules-field:focus, .comment-form .form-floating > input[type="text"]:focus,
+    .form-floating > .form-control:focus, .searchForProjects-form .form-floating > .searchForProjects-field:focus, .comment-form .form-floating > input[type="text"]:focus,
     .comment-form .form-floating > input[type="email"]:focus,
     .comment-form .form-floating > input[type="url"]:focus,
-    .comment-form .form-floating > textarea:focus, .form-floating > .form-control:not(:placeholder-shown), .searchModules-form .form-floating > .searchModules-field:not(:placeholder-shown), .comment-form .form-floating > input[type="text"]:not(:placeholder-shown),
+    .comment-form .form-floating > textarea:focus, .form-floating > .form-control:not(:placeholder-shown), .searchForProjects-form .form-floating > .searchForProjects-field:not(:placeholder-shown), .comment-form .form-floating > input[type="text"]:not(:placeholder-shown),
     .comment-form .form-floating > input[type="email"]:not(:placeholder-shown),
     .comment-form .form-floating > input[type="url"]:not(:placeholder-shown),
     .comment-form .form-floating > textarea:not(:placeholder-shown),
@@ -2082,7 +2082,7 @@ textarea.form-control-lg {
     .form-floating > .form-control-plaintext:not(:placeholder-shown) {
       padding-top: 1.625rem;
       padding-bottom: 0.625rem; }
-    .form-floating > .form-control:-webkit-autofill, .searchModules-form .form-floating > .searchModules-field:-webkit-autofill, .comment-form .form-floating > input[type="text"]:-webkit-autofill,
+    .form-floating > .form-control:-webkit-autofill, .searchForProjects-form .form-floating > .searchForProjects-field:-webkit-autofill, .comment-form .form-floating > input[type="text"]:-webkit-autofill,
     .comment-form .form-floating > input[type="email"]:-webkit-autofill,
     .comment-form .form-floating > input[type="url"]:-webkit-autofill,
     .comment-form .form-floating > textarea:-webkit-autofill,
@@ -2092,12 +2092,12 @@ textarea.form-control-lg {
   .form-floating > .form-select {
     padding-top: 1.625rem;
     padding-bottom: 0.625rem; }
-  .form-floating > .form-control:focus ~ label, .searchModules-form .form-floating > .searchModules-field:focus ~ label, .comment-form .form-floating > input[type="text"]:focus ~ label,
+  .form-floating > .form-control:focus ~ label, .searchForProjects-form .form-floating > .searchForProjects-field:focus ~ label, .comment-form .form-floating > input[type="text"]:focus ~ label,
   .comment-form .form-floating > input[type="email"]:focus ~ label,
   .comment-form .form-floating > input[type="url"]:focus ~ label,
   .comment-form .form-floating > textarea:focus ~ label,
   .form-floating > .form-control:not(:placeholder-shown) ~ label,
-  .searchModules-form .form-floating > .searchModules-field:not(:placeholder-shown) ~ label,
+  .searchForProjects-form .form-floating > .searchForProjects-field:not(:placeholder-shown) ~ label,
   .comment-form .form-floating > input[type="text"]:not(:placeholder-shown) ~ label,
   .comment-form .form-floating > input[type="email"]:not(:placeholder-shown) ~ label,
   .comment-form .form-floating > input[type="url"]:not(:placeholder-shown) ~ label,
@@ -2106,7 +2106,7 @@ textarea.form-control-lg {
   .form-floating > .form-select ~ label {
     opacity: 0.65;
     transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem); }
-  .form-floating > .form-control:-webkit-autofill ~ label, .searchModules-form .form-floating > .searchModules-field:-webkit-autofill ~ label, .comment-form .form-floating > input[type="text"]:-webkit-autofill ~ label,
+  .form-floating > .form-control:-webkit-autofill ~ label, .searchForProjects-form .form-floating > .searchForProjects-field:-webkit-autofill ~ label, .comment-form .form-floating > input[type="text"]:-webkit-autofill ~ label,
   .comment-form .form-floating > input[type="email"]:-webkit-autofill ~ label,
   .comment-form .form-floating > input[type="url"]:-webkit-autofill ~ label,
   .comment-form .form-floating > textarea:-webkit-autofill ~ label {
@@ -2121,7 +2121,7 @@ textarea.form-control-lg {
   flex-wrap: wrap;
   align-items: stretch;
   width: 100%; }
-  .input-group > .form-control, .searchModules-form .input-group > .searchModules-field, .comment-form .input-group > input[type="text"],
+  .input-group > .form-control, .searchForProjects-form .input-group > .searchForProjects-field, .comment-form .input-group > input[type="text"],
   .comment-form .input-group > input[type="email"],
   .comment-form .input-group > input[type="url"],
   .comment-form .input-group > textarea,
@@ -2130,16 +2130,16 @@ textarea.form-control-lg {
     flex: 1 1 auto;
     width: 1%;
     min-width: 0; }
-  .input-group > .form-control:focus, .searchModules-form .input-group > .searchModules-field:focus, .comment-form .input-group > input[type="text"]:focus,
+  .input-group > .form-control:focus, .searchForProjects-form .input-group > .searchForProjects-field:focus, .comment-form .input-group > input[type="text"]:focus,
   .comment-form .input-group > input[type="email"]:focus,
   .comment-form .input-group > input[type="url"]:focus,
   .comment-form .input-group > textarea:focus,
   .input-group > .form-select:focus {
     z-index: 3; }
-  .input-group .btn, .input-group .searchModules-form .searchModules-submit, .searchModules-form .input-group .searchModules-submit, .input-group .comment-form input[type="submit"], .comment-form .input-group input[type="submit"] {
+  .input-group .btn, .input-group .searchForProjects-form .searchForProjects-submit, .searchForProjects-form .input-group .searchForProjects-submit, .input-group .comment-form input[type="submit"], .comment-form .input-group input[type="submit"] {
     position: relative;
     z-index: 2; }
-    .input-group .btn:focus, .input-group .searchModules-form .searchModules-submit:focus, .searchModules-form .input-group .searchModules-submit:focus, .input-group .comment-form input[type="submit"]:focus, .comment-form .input-group input[type="submit"]:focus {
+    .input-group .btn:focus, .input-group .searchForProjects-form .searchForProjects-submit:focus, .searchForProjects-form .input-group .searchForProjects-submit:focus, .input-group .comment-form input[type="submit"]:focus, .comment-form .input-group input[type="submit"]:focus {
       z-index: 3; }
 
 .input-group-text {
@@ -2156,27 +2156,27 @@ textarea.form-control-lg {
   border: 1px solid #ced4da;
   border-radius: 0.375rem; }
 
-.input-group-lg > .form-control, .searchModules-form .input-group-lg > .searchModules-field, .comment-form .input-group-lg > input[type="text"],
+.input-group-lg > .form-control, .searchForProjects-form .input-group-lg > .searchForProjects-field, .comment-form .input-group-lg > input[type="text"],
 .comment-form .input-group-lg > input[type="email"],
 .comment-form .input-group-lg > input[type="url"],
 .comment-form .input-group-lg > textarea,
 .input-group-lg > .form-select,
 .input-group-lg > .input-group-text,
 .input-group-lg > .btn,
-.searchModules-form .input-group-lg > .searchModules-submit,
+.searchForProjects-form .input-group-lg > .searchForProjects-submit,
 .comment-form .input-group-lg > input[type="submit"] {
   padding: 0.5rem 1rem;
   font-size: 1.25rem;
   border-radius: 0.5rem; }
 
-.input-group-sm > .form-control, .searchModules-form .input-group-sm > .searchModules-field, .comment-form .input-group-sm > input[type="text"],
+.input-group-sm > .form-control, .searchForProjects-form .input-group-sm > .searchForProjects-field, .comment-form .input-group-sm > input[type="text"],
 .comment-form .input-group-sm > input[type="email"],
 .comment-form .input-group-sm > input[type="url"],
 .comment-form .input-group-sm > textarea,
 .input-group-sm > .form-select,
 .input-group-sm > .input-group-text,
 .input-group-sm > .btn,
-.searchModules-form .input-group-sm > .searchModules-submit,
+.searchForProjects-form .input-group-sm > .searchForProjects-submit,
 .comment-form .input-group-sm > input[type="submit"] {
   padding: 0.25rem 0.5rem;
   font-size: 0.875rem;
@@ -2227,13 +2227,13 @@ textarea.form-control-lg {
 .is-valid ~ .valid-tooltip {
   display: block; }
 
-.was-validated .form-control:valid, .was-validated .searchModules-form .searchModules-field:valid, .searchModules-form .was-validated .searchModules-field:valid, .was-validated .comment-form input[type="text"]:valid, .comment-form .was-validated input[type="text"]:valid,
+.was-validated .form-control:valid, .was-validated .searchForProjects-form .searchForProjects-field:valid, .searchForProjects-form .was-validated .searchForProjects-field:valid, .was-validated .comment-form input[type="text"]:valid, .comment-form .was-validated input[type="text"]:valid,
 .was-validated .comment-form input[type="email"]:valid,
 .comment-form .was-validated input[type="email"]:valid,
 .was-validated .comment-form input[type="url"]:valid,
 .comment-form .was-validated input[type="url"]:valid,
 .was-validated .comment-form textarea:valid,
-.comment-form .was-validated textarea:valid, .form-control.is-valid, .searchModules-form .is-valid.searchModules-field, .comment-form input.is-valid[type="text"],
+.comment-form .was-validated textarea:valid, .form-control.is-valid, .searchForProjects-form .is-valid.searchForProjects-field, .comment-form input.is-valid[type="text"],
 .comment-form input.is-valid[type="email"],
 .comment-form input.is-valid[type="url"],
 .comment-form textarea.is-valid {
@@ -2243,20 +2243,20 @@ textarea.form-control-lg {
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem); }
-  .was-validated .form-control:valid:focus, .was-validated .searchModules-form .searchModules-field:valid:focus, .searchModules-form .was-validated .searchModules-field:valid:focus, .was-validated .comment-form input[type="text"]:valid:focus, .comment-form .was-validated input[type="text"]:valid:focus,
+  .was-validated .form-control:valid:focus, .was-validated .searchForProjects-form .searchForProjects-field:valid:focus, .searchForProjects-form .was-validated .searchForProjects-field:valid:focus, .was-validated .comment-form input[type="text"]:valid:focus, .comment-form .was-validated input[type="text"]:valid:focus,
   .was-validated .comment-form input[type="email"]:valid:focus,
   .comment-form .was-validated input[type="email"]:valid:focus,
   .was-validated .comment-form input[type="url"]:valid:focus,
   .comment-form .was-validated input[type="url"]:valid:focus,
   .was-validated .comment-form textarea:valid:focus,
-  .comment-form .was-validated textarea:valid:focus, .form-control.is-valid:focus, .searchModules-form .is-valid.searchModules-field:focus, .comment-form input.is-valid[type="text"]:focus,
+  .comment-form .was-validated textarea:valid:focus, .form-control.is-valid:focus, .searchForProjects-form .is-valid.searchForProjects-field:focus, .comment-form input.is-valid[type="text"]:focus,
   .comment-form input.is-valid[type="email"]:focus,
   .comment-form input.is-valid[type="url"]:focus,
   .comment-form textarea.is-valid:focus {
     border-color: #198754;
     box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.25); }
 
-.was-validated textarea.form-control:valid, .was-validated .searchModules-form textarea.searchModules-field:valid, .searchModules-form .was-validated textarea.searchModules-field:valid, textarea.form-control.is-valid, .searchModules-form textarea.is-valid.searchModules-field {
+.was-validated textarea.form-control:valid, .was-validated .searchForProjects-form textarea.searchForProjects-field:valid, .searchForProjects-form .was-validated textarea.searchForProjects-field:valid, textarea.form-control.is-valid, .searchForProjects-form textarea.is-valid.searchForProjects-field {
   padding-right: calc(1.5em + 0.75rem);
   background-position: top calc(0.375em + 0.1875rem) right calc(0.375em + 0.1875rem); }
 
@@ -2286,13 +2286,13 @@ textarea.form-control-lg {
 .form-check-inline .form-check-input ~ .valid-feedback {
   margin-left: .5em; }
 
-.was-validated .input-group .form-control:valid, .was-validated .input-group .searchModules-form .searchModules-field:valid, .searchModules-form .was-validated .input-group .searchModules-field:valid, .was-validated .input-group .comment-form input[type="text"]:valid, .comment-form .was-validated .input-group input[type="text"]:valid,
+.was-validated .input-group .form-control:valid, .was-validated .input-group .searchForProjects-form .searchForProjects-field:valid, .searchForProjects-form .was-validated .input-group .searchForProjects-field:valid, .was-validated .input-group .comment-form input[type="text"]:valid, .comment-form .was-validated .input-group input[type="text"]:valid,
 .was-validated .input-group .comment-form input[type="email"]:valid,
 .comment-form .was-validated .input-group input[type="email"]:valid,
 .was-validated .input-group .comment-form input[type="url"]:valid,
 .comment-form .was-validated .input-group input[type="url"]:valid,
 .was-validated .input-group .comment-form textarea:valid,
-.comment-form .was-validated .input-group textarea:valid, .input-group .form-control.is-valid, .input-group .searchModules-form .is-valid.searchModules-field, .searchModules-form .input-group .is-valid.searchModules-field, .input-group .comment-form input.is-valid[type="text"], .comment-form .input-group input.is-valid[type="text"],
+.comment-form .was-validated .input-group textarea:valid, .input-group .form-control.is-valid, .input-group .searchForProjects-form .is-valid.searchForProjects-field, .searchForProjects-form .input-group .is-valid.searchForProjects-field, .input-group .comment-form input.is-valid[type="text"], .comment-form .input-group input.is-valid[type="text"],
 .input-group .comment-form input.is-valid[type="email"],
 .comment-form .input-group input.is-valid[type="email"],
 .input-group .comment-form input.is-valid[type="url"],
@@ -2301,13 +2301,13 @@ textarea.form-control-lg {
 .comment-form .input-group textarea.is-valid, .was-validated .input-group .form-select:valid,
 .input-group .form-select.is-valid {
   z-index: 1; }
-  .was-validated .input-group .form-control:valid:focus, .was-validated .input-group .searchModules-form .searchModules-field:valid:focus, .searchModules-form .was-validated .input-group .searchModules-field:valid:focus, .was-validated .input-group .comment-form input[type="text"]:valid:focus, .comment-form .was-validated .input-group input[type="text"]:valid:focus,
+  .was-validated .input-group .form-control:valid:focus, .was-validated .input-group .searchForProjects-form .searchForProjects-field:valid:focus, .searchForProjects-form .was-validated .input-group .searchForProjects-field:valid:focus, .was-validated .input-group .comment-form input[type="text"]:valid:focus, .comment-form .was-validated .input-group input[type="text"]:valid:focus,
   .was-validated .input-group .comment-form input[type="email"]:valid:focus,
   .comment-form .was-validated .input-group input[type="email"]:valid:focus,
   .was-validated .input-group .comment-form input[type="url"]:valid:focus,
   .comment-form .was-validated .input-group input[type="url"]:valid:focus,
   .was-validated .input-group .comment-form textarea:valid:focus,
-  .comment-form .was-validated .input-group textarea:valid:focus, .input-group .form-control.is-valid:focus, .input-group .searchModules-form .is-valid.searchModules-field:focus, .searchModules-form .input-group .is-valid.searchModules-field:focus, .input-group .comment-form input.is-valid[type="text"]:focus, .comment-form .input-group input.is-valid[type="text"]:focus,
+  .comment-form .was-validated .input-group textarea:valid:focus, .input-group .form-control.is-valid:focus, .input-group .searchForProjects-form .is-valid.searchForProjects-field:focus, .searchForProjects-form .input-group .is-valid.searchForProjects-field:focus, .input-group .comment-form input.is-valid[type="text"]:focus, .comment-form .input-group input.is-valid[type="text"]:focus,
   .input-group .comment-form input.is-valid[type="email"]:focus,
   .comment-form .input-group input.is-valid[type="email"]:focus,
   .input-group .comment-form input.is-valid[type="url"]:focus,
@@ -2343,13 +2343,13 @@ textarea.form-control-lg {
 .is-invalid ~ .invalid-tooltip {
   display: block; }
 
-.was-validated .form-control:invalid, .was-validated .searchModules-form .searchModules-field:invalid, .searchModules-form .was-validated .searchModules-field:invalid, .was-validated .comment-form input[type="text"]:invalid, .comment-form .was-validated input[type="text"]:invalid,
+.was-validated .form-control:invalid, .was-validated .searchForProjects-form .searchForProjects-field:invalid, .searchForProjects-form .was-validated .searchForProjects-field:invalid, .was-validated .comment-form input[type="text"]:invalid, .comment-form .was-validated input[type="text"]:invalid,
 .was-validated .comment-form input[type="email"]:invalid,
 .comment-form .was-validated input[type="email"]:invalid,
 .was-validated .comment-form input[type="url"]:invalid,
 .comment-form .was-validated input[type="url"]:invalid,
 .was-validated .comment-form textarea:invalid,
-.comment-form .was-validated textarea:invalid, .form-control.is-invalid, .searchModules-form .is-invalid.searchModules-field, .comment-form input.is-invalid[type="text"],
+.comment-form .was-validated textarea:invalid, .form-control.is-invalid, .searchForProjects-form .is-invalid.searchForProjects-field, .comment-form input.is-invalid[type="text"],
 .comment-form input.is-invalid[type="email"],
 .comment-form input.is-invalid[type="url"],
 .comment-form textarea.is-invalid {
@@ -2359,20 +2359,20 @@ textarea.form-control-lg {
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem); }
-  .was-validated .form-control:invalid:focus, .was-validated .searchModules-form .searchModules-field:invalid:focus, .searchModules-form .was-validated .searchModules-field:invalid:focus, .was-validated .comment-form input[type="text"]:invalid:focus, .comment-form .was-validated input[type="text"]:invalid:focus,
+  .was-validated .form-control:invalid:focus, .was-validated .searchForProjects-form .searchForProjects-field:invalid:focus, .searchForProjects-form .was-validated .searchForProjects-field:invalid:focus, .was-validated .comment-form input[type="text"]:invalid:focus, .comment-form .was-validated input[type="text"]:invalid:focus,
   .was-validated .comment-form input[type="email"]:invalid:focus,
   .comment-form .was-validated input[type="email"]:invalid:focus,
   .was-validated .comment-form input[type="url"]:invalid:focus,
   .comment-form .was-validated input[type="url"]:invalid:focus,
   .was-validated .comment-form textarea:invalid:focus,
-  .comment-form .was-validated textarea:invalid:focus, .form-control.is-invalid:focus, .searchModules-form .is-invalid.searchModules-field:focus, .comment-form input.is-invalid[type="text"]:focus,
+  .comment-form .was-validated textarea:invalid:focus, .form-control.is-invalid:focus, .searchForProjects-form .is-invalid.searchForProjects-field:focus, .comment-form input.is-invalid[type="text"]:focus,
   .comment-form input.is-invalid[type="email"]:focus,
   .comment-form input.is-invalid[type="url"]:focus,
   .comment-form textarea.is-invalid:focus {
     border-color: #dc3545;
     box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.25); }
 
-.was-validated textarea.form-control:invalid, .was-validated .searchModules-form textarea.searchModules-field:invalid, .searchModules-form .was-validated textarea.searchModules-field:invalid, textarea.form-control.is-invalid, .searchModules-form textarea.is-invalid.searchModules-field {
+.was-validated textarea.form-control:invalid, .was-validated .searchForProjects-form textarea.searchForProjects-field:invalid, .searchForProjects-form .was-validated textarea.searchForProjects-field:invalid, textarea.form-control.is-invalid, .searchForProjects-form textarea.is-invalid.searchForProjects-field {
   padding-right: calc(1.5em + 0.75rem);
   background-position: top calc(0.375em + 0.1875rem) right calc(0.375em + 0.1875rem); }
 
@@ -2402,13 +2402,13 @@ textarea.form-control-lg {
 .form-check-inline .form-check-input ~ .invalid-feedback {
   margin-left: .5em; }
 
-.was-validated .input-group .form-control:invalid, .was-validated .input-group .searchModules-form .searchModules-field:invalid, .searchModules-form .was-validated .input-group .searchModules-field:invalid, .was-validated .input-group .comment-form input[type="text"]:invalid, .comment-form .was-validated .input-group input[type="text"]:invalid,
+.was-validated .input-group .form-control:invalid, .was-validated .input-group .searchForProjects-form .searchForProjects-field:invalid, .searchForProjects-form .was-validated .input-group .searchForProjects-field:invalid, .was-validated .input-group .comment-form input[type="text"]:invalid, .comment-form .was-validated .input-group input[type="text"]:invalid,
 .was-validated .input-group .comment-form input[type="email"]:invalid,
 .comment-form .was-validated .input-group input[type="email"]:invalid,
 .was-validated .input-group .comment-form input[type="url"]:invalid,
 .comment-form .was-validated .input-group input[type="url"]:invalid,
 .was-validated .input-group .comment-form textarea:invalid,
-.comment-form .was-validated .input-group textarea:invalid, .input-group .form-control.is-invalid, .input-group .searchModules-form .is-invalid.searchModules-field, .searchModules-form .input-group .is-invalid.searchModules-field, .input-group .comment-form input.is-invalid[type="text"], .comment-form .input-group input.is-invalid[type="text"],
+.comment-form .was-validated .input-group textarea:invalid, .input-group .form-control.is-invalid, .input-group .searchForProjects-form .is-invalid.searchForProjects-field, .searchForProjects-form .input-group .is-invalid.searchForProjects-field, .input-group .comment-form input.is-invalid[type="text"], .comment-form .input-group input.is-invalid[type="text"],
 .input-group .comment-form input.is-invalid[type="email"],
 .comment-form .input-group input.is-invalid[type="email"],
 .input-group .comment-form input.is-invalid[type="url"],
@@ -2417,13 +2417,13 @@ textarea.form-control-lg {
 .comment-form .input-group textarea.is-invalid, .was-validated .input-group .form-select:invalid,
 .input-group .form-select.is-invalid {
   z-index: 2; }
-  .was-validated .input-group .form-control:invalid:focus, .was-validated .input-group .searchModules-form .searchModules-field:invalid:focus, .searchModules-form .was-validated .input-group .searchModules-field:invalid:focus, .was-validated .input-group .comment-form input[type="text"]:invalid:focus, .comment-form .was-validated .input-group input[type="text"]:invalid:focus,
+  .was-validated .input-group .form-control:invalid:focus, .was-validated .input-group .searchForProjects-form .searchForProjects-field:invalid:focus, .searchForProjects-form .was-validated .input-group .searchForProjects-field:invalid:focus, .was-validated .input-group .comment-form input[type="text"]:invalid:focus, .comment-form .was-validated .input-group input[type="text"]:invalid:focus,
   .was-validated .input-group .comment-form input[type="email"]:invalid:focus,
   .comment-form .was-validated .input-group input[type="email"]:invalid:focus,
   .was-validated .input-group .comment-form input[type="url"]:invalid:focus,
   .comment-form .was-validated .input-group input[type="url"]:invalid:focus,
   .was-validated .input-group .comment-form textarea:invalid:focus,
-  .comment-form .was-validated .input-group textarea:invalid:focus, .input-group .form-control.is-invalid:focus, .input-group .searchModules-form .is-invalid.searchModules-field:focus, .searchModules-form .input-group .is-invalid.searchModules-field:focus, .input-group .comment-form input.is-invalid[type="text"]:focus, .comment-form .input-group input.is-invalid[type="text"]:focus,
+  .comment-form .was-validated .input-group textarea:invalid:focus, .input-group .form-control.is-invalid:focus, .input-group .searchForProjects-form .is-invalid.searchForProjects-field:focus, .searchForProjects-form .input-group .is-invalid.searchForProjects-field:focus, .input-group .comment-form input.is-invalid[type="text"]:focus, .comment-form .input-group input.is-invalid[type="text"]:focus,
   .input-group .comment-form input.is-invalid[type="email"]:focus,
   .comment-form .input-group input.is-invalid[type="email"]:focus,
   .input-group .comment-form input.is-invalid[type="url"]:focus,
@@ -2433,7 +2433,7 @@ textarea.form-control-lg {
   .input-group .form-select.is-invalid:focus {
     z-index: 3; }
 
-.btn, .searchModules-form .searchModules-submit, .comment-form input[type="submit"] {
+.btn, .searchForProjects-form .searchForProjects-submit, .comment-form input[type="submit"] {
   --bs-btn-padding-x: 0.75rem;
   --bs-btn-padding-y: 0.375rem;
   --bs-btn-font-family: ;
@@ -2464,25 +2464,25 @@ textarea.form-control-lg {
   background-color: var(--bs-btn-bg);
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
-    .btn, .searchModules-form .searchModules-submit, .comment-form input[type="submit"] {
+    .btn, .searchForProjects-form .searchForProjects-submit, .comment-form input[type="submit"] {
       transition: none; } }
-  .btn:hover, .searchModules-form .searchModules-submit:hover, .comment-form input[type="submit"]:hover {
+  .btn:hover, .searchForProjects-form .searchForProjects-submit:hover, .comment-form input[type="submit"]:hover {
     color: var(--bs-btn-hover-color);
     background-color: var(--bs-btn-hover-bg);
     border-color: var(--bs-btn-hover-border-color); }
-  .btn-check:focus + .btn, .searchModules-form .btn-check:focus + .searchModules-submit, .comment-form .btn-check:focus + input[type="submit"], .btn:focus, .searchModules-form .searchModules-submit:focus, .comment-form input[type="submit"]:focus {
+  .btn-check:focus + .btn, .searchForProjects-form .btn-check:focus + .searchForProjects-submit, .comment-form .btn-check:focus + input[type="submit"], .btn:focus, .searchForProjects-form .searchForProjects-submit:focus, .comment-form input[type="submit"]:focus {
     color: var(--bs-btn-hover-color);
     background-color: var(--bs-btn-hover-bg);
     border-color: var(--bs-btn-hover-border-color);
     outline: 0;
     box-shadow: var(--bs-btn-focus-box-shadow); }
-  .btn-check:checked + .btn, .searchModules-form .btn-check:checked + .searchModules-submit, .comment-form .btn-check:checked + input[type="submit"], .btn-check:active + .btn, .searchModules-form .btn-check:active + .searchModules-submit, .comment-form .btn-check:active + input[type="submit"], .btn:active, .searchModules-form .searchModules-submit:active, .comment-form input[type="submit"]:active, .btn.active, .searchModules-form .active.searchModules-submit, .comment-form input.active[type="submit"], .btn.show, .searchModules-form .show.searchModules-submit, .comment-form input.show[type="submit"] {
+  .btn-check:checked + .btn, .searchForProjects-form .btn-check:checked + .searchForProjects-submit, .comment-form .btn-check:checked + input[type="submit"], .btn-check:active + .btn, .searchForProjects-form .btn-check:active + .searchForProjects-submit, .comment-form .btn-check:active + input[type="submit"], .btn:active, .searchForProjects-form .searchForProjects-submit:active, .comment-form input[type="submit"]:active, .btn.active, .searchForProjects-form .active.searchForProjects-submit, .comment-form input.active[type="submit"], .btn.show, .searchForProjects-form .show.searchForProjects-submit, .comment-form input.show[type="submit"] {
     color: var(--bs-btn-active-color);
     background-color: var(--bs-btn-active-bg);
     border-color: var(--bs-btn-active-border-color); }
-    .btn-check:checked + .btn:focus, .searchModules-form .btn-check:checked + .searchModules-submit:focus, .comment-form .btn-check:checked + input[type="submit"]:focus, .btn-check:active + .btn:focus, .searchModules-form .btn-check:active + .searchModules-submit:focus, .comment-form .btn-check:active + input[type="submit"]:focus, .btn:active:focus, .searchModules-form .searchModules-submit:active:focus, .comment-form input[type="submit"]:active:focus, .btn.active:focus, .searchModules-form .active.searchModules-submit:focus, .comment-form input.active[type="submit"]:focus, .btn.show:focus, .searchModules-form .show.searchModules-submit:focus, .comment-form input.show[type="submit"]:focus {
+    .btn-check:checked + .btn:focus, .searchForProjects-form .btn-check:checked + .searchForProjects-submit:focus, .comment-form .btn-check:checked + input[type="submit"]:focus, .btn-check:active + .btn:focus, .searchForProjects-form .btn-check:active + .searchForProjects-submit:focus, .comment-form .btn-check:active + input[type="submit"]:focus, .btn:active:focus, .searchForProjects-form .searchForProjects-submit:active:focus, .comment-form input[type="submit"]:active:focus, .btn.active:focus, .searchForProjects-form .active.searchForProjects-submit:focus, .comment-form input.active[type="submit"]:focus, .btn.show:focus, .searchForProjects-form .show.searchForProjects-submit:focus, .comment-form input.show[type="submit"]:focus {
       box-shadow: var(--bs-btn-focus-box-shadow); }
-  .btn:disabled, .searchModules-form .searchModules-submit:disabled, .comment-form input[type="submit"]:disabled, .btn.disabled, .searchModules-form .disabled.searchModules-submit, .comment-form input.disabled[type="submit"], fieldset:disabled .btn, fieldset:disabled .searchModules-form .searchModules-submit, .searchModules-form fieldset:disabled .searchModules-submit, fieldset:disabled .comment-form input[type="submit"], .comment-form fieldset:disabled input[type="submit"] {
+  .btn:disabled, .searchForProjects-form .searchForProjects-submit:disabled, .comment-form input[type="submit"]:disabled, .btn.disabled, .searchForProjects-form .disabled.searchForProjects-submit, .comment-form input.disabled[type="submit"], fieldset:disabled .btn, fieldset:disabled .searchForProjects-form .searchForProjects-submit, .searchForProjects-form fieldset:disabled .searchForProjects-submit, fieldset:disabled .comment-form input[type="submit"], .comment-form fieldset:disabled input[type="submit"] {
     color: var(--bs-btn-disabled-color);
     pointer-events: none;
     background-color: var(--bs-btn-disabled-bg);
@@ -2505,7 +2505,7 @@ textarea.form-control-lg {
   --bs-btn-disabled-bg: #5d2f86;
   --bs-btn-disabled-border-color: #5d2f86; }
 
-.btn-secondary, .searchModules-form .searchModules-submit, .comment-form input[type="submit"] {
+.btn-secondary, .searchForProjects-form .searchForProjects-submit, .comment-form input[type="submit"] {
   --bs-btn-color: #fff;
   --bs-btn-bg: #6c757d;
   --bs-btn-border-color: #6c757d;
@@ -2750,13 +2750,13 @@ textarea.form-control-lg {
   --bs-btn-box-shadow: none;
   text-decoration: none; }
 
-.btn-lg, .btn-group-lg > .btn, .searchModules-form .btn-group-lg > .searchModules-submit, .comment-form .btn-group-lg > input[type="submit"] {
+.btn-lg, .btn-group-lg > .btn, .searchForProjects-form .btn-group-lg > .searchForProjects-submit, .comment-form .btn-group-lg > input[type="submit"] {
   --bs-btn-padding-y: 0.5rem;
   --bs-btn-padding-x: 1rem;
   --bs-btn-font-size: 1.25rem;
   --bs-btn-border-radius: 0.5rem; }
 
-.btn-sm, .btn-group-sm > .btn, .searchModules-form .btn-group-sm > .searchModules-submit, .comment-form .btn-group-sm > input[type="submit"] {
+.btn-sm, .btn-group-sm > .btn, .searchForProjects-form .btn-group-sm > .searchForProjects-submit, .comment-form .btn-group-sm > input[type="submit"] {
   --bs-btn-padding-y: 0.25rem;
   --bs-btn-padding-x: 0.5rem;
   --bs-btn-font-size: 0.875rem;
@@ -3064,45 +3064,45 @@ textarea.form-control-lg {
   position: relative;
   display: inline-flex;
   vertical-align: middle; }
-  .btn-group > .btn, .searchModules-form .btn-group > .searchModules-submit, .comment-form .btn-group > input[type="submit"],
+  .btn-group > .btn, .searchForProjects-form .btn-group > .searchForProjects-submit, .comment-form .btn-group > input[type="submit"],
   .btn-group-vertical > .btn,
-  .searchModules-form .btn-group-vertical > .searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .searchForProjects-submit,
   .comment-form .btn-group-vertical > input[type="submit"] {
     position: relative;
     flex: 1 1 auto; }
-  .btn-group > .btn-check:checked + .btn, .searchModules-form .btn-group > .btn-check:checked + .searchModules-submit, .comment-form .btn-group > .btn-check:checked + input[type="submit"],
+  .btn-group > .btn-check:checked + .btn, .searchForProjects-form .btn-group > .btn-check:checked + .searchForProjects-submit, .comment-form .btn-group > .btn-check:checked + input[type="submit"],
   .btn-group > .btn-check:focus + .btn,
-  .searchModules-form .btn-group > .btn-check:focus + .searchModules-submit,
+  .searchForProjects-form .btn-group > .btn-check:focus + .searchForProjects-submit,
   .comment-form .btn-group > .btn-check:focus + input[type="submit"],
   .btn-group > .btn:hover,
-  .searchModules-form .btn-group > .searchModules-submit:hover,
+  .searchForProjects-form .btn-group > .searchForProjects-submit:hover,
   .comment-form .btn-group > input[type="submit"]:hover,
   .btn-group > .btn:focus,
-  .searchModules-form .btn-group > .searchModules-submit:focus,
+  .searchForProjects-form .btn-group > .searchForProjects-submit:focus,
   .comment-form .btn-group > input[type="submit"]:focus,
   .btn-group > .btn:active,
-  .searchModules-form .btn-group > .searchModules-submit:active,
+  .searchForProjects-form .btn-group > .searchForProjects-submit:active,
   .comment-form .btn-group > input[type="submit"]:active,
   .btn-group > .btn.active,
-  .searchModules-form .btn-group > .active.searchModules-submit,
+  .searchForProjects-form .btn-group > .active.searchForProjects-submit,
   .comment-form .btn-group > input.active[type="submit"],
   .btn-group-vertical > .btn-check:checked + .btn,
-  .searchModules-form .btn-group-vertical > .btn-check:checked + .searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .btn-check:checked + .searchForProjects-submit,
   .comment-form .btn-group-vertical > .btn-check:checked + input[type="submit"],
   .btn-group-vertical > .btn-check:focus + .btn,
-  .searchModules-form .btn-group-vertical > .btn-check:focus + .searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .btn-check:focus + .searchForProjects-submit,
   .comment-form .btn-group-vertical > .btn-check:focus + input[type="submit"],
   .btn-group-vertical > .btn:hover,
-  .searchModules-form .btn-group-vertical > .searchModules-submit:hover,
+  .searchForProjects-form .btn-group-vertical > .searchForProjects-submit:hover,
   .comment-form .btn-group-vertical > input[type="submit"]:hover,
   .btn-group-vertical > .btn:focus,
-  .searchModules-form .btn-group-vertical > .searchModules-submit:focus,
+  .searchForProjects-form .btn-group-vertical > .searchForProjects-submit:focus,
   .comment-form .btn-group-vertical > input[type="submit"]:focus,
   .btn-group-vertical > .btn:active,
-  .searchModules-form .btn-group-vertical > .searchModules-submit:active,
+  .searchForProjects-form .btn-group-vertical > .searchForProjects-submit:active,
   .comment-form .btn-group-vertical > input[type="submit"]:active,
   .btn-group-vertical > .btn.active,
-  .searchModules-form .btn-group-vertical > .active.searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .active.searchForProjects-submit,
   .comment-form .btn-group-vertical > input.active[type="submit"] {
     z-index: 1; }
 
@@ -3115,24 +3115,24 @@ textarea.form-control-lg {
 
 .btn-group {
   border-radius: 0.375rem; }
-  .btn-group > .btn:not(:first-child), .searchModules-form .btn-group > .searchModules-submit:not(:first-child), .comment-form .btn-group > input[type="submit"]:not(:first-child),
+  .btn-group > .btn:not(:first-child), .searchForProjects-form .btn-group > .searchForProjects-submit:not(:first-child), .comment-form .btn-group > input[type="submit"]:not(:first-child),
   .btn-group > .btn-group:not(:first-child) {
     margin-left: -1px; }
-  .btn-group > .btn:not(:last-child):not(.dropdown-toggle), .searchModules-form .btn-group > .searchModules-submit:not(:last-child):not(.dropdown-toggle), .comment-form .btn-group > input[type="submit"]:not(:last-child):not(.dropdown-toggle),
+  .btn-group > .btn:not(:last-child):not(.dropdown-toggle), .searchForProjects-form .btn-group > .searchForProjects-submit:not(:last-child):not(.dropdown-toggle), .comment-form .btn-group > input[type="submit"]:not(:last-child):not(.dropdown-toggle),
   .btn-group > .btn.dropdown-toggle-split:first-child,
-  .searchModules-form .btn-group > .dropdown-toggle-split.searchModules-submit:first-child,
+  .searchForProjects-form .btn-group > .dropdown-toggle-split.searchForProjects-submit:first-child,
   .comment-form .btn-group > input.dropdown-toggle-split[type="submit"]:first-child,
   .btn-group > .btn-group:not(:last-child) > .btn,
-  .searchModules-form .btn-group > .btn-group:not(:last-child) > .searchModules-submit,
+  .searchForProjects-form .btn-group > .btn-group:not(:last-child) > .searchForProjects-submit,
   .comment-form .btn-group > .btn-group:not(:last-child) > input[type="submit"] {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0; }
-  .btn-group > .btn:nth-child(n + 3), .searchModules-form .btn-group > .searchModules-submit:nth-child(n + 3), .comment-form .btn-group > input[type="submit"]:nth-child(n + 3),
+  .btn-group > .btn:nth-child(n + 3), .searchForProjects-form .btn-group > .searchForProjects-submit:nth-child(n + 3), .comment-form .btn-group > input[type="submit"]:nth-child(n + 3),
   .btn-group > :not(.btn-check) + .btn,
-  .searchModules-form .btn-group > :not(.btn-check) + .searchModules-submit,
+  .searchForProjects-form .btn-group > :not(.btn-check) + .searchForProjects-submit,
   .comment-form .btn-group > :not(.btn-check) + input[type="submit"],
   .btn-group > .btn-group:not(:first-child) > .btn,
-  .searchModules-form .btn-group > .btn-group:not(:first-child) > .searchModules-submit,
+  .searchForProjects-form .btn-group > .btn-group:not(:first-child) > .searchForProjects-submit,
   .comment-form .btn-group > .btn-group:not(:first-child) > input[type="submit"] {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0; }
@@ -3145,11 +3145,11 @@ textarea.form-control-lg {
   .dropstart .dropdown-toggle-split::before {
     margin-right: 0; }
 
-.btn-sm + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .searchModules-form .btn-group-sm > .searchModules-submit + .dropdown-toggle-split, .comment-form .btn-group-sm > input[type="submit"] + .dropdown-toggle-split {
+.btn-sm + .dropdown-toggle-split, .btn-group-sm > .btn + .dropdown-toggle-split, .searchForProjects-form .btn-group-sm > .searchForProjects-submit + .dropdown-toggle-split, .comment-form .btn-group-sm > input[type="submit"] + .dropdown-toggle-split {
   padding-right: 0.375rem;
   padding-left: 0.375rem; }
 
-.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .searchModules-form .btn-group-lg > .searchModules-submit + .dropdown-toggle-split, .comment-form .btn-group-lg > input[type="submit"] + .dropdown-toggle-split {
+.btn-lg + .dropdown-toggle-split, .btn-group-lg > .btn + .dropdown-toggle-split, .searchForProjects-form .btn-group-lg > .searchForProjects-submit + .dropdown-toggle-split, .comment-form .btn-group-lg > input[type="submit"] + .dropdown-toggle-split {
   padding-right: 0.75rem;
   padding-left: 0.75rem; }
 
@@ -3157,21 +3157,21 @@ textarea.form-control-lg {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center; }
-  .btn-group-vertical > .btn, .searchModules-form .btn-group-vertical > .searchModules-submit, .comment-form .btn-group-vertical > input[type="submit"],
+  .btn-group-vertical > .btn, .searchForProjects-form .btn-group-vertical > .searchForProjects-submit, .comment-form .btn-group-vertical > input[type="submit"],
   .btn-group-vertical > .btn-group {
     width: 100%; }
-  .btn-group-vertical > .btn:not(:first-child), .searchModules-form .btn-group-vertical > .searchModules-submit:not(:first-child), .comment-form .btn-group-vertical > input[type="submit"]:not(:first-child),
+  .btn-group-vertical > .btn:not(:first-child), .searchForProjects-form .btn-group-vertical > .searchForProjects-submit:not(:first-child), .comment-form .btn-group-vertical > input[type="submit"]:not(:first-child),
   .btn-group-vertical > .btn-group:not(:first-child) {
     margin-top: -1px; }
-  .btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .searchModules-form .btn-group-vertical > .searchModules-submit:not(:last-child):not(.dropdown-toggle), .comment-form .btn-group-vertical > input[type="submit"]:not(:last-child):not(.dropdown-toggle),
+  .btn-group-vertical > .btn:not(:last-child):not(.dropdown-toggle), .searchForProjects-form .btn-group-vertical > .searchForProjects-submit:not(:last-child):not(.dropdown-toggle), .comment-form .btn-group-vertical > input[type="submit"]:not(:last-child):not(.dropdown-toggle),
   .btn-group-vertical > .btn-group:not(:last-child) > .btn,
-  .searchModules-form .btn-group-vertical > .btn-group:not(:last-child) > .searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .btn-group:not(:last-child) > .searchForProjects-submit,
   .comment-form .btn-group-vertical > .btn-group:not(:last-child) > input[type="submit"] {
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0; }
-  .btn-group-vertical > .btn ~ .btn, .searchModules-form .btn-group-vertical > .searchModules-submit ~ .btn, .searchModules-form .btn-group-vertical > .btn ~ .searchModules-submit, .searchModules-form .btn-group-vertical > .searchModules-submit ~ .searchModules-submit, .comment-form .btn-group-vertical > input[type="submit"] ~ .btn, .comment-form .searchModules-form .btn-group-vertical > input[type="submit"] ~ .searchModules-submit, .searchModules-form .comment-form .btn-group-vertical > input[type="submit"] ~ .searchModules-submit, .comment-form .btn-group-vertical > .btn ~ input[type="submit"], .comment-form .searchModules-form .btn-group-vertical > .searchModules-submit ~ input[type="submit"], .searchModules-form .comment-form .btn-group-vertical > .searchModules-submit ~ input[type="submit"], .comment-form .btn-group-vertical > input[type="submit"] ~ input[type="submit"],
+  .btn-group-vertical > .btn ~ .btn, .searchForProjects-form .btn-group-vertical > .searchForProjects-submit ~ .btn, .searchForProjects-form .btn-group-vertical > .btn ~ .searchForProjects-submit, .searchForProjects-form .btn-group-vertical > .searchForProjects-submit ~ .searchForProjects-submit, .comment-form .btn-group-vertical > input[type="submit"] ~ .btn, .comment-form .searchForProjects-form .btn-group-vertical > input[type="submit"] ~ .searchForProjects-submit, .searchForProjects-form .comment-form .btn-group-vertical > input[type="submit"] ~ .searchForProjects-submit, .comment-form .btn-group-vertical > .btn ~ input[type="submit"], .comment-form .searchForProjects-form .btn-group-vertical > .searchForProjects-submit ~ input[type="submit"], .searchForProjects-form .comment-form .btn-group-vertical > .searchForProjects-submit ~ input[type="submit"], .comment-form .btn-group-vertical > input[type="submit"] ~ input[type="submit"],
   .btn-group-vertical > .btn-group:not(:first-child) > .btn,
-  .searchModules-form .btn-group-vertical > .btn-group:not(:first-child) > .searchModules-submit,
+  .searchForProjects-form .btn-group-vertical > .btn-group:not(:first-child) > .searchForProjects-submit,
   .comment-form .btn-group-vertical > .btn-group:not(:first-child) > input[type="submit"] {
     border-top-left-radius: 0;
     border-top-right-radius: 0; }
@@ -4032,7 +4032,7 @@ textarea.form-control-lg {
   .badge:empty {
     display: none; }
 
-.btn .badge, .searchModules-form .searchModules-submit .badge, .comment-form input[type="submit"] .badge {
+.btn .badge, .searchForProjects-form .searchForProjects-submit .badge, .comment-form input[type="submit"] .badge {
   position: relative;
   top: -1px; }
 
@@ -5098,7 +5098,7 @@ textarea.form-control-lg {
   "autoRename": true,
   "stringMap":[ {
     "name"    : "prev-next",
-    "searchModules"  : "prev",
+    "searchForProjects"  : "prev",
     "replace" : "next"
   } ]
 } */
@@ -5636,7 +5636,7 @@ textarea.form-control-lg {
   cursor: wait;
   background-color: currentcolor;
   opacity: 0.5; }
-  .placeholder.btn::before, .searchModules-form .placeholder.searchModules-submit::before, .comment-form input.placeholder[type="submit"]::before {
+  .placeholder.btn::before, .searchForProjects-form .placeholder.searchForProjects-submit::before, .comment-form input.placeholder[type="submit"]::before {
     display: inline-block;
     content: ""; }
 
@@ -10382,9 +10382,9 @@ a:hover,
 a:focus {
   text-decoration: underline; }
 
-a.btn:hover, .searchModules-form a.searchModules-submit:hover,
+a.btn:hover, .searchForProjects-form a.searchForProjects-submit:hover,
 a.btn:focus,
-.searchModules-form a.searchModules-submit:focus {
+.searchForProjects-form a.searchForProjects-submit:focus {
   text-decoration: none; }
 
 .section {
@@ -10759,33 +10759,33 @@ $border-dark: darken($body-bg-dark, 2.5%);
 [data-dark-mode] body .navbar .btn-link:active {
   color: #8ed6fb; }
 
-[data-dark-mode] body .form-control.is-searchModules, [data-dark-mode] body .searchModules-form .is-searchModules.searchModules-field, .searchModules-form [data-dark-mode] body .is-searchModules.searchModules-field, [data-dark-mode] body .comment-form input.is-searchModules[type="text"], .comment-form [data-dark-mode] body input.is-searchModules[type="text"],
-[data-dark-mode] body .comment-form input.is-searchModules[type="email"],
-.comment-form [data-dark-mode] body input.is-searchModules[type="email"],
-[data-dark-mode] body .comment-form input.is-searchModules[type="url"],
-.comment-form [data-dark-mode] body input.is-searchModules[type="url"],
-[data-dark-mode] body .comment-form textarea.is-searchModules,
-.comment-form [data-dark-mode] body textarea.is-searchModules {
+[data-dark-mode] body .form-control.is-searchForProjects, [data-dark-mode] body .searchForProjects-form .is-searchForProjects.searchForProjects-field, .searchForProjects-form [data-dark-mode] body .is-searchForProjects.searchForProjects-field, [data-dark-mode] body .comment-form input.is-searchForProjects[type="text"], .comment-form [data-dark-mode] body input.is-searchForProjects[type="text"],
+[data-dark-mode] body .comment-form input.is-searchForProjects[type="email"],
+.comment-form [data-dark-mode] body input.is-searchForProjects[type="email"],
+[data-dark-mode] body .comment-form input.is-searchForProjects[type="url"],
+.comment-form [data-dark-mode] body input.is-searchForProjects[type="url"],
+[data-dark-mode] body .comment-form textarea.is-searchForProjects,
+.comment-form [data-dark-mode] body textarea.is-searchForProjects {
   background: #1b1f22;
   border: 1px solid transparent;
   color: #dee2e6;
   /*
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-searchModules'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-searchForProjects'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
   */ }
 
-[data-dark-mode] body .form-control.is-searchModules:focus, [data-dark-mode] body .searchModules-form .is-searchModules.searchModules-field:focus, .searchModules-form [data-dark-mode] body .is-searchModules.searchModules-field:focus, [data-dark-mode] body .comment-form input.is-searchModules[type="text"]:focus, .comment-form [data-dark-mode] body input.is-searchModules[type="text"]:focus,
-[data-dark-mode] body .comment-form input.is-searchModules[type="email"]:focus,
-.comment-form [data-dark-mode] body input.is-searchModules[type="email"]:focus,
-[data-dark-mode] body .comment-form input.is-searchModules[type="url"]:focus,
-.comment-form [data-dark-mode] body input.is-searchModules[type="url"]:focus,
-[data-dark-mode] body .comment-form textarea.is-searchModules:focus,
-.comment-form [data-dark-mode] body textarea.is-searchModules:focus {
+[data-dark-mode] body .form-control.is-searchForProjects:focus, [data-dark-mode] body .searchForProjects-form .is-searchForProjects.searchForProjects-field:focus, .searchForProjects-form [data-dark-mode] body .is-searchForProjects.searchForProjects-field:focus, [data-dark-mode] body .comment-form input.is-searchForProjects[type="text"]:focus, .comment-form [data-dark-mode] body input.is-searchForProjects[type="text"]:focus,
+[data-dark-mode] body .comment-form input.is-searchForProjects[type="email"]:focus,
+.comment-form [data-dark-mode] body input.is-searchForProjects[type="email"]:focus,
+[data-dark-mode] body .comment-form input.is-searchForProjects[type="url"]:focus,
+.comment-form [data-dark-mode] body input.is-searchForProjects[type="url"]:focus,
+[data-dark-mode] body .comment-form textarea.is-searchForProjects:focus,
+.comment-form [data-dark-mode] body textarea.is-searchForProjects:focus {
   border: 1px solid #8ed6fb; }
 
-[data-dark-mode] body .doks-searchModules::after {
+[data-dark-mode] body .doks-searchForProjects::after {
   color: #dee2e6;
   border: 1px solid #495057; }
 
@@ -10798,7 +10798,7 @@ $border-dark: darken($body-bg-dark, 2.5%);
   border: 1px solid $gray-800;
 }
 */
-[data-dark-mode] body .form-control, [data-dark-mode] body .searchModules-form .searchModules-field, .searchModules-form [data-dark-mode] body .searchModules-field, [data-dark-mode] body .comment-form input[type="text"], .comment-form [data-dark-mode] body input[type="text"],
+[data-dark-mode] body .form-control, [data-dark-mode] body .searchForProjects-form .searchForProjects-field, .searchForProjects-form [data-dark-mode] body .searchForProjects-field, [data-dark-mode] body .comment-form input[type="text"], .comment-form [data-dark-mode] body input[type="text"],
 [data-dark-mode] body .comment-form input[type="email"],
 .comment-form [data-dark-mode] body input[type="email"],
 [data-dark-mode] body .comment-form input[type="url"],
@@ -10807,7 +10807,7 @@ $border-dark: darken($body-bg-dark, 2.5%);
 .comment-form [data-dark-mode] body textarea {
   color: #dee2e6; }
 
-[data-dark-mode] body .form-control::placeholder, [data-dark-mode] body .searchModules-form .searchModules-field::placeholder, .searchModules-form [data-dark-mode] body .searchModules-field::placeholder, [data-dark-mode] body .comment-form input[type="text"]::placeholder, .comment-form [data-dark-mode] body input[type="text"]::placeholder,
+[data-dark-mode] body .form-control::placeholder, [data-dark-mode] body .searchForProjects-form .searchForProjects-field::placeholder, .searchForProjects-form [data-dark-mode] body .searchForProjects-field::placeholder, [data-dark-mode] body .comment-form input[type="text"]::placeholder, .comment-form [data-dark-mode] body input[type="text"]::placeholder,
 [data-dark-mode] body .comment-form input[type="email"]::placeholder,
 .comment-form [data-dark-mode] body input[type="email"]::placeholder,
 [data-dark-mode] body .comment-form input[type="url"]::placeholder,
@@ -10967,7 +10967,7 @@ $border-dark: darken($body-bg-dark, 2.5%);
 [data-dark-mode] body hr.text-black-50 {
   color: #6c757d !important; }
 
-[data-dark-mode] body .email-form .form-control, [data-dark-mode] body .email-form .searchModules-form .searchModules-field, .searchModules-form [data-dark-mode] body .email-form .searchModules-field, [data-dark-mode] body .email-form .comment-form input[type="text"], .comment-form [data-dark-mode] body .email-form input[type="text"],
+[data-dark-mode] body .email-form .form-control, [data-dark-mode] body .email-form .searchForProjects-form .searchForProjects-field, .searchForProjects-form [data-dark-mode] body .email-form .searchForProjects-field, [data-dark-mode] body .email-form .comment-form input[type="text"], .comment-form [data-dark-mode] body .email-form input[type="text"],
 [data-dark-mode] body .email-form .comment-form input[type="email"],
 .comment-form [data-dark-mode] body .email-form input[type="email"],
 [data-dark-mode] body .email-form .comment-form input[type="url"],
@@ -10977,7 +10977,7 @@ $border-dark: darken($body-bg-dark, 2.5%);
   background: #1b1f22;
   border: 1px solid transparent; }
 
-[data-dark-mode] body .email-form .form-control:focus, [data-dark-mode] body .email-form .searchModules-form .searchModules-field:focus, .searchModules-form [data-dark-mode] body .email-form .searchModules-field:focus, [data-dark-mode] body .email-form .comment-form input[type="text"]:focus, .comment-form [data-dark-mode] body .email-form input[type="text"]:focus,
+[data-dark-mode] body .email-form .form-control:focus, [data-dark-mode] body .email-form .searchForProjects-form .searchForProjects-field:focus, .searchForProjects-form [data-dark-mode] body .email-form .searchForProjects-field:focus, [data-dark-mode] body .email-form .comment-form input[type="text"]:focus, .comment-form [data-dark-mode] body .email-form input[type="text"]:focus,
 [data-dark-mode] body .email-form .comment-form input[type="email"]:focus,
 .comment-form [data-dark-mode] body .email-form input[type="email"]:focus,
 [data-dark-mode] body .email-form .comment-form input[type="url"]:focus,
@@ -11574,7 +11574,7 @@ blockquote {
   padding-left: 1rem; }
 
 /** Search form */
-.searchModules-form label {
+.searchForProjects-form label {
   font-weight: normal; }
 
 figure {
@@ -11858,7 +11858,7 @@ button#doks-versions {
   .social-nav .banner .nav li:last-child a,
   .banner .nav .social-nav li:last-child a {
     padding-right: 0; }
-  .doks-searchModules {
+  .doks-searchForProjects {
     max-width: 20rem;
     margin-top: 0.125rem;
     margin-bottom: 0.125rem; }
@@ -11870,32 +11870,32 @@ button#doks-versions {
   }
   */ }
 
-.form-control.is-searchModules, .comment-form input.is-searchModules[type="text"],
-.comment-form input.is-searchModules[type="email"],
-.comment-form input.is-searchModules[type="url"],
-.comment-form textarea.is-searchModules, .searchModules-form .is-searchModules.searchModules-field {
+.form-control.is-searchForProjects, .comment-form input.is-searchForProjects[type="text"],
+.comment-form input.is-searchForProjects[type="email"],
+.comment-form input.is-searchForProjects[type="url"],
+.comment-form textarea.is-searchForProjects, .searchForProjects-form .is-searchForProjects.searchForProjects-field {
   padding-right: 4rem;
   border: 1px solid transparent;
   background: #f8f9fa; }
   @media (min-width: 768px) {
-    .form-control.is-searchModules, .comment-form input.is-searchModules[type="text"],
-    .comment-form input.is-searchModules[type="email"],
-    .comment-form input.is-searchModules[type="url"],
-    .comment-form textarea.is-searchModules, .searchModules-form .is-searchModules.searchModules-field {
+    .form-control.is-searchForProjects, .comment-form input.is-searchForProjects[type="text"],
+    .comment-form input.is-searchForProjects[type="email"],
+    .comment-form input.is-searchForProjects[type="url"],
+    .comment-form textarea.is-searchForProjects, .searchForProjects-form .is-searchForProjects.searchForProjects-field {
       width: calc(100% + 2rem); } }
   @media (min-width: 992px) {
-    .form-control.is-searchModules, .comment-form input.is-searchModules[type="text"],
-    .comment-form input.is-searchModules[type="email"],
-    .comment-form input.is-searchModules[type="url"],
-    .comment-form textarea.is-searchModules, .searchModules-form .is-searchModules.searchModules-field {
+    .form-control.is-searchForProjects, .comment-form input.is-searchForProjects[type="text"],
+    .comment-form input.is-searchForProjects[type="email"],
+    .comment-form input.is-searchForProjects[type="url"],
+    .comment-form textarea.is-searchForProjects, .searchForProjects-form .is-searchForProjects.searchForProjects-field {
       width: 100%; } }
-.form-control.is-searchModules:focus, .comment-form input.is-searchModules[type="text"]:focus,
-.comment-form input.is-searchModules[type="email"]:focus,
-.comment-form input.is-searchModules[type="url"]:focus,
-.comment-form textarea.is-searchModules:focus, .searchModules-form .is-searchModules.searchModules-field:focus {
+.form-control.is-searchForProjects:focus, .comment-form input.is-searchForProjects[type="text"]:focus,
+.comment-form input.is-searchForProjects[type="email"]:focus,
+.comment-form input.is-searchForProjects[type="url"]:focus,
+.comment-form textarea.is-searchForProjects:focus, .searchForProjects-form .is-searchForProjects.searchForProjects-field:focus {
   border: 1px solid #5d2f86; }
 
-.doks-searchModules::after {
+.doks-searchForProjects::after {
   position: absolute;
   top: 0.4625rem;
   right: 0.5375rem;
@@ -11911,10 +11911,10 @@ button#doks-versions {
   border: 1px solid #dee2e6;
   border-radius: 0.25rem; }
   @media (min-width: 768px) {
-    .doks-searchModules::after {
+    .doks-searchForProjects::after {
       right: -1.4625rem; } }
   @media (min-width: 992px) {
-    .doks-searchModules::after {
+    .doks-searchForProjects::after {
       right: 0.3125rem; } }
 /*
 @include media-breakpoint-up(lg) {
@@ -11930,7 +11930,7 @@ button#doks-versions {
 }
 */
 /*
-.form-control.is-searchModules {
+.form-control.is-searchForProjects {
 */
 /*
   padding-right: calc(1.5em + 0.75rem);
@@ -11941,7 +11941,7 @@ button#doks-versions {
   border: 0;
   */
 /*
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-searchModules'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%236c757d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-searchForProjects'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right calc(0.375em + 0.1875rem) center;
   background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);

@@ -4,8 +4,7 @@ option go_package = "example/vvv/proto/gen/demo/vvv;vvv";
 // import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 
-option parigot_wasm_module = "vvv";
-
+// parigot: WasmServiceName=VinnysStore
 service Store {
   rpc BestOfAlTime(Media) returns(Media);
 }
