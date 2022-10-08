@@ -32,7 +32,7 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 	for _, s := range file.Services {
 		g.P("[parigot." + s.GoName + "]")
 		g.P("  name=\"", s.GoName, "\"")
-		g.P("  package=", file.GoImportPath)
+		g.P("  protoPackage=", file.GoImportPath)
 
 		g.P()
 	}

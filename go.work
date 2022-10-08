@@ -6,5 +6,7 @@ use abi
 use command
 use api
 
+// these are separated because we want them each to build separately and have diff paths
 use example/greet
 use example/hello-go
+use example/vvv

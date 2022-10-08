@@ -9,7 +9,7 @@ TRANSFORM=command/transform
 ABI_GO=command/runner/abi.go
 PROTOC_PARIGOT_GEN=command/protoc_parigot/proto/gen
 
-all: build/hello-go.p.wasm build/ex1.p.wasm build/runner build/jsstrip build/genabi build/protoc-gen-parigot command/protoc-gen-parigot/proto/gen/vvv/vvv.p.go build/findservices
+all: build/hello-go.p.wasm build/ex1.p.wasm build/runner build/jsstrip build/genabi build/protoc-gen-parigot build/findservices
 
 build/hello-go.wasm: example/hello-go/main.go
 	@echo
@@ -81,9 +81,9 @@ command/protoc-gen-parigot/proto/gen/google/protobuf/compiler/plugin.pb.go: comm
 	@echo "\033[92mgenerating from plugin.proto =======================================================================\033[0m"
 	pushd command/protoc-gen-parigot/proto >& /dev/null && buf generate && popd >& /dev/null
 
-command/protoc-gen-parigot/proto/gen/vvv/vvv.p.go: build/protoc-gen-parigot command/protoc-gen-parigot/proto/vvv/store.proto
-	@echo
-	@echo "\033[92mgenerating test api (vvv) with parigot bindings  ===================================================\033[0m"
-	protoc --go_out=command/protoc-gen-parigot/proto/gen --go_opt=paths=source_relative \
-		--parigot_out=command/protoc-gen-parigot/proto/gen --parigot_opt=paths=source_relative \
-		-I command/protoc-gen-parigot/proto vvv/store.proto
+#command/protoc-gen-parigot/proto/gen/vvv/vvv.p.go: build/protoc-gen-parigot command/protoc-gen-parigot/proto/vvv/store.proto
+#	@echo
+#	@echo "\033[92mgenerating test api (vvv) with parigot bindings  ===================================================\033[0m"
+#	protoc --go_out=command/protoc-gen-parigot/proto/gen --go_opt=paths=source_relative \
+#		--parigot_out=command/protoc-gen-parigot/proto/gen --parigot_opt=paths=source_relative \
+#		-I command/protoc-gen-parigot/proto vvv/store.proto
