@@ -1,0 +1,14 @@
+syntax = "proto3";
+package parigot.net;
+option go_package = "parigot/net;net";
+// import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// parigot: WasmServiceName=parigot_net
+service Net {
+  rpc Locate(LocateRequest) returns(google.protobuf.Empty);
+}
+
+message LocateRequest {
+  string WasmName = 1;
+}

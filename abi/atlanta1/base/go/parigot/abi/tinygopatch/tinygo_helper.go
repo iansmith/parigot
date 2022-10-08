@@ -1,6 +1,8 @@
 package tinygopatch
 
-import "github.com/iansmith/parigot/abi/go/abi"
+import (
+	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi"
+)
 
 //go:wasm-module env
 //export runtime.ticks

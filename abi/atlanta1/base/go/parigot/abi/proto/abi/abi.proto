@@ -1,0 +1,38 @@
+syntax = "proto3";
+package parigot.net;
+option go_package = "parigot/net;net";
+// import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// parigot: WasmServiceName=parigot_abi
+service abi {
+  rpc OutputString(OutputStringRequest) returns(google.protobuf.Empty);
+  rpc Exit(ExitRequest) returns(google.protobuf.Empty); // will die
+  rpc Now(google.protobuf.Empty) returns(google.protobuf.Empty);
+  rpc SetNow(SetNowRequest) returns(google.protobuf.Empty);
+
+  //temp
+  rpc TinygoNotImplemented(NotImplementedRequest) returns(google.protobuf.Empty); // will die
+  rpc JSNotImplemented(NotImplementedRequest) returns(google.protobuf.Empty); // will die
+}
+
+message NotImplementedRequest {
+  string message = 1;
+}
+
+message OutputStringRequest {
+  string s = 1;
+}
+
+message NowResponse {
+  int64 now = 1;
+}
+
+message ExitRequest {
+  int64 code = 1;
+}
+
+message SetNowRequest {
+  int64 now = 1;
+  bool freeze_clock = 2;
+}

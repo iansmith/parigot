@@ -6,7 +6,7 @@ import "google/protobuf/empty.proto";
 
 // parigot: WasmServiceName=VinnysStore
 service Store {
-  rpc BestOfAlTime(Media) returns(Media);
+  rpc BestOfAllTime(google.protobuf.Empty) returns(Media);
 }
 
 message Media {

@@ -8,4 +8,7 @@ require (
 	google.golang.org/protobuf v1.28.1
 )
 
-require github.com/BurntSushi/toml v1.2.0 // indirect
+require (
+	github.com/BurntSushi/toml v1.2.0 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+)

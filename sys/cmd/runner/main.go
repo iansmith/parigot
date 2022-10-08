@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/sys/abi_impl"
 	"log"
 	"os"
 	"unsafe"
 
-	"github.com/iansmith/parigot/abi/go/abi"
-	"github.com/iansmith/parigot/abi/go/jspatch"
-	"github.com/iansmith/parigot/abi/go/tinygopatch"
+	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi"
+	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi/jspatch"
+	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi/tinygopatch"
+	"github.com/iansmith/parigot/sys/abi_impl"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )

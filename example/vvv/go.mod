@@ -1,1 +1,1 @@
-module demo.vvv
+module demo/vvv

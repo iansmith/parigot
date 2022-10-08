@@ -6,4 +6,7 @@ plugins:
   - name: connect-go
     out: gen
     opt: paths=source_relative
+  - name: parigot
+    out: gen
+    opt: paths=source_relative
 

@@ -34,7 +34,3 @@ func Now() int64
 //go:wasm-module parigot_abi
 //export SetNow
 func SetNow(time.Time)
-
-//go:wasm-module parigot_abi
-//export fd_write
-func FdWrite(int32, int32, int32, int32) int32

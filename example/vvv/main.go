@@ -1,18 +1,18 @@
 package main
 
 import (
-	"demo/vvv/proto/gen/demo/vvv"
+	"proto/gen/demo/vvv"g
 )
 
 // server side
 
 func main() {
 	// should be generated, just like locate
-	vinnysHandler := vvv.StoreHandler{
+	vinnysHandler := vvv.VinnysStoreHandler{
 		BestOfAllTime: BestOfAllTime,
 	}
 	// should be generated, just like locate
-	vvv.RegisterStoreHandler(vinnysHandler)
+	vvv.RegisterVinnysStoreHandler(vinnysHandler)
 }
 func BestOfAllTime() *vvv.Media {
 	return &vvv.Media{
