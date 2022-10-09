@@ -1,0 +1,15 @@
+//go:build parigot_abi
+// +build parigot_abi
+
+package abi
+
+import (
+	"time"
+)
+
+{{ range $index,$element := .svc.Method }}
+//go:wasm-module parigot_abi
+//export {{ .Name }}
+func {{ .Name }}({{- if ne paramSwap $element "Empty"}}{{- .Input}}{{end}}) {{- if ne .Output "Empty"}}{{- .Output}}{{end}}
+{{end}}
+

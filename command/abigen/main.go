@@ -26,6 +26,9 @@ func main() {
 	conf := structure.ParseTomlFile(abiTomlPath, abiProject)
 	for _, tomlDecl := range conf.Service {
 		tomlDecl.TargetDir = abiTargetPath
+		for _, m := range tomlDecl.Method {
+			m.Parent = &tomlDecl
+		}
 		generateCode(&tomlDecl, abiProject)
 	}
 }

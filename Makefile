@@ -14,6 +14,7 @@ TOOLS=build/jsstrip build/findservices $(PGP) build/runner
 FLAVOR=atlanta1/base/go
 WASM_GRAMMAR=command/Wasm.g4
 TRANSFORM_LIB=command/transform/*.go
+STRUCTURE_LIB=command/toml/*.go
 REP_GEN_WASM=command/transform/wasm_parser.go
 
 REP_API_NET=api/$(FLAVOR)/parigot/net/proto/gen/net/servicedecl.go
@@ -90,7 +91,7 @@ PROTOC_GEN_PARIGOT_SRC=command/protoc-gen-parigot/*.go \
 $(PLUGIN_SRC)\
 command/protoc-gen-parigot/template/*.tmpl
 
-build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC)
+build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 	@echo
 	@echo "\033[92mprotoc_parigot =====================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
@@ -115,7 +116,7 @@ $(REP_API_NET): $(API_NET_PROTO) $(TOOLS)
 
 $(REP_ABI): $(ABI_PROTO) $(TOOLS)
 	@echo
-	@echo "\033[92mgenerating parigot_api =============================================================================\033[0m"
+	@echo "\033[92mgenerating parigot_abi =============================================================================\033[0m"
 	pushd abi/$(FLAVOR)/parigot/abi/proto >& /dev/null && buf generate && popd >& /dev/null
 	build/findservices abi
 
@@ -135,3 +136,4 @@ clean:
 
 net: $(REP_API_NET)
 abi: $(REP_ABI)
+protoc: $(PGP)

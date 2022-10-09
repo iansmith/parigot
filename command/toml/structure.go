@@ -25,14 +25,24 @@ type ServiceDecl struct {
 	TargetDir       string // where to place generated output, this is the directory with the p.toml
 	Method          map[string]MethodDecl
 }
+
 type MethodDecl struct {
 	Name   string
 	Input  string
 	Output string
+	Parent *ServiceDecl
+}
+type FieldDecl struct {
+	Name string
+}
+type MessageDecl struct {
+	Name  string
+	Field map[string]FieldDecl
 }
 
 type TomlConfig struct {
 	Service map[string]ServiceDecl
+	Message map[string]MessageDecl
 }
 
 func ParseTomlFile(tomlPath string, project *ProjectDecl) *TomlConfig {

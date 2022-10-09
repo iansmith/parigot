@@ -51,11 +51,18 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.Generated
 		if optName != "" {
 			wasmName = optName
 		}
-		generateCode(g, s, &MiscData{
+		m := &MiscData{
 			ProtoFile: file.Desc.Path(),
 			GoPackage: fmt.Sprint(file.GoPackageName),
 			WasmName:  wasmName,
-		})
+		}
+		generateCodeService(g, s, m)
+		g.P()
+	}
+	for _, msg := range file.Messages {
+		log.Printf("generating message %s", msg.GoIdent.GoName)
+		generateCodeMessage(g, msg)
+		msg.Fields[0].Desc.I
 		g.P()
 	}
 	g.P()

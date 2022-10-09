@@ -33,11 +33,11 @@ func generateCode(svc *structure.ServiceDecl, project *structure.ProjectDecl) {
 		}
 		abiTemplate[i] = tmpl
 	}
-	err := generateIDECode(abiTemplate[AbiIdeIndex].Lookup(AbiIde), svc, project)
+	err := generateIDECode(abiTemplate[AbiIdeIndex].Lookup(AbiIde).Funcs(abiFuncs), svc, project)
 	if err != nil {
 		log.Fatalf("unable to execute template in abi ide code generation: %v", err)
 	}
-	err = generateTinygoCode(abiTemplate[AbiTinygoIndex].Lookup(AbiTinygo), svc, project)
+	err = generateTinygoCode(abiTemplate[AbiTinygoIndex].Lookup(AbiTinygo).Funcs(abiFuncs), svc, project)
 	if err != nil {
 		log.Fatalf("unable to execute template in abi tinygo code generation: %v", err)
 	}
@@ -68,4 +68,15 @@ func generateABICode(path string, t *template.Template, svc *structure.ServiceDe
 func generateTinygoCode(t *template.Template, svc *structure.ServiceDecl, proj *structure.ProjectDecl) error {
 	path := filepath.Join(svc.TargetDir, AbiTinygoTarget)
 	return generateABICode(path, t, svc, proj)
+}
+
+func paramSwap(elem *structure.MethodDecl) string {
+	if elem.Input == "Empty" {
+		return ""
+	}
+	return ""
+}
+
+var abiFuncs = template.FuncMap{
+	"paramSwap": paramSwap,
 }

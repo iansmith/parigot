@@ -6,7 +6,6 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi"
 	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi/jspatch"
 	"github.com/iansmith/parigot/abi/atlanta1/base/go/parigot/abi/tinygopatch"
 	"github.com/iansmith/parigot/sys/abi_impl"
@@ -68,14 +67,14 @@ func check(err error) {
 
 func generateWrappersForABI(store wasmtime.Storelike) map[string]*wasmtime.Func {
 	var result = make(map[string]*wasmtime.Func)
-	result["parigot_abi.TinyGoNotImplemented"] = wasmtime.WrapFunc(store, abi.TinyGoNotImplemented)
-	result["parigot_abi.JSHandleEvent"] = wasmtime.WrapFunc(store, abi.JSHandleEvent)
-	result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
-	result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
+	//result["parigot_abi.TinyGoNotImplemented"] = wasmtime.WrapFunc(store, abi.TinyGoNotImplemented)
+	//result["parigot_abi.JSHandleEvent"] = wasmtime.WrapFunc(store, abi.JSHandleEvent)
+	//result["parigot_abi.JSNotImplemented"] = wasmtime.WrapFunc(store, abi.JSNotImplemented)
+	//result["parigot_abi.SetNow"] = wasmtime.WrapFunc(store, abi.SetNow)
 
 	addABIToStoreExternref(store, result)
 
-	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
+	//result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, abi.FdWrite)
 	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jspatch.ValuePrepareString)
 	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jspatch.ValueLoadString)
