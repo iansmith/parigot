@@ -3,126 +3,81 @@ package main
 import (
 	"embed"
 	"fmt"
-	"google.golang.org/protobuf/compiler/protogen"
 	"log"
-	"strings"
+	"text/template"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
+
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 //go:embed template/*
 var templateFS embed.FS
 
-const (
-	wasmServiceName = "WasmServiceName"
-	wasmFuncName    = "WasmFuncName"
-)
-
-var parigotPrefixes = []string{
-	"//parigot:",
-	"// parigot:",
-}
-
 func main() {
-	protogen.Options{}.Run(func(gen *protogen.Plugin) error {
-		for _, f := range gen.Files {
-			if !f.Generate {
-				continue
+	genReq := util.ReadStdinIntoBuffer()
+	files, err := generateNeutral(genReq)
+	if err != nil {
+		log.Fatalf("unable to process plugin request: %v", err)
+	}
+	log.Printf("created %d files", len(files))
+}
+
+func generateNeutral(genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile, error) {
+	fileList := []*util.OutputFile{}
+	for _, desc := range genReq.GetProtoFile() {
+		generate := false
+		// figure out which ones to generate and which ones to process
+		for _, gen := range genReq.GetFileToGenerate() {
+			if desc.GetName() == gen {
+				generate = true
+				break
 			}
-			generateFile(gen, f)
 		}
-		return nil
-	})
+		for lang, generator := range GeneratorMap {
+			if generate {
+				// load up templates
+				t, err := loadTemplates(generator)
+				if err != nil {
+					return nil, err
+				}
+				file, err := generator.Generate(t, desc)
+				if err != nil {
+					return nil, err
+				}
+				if file == nil {
+					log.Printf("warning: language %s did not create any output for %s, ignoring",
+						lang, desc.GetName())
+				} else {
+					fileList = append(fileList, file...)
+				}
+			} else {
+				if err := generator.Process(desc); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return fileList, nil
 }
 
-type MiscData struct {
-	ProtoFile string
-	GoPackage string
-	WasmName  string
-}
-
-// generateFile generates a suitable interface for use with parigot
-func generateFile(gen *protogen.Plugin, file *protogen.File) *protogen.GeneratedFile {
-	filename := file.GeneratedFilenamePrefix + ".p.toml"
-
-	g := gen.NewGeneratedFile(filename, file.GoImportPath)
-
-	for _, s := range file.Services {
-		wasmName := s.GoName
-		optName := wasmNameFromComment(s.Comments.Leading.String())
-		if optName != "" {
-			wasmName = optName
+func loadTemplates(generator Generator) (*template.Template, error) {
+	// create root template and add functions, if any
+	root := template.New("root")
+	if generator.FuncMap() != nil {
+		root = root.Funcs(generator.FuncMap())
+	}
+	t := root
+	// template loading
+	for _, f := range generator.TemplateName() {
+		all, err := templateFS.ReadFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("unable to read file %s from embedded fs:%v", f, err)
 		}
-		m := &MiscData{
-			ProtoFile: file.Desc.Path(),
-			GoPackage: fmt.Sprint(file.GoPackageName),
-			WasmName:  wasmName,
-		}
-		generateCodeService(g, s, m)
-		g.P()
-	}
-	for _, msg := range file.Messages {
-		log.Printf("generating message %s", msg.GoIdent.GoName)
-		generateCodeMessage(g, msg)
-		msg.Fields[0].Desc.I
-		g.P()
-	}
-	g.P()
-
-	return g
-}
-func wasmNameFromComment(s string) string {
-	settings := parigotCommentSettings(parigotCommentLine(s))
-	if settings == nil {
-		return ""
-	}
-	wasmName, ok := settings[wasmServiceName]
-	if !ok {
-		return ""
-	}
-	return wasmName
-}
-func parigotCommentLine(allLines string) string {
-	lines := strings.Split(allLines, "\n") // xxx break on windows?
-	if len(lines) == 0 {
-		return ""
-	}
-	line := ""
-	for l := len(lines) - 1; l >= 0; l-- {
-		if lines[l] != "" {
-			line = lines[l]
-			break
+		t, err = root.New(f).Parse(string(all))
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse template %s:%v", f, err)
 		}
 	}
-	return line
-}
-
-func parigotCommentSettings(line string) map[string]string {
-	if line == "" {
-		return nil
-	}
-	found := ""
-	for _, p := range parigotPrefixes {
-		if strings.HasPrefix(line, p) {
-			found = strings.TrimPrefix(line, p)
-			break
-		}
-	}
-	if found == "" {
-		return nil
-	}
-	parts := strings.Split(found, ",")
-	if len(parts) == 0 {
-		panic("cant parse comment line: " + line)
-	}
-	settings := make(map[string]string)
-	for _, setting := range parts {
-		parts := strings.Split(setting, "=")
-		if len(parts) != 2 {
-			log.Printf("can't parse parigot comment setting on line:" + line)
-			continue
-		}
-		key := strings.TrimSpace(parts[0])
-		val := strings.TrimSpace(parts[1])
-		settings[key] = val
-	}
-	return settings
+	return t, nil
 }

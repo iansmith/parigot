@@ -1,0 +1,21 @@
+
+type {{toCamelCase .svc.WasmServiceName}} interface {
+    {{range .svc.Methods}}
+        {{- .GoName}}({{inputParamName .}}){{outputName .}}
+    {{- end}}
+}
+
+type {{toCamelCase .svc.WasmServiceName}}Handler struct {
+    {{- range .svc.Methods}}
+    {{ .GoName}} func({{inputParamName .}}) {{outputName .}}
+    {{- end}}
+}
+
+func Locate{{toCamelCase .svc.WasmServiceName}}() {{.svc.WasmServiceName}} {
+    anything:=parigot.Locate("{{.svc.WasmServiceName}}")
+    return anything.({{toCamelCase .svc.WasmServiceName}})
+}
+
+func Register{{toCamelCase .svc.WasmServiceName}}(h {{.svc.WasmServiceName}}Handler) {
+    parigot.Register("{{.svc.WasmServiceName}}",h)
+}

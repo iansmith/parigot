@@ -86,20 +86,16 @@ $(REP_GEN_WASM): $(WASM_GRAMMAR)
 	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ======================================================\033[0m"
 	pushd command >& /dev/null && java -Xmx500M -cp "../tools/lib/antlr-4.9-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4 && popd >& /dev/null
 
-PLUGIN_SRC=command/protoc-gen-parigot/proto/gen/google/protobuf/compiler/plugin.pb.go
 PROTOC_GEN_PARIGOT_SRC=command/protoc-gen-parigot/*.go \
-$(PLUGIN_SRC)\
-command/protoc-gen-parigot/template/*.tmpl
+command/protoc-gen-parigot/util/*.go \
+command/protoc-gen-parigot/go_/*.go \
+command/protoc-gen-parigot/template/*/*.tmpl
 
 build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 	@echo
 	@echo "\033[92mprotoc_parigot =====================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
-$(PLUGIN_SRC): command/protoc-gen-parigot/proto/google/protobuf/compiler/plugin.proto
-	@echo
-	@echo "\033[92mgenerating from plugin.proto =======================================================================\033[0m"
-	pushd command/protoc-gen-parigot/proto >& /dev/null && buf generate && popd >& /dev/null
 
 #command/protoc-gen-parigot/proto/gen/vvv/vvv.p.go: build/protoc-gen-parigot command/protoc-gen-parigot/proto/vvv/store.proto
 #	@echo

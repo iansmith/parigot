@@ -1,9 +1,0 @@
-[message.{{.msg.GoIdent.GoName}}]
-  name='{{.msg.GoIdent.GoName}}'
-  {{- $message:=.msg.GoIdent.GoName }}
-  {{- range .msg.Fields }}
-  [message.{{$message}}.field.{{.GoName}}]
-    name='{{ .GoName }}'
-    kind='{{ .Desc.Index
-
-  {{ end -}}
