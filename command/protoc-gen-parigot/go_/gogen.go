@@ -39,43 +39,33 @@ func (g *GoGen) Process(proto *descriptorpb.FileDescriptorProto) error {
 }
 
 type wasmService struct {
-	*protogen.Service
+	*descriptorpb.ServiceDescriptorProto
 	WasmServiceName string
 	GoPackage       string
 	ProtoFile       string
 }
 
 func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto) ([]*util.OutputFile, error) {
-	n := util.GenerateOutputFilenameBase(proto) + "svc.p.go"
-	if n != "" {
-		panic(n)
+	svcOutName := util.GenerateOutputFilenameBase(proto) + "svc.p.go"
+	log.Printf("services being generated to %s", svcOutName)
+	f := util.NewOutputFile(svcOutName)
+	fmt.Fprintf(f, "package %s\n", proto.GetPackage())
+	for _, s := range proto.GetService() {
+		wasmName := s.GetName()
+		//optName := wasmNameFromComment(s.Comments.Leading.String())
+		//if optName != "" {
+		//	wasmName = optName
+		//}
+		w := &wasmService{
+			ProtoFile:       proto.GetSourceCodeInfo().String(),
+			GoPackage:       proto.GetOptions().GetGoPackage(),
+			WasmServiceName: wasmName,
+		}
+		w.ServiceDescriptorProto = s
+		if err := generateCodeService(f, w, t); err != nil {
+			return nil, err
+		}
 	}
-	log.Printf("services being generated to %s", n)
-	//f := util.NewOutputFile(n)
-	//f, err := os.Create(filename)
-	//if err != nil {
-	//	return fmt.Errorf("unable to open %s: %v", filename, err)
-	//}
-	//defer f.Close()
-	//fmt.Fprint(f, "package %s\n", file.GoPackageName)
-	////g.P("package " + file.GoPackageName)
-	//for _, s := range file.Services {
-	//	wasmName := s.GoName
-	//	optName := wasmNameFromComment(s.Comments.Leading.String())
-	//	if optName != "" {
-	//		wasmName = optName
-	//	}
-	//	w := &wasmService{
-	//		ProtoFile:       file.Desc.Path(),
-	//		GoPackage:       fmt.Sprint(file.GoPackageName),
-	//		WasmServiceName: wasmName,
-	//	}
-	//	w.Service = s
-	//	if err := generateCodeService(f, w, t); err != nil {
-	//		return err
-	//	}
-	//	fmt.Fprint(f, "\n")
-	//}
 	//
 	//filename = file.GeneratedFilenamePrefix + "msg.p.go"
 	//log.Printf("services being generated to %s", filename)

@@ -1,13 +1,12 @@
-
 type {{toCamelCase .svc.WasmServiceName}} interface {
-    {{range .svc.Methods}}
-        {{- .GoName}}({{inputParamName .}}){{outputName .}}
+    {{range .svc.ServiceDescriptorProto.GetMethod}}
+        {{- .GetName}}({{inputParamName .}}){{outputName .}}
     {{- end}}
 }
 
 type {{toCamelCase .svc.WasmServiceName}}Handler struct {
-    {{- range .svc.Methods}}
-    {{ .GoName}} func({{inputParamName .}}) {{outputName .}}
+    {{- range .svc.ServiceDescriptorProto.GetMethod}}
+    {{ .GetName}} func({{inputParamName .}}) {{outputName .}}
     {{- end}}
 }
 

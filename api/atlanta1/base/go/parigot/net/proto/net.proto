@@ -1,0 +1,12 @@
+syntax = "proto3";
+package parigot.net;
+import "google/protobuf/empty.proto";
+option go_package="github.com/iansmith/parigot/api/atlanta1/base/go/parigot/net/proto/gen/parigot/net;net";
+// parigot: WasmServiceName=parigot_net
+service Net {
+  rpc Locate(LocateRequest) returns(google.protobuf.Empty);
+}
+
+message LocateRequest {
+  string WasmName = 1;
+}

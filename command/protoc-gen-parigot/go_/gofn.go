@@ -1,7 +1,7 @@
 package go_
 
 import (
-	"google.golang.org/protobuf/compiler/protogen"
+	"google.golang.org/protobuf/types/descriptorpb"
 	"strings"
 )
 
@@ -29,16 +29,10 @@ func toCamelCase(snake string) string {
 	return snake
 }
 
-func outputName(m *protogen.Method) string {
-	return emtpyToString(m.Input.GoIdent.GoName)
-}
-func inputParamName(m *protogen.Method) string {
-	return emtpyToString(m.Input.GoIdent.GoName)
+func outputName(m *descriptorpb.MethodDescriptorProto) string {
+	return m.GetName()
 }
 
-func emtpyToString(s string) string {
-	if s == "Empty" {
-		return ""
-	}
-	return s
+func inputParamName(m *descriptorpb.MethodDescriptorProto) string {
+	return m.GetName()
 }
