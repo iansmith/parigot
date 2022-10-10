@@ -16,11 +16,21 @@ var templateFS embed.FS
 
 func main() {
 	genReq := util.ReadStdinIntoBuffer()
+	resp := pluginpb.CodeGeneratorResponse{
+		Error:             nil,
+		SupportedFeatures: nil,
+	}
 	files, err := generateNeutral(genReq)
 	if err != nil {
-		log.Fatalf("unable to process plugin request: %v", err)
+		resp.Error = new(string)
+		*resp.Error = err.Error()
+	} else {
+		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(files))
+		for i, f := range files {
+			resp.File[i] = f.ToGoogleCGResponseFile()
+		}
 	}
-	log.Printf("created %d files", len(files))
+	util.MarshalResponseAndExit(&resp)
 }
 
 func generateNeutral(genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile, error) {

@@ -1,11 +1,13 @@
 package util
 
 import (
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/pluginpb"
+	"fmt"
 	"io"
 	"log"
 	"os"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 const (
@@ -40,4 +42,13 @@ func ReadStdinIntoBuffer() *pluginpb.CodeGeneratorRequest {
 		log.Fatalf("unable to understand generator request:%v", err)
 	}
 	return &req
+}
+
+func MarshalResponseAndExit(message proto.Message) {
+	b, err := proto.Marshal(message)
+	if err != nil {
+		panic("unable to marshal protobuf response:" + err.Error())
+	}
+	fmt.Fprintf(os.Stdout, "%s", string(b))
+	os.Exit(0) // by the spec, must be zero
 }

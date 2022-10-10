@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 	"io"
 	"log"
+	"strings"
 	"text/template"
 )
 
@@ -43,15 +44,24 @@ type wasmService struct {
 	WasmServiceName string
 	GoPackage       string
 	ProtoFile       string
+	ProtoPackage    string
 }
 
 func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto) ([]*util.OutputFile, error) {
 	svcOutName := util.GenerateOutputFilenameBase(proto) + "svc.p.go"
 	log.Printf("services being generated to %s", svcOutName)
 	f := util.NewOutputFile(svcOutName)
-	fmt.Fprintf(f, "package %s\n", proto.GetPackage())
+	pkg := proto.GetPackage()
+	if strings.LastIndex(pkg, ".") != -1 {
+		last := strings.LastIndex(pkg, ".")
+		if last != len(pkg)-1 {
+			pkg = pkg[last+1:]
+		}
+	}
+	fmt.Fprintf(f, "package %s\n", pkg)
 	for _, s := range proto.GetService() {
 		wasmName := s.GetName()
+
 		//optName := wasmNameFromComment(s.Comments.Leading.String())
 		//if optName != "" {
 		//	wasmName = optName
@@ -60,6 +70,7 @@ func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescripto
 			ProtoFile:       proto.GetSourceCodeInfo().String(),
 			GoPackage:       proto.GetOptions().GetGoPackage(),
 			WasmServiceName: wasmName,
+			ProtoPackage:    proto.GetPackage(),
 		}
 		w.ServiceDescriptorProto = s
 		if err := generateCodeService(f, w, t); err != nil {
@@ -82,7 +93,7 @@ func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescripto
 	//	}
 	//	fmt.Fprint(f, "\n")
 	//}
-	return nil, nil
+	return []*util.OutputFile{f}, nil
 }
 
 func generateCodeService(w io.WriteCloser, svc *wasmService, tmpl *template.Template) error {

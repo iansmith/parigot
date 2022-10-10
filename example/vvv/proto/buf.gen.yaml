@@ -1,10 +1,10 @@
 version: v1
 plugins:
   - name: go
-    out: gen
+    out: gen/demo/vvv
     opt: paths=source_relative
   - name: connect-go
-    out: gen
+    out: gen/demo/vvv
     opt: paths=source_relative
     ## you only need this plugin if you want to generate a grpc client
     ## but it worth noting that without it, you will get *only* Messages

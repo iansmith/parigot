@@ -1,0 +1,28 @@
+syntax = "proto3";
+package demo.vvv;
+option go_package = "demo/vvv/proto/gen/demo/vvv;vvv";
+// import "google/protobuf/timestamp.proto";
+
+// parigot: WasmServiceName=VinnysStore
+service Store {
+  rpc BestOfAllTime(BestOfAllTimeRequest) returns(BestOfAllTimeResponse);
+  rpc Revenue(RevenueRequest) returns (RevenueResponse);
+}
+
+message Media {
+  string title = 1;
+}
+
+message BestOfAllTimeRequest {
+}
+
+message BestOfAllTimeResponse {
+  Media media = 1;
+}
+
+message RevenueRequest{
+  string date = 1;
+}
+message RevenueResponse{
+  float revenue = 1;
+}
