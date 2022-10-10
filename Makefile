@@ -88,12 +88,12 @@ $(REP_GEN_WASM): $(WASM_GRAMMAR)
 
 PROTOC_GEN_PARIGOT_SRC=command/protoc-gen-parigot/*.go \
 command/protoc-gen-parigot/util/*.go \
-command/protoc-gen-parigot/go_/*.go \
+command/protoc-gen-parigot/*/*.go \
 command/protoc-gen-parigot/template/*/*.tmpl
 
 build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 	@echo
-	@echo "\033[92mprotoc_parigot =====================================================================================\033[0m"
+	@echo "\033[92mprotoc-gen-parigot =================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
 

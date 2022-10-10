@@ -5,4 +5,5 @@ lint:
   except:
     - PACKAGE_VERSION_SUFFIX
     - SERVICE_SUFFIX
+    - PACKAGE_DIRECTORY_MATCH
 

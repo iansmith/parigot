@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
@@ -14,6 +15,10 @@ const (
 	oneMB      = 1048576
 	bufferSize = 2 * oneMB
 	readSize   = 1024
+
+	pathArg   = "path"
+	trueValue = "true"
+	abiArg    = "abi"
 )
 
 var buffer [bufferSize]byte
@@ -51,4 +56,28 @@ func MarshalResponseAndExit(message proto.Message) {
 	}
 	fmt.Fprintf(os.Stdout, "%s", string(b))
 	os.Exit(0) // by the spec, must be zero
+}
+
+func IsABIGeneration(param string) bool {
+	param = strings.TrimSpace(param)
+	parts := strings.Split(param, ",")
+	// there is only one part, we assume it's paths=soureRelative
+	if len(parts) >= 1 {
+		for _, part := range parts {
+			assign := strings.Split(part, "=")
+			if len(assign) != 2 {
+				log.Printf("bad assignment in parameter %s (part of %s)",
+					part, param)
+				return false
+			}
+			key := strings.ToLower(strings.TrimSpace(assign[0]))
+			value := strings.ToLower(strings.TrimSpace(assign[1]))
+			if key == abiArg && value == trueValue {
+				return true
+			}
+		}
+	} else {
+		log.Printf("unable to understand parameter '%s', ignoring it", param)
+	}
+	return false
 }

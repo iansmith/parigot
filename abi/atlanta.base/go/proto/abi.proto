@@ -1,0 +1,47 @@
+syntax = "proto3";
+package abi;
+option go_package = "github.com/iansmith/parigot/abi;abi";
+
+// parigot: WasmServiceName=parigot_abi
+service abi {
+  rpc OutputString(OutputStringRequest) returns(OutputStringResponse);
+  rpc _Exit(ExitRequest) returns(ExitRequest); // will die
+  rpc Now(NowRequest) returns(NowResponse);
+  rpc _SetNow(SetNowRequest) returns(SetNowResponse);
+
+  //temp
+  rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns(TinygoNotImplementedResponse); // will die
+  rpc JSNotImplemented(JSNotImplementedRequest) returns(JSNotImplementedResponse); // will die
+}
+message TinygoNotImplementedRequest{
+  string message = 1;
+}
+message TinygoNotImplementedResponse{}
+
+message JSNotImplementedRequest {
+  string message = 1;
+}
+message JSNotImplementedResponse {}
+
+message OutputStringRequest {
+  string s = 1;
+}
+
+message OutputStringResponse {}
+
+message NowRequest {}
+
+message NowResponse {
+  int64 now = 1;
+}
+
+message ExitRequest {
+  int64 code = 1;
+}
+message ExitResponse{}
+
+message SetNowRequest {
+  int64 now = 1;
+  bool freeze_clock = 2;
+}
+message SetNowResponse{}

@@ -1,0 +1,71 @@
+//+build parigot_abi
+
+// This file is here to tell tinygo what functions to elide when
+// it is generating code for this package.  Most IDEs get confused when
+// you have "non defined" functions, although it's perfectly valid
+// go.  The functions that start with _ are potentially restricted
+// (dangerous).  The functions that are the real implementations
+// are implemented by the container, are not in the source or address
+// space of a client, and have a trailing _.  Functions with more
+// complex signatures (e.g. if they use a string) have to binary
+// patched into the wasm module because we are using tinygo and it
+// doesn't understand that we want to control the wasm-level type
+// signatures.
+
+package abi
+
+//
+// These functions have the true function name at the WASM level.
+//
+{{- range .abi.GetMethod}}
+{{- $inEmpty:=isInputEmpty .}}
+{{- $outEmpty:=isInputEmpty .}}
+
+    {{- if $inEmpty }}
+        {{- if $outEmpty }}
+    func {{.GetName}}_()
+        {{- else }}
+    func {{.GetName}}_() {{outputTypeName .}}
+        {{- end}}
+    {{- else}}
+        {{- if $outEmpty }}
+    func {{.GetName}}_({{inputParamNameSet true false .}})
+        {{- else }}
+    func {{.GetName}}_({{inputParamNameSet true false .}}) {{outputTypeName .}}
+        {{- end}}
+    {{- end}}
+{{- end}}
+
+//
+// These functions are wrappers around the true ABI functions, as is done with libc.
+// We have to patch functions that take arguments outside of the basic four, and this
+// is done with binary editing after compilation is finished.
+//
+{{- range .abi.GetMethod}}
+{{- $inEmpty:=isInputEmpty .}}
+{{- $outEmpty:=isInputEmpty .}}
+    {{- if $inEmpty }}
+        {{- if $outEmpty }}
+    func {{.GetName}}() {
+            {{.GetName}}_()
+    }
+        {{- else }}
+    func {{.GetName}}() {{outputTypeName .}} {
+        return {{.GetName}}_()
+    }
+        {{- end}}
+    {{- else}}
+        {{- if $outEmpty }}
+    func {{.GetName}}({{inputParamNameSet false false .}}) {
+        return {{.GetName}}_({{inputParamNameSet false true . }})
+    }
+        {{- else }}
+    func {{.GetName}}({{inputParamNameSet false false .}}) {{outputTypeName .}} {
+        return {{.GetName}}_({{inputParamNameSet false true . }})
+
+    }
+        {{- end}}
+    {{- end}}
+{{- end}}
+
+

@@ -20,7 +20,7 @@ func main() {
 		Error:             nil,
 		SupportedFeatures: nil,
 	}
-	files, err := generateNeutral(genReq)
+	files, err := generateNeutral(genReq, util.IsABIGeneration(genReq.GetParameter()))
 	if err != nil {
 		resp.Error = new(string)
 		*resp.Error = err.Error()
@@ -33,7 +33,7 @@ func main() {
 	util.MarshalResponseAndExit(&resp)
 }
 
-func generateNeutral(genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile, error) {
+func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, isAbi bool) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
 	for _, desc := range genReq.GetProtoFile() {
 		generate := false
@@ -44,7 +44,11 @@ func generateNeutral(genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile,
 				break
 			}
 		}
-		for lang, generator := range GeneratorMap {
+		langMap := GeneratorMap
+		if isAbi {
+			langMap = AbiOnlyMap
+		}
+		for lang, generator := range langMap {
 			if generate {
 				// load up templates
 				t, err := loadTemplates(generator)
@@ -74,6 +78,7 @@ func generateNeutral(genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile,
 func loadTemplates(generator Generator) (*template.Template, error) {
 	// create root template and add functions, if any
 	root := template.New("root")
+	root = root.Funcs(util.FuncMap)
 	if generator.FuncMap() != nil {
 		root = root.Funcs(generator.FuncMap())
 	}

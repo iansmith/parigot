@@ -2,7 +2,7 @@ go 1.19
 
 use lib
 use sys
-use abi
+use abi/atlanta.base/go
 use command
 use api
 
