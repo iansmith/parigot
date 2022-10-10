@@ -1,11 +1,13 @@
 //+build !parigot_abi
 
+// This file has been machine generated from proto/abi.proto.  DO NOT EDIT OR YOU WILL LOSE.
+
 // This file is here to provide your IDE with code that it thinks is what is being
 // called when you reference an abi function.  This is not at all what's going to
 // happen in practice, but it is nice to have api documentation and such in your
 // IDE.
 
-package abi
+package client
 
 {{- range .abi.GetMethod}}
 {{- $inEmpty:=isInputEmpty .}}

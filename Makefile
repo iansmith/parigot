@@ -10,8 +10,8 @@ ABI_GO=command/runner/abi.go
 PROTOC_PARIGOT_GEN=command/protoc_parigot/proto/gen
 PGP=build/protoc-gen-parigot
 TOOLS=build/jsstrip build/findservices $(PGP) build/runner
-# tuple is (atlanta,base,go) (version, variant, lang)
-FLAVOR=atlanta1/base/go
+# tuple is (atlanta.base) (version.variant)
+FLAVOR=atlanta.base
 WASM_GRAMMAR=command/Wasm.g4
 TRANSFORM_LIB=command/transform/*.go
 STRUCTURE_LIB=command/toml/*.go
@@ -20,9 +20,9 @@ REP_GEN_WASM=command/transform/wasm_parser.go
 REP_API_NET=api/$(FLAVOR)/parigot/net/proto/gen/net/servicedecl.go
 API_NET_PROTO=api/$(FLAVOR)/parigot/net/proto/net/net.proto
 
-ABI_SOURCE=abi/$(FLAVOR)/abi/*.go
-REP_ABI=abi/$(FLAVOR)/parigot/abi/proto/gen/abi/servicedecl.go
-ABI_PROTO=abi/$(FLAVOR)/parigot/abi/proto/abi/abi.proto
+ABI_GEN=abi/$(FLAVOR)/go/client/*.go
+REP_ABI=abi/$(FLAVOR)/go/client/abi.go
+ABI_PROTO=abi/$(FLAVOR)/go/proto/abi.proto
 
 APP_CODE=build/hello-go.p.wasm \
 build/ex1.p.wasm
@@ -75,7 +75,7 @@ build/findservices: $(FIND_SERVICES_SRC) $(PGP)
 	$(GO_CMD) build -o build/findservices github.com/iansmith/parigot/command/findservices
 
 JSSTRIP_SRC=command/jsstrip/*.go
-build/jsstrip: $(WASM_GRAMMAR) $(TRANSFORM_LIB)  $(REP_GEN_WASM) $(JSSTRIP_SRC) $(ABI_SRC)
+build/jsstrip: $(WASM_GRAMMAR) $(TRANSFORM_LIB)  $(REP_GEN_WASM) $(JSSTRIP_SRC) $(REP_ABI)
 	@echo
 	@echo "\033[92mjsstrip ============================================================================================\033[0m"
 	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip
@@ -110,11 +110,11 @@ $(REP_API_NET): $(API_NET_PROTO) $(TOOLS)
 	pushd api/$(FLAVOR)/parigot/net/proto >& /dev/null && buf generate && popd >& /dev/null
 	build/findservices api
 
-$(REP_ABI): $(ABI_PROTO) $(TOOLS)
+$(REP_ABI): $(ABI_PROTO)
 	@echo
 	@echo "\033[92mgenerating parigot_abi =============================================================================\033[0m"
-	pushd abi/$(FLAVOR)/parigot/abi/proto >& /dev/null && buf generate && popd >& /dev/null
-	build/findservices abi
+	pushd abi/$(FLAVOR)/go/proto >& /dev/null && buf generate && popd >& /dev/null
+	gofmt -w $(ABI_GEN)
 
 ABIGEN_SRC=command/abigen/*.go command/abigen/template/*.tmpl
 build/abigen: $(ABIGEN_SRC) $(PGP)
@@ -127,9 +127,11 @@ clean:
 	rm -f build/*
 	rm -rf $(TINYGO_MOD_CACHE)
 	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
-	rm -f $(ABI_GO)
+	rm -f $(ABI_GO_GEN)
 	rm -rf $(PROTOC_PARIGOT_GEN)/*
 
+
+## shorthands
 net: $(REP_API_NET)
 abi: $(REP_ABI)
 protoc: $(PGP)

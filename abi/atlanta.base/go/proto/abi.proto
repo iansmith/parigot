@@ -1,5 +1,11 @@
+//
+// This file defines the ABI interface to the underlying container... mostly.
+// This really defines the _interface_ to the container's true ABI, ala libc.
+// Further, we use this as a convenient way to machine generate things related
+// to the ABI.
+
 syntax = "proto3";
-package abi;
+package client;
 option go_package = "github.com/iansmith/parigot/abi;abi";
 
 // parigot: WasmServiceName=parigot_abi
