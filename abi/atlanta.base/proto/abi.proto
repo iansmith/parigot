@@ -5,7 +5,7 @@
 // to the ABI.
 
 syntax = "proto3";
-package client;
+package abi;
 option go_package = "github.com/iansmith/parigot/abi;abi";
 
 // parigot: WasmServiceName=parigot_abi
