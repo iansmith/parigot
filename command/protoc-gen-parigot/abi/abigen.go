@@ -28,10 +28,10 @@ func (a *AbiGen) Process(proto *descriptorpb.FileDescriptorProto) error {
 	a.addType(proto.GetName(), proto)
 	return nil
 }
-func (a *AbiGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto) ([]*util.OutputFile, error) {
+func (a *AbiGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto,
+	_ []string) ([]*util.OutputFile, error) {
+	// locators? We don't need no steekin' locators.  We're the ABI!
 	ideOutName := util.GenerateOutputFilenameBase(proto) + "null.p.go"
-	//xxxfix me
-	globalDescriptor = proto
 	log.Printf("fake abi functions being generated to %s", ideOutName)
 	f0 := util.NewOutputFile(ideOutName)
 	if len(proto.Service) != 1 {

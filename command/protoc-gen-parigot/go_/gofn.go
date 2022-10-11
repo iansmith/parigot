@@ -2,7 +2,6 @@ package go_
 
 import (
 	"google.golang.org/protobuf/types/descriptorpb"
-	"log"
 	"strings"
 )
 
@@ -11,12 +10,12 @@ import (
 )
 
 var goFuncMap = template.FuncMap{
-	"inputParamName":    inputParamName,
-	"outputName":        outputName,
-	"outputZeroVal":     outputZeroVal,
-	"inputParamNameSet": inputParamNameSet,
-	"hasInput":          hasInput,
-	"hasOutput":         hasOutput,
+	"inputParamName": inputParamName,
+	"outputName":     outputName,
+	"outputZeroVal":  outputZeroVal,
+	//	"inputParamNameSet": inputParamNameSet,
+	"hasInput":  hasInput,
+	"hasOutput": hasOutput,
 }
 
 const emptyType = ".google.protobuf.Empty"
@@ -35,7 +34,6 @@ func shortenTypeName(currPkg string, t string) string {
 	if currPkg[len(currPkg)-1] != '.' {
 		currPkg += "."
 	}
-	log.Printf("shorten**: currPkg=%s, t=%s", currPkg, t)
 	if strings.HasPrefix(t, currPkg) {
 		return strings.TrimPrefix(t, currPkg)
 	}

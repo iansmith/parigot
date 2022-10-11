@@ -1,7 +1,7 @@
 package main
 
 import (
-	"proto/gen/demo/vvv"g
+	"proto/gen/demo/vvv"
 )
 
 // server side

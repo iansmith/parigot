@@ -9,16 +9,16 @@ TRANSFORM=command/transform
 ABI_GO=command/runner/abi.go
 PROTOC_PARIGOT_GEN=command/protoc_parigot/proto/gen
 PGP=build/protoc-gen-parigot
-TOOLS=build/jsstrip build/findservices $(PGP) build/runner
 # tuple is (atlanta.base) (version.variant)
 FLAVOR=atlanta.base
 WASM_GRAMMAR=command/Wasm.g4
 TRANSFORM_LIB=command/transform/*.go
 STRUCTURE_LIB=command/toml/*.go
 REP_GEN_WASM=command/transform/wasm_parser.go
+API_GEN_DIR=api/$(FLAVOR)/go/parigot/*
 
-REP_API_NET=api/$(FLAVOR)/parigot/net/proto/gen/net/servicedecl.go
-API_NET_PROTO=api/$(FLAVOR)/parigot/net/proto/net/net.proto
+REP_API_NET=api/$(FLAVOR)/go/parigot/net/netsvc.p.go
+API_NET_PROTO=api/$(FLAVOR)/proto/net/net.proto
 
 ABI_GEN=abi/$(FLAVOR)/go/client/*.go
 REP_ABI=abi/$(FLAVOR)/go/client/abi.go
@@ -28,7 +28,6 @@ APP_CODE=build/hello-go.p.wasm \
 build/ex1.p.wasm
 
 all: build/runner \
-$(TOOLS) \
 $(REP_API_NET) \
 build/abigen
 
@@ -74,11 +73,11 @@ build/findservices: $(FIND_SERVICES_SRC) $(PGP)
 	@echo "\033[92mfind services ======================================================================================\033[0m"
 	$(GO_CMD) build -o build/findservices github.com/iansmith/parigot/command/findservices
 
-JSSTRIP_SRC=command/jsstrip/*.go
-build/jsstrip: $(WASM_GRAMMAR) $(TRANSFORM_LIB)  $(REP_GEN_WASM) $(JSSTRIP_SRC) $(REP_ABI)
+ABIPATCH_SRC=command/abipatch/*.go
+build/abipatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
 	@echo
-	@echo "\033[92mjsstrip ============================================================================================\033[0m"
-	go build -o build/jsstrip github.com/iansmith/parigot/command/jsstrip
+	@echo "\033[92mabipatch ===========================================================================================\033[0m"
+	go build -o build/abipatch github.com/iansmith/parigot/command/abipatch
 
 # only need to run the generator once, not once per file
 $(REP_GEN_WASM): $(WASM_GRAMMAR)
@@ -104,11 +103,12 @@ build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 #		--parigot_out=command/protoc-gen-parigot/proto/gen --parigot_opt=paths=source_relative \
 #		-I command/protoc-gen-parigot/proto vvv/store.proto
 
-$(REP_API_NET): $(API_NET_PROTO) $(TOOLS)
+$(REP_API_NET): $(API_NET_PROTO) $(PGP)
 	@echo
-	@echo "\033[92mgenerating parigot_api =============================================================================\033[0m"
-	pushd api/$(FLAVOR)/parigot/net/proto >& /dev/null && buf generate && popd >& /dev/null
-	build/findservices api
+	@echo "\033[92mgenerating parigot_net =============================================================================\033[0m"
+	pushd api/$(FLAVOR)/proto >& /dev/null && buf lint && popd >& /dev/null
+	pushd api/$(FLAVOR)/proto >& /dev/null && buf generate && popd >& /dev/null
+	gofmt -w api/$(FLAVOR)/go/parigot/net/netsvc.p.go
 
 $(REP_ABI): $(ABI_PROTO)
 	@echo
@@ -128,6 +128,7 @@ clean:
 	rm -rf $(TINYGO_MOD_CACHE)
 	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
 	rm -f $(ABI_GO_GEN)
+	rm -rf $(API_GEN_DIR)
 	rm -rf $(PROTOC_PARIGOT_GEN)/*
 
 

@@ -10,7 +10,7 @@ import (
 
 type Generator interface {
 	Process(proto *descriptorpb.FileDescriptorProto) error
-	Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto) ([]*util.OutputFile, error)
+	Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto, locators []string) ([]*util.OutputFile, error)
 	TemplateName() []string
 	FuncMap() template.FuncMap
 }

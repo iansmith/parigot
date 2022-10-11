@@ -43,9 +43,10 @@ package client
 // We have to patch functions that take arguments outside of the basic four, and this
 // is done with binary editing after compilation is finished.
 //
+
 {{- range .abi.GetMethod}}
 {{- $inEmpty:=isInputEmpty .}}
-{{- $outEmpty:=isInputEmpty .}}
+{{- $outEmpty:=isOutputEmpty .}}
     {{- if $inEmpty }}
         {{- if $outEmpty }}
     func {{.GetName}}() {

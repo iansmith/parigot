@@ -20,7 +20,8 @@ func main() {
 		Error:             nil,
 		SupportedFeatures: nil,
 	}
-	files, err := generateNeutral(genReq, util.IsABIGeneration(genReq.GetParameter()))
+	files, err := generateNeutral(genReq, util.IsABIGeneration(genReq.GetParameter()),
+		util.LocatorNames(genReq.GetParameter()))
 	if err != nil {
 		resp.Error = new(string)
 		*resp.Error = err.Error()
@@ -33,7 +34,7 @@ func main() {
 	util.MarshalResponseAndExit(&resp)
 }
 
-func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, isAbi bool) ([]*util.OutputFile, error) {
+func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, isAbi bool, locators []string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
 	for _, desc := range genReq.GetProtoFile() {
 		generate := false
@@ -48,6 +49,8 @@ func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, isAbi bool) ([]*util
 		if isAbi {
 			langMap = AbiOnlyMap
 		}
+		//xxxfix me
+		util.SetGlobalDescriptor(desc)
 		for lang, generator := range langMap {
 			if generate {
 				// load up templates
@@ -55,7 +58,7 @@ func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, isAbi bool) ([]*util
 				if err != nil {
 					return nil, err
 				}
-				file, err := generator.Generate(t, desc)
+				file, err := generator.Generate(t, desc, locators)
 				if err != nil {
 					return nil, err
 				}

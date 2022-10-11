@@ -1,86 +1,47 @@
 
-import (
-    "google.golang.org/protobuf/proto"
-)
 
 {{- $serviceName:=.svc.WasmServiceName}}
 {{- $packageName:=.svc.ProtoPackage }}
 
 type {{toCamelCase $serviceName}} interface {
     {{range .svc.ServiceDescriptorProto.GetMethod}}
-        {{- .GetName}}({{inputParamNameSet $packageName .}}){{outputName $packageName .}}
+
+    {{- $inEmpty:=isInputEmpty .}}
+    {{- $outEmpty:=isOutputEmpty .}}
+        {{- if $inEmpty }}
+            {{- if $outEmpty }}
+            {{.GetName}}() {
+                {{.GetName}}_()
+        }
+            {{- else }}
+         {{.GetName}}() {{outputTypeName .}}
+            {{- end}}
+        {{- else}}
+            {{- if $outEmpty }}
+         {{.GetName}}({{inputParamNameSet false false .}})
+            {{- else }}
+         {{.GetName}}({{inputParamNameSet false false .}}) {{outputTypeName .}}
+            {{- end}}
+        {{- end}}
     {{- end}}
 }
 
 type {{toCamelCase $serviceName}}Handler struct {
     {{- range .svc.ServiceDescriptorProto.GetMethod}}
-    {{ .GetName}} func({{inputParamName .}}) {{outputName $packageName .}}
+        {{- $inEmpty:=isInputEmpty .}}
+        {{- $outEmpty:=isOutputEmpty .}}
+            {{ .GetName }}{{- if $inEmpty }}
+                {{- if $outEmpty }}
+                {{" func()"}}
+                {{- else }}
+                {{" func()"}}{{ outputTypeName .}}
+                {{- end}}
+            {{- else }}
+                {{- if $outEmpty -}}
+             {{" func"}}({{inputParamNameSet false true .}})
+                {{- else -}}
+            {{" func"}}({{inputParamNameSet false true .}}) {{outputTypeName .}}
+                {{- end -}}
+            {{end}}
     {{- end}}
-}
-
-func Locate{{toCamelCase $serviceName}}() {{$serviceName}} {
-    anything,err:=parigot.Locate("{{$serviceName}}")
-    if err!=nil {
-        panic("parigot.Locate failed on {{toCamelCase $serviceName}}:"+v.Error())
-    }
-    if anything==nil {
-        log.Printf("WARNING: unable to find any instances of type ${{toCamelCase $serviceName}} via Locate{{$serviceName}}")
-    }
-    return anything.({{toCamelCase $serviceName}})
-}
-
-type {{$serviceName}}ProxyId int32
-type {{$serviceName}}Proxy struct {
-    id {{$serviceName}}ProxyId
-}
-
-{{- range .svc.ServiceDescriptorProto.GetMethod}}
-{{ $methodName := .GetName }}
-func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packageName .}}) ({{outputName $packageName .}},error){
-        {{ if hasInput .}}
-		r, err := proto.Marshal(message)
-		if err != nil {
-		    panic("failed trying to marshal " + "{{inputParamName .}}" +" for service "+ "{{$serviceName}}")
-		}
-		{{end}}
-
-		{{- /*   4 cases of dispatch */}}
-
-        {{- if hasInput .}}
-    		{{- if hasOutput .}}
-                result, errDispatch :=parigot.Dispatch11(proxy.id,"{{$serviceName}}", "{{$methodName}}",r)
-             {{else}}
-                // called for effect
-		        errDispatch :=parigot.Dispatch10(proxy.id,"{{$serviceName}}", "{{$methodName}}",r)
-		    {{end}}
-		{{else}}
-    		{{- if hasOutput . -}}
-                result, errDispatch :=parigot.Dispatch01(proxy.id,"{{$serviceName}}", "{{$methodName}}")
-             {{else}}
-                // called for effect
-		        errDispatch :=parigot.Dispatch00(proxy.id,"{{$serviceName}}", "{{$methodName}}")
-		    {{end}}
-		{{- end}}
-		if errDispatch!=nil {
-		    {{- if hasOutput . }}
-		    return {{outputZeroVal $packageName .}}, errDispatch
-		    {{else}}
-		    return errDispatch
-		    {{end}}
-		}
-		{{- if hasOutput .}}
-		out:={{outputZeroVal $packageName .}}
-		errUnmarshal:=proto.Unmarshal(result,&out)
-		if errUnmarshal != nil {
-		    panic("failed trying to unmarshal " + "{{outputName $packageName .}}" +" for service "+ "{{$serviceName}}")
-		}
-        return out.({{outputName $packageName .}}),nil
-        {{else}}
-        return nil
-		{{end}}
-}
-{{- end}}
-
-func Register{{toCamelCase .svc.WasmServiceName}}(h ...{{.svc.WasmServiceName}}) {
-    parigot.Register("{{.svc.WasmServiceName}}",h)
 }

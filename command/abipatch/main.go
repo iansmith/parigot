@@ -90,11 +90,11 @@ func allPasses() bool {
 }
 
 func transformation(mod *transform.Module) {
-	//changeToplevelInModule(mod, transform.ImportDefT, changeImportsToPointToStub)
-	//changeStatementInModule(mod, changeCallsToUseStub)
+	changeToplevelInModule(mod, transform.ImportDefT, changeImportsToTrueABI)
+	changeStatementInModule(mod, changeCallsToUseTrueABI)
 }
 
-func changeImportsToPointToStub(tl transform.TopLevel) transform.TopLevel {
+func changeImportsToTrueABI(tl transform.TopLevel) transform.TopLevel {
 	idef := tl.(*transform.ImportDef)
 	if idef.ModuleName == parigotModule {
 		idef.FuncNameRef.Name = idef.FuncNameRef.Name + parigotSuffix
@@ -102,7 +102,7 @@ func changeImportsToPointToStub(tl transform.TopLevel) transform.TopLevel {
 	return idef
 }
 
-func changeCallsToUseStub(stmt transform.Stmt) transform.Stmt {
+func changeCallsToUseTrueABI(stmt transform.Stmt) transform.Stmt {
 	if stmt.StmtType() == transform.OpStmtT &&
 		stmt.(transform.Op).OpType() == transform.CallT {
 		if strings.HasPrefix(stmt.(*transform.CallOp).Arg, abiGoLinkerPath) {

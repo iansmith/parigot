@@ -16,9 +16,10 @@ const (
 	bufferSize = 2 * oneMB
 	readSize   = 1024
 
-	pathArg   = "path"
-	trueValue = "true"
-	abiArg    = "abi"
+	pathArg    = "path"
+	trueValue  = "true"
+	abiArg     = "abi"
+	locatorArg = "locator"
 )
 
 var buffer [bufferSize]byte
@@ -59,6 +60,25 @@ func MarshalResponseAndExit(message proto.Message) {
 }
 
 func IsABIGeneration(param string) bool {
+	for key, value := range parametersToMap(param) {
+		if key == abiArg && value == trueValue {
+			return true
+		}
+	}
+	return false
+}
+
+func LocatorNames(param string) []string {
+	for key, value := range parametersToMap(param) {
+		if key == locatorArg {
+			return strings.Split(value, ";")
+		}
+	}
+	return []string{}
+}
+
+func parametersToMap(param string) map[string]string {
+	result := make(map[string]string)
 	param = strings.TrimSpace(param)
 	parts := strings.Split(param, ",")
 	// there is only one part, we assume it's paths=soureRelative
@@ -66,18 +86,16 @@ func IsABIGeneration(param string) bool {
 		for _, part := range parts {
 			assign := strings.Split(part, "=")
 			if len(assign) != 2 {
-				log.Printf("bad assignment in parameter %s (part of %s)",
+				log.Fatalf("bad assignment in parameter %s (part of %s), ignoring it",
 					part, param)
-				return false
+				continue
 			}
 			key := strings.ToLower(strings.TrimSpace(assign[0]))
 			value := strings.ToLower(strings.TrimSpace(assign[1]))
-			if key == abiArg && value == trueValue {
-				return true
-			}
+			result[key] = value
 		}
 	} else {
 		log.Printf("unable to understand parameter '%s', ignoring it", param)
 	}
-	return false
+	return result
 }

@@ -14,6 +14,7 @@ import (
 const (
 	serviceDecl = "template/go/servicedecl.tmpl"
 	messageDecl = "template/go/messagedecl.tmpl"
+	simpleLoc   = "template/go/servicesimpleloc.tmpl"
 )
 
 type GoGen struct {
@@ -28,7 +29,7 @@ func (g *GoGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl, messageDecl}
+	return []string{serviceDecl, messageDecl, simpleLoc}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
 	return goFuncMap
@@ -47,9 +48,10 @@ type wasmService struct {
 	ProtoPackage    string
 }
 
-func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto) ([]*util.OutputFile, error) {
+func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto,
+	locators []string) ([]*util.OutputFile, error) {
 	svcOutName := util.GenerateOutputFilenameBase(proto) + "svc.p.go"
-	log.Printf("services being generated to %s", svcOutName)
+	log.Printf("services being generated to %s from proto file %s", svcOutName, proto.GetName())
 	f := util.NewOutputFile(svcOutName)
 	pkg := proto.GetPackage()
 	if strings.LastIndex(pkg, ".") != -1 {
@@ -76,27 +78,29 @@ func (g *GoGen) Generate(t *template.Template, proto *descriptorpb.FileDescripto
 		if err := generateCodeService(f, w, t); err != nil {
 			return nil, err
 		}
+		for _, loc := range locators {
+			switch loc {
+			case "simple":
+				if err := generateCodeSimpleLoc(f, w, t.Lookup(simpleLoc)); err != nil {
+					return nil, err
+				}
+			default:
+				log.Printf("unknown locator %s, ignoring", loc)
+			}
+		}
 	}
-	//
-	//filename = file.GeneratedFilenamePrefix + "msg.p.go"
-	//log.Printf("services being generated to %s", filename)
-	//f, err = os.Create(filename)
-	//if err != nil {
-	//	return fmt.Errorf("unable to open %s: %v", filename, err)
-	//}
-	//defer f.Close()
-	//
-	//for _, msg := range file.Messages {
-	//	log.Printf("generating message %s", msg.GoIdent.GoName)
-	//	if err := generateCodeMessage(f, msg, t); err != nil {
-	//		return err
-	//	}
-	//	fmt.Fprint(f, "\n")
-	//}
 	return []*util.OutputFile{f}, nil
 }
 
+func generateCodeSimpleLoc(w io.WriteCloser, svc *wasmService, tmpl *template.Template) error {
+	return runTemplateForService(w, svc, tmpl)
+}
+
 func generateCodeService(w io.WriteCloser, svc *wasmService, tmpl *template.Template) error {
+	return runTemplateForService(w, svc, tmpl)
+}
+
+func runTemplateForService(w io.WriteCloser, svc *wasmService, tmpl *template.Template) error {
 	data := map[string]interface{}{
 		"svc": svc,
 	}
