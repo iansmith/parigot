@@ -40,34 +40,14 @@ func (o *OutputFile) Close() error {
 }
 
 func GenerateOutputFilenameBase(proto *descriptorpb.FileDescriptorProto) string {
-	packageName := proto.GetPackage()
 	descName := proto.GetName()
 	descBase, descFile := filepath.Split(descName)
-	parts := strings.Split(descBase, "/")
-	if parts[len(parts)-1] == "" {
-		parts = parts[:len(parts)-1]
-	}
-	pkgParts := strings.Split(packageName, ".")
-	///////////
-	for {
-		if len(parts) == 0 || len(pkgParts) == 0 {
-			break
-		}
-		last := parts[len(parts)-1]
-		lastPkg := pkgParts[len(pkgParts)-1]
-		if last == lastPkg {
-			parts = parts[:len(parts)-1]
-			pkgParts = pkgParts[:len(pkgParts)-1]
-		}
-	}
-	descBase = filepath.Join(parts...)
-	descName = filepath.Join(descBase, descFile)
-	n := descName
-	if !strings.HasSuffix(descName, protoSuffix) {
+	n := descFile
+	if !strings.HasSuffix(n, protoSuffix) {
 		log.Printf("unexpeced filename for processing '%s', expected a %s extension",
 			descName, protoSuffix)
 	} else {
 		n = strings.TrimSuffix(n, protoSuffix)
 	}
-	return strings.Replace(packageName, ".", "/", -1) + "/" + n
+	return filepath.Join(descBase, n)
 }

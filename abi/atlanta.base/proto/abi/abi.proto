@@ -3,22 +3,34 @@
 // This really defines the _interface_ to the container's true ABI, ala libc.
 // Further, we use this as a convenient way to machine generate things related
 // to the ABI.
+//
+// The use of "service" and "method" below are kinda dodgy.  Really, there is only
+// the one service, and that "service" is the abi.  This gets turned in a namespace
+// (module) for the wasm level.  The "Methods" actually are functions within that
+// namespace.
 
 syntax = "proto3";
 package abi;
-option go_package = "github.com/iansmith/parigot/abi;abi";
+import "parigot.proto";
+option go_package = "github.com/iansmith/parigot/g/abi;abi";
+option (parigot.abi) = true;
 
 // parigot: WasmServiceName=parigot_abi
-service abi {
-  rpc OutputString(OutputStringRequest) returns(OutputStringResponse);
-  rpc _Exit(ExitRequest) returns(ExitRequest); // will die
+service Abi {
+  option (parigot.wasm_service_name) = "parigot_abi";
+  rpc OutputString(OutputStringRequest) returns(OutputStringResponse){
+    option (parigot.wasm_method_name) = "output_string";
+  }
+  rpc Exit(ExitRequest) returns(ExitResponse); // will die
   rpc Now(NowRequest) returns(NowResponse);
-  rpc _SetNow(SetNowRequest) returns(SetNowResponse);
+  rpc SetNow(SetNowRequest) returns(SetNowResponse);
+  rpc Locate(LocateRequest) returns (LocateResponse);
 
   //temp
   rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns(TinygoNotImplementedResponse); // will die
   rpc JSNotImplemented(JSNotImplementedRequest) returns(JSNotImplementedResponse); // will die
 }
+
 message TinygoNotImplementedRequest{
   string message = 1;
 }
@@ -51,3 +63,12 @@ message SetNowRequest {
   bool freeze_clock = 2;
 }
 message SetNowResponse{}
+
+message LocateRequest {
+  string team = 1;
+  string service = 2;
+}
+
+message LocateResponse {
+  int64 service_sid =1;
+}

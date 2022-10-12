@@ -384,7 +384,7 @@ Use `raise` to raise exceptions. Use `handle` to catch exceptions.
 ```ML
 fun hd xs =
     case xs of
-	[] => raise List.Empty
+	[] => raise List.IsEmpty
       | x::_ => x;
 
 (* The type of maxlist will be int list * exn -> int *)

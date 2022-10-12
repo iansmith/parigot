@@ -1,11 +1,11 @@
 version: v1
 plugins:
   - name: parigot
-    out: ../go
+    out: g/parigot
     opt: paths=source_relative
   - name: go
-    out: ../go/parigot
+    out: g/parigot
     opt: paths=source_relative
   - name: connect-go
-    out: ../go/parigot
+    out: g/parigot
     opt: paths=source_relative

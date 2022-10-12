@@ -1,0 +1,5 @@
+version: v1
+directories:
+  - abi/atlanta.base/proto
+  - api/atlanta.base/proto
+

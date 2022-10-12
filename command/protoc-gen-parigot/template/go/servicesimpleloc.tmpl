@@ -1,5 +1,8 @@
-{{- $serviceName:=.svc.WasmServiceName}}
-{{- $packageName:=.svc.PackageName}}
+{{range .file.GetService}}
+{{$svc:=.}}
+
+{{- $serviceName:=$svc.WasmServiceName}}
+{{- $packageName:=$svc.PackageName}}
 
 func Locate{{toCamelCase $serviceName}}() {{$serviceName}} {
     anything,err:=parigot.Locate("{{$serviceName}}")
@@ -17,10 +20,12 @@ type {{$serviceName}}Proxy struct {
     id {{$serviceName}}ProxyId
 }
 
-{{- range .svc.ServiceDescriptorProto.GetMethod}}
+{{- range $svc.ServiceDescriptorProto.GetWasmMethod}}
 {{ $methodName := .GetName }}
-func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packageName .}}) ({{outputName $packageName .}},error){
-        {{ if hasInput .}}
+func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packageName .}}) ({{outputTypeName .}},error){
+        {{ $inEmpty := isInputEmpty .}}
+        {{ $outEmpty := isOutputEmpty .}}
+        {{ if ne $inEmpty true}}
 		r, err := proto.Marshal(message)
 		if err != nil {
 		    panic("failed trying to marshal " + "{{inputParamName .}}" +" for service "+ "{{$serviceName}}")
@@ -29,15 +34,15 @@ func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packa
 
 		{{- /*   4 cases of dispatch */}}
 
-        {{- if hasInput .}}
-    		{{- if hasOutput .}}
+        {{- if ne $inEmpty true}}
+    		{{- if ne $outEmpty true}}
                 result, errDispatch :=parigot.Dispatch11(proxy.id,"{{$serviceName}}", "{{$methodName}}",r)
              {{else}}
                 // called for effect
 		        errDispatch :=parigot.Dispatch10(proxy.id,"{{$serviceName}}", "{{$methodName}}",r)
 		    {{end}}
 		{{else}}
-    		{{- if hasOutput . -}}
+    		{{- if ne $outEmpty true -}}
                 result, errDispatch :=parigot.Dispatch01(proxy.id,"{{$serviceName}}", "{{$methodName}}")
              {{else}}
                 // called for effect
@@ -67,3 +72,5 @@ func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packa
 func Register{{toCamelCase .svc.WasmServiceName}}(h ...{{.svc.WasmServiceName}}) {
     parigot.Register("{{.svc.WasmServiceName}}",h)
 }
+
+{{end}}

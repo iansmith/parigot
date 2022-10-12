@@ -1,11 +1,14 @@
 package util
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/pluginpb"
@@ -24,11 +27,28 @@ const (
 
 var buffer [bufferSize]byte
 
-func ReadStdinIntoBuffer() *pluginpb.CodeGeneratorRequest {
+func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGeneratorRequest {
 	curr := 0
 	ok := false
+
+	var outfp *os.File
+	var out string
+	if saveTemp {
+		dir, err := os.MkdirTemp("/tmp/", "parse")
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		path := fmt.Sprintf("%s-%d", "save", time.Now().Unix())
+		out = filepath.Join(dir, path)
+		outfp, err = os.Create(out)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		defer outfp.Close()
+	}
+
 	for readSize < bufferSize-curr {
-		r, err := os.Stdin.Read(buffer[curr : curr+readSize])
+		r, err := reader.Read(buffer[curr : curr+readSize])
 		if err != nil {
 			if err == io.EOF {
 				curr += r
@@ -41,6 +61,14 @@ func ReadStdinIntoBuffer() *pluginpb.CodeGeneratorRequest {
 	}
 	if !ok {
 		log.Fatalf("input message on stdin was larger than %0x bytes", bufferSize)
+	}
+	if saveTemp {
+		count, err := io.Copy(outfp, bytes.NewBuffer(buffer[:]))
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		log.Printf("saved output to %s (%d bytes)", out, count)
+		outfp.Close()
 	}
 	var req pluginpb.CodeGeneratorRequest
 	err := proto.Unmarshal(buffer[:curr], &req)
@@ -57,15 +85,6 @@ func MarshalResponseAndExit(message proto.Message) {
 	}
 	fmt.Fprintf(os.Stdout, "%s", string(b))
 	os.Exit(0) // by the spec, must be zero
-}
-
-func IsABIGeneration(param string) bool {
-	for key, value := range parametersToMap(param) {
-		if key == abiArg && value == trueValue {
-			return true
-		}
-	}
-	return false
 }
 
 func LocatorNames(param string) []string {

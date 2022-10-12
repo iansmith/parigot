@@ -1,6 +1,0 @@
-version: v1
-plugins:
-  - name: parigot
-    out: ..
-    opt: paths=source_relative,abi=true
-

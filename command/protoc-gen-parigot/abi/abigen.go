@@ -1,20 +1,30 @@
 package abi
 
 import (
-	"log"
+	"fmt"
+	"strings"
 	"text/template"
 
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
+
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const (
-	tinygo = "template/abi/abiTinygo.tmpl"
-	ide    = "template/abi/abiIde.tmpl"
+	tinygo = "template/abi/abitinygo.tmpl"
+	ide    = "template/abi/abiide.tmpl"
 )
+
+var abiFuncMap = template.FuncMap{}
+var resultFile = []string{".p.go", "null.p.go"}
 
 type AbiGen struct {
 	types map[string]*descriptorpb.FileDescriptorProto
+}
+
+func (a *AbiGen) ResultName() []string {
+	return resultFile
 }
 
 func (a *AbiGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
@@ -28,30 +38,23 @@ func (a *AbiGen) Process(proto *descriptorpb.FileDescriptorProto) error {
 	a.addType(proto.GetName(), proto)
 	return nil
 }
-func (a *AbiGen) Generate(t *template.Template, proto *descriptorpb.FileDescriptorProto,
-	_ []string) ([]*util.OutputFile, error) {
-	// locators? We don't need no steekin' locators.  We're the ABI!
-	ideOutName := util.GenerateOutputFilenameBase(proto) + "null.p.go"
-	log.Printf("fake abi functions being generated to %s", ideOutName)
-	f0 := util.NewOutputFile(ideOutName)
-	if len(proto.Service) != 1 {
-		panic("unexpected service definitions (?) for the abi layer")
-	}
-	data := map[string]interface{}{
-		"abi": proto.Service[0],
-	}
-	if err := t.Lookup(ide).Execute(f0, data); err != nil {
-		log.Fatalf("failed to execute template %s for ide: %v", ide, err)
-	}
-	tinygoOutName := util.GenerateOutputFilenameBase(proto) + ".p.go"
-	log.Printf("abi functions being generated to %s", tinygoOutName)
 
-	f1 := util.NewOutputFile(tinygoOutName)
-	if err := t.Lookup(tinygo).Execute(f1, data); err != nil {
-		log.Fatalf("failed to execute template %s for ide: %v", tinygoOutName, err)
-	}
+var text = []string{"fake abi for ide into ", "abi function declarations into"}
 
-	return []*util.OutputFile{f0, f1}, nil
+func (a *AbiGen) NeedsLocators() bool {
+	return false
+}
+
+func (a *AbiGen) GeneratingMessage() []string {
+	return text
+}
+
+func (a *AbiGen) Generate(t *template.Template, info *codegen.GenInfo, loc []string) ([]*util.OutputFile, error) {
+	if !strings.HasSuffix(info.GetFile().GetName(), "abi.proto") {
+		return nil, fmt.Errorf("unable to understand abi definition with %d services (expecting 1)",
+			len(info.GetFile().GetService()))
+	}
+	return codegen.BasicGenerate(a, t, info, loc)
 }
 
 func (a *AbiGen) TemplateName() []string {

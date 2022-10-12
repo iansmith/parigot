@@ -1,0 +1,27 @@
+
+#build/hello-go.wasm: example/hello-go/main.go
+#	@echo
+#	@echo "\033[92mexample/hello-go ===================================================================================\033[0m"
+#	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/hello-go.wasm github.com/iansmith/parigot/example/hello-go
+
+#build/ex1.wasm: command/jsstrip/testdata/ex1/ex1.go
+#	@echo
+#	@echo "\033[92mcommand/jsstrip/testdata/ex1 =======================================================================\033[0m"
+#	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/ex1.wasm github.com/iansmith/parigot/command/jsstrip/testdata
+
+#build/ex1.p.wasm: build/ex1.wasm
+#	@echo
+#	@echo "\033[92mstripping ex1 binary ===============================================================================\033[0m"
+#	build/jsstrip -o build/ex1.p.wasm build/ex1.wasm
+
+#build/hello-go.p.wasm: build/jsstrip build/hello-go.wasm
+#	@echo
+#	@echo "\033[92mstripping hello-go binary ==========================================================================\033[0m"
+#	build/jsstrip -o build/hello-go.p.wasm build/hello-go.wasm
+
+#command/protoc-gen-parigot/proto/gen/vvv/vvv.p.go: build/protoc-gen-parigot command/protoc-gen-parigot/proto/vvv/store.proto
+#	@echo
+#	@echo "\033[92mgenerating test api (vvv) with parigot bindings  ===================================================\033[0m"
+#	protoc --go_out=command/protoc-gen-parigot/proto/gen --go_opt=paths=source_relative \
+#		--parigot_out=command/protoc-gen-parigot/proto/gen --parigot_opt=paths=source_relative \
+#		-I command/protoc-gen-parigot/proto vvv/store.proto

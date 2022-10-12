@@ -33,3 +33,7 @@ func Now() int64 {
 func SetNow(_ int64) {
 	print("SetNow\n")
 }
+
+func Locate(team, service string) {
+
+}

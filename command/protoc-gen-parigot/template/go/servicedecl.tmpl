@@ -1,10 +1,11 @@
+{{range getParigotService .file}}
+{{$svc:=.}}
 
-
-{{- $serviceName:=.svc.WasmServiceName}}
-{{- $packageName:=.svc.ProtoPackage }}
+{{- $serviceName:=$svc.WasmServiceName}}
+{{- $packageName:=$svc.ProtoPackage }}
 
 type {{toCamelCase $serviceName}} interface {
-    {{range .svc.ServiceDescriptorProto.GetMethod}}
+    {{range $svc.ServiceDescriptorProto.GetWasmMethod}}
 
     {{- $inEmpty:=isInputEmpty .}}
     {{- $outEmpty:=isOutputEmpty .}}
@@ -27,7 +28,7 @@ type {{toCamelCase $serviceName}} interface {
 }
 
 type {{toCamelCase $serviceName}}Handler struct {
-    {{- range .svc.ServiceDescriptorProto.GetMethod}}
+    {{- range $svc.ServiceDescriptorProto.GetWasmMethod}}
         {{- $inEmpty:=isInputEmpty .}}
         {{- $outEmpty:=isOutputEmpty .}}
             {{ .GetName }}{{- if $inEmpty }}
@@ -45,3 +46,5 @@ type {{toCamelCase $serviceName}}Handler struct {
             {{end}}
     {{- end}}
 }
+
+{{end}}

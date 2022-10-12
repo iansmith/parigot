@@ -71,7 +71,7 @@ func generateTinygoCode(t *template.Template, svc *structure.ServiceDecl, proj *
 }
 
 func paramSwap(elem *structure.MethodDecl) string {
-	if elem.Input == "Empty" {
+	if elem.Input == "IsEmpty" {
 		return ""
 	}
 	return ""

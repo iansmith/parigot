@@ -1,0 +1,18 @@
+syntax ="proto3";
+import "google/protobuf/descriptor.proto";
+
+option go_package="github.com/iansmith/parigot/api/parigot/;parigot";
+
+package parigot;
+extend google.protobuf.ServiceOptions {
+  optional string wasm_service_name = 543210;
+  repeated string locator = 543211;
+}
+extend google.protobuf.MethodOptions {
+  optional string wasm_method_name = 543210;
+}
+
+extend google.protobuf.FileOptions {
+  optional bool abi = 543210;
+}
+

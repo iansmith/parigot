@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-{{ range $index,$element := .svc.Method }}
+{{ range $index,$element := .abi.GetWasmMethod }}
 //go:wasm-module parigot_abi
 //export {{ .Name }}
-func {{ .Name }}({{- if ne paramSwap $element "Empty"}}{{- .Input}}{{end}}) {{- if ne .Output "Empty"}}{{- .Output}}{{end}}
+func {{.GetName}}({{.AllInputsWithFormals false)}} {{.OutputType}} {
 {{end}}
 

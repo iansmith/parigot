@@ -2,4 +2,5 @@ antlr-*.log
 .idea
 build/*
 enable-parigot
+g/*
 

@@ -1,2 +1,5 @@
-type {{.msg.GoIdent.String}} struct {
+{{range .file.GetMessage}}
+{{$msg:=.}}
+type {{$msg.GoIdent.String}} struct {
 }
+{{end}}

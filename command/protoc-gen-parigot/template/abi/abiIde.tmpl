@@ -7,27 +7,17 @@
 // happen in practice, but it is nice to have api documentation and such in your
 // IDE.
 
-package client
+package abi
 
-{{- range .abi.GetMethod}}
-{{- $inEmpty:=isInputEmpty .}}
-{{- $outEmpty:=isOutputEmpty .}}
-    {{- if $inEmpty }}
-        {{- if $outEmpty }}
-    func {{.GetName}}() {}
-        {{- else}}
-    func {{.GetName}}() {{outputTypeName .}} {
-        {{outputZeroDefaultReturn .}}
-    }
-        {{- end}}
-    {{- else}}
-        {{- if $outEmpty }}
-    func {{.GetName}}({{inputParamNameSet true false .}}) {}
-        {{- else}}
-    func {{.GetName}}({{inputParamNameSet true false .}}) {{outputTypeName .}} {
-        {{outputZeroDefaultReturn .}}
-    }
-        {{- end -}}
-    {{- end}}
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+func {{.GetName}}({{.AllInputsWithFormals false}}) {{.OutputType}} {
+{{ if .NotEmptyOutput }}
+    return {{.OutZeroValue}}
+{{else}}
+fart
+{{end}}
+}
+{{end}}
 {{end}}
 
