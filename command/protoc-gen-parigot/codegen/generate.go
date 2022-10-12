@@ -5,9 +5,6 @@ import (
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 	"io"
 	"text/template"
-
-	"google.golang.org/protobuf/types/descriptorpb"
-	"google.golang.org/protobuf/types/pluginpb"
 )
 
 // BasicGenerate is the primary code generation driver. Language-specific code
@@ -48,43 +45,31 @@ func executeTemplate(w io.Writer, t *template.Template, name string, data map[st
 }
 
 // Collect is called to gather all the relevant information about the proto files
-// into the resultingGenInfo object.  It walks the full proto file spcified by
+// into the given GenInfo object.  It walks the full proto file as specified by
 // proto.
-func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDescriptorProto,
-	lang LanguageText, abilang ABIText) *GenInfo {
-	result := &GenInfo{
-		request: request,
-		file:    proto,
-		lang:    lang,
-	}
+func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 
-	result.wasmService = make([]*WasmService, len(result.file.GetService()))
-	for i, s := range result.file.GetService() {
+	for _, s := range result.file.GetService() {
 		w := &WasmService{
 			ServiceDescriptorProto: s,
-			parent:                 proto,
+			parent:                 result.GetFile(),
 			lang:                   lang,
 		}
-		result.wasmService[i] = w
+		result.RegisterService(w)
 		w.method = make([]*WasmMethod, len(s.GetMethod()))
 		for j, m := range s.GetMethod() {
 			meth := &WasmMethod{
 				MethodDescriptorProto: m,
 				parent:                w,
 				lang:                  lang,
-				abilang:               abilang,
 			}
 			w.method[j] = meth
 		}
 	}
-	result.wasmMessage = make([]*WasmMessage, len(result.file.GetMessageType()))
-	for i, m := range proto.GetMessageType() {
-		w := &WasmMessage{
-			DescriptorProto: m,
-			parent:          proto,
-			lang:            lang,
-		}
-		result.wasmMessage[i] = w
+	result.message = make(map[*MessageRecord]*WasmMessage, len(result.file.GetMessageType()))
+	for _, m := range result.GetFile().GetMessageType() {
+		w := NewWasmMessage( /*parent*/ result.GetFile(), m, lang)
+		result.RegisterMessage(w)
 		w.field = make([]*WasmField, len(w.DescriptorProto.GetField()))
 		for j, f := range w.DescriptorProto.GetField() {
 			field := &WasmField{
@@ -101,14 +86,13 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 	//
 	for _, s := range result.GetWasmService() {
 		for _, m := range s.GetWasmMethod() {
-			in := newInputParam(result, m.MethodDescriptorProto.GetInputType())
-			out := newOutputParam(result, m.MethodDescriptorProto.GetOutputType())
+			in := newInputParam(proto.GetPackage(), m.MethodDescriptorProto.GetInputType(), m)
+			out := newOutputParam(proto.GetPackage(), m.MethodDescriptorProto.GetOutputType(), m)
 			in.lang = lang
 			out.lang = lang
 			m.input = in
 			m.output = out
 		}
 	}
-
 	return result
 }

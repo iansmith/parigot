@@ -19,5 +19,5 @@ type Generator interface {
 	GeneratingMessage() []string
 	ResultName() []string
 	NeedsLocators() bool
-	LanguageText() LanguageText
+	LanguageText() LanguageText //golang actually puts a AbiLanguageText in here
 }

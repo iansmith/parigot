@@ -22,22 +22,20 @@ var abiFuncMap = template.FuncMap{}
 var resultFile = []string{".p.go", "null.p.go", "helper.go"}
 
 type AbiGen struct {
-	types map[string]*descriptorpb.FileDescriptorProto
+	finder codegen.Finder
+	lang   codegen.AbiLanguageText
+}
+
+func NewAbiGen(f codegen.Finder) *AbiGen {
+	return &AbiGen{finder: f, lang: &go_.GoText{}}
 }
 
 func (a *AbiGen) ResultName() []string {
 	return resultFile
 }
 
-func (a *AbiGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
-	if a.types == nil {
-		a.types = make(map[string]*descriptorpb.FileDescriptorProto)
-	}
-	a.types[name] = fdp
-}
-
 func (a *AbiGen) Process(proto *descriptorpb.FileDescriptorProto) error {
-	a.addType(proto.GetName(), proto)
+	util.AddFileContentToFinder(a.finder, proto, a.lang)
 	return nil
 }
 
@@ -68,5 +66,5 @@ func (a *AbiGen) FuncMap() template.FuncMap {
 	return abiFuncMap
 }
 func (a *AbiGen) LanguageText() codegen.LanguageText {
-	return &go_.GoText{}
+	return a.lang
 }

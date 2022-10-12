@@ -14,25 +14,26 @@ const (
 )
 
 type GoGen struct {
-	types map[string]*descriptorpb.FileDescriptorProto
+	finder codegen.Finder
+	lang   codegen.LanguageText
+}
+
+func NewGoGen(finder codegen.Finder) *GoGen {
+	gen := &GoGen{
+		finder: finder,
+		lang:   &GoText{},
+	}
+	return gen
 }
 
 func (g *GoGen) GeneratingMessage() []string {
-	return []string{"service declarations into"}//"message declarations into",
+	return []string{"service declarations into"} //"message declarations into",
 	//	"locator declarations into",
 
 }
 func (g *GoGen) ResultName() []string {
-	return []string{"servicedecl.p.go"}//"messagedecl.p.go",
+	return []string{"servicedecl.p.go"} //"messagedecl.p.go",
 	//	"locdecl.p.go",
-
-}
-
-func (g *GoGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
-	if g.types == nil {
-		g.types = make(map[string]*descriptorpb.FileDescriptorProto)
-	}
-	g.types[name] = fdp
 }
 
 func (g *GoGen) TemplateName() []string {
@@ -42,8 +43,16 @@ func (g *GoGen) FuncMap() template.FuncMap {
 	return nil
 }
 
-func (g *GoGen) Process(proto *descriptorpb.FileDescriptorProto) error {
-	g.addType(proto.GetName(), proto)
+func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
+	util.AddFileContentToFinder(g.finder, pr, g.lang)
+	for _, m := range pr.GetMessageType() {
+		msg := codegen.NewWasmMessage(pr, m, g.lang)
+		g.finder.AddMessageType(pr.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), msg)
+	}
+	for _, s := range pr.GetService() {
+		svc := codegen.NewWasmService(pr, s, g.lang)
+		g.finder.AddServiceType(pr.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
+	}
 	return nil
 }
 

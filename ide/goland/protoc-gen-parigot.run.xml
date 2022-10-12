@@ -2,7 +2,7 @@
   <configuration default="false" name="protoc-gen-parigot" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="parigot" />
     <working_directory value="$PROJECT_DIR$" />
-    <parameters value="-l /tmp/parse2532070105/net/net.proto" />
+    <parameters value="-l /tmp/parse230094440/business.proto " />
     <kind value="FILE" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/command/protoc-gen-parigot/main.go" />

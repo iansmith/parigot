@@ -32,10 +32,11 @@ type LanguageText interface {
 	AllInputNumberedParam(m *WasmMethod) string // xxx dead code?
 }
 
-// ABIText is only for methods that are used by the ABI.  Since the ABI is currently
+// AbiLanguageText is only for methods that are used by the ABI.  Since the ABI is currently
 // implemented in go, only the abi "language" uses this and it generates go code.
 // Other languages can safely ignore this.
-type ABIText interface {
+type AbiLanguageText interface {
+	LanguageText
 	AllInputParamWithFormalWasmLevel(m *WasmMethod, showFormalName bool) string
 	AllInputParamWasmToGoImpl(m *WasmMethod) string
 }

@@ -21,15 +21,8 @@ import (
 //go:embed template/*
 var templateFS embed.FS
 
-var GeneratorMap = map[string]codegen.Generator{
-	"go": &go_.GoGen{},
-}
-
-var AbiOnlyMap = map[string]codegen.Generator{
-	"abi": &abi.AbiGen{},
-}
-
-var onlyABILang = &go_.GoText{}
+var generatorMap = map[string]codegen.Generator{}
+var abiOnlyMap = map[string]codegen.Generator{}
 
 var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
@@ -37,6 +30,13 @@ var load = flag.String("l", "", "load a previously saved input (filename)")
 func main() {
 	flag.Parse()
 
+	// info is the root of the all the nodes that we use for code gen
+	info := codegen.NewGenInfo()
+	generatorMap["go"] = go_.NewGoGen(info)
+	abiOnlyMap["abi"] = abi.NewAbiGen(info)
+
+	// plugin reads from stdin normally, but we allow input from files and copying
+	// the stdin to some output file later testing
 	source := io.Reader(os.Stdin)
 	if *load != "" {
 		*save = false
@@ -52,9 +52,10 @@ func main() {
 		SupportedFeatures: nil,
 	}
 	// generate code, at this point language neutral
-	files, err := generateNeutral(genReq, util.LocatorNames(genReq.GetParameter()))
+	files, err := generateNeutral(info, genReq)
 
 	// set up the response going back out stdout to the protocol buffers compiler
+	// response with an error filled in or a set of output files
 	if err != nil {
 		resp.Error = new(string)
 		*resp.Error = err.Error()
@@ -85,22 +86,18 @@ func isGenerate(desc *descriptorpb.FileDescriptorProto, genReq *pluginpb.CodeGen
 }
 
 // generateNeutral starts the process of code generation and it does not care
-// about the languages being used.
-func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, locators []string) ([]*util.OutputFile, error) {
+// about the languages being used.  those get set at the point we compute genMap
+func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
+	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
 		isGenerate := isGenerate(desc, genReq)
-		// here is the trick where we pull the switcheroo for code marked as part
-		// of the ABI... we call that a special "language"
-		langMap := GeneratorMap
-		// walk all languages, or just the abi
-		for lang, generator := range langMap {
-			info := codegen.Collect(genReq, desc, generator.LanguageText(), onlyABILang)
+		info.SetReqAndFile(genReq, desc) // set to what we are processing now
+		genMap := getGeneratorMap(desc)
+		// walk all languages, or just the abi if the input turns out to be the abi protos
+		for lang, generator := range genMap {
+			codegen.Collect(info, generator.LanguageText())
 			if isGenerate {
-				if codegen.IsAbi(info.GetFile().GetOptions().String()) {
-					log.Printf("generating abi from  %s", info.GetFile().GetName())
-					generator = AbiOnlyMap["abi"]
-				}
 				// load up templates
 				t, err := loadTemplates(generator)
 				if err != nil {
@@ -155,4 +152,12 @@ func loadTemplates(generator codegen.Generator) (*template.Template, error) {
 		}
 	}
 	return t, nil
+}
+
+func getGeneratorMap(desc *descriptorpb.FileDescriptorProto) map[string]codegen.Generator {
+	if codegen.IsAbi(desc.GetOptions().String()) {
+		return abiOnlyMap // map with JUST the abi generator
+	}
+	return generatorMap // normal map with one entry per languages
+
 }
