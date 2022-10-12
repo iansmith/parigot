@@ -319,6 +319,10 @@ func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorp
 	return m
 }
 
+func (m *WasmMessage) NotGoogleMessage() bool {
+	return m.GetProtoPackage() != "google.protobuf" && m.GetGoPackage() != "google.golang.org/protobuf/types/descriptorpb)"
+}
+
 func NewWasmService(file *descriptorpb.FileDescriptorProto,
 	service *descriptorpb.ServiceDescriptorProto, lang LanguageText) *WasmService {
 	s := &WasmService{

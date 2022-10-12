@@ -27,17 +27,17 @@ func NewGoGen(finder codegen.Finder) *GoGen {
 }
 
 func (g *GoGen) GeneratingMessage() []string {
-	return []string{"service declarations into"} //"message declarations into",
+	return []string{"service declarations into", "message declarations into"}
 	//	"locator declarations into",
 
 }
 func (g *GoGen) ResultName() []string {
-	return []string{"servicedecl.p.go"} //"messagedecl.p.go",
+	return []string{"servicedecl.p.go", "messagedecl.p.go"}
 	//	"locdecl.p.go",
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl} // messageDecl} // simpleLoc}
+	return []string{serviceDecl, messageDecl} // simpleLoc}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
 	return nil
