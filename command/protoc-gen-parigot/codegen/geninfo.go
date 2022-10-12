@@ -1,11 +1,9 @@
 package codegen
 
 import (
-	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 	"log"
-	"strings"
 )
 
 type GenInfo struct {
@@ -13,6 +11,7 @@ type GenInfo struct {
 	file        *descriptorpb.FileDescriptorProto
 	wasmService []*WasmService
 	wasmMessage []*WasmMessage
+	lang        LanguageText
 }
 
 // WasmService is like a descriptorpb.ServiceDescriptorProto (which it contains) but
@@ -23,6 +22,7 @@ type WasmService struct {
 	wasmServiceName string
 	parent          *descriptorpb.FileDescriptorProto
 	method          []*WasmMethod
+	lang            LanguageText
 }
 
 // WasmMessage is like a descriptorpb.DescriptorProto (which it contains) but
@@ -33,6 +33,7 @@ type WasmMessage struct {
 	wasmMessageName string
 	parent          *descriptorpb.FileDescriptorProto
 	field           []*WasmField
+	lang            LanguageText
 }
 
 // WasmMethod is like a descriptorpb.MethodDescriptorProto (which it contains) but
@@ -44,6 +45,15 @@ type WasmMethod struct {
 	parent         *WasmService
 	input          *InputParam
 	output         *OutputParam
+	lang           LanguageText
+	abilang        ABIText
+}
+
+func (w *WasmMethod) GetInput() *InputParam {
+	return w.input
+}
+func (w *WasmMethod) GetOutput() *OutputParam {
+	return w.output
 }
 
 // WasmField is like a descriptorpb.FieldDescriptorProto (which it contains) but
@@ -53,6 +63,7 @@ type WasmField struct {
 	*descriptorpb.FieldDescriptorProto
 	wasmFieldName string
 	parent        *WasmMessage
+	lang          LanguageText
 }
 
 // GetWasmService returns all the wasm services of this GenInfo.
@@ -89,18 +100,17 @@ func (w *WasmService) GetWasmServiceName() string {
 		return w.wasmServiceName
 	}
 	// look for it
-	result := w.ServiceDescriptorProto.GetName() // if they didn't specify, use normal name
+	w.wasmServiceName = w.ServiceDescriptorProto.GetName() // if they didn't specify, use normal name
 	if w.ServiceDescriptorProto.GetOptions() == nil {
 		return w.wasmServiceName
 	}
 
 	cand, ok := isWasmServiceName(w.ServiceDescriptorProto.GetOptions().String())
 	if ok {
-		result = cand
+		w.wasmServiceName = cand
 	}
-	w.wasmServiceName = result
 	w.wasmServiceName = removeQuotes(w.wasmServiceName)
-	return result
+	return w.wasmServiceName
 }
 
 // GetWasmMessageName looks through the data structure given that represents the
@@ -124,6 +134,7 @@ func (w *WasmMessage) GetWasmMessageName() string {
 	if ok {
 		w.wasmMessageName = cand
 	}
+	w.wasmMessageName = removeQuotes(w.wasmMessageName)
 	return w.wasmMessageName
 }
 
@@ -177,6 +188,7 @@ func (w *WasmField) GetWasmFieldName() string {
 	if ok {
 		w.wasmFieldName = cand
 	}
+	w.wasmFieldName = removeQuotes(w.wasmFieldName)
 	return w.wasmFieldName
 }
 
@@ -185,7 +197,7 @@ func (g *GenInfo) IsAbi() bool {
 		log.Printf("no options on %s\n", g.file.GetName())
 		return false
 	}
-	return isAbi(g.file.GetOptions().String())
+	return IsAbi(g.file.GetOptions().String())
 }
 
 // GetWasmMethod returns all the wasm methods contained inside this service.
@@ -196,16 +208,6 @@ func (s *WasmService) GetWasmMethod() []*WasmMethod {
 // GetField returns all the wasm field contained inside this message.
 func (m *WasmMessage) GetField() []*WasmField {
 	return m.field
-}
-
-// shortName returns the name from the last dot (.) of the package name to the end.
-// It returns its input value if there is no dot or or the dot is the last character.
-func shortName(name string) string {
-	last := strings.Index(name, ".")
-	if last == -1 || last == len(name)-1 {
-		return name
-	}
-	return name[last+1:]
 }
 
 // GetParent returns the parent of this wasm service, which is a descriptor
@@ -234,12 +236,23 @@ type InputParam struct {
 	name     string
 	typ      *WasmMessage
 	paramVar []*ParamVar
+	lang     LanguageText
+}
+
+func (i *InputParam) GetName() string {
+	return i.name
+}
+func (i *InputParam) GetTyp() *WasmMessage {
+	return i.typ
+}
+func (i *InputParam) GetParamVar() []*ParamVar {
+	return i.paramVar
 }
 
 func newInputParam(g *GenInfo, messageName string) *InputParam {
 	msg := g.findMessageByName(messageName)
 	if msg == nil {
-		log.Fatalf("unable to find input parameter type %s", messageName)
+		log.Fatalf("unable to find input parameter type %s", lastSegmentOfPackage(messageName))
 	}
 
 	result := &InputParam{
@@ -258,10 +271,6 @@ func (i *InputParam) IsEmpty() bool {
 	return len(i.paramVar) == 0
 }
 
-func (i *InputParam) GetParamVar() []*ParamVar {
-	return i.paramVar
-}
-
 func (i *InputParam) Len() int {
 	return len(i.paramVar)
 }
@@ -269,6 +278,14 @@ func (i *InputParam) Len() int {
 type ParamVar struct {
 	name  string
 	field *WasmField
+	lang  LanguageText
+}
+
+func (p *ParamVar) GetName() string {
+	return p.name
+}
+func (p *ParamVar) GetField() *WasmField {
+	return p.field
 }
 
 func newParamVar(f *WasmField) *ParamVar {
@@ -306,6 +323,17 @@ type OutputParam struct {
 	name     string
 	typ      *WasmMessage
 	paramVar []*ParamVar
+	lang     LanguageText
+}
+
+func (o *OutputParam) GetName() string {
+	return o.name
+}
+func (o *OutputParam) GetTyp() *WasmMessage {
+	return o.typ
+}
+func (o *OutputParam) GetParamVar() []*ParamVar {
+	return o.paramVar
 }
 
 func (o *OutputParam) IsEmpty() bool {
@@ -351,58 +379,12 @@ func (m *WasmMethod) InParams() []*ParamVar {
 	return m.input.paramVar
 }
 
-func (m *WasmMethod) OutParamas() []*ParamVar {
-	if m.output.IsMultipleReturn() {
-		log.Fatalf("unable to process multiple return values (%s) at this time", m.output.name)
-	}
-	return m.input.paramVar
-}
-
 func (m *WasmMethod) OutType() string {
-	if m.output.IsMultipleReturn() {
-		log.Fatalf("unable to process multiple return values (%s) at this time", m.output.name)
-	}
-	if m.output.IsEmpty() {
-		return ""
-	}
-	return toGoType(m.output.paramVar[0].field.GetType().String())
+	return m.lang.OutType(m)
 }
 
 func (m *WasmMethod) AllInputParamWithFormalWasmLevel(showFormalName bool) string {
-	result := ""
-	currentParam := 0
-	for i, p := range m.input.paramVar {
-		if showFormalName {
-			result += fmt.Sprintf("p%d", currentParam) + " "
-		} else {
-			result += "_" + " "
-		}
-		if p.IsStrictWasmType() {
-			result += toGoType(p.TypeFromProto())
-		} else {
-			// do our conversion
-			// xxx only strings for now
-			if !p.IsWasmType() {
-				log.Fatalf("unable to convert type %s to WASM type", p.TypeFromProto())
-			}
-			switch p.TypeFromProto() {
-			// we convert string to a pair of int32s because that is what the compiler
-			// outputs at the wasm level.  the two int32s are a pointer and a length.
-			case "TYPE_STRING":
-				result += "int32,"
-				currentParam++
-				result += fmt.Sprintf("p%d", currentParam) + " "
-				result += "int32"
-			case "TYPE_BOOL":
-				result += "int32"
-			}
-		}
-		currentParam++
-		if i != len(m.input.paramVar)-1 {
-			result += ","
-		}
-	}
-	return result
+	return m.abilang.AllInputParamWithFormalWasmLevel(m, showFormalName)
 }
 
 func (m *WasmMethod) HasComplexParam() bool {
@@ -432,58 +414,15 @@ func (m *WasmMethod) NoComplexOutput() bool {
 }
 
 func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
-	result := ""
-	for i, p := range m.input.paramVar {
-		if showFormalName {
-			result += p.name + " "
-		} else {
-			result += "_" + " "
-		}
-		result += toGoType(p.TypeFromProto())
-		if i != len(m.input.paramVar)-1 {
-			result += ","
-		}
-	}
-	return result
+	return m.lang.AllInputWithFormal(m, showFormalName)
 }
 
 func (m *WasmMethod) AllInputFormal() string {
-	result := ""
-	for i, p := range m.input.paramVar {
-		result += p.name
-		if i != len(m.input.paramVar)-1 {
-			result += ","
-		}
-	}
-	return result
+	return m.lang.AllInputFormal(m)
 }
 
 func (m *WasmMethod) OutZeroValue() string {
-	if m.output.IsMultipleReturn() {
-		log.Fatalf("unable to process multiple return values (%s) at this time", m.output.name)
-	}
-	protoT := m.output.paramVar[0].field.GetType().String()
-	goT := toGoType(protoT)
-	return goZeroValue(goT)
-}
-
-// goZeroValue returns the simplest, empty value for the given go type.
-func goZeroValue(s string) string {
-	switch s {
-	case "string":
-		return ""
-	case "int32":
-		return "int32(0)"
-	case "int64":
-		return "int64(0)"
-	case "float32":
-		return "float32(0.0)"
-	case "float64":
-		return "float64(0.0)"
-	case "bool":
-		return "false"
-	}
-	panic("unable to get zero value for go type " + s)
+	return m.lang.OutZeroValue(m)
 }
 
 // toGoType returns the string that is the equivalent of the given string, a
@@ -507,43 +446,11 @@ func toGoType(s string) string {
 }
 
 func (m *WasmMethod) AllInputNumberedParam() string {
-	count := 0
-	result := ""
-	for i, p := range m.input.paramVar {
-		result += fmt.Sprintf("p%d ", count)
-		result += toGoType(p.TypeFromProto())
-		if i != len(m.input.paramVar)-1 {
-			result += ","
-		}
-		count++
-	}
-	return result
+	return m.lang.AllInputNumberedParam(m)
 }
 
 func (m *WasmMethod) AllInputParamWasmToGoImpl() string {
-	result := ""
-	count := 0
-	for i, p := range m.input.paramVar {
-		if p.IsStrictWasmType() {
-			result += fmt.Sprintf("p%d", count)
-		} else {
-			if !p.IsWasmType() {
-				log.Fatalf("unable to generate implementation helper code for type %s", p.TypeFromProto())
-			}
-			switch p.TypeFromProto() {
-			case "TYPE_STRING":
-				result += "strConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d)", count, count+1)
-			case "TYPE_BOOL":
-				result += fmt.Sprintf("p%d!=0", count)
-				count++
-			}
-		}
-		count += 1
-		if i != len(m.input.paramVar)-1 {
-			result += ","
-		}
-	}
-	return result
+	return m.abilang.AllInputParamWasmToGoImpl(m)
 }
 
 func removeQuotes(s string) string {
@@ -553,4 +460,23 @@ func removeQuotes(s string) string {
 		result = s[1 : l-1]
 	}
 	return result
+}
+
+func (g *GenInfo) findMessageByName(n string) *WasmMessage {
+	for _, m := range g.wasmMessage {
+		log.Printf("comparing %s to %s", m.GetFullName(), n)
+		if m.GetFullName() == n {
+			return m
+		}
+	}
+	// why do they do this SOME of the time?
+	if len(n) > 0 && n[0] == '.' {
+		for _, m := range g.wasmMessage {
+			log.Printf("comparing %s to %s", m.GetFullName(), n[1:])
+			if m.GetFullName() == n[1:] {
+				return m
+			}
+		}
+	}
+	return nil
 }

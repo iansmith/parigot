@@ -18,16 +18,14 @@ type GoGen struct {
 }
 
 func (g *GoGen) GeneratingMessage() []string {
-	return []string{"service declarations into",
-		"message declarations into",
-		//	"locator declarations into",
-	}
+	return []string{"service declarations into"}//"message declarations into",
+	//	"locator declarations into",
+
 }
 func (g *GoGen) ResultName() []string {
-	return []string{"servicedecl.p.go",
-		"messagedecl.p.go",
-		//	"locdecl.p.go",
-	}
+	return []string{"servicedecl.p.go"}//"messagedecl.p.go",
+	//	"locdecl.p.go",
+
 }
 
 func (g *GoGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
@@ -38,10 +36,10 @@ func (g *GoGen) addType(name string, fdp *descriptorpb.FileDescriptorProto) {
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl, messageDecl} // simpleLoc}
+	return []string{serviceDecl} // messageDecl} // simpleLoc}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
-	return goFuncMap
+	return nil
 }
 
 func (g *GoGen) Process(proto *descriptorpb.FileDescriptorProto) error {
@@ -55,4 +53,8 @@ func (g *GoGen) NeedsLocators() bool {
 
 func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo, loc []string) ([]*util.OutputFile, error) {
 	return codegen.BasicGenerate(g, t, info, loc)
+}
+
+func (g *GoGen) LanguageText() codegen.LanguageText {
+	return &GoText{}
 }

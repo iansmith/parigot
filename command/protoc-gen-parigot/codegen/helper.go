@@ -10,12 +10,13 @@ const serviceIdSuffix = "_sid"
 // FuncMap is "default" function map for use with the templates. This contains generally
 // useful helper functions.
 var FuncMap = template.FuncMap{
-	"toCamelCase": toCamelCase,
+	"toCamelCase":          ToCamelCase,
+	"lastSegmentOfPackage": lastSegmentOfPackage,
 }
 
-// toCamelCase converts from snake case to camel case. If the first or last character
+// ToCamelCase converts from snake case to camel case. If the first or last character
 // is a underscore, it is left alone.
-func toCamelCase(snake string) string {
+func ToCamelCase(snake string) string {
 	if len(snake) == 0 {
 		return ""
 	}
@@ -27,4 +28,13 @@ func toCamelCase(snake string) string {
 		index = strings.Index(snake, "_")
 	}
 	return snake
+}
+
+// Last segment of a fully spelled out package name.
+func lastSegmentOfPackage(pkg string) string {
+	last := strings.LastIndex(pkg, ".")
+	if last == -1 || last == len(pkg)-1 {
+		return pkg
+	}
+	return pkg[last+1:]
 }

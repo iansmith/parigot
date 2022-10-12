@@ -1,6 +1,7 @@
 syntax = "proto3";
 package parigot.net;
 option go_package="github.com/iansmith/parigot/g/net;net";
+import "parigot.proto";
 
 // parigot: WasmServiceName=SimpleLocator
 service Net {
@@ -8,10 +9,12 @@ service Net {
 }
 
 message LocateRequest {
+  option (parigot.wasm_message_name) = "locate_request_";
   string wasm_name = 1;
 }
 
 message LocateResponse {
+  option (parigot.wasm_message_name) = "locate_response_";
   int32 token = 2;
 }
 

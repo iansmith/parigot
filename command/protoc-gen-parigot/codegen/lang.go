@@ -19,4 +19,5 @@ type Generator interface {
 	GeneratingMessage() []string
 	ResultName() []string
 	NeedsLocators() bool
+	LanguageText() LanguageText
 }

@@ -1,50 +1,11 @@
-{{range getParigotService .file}}
-{{$svc:=.}}
-
-{{- $serviceName:=$svc.WasmServiceName}}
-{{- $packageName:=$svc.ProtoPackage }}
-
-type {{toCamelCase $serviceName}} interface {
-    {{range $svc.ServiceDescriptorProto.GetWasmMethod}}
-
-    {{- $inEmpty:=isInputEmpty .}}
-    {{- $outEmpty:=isOutputEmpty .}}
-        {{- if $inEmpty }}
-            {{- if $outEmpty }}
-            {{.GetName}}() {
-                {{.GetName}}_()
-        }
-            {{- else }}
-         {{.GetName}}() {{outputTypeName .}}
-            {{- end}}
-        {{- else}}
-            {{- if $outEmpty }}
-         {{.GetName}}({{inputParamNameSet false false .}})
-            {{- else }}
-         {{.GetName}}({{inputParamNameSet false false .}}) {{outputTypeName .}}
-            {{- end}}
-        {{- end}}
-    {{- end}}
+//
+// Template for generating code for a service
+//
+package {{ lastSegmentOfPackage .file.GetPackage }}
+{{- range .info.GetWasmService }}
+type {{toCamelCase .GetWasmServiceName}} interface {
+{{- range .GetWasmMethod}}
+    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutType}}
+{{- end }}
 }
-
-type {{toCamelCase $serviceName}}Handler struct {
-    {{- range $svc.ServiceDescriptorProto.GetWasmMethod}}
-        {{- $inEmpty:=isInputEmpty .}}
-        {{- $outEmpty:=isOutputEmpty .}}
-            {{ .GetName }}{{- if $inEmpty }}
-                {{- if $outEmpty }}
-                {{" func()"}}
-                {{- else }}
-                {{" func()"}}{{ outputTypeName .}}
-                {{- end}}
-            {{- else }}
-                {{- if $outEmpty -}}
-             {{" func"}}({{inputParamNameSet false true .}})
-                {{- else -}}
-            {{" func"}}({{inputParamNameSet false true .}}) {{outputTypeName .}}
-                {{- end -}}
-            {{end}}
-    {{- end}}
-}
-
-{{end}}
+{{- end}}

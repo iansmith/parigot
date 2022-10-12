@@ -11,8 +11,9 @@ extend google.protobuf.ServiceOptions {
 extend google.protobuf.MethodOptions {
   optional string wasm_method_name = 543210;
 }
-
 extend google.protobuf.FileOptions {
   optional bool abi = 543210;
 }
-
+extend google.protobuf.MessageOptions {
+  optional string wasm_message_name = 543210;
+}

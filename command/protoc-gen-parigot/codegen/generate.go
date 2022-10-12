@@ -50,10 +50,12 @@ func executeTemplate(w io.Writer, t *template.Template, name string, data map[st
 // Collect is called to gather all the relevant information about the proto files
 // into the resultingGenInfo object.  It walks the full proto file spcified by
 // proto.
-func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDescriptorProto) *GenInfo {
+func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDescriptorProto,
+	lang LanguageText, abilang ABIText) *GenInfo {
 	result := &GenInfo{
 		request: request,
 		file:    proto,
+		lang:    lang,
 	}
 
 	result.wasmService = make([]*WasmService, len(result.file.GetService()))
@@ -61,6 +63,7 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 		w := &WasmService{
 			ServiceDescriptorProto: s,
 			parent:                 proto,
+			lang:                   lang,
 		}
 		result.wasmService[i] = w
 		w.method = make([]*WasmMethod, len(s.GetMethod()))
@@ -68,12 +71,10 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 			meth := &WasmMethod{
 				MethodDescriptorProto: m,
 				parent:                w,
+				lang:                  lang,
+				abilang:               abilang,
 			}
 			w.method[j] = meth
-			//in := newInParameter(result, meth.MethodDescriptorProto.GetInputType())
-			//out := newOutResult(result, meth.MethodDescriptorProto.GetOutputType())
-			//meth.input = in
-			//meth.output = out
 		}
 	}
 	result.wasmMessage = make([]*WasmMessage, len(result.file.GetMessageType()))
@@ -81,6 +82,7 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 		w := &WasmMessage{
 			DescriptorProto: m,
 			parent:          proto,
+			lang:            lang,
 		}
 		result.wasmMessage[i] = w
 		w.field = make([]*WasmField, len(w.DescriptorProto.GetField()))
@@ -88,6 +90,7 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 			field := &WasmField{
 				FieldDescriptorProto: f,
 				parent:               w,
+				lang:                 lang,
 			}
 			w.field[j] = field
 		}
@@ -100,49 +103,12 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 		for _, m := range s.GetWasmMethod() {
 			in := newInputParam(result, m.MethodDescriptorProto.GetInputType())
 			out := newOutputParam(result, m.MethodDescriptorProto.GetOutputType())
+			in.lang = lang
+			out.lang = lang
 			m.input = in
 			m.output = out
 		}
 	}
 
 	return result
-}
-
-//func newOutResult(g *GenInfo, messageName string) *OutputParam {
-//	msg := g.findMessageByName(messageName)
-//	if msg == nil {
-//		log.Fatalf("unable to find output parameter type %s", messageName)
-//	}
-//	return &OutputParam{
-//		name: messageName,
-//		typ:  msg,
-//	}
-//}
-//
-//func newInParameter(g *GenInfo, messageName string) *InputParam {
-//	msg := g.findMessageByName(messageName)
-//	if msg == nil {
-//		log.Fatalf("unable to find input parameter type %s", messageName)
-//	}
-//	return &InputParam{
-//		name: messageName,
-//		typ:  msg,
-//	}
-//}
-
-func (g *GenInfo) findMessageByName(n string) *WasmMessage {
-	for _, m := range g.wasmMessage {
-		if m.GetFullName() == n {
-			return m
-		}
-	}
-	// why do they do this SOME of the time?
-	if len(n) > 0 && n[0] == '.' {
-		for _, m := range g.wasmMessage {
-			if m.GetFullName() == n[1:] {
-				return m
-			}
-		}
-	}
-	return nil
 }

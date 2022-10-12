@@ -2,6 +2,7 @@ package abi
 
 import (
 	"fmt"
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/go_"
 	"strings"
 	"text/template"
 
@@ -65,4 +66,7 @@ func (a *AbiGen) TemplateName() []string {
 }
 func (a *AbiGen) FuncMap() template.FuncMap {
 	return abiFuncMap
+}
+func (a *AbiGen) LanguageText() codegen.LanguageText {
+	return &go_.GoText{}
 }

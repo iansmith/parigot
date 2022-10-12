@@ -38,9 +38,10 @@ func optionsToMap(s string) map[string]string {
 	return result
 }
 
-// isAbi checks to see if the options given on the file has an option which looks like:
-// option (parigot.abi) = true;
-func isAbi(s string) bool {
+// IsAbi checks to see if the options given on the file has an option which looks like:
+// option (parigot.abi) = true. This is a free standing function so it can be called
+// when you not yet in code generation and thus don't have access to the GenInfo.
+func IsAbi(s string) bool {
 	_, b := isBooleanOptionPresent(s, fileOptionForAbi)
 	return b
 }

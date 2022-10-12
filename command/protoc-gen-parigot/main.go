@@ -29,6 +29,8 @@ var AbiOnlyMap = map[string]codegen.Generator{
 	"abi": &abi.AbiGen{},
 }
 
+var onlyABILang = &go_.GoText{}
+
 var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
 
@@ -63,8 +65,10 @@ func main() {
 		}
 	}
 
-	// send response and exit
-	util.MarshalResponseAndExit(&resp)
+	// send response and exit if not loading from disk
+	if *load == "" {
+		util.MarshalResponseAndExit(&resp)
+	}
 }
 
 // isGenerateTestsIf a specific file given by desc is in the list of files contained
@@ -85,21 +89,18 @@ func isGenerate(desc *descriptorpb.FileDescriptorProto, genReq *pluginpb.CodeGen
 func generateNeutral(genReq *pluginpb.CodeGeneratorRequest, locators []string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
 	for _, desc := range genReq.GetProtoFile() {
-		info := codegen.Collect(genReq, desc)
 		isGenerate := isGenerate(desc, genReq)
-		isAbi := info.IsAbi()
 		// here is the trick where we pull the switcheroo for code marked as part
 		// of the ABI... we call that a special "language"
 		langMap := GeneratorMap
-		if isGenerate && isAbi {
-			langMap = AbiOnlyMap
-		} else {
-			// xxx fix me DANGER
-			continue
-		}
 		// walk all languages, or just the abi
 		for lang, generator := range langMap {
+			info := codegen.Collect(genReq, desc, generator.LanguageText(), onlyABILang)
 			if isGenerate {
+				if codegen.IsAbi(info.GetFile().GetOptions().String()) {
+					log.Printf("generating abi from  %s", info.GetFile().GetName())
+					generator = AbiOnlyMap["abi"]
+				}
 				// load up templates
 				t, err := loadTemplates(generator)
 				if err != nil {

@@ -3,15 +3,13 @@ package util
 import (
 	"bytes"
 	"fmt"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/pluginpb"
 )
 
 const (
@@ -31,22 +29,6 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGenerato
 	curr := 0
 	ok := false
 
-	var outfp *os.File
-	var out string
-	if saveTemp {
-		dir, err := os.MkdirTemp("/tmp/", "parse")
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		path := fmt.Sprintf("%s-%d", "save", time.Now().Unix())
-		out = filepath.Join(dir, path)
-		outfp, err = os.Create(out)
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		defer outfp.Close()
-	}
-
 	for readSize < bufferSize-curr {
 		r, err := reader.Read(buffer[curr : curr+readSize])
 		if err != nil {
@@ -61,18 +43,34 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGenerato
 	if !ok {
 		log.Fatalf("input message on stdin was larger than %0x bytes (%0x)", bufferSize, curr)
 	}
-	if saveTemp {
-		count, err := io.Copy(outfp, bytes.NewBuffer(buffer[:curr]))
-		if err != nil {
-			log.Fatalf("%v", err)
-		}
-		log.Printf("saved output to %s (0x%0x bytes)", out, count)
-		outfp.Close()
-	}
 	var req pluginpb.CodeGeneratorRequest
 	err := proto.Unmarshal(buffer[:curr], &req)
 	if err != nil {
 		log.Fatalf("unable to understand generator request:%v", err)
+	}
+	if saveTemp {
+		dir, err := os.MkdirTemp("/tmp/", "parse")
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		protoGuess := req.GetProtoFile()[len(req.GetProtoFile())-1].GetName()
+		path := fmt.Sprintf("%s", protoGuess)
+		out := filepath.Join(dir, path)
+		parentDir, _ := filepath.Split(out)
+		if err := os.MkdirAll(parentDir, 0700); err != nil {
+			log.Fatalf("%v", err)
+		}
+		outfp, err := os.Create(out)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		count, err := io.Copy(outfp, bytes.NewBuffer(buffer[:curr]))
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		log.Printf("saved copy of input to %s (0x%0x bytes) from %s", out, count,
+			protoGuess)
+		outfp.Close()
 	}
 	return &req
 }

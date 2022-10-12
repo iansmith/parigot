@@ -5,8 +5,6 @@ GO_CMD=go #really shouldn't need to change this if you use the tools directory
 
 FLAVOR=atlanta.base
 
-
-
 all: build/runner \
 $(REP_API_NET) \
 $(REP_ABI) \
@@ -40,13 +38,14 @@ $(PGP): $(PROTOC_GEN_PARIGOT_SRC)
 	@echo "\033[92mprotoc-gen-parigot =================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
-REP_API_NET=g/parigot/net/netsvc.p.go
 API_NET_PROTO=api/$(FLAVOR)/proto/net/net.proto
+API_NET_GEN_OUT=g/parigot/net
+REP_API_NET=$(API_NET_GEN_OUT)/netservicedecl.p.go
 $(REP_API_NET): $(API_NET_PROTO) $(PGP)
 	@echo
 	@echo "\033[92mgenerating networking (API) =============================================================================\033[0m"
 	buf generate
-	gofmt -w api/$(FLAVOR)/go/parigot/net/netsvc.p.go
+	gofmt -w $(REP_API_NET) $(API_NET_GEN_OUT)/netmessagedecl.p.go
 
 REP_ABI=g/parigot/abi/abi.pb.go
 ABI_PROTO=abi/$(FLAVOR)/proto/abi/abi.proto

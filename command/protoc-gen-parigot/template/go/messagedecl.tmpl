@@ -1,5 +1,6 @@
-{{range .file.GetMessage}}
-{{$msg:=.}}
-type {{$msg.GoIdent.String}} struct {
+package {{ lastSegmentOfPackage .file.GetPackage }}
+{{- range .info.GetWasmMessage }}
+type  {{.GetWasmMessageName}} struct {
+
 }
-{{end}}
+{{- end}}
