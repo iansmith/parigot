@@ -4,13 +4,12 @@ import (
 	"fmt"
 
 	"github.com/iansmith/parigot/command/transform"
-	"github.com/iansmith/parigot/sys/abi_impl"
 )
 
 var abi = []transform.TypeDescriptor{
-	transform.FuncToDescriptor(abi_impl.OutputString),
-	transform.FuncToDescriptor(abi_impl.Now),
-	transform.FuncToDescriptor(abi_impl.Exit),
+	transform.FuncToDescriptor(abiimpl.OutputString),
+	transform.FuncToDescriptor(abiimpl.Now),
+	transform.FuncToDescriptor(abiimpl.Exit),
 }
 
 func main() {

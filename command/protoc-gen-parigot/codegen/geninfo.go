@@ -98,6 +98,8 @@ func (w *WasmService) GetWasmServiceName() string {
 	if ok {
 		result = cand
 	}
+	w.wasmServiceName = result
+	w.wasmServiceName = removeQuotes(w.wasmServiceName)
 	return result
 }
 
@@ -148,10 +150,7 @@ func (w *WasmMethod) GetWasmMethodName() string {
 	if ok {
 		w.wasmMethodName = cand
 	}
-	l := len(w.wasmMethodName)
-	if l > 2 && w.wasmMethodName[0:1] == "\"" && w.wasmMethodName[l-1:l] == "\"" {
-		w.wasmMethodName = w.wasmMethodName[1 : l-1]
-	}
+	w.wasmMethodName = removeQuotes(w.wasmMethodName)
 	return w.wasmMethodName
 }
 
@@ -394,6 +393,8 @@ func (m *WasmMethod) AllInputParamWithFormalWasmLevel(showFormalName bool) strin
 				currentParam++
 				result += fmt.Sprintf("p%d", currentParam) + " "
 				result += "int32"
+			case "TYPE_BOOL":
+				result += "int32"
 			}
 		}
 		currentParam++
@@ -531,13 +532,25 @@ func (m *WasmMethod) AllInputParamWasmToGoImpl() string {
 			}
 			switch p.TypeFromProto() {
 			case "TYPE_STRING":
-				result += "util.StringConvert" + fmt.Sprintf("(p%d,p%d)", count, count+1)
+				result += "strConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d)", count, count+1)
+			case "TYPE_BOOL":
+				result += fmt.Sprintf("p%d!=0", count)
 				count++
 			}
 		}
+		count += 1
 		if i != len(m.input.paramVar)-1 {
 			result += ","
 		}
+	}
+	return result
+}
+
+func removeQuotes(s string) string {
+	result := s
+	l := len(s)
+	if l > 2 && s[0:1] == "\"" && s[l-1:l] == "\"" {
+		result = s[1 : l-1]
 	}
 	return result
 }

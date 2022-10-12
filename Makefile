@@ -6,7 +6,7 @@ TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to chang
 TINYGO_WASM_OPTS=-target wasm -opt 0 -wasm-abi generic
 TINYGO_BUILD_TAGS=parigot_abi
 TRANSFORM=command/transform
-ABI_GO=command/runner/abi.go
+ABI_GO_HELPERS=command/runner/g/abihelper.go
 PROTOC_PARIGOT_GEN=command/protoc_parigot/proto/gen
 PGP=build/protoc-gen-parigot
 # tuple is (atlanta.base) (version.variant)
@@ -29,12 +29,6 @@ $(REP_API_NET) \
 $(REP_ABI) \
 build/protoc-gen-parigot
 
-RUNNER_SRC=$(sys/cmd/runner/*.go)
-build/runner: $(RUNNER_SRC ) sys/abi_impl/*.go $(REP_ABI) $(PGP)
-	@echo
-	@echo "\033[92mrunner =============================================================================================\033[0m"
-	$(GO_CMD) build -o build/runner github.com/iansmith/parigot/sys/cmd/runner
-
 ABIPATCH_SRC=command/abipatch/*.go
 build/abipatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
 	@echo
@@ -55,12 +49,14 @@ command/protoc-gen-parigot/abi/*.go \
 command/protoc-gen-parigot/template/abi/*.tmpl \
 command/protoc-gen-parigot/template/go/*.tmpl
 
-build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
+$(PGP): $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 	@echo
 	@echo "\033[92mprotoc-gen-parigot =================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
 $(REP_API_NET): $(API_NET_PROTO) $(PGP)
+	@echo
+	@echo "\033[92mrunner abi helper ==================================================================================\033[0m"
 	buf generate
 	gofmt -w api/$(FLAVOR)/go/parigot/net/netsvc.p.go
 
@@ -74,6 +70,19 @@ $(REP_ABI): $(ABI_PROTO)
 #	@echo
 #	@echo "\033[92mabigen ===================================================================================\033[0m"
 #	go build -o build/abigen github.com/iansmith/parigot/command/abigen
+
+ABI_GO_HELPER=command/runner/g/abihelper.go
+RUNNER_SRC=command/runner/*.go
+RUNNER=build/runner
+$(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
+	@echo
+	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
+	buf generate
+	cp g/parigot/abi/abihelper.go $(ABI_GO_HELPER)
+$(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
+	@echo
+	@echo "\033[92mrunner ==============================================================================================\033[0m"
+	go build -o $(RUNNER) github.com/iansmith/parigot/command/runner
 
 clean:
 	@echo "\033[92mclean ==============================================================================================\033[0m"
@@ -91,4 +100,5 @@ abi: $(REP_ABI)
 protoc: $(PGP)
 gen: $(PGP) abi net
 	buf generate
+runner:build/runner
 

@@ -3,10 +3,16 @@
 // complex arguments or return types at the wasm level.  These helpers mean that
 // the ABI implementation (in go) can program at the go level.
 //
-// This file gets copied to the sys/abi_impl/g directory by the makefile, thus is
+// This file gets copied to the command/runner/g directory by the makefile, thus is
 // in the package for its destination.
 
-package abi
+package g
+import (
+    "unsafe"
+
+    wasmtime "github.com/bytecodealliance/wasmtime-go"
+
+)
 
 //
 // This interface makes it easy to avoid import cycles. The implementation is
@@ -15,14 +21,27 @@ package abi
 type Caller interface {
 {{- range .info.GetWasmService }}
 {{- range .GetWasmMethod}}
+    {{- if .HasComplexParam }}
     {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}}
+    {{- end}}
 {{- end}}
 {{- end}}
+    GetMemPtr() uintptr
 }
 
 var impl Caller
 func SetCaller(i Caller) {
     impl=i
+}
+
+func strConvert(memPtr uintptr, ptr int32, length int32) string {
+	buf := make([]byte, length)
+	for i := int32(0); i < length; i++ {
+		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
+		buf[i] = *b
+	}
+	s := string(buf)
+	return s
 }
 
 // Functions with complex inputs
@@ -40,18 +59,13 @@ func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutT
 {{- end }}
 {{- end }}
 
-// Functions with complex outputs
+func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*wasmtime.Func) {
+// Functions with complex inputs
 {{- range .info.GetWasmService }}
 {{- range .GetWasmMethod}}
-{{- if .HasComplexOutput}}
-func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}} {
-{{- if .NotEmptyOutput}}
-    return
-{{ else }}
-    {{.GetWasmMethodName}}_({{.AllInputFormal}})
-{{- end }}
-    }
+{{- if .HasComplexParam}}
+result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}"]=wasmtime.WrapFunc(store, impl.{{.GetName}})
 {{- end }}
 {{- end }}
 {{- end }}
-
+}
