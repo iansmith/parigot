@@ -2,7 +2,7 @@
 // Template for generating code for a service
 //
 package {{ lastSegmentOfPackage .file.GetPackage }}
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 type {{toCamelCase .GetWasmServiceName}} interface {
 {{- range .GetWasmMethod}}
     {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutType}}

@@ -11,8 +11,6 @@ type GenInfo struct {
 	request *pluginpb.CodeGeneratorRequest
 	file    *descriptorpb.FileDescriptorProto
 	lang    LanguageText
-	service map[*ServiceRecord]*WasmService
-	message map[*MessageRecord]*WasmMessage
 	finder  *SimpleFinder
 }
 
@@ -22,26 +20,18 @@ func NewGenInfo() *GenInfo {
 	}
 }
 
-// GetWasmService returns all the wasm services of this GenInfo.
+// Service returns all the wasm services of this GenInfo.
 // The caller should not change these values, these are pointers in the real
 // data structures.
-func (g *GenInfo) GetWasmService() []*WasmService {
-	values := []*WasmService{}
-	for _, v := range g.service {
-		values = append(values, v)
-	}
-	return values
+func (g *GenInfo) Service() []*WasmService {
+	return g.finder.Service()
 }
 
-// GetWasmMessage returns all the wasm messages of this GenInfo.
+// Message returns all the wasm messages of this GenInfo.
 // The caller should not change these values, these are pointers in the real
 // data structures.
-func (g *GenInfo) GetWasmMessage() []*WasmMessage {
-	values := []*WasmMessage{}
-	for _, v := range g.message {
-		values = append(values, v)
-	}
-	return values
+func (g *GenInfo) Message() []*WasmMessage {
+	return g.finder.Message()
 }
 
 // GetFile returns the file data structure that is associated with the currently
@@ -255,21 +245,11 @@ func (m *ServiceRecord) String() string {
 	return fmt.Sprintf("ServiceRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
 }
 func (g *GenInfo) RegisterService(w *WasmService) {
-	record := NewServiceRecord(
-		w.GetWasmServiceName(),
-		w.GetProtoPackage(),
-		w.GetGoPackage(),
-	)
-	g.service[record] = w
+	g.finder.AddServiceType(w.GetWasmServiceName(), w.GetProtoPackage(), w.GetGoPackage(), w)
 }
 
 func (g *GenInfo) RegisterMessage(w *WasmMessage) {
-	record := NewMessageRecord(
-		w.GetWasmMessageName(),
-		w.GetProtoPackage(),
-		w.GetGoPackage(),
-	)
-	g.message[record] = w
+	g.finder.AddMessageType(w.GetWasmMessageName(), w.GetProtoPackage(), w.GetGoPackage(), w)
 }
 
 func (g *GenInfo) FindServiceByName(protoPackage string, name string, next Finder) *WasmService {

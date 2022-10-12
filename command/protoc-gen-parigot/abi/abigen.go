@@ -2,11 +2,11 @@ package abi
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/go_"
 	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/go_"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -35,7 +35,7 @@ func (a *AbiGen) ResultName() []string {
 }
 
 func (a *AbiGen) Process(proto *descriptorpb.FileDescriptorProto) error {
-	util.AddFileContentToFinder(a.finder, proto, a.lang)
+	codegen.AddFileContentToFinder(a.finder, proto, a.lang)
 	return nil
 }
 

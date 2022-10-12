@@ -19,7 +19,7 @@ import (
 // provided by the container.
 //
 type Caller interface {
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 {{- range .GetWasmMethod}}
     {{- if .HasComplexParam }}
     {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}}
@@ -45,14 +45,14 @@ func strConvert(memPtr uintptr, ptr int32, length int32) string {
 }
 
 // Functions with complex inputs
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .HasComplexParam}}
-func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}} {
+func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}} {
 {{- if .NotEmptyOutput}}
-    return impl.{{.GetName}}({{ .AllInputParamWasmToGoImpl }})
+    return impl.{{.GetName}}({{ .AllInputWasmToGoImpl }})
 {{ else }}
-    impl.{{.GetName}}({{.AllInputParamWasmToGoImpl}})
+    impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
 {{- end }}
 }
 {{- end }}
@@ -61,7 +61,7 @@ func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutT
 
 func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 // Functions with complex inputs
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .HasComplexParam}}
 result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}"]=wasmtime.WrapFunc(store, impl.{{.GetName}})

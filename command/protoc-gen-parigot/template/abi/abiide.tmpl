@@ -12,7 +12,7 @@ package abi
     // Because this is just to provide the IDE with "bogus" information, we intentionally
     // do not use the wasm name for methods.
 
-{{- range .info.GetWasmService }}
+{{ range .info.Service }}
 {{- range .GetWasmMethod}}
     func {{.GetName}}({{.AllInputWithFormal false}}) {{.OutType}} {
 {{- if .NotEmptyOutput }}

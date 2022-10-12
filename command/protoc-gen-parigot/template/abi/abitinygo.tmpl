@@ -21,10 +21,10 @@ package abi
 // These functions have the true function name at the WASM level. Implemented
 // by the container.
 //
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 {{- range .GetWasmMethod}}
     //go:wasm-module {{.GetParent.GetWasmServiceName}}
-    func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}}
+    func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}}
 {{end }}
 {{end}}
 //
@@ -36,7 +36,7 @@ package abi
 // would be impossible to call these functions, due to the wasm names being lower case.
 //
 
-{{- range .info.GetWasmService }}
+{{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .NoComplexParam}}
 {{- if .NoComplexOutput }}

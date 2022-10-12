@@ -26,22 +26,20 @@ func (g *GoText) ProtoTypeNameToLanguageTypeName(s string) string {
 	panic("unable to convert " + s + " to go type")
 }
 func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) string {
-	result := ""
-	for i, p := range m.GetInput().GetParamVar() {
+	return g.walkInputParams(m, ",", func(p *codegen.ParamVar) string {
+		result := ""
 		if showFormalName {
 			result += codegen.ToCamelCase(p.GetName()) + " "
 		} else {
 			result += "_" + " "
 		}
 		result += g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
-		if i != len(m.GetInput().GetParamVar())-1 {
-			result += ","
-		}
-	}
-	return result
+		return result
+	})
 }
 
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
+	result := ""
 	if m.GetOutput().IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time",
 			m.GetOutput().GetName())
@@ -49,31 +47,40 @@ func (g *GoText) OutType(m *codegen.WasmMethod) string {
 	if m.GetOutput().IsEmpty() {
 		return ""
 	}
-	return g.ProtoTypeNameToLanguageTypeName(m.GetOutput().GetParamVar()[0].GetField().GetType().String())
+	result += g.ProtoTypeNameToLanguageTypeName(m.GetOutput().GetParamVar()[0].GetField().GetType().String())
+	return result
 }
 
-func (g *GoText) AllInputFormal(m *codegen.WasmMethod) string {
+func (g *GoText) walkInputParams(m *codegen.WasmMethod, separator string, fn func(paramVar *codegen.ParamVar) string) string {
 	result := ""
 	for i, p := range m.GetInput().GetParamVar() {
-		result += p.GetName()
+		result += fn(p)
 		if i != len(m.GetInput().GetParamVar())-1 {
-			result += ","
+			result += separator
 		}
 	}
 	return result
 }
 
+func (g *GoText) AllInputFormal(m *codegen.WasmMethod) string {
+	return g.walkInputParams(m, " ", func(p *codegen.ParamVar) string {
+		return p.GetName()
+	})
+}
+
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
+	result := ""
 	if m.GetOutput().IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time",
 			m.GetOutput().GetName())
 	}
 	protoT := m.GetOutput().GetParamVar()[0].GetField().GetType().String()
 	goT := g.ProtoTypeNameToLanguageTypeName(protoT)
-	return goZeroValue(goT)
+	result += goZeroValue(goT)
+	return result
 }
 
-func (g *GoText) AllInputParamWithFormalWasmLevel(m *codegen.WasmMethod, showFormalName bool) string {
+func (g *GoText) AllInputWithFormalWasmLevel(m *codegen.WasmMethod, showFormalName bool) string {
 	result := ""
 	currentParam := 0
 	for i, p := range m.GetInput().GetParamVar() {
@@ -125,7 +132,7 @@ func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 	return result
 }
 
-func (g *GoText) AllInputParamWasmToGoImpl(m *codegen.WasmMethod) string {
+func (g *GoText) AllInputWasmToGoImpl(m *codegen.WasmMethod) string {
 	result := ""
 	count := 0
 	for i, p := range m.GetInput().GetParamVar() {

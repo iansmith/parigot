@@ -49,7 +49,7 @@ $(REP_API_NET): $(API_NET_PROTO) $(PGP)
 
 REP_ABI=g/parigot/abi/abi.pb.go
 ABI_PROTO=abi/$(FLAVOR)/proto/abi/abi.proto
-$(REP_ABI): $(ABI_PROTO)
+$(REP_ABI): $(ABI_PROTO) $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot ABI =============================================================================\033[0m"
 	buf generate

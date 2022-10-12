@@ -222,30 +222,43 @@ func (m *WasmField) GetParent() *WasmMessage {
 }
 
 func (m *WasmMethod) EmtpyInput() bool {
-	return m.input.IsEmpty()
+	return len(m.GetInput().GetParamVar()) == 0
 }
 func (m *WasmMethod) NotEmtpyInput() bool {
-	return !m.input.IsEmpty()
+	return len(m.GetInput().GetParamVar()) != 0
 }
 func (m *WasmMethod) EmtpyOutput() bool {
-	return m.output.IsEmpty()
+	return len(m.GetOutput().GetParamVar()) == 0
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	return !m.output.IsEmpty()
+	return len(m.GetOutput().GetParamVar()) != 0
 }
 func (m *WasmMessage) GetFullName() string {
 	return m.GetParent().GetPackage() + "." + m.GetWasmMessageName()
 }
 func (m *WasmMethod) InParams() []*ParamVar {
-	return m.input.paramVar
+	return m.GetInput().GetParamVar()
 }
 
 func (m *WasmMethod) OutType() string {
 	return m.lang.OutType(m)
 }
+func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService, f Finder, lang LanguageText) *WasmMethod {
+	meth := &WasmMethod{
+		MethodDescriptorProto: desc,
+		wasmMethodName:        "", //computed later
+		parent:                w,
+		lang:                  lang,
+	}
+	// input and output have to be computed later because we don't have the full
+	// set of types when NewWasmMethod is called
+	//meth.input = newInputParam(w.GetParent().GetPackage(), desc.GetInputType(), meth, f)
+	//meth.output = newOutputParam(w.GetParent().GetPackage(), desc.GetOutputType(), meth, f)
+	return meth
+}
 
-func (m *WasmMethod) AllInputParamWithFormalWasmLevel(showFormalName bool) string {
-	return m.lang.(AbiLanguageText).AllInputParamWithFormalWasmLevel(m, showFormalName)
+func (m *WasmMethod) AllInputWithFormalWasmLevel(showFormalName bool) string {
+	return m.lang.(AbiLanguageText).AllInputWithFormalWasmLevel(m, showFormalName)
 }
 
 func (m *WasmMethod) HasComplexParam() bool {
@@ -257,7 +270,7 @@ func (m *WasmMethod) HasComplexOutput() bool {
 }
 
 func (m *WasmMethod) NoComplexParam() bool {
-	for _, p := range m.input.paramVar {
+	for _, p := range m.GetInput().GetParamVar() {
 		if !p.IsStrictWasmType() {
 			return false
 		}
@@ -266,7 +279,7 @@ func (m *WasmMethod) NoComplexParam() bool {
 }
 
 func (m *WasmMethod) NoComplexOutput() bool {
-	for _, p := range m.output.paramVar {
+	for _, p := range m.GetOutput().GetParamVar() {
 		if !p.IsStrictWasmType() {
 			return false
 		}
@@ -290,8 +303,8 @@ func (m *WasmMethod) AllInputNumberedParam() string {
 	return m.lang.AllInputNumberedParam(m)
 }
 
-func (m *WasmMethod) AllInputParamWasmToGoImpl() string {
-	return m.lang.(AbiLanguageText).AllInputParamWasmToGoImpl(m)
+func (m *WasmMethod) AllInputWasmToGoImpl() string {
+	return m.lang.(AbiLanguageText).AllInputWasmToGoImpl(m)
 }
 
 func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorpb.DescriptorProto,

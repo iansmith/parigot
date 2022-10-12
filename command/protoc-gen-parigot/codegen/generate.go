@@ -2,9 +2,10 @@ package codegen
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 	"io"
 	"text/template"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 )
 
 // BasicGenerate is the primary code generation driver. Language-specific code
@@ -58,15 +59,9 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		result.RegisterService(w)
 		w.method = make([]*WasmMethod, len(s.GetMethod()))
 		for j, m := range s.GetMethod() {
-			meth := &WasmMethod{
-				MethodDescriptorProto: m,
-				parent:                w,
-				lang:                  lang,
-			}
-			w.method[j] = meth
+			w.method[j] = NewWasmMethod(m, w, result, lang)
 		}
 	}
-	result.message = make(map[*MessageRecord]*WasmMessage, len(result.file.GetMessageType()))
 	for _, m := range result.GetFile().GetMessageType() {
 		w := NewWasmMessage( /*parent*/ result.GetFile(), m, lang)
 		result.RegisterMessage(w)
@@ -82,13 +77,14 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 	}
 	//
 	// Now we have the basic stuff in place we need put things in place that
-	// require connections between structures.
+	// require connections between structures.  Notably, we have to read in
+	// all the message types before we can map parameters to them.
 	//
-	for _, s := range result.GetWasmService() {
+	for _, s := range result.Service() {
 		for _, m := range s.GetWasmMethod() {
-			in := newInputParam(proto.GetPackage(), m.MethodDescriptorProto.GetInputType(), m)
-			out := newOutputParam(proto.GetPackage(), m.MethodDescriptorProto.GetOutputType(), m)
+			in := newInputParam(result.GetFile().GetPackage(), m.GetInputType(), m, result)
 			in.lang = lang
+			out := newOutputParam(result.GetFile().GetPackage(), m.GetOutputType(), m, result)
 			out.lang = lang
 			m.input = in
 			m.output = out

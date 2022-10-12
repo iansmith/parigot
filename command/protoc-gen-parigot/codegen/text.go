@@ -37,6 +37,6 @@ type LanguageText interface {
 // Other languages can safely ignore this.
 type AbiLanguageText interface {
 	LanguageText
-	AllInputParamWithFormalWasmLevel(m *WasmMethod, showFormalName bool) string
-	AllInputParamWasmToGoImpl(m *WasmMethod) string
+	AllInputWithFormalWasmLevel(m *WasmMethod, showFormalName bool) string
+	AllInputWasmToGoImpl(m *WasmMethod) string
 }

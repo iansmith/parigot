@@ -44,15 +44,7 @@ func (g *GoGen) FuncMap() template.FuncMap {
 }
 
 func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
-	util.AddFileContentToFinder(g.finder, pr, g.lang)
-	for _, m := range pr.GetMessageType() {
-		msg := codegen.NewWasmMessage(pr, m, g.lang)
-		g.finder.AddMessageType(pr.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), msg)
-	}
-	for _, s := range pr.GetService() {
-		svc := codegen.NewWasmService(pr, s, g.lang)
-		g.finder.AddServiceType(pr.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
-	}
+	codegen.AddFileContentToFinder(g.finder, pr, g.lang)
 	return nil
 }
 
