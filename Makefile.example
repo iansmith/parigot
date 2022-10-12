@@ -1,3 +1,6 @@
+TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
+TINYGO_WASM_OPTS=-target wasm -opt 0 -wasm-abi generic
+TINYGO_BUILD_TAGS=parigot_abi
 
 #build/hello-go.wasm: example/hello-go/main.go
 #	@echo

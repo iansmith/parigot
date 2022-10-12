@@ -2,33 +2,17 @@ TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 
 BUILD_PRINT = \e[1;34mBuilding $<\e[0m
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
-TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
-TINYGO_WASM_OPTS=-target wasm -opt 0 -wasm-abi generic
-TINYGO_BUILD_TAGS=parigot_abi
-TRANSFORM=command/transform
-ABI_GO_HELPERS=command/runner/g/abihelper.go
-PROTOC_PARIGOT_GEN=command/protoc_parigot/proto/gen
-PGP=build/protoc-gen-parigot
-# tuple is (atlanta.base) (version.variant)
+
 FLAVOR=atlanta.base
-WASM_GRAMMAR=command/Wasm.g4
-TRANSFORM_LIB=command/transform/*.go
-STRUCTURE_LIB=command/toml/*.go
-REP_GEN_WASM=command/transform/wasm_parser.go
-API_GEN_DIR=api/$(FLAVOR)/go/parigot/*
 
-REP_API_NET=api/$(FLAVOR)/go/parigot/net/netsvc.p.go
-API_NET_PROTO=api/$(FLAVOR)/proto/net/net.proto
 
-ABI_GEN=abi/$(FLAVOR)/go/abi/*.go
-REP_ABI=abi/g/parigot/abi/abi.pb.go
-ABI_PROTO=abi/$(FLAVOR)/proto/abi/abi.proto
 
 all: build/runner \
 $(REP_API_NET) \
 $(REP_ABI) \
 build/protoc-gen-parigot
 
+TRANSFORM_LIB=command/transform/*.go
 ABIPATCH_SRC=command/abipatch/*.go
 build/abipatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
 	@echo
@@ -36,6 +20,8 @@ build/abipatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC)
 	go build -o build/abipatch github.com/iansmith/parigot/command/abipatch
 
 # only need to run the generator once, not once per file
+REP_GEN_WASM=command/transform/wasm_parser.go
+WASM_GRAMMAR=command/Wasm.g4
 $(REP_GEN_WASM): $(WASM_GRAMMAR)
 	@echo
 	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ======================================================\033[0m"
@@ -48,28 +34,26 @@ command/protoc-gen-parigot/go_/*.go \
 command/protoc-gen-parigot/abi/*.go \
 command/protoc-gen-parigot/template/abi/*.tmpl \
 command/protoc-gen-parigot/template/go/*.tmpl
-
-$(PGP): $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
+PGP=build/protoc-gen-parigot
+$(PGP): $(PROTOC_GEN_PARIGOT_SRC)
 	@echo
 	@echo "\033[92mprotoc-gen-parigot =================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
+REP_API_NET=g/parigot/net/netsvc.p.go
+API_NET_PROTO=api/$(FLAVOR)/proto/net/net.proto
 $(REP_API_NET): $(API_NET_PROTO) $(PGP)
 	@echo
-	@echo "\033[92mrunner abi helper ==================================================================================\033[0m"
+	@echo "\033[92mgenerating networking (API) =============================================================================\033[0m"
 	buf generate
 	gofmt -w api/$(FLAVOR)/go/parigot/net/netsvc.p.go
 
+REP_ABI=g/parigot/abi/abi.pb.go
+ABI_PROTO=abi/$(FLAVOR)/proto/abi/abi.proto
 $(REP_ABI): $(ABI_PROTO)
 	@echo
-	@echo "\033[92mgenerating parigot_abi =============================================================================\033[0m"
+	@echo "\033[92mgenerating parigot ABI =============================================================================\033[0m"
 	buf generate
-
-#ABIGEN_SRC=command/abigen/*.go command/abigen/template/*.tmpl
-#build/abigen: $(ABIGEN_SRC) $(PGP)
-#	@echo
-#	@echo "\033[92mabigen ===================================================================================\033[0m"
-#	go build -o build/abigen github.com/iansmith/parigot/command/abigen
 
 ABI_GO_HELPER=command/runner/g/abihelper.go
 RUNNER_SRC=command/runner/*.go
@@ -79,6 +63,7 @@ $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
 	cp g/parigot/abi/abihelper.go $(ABI_GO_HELPER)
+
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
 	@echo
 	@echo "\033[92mrunner ==============================================================================================\033[0m"
@@ -91,7 +76,6 @@ clean:
 	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
 	rm -f $(ABI_GO_GEN)
 	rm -rf $(API_GEN_DIR)
-	rm -rf $(PROTOC_PARIGOT_GEN)/*
 
 
 ## shorthands
