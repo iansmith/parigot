@@ -14,24 +14,41 @@
 // doesn't understand that we want to control the wasm-level type
 // signatures.
 
-package client
+package abi
+
 
 //
-// These functions have the true function name at the WASM level.
+// These functions have the true function name at the WASM level. Implemented
+// by the container.
 //
-{{- range .abi.GetWasmMethod}}
-func {{.GetName}}_({{.AllInputsWithFormals false}}) {{.OutputType}}
-{{- end}}
-
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+    //go:wasm-module {{.GetParent.GetWasmServiceName}}
+    func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}}
+{{end }}
+{{end}}
 //
 // These functions are wrappers around the true ABI functions, as is done with libc.
+// These are the functions that can take the correct arguments directly at the wasm level.
 // We have to patch functions that take arguments outside of the basic four, and this
-// is done with binary editing after compilation is finished.
+// is done with binary editing after compilation is finished.  Because this API library
+// is using go, we use the "normal" name for the name of the function, otherwise it
+// would be impossible to call these functions, due to the wasm names being lower case.
 //
 
-{{- range .abi.GetWasmMethod}}
-func {{.GetName}}({{.AllInputsWithFormals false}}) {{.OutputType}}{
-    return {{.GetName}}_({{.AllInputsWithFormals false}})
-}
-{{end}}
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+{{- if .NoComplexParam}}
+{{- if .NoComplexOutput }}
+    func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}} {
+{{- if .NotEmptyOutput}}
+        return {{.GetWasmMethodName}}_({{.AllInputWithFormal true}})
+{{ else }}
+         {{.GetWasmMethodName}}_({{.AllInputFormal}})
+{{- end }}
+    }
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 

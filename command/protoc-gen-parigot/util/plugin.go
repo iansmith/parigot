@@ -17,7 +17,7 @@ import (
 const (
 	oneMB      = 1048576
 	bufferSize = 2 * oneMB
-	readSize   = 1024
+	readSize   = 4096
 
 	pathArg    = "path"
 	trueValue  = "true"
@@ -55,19 +55,18 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGenerato
 				ok = true
 				break
 			}
-			log.Fatalf("failed reading stdin: %v", err)
 		}
 		curr += r
 	}
 	if !ok {
-		log.Fatalf("input message on stdin was larger than %0x bytes", bufferSize)
+		log.Fatalf("input message on stdin was larger than %0x bytes (%0x)", bufferSize, curr)
 	}
 	if saveTemp {
-		count, err := io.Copy(outfp, bytes.NewBuffer(buffer[:]))
+		count, err := io.Copy(outfp, bytes.NewBuffer(buffer[:curr]))
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		log.Printf("saved output to %s (%d bytes)", out, count)
+		log.Printf("saved output to %s (0x%0x bytes)", out, count)
 		outfp.Close()
 	}
 	var req pluginpb.CodeGeneratorRequest

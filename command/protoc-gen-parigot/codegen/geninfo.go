@@ -1,9 +1,11 @@
 package codegen
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 	"log"
+	"strings"
 )
 
 type GenInfo struct {
@@ -146,6 +148,10 @@ func (w *WasmMethod) GetWasmMethodName() string {
 	if ok {
 		w.wasmMethodName = cand
 	}
+	l := len(w.wasmMethodName)
+	if l > 2 && w.wasmMethodName[0:1] == "\"" && w.wasmMethodName[l-1:l] == "\"" {
+		w.wasmMethodName = w.wasmMethodName[1 : l-1]
+	}
 	return w.wasmMethodName
 }
 
@@ -193,9 +199,14 @@ func (m *WasmMessage) GetField() []*WasmField {
 	return m.field
 }
 
-// GetFullName returns the name of the object but with package prepended.
-func (m *WasmMessage) GetFullName() string {
-	return m.parent.GetPackage() + "." + m.GetWasmMessageName()
+// shortName returns the name from the last dot (.) of the package name to the end.
+// It returns its input value if there is no dot or or the dot is the last character.
+func shortName(name string) string {
+	last := strings.Index(name, ".")
+	if last == -1 || last == len(name)-1 {
+		return name
+	}
+	return name[last+1:]
 }
 
 // GetParent returns the parent of this wasm service, which is a descriptor
@@ -226,15 +237,20 @@ type InputParam struct {
 	paramVar []*ParamVar
 }
 
-func newInputParam(m *WasmMessage) *InputParam {
-	result := &InputParam{
-		typ:  m,
-		name: m.GetWasmMessageName(),
+func newInputParam(g *GenInfo, messageName string) *InputParam {
+	msg := g.findMessageByName(messageName)
+	if msg == nil {
+		log.Fatalf("unable to find input parameter type %s", messageName)
 	}
-	paramVar := make([]*ParamVar, len(m.GetField()))
-	for i, f := range m.GetField() {
+
+	result := &InputParam{
+		typ:  msg,
+		name: msg.GetWasmMessageName(),
+	}
+	result.paramVar = make([]*ParamVar, len(msg.GetField()))
+	for i, f := range msg.GetField() {
 		pVar := newParamVar(f)
-		paramVar[i] = pVar
+		result.paramVar[i] = pVar
 	}
 	return result
 }
@@ -262,6 +278,11 @@ func newParamVar(f *WasmField) *ParamVar {
 		field: f,
 	}
 }
+
+func (p *ParamVar) TypeFromProto() string {
+	return p.field.GetType().String()
+}
+
 func (p *ParamVar) Formal() string {
 	return p.name
 }
@@ -296,7 +317,11 @@ func (o *OutputParam) IsMultipleReturn() bool {
 	return len(o.paramVar) > 1
 }
 
-func newOutputParam(w *WasmMessage) *OutputParam {
+func newOutputParam(g *GenInfo, name string) *OutputParam {
+	w := g.findMessageByName(name)
+	if w == nil {
+		log.Fatalf("unable to find type %s for output parameter", name)
+	}
 	result := &OutputParam{
 		name: w.GetWasmMessageName(),
 		typ:  w,
@@ -320,7 +345,9 @@ func (m *WasmMethod) EmtpyOutput() bool {
 func (m *WasmMethod) NotEmptyOutput() bool {
 	return !m.output.IsEmpty()
 }
-
+func (m *WasmMessage) GetFullName() string {
+	return m.GetParent().GetPackage() + "." + m.GetWasmMessageName()
+}
 func (m *WasmMethod) InParams() []*ParamVar {
 	return m.input.paramVar
 }
@@ -336,10 +363,74 @@ func (m *WasmMethod) OutType() string {
 	if m.output.IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time", m.output.name)
 	}
-	return m.input.paramVar[0].field.GetType().String()
+	if m.output.IsEmpty() {
+		return ""
+	}
+	return toGoType(m.output.paramVar[0].field.GetType().String())
 }
 
-func (m *WasmMethod) AllInputsWithFormals(showFormalName bool) string {
+func (m *WasmMethod) AllInputParamWithFormalWasmLevel(showFormalName bool) string {
+	result := ""
+	currentParam := 0
+	for i, p := range m.input.paramVar {
+		if showFormalName {
+			result += fmt.Sprintf("p%d", currentParam) + " "
+		} else {
+			result += "_" + " "
+		}
+		if p.IsStrictWasmType() {
+			result += toGoType(p.TypeFromProto())
+		} else {
+			// do our conversion
+			// xxx only strings for now
+			if !p.IsWasmType() {
+				log.Fatalf("unable to convert type %s to WASM type", p.TypeFromProto())
+			}
+			switch p.TypeFromProto() {
+			// we convert string to a pair of int32s because that is what the compiler
+			// outputs at the wasm level.  the two int32s are a pointer and a length.
+			case "TYPE_STRING":
+				result += "int32,"
+				currentParam++
+				result += fmt.Sprintf("p%d", currentParam) + " "
+				result += "int32"
+			}
+		}
+		currentParam++
+		if i != len(m.input.paramVar)-1 {
+			result += ","
+		}
+	}
+	return result
+}
+
+func (m *WasmMethod) HasComplexParam() bool {
+	return !m.NoComplexParam()
+}
+
+func (m *WasmMethod) HasComplexOutput() bool {
+	return !m.NoComplexOutput()
+}
+
+func (m *WasmMethod) NoComplexParam() bool {
+	for _, p := range m.input.paramVar {
+		if !p.IsStrictWasmType() {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *WasmMethod) NoComplexOutput() bool {
+	for _, p := range m.output.paramVar {
+		if !p.IsStrictWasmType() {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
 	result := ""
 	for i, p := range m.input.paramVar {
 		if showFormalName {
@@ -347,7 +438,18 @@ func (m *WasmMethod) AllInputsWithFormals(showFormalName bool) string {
 		} else {
 			result += "_" + " "
 		}
-		result += toGoType(p.field.GetType().String())
+		result += toGoType(p.TypeFromProto())
+		if i != len(m.input.paramVar)-1 {
+			result += ","
+		}
+	}
+	return result
+}
+
+func (m *WasmMethod) AllInputFormal() string {
+	result := ""
+	for i, p := range m.input.paramVar {
+		result += p.name
 		if i != len(m.input.paramVar)-1 {
 			result += ","
 		}
@@ -356,7 +458,6 @@ func (m *WasmMethod) AllInputsWithFormals(showFormalName bool) string {
 }
 
 func (m *WasmMethod) OutZeroValue() string {
-	panic("outzero")
 	if m.output.IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time", m.output.name)
 	}
@@ -402,4 +503,41 @@ func toGoType(s string) string {
 		return "bool"
 	}
 	panic("unable to convert " + s + " to go type")
+}
+
+func (m *WasmMethod) AllInputNumberedParam() string {
+	count := 0
+	result := ""
+	for i, p := range m.input.paramVar {
+		result += fmt.Sprintf("p%d ", count)
+		result += toGoType(p.TypeFromProto())
+		if i != len(m.input.paramVar)-1 {
+			result += ","
+		}
+		count++
+	}
+	return result
+}
+
+func (m *WasmMethod) AllInputParamWasmToGoImpl() string {
+	result := ""
+	count := 0
+	for i, p := range m.input.paramVar {
+		if p.IsStrictWasmType() {
+			result += fmt.Sprintf("p%d", count)
+		} else {
+			if !p.IsWasmType() {
+				log.Fatalf("unable to generate implementation helper code for type %s", p.TypeFromProto())
+			}
+			switch p.TypeFromProto() {
+			case "TYPE_STRING":
+				result += "util.StringConvert" + fmt.Sprintf("(p%d,p%d)", count, count+1)
+				count++
+			}
+		}
+		if i != len(m.input.paramVar)-1 {
+			result += ","
+		}
+	}
+	return result
 }

@@ -32,7 +32,7 @@ C:\Users\user>
 
 ### ロボットを登録
 
-* Type: studio (開発用？)
+* TypeFromProto: studio (開発用？)
 * Domain/Username: 上記のユーザ名
 
 ### ローカルのorchestrator設定

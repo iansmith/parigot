@@ -73,7 +73,7 @@ val ans = cube(4);
 ```
 
 * Syntax: `fun x0 (x1 : t1, ..., xn : tn) = e`
-* Type-checking: 
+* TypeFromProto-checking: 
     - `t1 * ... * tn -> t`
     - The type of a function is "argument types" -> "reslut types"
 * Evaluation:
@@ -538,13 +538,13 @@ sorted_nicer x y z
 
 ```
 
-## Type Inference
+## TypeFromProto Inference
  
  Key steps in ML:
  * Determine types of bindings in order
  * For each val of fun binding:
 	 * Analyze definition for all necessary facts
-	 * Type erro if no way for all facts to hold
+	 * TypeFromProto erro if no way for all facts to hold
 * Use type variables like `'a` for any unconstrained type
 * Enforce the value restriction
 

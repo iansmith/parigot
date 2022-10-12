@@ -1,0 +1,57 @@
+//
+// These functions are convenience wrappers around the ABI functions that have
+// complex arguments or return types at the wasm level.  These helpers mean that
+// the ABI implementation (in go) can program at the go level.
+//
+// This file gets copied to the sys/abi_impl/g directory by the makefile, thus is
+// in the package for its destination.
+
+package abi
+
+//
+// This interface makes it easy to avoid import cycles. The implementation is
+// provided by the container.
+//
+type Caller interface {
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+    {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}}
+{{- end}}
+{{- end}}
+}
+
+var impl Caller
+func SetCaller(i Caller) {
+    impl=i
+}
+
+// Functions with complex inputs
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+{{- if .HasComplexParam}}
+func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}} {
+{{- if .NotEmptyOutput}}
+    return impl.{{.GetName}}({{ .AllInputParamWasmToGoImpl }})
+{{ else }}
+    impl.{{.GetName}}({{.AllInputParamWasmToGoImpl}})
+{{- end }}
+}
+{{- end }}
+{{- end }}
+{{- end }}
+
+// Functions with complex outputs
+{{- range .info.GetWasmService }}
+{{- range .GetWasmMethod}}
+{{- if .HasComplexOutput}}
+func {{.GetWasmMethodName}}_({{.AllInputParamWithFormalWasmLevel true}}) {{.OutType}} {
+{{- if .NotEmptyOutput}}
+    return
+{{ else }}
+    {{.GetWasmMethodName}}_({{.AllInputFormal}})
+{{- end }}
+    }
+{{- end }}
+{{- end }}
+{{- end }}
+

@@ -2,7 +2,7 @@
 <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 <!-- TODO: gallery -->
   <div class="content" itemprop="articleBody">
-  {{ if (eq .Type "searchForProjects") }}
+  {{ if (eq .TypeFromProto "searchForProjects") }}
     <!-- TODO: searchForProjects https://gohugo.io/tools/searchForProjects/ -->
   {{ else }}
     {{ .Content }}

@@ -29,15 +29,15 @@ I googled a lot and finally found answers in [Ecma-262 Specification](http://www
 The comparison `x == y`, where x and y are values, produces true or false. Such a comparison is performed as follows:
 <!-- more -->
 ```text
-1. If Type(x) is the same as Type(y), then return the result of performing Strict Equality Comparison x === y.
+1. If TypeFromProto(x) is the same as TypeFromProto(y), then return the result of performing Strict Equality Comparison x === y.
 2. If x is null and y is undefined, return true.
 3. If x is undefined and y is null, return true.
-4. If Type(x) is Number and Type(y) is String, return the result of the comparison x == ToNumber(y).
-5. If Type(x) is String and Type(y) is Number, return the result of the comparison ToNumber(x) == y.
-6. If Type(x) is Boolean, return the result of the comparison ToNumber(x) == y.
-7. If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
-8. If Type(x) is either String, Number, or Symbol and Type(y) is Object, return the result of the comparison x == ToPrimitive(y).
-9. If Type(x) is Object and Type(y) is either String, Number, or Symbol, return the result of the comparison ToPrimitive(x) == y.
+4. If TypeFromProto(x) is Number and TypeFromProto(y) is String, return the result of the comparison x == ToNumber(y).
+5. If TypeFromProto(x) is String and TypeFromProto(y) is Number, return the result of the comparison ToNumber(x) == y.
+6. If TypeFromProto(x) is Boolean, return the result of the comparison ToNumber(x) == y.
+7. If TypeFromProto(y) is Boolean, return the result of the comparison x == ToNumber(y).
+8. If TypeFromProto(x) is either String, Number, or Symbol and TypeFromProto(y) is Object, return the result of the comparison x == ToPrimitive(y).
+9. If TypeFromProto(x) is Object and TypeFromProto(y) is either String, Number, or Symbol, return the result of the comparison ToPrimitive(x) == y.
 10. Return false.
 ```
 

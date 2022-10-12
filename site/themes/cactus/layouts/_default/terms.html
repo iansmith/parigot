@@ -1,7 +1,7 @@
 {{ define "main" }}
 <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
   <div class="content" itemprop="articleBody">
-    {{ if (eq .Type "tags")}}
+    {{ if (eq .TypeFromProto "tags")}}
     <div id="tag-cloud">
       {{ if (eq (len .Data.Terms) 0) }}
       <div class="tag-cloud-title">
@@ -17,7 +17,7 @@
         {{ end }}
       </div>
     </div>
-    {{ else if (eq .Type "categories")}}
+    {{ else if (eq .TypeFromProto "categories")}}
       <div id="categories">
         {{ if (eq (len .Data.Terms) 0) }}
         <div class="category-list-title">

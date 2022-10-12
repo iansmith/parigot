@@ -1,13 +1,19 @@
 //
-// This file defines the ABI interface to the underlying container... mostly.
-// This really defines the _interface_ to the container's true ABI, ala libc.
-// Further, we use this as a convenient way to machine generate things related
-// to the ABI.
+// This file defines the ABI interface to the underlying container that is running
+// the wasm module.  This is somewhat analogous to libc in that this file doesn't
+// contain the implementation of the functions, just provides a wrapper around the
+// underlying system.
 //
-// The use of "service" and "method" below are kinda dodgy.  Really, there is only
-// the one service, and that "service" is the abi.  This gets turned in a namespace
-// (module) for the wasm level.  The "Methods" actually are functions within that
-// namespace.
+// Note that there is actually no "service" here and no "methods" but that these are
+// used to conveniently create a namespace and a set of functions.  The namespace
+// and functions use snake case because these functions are exposed to the wasm
+// level and that is the wasm standard.  We use functions here, not some type of
+// object or dispatching system (as we do in the API) because we want to allow
+// languages with simple type systems (e.g. C) to have access to these primitives
+// directly.
+//
+// If you want to write your own toolkit against the container--your own api
+// to parigot--you can build it on top of these primitives.
 
 syntax = "proto3";
 package abi;
@@ -21,11 +27,18 @@ service Abi {
   rpc OutputString(OutputStringRequest) returns(OutputStringResponse){
     option (parigot.wasm_method_name) = "output_string";
   }
-  rpc Exit(ExitRequest) returns(ExitResponse); // will die
-  rpc Now(NowRequest) returns(NowResponse);
-  rpc SetNow(SetNowRequest) returns(SetNowResponse);
-  rpc Locate(LocateRequest) returns (LocateResponse);
-
+  rpc Exit(ExitRequest) returns(ExitResponse) {// will die
+    option (parigot.wasm_method_name) = "exit";
+  }
+  rpc Now(NowRequest) returns(NowResponse){
+    option (parigot.wasm_method_name) = "now";
+  };
+  rpc SetNow(SetNowRequest) returns(SetNowResponse){
+    option (parigot.wasm_method_name) = "set_now";
+  };
+  rpc Locate(LocateRequest) returns (LocateResponse){
+    option (parigot.wasm_method_name) = "locate";
+  }
   //temp
   rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns(TinygoNotImplementedResponse); // will die
   rpc JSNotImplemented(JSNotImplementedRequest) returns(JSNotImplementedResponse); // will die

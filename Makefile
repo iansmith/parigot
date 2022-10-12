@@ -49,8 +49,11 @@ $(REP_GEN_WASM): $(WASM_GRAMMAR)
 
 PROTOC_GEN_PARIGOT_SRC=command/protoc-gen-parigot/*.go \
 command/protoc-gen-parigot/util/*.go \
-command/protoc-gen-parigot/*/*.go \
-command/protoc-gen-parigot/template/*/*.tmpl
+command/protoc-gen-parigot/codegen/*.go \
+command/protoc-gen-parigot/go_/*.go \
+command/protoc-gen-parigot/abi/*.go \
+command/protoc-gen-parigot/template/abi/*.tmpl \
+command/protoc-gen-parigot/template/go/*.tmpl
 
 build/protoc-gen-parigot: $(PROTOC_GEN_PARIGOT_SRC) $(STRUCTURE_LIB)
 	@echo

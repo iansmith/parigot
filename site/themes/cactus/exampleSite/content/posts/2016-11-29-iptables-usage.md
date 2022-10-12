@@ -115,7 +115,7 @@ ESTABLISHED状态可以很轻易的解决此问题，见[#解决应用程序无�
 
 `RELATED`状态的数据包其含义是指，被动产成的应答数据包，且此数据包不属于当前任何链接。换一种说法就是，只要应答的数据包是因为本机发起的连接送出vhu一个数据包，导致了另一条连接的产生，那么这个新连接的所有数据包都属于`RELATED`状态。
 
-以ubuntu上上的tracepath工具为例，在检测本机与目的主机间跳数时，tracepath是通过发送TTL值从1递增的`tcp`数据包来检测每一跳。路径中的路由器因TTL减为0而回送了一个`ICMP`数据包(ICMP Type 11)，该数据包就属于RELATED状态。
+以ubuntu上上的tracepath工具为例，在检测本机与目的主机间跳数时，tracepath是通过发送TTL值从1递增的`tcp`数据包来检测每一跳。路径中的路由器因TTL减为0而回送了一个`ICMP`数据包(ICMP TypeFromProto 11)，该数据包就属于RELATED状态。
 
 ### INVALID状态
 

@@ -369,7 +369,7 @@ If the graph is not connceted, we compute minimum spanning forest (MST of each c
 * A *crossing edge* connects a vertex in one set with a vertex in the other.
 * Cut property: Given any cut, the crossing edge of min weight is in the MST.
 
-### Edge-weight Graph Data Type
+### Edge-weight Graph Data TypeFromProto
 
 Edge:
 [https://algs4.cs.princeton.edu/code/edu/princeton/cs/algs4/Edge.java.html](https://algs4.cs.princeton.edu/code/edu/princeton/cs/algs4/Edge.java.html)

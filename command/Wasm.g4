@@ -146,7 +146,7 @@ funcNameRef returns [*FuncNameRef f]:
             Name: $Ident.GetText(),
         }
         if localctx.Get_typeRef()!=nil {
-            op.Type = $typeRef.t
+            op.TypeFromProto = $typeRef.t
         }
         localctx.SetF(op)
     }
@@ -243,7 +243,7 @@ funcDef returns [*FuncDef f]:
         localctx.SetF(
         &FuncDef{
             Name:$Ident.GetText(),
-            Type: $typeRef.t,
+            TypeFromProto: $typeRef.t,
             Param: pd,
             Result: r,
             Local: l,
@@ -323,7 +323,7 @@ callIndirectOp returns [Stmt c]:
     {
         localctx.SetC(
             &IndirectCallOp{
-                Type: localctx.GetT().GetT(),
+                TypeFromProto: localctx.GetT().GetT(),
             },
         )
     }
@@ -388,7 +388,7 @@ globalDef returns [TopLevel g]:
     GlobalWord (i=Ident | s=StackPointerWord| typeAnno) Lparen mutDef Rparen constStmt
     {
         op:=&GlobalDef{
-            Type: $mutDef.m,
+            TypeFromProto: $mutDef.m,
             Value: $constStmt.c,
         }
         if localctx.Get_typeAnno()!=nil {
@@ -470,8 +470,8 @@ tableDef returns [TopLevel t]:
     {
         op:=&TableDef{Min:numToInt($min.GetText()),Max:numToInt($max.GetText())}
         if localctx.Get_typeAnno()!=nil {
-            op.Type = new(int)
-            *op.Type = $typeAnno.t
+            op.TypeFromProto = new(int)
+            *op.TypeFromProto = $typeAnno.t
         }
         $t=op
     }
@@ -482,8 +482,8 @@ memoryDef returns [TopLevel m]:
     {
         op:=&MemoryDef{Size:numToInt($size.GetText())}
         if localctx.Get_typeAnno()!=nil {
-            op.Type = new(int)
-            *op.Type = $typeAnno.t
+            op.TypeFromProto = new(int)
+            *op.TypeFromProto = $typeAnno.t
         }
         $m=op
     }

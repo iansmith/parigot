@@ -35,11 +35,9 @@ var load = flag.String("l", "", "load a previously saved input (filename)")
 func main() {
 	flag.Parse()
 
-	if *save == true && *load != "" {
-		log.Fatalf("can't both save an load input, -s and -l are mutually exclusive")
-	}
 	source := io.Reader(os.Stdin)
 	if *load != "" {
+		*save = false
 		fp, err := os.Open(*load)
 		if err != nil {
 			log.Fatalf("%v", err)

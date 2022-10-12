@@ -9,15 +9,16 @@
 
 package abi
 
+    // Because this is just to provide the IDE with "bogus" information, we intentionally
+    // do not use the wasm name for methods.
+
 {{- range .info.GetWasmService }}
 {{- range .GetWasmMethod}}
-func {{.GetName}}({{.AllInputsWithFormals false}}) {{.OutputType}} {
-{{ if .NotEmptyOutput }}
-    return {{.OutZeroValue}}
-{{else}}
-fart
-{{end}}
-}
-{{end}}
-{{end}}
+    func {{.GetName}}({{.AllInputWithFormal false}}) {{.OutType}} {
+{{- if .NotEmptyOutput }}
+        return {{.OutZeroValue -}}
+{{end }}
+    }
+{{- end}}
+{{- end}}
 

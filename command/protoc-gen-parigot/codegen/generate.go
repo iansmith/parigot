@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 	"io"
-	"log"
 	"text/template"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -99,8 +98,8 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 	//
 	for _, s := range result.GetWasmService() {
 		for _, m := range s.GetWasmMethod() {
-			in := newInParameter(result, m.MethodDescriptorProto.GetInputType())
-			out := newOutResult(result, m.MethodDescriptorProto.GetOutputType())
+			in := newInputParam(result, m.MethodDescriptorProto.GetInputType())
+			out := newOutputParam(result, m.MethodDescriptorProto.GetOutputType())
 			m.input = in
 			m.output = out
 		}
@@ -109,27 +108,27 @@ func Collect(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDes
 	return result
 }
 
-func newOutResult(g *GenInfo, messageName string) *OutputParam {
-	msg := g.findMessageByName(messageName)
-	if msg == nil {
-		log.Fatalf("unable to find output parameter type %s", messageName)
-	}
-	return &OutputParam{
-		name: messageName,
-		typ:  msg,
-	}
-}
-
-func newInParameter(g *GenInfo, messageName string) *InputParam {
-	msg := g.findMessageByName(messageName)
-	if msg == nil {
-		log.Fatalf("unable to find input parameter type %s", messageName)
-	}
-	return &InputParam{
-		name: messageName,
-		typ:  msg,
-	}
-}
+//func newOutResult(g *GenInfo, messageName string) *OutputParam {
+//	msg := g.findMessageByName(messageName)
+//	if msg == nil {
+//		log.Fatalf("unable to find output parameter type %s", messageName)
+//	}
+//	return &OutputParam{
+//		name: messageName,
+//		typ:  msg,
+//	}
+//}
+//
+//func newInParameter(g *GenInfo, messageName string) *InputParam {
+//	msg := g.findMessageByName(messageName)
+//	if msg == nil {
+//		log.Fatalf("unable to find input parameter type %s", messageName)
+//	}
+//	return &InputParam{
+//		name: messageName,
+//		typ:  msg,
+//	}
+//}
 
 func (g *GenInfo) findMessageByName(n string) *WasmMessage {
 	for _, m := range g.wasmMessage {
