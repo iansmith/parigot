@@ -34,6 +34,7 @@ type WasmMethod struct {
 	input          *InputParam
 	output         *OutputParam
 	lang           LanguageText
+	finder         Finder
 }
 
 func (w *WasmMessage) GetProtoPackage() string {
@@ -56,6 +57,10 @@ func (w *WasmMethod) GetProtoPackage() string {
 	return w.GetParent().GetProtoPackage()
 }
 
+func (w *WasmMethod) GetFinder() Finder {
+	return w.finder
+}
+
 func (w *WasmMethod) GetGoPackage() string {
 	return w.GetParent().GetGoPackage()
 }
@@ -68,10 +73,10 @@ func (w *WasmField) GetGoPackage() string {
 	return w.GetParent().GetGoPackage()
 }
 
-func (w *WasmMethod) GetInput() *InputParam {
+func (w *WasmMethod) GetCGInput() *InputParam {
 	return w.input
 }
-func (w *WasmMethod) GetOutput() *OutputParam {
+func (w *WasmMethod) GetCGOutput() *OutputParam {
 	return w.output
 }
 
@@ -222,22 +227,22 @@ func (m *WasmField) GetParent() *WasmMessage {
 }
 
 func (m *WasmMethod) EmtpyInput() bool {
-	return len(m.GetInput().GetParamVar()) == 0
+	return len(m.GetCGInput().GetParamVar()) == 0
 }
 func (m *WasmMethod) NotEmtpyInput() bool {
-	return len(m.GetInput().GetParamVar()) != 0
+	return len(m.GetCGInput().GetParamVar()) != 0
 }
 func (m *WasmMethod) EmtpyOutput() bool {
-	return len(m.GetOutput().GetParamVar()) == 0
+	return len(m.GetCGOutput().GetParamVar()) == 0
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	return len(m.GetOutput().GetParamVar()) != 0
+	return len(m.GetCGOutput().GetParamVar()) != 0
 }
 func (m *WasmMessage) GetFullName() string {
 	return m.GetParent().GetPackage() + "." + m.GetWasmMessageName()
 }
 func (m *WasmMethod) InParams() []*ParamVar {
-	return m.GetInput().GetParamVar()
+	return m.GetCGInput().GetParamVar()
 }
 
 func (m *WasmMethod) OutType() string {
@@ -249,6 +254,7 @@ func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService, f F
 		wasmMethodName:        "", //computed later
 		parent:                w,
 		lang:                  lang,
+		finder:                f,
 	}
 	// input and output have to be computed later because we don't have the full
 	// set of types when NewWasmMethod is called
@@ -270,7 +276,7 @@ func (m *WasmMethod) HasComplexOutput() bool {
 }
 
 func (m *WasmMethod) NoComplexParam() bool {
-	for _, p := range m.GetInput().GetParamVar() {
+	for _, p := range m.GetCGInput().GetParamVar() {
 		if !p.IsStrictWasmType() {
 			return false
 		}
@@ -279,7 +285,7 @@ func (m *WasmMethod) NoComplexParam() bool {
 }
 
 func (m *WasmMethod) NoComplexOutput() bool {
-	for _, p := range m.GetOutput().GetParamVar() {
+	for _, p := range m.GetCGOutput().GetParamVar() {
 		if !p.IsStrictWasmType() {
 			return false
 		}

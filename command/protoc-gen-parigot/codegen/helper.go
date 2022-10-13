@@ -11,7 +11,7 @@ const serviceIdSuffix = "_sid"
 // useful helper functions.
 var FuncMap = template.FuncMap{
 	"toCamelCase":          ToCamelCase,
-	"lastSegmentOfPackage": lastSegmentOfPackage,
+	"LastSegmentOfPackage": LastSegmentOfPackage,
 }
 
 // ToCamelCase converts from snake case to camel case. If the first or last character
@@ -30,11 +30,23 @@ func ToCamelCase(snake string) string {
 	return snake
 }
 
-// Last segment of a fully spelled out package name.
-func lastSegmentOfPackage(pkg string) string {
+// LastSegmentOfPackage returns the string after the last dot of a fully spelled out package name.
+// If there are no dots or the last dot is the last character, it returns its input.
+func LastSegmentOfPackage(pkg string) string {
 	last := strings.LastIndex(pkg, ".")
 	if last == -1 || last == len(pkg)-1 {
 		return pkg
 	}
 	return pkg[last+1:]
+}
+
+// ComputeMessageName works out how to address a particular message, given that our
+// package might be different and we have to output different text as appropriate.
+func ComputeMessageName(ourPkg string, m *WasmMessage) string {
+	theirPackage := m.GetProtoPackage()
+	name := m.GetName()
+	if ourPkg == theirPackage {
+		return name
+	}
+	return theirPackage + "." + name
 }

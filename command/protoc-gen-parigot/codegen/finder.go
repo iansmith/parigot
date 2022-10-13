@@ -74,7 +74,7 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next 
 	if verbose {
 		log.Printf("new search for (%s,%s)---------", protoPackage, name)
 	}
-	shortName := lastSegmentOfPackage(name)
+	shortName := LastSegmentOfPackage(name)
 	for candidate, m := range s.message {
 		if candidate.protoPackage == protoPackage {
 			if candidate.wasmName == shortName {
@@ -111,7 +111,7 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string, next 
 		log.Fatalf("can't understand service/type structure: [%s,%s]",
 			protoPackage, name)
 	}
-	shortName := lastSegmentOfPackage(name)
+	shortName := LastSegmentOfPackage(name)
 	for candidate, svc := range s.service {
 		if candidate.protoPackage == protoPackage {
 			if candidate.wasmName == shortName {

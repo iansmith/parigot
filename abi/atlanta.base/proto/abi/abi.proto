@@ -39,6 +39,9 @@ service Abi {
   rpc Locate(LocateRequest) returns (LocateResponse){
     option (parigot.wasm_method_name) = "locate";
   }
+  rpc Dispatch(DispatchRequest) returns (DispatchResponse){
+    option (parigot.wasm_method_name) = "dispatch";
+  }
   //temp
   rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns(TinygoNotImplementedResponse); // will die
   rpc JSNotImplemented(JSNotImplementedRequest) returns(JSNotImplementedResponse); // will die
@@ -84,4 +87,13 @@ message LocateRequest {
 
 message LocateResponse {
   int64 service_sid =1;
+}
+
+message DispatchRequest {
+  int64 service_sid =1;
+  string method=2;
+  bytes blob=3;
+}
+
+message DispatchResponse {
 }

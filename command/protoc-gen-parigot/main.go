@@ -98,6 +98,10 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 		for lang, generator := range genMap {
 			codegen.Collect(info, generator.LanguageText())
 			if isGenerate {
+				// skip it? only if no services and no messages xxx will break enums
+				if len(info.Service()) == 0 && len(info.Message()) == 0 {
+					continue
+				}
 				// load up templates
 				t, err := loadTemplates(generator)
 				if err != nil {

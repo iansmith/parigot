@@ -18,6 +18,5 @@ type Generator interface {
 	FuncMap() template.FuncMap
 	GeneratingMessage() []string
 	ResultName() []string
-	NeedsLocators() bool
 	LanguageText() LanguageText //golang actually puts a AbiLanguageText in here
 }

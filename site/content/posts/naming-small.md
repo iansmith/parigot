@@ -4,6 +4,9 @@ date: 2022-10-11T16:02:00-04:00
 draft: false
 ---
 
+> Note that this post is now out of date with respect to the particular filenames
+> used in repository.
+
 I've been working on the code generation in several areas and I've decided
 that I'm going to be consistent with names of things.
 

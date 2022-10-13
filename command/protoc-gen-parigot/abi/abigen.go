@@ -50,12 +50,12 @@ func (a *AbiGen) GeneratingMessage() []string {
 	return text
 }
 
-func (a *AbiGen) Generate(t *template.Template, info *codegen.GenInfo, loc []string) ([]*util.OutputFile, error) {
+func (a *AbiGen) Generate(t *template.Template, info *codegen.GenInfo) ([]*util.OutputFile, error) {
 	if !strings.HasSuffix(info.GetFile().GetName(), "abi.proto") {
 		return nil, fmt.Errorf("unable to understand abi definition with %d services (expecting 1)",
 			len(info.GetFile().GetService()))
 	}
-	return codegen.BasicGenerate(a, t, info, loc)
+	return codegen.BasicGenerate(a, t, info)
 }
 
 func (a *AbiGen) TemplateName() []string {

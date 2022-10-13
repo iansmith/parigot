@@ -21,7 +21,7 @@ type GoGen struct {
 func NewGoGen(finder codegen.Finder) *GoGen {
 	gen := &GoGen{
 		finder: finder,
-		lang:   &GoText{},
+		lang:   NewGoText(),
 	}
 	return gen
 }
@@ -48,14 +48,10 @@ func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
 	return nil
 }
 
-func (g *GoGen) NeedsLocators() bool {
-	return true
-}
-
 func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo) ([]*util.OutputFile, error) {
 	return codegen.BasicGenerate(g, t, info)
 }
 
 func (g *GoGen) LanguageText() codegen.LanguageText {
-	return &GoText{}
+	return g.lang
 }

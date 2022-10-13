@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
+	"strings"
 )
 
-type GoText struct{}
+type GoText struct {
+}
 
 func (g *GoText) ProtoTypeNameToLanguageTypeName(s string) string {
 	switch s {
@@ -22,9 +24,14 @@ func (g *GoText) ProtoTypeNameToLanguageTypeName(s string) string {
 		return "float64"
 	case "TYPE_BOOL":
 		return "bool"
+	case "TYPE_BYTES":
+		return "[]byte"
+	case "TYPE_BYTE":
+		return "byte"
 	}
 	panic("unable to convert " + s + " to go type")
 }
+
 func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) string {
 	return g.walkInputParams(m, ",", func(p *codegen.ParamVar) string {
 		result := ""
@@ -33,29 +40,35 @@ func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) 
 		} else {
 			result += "_" + " "
 		}
-		result += g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
+		typ := p.GetTyp()
+		result += codegen.ComputeMessageName(m.GetProtoPackage(), typ)
 		return result
 	})
 }
 
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
 	result := ""
-	if m.GetOutput().IsMultipleReturn() {
+	if m.GetCGOutput().IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time",
-			m.GetOutput().GetName())
+			m.GetCGOutput().GetName())
 	}
-	if m.GetOutput().IsEmpty() {
+	if m.GetCGOutput().IsEmpty() {
 		return ""
 	}
-	result += g.ProtoTypeNameToLanguageTypeName(m.GetOutput().GetParamVar()[0].GetField().GetType().String())
+	// for a typename (which they call a message) we have to figure out how to address the type
+	if m.GetCGOutput().GetParamVar()[0].GetField().GetType().String() == "TYPE_MESSAGE" {
+		ourPkg := m.GetParent().GetParent().GetPackage()
+		return codegen.ComputeMessageName(ourPkg, m.GetCGOutput().GetTyp())
+	}
+	result += g.ProtoTypeNameToLanguageTypeName(m.GetCGOutput().GetParamVar()[0].GetField().GetType().String())
 	return result
 }
 
 func (g *GoText) walkInputParams(m *codegen.WasmMethod, separator string, fn func(paramVar *codegen.ParamVar) string) string {
 	result := ""
-	for i, p := range m.GetInput().GetParamVar() {
+	for i, p := range m.GetCGInput().GetParamVar() {
 		result += fn(p)
-		if i != len(m.GetInput().GetParamVar())-1 {
+		if i != len(m.GetCGInput().GetParamVar())-1 {
 			result += separator
 		}
 	}
@@ -70,11 +83,11 @@ func (g *GoText) AllInputFormal(m *codegen.WasmMethod) string {
 
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 	result := ""
-	if m.GetOutput().IsMultipleReturn() {
+	if m.GetCGOutput().IsMultipleReturn() {
 		log.Fatalf("unable to process multiple return values (%s) at this time",
-			m.GetOutput().GetName())
+			m.GetCGOutput().GetName())
 	}
-	protoT := m.GetOutput().GetParamVar()[0].GetField().GetType().String()
+	protoT := m.GetCGOutput().GetParamVar()[0].GetField().GetType().String()
 	goT := g.ProtoTypeNameToLanguageTypeName(protoT)
 	result += goZeroValue(goT)
 	return result
@@ -83,23 +96,29 @@ func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 func (g *GoText) AllInputWithFormalWasmLevel(m *codegen.WasmMethod, showFormalName bool) string {
 	result := ""
 	currentParam := 0
-	for i, p := range m.GetInput().GetParamVar() {
+	for i, p := range m.GetCGInput().GetParamVar() {
 		if showFormalName {
 			result += fmt.Sprintf("p%d", currentParam) + " "
 		} else {
 			result += "_" + " "
 		}
 		if p.IsStrictWasmType() {
-			result += g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
+			resp := " " + g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
+			parts := strings.Split(resp, " ")
+			result += resp
+			if len(parts) != 2 {
+				log.Printf("%s %d--%s,%+v", m.GetWasmMethodName(), currentParam, result, parts)
+			}
 		} else {
 			// do our conversion
 			// xxx only strings for now
-			if !p.IsWasmType() {
+			if !p.IsParigotType() {
 				log.Fatalf("unable to convert type %s to WASM type", p.TypeFromProto())
 			}
 			switch p.TypeFromProto() {
 			// we convert string to a pair of int32s because that is what the compiler
-			// outputs at the wasm level.  the two int32s are a pointer and a length.
+			// outputs at the wasm level.  the two int32s are a pointer and a length
+			// slices are passed as ptr plus len and cap  all are int32.
 			case "TYPE_STRING":
 				result += "int32,"
 				currentParam++
@@ -107,10 +126,20 @@ func (g *GoText) AllInputWithFormalWasmLevel(m *codegen.WasmMethod, showFormalNa
 				result += "int32"
 			case "TYPE_BOOL":
 				result += "int32"
+			case "TYPE_BYTE":
+				result += "int32"
+			case "TYPE_BYTES":
+				result += fmt.Sprintf("int32")
+				currentParam++
+				result += fmt.Sprintf(",p%d", currentParam) + " "
+				result += "int32"
+				currentParam++
+				result += fmt.Sprintf(",p%d", currentParam) + " "
+				result += "int32"
 			}
 		}
 		currentParam++
-		if i != len(m.GetInput().GetParamVar())-1 {
+		if i != len(m.GetCGInput().GetParamVar())-1 {
 			result += ","
 		}
 	}
@@ -121,10 +150,10 @@ func (g *GoText) AllInputWithFormalWasmLevel(m *codegen.WasmMethod, showFormalNa
 func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 	count := 0
 	result := ""
-	for i, p := range m.GetInput().GetParamVar() {
+	for i, p := range m.GetCGInput().GetParamVar() {
 		result += fmt.Sprintf("p%d ", count)
 		result += g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
-		if i != len(m.GetInput().GetParamVar())-1 {
+		if i != len(m.GetCGInput().GetParamVar())-1 {
 			result += ","
 		}
 		count++
@@ -135,27 +164,32 @@ func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 func (g *GoText) AllInputWasmToGoImpl(m *codegen.WasmMethod) string {
 	result := ""
 	count := 0
-	for i, p := range m.GetInput().GetParamVar() {
+	for i, p := range m.GetCGInput().GetParamVar() {
 		if p.IsStrictWasmType() {
 			result += fmt.Sprintf("p%d", count)
 		} else {
-			if !p.IsWasmType() {
+			if !p.IsParigotType() {
 				log.Fatalf("unable to generate implementation helper code for type %s", p.TypeFromProto())
 			}
 			switch p.TypeFromProto() {
 			case "TYPE_STRING":
 				result += "strConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d)", count, count+1)
+			case "TYPE_BYTES":
+				result += "bytesConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d,p%d)", count, count+1, count+2)
 			case "TYPE_BOOL":
 				result += fmt.Sprintf("p%d!=0", count)
-				count++
 			}
 		}
 		count += 1
-		if i != len(m.GetInput().GetParamVar())-1 {
+		if i != len(m.GetCGInput().GetParamVar())-1 {
 			result += ","
 		}
 	}
 	return result
+}
+
+func NewGoText() *GoText {
+	return &GoText{}
 }
 
 // goZeroValue returns the simplest, empty value for the given go type.
@@ -173,6 +207,8 @@ func goZeroValue(s string) string {
 		return "float64(0.0)"
 	case "bool":
 		return "false"
+	case "[]byte":
+		return "[]byte{}"
 	}
 	panic("unable to get zero value for go type " + s)
 }

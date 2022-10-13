@@ -10,8 +10,9 @@ package g
 import (
     "unsafe"
 
-    wasmtime "github.com/bytecodealliance/wasmtime-go"
+    "github.com/iansmith/parigot/g/parigot/abi"
 
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
 //
@@ -22,7 +23,7 @@ type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
     {{- if .HasComplexParam }}
-    {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}}
+    {{.GetName}}(abi.{{.AllInputWithFormal true}}) {{.OutType}}
     {{- end}}
 {{- end}}
 {{- end}}
@@ -34,7 +35,17 @@ func SetCaller(i Caller) {
     impl=i
 }
 
+func bytesConvert(memPtr uintptr, ptr int32, length int32, _ int32) []byte{
+	buf := make([]byte, length)
+	for i := int32(0); i < length; i++ {
+		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
+		buf[i] = *b
+	}
+	return buf
+}
+
 func strConvert(memPtr uintptr, ptr int32, length int32) string {
+    // we could probably go bytesConvert and claim our cap was equal to our len but...
 	buf := make([]byte, length)
 	for i := int32(0); i < length; i++ {
 		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))

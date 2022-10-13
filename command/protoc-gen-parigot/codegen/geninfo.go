@@ -78,12 +78,12 @@ func newInputParam(protoPkg string, messageName string, parent *WasmMethod, find
 	}
 	msg := finder.FindMessageByName(protoPkg, messageName, nil)
 	if msg == nil {
-		log.Fatalf("unable to find input parameter type %s", lastSegmentOfPackage(messageName))
+		log.Fatalf("unable to find input parameter type %s", LastSegmentOfPackage(messageName))
 	}
 	result.typ = msg
 	result.paramVar = make([]*ParamVar, len(msg.GetField()))
 	for i, f := range msg.GetField() {
-		pVar := newParamVar(f)
+		pVar := newParamVarWithType(f, protoPkg, messageName, finder)
 		result.paramVar[i] = pVar
 	}
 	return result
@@ -98,9 +98,11 @@ func (i *InputParam) Len() int {
 }
 
 type ParamVar struct {
-	name  string
-	field *WasmField
-	lang  LanguageText
+	name      string
+	field     *WasmField
+	lang      LanguageText
+	typ       *WasmMessage
+	constType string
 }
 
 func (p *ParamVar) GetName() string {
@@ -110,14 +112,29 @@ func (p *ParamVar) GetField() *WasmField {
 	return p.field
 }
 
-func newParamVar(f *WasmField) *ParamVar {
+func NewParamVar(f *WasmField, t *WasmMessage) *ParamVar {
 	return &ParamVar{
-		name:  f.GetWasmFieldName(),
+		name:  f.GetName(),
 		field: f,
+		typ:   t,
 	}
 }
 
+// NewParamVarConstant returns a ParamVar which has a simple constant as its type.
+// This should be one of the base wasm types, like "TYPE_INT32".  The return constant
+// will not have a formal name.
+func NewParamVarConstant(typeName string) *ParamVar {
+	return &ParamVar{constType: typeName}
+}
+
+func (p *ParamVar) GetTyp() *WasmMessage {
+	return p.typ
+}
+
 func (p *ParamVar) TypeFromProto() string {
+	if p.constType != "" {
+		return p.constType
+	}
 	return p.field.GetType().String()
 }
 
@@ -133,9 +150,10 @@ func (p *ParamVar) IsStrictWasmType() bool {
 	return false
 }
 
-func (p *ParamVar) IsWasmType() bool {
+func (p *ParamVar) IsParigotType() bool {
 	switch p.field.GetType().String() {
-	case "TYPE_STRING", "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE", "TYPE_BOOL":
+	case "TYPE_STRING", "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE", "TYPE_BOOL",
+		"TYPE_BYTES", "TYPE_BYTE":
 		return true
 	}
 	return false
@@ -178,9 +196,17 @@ func newOutputParam(protoName string, name string, parent *WasmMethod, finder Fi
 	result.typ = m
 	result.paramVar = make([]*ParamVar, len(m.GetField()))
 	for i, f := range m.GetField() {
-		result.paramVar[i] = newParamVar(f)
+		result.paramVar[i] = newParamVarWithType(f, protoName, name, finder)
 	}
 	return result
+}
+
+func newParamVarWithType(field *WasmField, protoName string, name string, f Finder) *ParamVar {
+	m := f.FindMessageByName(protoName, name, nil)
+	if m == nil {
+		log.Fatalf("unable to find type %s for output parameter", name)
+	}
+	return NewParamVar(field, m)
 }
 
 func removeQuotes(s string) string {
