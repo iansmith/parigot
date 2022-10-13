@@ -52,8 +52,8 @@ func (g *GoGen) NeedsLocators() bool {
 	return true
 }
 
-func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo, loc []string) ([]*util.OutputFile, error) {
-	return codegen.BasicGenerate(g, t, info, loc)
+func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo) ([]*util.OutputFile, error) {
+	return codegen.BasicGenerate(g, t, info)
 }
 
 func (g *GoGen) LanguageText() codegen.LanguageText {

@@ -61,7 +61,7 @@ $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
-	cp g/parigot/abi/abihelper.go $(ABI_GO_HELPER)
+	mv g/parigot/abi/abihelper.go $(ABI_GO_HELPER)
 
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
 	@echo

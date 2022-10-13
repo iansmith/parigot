@@ -103,7 +103,7 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 				if err != nil {
 					return nil, err
 				}
-				file, err := generator.Generate(t, info, []string{})
+				file, err := generator.Generate(t, info)
 				if err != nil {
 					return nil, err
 				}

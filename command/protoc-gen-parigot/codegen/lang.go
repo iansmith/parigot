@@ -13,7 +13,7 @@ import (
 // the same way.
 type Generator interface {
 	Process(proto *descriptorpb.FileDescriptorProto) error
-	Generate(t *template.Template, g *GenInfo, locators []string) ([]*util.OutputFile, error)
+	Generate(t *template.Template, g *GenInfo) ([]*util.OutputFile, error)
 	TemplateName() []string
 	FuncMap() template.FuncMap
 	GeneratingMessage() []string

@@ -1,4 +1,51 @@
 baseURL = 'http://parigot.github.io/'
 languageCode = 'en-us'
 title = 'Parigot Blog and Docs'
-theme = "cactus"
+theme = "beautifulhugo-master"
+
+DefaultContentLanguage = "en"
+pygmentsStyle = "trac"
+pygmentsUseClasses = true
+pygmentsCodeFences = true
+pygmentsCodefencesGuessSyntax = true
+
+[Params]
+#  homeTitle = "Beautiful Hugo Theme" # Set a different text for the header on the home page
+subtitle = "An operating system for microservices"
+mainSections = ["doc","internal","posts"]
+dateFormat = "January 2, 2006"
+commit = false
+rss = true
+comments = true
+readingTime = true
+wordCount = true
+useHLJS = true
+socialShare = true
+delayDisqus = true
+showRelatedPosts = true
+
+[Author]
+# Set only your "username" for default hosts and full URLs otherwise (e.g., "https://MyGitLab.org/username")
+name = "Ian Smith"
+email = "iansmith@parigot.info"
+github = "iansmith"
+gitlab = "ianster"
+bitbucket = "username"
+twitter = "iansmith"
+reddit = "username"
+linkedin = "iansmith"
+
+[[menu.main]]
+name = "Blog"
+url = ""
+weight = 2
+
+[[menu.main]]
+identifier = "doc"
+name = "Docs"
+weight = 3
+
+[[menu.main]]
+identifier = "internal"
+name = "Internal"
+weight = 3

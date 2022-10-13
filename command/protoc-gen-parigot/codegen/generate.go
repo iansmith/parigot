@@ -14,7 +14,7 @@ import (
 // GenInfo to have been created and filled out prior to arriving here.  Because of
 // the chaining api, t actually is represents _all_ the templates (not just one) that
 // are associated with generator g.   This is called once per .proto file processed.
-func BasicGenerate(g Generator, t *template.Template, info *GenInfo, loc []string) ([]*util.OutputFile, error) {
+func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.OutputFile, error) {
 	// run the loop for the templates
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
