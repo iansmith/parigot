@@ -21,7 +21,7 @@ type {{$serviceName}}Proxy struct {
 }
 
 {{- range $svc.ServiceDescriptorProto.GetWasmMethod}}
-{{ $methodName := .GetName }}
+{{ $methodName := .GetTypeName }}
 func (proxy *{{$serviceName}}Proxy) {{ $methodName }}({{inputParamNameSet $packageName .}}) ({{outputTypeName .}},error){
         {{ $inEmpty := isInputEmpty .}}
         {{ $outEmpty := isOutputEmpty .}}

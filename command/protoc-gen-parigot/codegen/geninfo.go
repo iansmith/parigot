@@ -55,134 +55,102 @@ func (g *GenInfo) IsAbi() bool {
 }
 
 type InputParam struct {
-	name     string
-	typ      *WasmMessage
-	paramVar []*ParamVar
-	lang     LanguageText
-	parent   *WasmMethod
+	lang   LanguageText
+	parent *WasmMethod
+	cgType *CGType
 }
 
-func (i *InputParam) GetName() string {
-	return i.name
-}
-func (i *InputParam) GetTyp() *WasmMessage {
-	return i.typ
-}
-func (i *InputParam) GetParamVar() []*ParamVar {
-	return i.paramVar
+func (i *InputParam) SetCGType(cg *CGType) {
+	if i.cgType != nil {
+		panic("attempt to replace existing cgType in input param")
+	}
+	i.cgType = cg
 }
 
-func newInputParam(protoPkg string, messageName string, parent *WasmMethod, finder Finder) *InputParam {
+func (i *InputParam) GetCGType() *CGType {
+	return i.cgType
+}
+
+func (i *InputParam) GetTypeName() string {
+	p := i.GetParent()
+	return p.MethodDescriptorProto.GetInputType()
+}
+func (i *InputParam) GetLanguage() LanguageText {
+	return i.lang
+}
+
+func (i *InputParam) GetParent() *WasmMethod {
+	return i.parent
+}
+
+func (i *InputParam) SetEmpty() {
+	i.cgType.SetEmpty()
+}
+
+func (i *InputParam) IsEmpty() bool {
+	return i.cgType.IsEmpty()
+}
+
+func newInputParam(protoPkg string, messageName string, parent *WasmMethod) *InputParam {
 	result := &InputParam{
 		parent: parent,
 	}
-	msg := finder.FindMessageByName(protoPkg, messageName, nil)
+	msg := parent.GetFinder().FindMessageByName(protoPkg, messageName, nil)
 	if msg == nil {
 		log.Fatalf("unable to find input parameter type %s", LastSegmentOfPackage(messageName))
-	}
-	result.typ = msg
-	result.paramVar = make([]*ParamVar, len(msg.GetField()))
-	for i, f := range msg.GetField() {
-		pVar := newParamVarWithType(f, protoPkg, messageName, finder)
-		result.paramVar[i] = pVar
+	} else {
+		result.cgType = NewCGTypeFromComposite(msg, parent.GetLanguage(), parent.GetFinder(), protoPkg)
 	}
 	return result
 }
 
-func (i *InputParam) IsEmpty() bool {
-	return len(i.paramVar) == 0
-}
-
 func (i *InputParam) Len() int {
-	return len(i.paramVar)
-}
-
-type ParamVar struct {
-	name      string
-	field     *WasmField
-	lang      LanguageText
-	typ       *WasmMessage
-	constType string
-}
-
-func (p *ParamVar) GetName() string {
-	return p.name
-}
-func (p *ParamVar) GetField() *WasmField {
-	return p.field
-}
-
-func NewParamVar(f *WasmField, t *WasmMessage) *ParamVar {
-	return &ParamVar{
-		name:  f.GetName(),
-		field: f,
-		typ:   t,
+	if i.cgType == nil {
+		return 0
 	}
-}
-
-// NewParamVarConstant returns a ParamVar which has a simple constant as its type.
-// This should be one of the base wasm types, like "TYPE_INT32".  The return constant
-// will not have a formal name.
-func NewParamVarConstant(typeName string) *ParamVar {
-	return &ParamVar{constType: typeName}
-}
-
-func (p *ParamVar) GetTyp() *WasmMessage {
-	return p.typ
-}
-
-func (p *ParamVar) TypeFromProto() string {
-	if p.constType != "" {
-		return p.constType
-	}
-	return p.field.GetType().String()
-}
-
-func (p *ParamVar) Formal() string {
-	return p.name
-}
-
-func (p *ParamVar) IsStrictWasmType() bool {
-	switch p.field.GetType().String() {
-	case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
-		return true
-	}
-	return false
-}
-
-func (p *ParamVar) IsParigotType() bool {
-	switch p.field.GetType().String() {
-	case "TYPE_STRING", "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE", "TYPE_BOOL",
-		"TYPE_BYTES", "TYPE_BYTE":
-		return true
-	}
-	return false
+	return 1
 }
 
 type OutputParam struct {
-	name     string
-	typ      *WasmMessage
-	paramVar []*ParamVar
-	lang     LanguageText
-	parent   *WasmMethod
-}
-
-func (o *OutputParam) GetName() string {
-	return o.name
-}
-func (o *OutputParam) GetTyp() *WasmMessage {
-	return o.typ
-}
-func (o *OutputParam) GetParamVar() []*ParamVar {
-	return o.paramVar
+	lang   LanguageText
+	parent *WasmMethod
+	cgType *CGType
 }
 
 func (o *OutputParam) IsEmpty() bool {
-	return len(o.paramVar) == 0
+	return o.cgType.IsEmpty()
+}
+
+func (o *OutputParam) GetCGType() *CGType {
+	return o.cgType
+}
+
+func (o *OutputParam) GetLanguage() LanguageText {
+	return o.lang
+}
+
+func (o *OutputParam) SetEmpty() {
+	o.cgType.SetEmpty()
+}
+
+func (o *OutputParam) SetCGType(c *CGType) {
+	if o.cgType != nil {
+		panic("attempt to setCGType on an output param with it already set")
+	}
+	o.cgType = c
+}
+
+func (o *OutputParam) GetTypeName() string {
+	p := o.GetParent()
+	return p.MethodDescriptorProto.GetOutputType()
+}
+
+func (o *OutputParam) GetParent() *WasmMethod {
+	return o.parent
 }
 
 func (o *OutputParam) IsMultipleReturn() bool {
-	return len(o.paramVar) > 1
+	return false
 }
 
 func newOutputParam(protoName string, name string, parent *WasmMethod, finder Finder) *OutputParam {
@@ -193,20 +161,7 @@ func newOutputParam(protoName string, name string, parent *WasmMethod, finder Fi
 	if m == nil {
 		log.Fatalf("unable to find type %s for output parameter", name)
 	}
-	result.typ = m
-	result.paramVar = make([]*ParamVar, len(m.GetField()))
-	for i, f := range m.GetField() {
-		result.paramVar[i] = newParamVarWithType(f, protoName, name, finder)
-	}
 	return result
-}
-
-func newParamVarWithType(field *WasmField, protoName string, name string, f Finder) *ParamVar {
-	m := f.FindMessageByName(protoName, name, nil)
-	if m == nil {
-		log.Fatalf("unable to find type %s for output parameter", name)
-	}
-	return NewParamVar(field, m)
 }
 
 func removeQuotes(s string) string {
@@ -217,25 +172,6 @@ func removeQuotes(s string) string {
 	}
 	return result
 }
-
-//func (g *GenInfo) findMessageByName(n string) *WasmMessage {
-//	for _, m := range g.wasmMessage {
-//		log.Printf("comparing %s to %s", m.GetFullName(), n)
-//		if m.GetFullName() == n {
-//			return m
-//		}
-//	}
-//	// why do they do this SOME of the time?
-//	if len(n) > 0 && n[0] == '.' {
-//		for _, m := range g.wasmMessage {
-//			log.Printf("comparing %s to %s", m.GetFullName(), n[1:])
-//			if m.GetFullName() == n[1:] {
-//				return m
-//			}
-//		}
-//	}
-//	return nil
-//}
 
 type ServiceRecord struct {
 	wasmName     string
@@ -291,6 +227,9 @@ func (g *GenInfo) AddMessageType(wasmName, protoPackage, goPackage string, messa
 }
 func (g *GenInfo) AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService) {
 	g.finder.AddServiceType(wasmName, protoPackage, goPackage, service)
+}
+func (g *GenInfo) AddressingNameFromMessage(currentPkg string, message *WasmMessage) string {
+	return g.finder.AddressingNameFromMessage(currentPkg, message)
 }
 
 func (g *GenInfo) SetReqAndFile(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDescriptorProto) {

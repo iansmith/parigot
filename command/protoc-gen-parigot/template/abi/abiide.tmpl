@@ -14,7 +14,7 @@ package abi
 
 {{ range .info.Service }}
 {{- range .GetWasmMethod}}
-    func {{.GetName}}({{.AllInputWithFormal false}}) {{.OutType}} {
+    func {{.GetTypeName}}({{.AllInputWithFormal false}}) {{.OutType}} {
 {{- if .NotEmptyOutput }}
         return {{.OutZeroValue -}}
 {{end }}

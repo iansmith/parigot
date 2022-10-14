@@ -15,6 +15,21 @@ import (
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
+// Functions with complex inputs
+{{- range .info.Service }}
+{{- range .GetWasmMethod}}
+{{- if .HasComplexParam}}
+func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}} {
+{{- if .NotEmptyOutput}}
+    return impl.{{.GetTypeName}}({{ .AllInputWasmToGoImpl }})
+{{ else }}
+    impl.{{.GetTypeName}}({{.AllInputWasmToGoImpl}})
+{{- end }}
+}
+{{- end }}
+{{- end }}
+{{- end }}
+
 //
 // This interface makes it easy to avoid import cycles. The implementation is
 // provided by the container.
@@ -23,7 +38,7 @@ type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
     {{- if .HasComplexParam }}
-    {{.GetName}}(abi.{{.AllInputWithFormal true}}) {{.OutType}}
+    {{.GetTypeName}}({{.AllInputWithFormal true}}) {{.OutType}}
     {{- end}}
 {{- end}}
 {{- end}}
@@ -55,27 +70,13 @@ func strConvert(memPtr uintptr, ptr int32, length int32) string {
 	return s
 }
 
-// Functions with complex inputs
-{{- range .info.Service }}
-{{- range .GetWasmMethod}}
-{{- if .HasComplexParam}}
-func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}} {
-{{- if .NotEmptyOutput}}
-    return impl.{{.GetName}}({{ .AllInputWasmToGoImpl }})
-{{ else }}
-    impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
-{{- end }}
-}
-{{- end }}
-{{- end }}
-{{- end }}
 
 func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 // Functions with complex inputs
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .HasComplexParam}}
-result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}"]=wasmtime.WrapFunc(store, impl.{{.GetName}})
+result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}"]=wasmtime.WrapFunc(store, impl.{{.GetTypeName}})
 {{- end }}
 {{- end }}
 {{- end }}

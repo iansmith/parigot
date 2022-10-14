@@ -19,7 +19,9 @@ const (
 )
 
 var abiFuncMap = template.FuncMap{}
-var resultFile = []string{".p.go", "null.p.go", "helper.go"}
+
+// var resultFile = []string{".p.go", "null.p.go", "helper.go"}
+var resultFile = []string{"helper.go"}
 
 type AbiGen struct {
 	finder codegen.Finder
@@ -39,12 +41,10 @@ func (a *AbiGen) Process(proto *descriptorpb.FileDescriptorProto) error {
 	return nil
 }
 
-var text = []string{"fake abi for ide into ", "abi function declarations into",
-	"helpers for abi implementation of functions into"}
-
-func (a *AbiGen) NeedsLocators() bool {
-	return false
-}
+// var text = []string{"fake abi for ide into ", "abi function declarations into",
+//
+//	"helpers for abi implementation of functions into"}
+var text = []string{"helpers for abi implementation of functions into"}
 
 func (a *AbiGen) GeneratingMessage() []string {
 	return text
@@ -59,12 +59,13 @@ func (a *AbiGen) Generate(t *template.Template, info *codegen.GenInfo) ([]*util.
 }
 
 func (a *AbiGen) TemplateName() []string {
-	return []string{tinygo, ide, helper}
-
+	//return []string{tinygo, ide, helper}
+	return []string{helper}
 }
 func (a *AbiGen) FuncMap() template.FuncMap {
 	return abiFuncMap
 }
+
 func (a *AbiGen) LanguageText() codegen.LanguageText {
 	return a.lang
 }
