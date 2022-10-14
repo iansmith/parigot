@@ -74,7 +74,6 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 	for _, s := range result.Service() {
 		for _, m := range s.GetWasmMethod() {
 			in := newInputParam(result.GetFile().GetPackage(), m.GetInputType(), m)
-			in.lang = lang
 			out := newOutputParam(result.GetFile().GetPackage(), m.GetOutputType(), m, result)
 			out.lang = lang
 			m.input = in

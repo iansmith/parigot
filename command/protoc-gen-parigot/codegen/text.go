@@ -39,8 +39,9 @@ type LanguageText interface {
 	// BasicTypeToString returns the language specific version of the input
 	// or panics because it does not know how.  The calller should insure
 	// that the value sent to this function is in fact a basic type like
-	// TYPE_STRING or TYPE_INT32.
-	BasicTypeToString(string) string
+	// TYPE_STRING or TYPE_INT32.  If the second parameter is true, this
+	// function panics on unknown strings, which is usually what you want.
+	BasicTypeToString(string, bool) string
 }
 
 // AbiLanguageText is only for methods that are used by the ABI.  Since the ABI is currently

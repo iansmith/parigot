@@ -18,13 +18,19 @@ package abi
 
 
 //
-// These functions have the true function name at the WASM level. Implemented
-// by the container.
+// These functions have the true function name at the WASM level or are a stub because
+// the inputs/outputs need to be decoded before calling the true implementation.
+// Implementation of these ABI calls is by the container.
 //
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+{{if .RequiresDecode}}
+    //go:wasm-module {{.GetParent.GetWasmServiceName}}
+    func {{.GetWasmMethodName}}_stub({{.AllInputWithFormalWasmLevel true}}) {{.OutType}}
+{{else}}
     //go:wasm-module {{.GetParent.GetWasmServiceName}}
     func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}}
+{{end}}
 {{end }}
 {{end}}
 //
@@ -38,17 +44,15 @@ package abi
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{- if .NoComplexParam}}
-{{- if .NoComplexOutput }}
+{{- if .NoDecodeRequired}}
     func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}} {
 {{- if .NotEmptyOutput}}
-        return {{.GetWasmMethodName}}_({{.AllInputWithFormal true}})
+        return {{.GetWasmMethodName}}_({{.AllInputFormal}})
 {{ else }}
          {{.GetWasmMethodName}}_({{.AllInputFormal}})
 {{- end }}
     }
-{{- end }}
-{{- end }}
+{{end}}
 {{- end }}
 {{- end }}
 

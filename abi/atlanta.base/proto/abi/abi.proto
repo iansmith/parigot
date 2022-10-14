@@ -22,6 +22,7 @@ option go_package = "github.com/iansmith/parigot/g/abi;abi";
 option (parigot.abi) = true;
 // parigot: WasmServiceName=parigot_abi
 service Abi {
+  option(parigot.always_pull_up_parameters)=true;
   option (parigot.wasm_service_name) = "parigot_abi";
   option (parigot.no_package) = true;
   //option (parigot.pull_parameters_up) = true;
@@ -46,8 +47,7 @@ service Abi {
   }
 
   //temp
-  rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns(TinygoNotImplementedResponse){
-  }
+  rpc TinygoNotImplemented(TinygoNotImplementedRequest) returns (TinygoNotImplementedResponse);
   rpc JSNotImplemented(JSNotImplementedRequest) returns(JSNotImplementedResponse) {
   }
 }

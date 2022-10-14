@@ -20,7 +20,7 @@ const (
 
 var abiFuncMap = template.FuncMap{}
 
-var resultFile = []string{".p.go", "null.p.go", "helper.go"}
+var resultFile = []string{".p.go", "null.p.go", "helper.p.go"}
 
 type AbiGen struct {
 	finder codegen.Finder

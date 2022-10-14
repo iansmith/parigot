@@ -16,46 +16,15 @@ func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) 
 }
 
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
-	if m.GetCGOutput().IsMultipleReturn() {
-		log.Fatalf("unable to process multiple return values (%s) at this time",
-			m.GetCGOutput().GetTypeName())
-	}
-	if m.GetCGOutput().IsEmpty() {
-		return ""
-	}
-	return m.GetInputParam().GetCGType().String(m.GetParent().GetProtoPackage())
-	//if m.GetCGOutput().IsMultipleReturn() {
-	//	log.Fatalf("unable to process multiple return values (%s) at this time",
-	//		m.GetCGOutput().GetTypeName())
-	//}
-	//if m.GetCGOutput().IsEmpty() {
-	//	return ""
-	//}
-	//// for a typename (which they call a message) we have to figure out how to address the type
-	//if m.GetCGOutput().GetParamVar()[0].GetField().GetType().String() == "TYPE_MESSAGE" {
-	//	n := ""
-	//	if m.HasNoPackageOption() {
-	//		n = m.GetFinder().AddressingNameFromMessage("", m.GetCGOutput().GetTyp())
-	//	} else {
-	//		n = m.GetFinder().AddressingNameFromMessage(m.GetProtoPackage(), m.GetCGOutput().GetTyp())
-	//		//return codegen.ComputeMessageName(ourPkg, m.GetCGOutput().GetTypeMessage())
-	//	}
-	//	return n
-	//}
-	//result += g.ProtoTypeNameToLanguageTypeName(m.GetCGOutput().GetParamVar()[0].GetField().GetType().String())
-	//return result
+	return codegen.OutputType(m,
+		func(protoPkg string, method *codegen.WasmMethod, parameter *codegen.CGParameter) string {
+			return g.GetReturnValueDecl(protoPkg, method, parameter)
+		},
+		func(protoPkg string, method *codegen.WasmMethod) string {
+			return g.NoReturnValueDecl(protoPkg, method)
+		},
+	)
 }
-
-//func (g *GoText) walkInputParams(m *codegen.WasmMethod, separator string, fn func(paramVar *codegen.ParamVar) string) string {
-//	result := ""
-//	for i, p := range m.GetCGInput().GetParamVar() {
-//		result += fn(p)
-//		if i != len(m.GetCGInput().GetParamVar())-1 {
-//			result += separator
-//		}
-//	}
-//	return result
-//}
 
 func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 	result := ""
@@ -72,6 +41,17 @@ func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 // OutZeroValue should return a legal value for its type.  This value
 // is just for compilers (to keep them quiet) so the value will never be used.
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
+	if m.PullParameters() {
+		// xxx fix me, this should not be hitting codgen like this
+		exp := codegen.ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
+		if exp == nil {
+			return ""
+		}
+		if !exp.GetCGType().IsBasic() {
+			return exp.GetCGType().String(m.GetProtoPackage()) + "{}"
+		}
+		return goZeroValuesForProtoTypes(exp.GetCGType().String(""))
+	}
 	out := m.GetCGOutput()
 	if out == nil || out.IsEmpty() {
 		return ""
@@ -82,28 +62,47 @@ func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 	}
 	t := out.GetCGType()
 	if t.IsBasic() {
-		s := t.String("" /* doesn't matter for basic type*/)
-		switch s {
-		case "TYPE_STRING":
-			return "\"\""
-		case "TYPE_INT32":
-			return "int32(0)"
-		case "TYPE_INT64":
-			return "int64(0)"
-		case "TYPE_FLOAT":
-			return "float32(0.0)"
-		case "TYPE_DOUBLE":
-			return "float64(0.0)"
-		case "TYPE_BOOL":
-			return "int32(0)"
-		case "TYPE_BYTES":
-			return "[]byte{0}"
-		case "TYPE_BYTE":
-			return "byte(0)"
-		}
-		panic("unable to understand basic type " + s)
+		goZeroValuesForProtoTypes(t.String(""))
 	}
 	return t.String(m.GetProtoPackage()) + "{}"
+}
+
+func goZeroValuesForProtoTypes(s string) string {
+	switch s {
+	case "TYPE_STRING":
+		return "\"\""
+	case "TYPE_INT32":
+		return "int32(0)"
+	case "TYPE_INT64":
+		return "int64(0)"
+	case "TYPE_FLOAT":
+		return "float32(0.0)"
+	case "TYPE_DOUBLE":
+		return "float64(0.0)"
+	case "TYPE_BOOL":
+		return "int32(0)"
+	case "TYPE_BYTES":
+		return "[]byte{0}"
+	case "TYPE_BYTE":
+		return "byte(0)"
+	}
+	panic("unable to understand basic type " + s)
+}
+func (g *GoText) GetReturnValueDecl(
+	protoPkg string,
+	_ *codegen.WasmMethod,
+	p *codegen.CGParameter) string {
+	t := p.GetCGType()
+	if t.IsBasic() {
+		return g.BasicTypeToString(t.String(""), true)
+	}
+	return p.GetCGType().String(protoPkg)
+}
+
+func (g *GoText) NoReturnValueDecl(
+	_ string,
+	_ *codegen.WasmMethod) string {
+	return ""
 }
 
 func (g *GoText) GetFormalName(
@@ -184,30 +183,29 @@ func (g *GoText) GetNumberParametersUsed(
 func (g *GoText) BasicTypeToReturnExpr(s string, num int, p *codegen.CGParameter) string {
 	switch s {
 	case "TYPE_STRING":
-		fixed := g.replaceFormalName(fmt.Sprintf("memPtr"), p)
+		fixed := g.replaceFormalName(fmt.Sprintf("impl.GetMemPtr()"), p)
 		p0 := g.replaceFormalName(fmt.Sprintf("p%da", num), p)
-		p1 := g.replaceFormalName(fmt.Sprintf("p%db", num+1), p)
+		p1 := g.replaceFormalName(fmt.Sprintf("p%db", num), p)
 		allArgs := []*codegen.CGParameter{fixed, p0, p1}
 		return g.CallFuncWithArg("strConvert", allArgs)
-	case "TYPE_INT32":
-		return "int32(0)"
-	case "TYPE_INT64":
-		return "int64(0)"
-	case "TYPE_FLOAT":
-		return "float32(0.0)"
-	case "TYPE_DOUBLE":
-		return "float64(0.0)"
+	case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
+		return fmt.Sprintf("p%d", num)
 	case "TYPE_BOOL":
-		return "int32(0)"
+		return fmt.Sprintf("p%d != 0", num)
 	case "TYPE_BYTES":
-		return "[]byte{0}"
+		fixed := g.replaceFormalName(fmt.Sprintf("impl.GetMemPtr()"), p)
+		p0 := g.replaceFormalName(fmt.Sprintf("p%da", num), p)
+		p1 := g.replaceFormalName(fmt.Sprintf("p%db", num), p)
+		p2 := g.replaceFormalName(fmt.Sprintf("p%db", num), p)
+		allArgs := []*codegen.CGParameter{fixed, p0, p1, p2}
+		return g.CallFuncWithArg("bytesConvert", allArgs)
 	case "TYPE_BYTE":
 		return "byte(0)"
 	}
 	panic("unable to convert to return expr:" + s)
 }
 
-func (g *GoText) BasicTypeToString(s string) string {
+func (g *GoText) BasicTypeToString(s string, panicOnFail bool) string {
 	switch s {
 	case "TYPE_STRING":
 		return "string"
@@ -226,6 +224,9 @@ func (g *GoText) BasicTypeToString(s string) string {
 	case "TYPE_BYTE":
 		return "byte"
 	}
+	if !panicOnFail {
+		return ""
+	}
 	panic("unable to convert " + s + " to go type")
 }
 
@@ -237,13 +238,18 @@ func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFor
 		func(method *codegen.WasmMethod, _ int, parameter *codegen.CGParameter) string {
 			result := ""
 			if showFormalName {
-				result = g.GetFormalName(protoPkg, method, parameter)
+				// we only show the formal when we have on.. typically outputs don't have a formal
+				if parameter.HasFormal() {
+					result = g.GetFormalName(protoPkg, method, parameter)
+				}
 			} else {
 				result = g.GetFormalNameUnused(protoPkg, method, parameter)
 			}
-			result += g.GetFormalTypeSeparator(protoPkg, method, parameter)
+			if parameter.HasFormal() {
+				result += g.GetFormalTypeSeparator(protoPkg, method, parameter)
+			}
 			if parameter.GetCGType().IsBasic() {
-				result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, parameter))
+				result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, parameter), true)
 			} else {
 				result += g.GetCGTypeName(protoPkg, method, parameter)
 			}
@@ -260,19 +266,53 @@ func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFor
 	return result
 }
 
+const letters = "abcdefghijklmnop"
+
 func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
-	return ""
-	//count := 0
-	//result := ""
-	//for i, p := range m.GetCGInput().GetParamVar() {
-	//	result += fmt.Sprintf("p%d ", count)
-	//	result += g.ProtoTypeNameToLanguageTypeName(p.TypeFromProto())
-	//	if i != len(m.GetCGInput().GetParamVar())-1 {
-	//		result += ","
-	//	}
-	//	count++
-	//}
-	//return result
+	result := ""
+	count := 0
+	file := m.GetParent().GetParent()
+	protoPkg := file.GetPackage()
+	result += codegen.FuncParamPass(m,
+		func(method *codegen.WasmMethod, n int, parameter *codegen.CGParameter) string {
+			result := ""
+			used := 0
+			if parameter.GetCGType().IsBasic() {
+				used = g.GetNumberParametersUsed(parameter.GetCGType())
+			} else {
+				used = 1
+			}
+			for i := 0; i < used; i++ {
+				l := letters[i : i+1]
+				name := fmt.Sprintf("p%d", n)
+				if used > 1 {
+					name = fmt.Sprintf("p%d%s", n, l)
+				}
+				newCG := g.convertGoTypeToWasmType(parameter.GetCGType(), i, m.GetLanguage(), protoPkg)
+				param := codegen.NewCGParameterFromString(name, newCG)
+				result += param.GetFormalName()
+				result += g.GetFormalTypeSeparator(protoPkg, method, param)
+				if parameter.GetCGType().IsBasic() {
+					result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, param), true)
+				} else {
+					result += g.GetCGTypeName(protoPkg, method, param)
+				}
+				if i != used-1 {
+					result += g.GetFormalArgSeparator()
+				}
+			}
+			count += used
+			return result
+		},
+		func(method *codegen.WasmMethod, isInput bool, param *codegen.CGParameter) string {
+			if isInput {
+				return g.GetNoInputParams(protoPkg, method)
+			} else {
+				return g.GetNoOutputParams(protoPkg, method)
+			}
+		},
+	)
+	return result
 }
 
 func (g *GoText) replaceFormalName(newName string, parameter *codegen.CGParameter) *codegen.CGParameter {
@@ -288,7 +328,10 @@ func (g *GoText) AllInputWasmToGoImpl(method *codegen.WasmMethod) string {
 			//newParam := g.replaceFormalName(fmt.Sprintf("p%d", num), parameter)
 			//result = g.GetFormalName(protoPkg, method, newParam)
 			//result += g.GetFormalTypeSeparator(protoPkg, method, parameter)
-			return g.BasicTypeToReturnExpr(protoPkg, num, parameter)
+			if !parameter.GetCGType().IsBasic() {
+				return parameter.GetCGType().String(protoPkg) + "{}"
+			}
+			return g.BasicTypeToReturnExpr(parameter.GetCGType().String(""), num, parameter)
 		},
 		func(method *codegen.WasmMethod, isInput bool, parameter *codegen.CGParameter) string {
 			if isInput {
@@ -297,64 +340,29 @@ func (g *GoText) AllInputWasmToGoImpl(method *codegen.WasmMethod) string {
 				return g.GetNoInputParams(protoPkg, method)
 			}
 		})
+}
 
-	//if !m.PullParameters() {
-	//	//currentPackage := m.GetParent().GetProtoPackage()
-	//	//if m.HasNoPackageOption() {
-	//	//	currentPackage = ""
-	//	//}
-	//	n := m.GetCGInput().GetTypeMessage().GetTypeName()
-	//	return strings.ToLower(n[0:1])
-	//	//return n
-	//} else {
-	//	result := ""
-	//	count := 0
-	//	for i, p := range m.GetCGInput().GetParamVar() {
-	//		if p.IsStrictWasmType() {
-	//			result += fmt.Sprintf("p%d", count)
-	//		} else {
-	//			if !p.IsParigotType() {
-	//				log.Fatalf("unable to generate implementation helper code for type %s", p.TypeFromProto())
-	//			}
-	//			switch p.TypeFromProto() {
-	//			case "TYPE_STRING":
-	//				result += "strConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d)", count, count+1)
-	//			case "TYPE_BYTES":
-	//				result += "bytesConvert(impl.GetMemPtr()," + fmt.Sprintf("p%d,p%d,p%d)", count, count+1, count+2)
-	//			case "TYPE_BOOL":
-	//				result += fmt.Sprintf("p%d!=0", count)
-	//			}
-	//		}
-	//		count += 1
-	//		if i != len(m.GetCGInput().GetParamVar())-1 {
-	//			result += ","
-	//		}
-	//	}
-	//	return result
-	//}
+// is the magic translation the parameter types used by the compiler
+func (g *GoText) convertGoTypeToWasmType(t *codegen.CGType, n int, l codegen.LanguageText, protoPkg string) *codegen.CGType {
+	if t.IsBasic() {
+		switch t.String("") {
+		case "TYPE_STRING":
+			// both are INT32
+			return codegen.NewCGTypeFromBasic("TYPE_INT32", l, protoPkg)
+		case "TYPE_BOOL":
+			// bools are 32 bits
+			return codegen.NewCGTypeFromBasic("TYPE_INT32", l, protoPkg)
+		case "TYPE_BYTES":
+			// all are 32 bits
+			return codegen.NewCGTypeFromBasic("TYPE_INT32", l, protoPkg)
+		case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
+			return t
+		}
+		panic("unable to convert simple type %s" + t.String(""))
+	}
+	panic("we cannot handle composite types yet in the conversion to WASM")
 }
 
 func NewGoText() *GoText {
 	return &GoText{}
-}
-
-// goZeroValue returns the simplest, empty value for the given go type.
-func goZeroValue(s string) string {
-	switch s {
-	case "string":
-		return ""
-	case "int32":
-		return "int32(0)"
-	case "int64":
-		return "int64(0)"
-	case "float32":
-		return "float32(0.0)"
-	case "float64":
-		return "float64(0.0)"
-	case "bool":
-		return "false"
-	case "[]byte":
-		return "[]byte{}"
-	}
-	panic("unable to get zero value for go type " + s)
 }

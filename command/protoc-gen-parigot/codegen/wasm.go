@@ -18,11 +18,9 @@ func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService) *Wa
 		log.Fatalf("method data missing: name='%s', inputType='%s', outputType='%s'",
 			desc.GetName(), desc.GetInputType(), desc.GetOutputType())
 	}
-
-	// input and output details have to be computed later because we don't have the full
-	// set of types when NewWasmMethod is called
-	//meth.input = newInputParam(w.GetParent().GetPackage(), desc.GetInputType(), meth, f)
-	//meth.output = newOutputParam(w.GetParent().GetPackage(), desc.GetOutputType(), meth, f)
+	if meth.GetOptions() != nil {
+		meth.pullParameters = pullParamsOption(meth.GetOptions().String())
+	}
 	return meth
 }
 func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorpb.DescriptorProto,
@@ -37,7 +35,6 @@ func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorp
 	}
 	if message.GetOptions() != nil {
 		m.noPackage = hasNoPackageOption(message.GetOptions().String())
-		m.pullParameters = hasNoPackageOption(message.GetOptions().String())
 	}
 	return m
 }

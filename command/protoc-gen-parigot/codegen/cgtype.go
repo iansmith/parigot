@@ -2,9 +2,8 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 )
-
-var danger = &CGType{}
 
 type CGType struct {
 	composite *WasmMessage
@@ -20,6 +19,35 @@ func NewCGTypeFromComposite(m *WasmMessage, l LanguageText, f Finder,
 	return &CGType{composite: m, lang: l, protoPkg: protoPackage, finder: f, hasValue: true}
 }
 
+func NewCGTypeFromField(f *WasmField, m *WasmMethod, protoPkg string) *CGType {
+	nameOfFieldType := f.GetType().String()
+	t := m.GetLanguage().BasicTypeToString(nameOfFieldType, false)
+	if t == "" {
+		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfFieldType, nil)
+		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+	}
+	return NewCGTypeFromBasic(nameOfFieldType, m.GetLanguage(), protoPkg)
+}
+func NewCGTypeFromInput(in *InputParam, m *WasmMethod, protoPkg string) *CGType {
+	nameOfInputType := in.GetTypeName()
+	t := m.GetLanguage().BasicTypeToString(nameOfInputType, false)
+	if t == "" {
+		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfInputType, nil)
+		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+	}
+	return NewCGTypeFromBasic(nameOfInputType, m.GetLanguage(), protoPkg)
+}
+
+func NewCGTypeFromOutput(out *OutputParam, m *WasmMethod, protoPkg string) *CGType {
+	nameOfOutType := out.GetTypeName()
+	t := m.GetLanguage().BasicTypeToString(nameOfOutType, false)
+	if t == "" {
+		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfOutType, nil)
+		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+	}
+	return NewCGTypeFromBasic(nameOfOutType, m.GetLanguage(), protoPkg)
+}
+
 func (c *CGType) HasValueBeenSet() bool {
 	return c.hasValue
 }
@@ -33,6 +61,17 @@ func (c *CGType) SetEmpty() {
 
 func (c *CGType) GetCompositeType() *WasmMessage {
 	return c.composite
+}
+func (c *CGType) IsStrictWasmType() bool {
+	if !c.IsBasic() {
+		return false
+	}
+	switch c.String("") {
+	case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *CGType) IsEmpty() bool {
@@ -54,13 +93,12 @@ func (c *CGType) ShortName() string {
 		return ""
 	}
 	if c.IsBasic() {
-		return c.lang.BasicTypeToString(c.basic)
+		return c.lang.BasicTypeToString(c.basic, true)
 	}
 	return c.composite.GetWasmMessageName()
 }
 
-func NewCGTypeFromBasic(tname string, l LanguageText, f Finder,
-	protoPkg string) *CGType {
+func NewCGTypeFromBasic(tname string, l LanguageText, protoPkg string) *CGType {
 	return &CGType{composite: nil, lang: l, basic: tname, protoPkg: protoPkg, hasValue: true}
 }
 func (c *CGType) IsBasic() bool {
@@ -86,7 +124,7 @@ func GetCGTypeForInputParam(i *InputParam) *CGType {
 	lang := i.GetLanguage()
 	for _, s := range parigotTypeList {
 		if inputName == s {
-			cgT := NewCGTypeFromBasic(s, lang, finder, protoPkg)
+			cgT := NewCGTypeFromBasic(s, lang, protoPkg)
 			return cgT
 		}
 	}
@@ -111,7 +149,7 @@ func GetCGTypeForOutputParam(o *OutputParam) *CGType {
 	lang := o.GetLanguage()
 	for _, s := range parigotTypeList {
 		if outputName == s {
-			cgT := NewCGTypeFromBasic(s, lang, finder, protoPkg)
+			cgT := NewCGTypeFromBasic(s, lang, protoPkg)
 			return cgT
 		}
 	}
@@ -135,12 +173,25 @@ type CGParameter struct {
 func NewCGParameterNoFormal(cgType *CGType) *CGParameter {
 	return &CGParameter{noFormal: true, cgType: cgType}
 }
+func (c *CGParameter) HasFormal() bool {
+	return !c.noFormal
+}
 func NewCGParameterFromString(s string, cgType *CGType) *CGParameter {
 	return &CGParameter{name: s, cgType: cgType}
 }
 
-func NewCGParameterFromField(f *WasmField, cgType *CGType) *CGParameter {
-	return &CGParameter{field: f, cgType: cgType}
+func NewCGParameterFromField(f *WasmField, m *WasmMethod, protoPkg string) *CGParameter {
+	// note that the type here is computed from the point of view of the protoPkg
+	cgType := NewCGTypeFromField(f, m, protoPkg)
+	formal := ""
+	name := cgType.String(protoPkg)
+	if name == "" {
+		s := cgType.String(protoPkg)
+		formal = strings.ToLower(s[0:1])
+	} else {
+		formal = f.GetName()
+	}
+	return NewCGParameterFromString(formal, cgType)
 }
 
 func (c *CGParameter) GetCGType() *CGType {

@@ -17,8 +17,10 @@ const (
 
 	serviceOptionNoPackage        = "543211"
 	serviceOptionAlwaysPullParams = "543212"
-	messageOptionNoPackage        = "543211"
-	messageOptionAlwaysPullParams = "543212"
+
+	methodOptionPullParams = "543211"
+
+	messageOptionNoPackage = "543211"
 )
 
 // options to map converts the text string that is the options for a given level
@@ -83,19 +85,9 @@ func isWasmServiceName(s string) (string, bool) {
 	return isStringOptionPresent(s, serviceOptionForWasmName)
 }
 
-// isWasmMethodName looks for the option wasm_method_name inside the given string.
-func isWasmMethodName(s string) (string, bool) {
-	return isStringOptionPresent(s, methodOptionForWasmName)
-}
-
 // isWasmMessageName looks for the option wasm_message_name inside the given string.
 func isWasmMessageName(s string) (string, bool) {
 	return isStringOptionPresent(s, messageOptionForWasmName)
-}
-
-// isWasmFieldName looks for the option wasm_field_name inside the given string.
-func isWasmFieldName(s string) (string, bool) {
-	return isStringOptionPresent(s, fieldOptionForWasmName)
 }
 
 func hasNoPackageOption(s string) bool {
@@ -105,5 +97,10 @@ func hasNoPackageOption(s string) bool {
 
 func alwaysPullParamsOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullParams)
+	return b
+}
+
+func pullParamsOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, methodOptionPullParams)
 	return b
 }

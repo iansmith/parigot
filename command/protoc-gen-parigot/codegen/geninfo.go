@@ -94,13 +94,9 @@ func (i *InputParam) IsEmpty() bool {
 func newInputParam(protoPkg string, messageName string, parent *WasmMethod) *InputParam {
 	result := &InputParam{
 		parent: parent,
+		lang:   parent.GetLanguage(),
 	}
-	msg := parent.GetFinder().FindMessageByName(protoPkg, messageName, nil)
-	if msg == nil {
-		log.Fatalf("unable to find input parameter type %s", LastSegmentOfPackage(messageName))
-	} else {
-		result.cgType = NewCGTypeFromComposite(msg, parent.GetLanguage(), parent.GetFinder(), protoPkg)
-	}
+	result.cgType = NewCGTypeFromInput(result, parent, protoPkg)
 	return result
 }
 

@@ -13,6 +13,9 @@ type WasmMethod struct {
 	parent         *WasmService
 	input          *InputParam
 	output         *OutputParam
+	// this value doesn't matter if your parent service has the "always"
+	// pull parameters flag set
+	pullParameters bool
 }
 
 func (w *WasmMethod) HasNoPackageOption() bool {
@@ -83,6 +86,13 @@ func (m *WasmMethod) EmtpyOutput() bool {
 	return m.GetCGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
+	if m.PullParameters() {
+		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
+		if exp == nil {
+			return false
+		}
+		return !exp.GetCGType().IsEmpty()
+	}
 	t := m.GetCGOutput().GetCGType()
 	if t == nil {
 		return false
@@ -98,6 +108,16 @@ func (m *WasmMethod) GetOutputParam() *OutputParam {
 func (m *WasmMethod) OutType() string {
 	return m.GetParent().GetLanguage().OutType(m)
 }
+
+func (m *WasmMethod) RequiresDecode() bool {
+	x := m.HasComplexParam()
+	y := m.HasComplexOutput()
+	return x || y
+}
+func (m *WasmMethod) NoDecodeRequired() bool {
+	return !m.RequiresDecode()
+}
+
 func (m *WasmMethod) AllInputWithFormalWasmLevel(showFormalName bool) string {
 	return m.GetParent().GetLanguage().(AbiLanguageText).AllInputWithFormalWasmLevel(m, showFormalName)
 }
@@ -117,23 +137,36 @@ func (m *WasmMethod) NoComplexParam() bool {
 	if p.IsEmpty() {
 		return true
 	}
-	c := m.GetInputParam().GetCGType()
-	n := m.GetNumberParametersUsed(c)
-	return n == 1
+	if m.PullParameters() {
+		param := ExpandParamInfoForInput(m.GetCGInput(), m, m.GetProtoPackage())
+		if param == nil || len(param) == 0 {
+			return true
+		}
+		for _, exp := range param {
+			if !exp.GetCGType().IsStrictWasmType() {
+				return false
+			}
+		}
+		return true
+	} else {
+		c := m.GetInputParam().GetCGType()
+		return c.IsStrictWasmType()
+	}
 }
 
 func (m *WasmMethod) GetNumberParametersUsed(c *CGType) int {
 	return m.GetLanguage().GetNumberParametersUsed(c)
 }
 func (m *WasmMethod) NoComplexOutput() bool {
-	return true
+	if m.PullParameters() {
+		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
+		return exp == nil || exp.GetCGType().IsStrictWasmType()
+	} else {
+		return m.GetCGOutput().GetCGType().IsStrictWasmType()
+	}
 }
 
 func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
-	if m.PullParameters() {
-		//log.Printf("trying to get to pulling params: %s,%s", m.GetName(),
-		//	m.GetCGInput().GetCGType().String(m.GetProtoPackage()))
-	}
 	return m.GetLanguage().AllInputWithFormal(m, showFormalName)
 }
 
@@ -146,7 +179,10 @@ func (m *WasmMethod) GetFormalArgSeparator() string {
 }
 
 func (m *WasmMethod) PullParameters() bool {
-	return m.parent.AlwaysPullParameters()
+	if m.parent.AlwaysPullParameters() {
+		return true
+	}
+	return m.pullParameters
 }
 
 func (m *WasmMethod) AllInputFormal() string {

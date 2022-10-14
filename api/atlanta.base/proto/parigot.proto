@@ -5,11 +5,12 @@ option go_package="github.com/iansmith/parigot/api/parigot;parigot";
 
 package parigot;
 extend google.protobuf.ServiceOptions {
-  optional bool pull_parameters_up = 543212;
+  optional bool always_pull_up_parameters = 543212;
   optional bool no_package = 543211;
   optional string wasm_service_name = 543210;
 }
 extend google.protobuf.MethodOptions {
+  optional bool pull_parameters_up = 543211;
   optional string wasm_method_name = 543210;
 }
 extend google.protobuf.FieldOptions {

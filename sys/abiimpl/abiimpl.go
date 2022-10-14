@@ -45,3 +45,8 @@ func (a *AbiImpl) Locate(team, service string) int64 {
 	os.Exit(1)
 	return int64(0)
 }
+
+func (a *AbiImpl) Dispatch(sid int64, method string, blob []byte) {
+	print("Dispatch")
+	os.Exit(1)
+}

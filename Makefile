@@ -56,14 +56,14 @@ $(REP_ABI): $(ABI_PROTO) $(PGP)
 	@echo "\033[92mgenerating parigot ABI =============================================================================\033[0m"
 	buf generate
 
-ABI_GO_HELPER=command/runner/g/abihelper.go
+ABI_GO_HELPER=command/runner/g/abihelper.p.go
 RUNNER_SRC=command/runner/*.go
 RUNNER=build/runner
 $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
-	mv g/parigot/abi/abihelper.go $(ABI_GO_HELPER)
+	mv g/parigot/abi/abihelper.p.go $(ABI_GO_HELPER)
 
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
 	@echo

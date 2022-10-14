@@ -13,7 +13,6 @@ type WasmMessage struct {
 	lang            LanguageText
 	finder          Finder
 	noPackage       bool
-	pullParameters  bool
 }
 
 func (w *WasmMessage) GetAddressableName(from string) string {
@@ -22,9 +21,6 @@ func (w *WasmMessage) GetAddressableName(from string) string {
 
 func (w *WasmMessage) GetFinder() Finder {
 	return w.finder
-}
-func (w *WasmMessage) AlwaysPullParameters() bool {
-	return w.pullParameters
 }
 
 func (w *WasmMessage) GetGoPackage() string {
@@ -61,7 +57,8 @@ func (w *WasmMessage) GetWasmMessageName() string {
 
 // GetField returns all the wasm field contained inside this message.
 func (m *WasmMessage) GetField() []*WasmField {
-	return m.field
+	field := m.field
+	return field
 }
 
 // GetParent returns the parent of this wasm message, which is a descriptor
