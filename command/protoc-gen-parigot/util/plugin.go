@@ -75,6 +75,16 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGenerato
 	return &req
 }
 
+func OutputTerminal(output []*OutputFile) {
+	for _, file := range output {
+		fmt.Fprintf(os.Stdout, "*** %s\n", file.name)
+		_, err := io.Copy(os.Stdout, &file.buf)
+		if err != nil {
+			log.Fatalf("unable to copy to output:%v", err)
+		}
+	}
+}
+
 func MarshalResponseAndExit(message proto.Message) {
 	b, err := proto.Marshal(message)
 	if err != nil {

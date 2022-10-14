@@ -8,3 +8,5 @@ Firecracker is used by/integrated with (in alphabetical order): appfleet , conta
 Key competitor Northflank
 Related ideas UniK
 
+https://bit.dev  --- check on this
+https://javascript.plainenglish.io/from-typescript-to-webassembly-in-few-steps-c76f98f00632

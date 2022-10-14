@@ -9,12 +9,13 @@
 
 package abi
 
-    // Because this is just to provide the IDE with "bogus" information, we intentionally
-    // do not use the wasm name for methods.
+// Because this is just to provide the IDE with "bogus" information, and we are
+// generating go, we intentionally do not use the wasm name for methods.  These
+// names are usually lower case so would not be accessible in go.
 
 {{ range .info.Service }}
 {{- range .GetWasmMethod}}
-    func {{.GetTypeName}}({{.AllInputWithFormal false}}) {{.OutType}} {
+    func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}} {
 {{- if .NotEmptyOutput }}
         return {{.OutZeroValue -}}
 {{end }}

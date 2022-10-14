@@ -26,6 +26,7 @@ var abiOnlyMap = map[string]codegen.Generator{}
 
 var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
+var terminal = flag.Bool("t", false, "dump the generated code to stdout instead of using protobuf format")
 
 func main() {
 	flag.Parse()
@@ -52,7 +53,7 @@ func main() {
 		SupportedFeatures: nil,
 	}
 	// generate code, at this point language neutral
-	files, err := generateNeutral(info, genReq)
+	file, err := generateNeutral(info, genReq)
 
 	// set up the response going back out stdout to the protocol buffers compiler
 	// response with an error filled in or a set of output files
@@ -60,15 +61,17 @@ func main() {
 		resp.Error = new(string)
 		*resp.Error = err.Error()
 	} else {
-		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(files))
-		for i, f := range files {
+		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(file))
+		for i, f := range file {
 			resp.File[i] = f.ToGoogleCGResponseFile()
 		}
 	}
 
 	// send response and exit if not loading from disk
-	if *load == "" {
+	if *load == "" && !*terminal {
 		util.MarshalResponseAndExit(&resp)
+	} else {
+		util.OutputTerminal(file)
 	}
 }
 

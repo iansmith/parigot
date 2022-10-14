@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"io"
-	"log"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
@@ -82,53 +81,5 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 			m.output = out
 		}
 	}
-	debugDump(result, func(param *CGParameter) string {
-		return param.String(result.GetFile().GetPackage()) + "\n"
-	})
 	return result
-}
-
-func debugDump(result *GenInfo, fn func(parameter *CGParameter) string) {
-	for _, svc := range result.Service() {
-		protoPackage := svc.GetParent().GetPackage()
-		for _, method := range svc.GetWasmMethod() {
-			in := method.GetInputParam()
-			out := method.GetOutputParam()
-
-			// check the types to make sure they are not there
-			if in.GetCGType() == nil {
-				in.cgType = GetCGTypeForInputParam(in)
-			}
-			if out.GetCGType() == nil {
-				out.cgType = GetCGTypeForOutputParam(out)
-			}
-			inParam := NewCGParameterFromString(in.GetCGType())
-			_ = NewCGParameterFromString(out.GetCGType())
-
-			call := ""
-			call += fmt.Sprintf("%s(", method.GetName())
-			if !in.IsEmpty() {
-				call += inParam.GetCGType().String(protoPackage)
-			}
-			call += fmt.Sprintf(") ")
-			if !out.IsEmpty() {
-				call += out.GetCGType().String(protoPackage)
-			}
-			if !in.IsEmpty() {
-				if !in.GetCGType().IsBasic() {
-					comp := in.GetCGType().GetCompositeType()
-					if len(comp.GetField()) != 0 {
-						call += fmt.Sprintf("\n\t---> %s\n", comp.GetName())
-						for i, f := range comp.GetField() {
-							log.Printf("i is %d", i)
-							cgt := NewCGTypeFromBasic(f.GetType().String(), svc.GetLanguage(), svc.GetFinder(), protoPackage)
-							cgp := NewCGParameterFromField(f, cgt)
-							call += fn(cgp)
-						}
-					}
-				}
-			}
-			log.Printf("%s", call)
-		}
-	}
 }

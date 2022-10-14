@@ -40,7 +40,7 @@ package abi
 {{- range .GetWasmMethod}}
 {{- if .NoComplexParam}}
 {{- if .NoComplexOutput }}
-    func {{.GetTypeName}}({{.AllInputWithFormal true}}) {{.OutType}} {
+    func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}} {
 {{- if .NotEmptyOutput}}
         return {{.GetWasmMethodName}}_({{.AllInputWithFormal true}})
 {{ else }}

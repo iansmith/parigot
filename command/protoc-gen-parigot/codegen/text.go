@@ -5,9 +5,6 @@ package codegen
 // an implementation of this to port to a new language.
 
 type LanguageText interface {
-	// ProtoTypeNameToLanguageTypeName takes something like "TYPE_STRING", "TYPE_INT32" or "TYPE_BOOL"
-	// and convert it to the appropriate string for the language.
-	ProtoTypeNameToLanguageTypeName(string) string
 	// AllInputWithFormal returns the input variables of the method with the option to change their
 	// formally declared name to "_".  Returns things like (in go):
 	// foo typeOfFoo, bar typeOfBar
@@ -30,6 +27,20 @@ type LanguageText interface {
 	// parameters not matching the proto level.  Returns things like (in go):
 	// p0 int32, p1 int32, p3 float64
 	AllInputNumberedParam(m *WasmMethod) string // xxx dead code?
+
+	// Given a particular language, how many parameters on WASM does it take
+	// to encode this type
+	GetNumberParametersUsed(*CGType) int
+
+	// GetForalArgSeparator returns the string that separates arguments in
+	// declaration or call.
+	GetFormalArgSeparator() string
+
+	// BasicTypeToString returns the language specific version of the input
+	// or panics because it does not know how.  The calller should insure
+	// that the value sent to this function is in fact a basic type like
+	// TYPE_STRING or TYPE_INT32.
+	BasicTypeToString(string) string
 }
 
 // AbiLanguageText is only for methods that are used by the ABI.  Since the ABI is currently

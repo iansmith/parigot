@@ -47,6 +47,18 @@ func (c *CGType) IsEmpty() bool {
 	panic("attempt to query the empty status of a CGType before any value set")
 }
 
+// ShortName is very dangerous.  Almost all callers actually want String(string) because
+// it calculates the corect way to address the type. This function returns the name raw.
+func (c *CGType) ShortName() string {
+	if c.IsEmpty() {
+		return ""
+	}
+	if c.IsBasic() {
+		return c.lang.BasicTypeToString(c.basic)
+	}
+	return c.composite.GetWasmMessageName()
+}
+
 func NewCGTypeFromBasic(tname string, l LanguageText, f Finder,
 	protoPkg string) *CGType {
 	return &CGType{composite: nil, lang: l, basic: tname, protoPkg: protoPkg, hasValue: true}
@@ -57,7 +69,7 @@ func (c *CGType) IsBasic() bool {
 
 func (c *CGType) String(from string) string {
 	if c.composite == nil {
-		return c.lang.ProtoTypeNameToLanguageTypeName(c.basic)
+		return c.basic
 	}
 	addr := c.finder.AddressingNameFromMessage(from, c.composite)
 	return addr
@@ -120,8 +132,11 @@ type CGParameter struct {
 	noFormal bool
 }
 
-func NewCGParameterFromString(cgType *CGType) *CGParameter {
+func NewCGParameterNoFormal(cgType *CGType) *CGParameter {
 	return &CGParameter{noFormal: true, cgType: cgType}
+}
+func NewCGParameterFromString(s string, cgType *CGType) *CGParameter {
+	return &CGParameter{name: s, cgType: cgType}
 }
 
 func NewCGParameterFromField(f *WasmField, cgType *CGType) *CGParameter {

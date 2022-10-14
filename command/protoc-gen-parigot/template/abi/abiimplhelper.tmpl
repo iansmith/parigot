@@ -10,7 +10,7 @@ package g
 import (
     "unsafe"
 
-    "github.com/iansmith/parigot/g/parigot/abi"
+    //"github.com/iansmith/parigot/g/parigot/abi"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
@@ -18,12 +18,13 @@ import (
 // Functions with complex inputs
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+method={{.}}
 {{- if .HasComplexParam}}
 func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}} {
 {{- if .NotEmptyOutput}}
-    return impl.{{.GetTypeName}}({{ .AllInputWasmToGoImpl }})
+    return impl.{{.GetWasmMethodName}}({{ .AllInputWasmToGoImpl }})
 {{ else }}
-    impl.{{.GetTypeName}}({{.AllInputWasmToGoImpl}})
+    impl.{{.GetWasmMethodName}}({{.AllInputWasmToGoImpl}})
 {{- end }}
 }
 {{- end }}
@@ -38,7 +39,7 @@ type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
     {{- if .HasComplexParam }}
-    {{.GetTypeName}}({{.AllInputWithFormal true}}) {{.OutType}}
+    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutType}}
     {{- end}}
 {{- end}}
 {{- end}}

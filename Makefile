@@ -10,16 +10,18 @@ $(REP_API_NET) \
 $(REP_ABI) \
 build/protoc-gen-parigot
 
+# transform library
 TRANSFORM_LIB=command/transform/*.go
-ABIPATCH_SRC=command/abipatch/*.go
-build/abipatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
-	@echo
-	@echo "\033[92mabipatch ===========================================================================================\033[0m"
-	go build -o build/abipatch github.com/iansmith/parigot/command/abipatch
 
 # only need to run the generator once, not once per file
 REP_GEN_WASM=command/transform/wasm_parser.go
 WASM_GRAMMAR=command/Wasm.g4
+BINPATCH_SRC=command/binpatch/*.go
+build/binpatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
+	@echo
+	@echo "\033[92mabipatch ===========================================================================================\033[0m"
+	go build -o build/abipatch github.com/iansmith/parigot/command/abipatch
+
 $(REP_GEN_WASM): $(WASM_GRAMMAR)
 	@echo
 	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ======================================================\033[0m"
@@ -71,10 +73,10 @@ $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
 clean:
 	@echo "\033[92mclean ==============================================================================================\033[0m"
 	rm -f build/*
+	rm -rf g/parigot/*
+	rm -rf command/runner/g/*
 	rm -rf $(TINYGO_MOD_CACHE)
 	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
-	rm -f $(ABI_GO_GEN)
-	rm -rf $(API_GEN_DIR)
 
 
 ## shorthands
@@ -85,3 +87,6 @@ gen: $(PGP) abi net
 	buf generate
 runner:build/runner
 
+.PHONY:test
+test: $(PGP)
+	go run command/protoc-gen-parigot/test/main.go build/protoc-gen-parigot command/protoc-gen-parigot/test/testdata/t0 - abi/abihelper.go

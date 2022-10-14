@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"google.golang.org/protobuf/types/descriptorpb"
-	"log"
 )
 
 // WasmMethod is like a descriptorpb.MethodDescriptorProto (which it contains) but
@@ -84,7 +83,11 @@ func (m *WasmMethod) EmtpyOutput() bool {
 	return m.GetCGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	return m.GetCGOutput().GetCGType() == nil
+	t := m.GetCGOutput().GetCGType()
+	if t == nil {
+		return false
+	}
+	return !t.IsEmpty()
 }
 func (m *WasmMethod) GetInputParam() *InputParam {
 	return m.input
@@ -107,17 +110,29 @@ func (m *WasmMethod) HasComplexOutput() bool {
 }
 
 func (m *WasmMethod) NoComplexParam() bool {
-	return true
+	p := m.GetInputParam().GetCGType()
+	if p == nil {
+		return true
+	}
+	if p.IsEmpty() {
+		return true
+	}
+	c := m.GetInputParam().GetCGType()
+	n := m.GetNumberParametersUsed(c)
+	return n == 1
 }
 
+func (m *WasmMethod) GetNumberParametersUsed(c *CGType) int {
+	return m.GetLanguage().GetNumberParametersUsed(c)
+}
 func (m *WasmMethod) NoComplexOutput() bool {
 	return true
 }
 
 func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
 	if m.PullParameters() {
-		log.Printf("trying to get to pulling params: %s,%s", m.GetName(),
-			m.GetCGInput().GetCGType().String(m.GetProtoPackage()))
+		//log.Printf("trying to get to pulling params: %s,%s", m.GetName(),
+		//	m.GetCGInput().GetCGType().String(m.GetProtoPackage()))
 	}
 	return m.GetLanguage().AllInputWithFormal(m, showFormalName)
 }
@@ -125,6 +140,11 @@ func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
 func (m *WasmMethod) GetLanguage() LanguageText {
 	return m.GetParent().GetLanguage()
 }
+
+func (m *WasmMethod) GetFormalArgSeparator() string {
+	return m.GetLanguage().GetFormalArgSeparator()
+}
+
 func (m *WasmMethod) PullParameters() bool {
 	return m.parent.AlwaysPullParameters()
 }
