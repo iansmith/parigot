@@ -12,11 +12,18 @@ func init() {
 }
 
 type ServiceId int64
+type LocationId int64
 
 func NewServiceId() ServiceId {
 	id := newId(0x73) //'s'
 	sid := ServiceId(id)
 	return sid
+}
+
+func NewLocationId() LocationId {
+	id := newId(0x6c) //'l'
+	lid := LocationId(id)
+	return lid
 }
 
 func AsIdShort(n int64) string {

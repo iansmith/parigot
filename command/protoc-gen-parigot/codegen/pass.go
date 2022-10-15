@@ -36,7 +36,7 @@ func FuncParamPass(method *WasmMethod,
 			}
 		}
 	}
-	// output is handled by OutType
+	// output is handled by OutTypeWalk
 	return result
 }
 

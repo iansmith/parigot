@@ -2,57 +2,85 @@
 
 // This file has been machine generated from proto/abi.proto.  DO NOT EDIT OR YOU WILL LOSE.
 
-// This file is here to tell tinygo what functions to elide when
-// it is generating code for this package.  Most IDEs get confused when
-// you have "non defined" functions, although it's perfectly valid
-// go.  The functions that start with _ are potentially restricted
-// (dangerous).  The functions that are the real implementations
-// are implemented by the container, are not in the source or address
-// space of a client, and have a trailing _.  Functions with more
-// complex signatures (e.g. if they use a string) have to binary
-// patched into the wasm module because we are using tinygo and it
-// doesn't understand that we want to control the wasm-level type
-// signatures.
+// Note that the notation:
+// func foo()
+// with no body indicates that tinygo should consider that function implemented
+// elsewhere, as the typical go compiler does.  For tinygo, we implement the
+// calls in the container, the typical go compiler expects the "missing" functions
+// to be implemented in assembly. Both of the compilers are effectively delaying
+// resolution of the function call target until link time.
 
 package abi
 
+// This set of functions is where control is passed from "user code" to "kernel code"
+// in parigot.  In other words, the running container with normal code in it drops
+// through this interface to reach container-implemented code.  Like kernel code in
+// linux or similar, the implementation of that kernel code is not visible to the
+// user program.
 
 //
-// These functions have the true function name at the WASM level or are a stub because
-// the inputs/outputs need to be decoded before calling the true implementation.
-// Implementation of these ABI calls is by the container.
+// These functions require stubs because their parameters are going to need translation
+// to work at the WASM level.
 //
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+
 {{if .RequiresDecode}}
     //go:wasm-module {{.GetParent.GetWasmServiceName}}
     func {{.GetWasmMethodName}}_stub({{.AllInputWithFormalWasmLevel true}}) {{.OutType}}
-{{else}}
+{{end}}{{/*Requires Decode */}}
+{{end }}{{/*Range over methods*/}}
+{{end}}{{/*range over services*/}}
+
+//
+// These functions have the true function name at the WASM level because their parameters
+// work directly in WASM.  Implementation of these ABI calls is by the container.
+//
+{{- range .info.Service }}
+{{- range .GetWasmMethod}}
+{{if .NoDecodeRequired}}
     //go:wasm-module {{.GetParent.GetWasmServiceName}}
+    //export {{.GetWasmMethodName}}_
     func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{.OutType}}
-{{end}}
-{{end }}
-{{end}}
-//
+{{end}}{{/*Requires NO Decode */}}
+{{end }}{{/*Range over methods*/}}
+{{end}}{{/*range over services*/}}
+
+
 // These functions are wrappers around the true ABI functions, as is done with libc.
-// These are the functions that can take the correct arguments directly at the wasm level.
-// We have to patch functions that take arguments outside of the basic four, and this
-// is done with binary editing after compilation is finished.  Because this API library
-// is using go, we use the "normal" name for the name of the function, otherwise it
-// would be impossible to call these functions, due to the wasm names being lower case.
-//
+// These are the functions that can take wasm compatible parameters and return wasm
+// compatible values.
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .NoDecodeRequired}}
-    func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}} {
+    func {{toCamelCase .GetName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
 {{- if .NotEmptyOutput}}
-        return {{.GetWasmMethodName}}_({{.AllInputFormal}})
+        return {{.GetWasmMethodName}}_({{.AllInputFormal}}),nil
 {{ else }}
          {{.GetWasmMethodName}}_({{.AllInputFormal}})
-{{- end }}
+{{- end }}{{/*if not empty output*/}}
     }
-{{end}}
-{{- end }}
-{{- end }}
+{{end}} {{/*if no decode required */}}
+{{- end }} {{/*range over methods */}}
+{{- end }} {{/*range over services*/}}
 
+
+// These functions are for access to the ABI from golang. These functions will
+// end up calling the true implementation after the compiled code is patched.
+// E.g OutputString is defined here to call output_string_stub but this will
+// get changed to output_string_ when we alter the binary.
+
+{{- range .info.Service }}
+{{- range .GetWasmMethod}}
+{{- if .RequiresDecode}}
+    func {{toCamelCase .GetName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
+{{- if .NotEmptyOutput}}
+        return {{.GetWasmMethodName}}_stub({{.AllInputFormal}}),nil
+{{ else }}
+         {{.GetWasmMethodName}}_stub({{.AllInputFormal}})
+{{- end }}{{/*if not empty output*/}}
+    }
+{{end}} {{/*if no decode required */}}
+{{- end }} {{/*range over methods */}}
+{{- end }} {{/*range over services*/}}

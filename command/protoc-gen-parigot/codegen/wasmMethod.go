@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"google.golang.org/protobuf/types/descriptorpb"
+	"log"
 )
 
 // WasmMethod is like a descriptorpb.MethodDescriptorProto (which it contains) but
@@ -16,10 +17,31 @@ type WasmMethod struct {
 	// this value doesn't matter if your parent service has the "always"
 	// pull parameters flag set
 	pullParameters bool
+	abiCall        bool
+}
+
+func (w *WasmMethod) GetInputFields() []*WasmField {
+	if w.GetCGInput().Len() == 0 {
+		log.Fatalf("attempt to use GetInputFields but no input fields present in %s",
+			w.GetWasmMethodName())
+	}
+	return w.GetCGInput().GetCGType().GetCompositeType().GetField()
+}
+
+func (w *WasmMethod) GetOutputFields() []*WasmField {
+	if w.GetCGOutput().Len() == 0 {
+		log.Fatalf("attempt to use GetOutputFields but no out fields present in %s",
+			w.GetWasmMethodName())
+	}
+	return w.GetCGOutput().GetCGType().GetCompositeType().GetField()
 }
 
 func (w *WasmMethod) HasNoPackageOption() bool {
 	return w.parent.HasNoPackageOption()
+}
+
+func (w *WasmMethod) HasAbiCallOption() bool {
+	return w.abiCall
 }
 
 func (w *WasmMethod) GetProtoPackage() string {
@@ -107,6 +129,14 @@ func (m *WasmMethod) GetOutputParam() *OutputParam {
 }
 func (m *WasmMethod) OutType() string {
 	return m.GetParent().GetLanguage().OutType(m)
+}
+
+func (m *WasmMethod) OutTypeDecl() string {
+	return m.GetLanguage().OutTypeDecl(m)
+}
+
+func (m *WasmMethod) OutZeroValueDecl() string {
+	return m.GetLanguage().OutZeroValueDecl(m)
 }
 
 func (m *WasmMethod) RequiresDecode() bool {

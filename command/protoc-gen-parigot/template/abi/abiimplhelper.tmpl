@@ -1,24 +1,21 @@
+
+// These functions are for the use of the container implementation.   Use of these
+// functions implies that "you know what you are doing".
 //
-// These functions are convenience wrappers around the ABI functions that have
-// complex arguments or return types at the wasm level.  These helpers mean that
-// the ABI implementation (in go) can program at the go level.
-//
-// This file gets copied to the command/runner/g directory by the makefile, thus is
-// in the package for its destination.
+// This file gets moved to the command/runner/g directory by the makefile, thus this
+// code is place in the package for its destination.
 
 package g
 import (
     "unsafe"
 
-    //"github.com/iansmith/parigot/g/parigot/abi"
-
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
-//
+
 // This interface makes it easy to avoid import cycles. The implementation is
 // provided by the container.
-//
+
 type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
@@ -61,17 +58,19 @@ func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*w
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .HasComplexParam}}
-result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, impl.{{.GetName}})
+result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 {{- end }}
 {{- end }}
 {{- end }}
 }
 
 
-// these functions are the ones that are actually behind the abi for each
-// function call. These will get bound to the implementation of the interface
-// provided with SetCaller().  Note that these true implementations can only use
-// the four real types of WASM (I32,F32,I64,F64).
+// These functions are the ones that are actually behind the abi for each
+// function call that cannot accept and return wasm compatible values.
+// These will get bound to the implementation of the interface provided with
+// SetCaller().  Note that these true implementations can only use the four
+// real types of WASM (I32,F32,I64,F64).
+
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- if .HasComplexParam}}

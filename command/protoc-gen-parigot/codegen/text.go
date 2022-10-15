@@ -18,10 +18,18 @@ type LanguageText interface {
 	// Returns things like (in go):
 	// int32(0)
 	OutZeroValue(m *WasmMethod) string
-	// OutType returns the type name appropriate for the language of the output type.
+	// OutZeroValueDecl returns the return value for the "nothing" case for the particular output
+	// type. Returns things like (for go):
+	// return int64,error
+	OutZeroValueDecl(m *WasmMethod) string
+	// OutType returns the declaration text for the output type.
 	// Returns things like (for go):
-	// int64
+	// (int64,error)
 	OutType(m *WasmMethod) string
+	// OutTypeDecl returns the output type declaration appropriate for the language of the output type.
+	// Returns things like (for go):
+	// (int64,error)
+	OutTypeDecl(m *WasmMethod) string
 	// AllInputNumberedParam is used when we want to output the parameters and their
 	// values, but we don't know how many parameters there are due to the wasm level's
 	// parameters not matching the proto level.  Returns things like (in go):

@@ -12,6 +12,7 @@ extend google.protobuf.ServiceOptions {
 extend google.protobuf.MethodOptions {
   optional bool pull_parameters_up = 543211;
   optional string wasm_method_name = 543210;
+  optional bool abi_call = 543212;
 }
 extend google.protobuf.FieldOptions {
   optional string wasm_field_name = 543210;

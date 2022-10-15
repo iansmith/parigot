@@ -49,12 +49,14 @@ $(REP_API_NET): $(API_NET_PROTO) $(PGP)
 	buf generate
 	gofmt -w $(REP_API_NET) $(API_NET_GEN_OUT)/netmessagedecl.p.go
 
-REP_ABI=g/parigot/abi/abi.pb.go
+ABI_GEN_OUT=g/parigot/abi
+REP_ABI=$(ABI_GEN_OUT)/abi.pb.go
 ABI_PROTO=abi/$(FLAVOR)/proto/abi/abi.proto
 $(REP_ABI): $(ABI_PROTO) $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot ABI =============================================================================\033[0m"
 	buf generate
+	gofmt -w $(ABI_GEN_OUT)/*.p.go
 
 ABI_GO_HELPER=command/runner/g/abihelper.p.go
 RUNNER_SRC=command/runner/*.go
@@ -63,7 +65,8 @@ $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
-	mv g/parigot/abi/abihelper.p.go $(ABI_GO_HELPER)
+	mv $(ABI_GEN_OUT)/abihelper.p.go $(ABI_GO_HELPER)
+	gofmt -w $(ABI_GO_HELPER)
 
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
 	@echo

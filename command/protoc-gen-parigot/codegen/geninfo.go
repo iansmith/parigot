@@ -107,6 +107,13 @@ func (i *InputParam) Len() int {
 	return 1
 }
 
+func (o *OutputParam) Len() int {
+	if o.cgType == nil {
+		return 0
+	}
+	return 1
+}
+
 type OutputParam struct {
 	lang   LanguageText
 	parent *WasmMethod

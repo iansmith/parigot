@@ -3,13 +3,14 @@ package util
 import (
 	"bytes"
 	"fmt"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/pluginpb"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/pluginpb"
 )
 
 const (

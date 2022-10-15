@@ -5,8 +5,6 @@ import (
 	"text/template"
 )
 
-const serviceIdSuffix = "_sid"
-
 // FuncMap is "default" function map for use with the templates. This contains generally
 // useful helper functions.
 var FuncMap = template.FuncMap{
@@ -38,15 +36,4 @@ func LastSegmentOfPackage(pkg string) string {
 		return pkg
 	}
 	return pkg[last+1:]
-}
-
-// ComputeMessageName works out how to address a particular message, given that our
-// package might be different and we have to output different text as appropriate.
-func ComputeMessageName(ourPkg string, m *WasmMessage) string {
-	theirPackage := m.GetProtoPackage()
-	name := m.GetName()
-	if ourPkg == theirPackage {
-		return name
-	}
-	return theirPackage + "." + name
 }

@@ -15,6 +15,18 @@ func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) 
 	return result
 }
 
+func (g *GoText) OutTypeDecl(m *codegen.WasmMethod) string {
+	if m.PullParameters() {
+		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		if len(comp.GetField()) == 0 {
+			return "error"
+		}
+		param := codegen.NewCGParameterFromField(comp.GetField()[0], m, m.GetProtoPackage())
+		return fmt.Sprintf("(%s,error)", g.GetReturnValueDecl(m.GetProtoPackage(), m, param))
+	}
+	return g.OutType(m)
+}
+
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
 	return codegen.OutputType(m,
 		func(protoPkg string, method *codegen.WasmMethod, parameter *codegen.CGParameter) string {
@@ -36,6 +48,18 @@ func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 			return ""
 		})
 	return result
+}
+
+func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
+	if m.PullParameters() {
+		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		if len(comp.GetField()) == 0 {
+			return "return nil"
+		}
+		return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
+	}
+	return "return " + g.OutType(m)
+
 }
 
 // OutZeroValue should return a legal value for its type.  This value

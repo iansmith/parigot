@@ -1,11 +1,56 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
+import(
+    "github.com/iansmith/parigot/g/parigot/abi"
+    "google.golang.org/protobuf/proto"
+
+)
 {{- range .info.Service }}
 //
 // {{toCamelCase .GetWasmServiceName}}
 //
 type {{toCamelCase .GetWasmServiceName}} interface {
 {{- range .GetWasmMethod}}
-    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutType}}
+    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) ({{.OutType}},error)
 {{- end }}
 }
-{{- end}}
+{{end}}
+
+{{- range .info.Service }}
+{{ $svc:=.GetWasmServiceName }}
+type {{toCamelCase .GetWasmServiceName}}Impl struct {
+}
+
+{{- range .GetWasmMethod}}
+{{ $meth:=.GetWasmMethodName }}
+func (i *{{toCamelCase $svc}}Impl) {{toCamelCase $meth}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
+{{if .HasAbiCallOption}}
+    //no marshalling
+    return abi.{{toCamelCase $meth}}({{.AllInputFormal}})
+{{else}}
+    req:=&{{toCamelCase $meth}}Request{}
+{{if gt .GetCGInput.Len 0}}
+{{- range .GetInputFields}}
+    req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
+{{end}}{{/* range input fields */}}
+{{end}}{{/* if non empty input */}}
+    b, err:=Encode{{toCamelCase $meth}}Request(req)
+    if err!=nil {
+        return {{.OutZeroValue -}},err
+    }
+    b,err=abi.Locate(b)
+    if err!=nil {
+        return {{.OutZeroValue -}}, err
+    }
+    resp:=&{{toCamelCase $meth}}Response{}
+    err = proto.Unmarshal(b,resp)
+    if err!=nil {
+        return {{.OutZeroValue -}}, err
+    }
+{{if gt .GetCGOutput.Len 0}}
+    return {{- range .GetOutputFields}} resp.{{toCamelCase .GetName}}{{end}},nil
+{{end}}{{/*if not empty output*/}}
+{{- end }}{{/* abi call option */}}
+
+}
+{{- end }}{{/* methods */}}
+{{- end}}{{/* services */}}
