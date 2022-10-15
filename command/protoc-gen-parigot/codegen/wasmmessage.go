@@ -13,6 +13,8 @@ type WasmMessage struct {
 	lang            LanguageText
 	finder          Finder
 	noPackage       bool
+	inputTo         *WasmMethod
+	outputFrom      *WasmMethod
 }
 
 func (w *WasmMessage) GetAddressableName(from string) string {
@@ -53,6 +55,21 @@ func (w *WasmMessage) GetWasmMessageName() string {
 	}
 	w.wasmMessageName = removeQuotes(w.wasmMessageName)
 	return w.wasmMessageName
+}
+
+func (m *WasmMessage) MarkSource(isInput bool, method *WasmMethod) {
+	if isInput {
+		m.inputTo = method
+	} else {
+		m.outputFrom = method
+	}
+}
+
+func (m *WasmMessage) IsInputSource() bool {
+	return m.inputTo != nil
+}
+func (m *WasmMessage) IsOutputTarget() bool {
+	return m.outputFrom != nil
 }
 
 // GetField returns all the wasm field contained inside this message.

@@ -1,5 +1,6 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
+    "github.com/iansmith/parigot/api/parigot"
     "github.com/iansmith/parigot/g/parigot/abi"
     "google.golang.org/protobuf/proto"
 
@@ -10,7 +11,7 @@ import(
 //
 type {{toCamelCase .GetWasmServiceName}} interface {
 {{- range .GetWasmMethod}}
-    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) ({{.OutType}},error)
+    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}}
 {{- end }}
 }
 {{end}}
@@ -18,6 +19,18 @@ type {{toCamelCase .GetWasmServiceName}} interface {
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}
 type {{toCamelCase .GetWasmServiceName}}Impl struct {
+    *parigot.ClientSideService
+}
+
+func Locate{{$svc}}() ({{toCamelCase .GetWasmServiceName}},error) {
+    svcId, err:=abi.Locate("parigot","{{$svc}}")
+    if err!=nil {
+        return nil, err
+    }
+    cs:=parigot.NewClientSideService(parigot.ServiceId(svcId))
+    return &{{toCamelCase .GetWasmServiceName}}Impl{
+        ClientSideService: cs,
+    },nil
 }
 
 {{- range .GetWasmMethod}}
@@ -32,25 +45,24 @@ func (i *{{toCamelCase $svc}}Impl) {{toCamelCase $meth}}({{.AllInputWithFormal t
 {{- range .GetInputFields}}
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{end}}{{/* range input fields */}}
-{{end}}{{/* if non empty input */}}
     b, err:=Encode{{toCamelCase $meth}}Request(req)
     if err!=nil {
-        return {{.OutZeroValue -}},err
+        {{.ReturnErrorDecl (printf "encoding parameters to %s" $meth)}}
     }
-    b,err=abi.Locate(b)
+{{end}}{{/* if non empty input */}}
+    b,err=abi.Dispatch("{{$svc}}","{{$meth}}", b)
     if err!=nil {
-        return {{.OutZeroValue -}}, err
+        {{.ReturnErrorDecl (printf "dispatching method %s" $meth)}}
     }
+{{if gt .GetCGOutput.Len 0}}
     resp:=&{{toCamelCase $meth}}Response{}
     err = proto.Unmarshal(b,resp)
     if err!=nil {
-        return {{.OutZeroValue -}}, err
+        {{.ReturnErrorDecl (printf "unmarshaling results from %s" $meth)}}
     }
-{{if gt .GetCGOutput.Len 0}}
-    return {{- range .GetOutputFields}} resp.{{toCamelCase .GetName}}{{end}},nil
-{{end}}{{/*if not empty output*/}}
-{{- end }}{{/* abi call option */}}
-
+    {{.ReturnValueDecl }}
+{{end}}{{/* if non empty output */}}
 }
+{{end}}{{/* has abi call option */}}
 {{- end }}{{/* methods */}}
 {{- end}}{{/* services */}}

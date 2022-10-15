@@ -24,12 +24,20 @@ type LanguageText interface {
 	OutZeroValueDecl(m *WasmMethod) string
 	// OutType returns the declaration text for the output type.
 	// Returns things like (for go):
-	// (int64,error)
+	// int64  xxx?
 	OutType(m *WasmMethod) string
-	// OutTypeDecl returns the output type declaration appropriate for the language of the output type.
+	// OutTypeDecl returns the declaration text for the output type.
 	// Returns things like (for go):
 	// (int64,error)
 	OutTypeDecl(m *WasmMethod) string
+	// ReturnErrorDecl returns the return statement plus a nil value for any parameters
+	// except the error value. Returns things like
+	// return int64(0),parigot.NewFromError("my error",err)
+	ReturnErrorDecl(m *WasmMethod, msg string) string
+	// ReturnValueDecl returns the return statement plus a fixed variable value
+	// and a nil to indicate no error.
+	ReturnValueDecl(m *WasmMethod) string
+
 	// AllInputNumberedParam is used when we want to output the parameters and their
 	// values, but we don't know how many parameters there are due to the wasm level's
 	// parameters not matching the proto level.  Returns things like (in go):

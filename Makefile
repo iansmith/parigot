@@ -68,7 +68,7 @@ $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	mv $(ABI_GEN_OUT)/abihelper.p.go $(ABI_GO_HELPER)
 	gofmt -w $(ABI_GO_HELPER)
 
-$(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC)
+$(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC) $(PGP)
 	@echo
 	@echo "\033[92mrunner ==============================================================================================\033[0m"
 	go build -o $(RUNNER) github.com/iansmith/parigot/command/runner

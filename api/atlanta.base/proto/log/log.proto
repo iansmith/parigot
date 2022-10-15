@@ -1,0 +1,57 @@
+syntax = "proto3";
+package parigot.log;
+option go_package="github.com/iansmith/parigot/g/log;log";
+import "parigot.proto";
+
+// This is the Log service for parigot.  Note that this is not really the interface
+// that is presented via the log package.  The log package is built on top of
+// these functions.   These functions might be implemented by the container or
+// by other services with this interface using external services, e.g. datadog.
+service Log {
+  option(parigot.always_pull_up_parameters)=true;
+  rpc LogDebug(LogDebugRequest) returns(LogDebugResponse);
+  rpc LogInfo(LogInfoRequest) returns(LogInfoResponse);
+  rpc LogWarn(LogWarnRequest) returns(LogWarnResponse);
+  rpc LogError(LogErrorRequest) returns(LogErrorResponse);
+  rpc LogFatal(LogFatalRequest) returns(LogFatalResponse);
+}
+
+message LogDebugRequest{
+  string message =1;
+  string id = 2;
+}
+
+message LogDebugResponse {
+}
+
+message LogInfoRequest{
+  string message =1;
+  string id = 2;
+}
+
+message LogInfoResponse {
+}
+
+message LogWarnRequest{
+  string message =1;
+  string id = 2;
+}
+
+message LogWarnResponse {
+}
+
+message LogErrorRequest{
+  string message =1;
+  string id = 2;
+}
+
+message LogErrorResponse {
+}
+
+message LogFatalRequest{
+  string message =1;
+  string id = 2;
+}
+
+message LogFatalResponse {
+}

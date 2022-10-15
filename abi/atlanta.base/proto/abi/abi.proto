@@ -85,7 +85,7 @@ message SetNowRequest {
 message SetNowResponse{}
 
 message LocateRequest {
-  string team = 1;
+  string packageName = 1;
   string service = 2;
 }
 
@@ -100,4 +100,6 @@ message DispatchRequest {
 }
 
 message DispatchResponse {
+  int32 errorCode = 1;
+  bytes blob = 2;
 }

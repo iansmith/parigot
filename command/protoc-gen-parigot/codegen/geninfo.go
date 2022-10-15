@@ -91,12 +91,12 @@ func (i *InputParam) IsEmpty() bool {
 	return i.cgType.IsEmpty()
 }
 
-func newInputParam(protoPkg string, messageName string, parent *WasmMethod) *InputParam {
+func newInputParam(parent *WasmMethod) *InputParam {
 	result := &InputParam{
 		parent: parent,
 		lang:   parent.GetLanguage(),
 	}
-	result.cgType = NewCGTypeFromInput(result, parent, protoPkg)
+	result.cgType = NewCGTypeFromInput(result, parent, parent.GetProtoPackage())
 	return result
 }
 
@@ -121,6 +121,9 @@ type OutputParam struct {
 }
 
 func (o *OutputParam) IsEmpty() bool {
+	if o.cgType == nil {
+		panic("should not be calling isEmpty on output param that is not initialized")
+	}
 	return o.cgType.IsEmpty()
 }
 
@@ -156,14 +159,11 @@ func (o *OutputParam) IsMultipleReturn() bool {
 	return false
 }
 
-func newOutputParam(protoName string, name string, parent *WasmMethod, finder Finder) *OutputParam {
+func newOutputParam(parent *WasmMethod) *OutputParam {
 	result := &OutputParam{
 		parent: parent,
 	}
-	m := finder.FindMessageByName(protoName, name, nil)
-	if m == nil {
-		log.Fatalf("unable to find type %s for output parameter", name)
-	}
+	result.cgType = NewCGTypeFromOutput(result, parent, parent.GetProtoPackage())
 	return result
 }
 

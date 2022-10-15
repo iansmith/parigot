@@ -50,6 +50,29 @@ func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 	return result
 }
 
+func (g *GoText) ReturnErrorDecl(m *codegen.WasmMethod, msg string) string {
+	if m.PullParameters() {
+		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		err := fmt.Sprintf("parigot.NewFromError(\"%s\",err)", msg)
+		if len(comp.GetField()) == 0 {
+			return "return " + err
+		}
+		return fmt.Sprintf("return resp," + err)
+	}
+	return "return " + g.OutZeroValue(m) + "err"
+}
+
+func (g *GoText) ReturnValueDecl(m *codegen.WasmMethod) string {
+	if m.PullParameters() {
+		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		if len(comp.GetField()) == 0 {
+			return "return nil"
+		}
+		return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
+	}
+	return "return " + g.OutZeroValue(m) + ",nil"
+}
+
 func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
 	if m.PullParameters() {
 		comp := m.GetCGOutput().GetCGType().GetCompositeType()

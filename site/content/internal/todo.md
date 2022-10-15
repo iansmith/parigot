@@ -10,3 +10,10 @@ draft: false
 covered in the parser, `command/Wasm.g4`
   * Need to figure out if we want to support particular version (2.0?)
   and possibly particular feature sets
+
+
+* make each generated package have a "register" method to register everything
+* make locator template something that can be selected from the command line
+* make log() on client side service do somethnig sensible and possibly automatically
+inject the service name into the log messages
+* 

@@ -43,6 +43,9 @@ func (w *WasmMethod) HasNoPackageOption() bool {
 func (w *WasmMethod) HasAbiCallOption() bool {
 	return w.abiCall
 }
+func (w *WasmMethod) NoAbiCallOption() bool {
+	return !w.abiCall
+}
 
 func (w *WasmMethod) GetProtoPackage() string {
 	return w.GetParent().GetProtoPackage()
@@ -133,6 +136,30 @@ func (m *WasmMethod) OutType() string {
 
 func (m *WasmMethod) OutTypeDecl() string {
 	return m.GetLanguage().OutTypeDecl(m)
+}
+
+func (m *WasmMethod) ReturnErrorDecl(s string) string {
+	l := m.GetLanguage()
+	t := l.ReturnErrorDecl(m, s)
+	return t
+}
+
+func (m *WasmMethod) ReturnValueDecl() string {
+	l := m.GetLanguage()
+	t := l.ReturnValueDecl(m)
+	return t
+}
+func (m *WasmMethod) MarkInputOutputMessages() {
+	if !m.input.IsEmpty() {
+		if !m.input.GetCGType().IsBasic() {
+			m.input.GetCGType().GetCompositeType().MarkSource(true, m)
+		}
+	}
+	if !m.output.IsEmpty() {
+		if !m.output.GetCGType().IsBasic() {
+			m.output.GetCGType().GetCompositeType().MarkSource(false, m)
+		}
+	}
 }
 
 func (m *WasmMethod) OutZeroValueDecl() string {
