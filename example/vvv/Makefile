@@ -5,9 +5,10 @@
 
 PARIGOT_SOURCE=../..
 
-# compiler setup.  note that the -opt 0 is currently mandatory.
+# compiler setup.
 TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
-TINYGO_WASM_OPTS=-target wasm -opt 0 -wasm-abi generic
+# currently no GC and no scheduler
+TINYGO_WASM_OPTS=-target wasm -gc none -scheduler none -wasm-abi generic
 TINYGO_BUILD_TAGS=parigot_abi
 
 ## assumes buf is in path.   https://buf.build
