@@ -16,4 +16,9 @@ covered in the parser, `command/Wasm.g4`
 * make locator template something that can be selected from the command line
 * make log() on client side service do somethnig sensible and possibly automatically
 inject the service name into the log messages
-* 
+* walk through the code paths and get return values to always be parigot.Error
+
+* flow the errors through the compiler so we can report them back to the protoc level
+* enums, especially for the errors coming back from dispatch -- and that should be
+coordinated with client side service
+* prevent generation of extra messages Locate<blah>Request and LocateBlahResponse

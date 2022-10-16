@@ -14,9 +14,10 @@ type WasmMethod struct {
 	parent         *WasmService
 	input          *InputParam
 	output         *OutputParam
-	// this value doesn't matter if your parent service has the "always"
-	// pull parameters flag set
+	// these values doesn't matter if your parent service has the "always"
+	// version of it set
 	pullParameters bool
+	pullOutput     bool
 	abiCall        bool
 }
 
@@ -111,7 +112,7 @@ func (m *WasmMethod) EmtpyOutput() bool {
 	return m.GetCGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	if m.PullParameters() {
+	if m.PullOutput() {
 		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
 		if exp == nil {
 			return false
@@ -130,6 +131,43 @@ func (m *WasmMethod) GetInputParam() *InputParam {
 func (m *WasmMethod) GetOutputParam() *OutputParam {
 	return m.output
 }
+func (m *WasmMethod) InputCodeNeeded() bool {
+	if m.GetCGInput() == nil {
+		panic("should have input param")
+	}
+	if m.GetCGInput().GetCGType() == nil {
+		panic("should have input param's type")
+	}
+	if m.GetCGInput().GetCGType().IsBasic() {
+		panic("should not have a simple type at top level of method")
+	}
+	if m.GetCGInput().GetCGType().IsEmpty() {
+		return false
+	}
+	if m.GetCGInput().GetCGType().IsCompositeNoFields() {
+		return false
+	}
+	return true
+}
+func (m *WasmMethod) OutputCodeNeeded() bool {
+	if m.GetCGOutput() == nil {
+		panic("should have an output param")
+	}
+	if m.GetCGOutput().GetCGType() == nil {
+		panic("should have input param's type")
+	}
+	if m.GetCGOutput().GetCGType().IsBasic() {
+		panic("should not have a simple type at top level of method")
+	}
+	if m.GetCGOutput().GetCGType().IsEmpty() {
+		return false
+	}
+	if m.GetCGOutput().GetCGType().IsCompositeNoFields() {
+		return false
+	}
+	return true
+}
+
 func (m *WasmMethod) OutType() string {
 	return m.GetParent().GetLanguage().OutType(m)
 }
@@ -149,6 +187,10 @@ func (m *WasmMethod) ReturnValueDecl() string {
 	t := l.ReturnValueDecl(m)
 	return t
 }
+func (m *WasmMethod) FuncChoice() *FuncChooser {
+	return m.GetLanguage().FuncChoice()
+}
+
 func (m *WasmMethod) MarkInputOutputMessages() {
 	if !m.input.IsEmpty() {
 		if !m.input.GetCGType().IsBasic() {
@@ -215,7 +257,7 @@ func (m *WasmMethod) GetNumberParametersUsed(c *CGType) int {
 	return m.GetLanguage().GetNumberParametersUsed(c)
 }
 func (m *WasmMethod) NoComplexOutput() bool {
-	if m.PullParameters() {
+	if m.PullOutput() {
 		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
 		return exp == nil || exp.GetCGType().IsStrictWasmType()
 	} else {
@@ -240,6 +282,13 @@ func (m *WasmMethod) PullParameters() bool {
 		return true
 	}
 	return m.pullParameters
+}
+
+func (m *WasmMethod) PullOutput() bool {
+	if m.parent.AlwaysPullOutput() {
+		return true
+	}
+	return m.pullOutput
 }
 
 func (m *WasmMethod) AllInputFormal() string {

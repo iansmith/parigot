@@ -52,6 +52,7 @@ func NewWasmService(file *descriptorpb.FileDescriptorProto,
 	}
 	if service.GetOptions() != nil {
 		s.alwaysPullParameters = alwaysPullParamsOption(service.GetOptions().String())
+		s.alwaysPullOutput = alwaysPullOutputOption(service.GetOptions().String())
 		s.noPackage = hasNoPackageOption(service.GetOptions().String())
 	}
 	return s

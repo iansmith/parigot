@@ -6,23 +6,26 @@ import(
 
 )
 {{- range .info.Service }}
+{{ $svc:=.GetWasmServiceName }}
+{{ $svcCamel:=toCamelCase .GetWasmServiceName }}
 //
-// {{toCamelCase .GetWasmServiceName}}
+// {{$svcCamel}}
 //
-type {{toCamelCase .GetWasmServiceName}} interface {
+type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
     {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}}
 {{- end }}
 }
-{{end}}
+{{end}} {{/* closes top service, the interface stuff*/}}
 
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}
-type {{toCamelCase .GetWasmServiceName}}Impl struct {
+{{ $svcCamel:=.GetWasmServiceName }}
+type {{$svcCamel}}Impl struct {
     *parigot.ClientSideService
 }
 
-func Locate{{$svc}}() ({{toCamelCase .GetWasmServiceName}},error) {
+func Locate{{$svc}}() ({{$svcCamel}},error) {
     svcId, err:=abi.Locate("parigot","{{$svc}}")
     if err!=nil {
         return nil, err
@@ -34,35 +37,39 @@ func Locate{{$svc}}() ({{toCamelCase .GetWasmServiceName}},error) {
 }
 
 {{- range .GetWasmMethod}}
-{{ $meth:=.GetWasmMethodName }}
-func (i *{{toCamelCase $svc}}Impl) {{toCamelCase $meth}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
-{{if .HasAbiCallOption}}
+{{- $meth:=.GetWasmMethodName}}
+{{- $methCamel:=toCamelCase .GetWasmMethodName}}
+{{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsFill:=call .FuncChoice.NeedsFill .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsInputPtr:=call .FuncChoice.NeedsInputPtr .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false .}}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
+{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+
+func (i *{{$svcCamel}}Impl) {{$methCamel}}({{.AllInputWithFormal true}}) {{$methodRet}} {
+{{- if .HasAbiCallOption}}
     //no marshalling
-    return abi.{{toCamelCase $meth}}({{.AllInputFormal}})
-{{else}}
+    return abi.{{$methCamel}}({{.AllInputFormal}})
+{{- else}}
+    {{- if $needsFill}}
+//build the request structure
     req:=&{{toCamelCase $meth}}Request{}
-{{if gt .GetCGInput.Len 0}}
 {{- range .GetInputFields}}
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
-{{end}}{{/* range input fields */}}
-    b, err:=Encode{{toCamelCase $meth}}Request(req)
+{{- end}}{{/* range input fields */}}
+{{- end}}{{/*needs fill*/}}
+{{- if $needsInputPtr}}
+    req=&in
+{{- end}}{{/* needs input ptr*/}}
+    err:= i.Dispatch(message,{{$inbound}},{{$outbound}})
     if err!=nil {
-        {{.ReturnErrorDecl (printf "encoding parameters to %s" $meth)}}
+       return {{$retError}}
     }
-{{end}}{{/* if non empty input */}}
-    b,err=abi.Dispatch("{{$svc}}","{{$meth}}", b)
-    if err!=nil {
-        {{.ReturnErrorDecl (printf "dispatching method %s" $meth)}}
-    }
-{{if gt .GetCGOutput.Len 0}}
-    resp:=&{{toCamelCase $meth}}Response{}
-    err = proto.Unmarshal(b,resp)
-    if err!=nil {
-        {{.ReturnErrorDecl (printf "unmarshaling results from %s" $meth)}}
-    }
-    {{.ReturnValueDecl }}
-{{end}}{{/* if non empty output */}}
+    return {{$retValue}}
+{{end}}{{/*abi used */}}
 }
-{{end}}{{/* has abi call option */}}
-{{- end }}{{/* methods */}}
-{{- end}}{{/* services */}}
+{{- end}}{{/*ranging over methods*/}}
+{{- end}}{{/*ranging over services*/}}

@@ -73,6 +73,13 @@ func (c *CGType) IsStrictWasmType() bool {
 		return false
 	}
 }
+func (c *CGType) IsCompositeNoFields() bool {
+	if c.IsEmpty() || c.IsBasic() {
+		return false
+	}
+	comp := c.GetCompositeType()
+	return len(comp.GetField()) == 0
+}
 
 func (c *CGType) IsEmpty() bool {
 	if c.hasValue == true {

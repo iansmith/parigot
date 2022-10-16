@@ -19,6 +19,9 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
 	for i, n := range g.TemplateName() {
+		if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
+			continue
+		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{

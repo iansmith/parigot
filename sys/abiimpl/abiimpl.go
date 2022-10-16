@@ -27,7 +27,7 @@ func (a *AbiImpl) TinygoNotImplemented(s string) {
 	os.Exit(1)
 }
 
-func (a *AbiImpl) Exit(i int32) {
+func (a *AbiImpl) Exit(i int64) {
 	os.Exit(int(i))
 }
 
@@ -46,7 +46,8 @@ func (a *AbiImpl) Locate(team, service string) int64 {
 	return int64(0)
 }
 
-func (a *AbiImpl) Dispatch(sid int64, method string, blob []byte) {
+func (a *AbiImpl) Dispatch(sid int64, method string, blob []byte) []byte {
 	print("Dispatch")
 	os.Exit(1)
+	return nil
 }

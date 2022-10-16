@@ -12,6 +12,7 @@ type WasmService struct {
 	method               []*WasmMethod
 	lang                 LanguageText
 	alwaysPullParameters bool
+	alwaysPullOutput     bool
 	noPackage            bool
 	finder               Finder
 }
@@ -70,4 +71,8 @@ func (s *WasmService) GetParent() *descriptorpb.FileDescriptorProto {
 }
 func (s *WasmService) AlwaysPullParameters() bool {
 	return s.alwaysPullParameters
+}
+
+func (s *WasmService) AlwaysPullOutput() bool {
+	return s.alwaysPullOutput
 }

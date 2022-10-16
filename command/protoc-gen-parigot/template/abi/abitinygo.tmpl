@@ -53,15 +53,13 @@ package abi
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{- if .NoDecodeRequired}}
-    func {{toCamelCase .GetName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
-{{- if .NotEmptyOutput}}
-        return {{.GetWasmMethodName}}_({{.AllInputFormal}}),nil
-{{ else }}
-         {{.GetWasmMethodName}}_({{.AllInputFormal}})
-{{- end }}{{/*if not empty output*/}}
+{{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{ $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  true . }}
+
+    func {{toCamelCase .GetName}}({{.AllInputWithFormal true}}) {{$methodRet}} {
+         return {{$retValue}}
     }
-{{end}} {{/*if no decode required */}}
+
 {{- end }} {{/*range over methods */}}
 {{- end }} {{/*range over services*/}}
 

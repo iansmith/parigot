@@ -17,6 +17,7 @@ const (
 
 	serviceOptionNoPackage        = "543211"
 	serviceOptionAlwaysPullParams = "543212"
+	serviceOptionAlwaysPullOutput = "543213"
 
 	methodOptionPullParams = "543211"
 	methodOptionCallsAbi   = "543212"
@@ -98,6 +99,11 @@ func hasNoPackageOption(s string) bool {
 
 func alwaysPullParamsOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullParams)
+	return b
+}
+
+func alwaysPullOutputOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullOutput)
 	return b
 }
 

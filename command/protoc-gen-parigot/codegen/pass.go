@@ -137,30 +137,6 @@ func walkParametersPulled(m *WasmMethod,
 	return result
 }
 
-func OutputType(
-	m *WasmMethod,
-	fn func(protoPkg string, method *WasmMethod, parameter *CGParameter) string,
-	empty func(protoPkg string, method *WasmMethod) string) string {
-	result := ""
-	if m.PullParameters() {
-		param := ExpandReturnInfoForOutput(m.GetOutputParam(), m, m.GetProtoPackage())
-		if param == nil || param.GetCGType().IsEmpty() {
-			return ""
-		}
-		return fn(m.GetProtoPackage(), m, param)
-	} else {
-		if m.GetCGOutput().IsMultipleReturn() {
-			log.Fatalf("unable to process multiple return values (%s) at this time",
-				m.GetCGOutput().GetTypeName())
-		}
-		if m.GetCGOutput().IsEmpty() {
-			result += empty(m.GetProtoPackage(), m)
-		}
-		// one liner
-		result += m.GetInputParam().GetCGType().String(m.GetParent().GetProtoPackage())
-	}
-	return result
-}
 func walkOutputPulledParam(m *WasmMethod,
 	fn func(protoPkg string, method *WasmMethod, parameter *CGParameter) string) string {
 	out := m.GetCGOutput()

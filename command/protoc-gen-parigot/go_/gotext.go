@@ -28,14 +28,17 @@ func (g *GoText) OutTypeDecl(m *codegen.WasmMethod) string {
 }
 
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
-	return codegen.OutputType(m,
-		func(protoPkg string, method *codegen.WasmMethod, parameter *codegen.CGParameter) string {
-			return g.GetReturnValueDecl(protoPkg, method, parameter)
-		},
-		func(protoPkg string, method *codegen.WasmMethod) string {
-			return g.NoReturnValueDecl(protoPkg, method)
-		},
-	)
+	result := ""
+	// if we had expansion for the output, would be this call...
+	// codegen.ExpandReturnInfoForOutput(m.GetOutputParam(), m, m.GetProtoPackage())
+	protoPackage := m.GetProtoPackage()
+	outType := m.GetCGOutput().GetCGType()
+	if m.GetCGOutput().IsEmpty() || outType.IsCompositeNoFields() {
+		result += ""
+	} else {
+		result += outType.String(protoPackage)
+	}
+	return result
 }
 
 func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
@@ -74,9 +77,9 @@ func (g *GoText) ReturnValueDecl(m *codegen.WasmMethod) string {
 }
 
 func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
-	if m.PullParameters() {
-		comp := m.GetCGOutput().GetCGType().GetCompositeType()
-		if len(comp.GetField()) == 0 {
+	if m.PullOutput() {
+		t := m.GetCGOutput().GetCGType()
+		if t.IsCompositeNoFields() {
 			return "return nil"
 		}
 		return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
@@ -88,7 +91,7 @@ func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
 // OutZeroValue should return a legal value for its type.  This value
 // is just for compilers (to keep them quiet) so the value will never be used.
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
-	if m.PullParameters() {
+	if m.PullOutput() {
 		// xxx fix me, this should not be hitting codgen like this
 		exp := codegen.ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
 		if exp == nil {
@@ -97,7 +100,7 @@ func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 		if !exp.GetCGType().IsBasic() {
 			return exp.GetCGType().String(m.GetProtoPackage()) + "{}"
 		}
-		return goZeroValuesForProtoTypes(exp.GetCGType().String(""))
+		return g.ZeroValuesForProtoTypes(exp.GetCGType().String(""))
 	}
 	out := m.GetCGOutput()
 	if out == nil || out.IsEmpty() {
@@ -109,12 +112,12 @@ func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 	}
 	t := out.GetCGType()
 	if t.IsBasic() {
-		goZeroValuesForProtoTypes(t.String(""))
+		g.ZeroValuesForProtoTypes(t.String(""))
 	}
 	return t.String(m.GetProtoPackage()) + "{}"
 }
 
-func goZeroValuesForProtoTypes(s string) string {
+func (g *GoText) ZeroValuesForProtoTypes(s string) string {
 	switch s {
 	case "TYPE_STRING":
 		return "\"\""
@@ -135,6 +138,14 @@ func goZeroValuesForProtoTypes(s string) string {
 	}
 	panic("unable to understand basic type " + s)
 }
+
+func (g *GoText) ToId(id string, param bool) string {
+	if param {
+		return codegen.ToCamelCaseFirstLower(id)
+	}
+	return codegen.ToCamelCase(id)
+}
+
 func (g *GoText) GetReturnValueDecl(
 	protoPkg string,
 	_ *codegen.WasmMethod,
@@ -226,6 +237,30 @@ func (g *GoText) GetNumberParametersUsed(
 	}
 	panic("unable to understand number of parameters for " + cgType.String(""))
 }
+func (c *GoText) BasicTypeToString(s string, panicOnFail bool) string {
+	switch s {
+	case "TYPE_STRING":
+		return "string"
+	case "TYPE_INT32":
+		return "int32"
+	case "TYPE_INT64":
+		return "int64"
+	case "TYPE_FLOAT":
+		return "float32"
+	case "TYPE_DOUBLE":
+		return "float64"
+	case "TYPE_BOOL":
+		return "bool"
+	case "TYPE_BYTES":
+		return "[]byte"
+	case "TYPE_BYTE":
+		return "byte"
+	}
+	if !panicOnFail {
+		return ""
+	}
+	panic("unable to convert " + s + " to go type")
+}
 
 func (g *GoText) BasicTypeToReturnExpr(s string, num int, p *codegen.CGParameter) string {
 	switch s {
@@ -250,31 +285,6 @@ func (g *GoText) BasicTypeToReturnExpr(s string, num int, p *codegen.CGParameter
 		return "byte(0)"
 	}
 	panic("unable to convert to return expr:" + s)
-}
-
-func (g *GoText) BasicTypeToString(s string, panicOnFail bool) string {
-	switch s {
-	case "TYPE_STRING":
-		return "string"
-	case "TYPE_INT32":
-		return "int32"
-	case "TYPE_INT64":
-		return "int64"
-	case "TYPE_FLOAT":
-		return "float32"
-	case "TYPE_DOUBLE":
-		return "float64"
-	case "TYPE_BOOL":
-		return "bool"
-	case "TYPE_BYTES":
-		return "[]byte"
-	case "TYPE_BYTE":
-		return "byte"
-	}
-	if !panicOnFail {
-		return ""
-	}
-	panic("unable to convert " + s + " to go type")
 }
 
 func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFormalName bool) string {

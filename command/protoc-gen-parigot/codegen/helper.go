@@ -8,8 +8,18 @@ import (
 // FuncMap is "default" function map for use with the templates. This contains generally
 // useful helper functions.
 var FuncMap = template.FuncMap{
-	"toCamelCase":          ToCamelCase,
-	"LastSegmentOfPackage": LastSegmentOfPackage,
+	"toCamelCase":           ToCamelCase,
+	"toCamelCaseFirstLower": ToCamelCaseFirstLower,
+	"LastSegmentOfPackage":  LastSegmentOfPackage,
+	"BasicTypeToString":     BasicTypeToString,
+}
+
+func ToCamelCaseFirstLower(snake string) string {
+	c := ToCamelCase(snake)
+	if len(c) == 1 {
+		return strings.ToLower(c)
+	}
+	return strings.ToLower(c[0:1]) + c[1:]
 }
 
 // ToCamelCase converts from snake case to camel case. If the first or last character
@@ -36,4 +46,8 @@ func LastSegmentOfPackage(pkg string) string {
 		return pkg
 	}
 	return pkg[last+1:]
+}
+
+func BasicTypeToString(l LanguageText, s string, panicOnFail bool) string {
+	return l.BasicTypeToString(s, panicOnFail)
 }

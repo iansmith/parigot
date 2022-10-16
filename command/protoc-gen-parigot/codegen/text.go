@@ -37,27 +37,36 @@ type LanguageText interface {
 	// ReturnValueDecl returns the return statement plus a fixed variable value
 	// and a nil to indicate no error.
 	ReturnValueDecl(m *WasmMethod) string
-
 	// AllInputNumberedParam is used when we want to output the parameters and their
 	// values, but we don't know how many parameters there are due to the wasm level's
 	// parameters not matching the proto level.  Returns things like (in go):
 	// p0 int32, p1 int32, p3 float64
 	AllInputNumberedParam(m *WasmMethod) string // xxx dead code?
-
 	// Given a particular language, how many parameters on WASM does it take
-	// to encode this type
+	// to encode this type.  Note: this is specific to the compiler.
 	GetNumberParametersUsed(*CGType) int
-
 	// GetForalArgSeparator returns the string that separates arguments in
-	// declaration or call.
+	// declaration or call.  In go this is a comma.
 	GetFormalArgSeparator() string
-
 	// BasicTypeToString returns the language specific version of the input
-	// or panics because it does not know how.  The calller should insure
+	// or panics because it does not know how.  The caller should insure
 	// that the value sent to this function is in fact a basic type like
 	// TYPE_STRING or TYPE_INT32.  If the second parameter is true, this
 	// function panics on unknown strings, which is usually what you want.
 	BasicTypeToString(string, bool) string
+	// Return an empty or initial value for a basic type.  This is used where
+	// we have to create a "dummy" value for the type. Generally this value is
+	// not going to be sued. Returns things like
+	// int64(0)
+	ZeroValuesForProtoTypes(string) string
+	// Return the given value in the appropriate case/style for the language.
+	// For go, this returns camel case identifiers. The second parameter is used
+	// to indicate this is a parameter of a function that we are creating.
+	// In go, the first letter of a parameter is not capitalized, as would normall
+	// in camel case.
+	ToId(string, bool) string
+	// Table driven maker of choices
+	FuncChoice() *FuncChooser
 }
 
 // AbiLanguageText is only for methods that are used by the ABI.  Since the ABI is currently
@@ -67,4 +76,21 @@ type AbiLanguageText interface {
 	LanguageText
 	AllInputWithFormalWasmLevel(m *WasmMethod, showFormalName bool) string
 	AllInputWasmToGoImpl(m *WasmMethod) string
+}
+
+type QuadOptions func(b1, b2, b3, b4 bool) bool
+type QuadString func(b1, b2, b3, b4 bool) string
+type QuadWithMethodString func(b1, b2, b3, b4 bool, m *WasmMethod) string
+type FiveWithMethodString func(b1, b2, b3, b4, abi bool, m *WasmMethod) string
+type FuncChooser struct {
+	Bits           QuadString
+	NeedsFill      QuadOptions
+	NeedsInputPtr  QuadOptions
+	NeedsPullApart QuadOptions
+	Inbound        QuadString
+	Outbound       QuadString
+	RetError       QuadString
+	RetValue       FiveWithMethodString
+	MethodRet      FiveWithMethodString
+	ZeroValueRet   QuadWithMethodString
 }

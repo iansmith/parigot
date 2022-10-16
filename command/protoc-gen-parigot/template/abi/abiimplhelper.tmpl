@@ -19,9 +19,9 @@ import (
 type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-    {{- if .HasComplexParam }}
-    {{.GetName}}({{.AllInputWithFormal true}}) {{.OutType}}
-    {{- end}}
+{{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+
+    {{.GetName}}({{.AllInputWithFormal true}}) {{$methodRet}}
 {{- end}}
 {{- end}}
     GetMemPtr() uintptr
@@ -73,14 +73,16 @@ result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.Wra
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{- if .HasComplexParam}}
-func {{.GetWasmMethodName}}_({{.AllInputNumberedParam}}) {{.OutType}} {
-{{- if .NotEmptyOutput}}
-    return impl.{{.GetName}}({{ .AllInputWasmToGoImpl }})
-{{ else }}
-    impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
-{{- end }}
+{{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{ $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+
+func {{.GetWasmMethodName}}_({{.AllInputNumberedParam}}) {{$methodRet}} {
+    {{if .NotEmptyOutput}}
+        return impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
+     {{else}}
+        impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
+     {{end}}
 }
 {{- end }}
 {{- end }}
-{{- end }}
+

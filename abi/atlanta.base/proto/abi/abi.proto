@@ -23,6 +23,7 @@ option (parigot.abi) = true;
 // parigot: WasmServiceName=parigot_abi
 service Abi {
   option (parigot.always_pull_up_parameters) = true;
+  option (parigot.always_pull_up_output) = true;
   option (parigot.wasm_service_name) = "parigot_abi";
   option (parigot.no_package) = true;
 
@@ -100,6 +101,5 @@ message DispatchRequest {
 }
 
 message DispatchResponse {
-  int32 errorCode = 1;
-  bytes blob = 2;
+  bytes blob = 1;
 }
