@@ -2,8 +2,6 @@ package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
     "github.com/iansmith/parigot/api/parigot"
     "github.com/iansmith/parigot/g/parigot/abi"
-    "google.golang.org/protobuf/proto"
-
 )
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}

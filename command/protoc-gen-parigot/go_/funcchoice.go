@@ -171,7 +171,7 @@ func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod)
 		if parameter.GetCGType().IsBasic() {
 			s = lang.BasicTypeToString(parameter.GetCGType().Basic(), true)
 		} else {
-			s = lang.ToTypeName(parameter.GetCGType().String(protoPkg), false, method)
+			s = lang.ToTypeName(parameter.GetCGType().String(protoPkg), true, method)
 		}
 		return lang.ToId(parameter.GetFormalName(), true, method), s
 	})
@@ -284,8 +284,11 @@ func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 
 func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	choices := funcChoicesToInt(b1, b2, b3, b4)
-	if choices != 8 {
+	if choices&8 == 0 {
 		return ""
+	}
+	if choices == 10 {
+		return "XXXXFXIME"
 	}
 	t := m.GetCGInput().GetCGType()
 	return m.GetLanguage().ToId(t.String(m.GetProtoPackage()), true, m)
