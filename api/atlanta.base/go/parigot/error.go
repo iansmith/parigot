@@ -21,10 +21,9 @@ func NewFromError(msg string, err error) *ErrorImpl {
 	}
 }
 
-func NewFromId(msg string, id AnyId, err error) *ErrorImpl {
+func NewErrorFromId(msg string, id AnyId) *ErrorImpl {
 	return &ErrorImpl{
-		underlying: err,
-		message:    msg + AsId(id),
+		message: msg + AsId(id),
 	}
 }
 

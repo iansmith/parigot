@@ -284,7 +284,7 @@ func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 
 func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	choices := funcChoicesToInt(b1, b2, b3, b4)
-	if choices&8 == 0 {
+	if choices != 8 {
 		return ""
 	}
 	t := m.GetCGInput().GetCGType()

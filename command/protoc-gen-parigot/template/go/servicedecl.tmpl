@@ -30,7 +30,7 @@ type {{$svcCamel}}Impl struct {
 func Locate{{$svc}}() ({{$svcCamel}},error) {
     svcId:=abi.Locate("parigot","{{$svc}}")
     if parigot.IsServiceId(svcId) {
-        return nil, parigot.NewLocateErrorId(svcId)
+        return nil, parigot.NewErrorFromId("locate failed",parigot.AnyId(parigot.NewLocateErrorId(svcId)))
     }
     cs:=parigot.NewClientSideService(parigot.ServiceId(svcId))
     return &{{toCamelCase .GetWasmServiceName}}Impl{
