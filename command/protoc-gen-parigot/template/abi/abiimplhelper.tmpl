@@ -19,8 +19,7 @@ import (
 type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
     {{.GetName}}({{.AllInputWithFormal true}}) {{$methodRet}}
 {{- end}}
 {{- end}}
@@ -57,7 +56,8 @@ func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*w
 // bind the names of the container implementation
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{- if .HasComplexParam}}
+{{- $complexParam:=call .FuncChoice.HasComplexParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- if $complexParam}}
 result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 {{- end }}
 {{- end }}
@@ -73,12 +73,18 @@ result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.Wra
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{ $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{ $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput}}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $methParamDeclWasm:=call .FuncChoice.MethodParamDeclWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $methodCallWasm:=call .FuncChoice.MethodCallWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
 
-func {{.GetWasmMethodName}}_({{$methParamDecl}}) {{$methodRet}} {
-    {{$retValue}}
+func {{.GetWasmMethodName}}_({{$methParamDeclWasm}}) {{$methodRet}} {
+{{- if $needsRet}}
+    return impl.{{.GetName}}({{$methodCallWasm}})
+{{- else }}
+    impl.{{.GetName}}({{$methodCallWasm}})
+{{- end}}
 }
 {{- end }}
 {{- end }}

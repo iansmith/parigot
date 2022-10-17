@@ -67,6 +67,12 @@ type LanguageText interface {
 	// TYPE_STRING or TYPE_INT32.  If the second parameter is true, this
 	// function panics on unknown strings, which is usually what you want.
 	BasicTypeToString(string, bool) string
+	// BasicTypeToWasm returns the language and compiler specific mapping
+	// of basic types to a sequence of the 4 wasm types.  Note that the
+	// return value here is still in the form "TYPE_INT32" that is from
+	// proto.  To get the final type, use BasicTypeToString. Only used by the
+	// ABI.
+	BasicTypeToWasm(string) []string
 	// Return an empty or initial value for a basic type.  This is used where
 	// we have to create a "dummy" value for the type. Generally this value is
 	// not going to be sued. Returns things like

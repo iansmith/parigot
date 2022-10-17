@@ -450,6 +450,26 @@ func (g *GoText) convertGoTypeToWasmType(t *codegen.CGType, n int, l codegen.Lan
 	panic("we cannot handle composite types yet in the conversion to WASM")
 }
 
+func (g *GoText) BasicTypeToWasm(t string) []string {
+	switch t {
+	case "TYPE_STRING":
+		// both are INT32
+		return []string{"TYPE_INT32", "TYPE_INT32"}
+	case "TYPE_BOOL":
+		// bools are 32 bits
+		return []string{"TYPE_INT32"}
+	case "TYPE_BYTE":
+		// bytes are 32 bits, sadly
+		return []string{"TYPE_INT32"}
+	case "TYPE_BYTES":
+		// all are 32 bits
+		return []string{"TYPE_INT32", "TYPE_INT32", "TYPE_INT32"}
+	case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
+		return []string{t}
+	}
+	panic(fmt.Sprintf("unable to convert simple type %s to wasm", t))
+}
+
 func NewGoText() *GoText {
 	return &GoText{}
 }

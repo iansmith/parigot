@@ -9,22 +9,25 @@ import (
 
 func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	return &codegen.FuncChooser{
-		Bits:             funcChoicesToBits,
-		NeedsFill:        funcChoicesNeedsFill,
-		NeedsRet:         funcChoicesNeedsRet,
-		InputParam:       funcChoicesInputParam,
-		NeedsPullApart:   funcChoicesNeedsPullApart,
-		Inbound:          funcChoicesInbound,
-		Outbound:         funcChoicesOutbound,
-		RetError:         funcChoicesRetError,
-		RetValue:         funcChoicesRetValue,
-		MethodRet:        funcChoicesMethodRet,
-		ZeroValueRet:     funcChoicesZeroValueRet,
-		MethodParamDecl:  funcChoicesMethodParamDecl,
-		OutLocal:         funcChoicesOutLocal,
-		MethodCall:       funcChoicesMethodCall,
-		DecodeRequired:   funcChoicesDecodeRequired,
-		NoDecodeRequired: funcChoicesNoDecodeRequired,
+		Bits:                funcChoicesToBits,
+		NeedsFill:           funcChoicesNeedsFill,
+		NeedsRet:            funcChoicesNeedsRet,
+		InputParam:          funcChoicesInputParam,
+		NeedsPullApart:      funcChoicesNeedsPullApart,
+		Inbound:             funcChoicesInbound,
+		Outbound:            funcChoicesOutbound,
+		RetError:            funcChoicesRetError,
+		RetValue:            funcChoicesRetValue,
+		MethodRet:           funcChoicesMethodRet,
+		ZeroValueRet:        funcChoicesZeroValueRet,
+		MethodParamDecl:     funcChoicesMethodParamDecl,
+		OutLocal:            funcChoicesOutLocal,
+		MethodCall:          funcChoicesMethodCall,
+		DecodeRequired:      funcChoicesDecodeRequired,
+		NoDecodeRequired:    funcChoicesNoDecodeRequired,
+		MethodParamDeclWasm: funcChoicesMethodParamDeclWasm,
+		HasComplexParam:     funcChoicesHasComplexParam,
+		MethodCallWasm:      funcChoicesMethodCallWasm,
 	}
 }
 
@@ -62,20 +65,29 @@ func basicTypeRequiresDecode(s string) bool {
 	return false
 }
 
+// funcChoicesComplexParam is a convenience method for grouping methods in the ABI
+func funcChoicesHasComplexParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool {
+	if !b1 {
+		return false
+	}
+	decode := false
+	_ = paramWalker(b1, b2, b3, b4, m, func(p *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		if !p.GetCGType().IsBasic() {
+			panic(fmt.Sprintf("abi types should not be using composites: %s", m.GetName()))
+		}
+		if basicTypeRequiresDecode(p.GetCGType().Basic()) {
+			decode = true
+		}
+		return "bogus", "cruft"
+	})
+	return decode
+
+}
+
 // funcChoicesDecodeRequired is a convenience method for grouping methods in the ABI
 func funcChoicesDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool {
 	if b1 {
-		decode := false
-		_ = paramWalker(b1, b2, b3, b4, m, func(p *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
-			if !p.GetCGType().IsBasic() {
-				panic(fmt.Sprintf("abi types should not be using composites: %s", m.GetName()))
-			}
-			if basicTypeRequiresDecode(p.GetCGType().Basic()) {
-				decode = true
-			}
-			return "bogus", "cruft"
-		})
-		return decode
+		return funcChoicesHasComplexParam(b1, b2, b3, b4, m)
 	}
 	if b2 {
 		detail, scenario := outputTypeInfo(b4, m)
@@ -120,7 +132,37 @@ func methodToCGParameter(b1, b2, b3, b4 bool, method *codegen.WasmMethod) []*cod
 	return []*codegen.CGParameter{p}
 }
 
-// funcChoicesMethodParamDecl is used for declaring the parameters of a method call on
+// funcChoicesMethodParamDeclWasm is used for declaring the parameters of a method declaration
+// for the abi.  ABI methods can only use the 4 basic types and have the complex types
+// expanded.
+func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	n := 0
+	count := 0
+	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		result := ""
+		if !parameter.GetCGType().IsBasic() {
+			panic("should not be using composite types in the ABI")
+		}
+		seq := lang.BasicTypeToWasm(parameter.GetCGType().Basic())
+		used := len(seq)
+		for i := 0; i < used; i++ {
+			l := letters[i : i+1]
+			name := fmt.Sprintf("p%d", n)
+			if used > 1 {
+				name = fmt.Sprintf("p%d%s", n, l)
+			}
+			result += fmt.Sprintf("%s %s", name, lang.BasicTypeToString(seq[i], true))
+			if i != used-1 {
+				result += lang.GetFormalArgSeparator()
+			}
+		}
+		count += used
+		n++
+		return result, ""
+	})
+}
+
+// funcChoicesMethodParamDecl is used for declaring the parameters of a method declaration on
 // on a service.  the part in caps is the part we are declaring here, using go syntax:
 // func foo(A BAR, B BAZ)string
 func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
@@ -141,6 +183,32 @@ func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod)
 func funcChoicesMethodCall(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
 	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
 		return lang.ToId(parameter.GetFormalName(), true, method), ""
+	})
+}
+
+// funcChoicesMethodCallWasm is used by the helper of the ABI implementation.
+// It uses some convenience functions to convert (unmarshal) the complex
+// ABI arguments and call a Go function with the "nicer" types.
+func funcChoicesMethodCallWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	n := 0
+	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		if !parameter.GetCGType().IsBasic() {
+			panic("should not be using composite types in the ABI")
+		}
+		result := ""
+		t := parameter.GetCGType().Basic()
+		switch t {
+		case "TYPE_STRING":
+			result = fmt.Sprintf("strConvert(impl.GetMemPtr(),p%da,p%db)", n, n)
+		case "TYPE_BYTES":
+			result = fmt.Sprintf("bytesConvert(impl.GetMemPtr(),p%da,p%db,p%dc)", n, n, n)
+		case "TYPE_BOOL":
+			result = fmt.Sprintf("p%d!=0", n)
+		default:
+			result = fmt.Sprintf("p%d", n)
+		}
+		n++
+		return result, ""
 	})
 }
 
@@ -280,24 +348,14 @@ func funcChoicesRetValue(b1, b2, b3, b4, abi bool, m *codegen.WasmMethod) string
 			case outTypeCompositeNoFields:
 			case outTypeBasic:
 				//result = lang.ZeroValuesForProtoTypes(detail)
-				result = lang.ZeroValuesForProtoTypes(detail.Basic())
+				result = "return " + lang.ZeroValuesForProtoTypes(detail.Basic())
 			case outTypeComposite:
-				result = lang.EmptyComposite(detail.String(m.GetProtoPackage()), m)
+				panic("should not be using composite types in the ABI")
 			}
 			return result
-			//
-			//if t.IsCompositeNoFields() {
-			//	return ""
-			//}
-			//f := t.GetCompositeType().GetField()
-			//field := f[0]
-			//inner := codegen.NewCGTypeFromField(field, m, m.GetProtoPackage())
-			//if !inner.IsBasic() {
-			//	panic("all abi functions should be returning basic values")
-			//}
-			//return inner.String(m.GetProtoPackage())
-			////return m.GetLanguage().BasicTypeToString(inner.String(""), true)
 		}
+		// nothing to return
+		return ""
 	}
 	if b2 {
 		return "resp,nil"
