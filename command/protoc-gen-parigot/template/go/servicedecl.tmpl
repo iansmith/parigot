@@ -52,12 +52,13 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
 func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 
 {{- if .HasAbiCallOption}}
     //no marshalling
-    return abi.{{$methCamel}}({{.AllInputFormal}})
+    return abi.{{$methCamel}}({{$methCall}})
 {{- else}}
     {{- if $needsFill}}
 //build the request structure

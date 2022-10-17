@@ -25,11 +25,12 @@ package abi
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $decodeReq:=call .FuncChoice.DecodeRequired .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- if $decodeReq}}
 //go:wasm-module {{.GetParent.GetWasmServiceName}}
 //export {{.GetWasmMethodName}}_stub
-func {{.GetWasmMethodName}}_stub({{.AllInputWithFormalWasmLevel true}}) {{$methodRet}}
+func {{.GetWasmMethodName}}_stub({{$methodParamDecl}}) {{$methodRet}}
 {{- end}}{{/*Requires Decode */}}
 {{- end }}{{/*Range over methods*/}}
 {{- end}}{{/*range over services*/}}
@@ -41,11 +42,12 @@ func {{.GetWasmMethodName}}_stub({{.AllInputWithFormalWasmLevel true}}) {{$metho
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $noDecodeReq:=call .FuncChoice.NoDecodeRequired .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- if $noDecodeReq}}
 //go:wasm-module {{.GetParent.GetWasmServiceName}}
 //export {{.GetWasmMethodName}}_
-func {{.GetWasmMethodName}}_({{.AllInputWithFormalWasmLevel true}}) {{$methodRet}}
+func {{.GetWasmMethodName}}_({{$methodParamDecl}}) {{$methodRet}}
 {{- end}}{{/*Requires NO Decode */}}
 {{- end }}{{/*Range over methods*/}}
 {{- end}}{{/*range over services*/}}

@@ -5,51 +5,13 @@ package codegen
 // an implementation of this to port to a new language.
 
 type LanguageText interface {
-	// AllInputWithFormal returns the input variables of the method with the option to change their
-	// formally declared name to "_".  Returns things like (in go):
-	// foo typeOfFoo, bar typeOfBar
-	AllInputWithFormal(method *WasmMethod, showFormalName bool) string
-	// AllInputFormal returns just the names of the formals for this method.  Returns things like (in go)
-	// param1, param2, param3
-	AllInputFormal(method *WasmMethod) string
-	// NilValue returns the empty pointer.  For go this is "nil".
 	NilValue() string
 	// EmptyComposite takes a type name and returns the empty value of that
 	// composite. This is the brother of the ZeroValuesForProtoTypes that does
 	// the same thing basic types.  This returns Foo{} for the input of Foo in
 	// go.  The second values is only for people doing their own namespacing.
 	EmptyComposite(typeName string, method *WasmMethod) string
-	// OutZeroValue is used thwart compilers that can detect reaching the end of a
-	// function with no return value.  This is called to generate a dummy value in
-	// the current language for the type provided.  This value will never be used.
-	// Returns things like (in go):
-	// int32(0)
-	OutZeroValue(m *WasmMethod) string
-	// OutZeroValueDecl returns the return value for the "nothing" case for the particular output
-	// type. Returns things like (for go):
-	// return int64,error
-	OutZeroValueDecl(m *WasmMethod) string
-	// OutType returns the declaration text for the output type.
-	// Returns things like (for go):
-	// int64  xxx?
-	OutType(m *WasmMethod) string
-	// OutTypeDecl returns the declaration text for the output type.
-	// Returns things like (for go):
-	// (int64,error)
-	OutTypeDecl(m *WasmMethod) string
-	// ReturnErrorDecl returns the return statement plus a nil value for any parameters
-	// except the error value. Returns things like
-	// return int64(0),parigot.NewFromError("my error",err)
-	ReturnErrorDecl(m *WasmMethod, msg string) string
-	// ReturnValueDecl returns the return statement plus a fixed variable value
-	// and a nil to indicate no error.
-	ReturnValueDecl(m *WasmMethod) string
-	// AllInputNumberedParam is used when we want to output the parameters and their
-	// values, but we don't know how many parameters there are due to the wasm level's
-	// parameters not matching the proto level.  Returns things like (in go):
-	// p0 int32, p1 int32, p3 float64
-	AllInputNumberedParam(m *WasmMethod) string // xxx dead code?
-	// Given a particular language, how many parameters on WASM does it take
+	// GetNumberParametersUsed returns how many parameters on WASM does it take
 	// to encode this type.  Note: this is specific to the compiler.
 	GetNumberParametersUsed(*CGType) int
 	// GetFormalArgSeparator returns the string that separates arguments in
@@ -73,12 +35,12 @@ type LanguageText interface {
 	// proto.  To get the final type, use BasicTypeToString. Only used by the
 	// ABI.
 	BasicTypeToWasm(string) []string
-	// Return an empty or initial value for a basic type.  This is used where
+	// ZeroValuesForProtoTypes returns an empty or initial value for a basic type.  This is used where
 	// we have to create a "dummy" value for the type. Generally this value is
 	// not going to be sued. Returns things like
 	// int64(0)
 	ZeroValuesForProtoTypes(string) string
-	// Return the given value in the appropriate case/style for the language.
+	// ToId returns the given value in the appropriate case/style for the language.
 	// For go, this returns camel case identifiers. The second parameter is used
 	// to indicate this is a parameter of a function that we are creating.
 	// The last parameter is only of interest to folks doing their own namespacing;
@@ -86,7 +48,7 @@ type LanguageText interface {
 	// In go, the first letter of a parameter is not capitalized, as would normall
 	// in camel case.
 	ToId(string, bool, *WasmMethod) string
-	// Return the given value in the appropriate case/style for the language.
+	// ToTypeName returns the given value in the appropriate case/style for the language.
 	// For go, this is lower case for the components of the string before the
 	// last one, then camel case in the last one.  The second parameter indicates
 	// that if possible the caller wants a reference type (a pointer).

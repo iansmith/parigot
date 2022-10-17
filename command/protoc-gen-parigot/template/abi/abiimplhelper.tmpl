@@ -19,8 +19,9 @@ import (
 type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-    {{.GetName}}({{.AllInputWithFormal true}}) {{$methodRet}}
+    {{.GetName}}({{$methodParamDecl}}) {{$methodRet}}
 {{- end}}
 {{- end}}
     GetMemPtr() uintptr

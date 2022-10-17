@@ -168,25 +168,6 @@ func (m *WasmMethod) OutputCodeNeeded() bool {
 	return true
 }
 
-func (m *WasmMethod) OutType() string {
-	return m.GetParent().GetLanguage().OutType(m)
-}
-
-func (m *WasmMethod) OutTypeDecl() string {
-	return m.GetLanguage().OutTypeDecl(m)
-}
-
-func (m *WasmMethod) ReturnErrorDecl(s string) string {
-	l := m.GetLanguage()
-	t := l.ReturnErrorDecl(m, s)
-	return t
-}
-
-func (m *WasmMethod) ReturnValueDecl() string {
-	l := m.GetLanguage()
-	t := l.ReturnValueDecl(m)
-	return t
-}
 func (m *WasmMethod) FuncChoice() *FuncChooser {
 	return m.GetLanguage().FuncChoice()
 }
@@ -204,78 +185,8 @@ func (m *WasmMethod) MarkInputOutputMessages() {
 	}
 }
 
-func (m *WasmMethod) OutZeroValueDecl() string {
-	return m.GetLanguage().OutZeroValueDecl(m)
-}
-
-func (m *WasmMethod) RequiresDecode() bool {
-	x := m.HasComplexParam()
-	y := m.HasComplexOutput()
-	log.Printf("xxx %s, %v %v", m.GetName(), x, y)
-	return x || y
-}
-func (m *WasmMethod) NoDecodeRequired() bool {
-	return !m.RequiresDecode()
-}
-
-func (m *WasmMethod) AllInputWithFormalWasmLevel(showFormalName bool) string {
-	return m.GetParent().GetLanguage().(AbiLanguageText).AllInputWithFormalWasmLevel(m, showFormalName)
-}
-func (m *WasmMethod) HasComplexParam() bool {
-	return !m.NoComplexParam()
-}
-
-func (m *WasmMethod) HasComplexOutput() bool {
-	return !m.NoComplexOutput()
-}
-
-func (m *WasmMethod) NoComplexParam() bool {
-	p := m.GetInputParam().GetCGType()
-	if p == nil {
-		return true
-	}
-	if p.IsEmpty() {
-		return true
-	}
-	if m.PullParameters() {
-		param := ExpandParamInfoForInput(m.GetCGInput(), m, m.GetProtoPackage())
-		if param == nil || len(param) == 0 {
-			return true
-		}
-		for _, exp := range param {
-			if !exp.GetCGType().IsStrictWasmType() {
-				return false
-			}
-		}
-		return true
-	} else {
-		c := m.GetInputParam().GetCGType()
-		return c.IsStrictWasmType()
-	}
-}
-
-func (m *WasmMethod) GetNumberParametersUsed(c *CGType) int {
-	return m.GetLanguage().GetNumberParametersUsed(c)
-}
-func (m *WasmMethod) NoComplexOutput() bool {
-	if m.PullOutput() {
-		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
-		return exp == nil || exp.GetCGType().IsStrictWasmType()
-	} else {
-		return m.GetCGOutput().GetCGType().IsStrictWasmType()
-	}
-}
-
-func (m *WasmMethod) AllInputWithFormal(showFormalName bool) string {
-	return m.GetLanguage().AllInputWithFormal(m, showFormalName)
-}
-
 func (m *WasmMethod) GetLanguage() LanguageText {
 	return m.GetParent().GetLanguage()
-}
-
-func (m *WasmMethod) GetFormalArgSeparator() string {
-	return m.GetLanguage().GetFormalArgSeparator()
 }
 
 func (m *WasmMethod) PullParameters() bool {
@@ -290,20 +201,4 @@ func (m *WasmMethod) PullOutput() bool {
 		return true
 	}
 	return m.pullOutput
-}
-
-func (m *WasmMethod) AllInputFormal() string {
-	return m.GetLanguage().AllInputFormal(m)
-}
-
-func (m *WasmMethod) OutZeroValue() string {
-	return m.GetLanguage().OutZeroValue(m)
-}
-
-func (m *WasmMethod) AllInputNumberedParam() string {
-	return m.GetLanguage().AllInputNumberedParam(m)
-}
-
-func (m *WasmMethod) AllInputWasmToGoImpl() string {
-	return m.GetLanguage().(AbiLanguageText).AllInputWasmToGoImpl(m)
 }
