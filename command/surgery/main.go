@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -22,9 +23,10 @@ var second *bool = flag.Bool("2", false, "2nd pass")
 var third *bool = flag.Bool("3", false, "3rd pass")
 var op *string = flag.String("op", "", "name of the operation to perform on the binary")
 var dumpStats *bool = flag.Bool("d", false, "dump info about unlink")
+var start time.Time
 
 func main() {
-
+	start = time.Now()
 	flag.Parse()
 
 	if flag.NArg() == 0 {
@@ -80,6 +82,8 @@ func main() {
 			os.Exit(0)
 		}
 	}
+	end := time.Now()
+	diff := end.Sub(start)
 	//os.RemoveAll(tmp)
 	log.Printf("\t surgery: (1) %s -> %s\n", flag.Arg(0), watVersion)
 	log.Printf("\t surgery: (2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
@@ -96,6 +100,8 @@ func main() {
 		}
 		log.Printf("\t surgery: input file: %s, output file: %s", sizeInBytes(statIn.Size()),
 			sizeInBytes(statOut.Size()))
+		s := diff.Seconds()
+		log.Printf("\t surgery: total time %02.1f seconds", s)
 	}
 
 	os.Exit(0)

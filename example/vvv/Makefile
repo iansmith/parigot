@@ -37,6 +37,7 @@ build/vvv.wasm: main.go
 
 # we only need a single representative file to insure regeneration of all the generate services
 $(GENERATED)/demo/vvv/servicedecl.go: proto/business.proto
+	$(BUF_CMD) lint
 	$(BUF_CMD) generate
 
 clean:

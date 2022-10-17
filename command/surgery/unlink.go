@@ -24,16 +24,19 @@ type unlink struct {
 }
 
 var stdlibName = []string{"$runtime.",
-	"$fmt.", "$*_fmt",
+	"$fmt.", "$_*fmt",
 	"$unicode",
 	"$strings.",
 	"$_google.golang.org/protobuf", "$_*google.golang.org/protobuf",
 	"$google.golang.org/protobuf", "$_struct_google.golang.org/protobuf",
 	"$math",
-	"$_time",
+	"$_time", "$time",
 	"$strconv", "$_*strconv",
-	"$_*reflect",
-	"$bytes", "$_*bytes"}
+	"$_*reflect", "$reflect", "$_reflect",
+	"$bytes", "$_*bytes",
+	"$encoding", "$_*encoding",
+	"sort",
+}
 
 func newUnlink() *unlink {
 	result := &unlink{}
@@ -125,6 +128,10 @@ func (u *unlink) dumpStats() {
 	for k := range u.remaining {
 		if strings.HasPrefix(k, "$interface:") {
 			log.Printf("\t%70s", "[interface type ignored]")
+			continue
+		}
+		if strings.HasPrefix(k, "$_*github.com/iansmith/parigot") {
+			continue
 		}
 		if len(k) > lenLimit {
 			k = k[:lenLimit] + fmt.Sprintf("...%d characters elided", len(k)-lenLimit)
@@ -134,7 +141,6 @@ func (u *unlink) dumpStats() {
 }
 
 func sizeInBytes(n int64) string {
-	log.Printf("xxx n is %d\n", n)
 	if n < oneK {
 		return fmt.Sprintf("%d bytes", n)
 	}
