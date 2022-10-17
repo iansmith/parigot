@@ -22,3 +22,6 @@ inject the service name into the log messages
 * enums, especially for the errors coming back from dispatch -- and that should be
 coordinated with client side service
 * prevent generation of extra messages Locate<blah>Request and LocateBlahResponse
+
+* rip out all of the "Get<Blah>" methods and make them more goish.
+

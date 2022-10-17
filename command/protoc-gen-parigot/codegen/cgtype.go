@@ -52,6 +52,16 @@ func (c *CGType) HasValueBeenSet() bool {
 	return c.hasValue
 }
 
+func (c *CGType) Basic() string {
+	if !c.HasValueBeenSet() {
+		panic("cannot get the BasicName of a type where it is not set")
+	}
+	if !c.IsBasic() {
+		panic("cannot get basic name of a composite")
+	}
+	return c.basic
+}
+
 func (c *CGType) SetEmpty() {
 	if c.HasValueBeenSet() {
 		panic("attempt to set the emptiness property on CGType that already has a value")
@@ -114,7 +124,7 @@ func (c *CGType) IsBasic() bool {
 
 func (c *CGType) String(from string) string {
 	if c.composite == nil {
-		return c.basic
+		return c.lang.BasicTypeToString(c.basic, true)
 	}
 	addr := c.finder.AddressingNameFromMessage(from, c.composite)
 	return addr

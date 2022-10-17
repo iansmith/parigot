@@ -21,6 +21,13 @@ func NewFromError(msg string, err error) *ErrorImpl {
 	}
 }
 
+func NewFromId(msg string, id AnyId, err error) *ErrorImpl {
+	return &ErrorImpl{
+		underlying: err,
+		message:    msg + AsId(id),
+	}
+}
+
 func NewError(msg string) *ErrorImpl {
 	return &ErrorImpl{message: msg}
 }

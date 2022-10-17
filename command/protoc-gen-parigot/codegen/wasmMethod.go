@@ -211,6 +211,7 @@ func (m *WasmMethod) OutZeroValueDecl() string {
 func (m *WasmMethod) RequiresDecode() bool {
 	x := m.HasComplexParam()
 	y := m.HasComplexOutput()
+	log.Printf("xxx %s, %v %v", m.GetName(), x, y)
 	return x || y
 }
 func (m *WasmMethod) NoDecodeRequired() bool {

@@ -15,8 +15,13 @@ package abi
 
 {{ range .info.Service }}
 {{- range .GetWasmMethod}}
-    func {{.GetName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}} {
-    {{.OutZeroValueDecl}}
+{{- $methCamel:=toCamelCase .GetName}}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $zeroValueRet:=call .FuncChoice.ZeroValueRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true .}}
+
+    func {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
+        {{$zeroValueRet}}
     }
 {{- end}}
 {{- end}}

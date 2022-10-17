@@ -13,7 +13,9 @@ import(
 //
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
-    {{.GetWasmMethodName}}({{.AllInputWithFormal true}}) {{.OutTypeDecl}}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+    {{.GetWasmMethodName}}({{$methParamDecl}}) {{$methodRet}}
 {{- end }}
 }
 {{end}} {{/* closes top service, the interface stuff*/}}
@@ -26,9 +28,9 @@ type {{$svcCamel}}Impl struct {
 }
 
 func Locate{{$svc}}() ({{$svcCamel}},error) {
-    svcId, err:=abi.Locate("parigot","{{$svc}}")
-    if err!=nil {
-        return nil, err
+    svcId:=abi.Locate("parigot","{{$svc}}")
+    if parigot.IsServiceId(svcId) {
+        return nil, parigot.NewLocateErrorId(svcId)
     }
     cs:=parigot.NewClientSideService(parigot.ServiceId(svcId))
     return &{{toCamelCase .GetWasmServiceName}}Impl{
@@ -42,14 +44,17 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
 {{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsFill:=call .FuncChoice.NeedsFill .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsInputPtr:=call .FuncChoice.NeedsInputPtr .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false .}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
-func (i *{{$svcCamel}}Impl) {{$methCamel}}({{.AllInputWithFormal true}}) {{$methodRet}} {
+func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
+
 {{- if .HasAbiCallOption}}
     //no marshalling
     return abi.{{$methCamel}}({{.AllInputFormal}})
@@ -61,10 +66,13 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{.AllInputWithFormal true}}) {{$meth
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{- end}}{{/* range input fields */}}
 {{- end}}{{/*needs fill*/}}
-{{- if $needsInputPtr}}
-    req=&in
-{{- end}}{{/* needs input ptr*/}}
-    err:= i.Dispatch(message,{{$inbound}},{{$outbound}})
+{{- if ne $inParam ""}}
+    req:={{$inParam}}
+{{- end}}{{/* has in param*/}}
+{{- if ne $outLocal ""}}
+    resp:=&{{$outLocal}}
+ {{- end}}
+    err:= i.Dispatch("{{.GetWasmMethodName}}",{{$inbound}},{{$outbound}})
     if err!=nil {
        return {{$retError}}
     }

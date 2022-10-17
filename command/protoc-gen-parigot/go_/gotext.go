@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
+	"strings"
 )
 
 type GoText struct {
@@ -138,12 +139,43 @@ func (g *GoText) ZeroValuesForProtoTypes(s string) string {
 	}
 	panic("unable to understand basic type " + s)
 }
-
-func (g *GoText) ToId(id string, param bool) string {
+func (g *GoText) ToId(id string, param bool, _ *codegen.WasmMethod) string {
 	if param {
 		return codegen.ToCamelCaseFirstLower(id)
 	}
 	return codegen.ToCamelCase(id)
+}
+
+func (g *GoText) EmptyComposite(typeName string, _ *codegen.WasmMethod) string {
+	return typeName + "{}"
+}
+
+func (g *GoText) NilValue() string {
+	return "nil"
+}
+
+func (g *GoText) ToTypeName(tn string, ref bool, _ *codegen.WasmMethod) string {
+	parts := strings.Split(tn, ".")
+
+	// do simple case
+	if len(parts) == 1 {
+		name := codegen.ToCamelCase(tn)
+		if ref {
+			name = "*" + name
+		}
+		return name
+	}
+
+	// complex case
+	for i := 0; i < len(parts)-1; i++ {
+		parts[i] = strings.ToLower(parts[i])
+	}
+	parts[len(parts)-1] = strings.ToLower(parts[len(parts)-1])
+	name := strings.Join(parts, ".")
+	if ref {
+		name = "*" + name
+	}
+	return name
 }
 
 func (g *GoText) GetReturnValueDecl(
@@ -177,11 +209,8 @@ func (g *GoText) GetFormalNameUnused(
 	return "_"
 }
 
-func (g *GoText) GetFormalTypeSeparator(
-	_ string,
-	_ *codegen.WasmMethod,
-	_ *codegen.CGParameter) string {
-	return " "
+func (g *GoText) GetFormalTypeCombination(formal, typ string) string {
+	return formal + " " + typ
 }
 
 func (g *GoText) GetFormalArgSeparator() string {
@@ -303,13 +332,14 @@ func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFor
 				result = g.GetFormalNameUnused(protoPkg, method, parameter)
 			}
 			if parameter.HasFormal() {
-				result += g.GetFormalTypeSeparator(protoPkg, method, parameter)
+				result += " " // xxx
 			}
-			if parameter.GetCGType().IsBasic() {
-				result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, parameter), true)
-			} else {
-				result += g.GetCGTypeName(protoPkg, method, parameter)
-			}
+			//if parameter.GetCGType().IsBasic() {
+			//	result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, parameter), true)
+			//} else {
+			//	result += g.GetCGTypeName(protoPkg, method, parameter)
+			//}
+			result += parameter.GetCGType().String(protoPkg)
 			return result
 		},
 		func(method *codegen.WasmMethod, isInput bool, param *codegen.CGParameter) string {
@@ -348,7 +378,7 @@ func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 				newCG := g.convertGoTypeToWasmType(parameter.GetCGType(), i, m.GetLanguage(), protoPkg)
 				param := codegen.NewCGParameterFromString(name, newCG)
 				result += param.GetFormalName()
-				result += g.GetFormalTypeSeparator(protoPkg, method, param)
+				result += " " //xxx
 				if parameter.GetCGType().IsBasic() {
 					result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, param), true)
 				} else {

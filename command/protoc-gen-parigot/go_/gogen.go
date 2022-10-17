@@ -9,8 +9,6 @@ import (
 
 const (
 	serviceDecl = "template/go/servicedecl.tmpl"
-	messageDecl = "template/go/messagedecl.tmpl"
-	//simpleLoc   = "template/go/servicesimpleloc.tmpl"
 )
 
 type GoGen struct {
@@ -27,17 +25,15 @@ func NewGoGen(finder codegen.Finder) *GoGen {
 }
 
 func (g *GoGen) GeneratingMessage() []string {
-	return []string{"service declarations into", "message declarations into"}
-	//	"locator declarations into",
+	return []string{"service declarations into"}
 
 }
 func (g *GoGen) ResultName() []string {
-	return []string{"servicedecl.p.go", "messagedecl.p.go"}
-	//	"locdecl.p.go",
+	return []string{"servicedecl.p.go"}
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl, messageDecl} // simpleLoc}
+	return []string{serviceDecl}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
 	return nil

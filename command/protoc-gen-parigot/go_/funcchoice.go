@@ -4,49 +4,223 @@ import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
+	"strings"
 )
 
 func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	return &codegen.FuncChooser{
-		Bits:           funcChoicesToBits,
-		NeedsFill:      funcChoicesNeedsFill,
-		NeedsInputPtr:  funcChoicesNeedsInputPtr,
-		NeedsPullApart: funcChoicesNeedsPullApart,
-		Inbound:        funcChoicesInbound,
-		Outbound:       funcChoicesOutbound,
-		RetError:       funcChoicesRetError,
-		RetValue:       funcChoicesRetValue,
-		MethodRet:      funcChoicesMethodRet,
-		ZeroValueRet:   funcChoicesZeroValueRet,
+		Bits:             funcChoicesToBits,
+		NeedsFill:        funcChoicesNeedsFill,
+		NeedsRet:         funcChoicesNeedsRet,
+		InputParam:       funcChoicesInputParam,
+		NeedsPullApart:   funcChoicesNeedsPullApart,
+		Inbound:          funcChoicesInbound,
+		Outbound:         funcChoicesOutbound,
+		RetError:         funcChoicesRetError,
+		RetValue:         funcChoicesRetValue,
+		MethodRet:        funcChoicesMethodRet,
+		ZeroValueRet:     funcChoicesZeroValueRet,
+		MethodParamDecl:  funcChoicesMethodParamDecl,
+		OutLocal:         funcChoicesOutLocal,
+		MethodCall:       funcChoicesMethodCall,
+		DecodeRequired:   funcChoicesDecodeRequired,
+		NoDecodeRequired: funcChoicesNoDecodeRequired,
 	}
 }
 
-func funcChoicesZeroValueRet(_, b2, _, b4 bool, method *codegen.WasmMethod) string {
-	if !b2 {
-		return "nil"
+// paramWalker is a utility function for creating a parameter decl list or a
+// parameter call list.  It takes a function that returns 1 or 2 argumest. If
+// the function returns 1 argument (2nd string is "") paramWalker assumes you
+// are creating a call list and with 2 arguments a declaration list. It will
+// walk through each of the parameters (CGParameter) and call the function on
+// it.  It will return the concatenation of the results of the calls to fn,
+// correctly separated.
+func paramWalker(b1, b2, b3, b4 bool, method *codegen.WasmMethod,
+	fn func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string)) string {
+	param := methodToCGParameter(b1, b2, b3, b4, method)
+	if len(param) == 0 {
+		return ""
 	}
+	lang := method.GetLanguage()
+	asString := make([]string, len(param))
+	for i, p := range param {
+		formal, typ := fn(p, lang, method.GetProtoPackage())
+		if typ == "" {
+			asString[i] = formal
+		} else {
+			asString[i] = lang.GetFormalTypeCombination(formal, typ)
+		}
+	}
+	return strings.Join(asString, lang.GetFormalArgSeparator())
+}
+
+func basicTypeRequiresDecode(s string) bool {
+	switch s {
+	case "TYPE_STRING", "TYPE_BYTES", "TYPE_BOOL", "TYPE_BYTE":
+		return true
+	}
+	return false
+}
+
+// funcChoicesDecodeRequired is a convenience method for grouping methods in the ABI
+func funcChoicesDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool {
+	if b1 {
+		decode := false
+		_ = paramWalker(b1, b2, b3, b4, m, func(p *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+			if !p.GetCGType().IsBasic() {
+				panic(fmt.Sprintf("abi types should not be using composites: %s", m.GetName()))
+			}
+			if basicTypeRequiresDecode(p.GetCGType().Basic()) {
+				decode = true
+			}
+			return "bogus", "cruft"
+		})
+		return decode
+	}
+	if b2 {
+		detail, scenario := outputTypeInfo(b4, m)
+		switch scenario {
+		case outTypeCompositeNoFields:
+			return false
+		case outTypeBasic:
+			return basicTypeRequiresDecode(detail.Basic())
+		case outTypeComposite:
+			panic(fmt.Sprintf("abi types should not be using composites: %s", m.GetName()))
+		}
+	}
+	panic(fmt.Sprintf("method has neither input nor output: %s", m.GetName()))
+}
+
+// funcChoicesNoDecodeRequired is a convenience method for grouping methods in the ABI
+func funcChoicesNoDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool {
+	return !funcChoicesDecodeRequired(b1, b2, b3, b4, m)
+}
+
+// methodToCGParameter returns an array of CGParameter objects corresponding to the
+// parameters of the function.  This accounts for parameter pull up.  This function
+// can return nil if there are no parameters.
+func methodToCGParameter(b1, b2, b3, b4 bool, method *codegen.WasmMethod) []*codegen.CGParameter {
+	if !b1 {
+		return []*codegen.CGParameter{}
+	}
+	if b3 {
+		//we checked b1 so we know there are fields
+		comp := method.GetCGInput().GetCGType().GetCompositeType()
+		result := []*codegen.CGParameter{}
+		for _, f := range comp.GetField() {
+			p := codegen.NewCGParameterFromField(f, method, method.GetProtoPackage())
+			result = append(result, p)
+		}
+		return result
+	}
+	t := method.GetCGInput().GetCGType()
+	lang := method.GetLanguage()
+	formal := lang.ToId(t.ShortName(), true, method)
+	p := codegen.NewCGParameterFromString(formal, t)
+	return []*codegen.CGParameter{p}
+}
+
+// funcChoicesMethodParamDecl is used for declaring the parameters of a method call on
+// on a service.  the part in caps is the part we are declaring here, using go syntax:
+// func foo(A BAR, B BAZ)string
+func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		s := ""
+		if parameter.GetCGType().IsBasic() {
+			s = lang.BasicTypeToString(parameter.GetCGType().Basic(), true)
+		} else {
+			s = lang.ToTypeName(parameter.GetCGType().String(protoPkg), false, method)
+		}
+		return lang.ToId(parameter.GetFormalName(), true, method), s
+	})
+}
+
+// funcChoicesMethodCall is used for calling a method of a service.
+// the part in caps is the part we are declaring here, using go syntax:
+// foo(A, B, C)
+func funcChoicesMethodCall(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		return lang.ToId(parameter.GetFormalName(), true, method), ""
+	})
+}
+
+func funcChoicesOutLocal(_, b2, _, b4 bool, method *codegen.WasmMethod) string {
+	if !b2 {
+		return ""
+	}
+	detail, scenario := outputTypeInfo(b4, method)
+	lang := method.GetLanguage()
+	result := ""
+	switch scenario {
+	case outTypeCompositeNoFields:
+	case outTypeBasic:
+		result = lang.ZeroValuesForProtoTypes(detail.Basic())
+	case outTypeComposite:
+		result = lang.EmptyComposite(detail.String(method.GetProtoPackage()), method)
+	}
+	return result
+}
+
+const outTypeCompositeNoFields = 1
+const outTypeBasic = 2
+const outTypeComposite = 3
+
+func outputTypeInfo(b4 bool, method *codegen.WasmMethod) (*codegen.CGType, int) {
 	t := method.GetCGOutput().GetCGType()
 	if b4 {
-		v := ""
 		if t.IsCompositeNoFields() {
-			return "nil"
+			return nil, outTypeCompositeNoFields
 		}
 		f := t.GetCompositeType().GetField()
 		inner := codegen.NewCGTypeFromField(f[0], method, method.GetProtoPackage())
 		if inner.IsBasic() {
-			v = method.GetLanguage().ZeroValuesForProtoTypes(inner.String(""))
-		} else {
-			v = inner.String(method.GetProtoPackage()) + "Response{}"
+			//v := method.GetLanguage().ZeroValuesForProtoTypes(inner.String(""))
+			return inner, outTypeBasic
 		}
-		return v + ",nil"
+		// we allow this to fall through because we return the same thing
+		// as they didn't have b4 set, just on the inner one
+		t = inner
 	}
-	return t.String(method.GetProtoPackage()) + "Response{}" + ",nil"
+	//v := t.String(method.GetProtoPackage())
+	return t, outTypeComposite
+
 }
+
+func funcChoicesZeroValueRet(_, b2, _, b4 bool, abi bool, method *codegen.WasmMethod) string {
+	if !abi {
+		panic("unepected call to ZeroValueRet")
+	}
+	if !b2 {
+		return ""
+	}
+	lang := method.GetLanguage()
+	outDetail, scenario := outputTypeInfo(b4, method)
+	result := ""
+	switch scenario {
+	case outTypeCompositeNoFields:
+	case outTypeBasic:
+		result = lang.ZeroValuesForProtoTypes(outDetail.Basic())
+	case outTypeComposite:
+		s := outDetail.String(method.GetProtoPackage())
+		result = lang.EmptyComposite(lang.ToTypeName(s+"Response", true, method), method)
+	}
+	return "return " + result
+}
+
 func funcChoicesNeedsFill(b1, b2, b3, b4 bool) bool {
 	return funcChoicesToInt(b1, b2, b3, b4) == 0xa
 }
-func funcChoicesNeedsInputPtr(b1, b2, b3, b4 bool) bool {
-	return funcChoicesToInt(b1, b2, b3, b4) == 0x8
+func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
+	return b2
+}
+
+func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
+	choices := funcChoicesToInt(b1, b2, b3, b4)
+	if choices&8 == 0 {
+		return ""
+	}
+	t := m.GetCGInput().GetCGType()
+	return m.GetLanguage().ToId(t.String(m.GetProtoPackage()), true, m)
 }
 func funcChoicesNeedsPullApart(b1, b2, b3, b4 bool) bool {
 	return funcChoicesToInt(b1, b2, b3, b4) == 0x5
@@ -68,8 +242,8 @@ func outReturnToString(m *codegen.WasmMethod, abi bool) string {
 		panic("all abi functions should be returning basic values")
 	}
 
-	basic := inner.String(m.GetProtoPackage())
-	return m.GetLanguage().BasicTypeToString(basic, true)
+	return inner.String(m.GetProtoPackage())
+	//return m.GetLanguage().BasicTypeToString(basic, true)
 }
 
 func funcChoicesMethodRet(b1, b2, b3, b4 bool, abi bool, m *codegen.WasmMethod) string {
@@ -94,21 +268,35 @@ func funcChoicesMethodRet(b1, b2, b3, b4 bool, abi bool, m *codegen.WasmMethod) 
 func funcChoicesRetValue(b1, b2, b3, b4, abi bool, m *codegen.WasmMethod) string {
 	if abi {
 		// sadly, the abi is a special case because it doesn't return error values
-		t := m.GetCGOutput().GetCGType()
+		//t := m.GetCGOutput().GetCGType()
 		if b2 {
 			if b4 == false {
 				panic("all the ABI functions must be pulling up their return values")
 			}
-			if t.IsCompositeNoFields() {
-				return ""
+			lang := m.GetLanguage()
+			detail, scenario := outputTypeInfo(b4, m)
+			result := ""
+			switch scenario {
+			case outTypeCompositeNoFields:
+			case outTypeBasic:
+				//result = lang.ZeroValuesForProtoTypes(detail)
+				result = lang.ZeroValuesForProtoTypes(detail.Basic())
+			case outTypeComposite:
+				result = lang.EmptyComposite(detail.String(m.GetProtoPackage()), m)
 			}
-			f := t.GetCompositeType().GetField()
-			field := f[0]
-			inner := codegen.NewCGTypeFromField(field, m, m.GetProtoPackage())
-			if !inner.IsBasic() {
-				panic("all abi functions should be returning basic values")
-			}
-			return m.GetLanguage().BasicTypeToString(inner.String(""), true)
+			return result
+			//
+			//if t.IsCompositeNoFields() {
+			//	return ""
+			//}
+			//f := t.GetCompositeType().GetField()
+			//field := f[0]
+			//inner := codegen.NewCGTypeFromField(field, m, m.GetProtoPackage())
+			//if !inner.IsBasic() {
+			//	panic("all abi functions should be returning basic values")
+			//}
+			//return inner.String(m.GetProtoPackage())
+			////return m.GetLanguage().BasicTypeToString(inner.String(""), true)
 		}
 	}
 	if b2 {

@@ -75,13 +75,10 @@ result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.Wra
 {{- range .GetWasmMethod}}
 {{ $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
 {{ $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{ $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 
-func {{.GetWasmMethodName}}_({{.AllInputNumberedParam}}) {{$methodRet}} {
-    {{if .NotEmptyOutput}}
-        return impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
-     {{else}}
-        impl.{{.GetName}}({{.AllInputWasmToGoImpl}})
-     {{end}}
+func {{.GetWasmMethodName}}_({{$methParamDecl}}) {{$methodRet}} {
+    {{$retValue}}
 }
 {{- end }}
 {{- end }}
