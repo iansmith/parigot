@@ -24,17 +24,24 @@ func (m *Module) IndentedString(indented int) string {
 }
 
 func (m *Module) AppendTopLevelDef(def TopLevel) {
+	targetType := def.TopLevelType()
 	if len(m.Code) == 0 || len(m.Code) == 1 {
 		m.Code = append(m.Code, def)
 		return
 	}
-	prev := m.Code[0].TopLevelType()
+	found := false
 	for i := range m.Code {
-		if prev == def.TopLevelType() && m.Code[i].TopLevelType() != def.TopLevelType() {
-			//change point
+		currentType := m.Code[i].TopLevelType()
+		if !found && currentType == targetType {
+			found = true
+		}
+		if found && currentType != targetType {
 			m.Code = append(m.Code[:i], append([]TopLevel{def}, m.Code[i:]...)...)
 			return
 		}
+	}
+	if !found {
+		panic("unable to find any top levels of the correct type")
 	}
 	panic("unable to find the sequence of toplevels to append to")
 }

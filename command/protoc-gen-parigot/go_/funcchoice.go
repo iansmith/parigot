@@ -288,10 +288,11 @@ func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 		return ""
 	}
 	if choices == 10 {
-		return "XXXXFXIME"
+		return ""
 	}
 	t := m.GetCGInput().GetCGType()
-	return m.GetLanguage().ToId(t.String(m.GetProtoPackage()), true, m)
+	// xxx fix me xxx should not have string in here
+	return "req:=" + m.GetLanguage().ToId(t.String(m.GetProtoPackage()), true, m)
 }
 func funcChoicesNeedsPullApart(b1, b2, b3, b4 bool) bool {
 	return funcChoicesToInt(b1, b2, b3, b4) == 0x5

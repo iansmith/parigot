@@ -11,6 +11,9 @@
 // resolution of the function call target until link time.
 
 package abi
+import(
+    _ "unsafe"
+)
 
 // This set of functions is where control is passed from "user code" to "kernel code"
 // in parigot.  In other words, the running container with normal code in it drops
@@ -18,22 +21,6 @@ package abi
 // linux or similar, the implementation of that kernel code is not visible to the
 // user program.
 
-//
-// These functions require stubs because their parameters are going to need translation
-// to work at the WASM level.
-//
-{{- range .info.Service }}
-{{- range .GetWasmMethod}}
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $decodeReq:=call .FuncChoice.DecodeRequired .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- if $decodeReq}}
-//go:wasm-module {{.GetParent.GetWasmServiceName}}
-//export {{.GetWasmMethodName}}_stub
-func {{.GetWasmMethodName}}_stub({{$methodParamDecl}}) {{$methodRet}}
-{{- end}}{{/*Requires Decode */}}
-{{- end }}{{/*Range over methods*/}}
-{{- end}}{{/*range over services*/}}
 
 //
 // These functions have the true function name at the WASM level because their parameters
@@ -47,16 +34,16 @@ func {{.GetWasmMethodName}}_stub({{$methodParamDecl}}) {{$methodRet}}
 {{- if $noDecodeReq}}
 //go:wasm-module {{.GetParent.GetWasmServiceName}}
 //export {{.GetWasmMethodName}}_
+//go:linkname {{.GetWasmMethodName}}_
 func {{.GetWasmMethodName}}_({{$methodParamDecl}}) {{$methodRet}}
 {{- end}}{{/*Requires NO Decode */}}
 {{- end }}{{/*Range over methods*/}}
 {{- end}}{{/*range over services*/}}
 
 //
-// These functions are for access to the ABI from golang. These functions will
-// end up calling the true implementation after the compiled code is patched.
-// E.g OutputString is defined here to call output_string_stub but this will
-// get changed to output_string_ when we alter the binary.
+// These functions are for access to the ABI from golang. Additionally, these
+// implementations induce tinygo to call the inner function with the "real"
+// wasm parameters.
 //
 
 {{- range .info.Service }}
@@ -66,13 +53,31 @@ func {{.GetWasmMethodName}}_({{$methodParamDecl}}) {{$methodRet}}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $complexParam:=call .FuncChoice.HasComplexParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+
+{{- $abisuffix:="_"}}
+{{- if $complexParam }}
+{{- $abisuffix:="_stub"}} // {{$complexParam}}
+{{- end}}
+
+
+//export {{toCamelCase .GetName}}
+//go:noinline
 func {{toCamelCase .GetName}}({{$methParamDecl}}) {{$methodRet}} {
 {{- if $needsRet }}
-    return {{.GetWasmMethodName}}_stub({{$methCall}})
+    return {{.GetWasmMethodName}}{{$abisuffix}}({{$methCall}})
 {{- else}}
-    {{.GetWasmMethodName}}_stub({{$methCall}})
+    {{.GetWasmMethodName}}{{$abisuffix}}({{$methCall}})
 {{- end}}
 }
+
+{{- if $complexParam }}
+//go:wasm-module parigot_abi  {{$complexParam}}
+//export {{.GetWasmMethodName}}{{$abisuffix}}
+//go:noinline
+//go:linkname {{.GetWasmMethodName}}{{$abisuffix}}
+func {{.GetWasmMethodName}}{{$abisuffix}}({{$methParamDecl}}) {{$methodRet}}
+{{ end }}
 
 {{- end }} {{/*range over methods */}}
 {{- end }} {{/*range over services*/}}

@@ -6,10 +6,13 @@
 PARIGOT_SOURCE=../..
 
 # compiler setup.
+TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
 TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
 # currently no GC and no scheduler
-TINYGO_WASM_OPTS=-target wasm -gc none -scheduler none -wasm-abi generic
+TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 1 -wasm-abi generic
 TINYGO_BUILD_TAGS=parigot_abi
+
+GO_CMD=GOOS=js GOARCH=wasm go
 
 ## assumes buf is in path.   https://buf.build
 BUF_CMD=buf
@@ -18,11 +21,18 @@ BUF_CMD=buf
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
 GENERATED=g/parigot
-all: $(GENERATED)/demo/vvv/servicedecl.go
+all: $(GENERATED)/demo/vvv/servicedecl.go build/storeclient.wasm
+
+build/storeclient.wasm: storeclient/main.go
+	@echo
+	@echo "\033[92mbuilding client side: vvv ===================================================================================\033[0m"
+	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
+	#$(GO_CMD) build -a -tags $(TINYGO_BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
+	wasm2wat --no-check -o build/vvv_client.wat build/vvv_client.wasm
 
 build/vvv.wasm: main.go
 	@echo
-	@echo "\033[92building app: vvv ===================================================================================\033[0m"
+	@echo "\033[92mbuilding app: vvv ===================================================================================\033[0m"
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/vvv.wasm main.go
 
 # we only need a single representative file to insure regeneration of all the generate services
@@ -31,3 +41,5 @@ $(GENERATED)/demo/vvv/servicedecl.go: proto/business.proto
 
 clean:
 	rm -rf proto/g/parigot/*
+	rm -rf build/*
+

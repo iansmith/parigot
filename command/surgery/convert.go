@@ -56,12 +56,13 @@ func convertWatToWasm(tmpDir, source string, target *string) error {
 	if *target == "" {
 		fp, err := os.Open(tempTargetFile)
 		if err != nil {
-			log.Printf("unable to read file %s to print to stdout: %v", tempTargetFile, err)
+			log.Fatalf("unable to open file %s to print to stdout: %v", tempTargetFile, err)
 		}
 		_, err = io.Copy(os.Stdout, fp)
 		if err != nil {
-			log.Printf("unable to copy file %s content tto stdout: %v", tempTargetFile, err)
+			log.Fatalf("unable to copy file to stdout: %v", err)
 		}
+	} else {
 	}
 	return nil
 }

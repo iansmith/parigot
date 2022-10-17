@@ -146,7 +146,7 @@ funcNameRef returns [*FuncNameRef f]:
             Name: $Ident.GetText(),
         }
         if localctx.Get_typeRef()!=nil {
-            op.TypeFromProto = $typeRef.t
+            op.Type = $typeRef.t
         }
         localctx.SetF(op)
     }
@@ -243,7 +243,7 @@ funcDef returns [*FuncDef f]:
         localctx.SetF(
         &FuncDef{
             Name:$Ident.GetText(),
-            TypeFromProto: $typeRef.t,
+            Type: $typeRef.t,
             Param: pd,
             Result: r,
             Local: l,
@@ -323,7 +323,7 @@ callIndirectOp returns [Stmt c]:
     {
         localctx.SetC(
             &IndirectCallOp{
-                TypeFromProto: localctx.GetT().GetT(),
+                Type: localctx.GetT().GetT(),
             },
         )
     }
@@ -388,7 +388,7 @@ globalDef returns [TopLevel g]:
     GlobalWord (i=Ident | s=StackPointerWord| typeAnno) Lparen mutDef Rparen constStmt
     {
         op:=&GlobalDef{
-            TypeFromProto: $mutDef.m,
+            Type: $mutDef.m,
             Value: $constStmt.c,
         }
         if localctx.Get_typeAnno()!=nil {
@@ -470,8 +470,8 @@ tableDef returns [TopLevel t]:
     {
         op:=&TableDef{Min:numToInt($min.GetText()),Max:numToInt($max.GetText())}
         if localctx.Get_typeAnno()!=nil {
-            op.TypeFromProto = new(int)
-            *op.TypeFromProto = $typeAnno.t
+            op.Type = new(int)
+            *op.Type = $typeAnno.t
         }
         $t=op
     }
@@ -482,8 +482,8 @@ memoryDef returns [TopLevel m]:
     {
         op:=&MemoryDef{Size:numToInt($size.GetText())}
         if localctx.Get_typeAnno()!=nil {
-            op.TypeFromProto = new(int)
-            *op.TypeFromProto = $typeAnno.t
+            op.Type = new(int)
+            *op.Type = $typeAnno.t
         }
         $m=op
     }
@@ -612,7 +612,7 @@ fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@
 Ident:IdentFirst IdentAfter*;
 
 fragment Digit: '0'..'9';
-ConstValue: ('-')?  Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)?)? ;
+ConstValue: ('-')?  Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)+)? ;
 
 //HexPointer: ('-')? '0x' ( '0' .. '9')+ 'p+' ('0'..'9')+;
 Offset: 'offset=' ( '0' .. '9')+;

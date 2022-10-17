@@ -66,7 +66,7 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 {{- end}}{{/* range input fields */}}
 {{- end}}{{/*needs fill*/}}
 {{- if ne $inParam ""}}
-    req:={{$inParam}}
+    {{$inParam}}
 {{- end}}{{/* has in param*/}}
 {{- if ne $outLocal ""}}
     resp:=&{{$outLocal}}

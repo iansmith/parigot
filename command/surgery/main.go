@@ -20,6 +20,8 @@ var outputFile *string = flag.String("o", "", "set to the output file you want t
 var first *bool = flag.Bool("1", false, "1st pass")
 var second *bool = flag.Bool("2", false, "2nd pass")
 var third *bool = flag.Bool("3", false, "3rd pass")
+var op *string = flag.String("op", "", "name of the operation to perform on the binary")
+var dumpStats *bool = flag.Bool("d", false, "dump info about unlink")
 
 func main() {
 
@@ -79,9 +81,23 @@ func main() {
 		}
 	}
 	//os.RemoveAll(tmp)
-	log.Printf("\t jsstrip: (1) %s -> %s\n", flag.Arg(0), watVersion)
-	log.Printf("\t jsstrip: (2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
-	log.Printf("\t jsstrip: (3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
+	log.Printf("\t surgery: (1) %s -> %s\n", flag.Arg(0), watVersion)
+	log.Printf("\t surgery: (2) %s -> %s\n", watVersion, filepath.Join(tmp, parigotFilename))
+	log.Printf("\t surgery: (3) %s -> %s\n", filepath.Join(tmp, parigotFilename), *outputFile)
+
+	if *outputFile != "" {
+		statOut, err := os.Stat(*outputFile)
+		if err != nil {
+			log.Printf("unable to stat output file %s: %v", *outputFile, err)
+		}
+		statIn, err := os.Stat(flag.Arg(0))
+		if err != nil {
+			log.Printf("unable to stat input file %s: %v", flag.Arg(0), err)
+		}
+		log.Printf("\t surgery: input file: %s, output file: %s", sizeInBytes(statIn.Size()),
+			sizeInBytes(statOut.Size()))
+	}
+
 	os.Exit(0)
 }
 
@@ -90,8 +106,26 @@ func allPasses() bool {
 }
 
 func transformation(mod *transform.Module) {
-	changeToplevelInModule(mod, transform.ImportDefT, changeImportsToTrueABI)
-	changeStatementInModule(mod, changeCallsToUseTrueABI)
+	if *op == "" {
+		log.Fatalf("you need to supply the -op parameter to express which op to perform")
+	}
+	switch *op {
+	case "old":
+	//changeToplevelInModule(mod, transform.ImportDefT, )
+	//changeStatementInModule(mod, changeCallsToUseTrueABI)
+	case "unlink":
+		u := newUnlink()
+		findToplevelInModule(mod, transform.ImportDefT, u.compileImports)
+		findToplevelInModule(mod, transform.TypeDefT, u.compileFuncTypes)
+		findToplevelInModule(mod, transform.FuncDefT, u.compileCandidates)
+		u.addImportsForCandidates(mod)
+		changeToplevelInModule(mod, transform.FuncDefT, u.unlinkStdlib)
+		if *dumpStats {
+			u.dumpStats()
+		}
+	default:
+		log.Fatalf("unknow op %s", *op)
+	}
 }
 
 func changeImportsToTrueABI(tl transform.TopLevel) transform.TopLevel {

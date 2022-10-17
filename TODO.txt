@@ -25,3 +25,14 @@ coordinated with client side service
 
 * rip out all of the "Get<Blah>" methods and make them more goish.
 
+* investigate unlinking for languages that end up with runtimes in the wasm
+
+
+Web Coord Language
+- define css rules of interest
+- laconic style html dev
+- section of text functions that are connected to html dev
+- css can also be attached to html dev
+- events attached to html
+- functions provided in typescript
+

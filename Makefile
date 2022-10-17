@@ -1,5 +1,3 @@
-TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
-
 BUILD_PRINT = \e[1;34mBuilding $<\e[0m
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
 
@@ -16,11 +14,11 @@ TRANSFORM_LIB=command/transform/*.go
 # only need to run the generator once, not once per file
 REP_GEN_WASM=command/transform/wasm_parser.go
 WASM_GRAMMAR=command/Wasm.g4
-BINPATCH_SRC=command/binpatch/*.go
-build/binpatch: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI)
+SURGERY_SRC=command/surgery/*.go
+build/surgery: $(WASM_GRAMMAR) $(TRANSFORM_LIB) $(REP_GEN_WASM) $(ABIPATCH_SRC) $(REP_ABI) $(SURGERY_SRC)
 	@echo
-	@echo "\033[92mabipatch ===========================================================================================\033[0m"
-	go build -o build/abipatch github.com/iansmith/parigot/command/abipatch
+	@echo "\033[92msurgery =============================================================================================\033[0m"
+	go build -o build/surgery github.com/iansmith/parigot/command/surgery
 
 $(REP_GEN_WASM): $(WASM_GRAMMAR)
 	@echo
@@ -65,7 +63,9 @@ $(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
 	@echo
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
+	gofmt -w $(ABI_GEN_OUT)/*.go
 	mv $(ABI_GEN_OUT)/abihelper.p.go $(ABI_GO_HELPER)
+	rm $(ABI_GEN_OUT)/abi.pb.go
 	gofmt -w $(ABI_GO_HELPER)
 
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC) $(PGP)
@@ -89,6 +89,7 @@ protoc: $(PGP)
 gen: $(PGP) abi net
 	buf generate
 runner:build/runner
+surgery:build/surgery
 
 .PHONY:test
 test: $(PGP)
