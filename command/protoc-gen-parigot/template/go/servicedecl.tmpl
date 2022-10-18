@@ -46,7 +46,7 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
 {{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false .}}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
@@ -61,7 +61,7 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
     {{- if $needsFill}}
 //build the request structure
     req:=&{{toCamelCase $meth}}Request{}
-{{- range .GetInputFields}}
+{{- range .InputFields}}
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{- end}}{{/* range input fields */}}
 {{- end}}{{/*needs fill*/}}

@@ -9,6 +9,8 @@ package g
 import (
     "unsafe"
 
+    "github.com/iansmith/parigot/g/parigot/abi"
+
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
@@ -19,7 +21,9 @@ import (
 type Caller interface {
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
-{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- .SetProtoPackage "command.runner.g"}}
+
+{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
     {{.GetName}}({{$methodParamDecl}}) {{$methodRet}}
 {{- end}}
@@ -57,10 +61,17 @@ func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*w
 // bind the names of the container implementation
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+{{- .SetProtoPackage "command.runner.g"}}
+
+{{/*
 {{- $complexParam:=call .FuncChoice.HasComplexParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- if $complexParam}}
-result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
-{{- end }}
+result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
+{{- else }} */}}
+result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
+
+{{/*
+{{- end }} */}}
 {{- end }}
 {{- end }}
 }
@@ -74,17 +85,26 @@ result["{{.GetParent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.Wra
 
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
+{{- .SetProtoPackage "command.runner.g"}}
+
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
 {{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput}}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{/*
 {{- $methParamDeclWasm:=call .FuncChoice.MethodParamDeclWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $methodCallWasm:=call .FuncChoice.MethodCallWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+*/}}
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 
-func {{.GetWasmMethodName}}_({{$methParamDeclWasm}}) {{$methodRet}} {
+{{/*
+{{- $methodCallWasm:=call .FuncChoice.MethodCallWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+*/}}
+{{- $methodCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+
+func {{.GetWasmMethodName}}_({{$methParamDecl}}) {{$methodRet}} {
 {{- if $needsRet}}
-    return impl.{{.GetName}}({{$methodCallWasm}})
+    return impl.{{.GetName}}({{$methodCall}})
 {{- else }}
-    impl.{{.GetName}}({{$methodCallWasm}})
+    impl.{{.GetName}}({{$methodCall}})
 {{- end}}
 }
 {{- end }}

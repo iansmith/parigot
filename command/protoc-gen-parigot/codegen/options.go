@@ -20,6 +20,7 @@ const (
 	serviceOptionAlwaysPullOutput = "543213"
 
 	methodOptionPullParams = "543211"
+	methodOptionPullOutput = "543213"
 	methodOptionCallsAbi   = "543212"
 
 	messageOptionNoPackage = "543211"
@@ -109,6 +110,10 @@ func alwaysPullOutputOption(s string) bool {
 
 func pullParamsOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, methodOptionPullParams)
+	return b
+}
+func pullOutputOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, methodOptionPullOutput)
 	return b
 }
 

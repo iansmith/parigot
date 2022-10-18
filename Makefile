@@ -59,13 +59,14 @@ $(REP_ABI): $(ABI_PROTO) $(PGP)
 ABI_GO_HELPER=command/runner/g/abihelper.p.go
 RUNNER_SRC=command/runner/*.go
 RUNNER=build/runner
-$(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP)
+$(ABI_GO_HELPER): abi/$(FLAVOR)/proto/abi/abi.proto $(PGP) \
+	abi/atlanta.base/go/jspatch/*.go abi/atlanta.base/go/tinygopatch/*.go \
+	$(REP_ABI)
 	@echo
 	@echo "\033[92mgenerating parigot_abi helper for runner ============================================================\033[0m"
 	buf generate
 	gofmt -w $(ABI_GEN_OUT)/*.go
 	mv $(ABI_GEN_OUT)/abihelper.p.go $(ABI_GO_HELPER)
-	rm $(ABI_GEN_OUT)/abi.pb.go
 	gofmt -w $(ABI_GO_HELPER)
 
 $(RUNNER): $(ABI_GO_HELPER) $(RUNNER_SRC) $(PGP)

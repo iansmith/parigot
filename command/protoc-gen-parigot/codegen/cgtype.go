@@ -21,31 +21,31 @@ func NewCGTypeFromComposite(m *WasmMessage, l LanguageText, f Finder,
 
 func NewCGTypeFromField(f *WasmField, m *WasmMethod, protoPkg string) *CGType {
 	nameOfFieldType := f.GetType().String()
-	t := m.GetLanguage().BasicTypeToString(nameOfFieldType, false)
+	t := m.Language().BasicTypeToString(nameOfFieldType, false)
 	if t == "" {
-		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfFieldType, nil)
-		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfFieldType, nil)
+		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
-	return NewCGTypeFromBasic(nameOfFieldType, m.GetLanguage(), protoPkg)
+	return NewCGTypeFromBasic(nameOfFieldType, m.Language(), protoPkg)
 }
 func NewCGTypeFromInput(in *InputParam, m *WasmMethod, protoPkg string) *CGType {
 	nameOfInputType := in.GetTypeName()
-	t := m.GetLanguage().BasicTypeToString(nameOfInputType, false)
+	t := m.Language().BasicTypeToString(nameOfInputType, false)
 	if t == "" {
-		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfInputType, nil)
-		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfInputType, nil)
+		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
-	return NewCGTypeFromBasic(nameOfInputType, m.GetLanguage(), protoPkg)
+	return NewCGTypeFromBasic(nameOfInputType, m.Language(), protoPkg)
 }
 
 func NewCGTypeFromOutput(out *OutputParam, m *WasmMethod, protoPkg string) *CGType {
 	nameOfOutType := out.GetTypeName()
-	t := m.GetLanguage().BasicTypeToString(nameOfOutType, false)
+	t := m.Language().BasicTypeToString(nameOfOutType, false)
 	if t == "" {
-		msg := m.GetFinder().FindMessageByName(protoPkg, nameOfOutType, nil)
-		return NewCGTypeFromComposite(msg, m.GetLanguage(), m.GetFinder(), protoPkg)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfOutType, nil)
+		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
-	return NewCGTypeFromBasic(nameOfOutType, m.GetLanguage(), protoPkg)
+	return NewCGTypeFromBasic(nameOfOutType, m.Language(), protoPkg)
 }
 
 func (c *CGType) HasValueBeenSet() bool {
@@ -69,7 +69,7 @@ func (c *CGType) SetEmpty() {
 	c.hasValue = true
 }
 
-func (c *CGType) GetCompositeType() *WasmMessage {
+func (c *CGType) CompositeType() *WasmMessage {
 	return c.composite
 }
 func (c *CGType) IsStrictWasmType() bool {
@@ -87,7 +87,7 @@ func (c *CGType) IsCompositeNoFields() bool {
 	if c.IsEmpty() || c.IsBasic() {
 		return false
 	}
-	comp := c.GetCompositeType()
+	comp := c.CompositeType()
 	return len(comp.GetField()) == 0
 }
 
@@ -136,8 +136,8 @@ func GetCGTypeForInputParam(i *InputParam) *CGType {
 	if inputName == "" {
 		return &CGType{hasValue: true} //this is an empty CGType
 	}
-	finder := i.GetParent().GetFinder()
-	protoPkg := i.GetParent().GetProtoPackage()
+	finder := i.GetParent().Finder()
+	protoPkg := i.GetParent().ProtoPackage()
 	lang := i.GetLanguage()
 	for _, s := range parigotTypeList {
 		if inputName == s {
@@ -161,8 +161,8 @@ func GetCGTypeForOutputParam(o *OutputParam) *CGType {
 	if outputName == "" {
 		return &CGType{hasValue: true} //this is an empty CGType
 	}
-	finder := o.GetParent().GetFinder()
-	protoPkg := o.GetParent().GetProtoPackage()
+	finder := o.GetParent().Finder()
+	protoPkg := o.GetParent().ProtoPackage()
 	lang := o.GetLanguage()
 	for _, s := range parigotTypeList {
 		if outputName == s {

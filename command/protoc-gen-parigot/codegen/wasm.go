@@ -21,6 +21,7 @@ func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService) *Wa
 	if meth.GetOptions() != nil {
 		meth.pullParameters = pullParamsOption(meth.GetOptions().String())
 		meth.abiCall = abiCallOption(meth.GetOptions().String())
+		meth.pullOutput = pullOutputOption(meth.GetOptions().String())
 	}
 	return meth
 }

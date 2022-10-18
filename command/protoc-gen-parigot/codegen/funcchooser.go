@@ -15,7 +15,7 @@ type FuncChooser struct {
 	Inbound             QuadString
 	Outbound            QuadString
 	RetError            QuadString
-	RetValue            FiveWithMethodString
+	RetValue            QuadWithMethodString
 	MethodRet           FiveWithMethodString
 	ZeroValueRet        FiveWithMethodString
 	MethodParamDecl     QuadWithMethodString

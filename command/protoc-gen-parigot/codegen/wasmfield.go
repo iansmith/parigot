@@ -16,6 +16,10 @@ func (w *WasmField) GetGoPackage() string {
 	return w.GetParent().GetGoPackage()
 }
 
+func (w *WasmField) GetProtoPackage() string {
+	return w.GetParent().GetProtoPackage()
+}
+
 func (w *WasmField) GetWasmFieldName() string {
 	if w.wasmFieldName != "" {
 		return w.wasmFieldName

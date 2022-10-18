@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+//export main.main
 func main() {
 	flag.Parse()
 	logger, err := log.LocateLog()

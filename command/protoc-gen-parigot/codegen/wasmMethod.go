@@ -16,25 +16,26 @@ type WasmMethod struct {
 	output         *OutputParam
 	// these values doesn't matter if your parent service has the "always"
 	// version of it set
-	pullParameters bool
-	pullOutput     bool
-	abiCall        bool
+	pullParameters       bool
+	pullOutput           bool
+	abiCall              bool
+	protoPackageOverride *string
 }
 
-func (w *WasmMethod) GetInputFields() []*WasmField {
-	if w.GetCGInput().Len() == 0 {
-		log.Fatalf("attempt to use GetInputFields but no input fields present in %s",
+func (w *WasmMethod) InputFields() []*WasmField {
+	if w.CGInput().Len() == 0 {
+		log.Fatalf("attempt to use InputFields but no input fields present in %s",
 			w.GetWasmMethodName())
 	}
-	return w.GetCGInput().GetCGType().GetCompositeType().GetField()
+	return w.CGInput().CGType().CompositeType().GetField()
 }
 
 func (w *WasmMethod) GetOutputFields() []*WasmField {
-	if w.GetCGOutput().Len() == 0 {
+	if w.CGOutput().Len() == 0 {
 		log.Fatalf("attempt to use GetOutputFields but no out fields present in %s",
 			w.GetWasmMethodName())
 	}
-	return w.GetCGOutput().GetCGType().GetCompositeType().GetField()
+	return w.CGOutput().GetCGType().CompositeType().GetField()
 }
 
 func (w *WasmMethod) HasNoPackageOption() bool {
@@ -48,26 +49,31 @@ func (w *WasmMethod) NoAbiCallOption() bool {
 	return !w.abiCall
 }
 
-func (w *WasmMethod) GetProtoPackage() string {
-	return w.GetParent().GetProtoPackage()
+func (w *WasmMethod) ProtoPackage() string {
+	if w.protoPackageOverride != nil {
+		return *w.protoPackageOverride
+	}
+	return w.Parent().GetProtoPackage()
 }
 
-func (w *WasmMethod) GetFinder() Finder {
-	return w.GetParent().GetFinder()
+func (w *WasmMethod) Finder() Finder {
+	return w.Parent().Finder()
 }
 
-func (w *WasmMethod) GetGoPackage() string {
-	return w.GetParent().GetGoPackage()
+func (w *WasmMethod) SetProtoPackage(p string) string {
+	w.protoPackageOverride = new(string)
+	*w.protoPackageOverride = p
+	return ""
 }
 
-func (w *WasmField) GetProtoPackage() string {
-	return w.GetParent().GetProtoPackage()
+func (w *WasmMethod) GoPackage() string {
+	return w.Parent().GetGoPackage()
 }
 
-func (w *WasmMethod) GetCGInput() *InputParam {
+func (w *WasmMethod) CGInput() *InputParam {
 	return w.input
 }
-func (w *WasmMethod) GetCGOutput() *OutputParam {
+func (w *WasmMethod) CGOutput() *OutputParam {
 	return w.output
 }
 
@@ -98,95 +104,133 @@ func (w *WasmMethod) GetWasmMethodName() string {
 	return w.wasmMethodName
 }
 
-// GetParent returns the parent of this wasm method, which is a wasm service.
-func (m *WasmMethod) GetParent() *WasmService {
+// Parent returns the parent of this wasm method, which is a wasm service.
+func (m *WasmMethod) Parent() *WasmService {
 	return m.parent
 }
 func (m *WasmMethod) EmtpyInput() bool {
-	return m.GetCGInput().GetCGType() == nil
+	return m.CGInput().CGType() == nil
 }
 func (m *WasmMethod) NotEmtpyInput() bool {
-	return m.GetCGInput().GetCGType() != nil
+	return m.CGInput().CGType() != nil
 }
 func (m *WasmMethod) EmtpyOutput() bool {
-	return m.GetCGOutput().GetCGType() == nil
+	return m.CGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
 	if m.PullOutput() {
-		exp := ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
+		exp := ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
 		if exp == nil {
 			return false
 		}
 		return !exp.GetCGType().IsEmpty()
 	}
-	t := m.GetCGOutput().GetCGType()
+	t := m.CGOutput().GetCGType()
 	if t == nil {
 		return false
 	}
 	return !t.IsEmpty()
 }
-func (m *WasmMethod) GetInputParam() *InputParam {
+func (m *WasmMethod) InputParam() *InputParam {
 	return m.input
 }
-func (m *WasmMethod) GetOutputParam() *OutputParam {
+func (m *WasmMethod) OutputParam() *OutputParam {
 	return m.output
 }
 func (m *WasmMethod) InputCodeNeeded() bool {
-	if m.GetCGInput() == nil {
+	if m.CGInput() == nil {
 		panic("should have input param")
 	}
-	if m.GetCGInput().GetCGType() == nil {
+	if m.CGInput().CGType() == nil {
 		panic("should have input param's type")
 	}
-	if m.GetCGInput().GetCGType().IsBasic() {
-		panic("should not have a simple type at top level of method")
+	if m.CGInput().CGType().IsBasic() {
+		panic("should not have a simple type at top level of proto definition")
 	}
-	if m.GetCGInput().GetCGType().IsEmpty() {
-		return false
-	}
-	if m.GetCGInput().GetCGType().IsCompositeNoFields() {
-		return false
-	}
-	return true
-}
-func (m *WasmMethod) OutputCodeNeeded() bool {
-	if m.GetCGOutput() == nil {
-		panic("should have an output param")
-	}
-	if m.GetCGOutput().GetCGType() == nil {
-		panic("should have input param's type")
-	}
-	if m.GetCGOutput().GetCGType().IsBasic() {
-		panic("should not have a simple type at top level of method")
-	}
-	if m.GetCGOutput().GetCGType().IsEmpty() {
-		return false
-	}
-	if m.GetCGOutput().GetCGType().IsCompositeNoFields() {
+	if m.CGInput().CGType().IsCompositeNoFields() {
 		return false
 	}
 	return true
 }
 
+func (m *WasmMethod) OutputCodeNeeded() bool {
+	if m.CGOutput() == nil {
+		panic("should have an output param")
+	}
+	if m.CGOutput().GetCGType() == nil {
+		panic("should have param's type")
+	}
+	if m.CGOutput().GetCGType().IsBasic() {
+		panic("should not have a simple type at top level of a proto definition")
+	}
+	cgt := m.CGOutput().GetCGType()
+	if cgt.IsCompositeNoFields() {
+		return false
+	}
+	if m.PullOutput() {
+		field := cgt.CompositeType().GetField()
+		if len(field) > 1 {
+			log.Fatalf("Currently, it is not allowed to pull up an output with more than 1 field:%s",
+				cgt.CompositeType().GetName())
+		}
+		// we checked for zero before, so we know len(field)==1
+		only := cgt.CompositeType().GetField()[0]
+		cgt = NewCGTypeFromField(only, m, m.ProtoPackage())
+		// we ban the pull up to a composite, because that's just confusing
+		// should we recurse on that?
+		if !cgt.IsBasic() {
+			log.Fatalf("Pulling up an output to another composite result is ambiguous:",
+				cgt.CompositeType().GetName())
+		}
+		if cgt.Basic() == "TYPE_INT64" {
+			log.Fatalf("Due to a javascript limitation, you cannot return a single int64 from a function "+
+				" and your pull up of the output of type %s would result in that", m.CGOutput().GetTypeName())
+		}
+	}
+	return true
+}
+
+func recurseCompositesToFindTypeSequence(t *CGType, m *WasmMethod, seq []string) []string {
+	if t.IsCompositeNoFields() {
+		return []string{}
+	}
+	if t.IsBasic() {
+		return m.Language().BasicTypeToWasm(t.Basic())
+	}
+	//it's a composite with 1 or more fields
+	comp := t.CompositeType()
+	field := comp.GetField()
+	result := seq
+	for _, f := range field {
+		cgt := NewCGTypeFromField(f, m, m.ProtoPackage())
+		if !cgt.IsBasic() {
+			result = append(result, recurseCompositesToFindTypeSequence(t, m, seq)...)
+		} else {
+			result = append(result, m.Language().BasicTypeToWasm(cgt.Basic())...)
+		}
+	}
+	return result
+}
+
 func (m *WasmMethod) FuncChoice() *FuncChooser {
-	return m.GetLanguage().FuncChoice()
+	return m.Language().FuncChoice()
 }
 
 func (m *WasmMethod) MarkInputOutputMessages() {
 	if !m.input.IsEmpty() {
-		if !m.input.GetCGType().IsBasic() {
-			m.input.GetCGType().GetCompositeType().MarkSource(true, m)
+		if !m.input.CGType().IsBasic() {
+			m.input.CGType().CompositeType().MarkSource(true, m)
 		}
 	}
 	if !m.output.IsEmpty() {
 		if !m.output.GetCGType().IsBasic() {
-			m.output.GetCGType().GetCompositeType().MarkSource(false, m)
+			m.output.GetCGType().CompositeType().MarkSource(false, m)
 		}
 	}
 }
 
-func (m *WasmMethod) GetLanguage() LanguageText {
-	return m.GetParent().GetLanguage()
+func (m *WasmMethod) Language() LanguageText {
+	return m.Parent().GetLanguage()
 }
 
 func (m *WasmMethod) PullParameters() bool {

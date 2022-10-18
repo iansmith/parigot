@@ -67,7 +67,7 @@ func (i *InputParam) SetCGType(cg *CGType) {
 	i.cgType = cg
 }
 
-func (i *InputParam) GetCGType() *CGType {
+func (i *InputParam) CGType() *CGType {
 	return i.cgType
 }
 
@@ -94,9 +94,9 @@ func (i *InputParam) IsEmpty() bool {
 func newInputParam(parent *WasmMethod) *InputParam {
 	result := &InputParam{
 		parent: parent,
-		lang:   parent.GetLanguage(),
+		lang:   parent.Language(),
 	}
-	result.cgType = NewCGTypeFromInput(result, parent, parent.GetProtoPackage())
+	result.cgType = NewCGTypeFromInput(result, parent, parent.ProtoPackage())
 	return result
 }
 
@@ -163,7 +163,7 @@ func newOutputParam(parent *WasmMethod) *OutputParam {
 	result := &OutputParam{
 		parent: parent,
 	}
-	result.cgType = NewCGTypeFromOutput(result, parent, parent.GetProtoPackage())
+	result.cgType = NewCGTypeFromOutput(result, parent, parent.ProtoPackage())
 	return result
 }
 

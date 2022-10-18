@@ -5,8 +5,8 @@ import "os"
 //go:wasm-module env
 //export runtime.ticks
 func Ticks() float64 {
-	print("Tinygo not implement: runtime.ticks()")
-	os.Exit(1)
+	print("runtime.ticks()")
+	//os.Exit(1)
 	return 0.0
 }
 

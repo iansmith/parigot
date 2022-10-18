@@ -15,30 +15,12 @@ import(
     _ "unsafe"
 )
 
-// This set of functions is where control is passed from "user code" to "kernel code"
+// The ABI is a set of functions where control is passed from "user code" to "kernel code"
 // in parigot.  In other words, the running container with normal code in it drops
 // through this interface to reach container-implemented code.  Like kernel code in
 // linux or similar, the implementation of that kernel code is not visible to the
 // user program.
 
-
-//
-// These functions have the true function name at the WASM level because their parameters
-// work directly in WASM.  Implementation of these ABI calls is by the container.
-//
-{{- range .info.Service }}
-{{- range .GetWasmMethod}}
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $noDecodeReq:=call .FuncChoice.NoDecodeRequired .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- if $noDecodeReq}}
-//go:wasm-module {{.GetParent.GetWasmServiceName}}
-//export {{.GetWasmMethodName}}_
-//go:linkname {{.GetWasmMethodName}}_
-func {{.GetWasmMethodName}}_({{$methodParamDecl}}) {{$methodRet}}
-{{- end}}{{/*Requires NO Decode */}}
-{{- end }}{{/*Range over methods*/}}
-{{- end}}{{/*range over services*/}}
 
 //
 // These functions are for access to the ABI from golang. Additionally, these
@@ -49,35 +31,39 @@ func {{.GetWasmMethodName}}_({{$methodParamDecl}}) {{$methodRet}}
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  true . }}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $complexParam:=call .FuncChoice.HasComplexParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 
-{{- $abisuffix:="_"}}
-{{- if $complexParam }}
-{{- $abisuffix:="_stub"}} // {{$complexParam}}
-{{- end}}
-
-
-//export {{toCamelCase .GetName}}
+//xxxx
+//go:wasm-module parigot_abi
+// not clear we care about this: export {{toCamelCase .GetName}}
 //go:noinline
+//xxxx
+
 func {{toCamelCase .GetName}}({{$methParamDecl}}) {{$methodRet}} {
 {{- if $needsRet }}
-    return {{.GetWasmMethodName}}{{$abisuffix}}({{$methCall}})
+    return {{.GetWasmMethodName}}_({{$methCall}})
 {{- else}}
-    {{.GetWasmMethodName}}{{$abisuffix}}({{$methCall}})
+    {{.GetWasmMethodName}}_({{$methCall}})
 {{- end}}
 }
 
-{{- if $complexParam }}
-//go:wasm-module parigot_abi  {{$complexParam}}
-//export {{.GetWasmMethodName}}{{$abisuffix}}
+{{- end }} {{/*range over methods */}}
+{{- end }} {{/*range over services*/}}
+
+{{- range .info.Service }}
+{{- range .GetWasmMethod}}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+
 //go:noinline
-//go:linkname {{.GetWasmMethodName}}{{$abisuffix}}
-func {{.GetWasmMethodName}}{{$abisuffix}}({{$methParamDecl}}) {{$methodRet}}
-{{ end }}
+//export {{.GetWasmMethodName}}_
+//go:wasm-module parigot_abi
+//go:linkname {{.GetWasmMethodName}}_
+func {{.GetWasmMethodName}}_({{$methParamDecl}}) {{$methodRet}}
 
 {{- end }} {{/*range over methods */}}
 {{- end }} {{/*range over services*/}}
+

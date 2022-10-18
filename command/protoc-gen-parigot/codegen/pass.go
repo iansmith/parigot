@@ -10,28 +10,28 @@ func FuncParamPass(method *WasmMethod,
 	empty func(method *WasmMethod, isInput bool, param *CGParameter) string) string {
 
 	result := ""
-	in := method.GetInputParam()
-	out := method.GetOutputParam()
+	in := method.InputParam()
+	out := method.OutputParam()
 
 	// check the types to make sure they are not there
-	if in.GetCGType() == nil {
+	if in.CGType() == nil {
 		in.cgType = GetCGTypeForInputParam(in)
 	}
 	if out.GetCGType() == nil {
 		out.cgType = GetCGTypeForOutputParam(out)
 	}
-	inParam := NewCGParameterNoFormal(in.GetCGType())
+	inParam := NewCGParameterNoFormal(in.CGType())
 
 	if in.IsEmpty() {
 		result += empty(method, true, inParam)
 	}
 	if !in.IsEmpty() {
-		if !in.GetCGType().IsBasic() {
+		if !in.CGType().IsBasic() {
 			if method.PullParameters() {
 				result += walkParametersPulled(method, fn)
 			} else {
-				fakeFormal := in.GetCGType().ShortName()[0:1]
-				cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.GetCGType())
+				fakeFormal := in.CGType().ShortName()[0:1]
+				cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.CGType())
 				result += fn(method, 0, cgp)
 			}
 		}
@@ -52,7 +52,7 @@ func ExpandReturnInfoForOutput(out *OutputParam, m *WasmMethod, protoPkg string)
 	if t.IsBasic() {
 		log.Fatalf("unable to pull parameters from a basic type on input:%s ", t.ShortName())
 	}
-	comp := t.GetCompositeType()
+	comp := t.CompositeType()
 	if len(comp.GetField()) == 0 {
 		return nil
 	}
@@ -63,14 +63,14 @@ func ExpandReturnInfoForOutput(out *OutputParam, m *WasmMethod, protoPkg string)
 }
 
 func ExpandParamInfoForInput(in *InputParam, m *WasmMethod, protoPkg string) []*CGParameter {
-	t := in.GetCGType()
+	t := in.CGType()
 	if in.IsEmpty() {
 		return nil
 	}
 	if t.IsBasic() {
 		log.Fatalf("unable to pull parameters from a basic type on input:%s ", t.ShortName())
 	}
-	comp := t.GetCompositeType()
+	comp := t.CompositeType()
 	field := comp.GetField()
 	if len(field) == 0 {
 		return nil
@@ -88,17 +88,17 @@ func MethodsPass(gen *GenInfo,
 	for _, svc := range gen.Service() {
 		protoPackage := svc.GetParent().GetPackage()
 		for _, method := range svc.GetWasmMethod() {
-			in := method.GetInputParam()
-			out := method.GetOutputParam()
+			in := method.InputParam()
+			out := method.OutputParam()
 
 			// check the types to make sure they are not there
-			if in.GetCGType() == nil {
+			if in.CGType() == nil {
 				in.cgType = GetCGTypeForInputParam(in)
 			}
 			if out.GetCGType() == nil {
 				out.cgType = GetCGTypeForOutputParam(out)
 			}
-			inParam := NewCGParameterNoFormal(in.GetCGType())
+			inParam := NewCGParameterNoFormal(in.CGType())
 			outParam := NewCGParameterNoFormal(out.GetCGType())
 
 			if !in.IsEmpty() {
@@ -108,8 +108,8 @@ func MethodsPass(gen *GenInfo,
 				empty(gen, svc, method, false, outParam)
 			}
 			if !in.IsEmpty() {
-				if !in.GetCGType().IsBasic() {
-					comp := in.GetCGType().GetCompositeType()
+				if !in.CGType().IsBasic() {
+					comp := in.CGType().CompositeType()
 					if len(comp.GetField()) != 0 {
 						for _, f := range comp.GetField() {
 							cgp := NewCGParameterFromField(f, method, protoPackage)
@@ -124,14 +124,14 @@ func MethodsPass(gen *GenInfo,
 
 func walkParametersPulled(m *WasmMethod,
 	fn func(method *WasmMethod, num int, parameter *CGParameter) string) string {
-	in := m.GetCGInput()
-	protoPkg := m.GetParent().GetProtoPackage()
+	in := m.CGInput()
+	protoPkg := m.Parent().GetProtoPackage()
 	paramList := ExpandParamInfoForInput(in, m, protoPkg)
 	result := ""
 	for i, cgp := range paramList {
 		result += fn(m, i, cgp)
 		if i != len(paramList)-1 {
-			result += m.GetLanguage().GetFormalArgSeparator()
+			result += m.Language().GetFormalArgSeparator()
 		}
 	}
 	return result
@@ -139,7 +139,7 @@ func walkParametersPulled(m *WasmMethod,
 
 func walkOutputPulledParam(m *WasmMethod,
 	fn func(protoPkg string, method *WasmMethod, parameter *CGParameter) string) string {
-	out := m.GetCGOutput()
+	out := m.CGOutput()
 	if out.GetCGType().IsEmpty() {
 		// this is a semi-error but we tolerate it... you could have specified
 		// alwaysPullUp on the service and then if you had any empty functions
@@ -151,17 +151,17 @@ func walkOutputPulledParam(m *WasmMethod,
 		log.Fatalf("unable to pull up parameters of %s because it is not a composite "+
 			"object", t.String("" /*doesnt matter on basic*/))
 	}
-	composite := t.GetCompositeType()
+	composite := t.CompositeType()
 	if len(composite.GetField()) == 0 {
 		return ""
 	}
-	if len(t.GetCompositeType().GetField()) > 1 {
+	if len(t.CompositeType().GetField()) > 1 {
 		log.Fatalf("cant pull up parameters from output type %s, it has more than 1 value",
 			t.String(""))
 	}
-	protoPkg := m.GetParent().GetProtoPackage()
-	f := t.GetCompositeType().GetField()[0]
+	protoPkg := m.Parent().GetProtoPackage()
+	f := t.CompositeType().GetField()[0]
 	childType := NewCGTypeFromField(f, m, protoPkg)
 	cgParam := NewCGParameterNoFormal(childType)
-	return fn(m.GetProtoPackage(), m, cgParam)
+	return fn(m.ProtoPackage(), m, cgParam)
 }

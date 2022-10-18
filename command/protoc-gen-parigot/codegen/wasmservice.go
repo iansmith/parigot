@@ -17,7 +17,7 @@ type WasmService struct {
 	finder               Finder
 }
 
-func (w *WasmService) GetFinder() Finder {
+func (w *WasmService) Finder() Finder {
 	return w.finder
 }
 

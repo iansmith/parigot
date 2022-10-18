@@ -14,34 +14,69 @@
 //
 // If you want to write your own toolkit against the container--your own api
 // to parigot--you can build it on top of these primitives.
+//
+// For a given flavor (version,variant) of parigot, the intent is to keep the
+// same abi for all languages, so this file documents the underlying ABI that is
+// implied by each call. Languages should adapt their "definition" of the ABI
+// to match this binary format.  All pointers are 32 bit pointers into linear mem.
+// Below, we use the notation *int32 to mean an int32 being used as a ptr.
+//
+// * Larger return values are passed as a ptr in the first argument. Due to a Javascript
+// issue, 64 bit return values are explicitly prohibited.
+// * Strings are passed as a pointer and a length.
+// * Variable width results are passed and returned as ptr,length,and capacity
+// all 32 bits wide.  Effectively, this is type of result is an array of bytes
+// that is capacity large and the first length bytes are in use.
+//
+// We use the "pull up" notion for parameter so the API that is generated for
+// go matches the "intuition" about the function.  E.g. Exit(<struct of 1 int64>)
+// and Exit(int64) maybe be identical at the binary level because the compiler
+// may choose to pass the struct as a single int64...or it might not and use a
+// pointer.  We use the "pull up" so the programmer sees the _true_ definition
+// of the function, Exit(int64), rather than having the intermediary type (albeit
+// required by protobuf) that could cause confusion.
 
 syntax = "proto3";
 package abi;
 import "parigot.proto";
 option go_package = "github.com/iansmith/parigot/g/abi;abi";
 option (parigot.abi) = true;
-// parigot: WasmServiceName=parigot_abi
+
 service Abi {
-  option (parigot.always_pull_up_parameters) = true;
-  option (parigot.always_pull_up_output) = true;
   option (parigot.wasm_service_name) = "parigot_abi";
   option (parigot.no_package) = true;
-
+  option (parigot.always_pull_up_parameters) = true;
+  // f(ptr *int32,len int32) ->
   rpc OutputString(OutputStringRequest) returns(OutputStringResponse){
+    option (parigot.pull_output_up) = true;
     option (parigot.wasm_method_name) = "output_string";
   }
+  // f(int64) ->
   rpc Exit(ExitRequest) returns(ExitResponse) {// will die
+    option (parigot.pull_output_up) = true;
     option (parigot.wasm_method_name) = "exit";
   }
+
+  // result = (int64)
+  // f(result_ptr *int32) ->
   rpc Now(NowRequest) returns(NowResponse){
     option (parigot.wasm_method_name) = "now";
   };
+
+  // f(int64, int32) ->
   rpc SetNow(SetNowRequest) returns(SetNowResponse){
+    option (parigot.pull_output_up) = true;
     option (parigot.wasm_method_name) = "set_now";
   };
+
+  // result = (int64,int32)
+  // f(result *int32,ptr *int32,len int32, ptr2 *int32, len2 int32) ->
   rpc Locate(LocateRequest) returns (LocateResponse){
     option (parigot.wasm_method_name) = "locate";
   }
+
+  // result = (ptr int32, len int32, cap int32, code int32)
+  // f(result_ptr *int32,sid int64, ptr *int32, len int32, ptr *int32, len int32, cap int32) ->
   rpc Dispatch(DispatchRequest) returns (DispatchResponse){
     option (parigot.wasm_method_name) = "dispatch";
   }
@@ -92,6 +127,7 @@ message LocateRequest {
 
 message LocateResponse {
   int64 service_sid =1;
+  int32 locate_error_code=2;
 }
 
 message DispatchRequest {
@@ -102,4 +138,5 @@ message DispatchRequest {
 
 message DispatchResponse {
   bytes blob = 1;
+  int32 dispatch_error_code=2;
 }

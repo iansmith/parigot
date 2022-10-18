@@ -18,12 +18,12 @@ func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) 
 
 func (g *GoText) OutTypeDecl(m *codegen.WasmMethod) string {
 	if m.PullParameters() {
-		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		comp := m.CGOutput().GetCGType().CompositeType()
 		if len(comp.GetField()) == 0 {
 			return "error"
 		}
-		param := codegen.NewCGParameterFromField(comp.GetField()[0], m, m.GetProtoPackage())
-		return fmt.Sprintf("(%s,error)", g.GetReturnValueDecl(m.GetProtoPackage(), m, param))
+		param := codegen.NewCGParameterFromField(comp.GetField()[0], m, m.ProtoPackage())
+		return fmt.Sprintf("(%s,error)", g.GetReturnValueDecl(m.ProtoPackage(), m, param))
 	}
 	return g.OutType(m)
 }
@@ -31,10 +31,10 @@ func (g *GoText) OutTypeDecl(m *codegen.WasmMethod) string {
 func (g *GoText) OutType(m *codegen.WasmMethod) string {
 	result := ""
 	// if we had expansion for the output, would be this call...
-	// codegen.ExpandReturnInfoForOutput(m.GetOutputParam(), m, m.GetProtoPackage())
-	protoPackage := m.GetProtoPackage()
-	outType := m.GetCGOutput().GetCGType()
-	if m.GetCGOutput().IsEmpty() || outType.IsCompositeNoFields() {
+	// codegen.ExpandReturnInfoForOutput(m.OutputParam(), m, m.ProtoPackage())
+	protoPackage := m.ProtoPackage()
+	outType := m.CGOutput().GetCGType()
+	if m.CGOutput().IsEmpty() || outType.IsCompositeNoFields() {
 		result += ""
 	} else {
 		result += outType.String(protoPackage)
@@ -56,7 +56,7 @@ func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 
 func (g *GoText) ReturnErrorDecl(m *codegen.WasmMethod, msg string) string {
 	if m.PullParameters() {
-		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		comp := m.CGOutput().GetCGType().CompositeType()
 		err := fmt.Sprintf("parigot.NewFromError(\"%s\",err)", msg)
 		if len(comp.GetField()) == 0 {
 			return "return " + err
@@ -68,7 +68,7 @@ func (g *GoText) ReturnErrorDecl(m *codegen.WasmMethod, msg string) string {
 
 func (g *GoText) ReturnValueDecl(m *codegen.WasmMethod) string {
 	if m.PullParameters() {
-		comp := m.GetCGOutput().GetCGType().GetCompositeType()
+		comp := m.CGOutput().GetCGType().CompositeType()
 		if len(comp.GetField()) == 0 {
 			return "return nil"
 		}
@@ -79,7 +79,7 @@ func (g *GoText) ReturnValueDecl(m *codegen.WasmMethod) string {
 
 func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
 	if m.PullOutput() {
-		t := m.GetCGOutput().GetCGType()
+		t := m.CGOutput().GetCGType()
 		if t.IsCompositeNoFields() {
 			return "return nil"
 		}
@@ -94,16 +94,16 @@ func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 	if m.PullOutput() {
 		// xxx fix me, this should not be hitting codgen like this
-		exp := codegen.ExpandReturnInfoForOutput(m.GetCGOutput(), m, m.GetProtoPackage())
+		exp := codegen.ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
 		if exp == nil {
 			return ""
 		}
 		if !exp.GetCGType().IsBasic() {
-			return exp.GetCGType().String(m.GetProtoPackage()) + "{}"
+			return exp.GetCGType().String(m.ProtoPackage()) + "{}"
 		}
 		return g.ZeroValuesForProtoTypes(exp.GetCGType().String(""))
 	}
-	out := m.GetCGOutput()
+	out := m.CGOutput()
 	if out == nil || out.IsEmpty() {
 		return ""
 	}
@@ -115,7 +115,7 @@ func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
 	if t.IsBasic() {
 		g.ZeroValuesForProtoTypes(t.String(""))
 	}
-	return t.String(m.GetProtoPackage()) + "{}"
+	return t.String(m.ProtoPackage()) + "{}"
 }
 
 func (g *GoText) ZeroValuesForProtoTypes(s string) string {
@@ -318,7 +318,7 @@ func (g *GoText) BasicTypeToReturnExpr(s string, num int, p *codegen.CGParameter
 
 func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFormalName bool) string {
 	result := ""
-	file := method.GetParent().GetParent()
+	file := method.Parent().GetParent()
 	protoPkg := file.GetPackage()
 	result += codegen.FuncParamPass(method,
 		func(method *codegen.WasmMethod, _ int, parameter *codegen.CGParameter) string {
@@ -334,7 +334,7 @@ func (g *GoText) AllInputWithFormalWasmLevel(method *codegen.WasmMethod, showFor
 			if parameter.HasFormal() {
 				result += " " // xxx
 			}
-			//if parameter.GetCGType().IsBasic() {
+			//if parameter.CGType().IsBasic() {
 			//	result += g.BasicTypeToString(g.GetCGTypeName(protoPkg, method, parameter), true)
 			//} else {
 			//	result += g.GetCGTypeName(protoPkg, method, parameter)
@@ -358,7 +358,7 @@ const letters = "abcdefghijklmnop"
 func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 	result := ""
 	count := 0
-	file := m.GetParent().GetParent()
+	file := m.Parent().GetParent()
 	protoPkg := file.GetPackage()
 	result += codegen.FuncParamPass(m,
 		func(method *codegen.WasmMethod, n int, parameter *codegen.CGParameter) string {
@@ -375,7 +375,7 @@ func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 				if used > 1 {
 					name = fmt.Sprintf("p%d%s", n, l)
 				}
-				newCG := g.convertGoTypeToWasmType(parameter.GetCGType(), i, m.GetLanguage(), protoPkg)
+				newCG := g.convertGoTypeToWasmType(parameter.GetCGType(), i, m.Language(), protoPkg)
 				param := codegen.NewCGParameterFromString(name, newCG)
 				result += param.GetFormalName()
 				result += " " //xxx
@@ -408,7 +408,7 @@ func (g *GoText) replaceFormalName(newName string, parameter *codegen.CGParamete
 }
 
 func (g *GoText) AllInputWasmToGoImpl(method *codegen.WasmMethod) string {
-	file := method.GetParent().GetParent()
+	file := method.Parent().GetParent()
 	protoPkg := file.GetPackage()
 	return codegen.FuncParamPass(method,
 		func(method *codegen.WasmMethod, num int, parameter *codegen.CGParameter) string {
