@@ -1,6 +1,6 @@
 FROM ubuntu:jammy-20221003
 RUN apt-get update
-RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano
+RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano hugo
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -53,6 +53,8 @@ RUN ln -s /home/parigot/deps/wabt /home/parigot/tools
 RUN mkdir /home/parigot/tools/bin
 WORKDIR /home/parigot/tools/bin
 RUN ln -s /usr/local/bin/tinygo /home/parigot/tools/bin
+# hugo puts itself in /usr/bin, ugh!
+#RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
 RUN ln -s /home/parigot/deps/buf1.8.0 /home/parigot/tools/bin
 RUN ln -s /home/parigot/deps/wasmtime-v1.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
 

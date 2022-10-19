@@ -14,7 +14,7 @@ type FuncChooser struct {
 	NeedsPullApart      QuadOptions
 	Inbound             QuadString
 	Outbound            QuadString
-	RetError            QuadString
+	RetError            QuadWithMethodString
 	RetValue            QuadWithMethodString
 	MethodRet           FiveWithMethodString
 	ZeroValueRet        FiveWithMethodString
@@ -26,4 +26,5 @@ type FuncChooser struct {
 	MethodParamDeclWasm QuadWithMethodString
 	HasComplexParam     QuadWithMethodBool
 	MethodCallWasm      QuadWithMethodString
+	InputToSend         QuadWithMethodString
 }

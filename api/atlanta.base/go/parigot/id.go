@@ -25,13 +25,11 @@ type ServiceId AnyId
 
 // LocateErrorId is return when the locator failed to find your service or
 // had other problems.  It returns well known constants for the different
-// types of errors it has.  Note that a call to Locate() in the ABI should
-// be checked to see if the return value is a ServiceId or a LocateErrorId.
+// types of errors it has.
 type LocateErrorId AnyId
 
-// DispatchErrorId is returned by a failed call to Dispatch in the ABI.  Note
-// that Dispatch always returns a buffer of bytes, but they will only be the
-// correct size and format of a DispatchErrorId in the case of error.
+// DispatchErrorId is returned by a failed call to Dispatch in the ABI.
+// It returns a well known constant for its errors.
 type DispatchErrorId AnyId
 
 // NewServiceId is used by the kernel to create a new service id in production.
@@ -46,14 +44,14 @@ func NewServiceIdFromInt(i int64) ServiceId {
 	return ServiceId(idFromInt(service, i))
 }
 
-// NewDispatchError requires an error code on the server side.  This is used
-// by the Dispatch implentation to create an error id.
+// NewDispatchError converts a set of bytes into a DispatchErrorId.  This is used
+// by the client side to convert set of bits to something stronger typed.
 func NewDispatchErrorId(errorCode int64) DispatchErrorId {
 	return DispatchErrorId(idFromInt(dispatchError, errorCode))
 }
 
-// NewLocateErrorId takes a previously thought to be ServiceId and changes
-// it to a LocateErrorId.
+// NewLocateErrorId takes an error code and converts it to a Locator error. This is used
+// by the client side to convert set of bits to something stronger typed.
 func NewLocateErrorId(oldValue int64) LocateErrorId {
 	return LocateErrorId(idFromInt(locateError, oldValue))
 }

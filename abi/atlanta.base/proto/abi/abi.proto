@@ -126,8 +126,8 @@ message LocateRequest {
 }
 
 message LocateResponse {
-  int64 service_sid =1;
-  int32 locate_error_code=2;
+  int64 service_id =1;
+  int64 error_code=2;
 }
 
 message DispatchRequest {
@@ -138,5 +138,5 @@ message DispatchRequest {
 
 message DispatchResponse {
   bytes blob = 1;
-  int32 dispatch_error_code=2;
+  int64 error_code=2;
 }

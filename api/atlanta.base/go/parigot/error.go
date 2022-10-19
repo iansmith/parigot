@@ -14,7 +14,7 @@ type Error interface {
 	Unwrap() error
 }
 
-func NewFromError(msg string, err error) *ErrorImpl {
+func NewErrorFromError(msg string, err error) *ErrorImpl {
 	return &ErrorImpl{
 		underlying: err,
 		message:    msg,

@@ -4,3 +4,4 @@ build/*
 enable-parigot
 g/parigot
 
+tinygotest/*

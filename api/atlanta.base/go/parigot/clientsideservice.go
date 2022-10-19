@@ -1,6 +1,7 @@
 package parigot
 
 import (
+	"fmt"
 	"github.com/iansmith/parigot/g/parigot/abi"
 	"google.golang.org/protobuf/proto"
 )
@@ -20,14 +21,16 @@ func (b *ClientSideService) Dispatch(method string, in proto.Message, out proto.
 		var err error
 		blob, err = proto.Marshal(in)
 		if err != nil {
-			return NewFromError("unable to marshall input parameter in dispatch", err)
+			return NewErrorFromError(fmt.Sprintf("failed to marshal request in dispatch to '%s'", method), err)
 		}
 	}
-	respBlob := abi.Dispatch(int64(b.svc), method, blob)
-	err := proto.Unmarshal(respBlob, out)
+	dispatchResp := abi.Dispatch(int64(b.svc), method, blob)
+	if dispatchResp.GetErrorCode() != 0 {
+		return NewErrorFromId("dispatch failed on method "+method, AnyId(NewDispatchErrorId(dispatchResp.GetErrorCode())))
+	}
+	err := proto.Unmarshal(dispatchResp.GetBlob(), out)
 	if err != nil {
-		id := NewDispatchErrorFromBytes(respBlob)
-		return NewErrorFromId("dispatch failed", AnyId(id))
+		return NewErrorFromError(fmt.Sprintf("failed to unmarshal response to dispatch of '%s'", method), err)
 	}
 	return nil
 }

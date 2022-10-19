@@ -27,6 +27,7 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		MethodParamDeclWasm: funcChoicesMethodParamDeclWasm,
 		HasComplexParam:     funcChoicesHasComplexParam,
 		MethodCallWasm:      funcChoicesMethodCallWasm,
+		InputToSend:         funcChoicesInputToSend,
 	}
 }
 
@@ -293,26 +294,60 @@ func funcChoicesNeedsFill(b1, b2, b3, b4 bool) bool {
 func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 	return b2
 }
-
 func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
-	choices := funcChoicesToInt(b1, b2, b3, b4)
-	if choices&8 == 0 {
+	if !b1 {
 		return ""
-	}
-	if choices == 10 {
-		return ""
+		//detail, scenario := outputTypeInfo(b4, m)
+		//switch scenario {
+		//case outTypeCompositeNoFields:
+		//	return ""
+		//case outTypeComposite:
+		//	return m.Language().EmptyComposite(detail.String(m.ProtoPackage()), m)
+		//case outTypeBasic:
+		//	m.Language().ZeroValuesForProtoTypes(detail.Basic())
+		//}
 	}
 	t := m.CGInput().CGType()
-	// xxx fix me xxx should not have string in here
-	return "req:=" + m.Language().ToId(t.String(m.ProtoPackage()), true, m)
+	if b3 {
+		return "XXX need walk"
+	}
+	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
+	//if !b3 {
+	//	// this is the big object case
+	//	return m.Language().EmptyComposite(t.String(m.ProtoPackage()), m)
+	//}
+	//// we should have already checked that this is an ok pull-up
+	//t = codegen.NewCGTypeFromField(t.CompositeType().GetField()[0], m, m.ProtoPackage())
+	//return m.Language().ZeroValuesForProtoTypes(t.Basic())
 }
+
+func funcChoicesInputToSend(b1, _, b3, _ bool, m *codegen.WasmMethod) string {
+	if b1 {
+		return "req"
+	}
+	return "nil"
+}
+
 func funcChoicesNeedsPullApart(b1, b2, b3, b4 bool) bool {
 	return funcChoicesToInt(b1, b2, b3, b4) == 0x5
 }
-func funcChoicesRetError(b1, b2, b3, b4 bool) string {
-	if b2 {
-		return "nil,err"
+func funcChoicesRetError(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
+	if !b2 {
+		return ""
 	}
+	detail, scenario := outputTypeInfo(b4, m)
+	switch scenario {
+	case outTypeCompositeNoFields:
+		return ""
+	case outTypeComposite:
+		return m.Language().EmptyComposite(detail.String(m.ProtoPackage()), m) + ","
+	case outTypeBasic:
+		return funcChoicesZeroValueRet(false, false, false, b4, false, m) + ","
+	}
+
+	//if b2 {
+	//	return fmt.Sprintf("\"%s,err", m.CGInput().CGType().String(m.ProtoPackage()))
+	//}
 	return "err"
 }
 
@@ -340,7 +375,7 @@ func outReturnToString(b2, b4 bool, m *codegen.WasmMethod, abi bool) string {
 		}
 		return m.Language().BasicTypeToString(codegen.NewCGTypeFromField(field[0], m, m.ProtoPackage()).Basic(), true) + ",error"
 	}
-	return m.CGOutput().GetCGType().String(m.ProtoPackage()) + ",error"
+	return fmt.Sprintf("(%s,%s)", m.CGOutput().GetCGType().String(m.ProtoPackage()), "error")
 }
 
 func funcChoicesMethodRet(b1, b2, b3, b4 bool, abi bool, m *codegen.WasmMethod) string {
@@ -348,6 +383,9 @@ func funcChoicesMethodRet(b1, b2, b3, b4 bool, abi bool, m *codegen.WasmMethod) 
 	if abi {
 		// sadly, the abi is a special case because it doesn't return error values
 		return outReturnToString(b2, b4, m, true)
+	}
+	if !b2 {
+		return "error"
 	}
 	return outReturnToString(b2, b4, m, false)
 }
@@ -377,7 +415,7 @@ func funcChoicesRetValue(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	//	return ""
 	//}
 	if b2 {
-		return "resp,nil"
+		return fmt.Sprintf("%sResponse{},nil", m.GetWasmMethodName())
 	}
 	return "nil"
 }

@@ -90,7 +90,7 @@ type window struct {
 const nanHead = 0x7FF80000
 
 // stupid 64 bit trick load side
-func loadValue(addr int32) int32 {
+func loadValue(addr int32) int64 {
 	buff := make([]byte, 8)
 	for i := int32(0); i < 8; i++ {
 		buff[i] = *((*byte)(unsafe.Pointer(*memPtr + uintptr(addr+i))))
@@ -103,13 +103,9 @@ func loadValue(addr int32) int32 {
 	if !math.IsNaN(f) {
 		panic("unexpected float")
 	}
-	// 4 bytes this time
-	for i := int32(0); i < 4; i++ {
-		buff[i] = *((*byte)(unsafe.Pointer(*memPtr + uintptr(addr+i))))
-	}
 	id := binary.LittleEndian.Uint32(buff)
 	log.Printf("id requested: %d", id)
-	return int32(id)
+	return int64(id) //should be the object from the table
 }
 
 // stupid 64 bit trick, save side
@@ -128,12 +124,14 @@ func storeValue(addr int32, v int64) {
 	}
 }
 
-func ValueGet(retval int64, vAddr int32, propLen int32, propPtr int32) int32 {
+func ValueGet(retval int32, vAddr int32, propLen int32, propPtr int32, what_is_this int32) {
 	//const v = loadValue(v_addr);
 	//const p = loadString(p_ptr, p_len);
 	//const x = loadValue(x_addr);
 	//Reflect.set(v, p, x);
 	prop := strConvert(*memPtr, propPtr, propLen)
 	log.Printf("Value Get: %s", prop)
-	return loadValue(vAddr)
+	value := loadValue(vAddr)
+	result := value // this should be a Reflect.get(value,prop)
+	storeValue(retval, result)
 }

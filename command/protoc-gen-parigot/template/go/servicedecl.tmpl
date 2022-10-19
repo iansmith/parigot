@@ -26,11 +26,14 @@ type {{$svcCamel}}Impl struct {
 }
 
 func Locate{{$svc}}() ({{$svcCamel}},error) {
-    svcId:=abi.Locate("parigot","{{$svc}}")
-    if parigot.IsServiceId(svcId) {
-        return nil, parigot.NewErrorFromId("locate failed",parigot.AnyId(parigot.NewLocateErrorId(svcId)))
+    resp:=abi.Locate("parigot","{{$svc}}")
+    respPtr:=&resp
+    if resp.GetErrorCode() != 0 {
+        locateErrorId:=parigot.NewLocateErrorId(respPtr.GetErrorCode())
+        return nil, parigot.NewErrorFromId("failed to locate {{$svc}}",
+            parigot.AnyId(locateErrorId))
     }
-    cs:=parigot.NewClientSideService(parigot.ServiceId(svcId))
+    cs:=parigot.NewClientSideService(parigot.ServiceId(respPtr.GetServiceId()))
     return &{{toCamelCase .GetWasmServiceName}}Impl{
         ClientSideService: cs,
     },nil
@@ -43,12 +46,13 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
 {{- $needsFill:=call .FuncChoice.NeedsFill .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
-{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
@@ -66,14 +70,14 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 {{- end}}{{/* range input fields */}}
 {{- end}}{{/*needs fill*/}}
 {{- if ne $inParam ""}}
-    {{$inParam}}
+    req:=&{{$inParam}}
 {{- end}}{{/* has in param*/}}
 {{- if ne $outLocal ""}}
     resp:=&{{$outLocal}}
  {{- end}}
-    err:= i.Dispatch("{{.GetWasmMethodName}}",{{$inbound}},{{$outbound}})
+    err:= i.Dispatch("{{.GetWasmMethodName}}",{{$inputToSend}},{{$outbound}})
     if err!=nil {
-       return {{$retError}}
+       return {{$retError}}err
     }
     return {{$retValue}}
 {{end}}{{/*abi used */}}
