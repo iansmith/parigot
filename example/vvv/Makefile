@@ -1,7 +1,7 @@
 ### BEFORE YOU USE THIS MAKEFILE BE SURE YOU HAVE DONE A FULL BUILD OF PARIGOT ABOVE THIS.
 ### parigot/build MUST BE POPULATED OR THIS WILL DIE A HORRIBLE DEATH.
 
-# this file expects you to have a current directory of vvv (the dir containing this file)
+# this file expects you to have a current directory o•f vvv (the dir containing this file)
 
 PARIGOT_SOURCE=../..
 
