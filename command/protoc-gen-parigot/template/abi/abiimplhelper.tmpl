@@ -69,6 +69,7 @@ func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*w
 result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 {{- else }} */}}
 result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
+result["env.github.com/iansmith/parigot/g/parigot/abi.{{LastSegmentOfPackage .GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 
 {{/*
 {{- end }} */}}

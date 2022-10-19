@@ -38,7 +38,7 @@ func (a *AbiImpl) TinygoNotImplemented(s string) {
 	os.Exit(1)
 }
 
-func (a *AbiImpl) Exit(i int64) {
+func (a *AbiImpl) Exit(i int32) {
 	os.Exit(int(i))
 }
 

@@ -87,8 +87,13 @@ RUN go install github.com/bufbuild/buf/cmd/buf@latest
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /home/parigot/src/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
+# git config
+echo '[safe]' > /home/parigot/gitconfig
+
 # final touches
 ADD enable-parigot /home/parigot/
+ADD .gitconfig /home/parigot/
+
 RUN mkdir /home/parigot/src
 WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools

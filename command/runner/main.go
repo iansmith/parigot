@@ -114,6 +114,7 @@ func checkLinkage(wrappers map[string]*wasmtime.Func, module *wasmtime.Module) [
 func jsPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jspatch.ValueSetIndex)
 	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, tinygopatch.WasiWriteFd)
+	result["wasi_snapshot_preview1.proc_exit"] = wasmtime.WrapFunc(store, tinygopatch.WasiProcExit)
 	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jspatch.ValuePrepareString)
 	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jspatch.ValueLoadString)

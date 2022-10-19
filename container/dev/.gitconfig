@@ -1,0 +1,16 @@
+[safe]
+	directory = /home/parigot/src
+
+[alias]
+        ls = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)  %Creset' --abbrev-commit --decorate
+        ll = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)  %Creset' --abbrev-commit --decorate --numstat
+        lds = log --color --graph --pretty=format:'%Cred%h% %ad%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue) %Creset' --abbrev-commit --decorate --date=short
+        grep = !git ls-files | grep -i
+        br = branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate
+[pull]
+        ff = only
+[push]
+        default = nothing
+[init]
+        defaultBranch = master
+

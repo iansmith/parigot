@@ -26,3 +26,6 @@ func WasiWriteFd(i0 int32, i1 int32, i2 int32, i3 int32) int32 {
 	log.Printf("giving them 20")
 	return 20
 }
+func WasiProcExit(i0 int32) {
+	log.Printf("fd_proc_exit called:  %d", i0)
+}
