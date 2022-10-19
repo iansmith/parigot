@@ -1,0 +1,72 @@
+### your home dir
+home=/Users/iansmith
+
+### where you cloned parigot
+parigot=$home/parigot
+
+### where you put all your deps.  This is the installed dependencies for things that are "bigger
+### than one command.  If you install things in this dir, and with the correct naming convention
+### the symlinks to these bigger packages in tools/ might just work.
+deps=$home/deps-parigot
+
+### pointer to the binary dir inside a go1.19 distribution.  Used for
+### compiling parts of parigot itself.
+# get source here --> https://go.dev/dl/go1.19.1.src.tar.gz
+gopath=$parigot/tools/go1.19.1/bin
+export GOROOT=$parigot/tools/go1.19.1
+
+### pointer to the binary bin inside a tinygo distribution. Used for compiling
+### the client code that are services, e.g. example.
+# get it here for macos -> https://tinygo.org/getting-started/install/macos/#alternative-installation
+tinygopath=$parigot/tools/tinygo0.26.0/bin
+export TINYGOROOT=$parigot/tools/tinygo0.26
+
+### pointer to the binary directory inside the place where you have installed the wabt
+### (web assembly binary toolkit) toolkit
+# get the source here -->https://github.com/WebAssembly/wabt
+wabtpath=$parigot/tools/wabt/bin
+
+### pointer to the binary directory inside the place where you have installed the node (ugh)
+### code.
+nodepath=$parigot/tools/node16.17.1/bin
+
+### tools that you probably don't have, you'll have to make these symlinks point to
+### to the places that they indicate
+## wasmtime -> https://docs.wasmtime.dev/cli-install.html
+## hugo -> https://gohugo.io/
+binpath=$parigot/tools/bin
+
+### antlr is written in java... this is only needed at generate time
+export CLASSPATH="$parigot/tools/antlr-4.9-complete.jar"
+alias antlr4='java -Xmx500M -cp "/usr/local/lib/antlr-4.9-complete.jar:$CLASSPATH" org.antlr.v4.Tool'
+
+#ARARRRARGH, blech! puke! java requires an installer
+export JAVA_HOME=/usr/local/opt/openjdk@17
+
+
+# this is capitalized on the command line, but the real filename is "fraiche.g4"
+# antlr4 -Dlanguage=Go -package parser -o parser Fraiche.g4
+
+
+### tools that you probably do have, if you want to run a specific version of these tools
+### you can make the symlinks in this dir point to the proper path.  a reason
+### to make these point to the "normal" version (in /usr/local/bin courtesy of a
+### package manager) is to not have /usr/local/bin in your path.
+prepath=$parigot/tools/prepath
+
+
+### note: this version does NOT have /usr/local/bin in the PATH.
+### don't use this construction:  PATH=$PATH:blahblah, make it absolute and idempotent
+export PATH=$prepath:/usr/bin:/bin:/usr/sbin:/sbin:$gopath:$tinygopath:$wabtpath:$nodepath:$JAVA_HOME/bin:$binpath
+
+
+
+##
+## PARIGOT VARS
+##
+
+export P=github.com/iansmith/parigot
+
+### where the default programs can read from (the sandbox dir or dirs)
+export PARIGOT_FS_ROOT=/Users/iansmith/parigot/example
+

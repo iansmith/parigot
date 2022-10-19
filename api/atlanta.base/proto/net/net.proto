@@ -6,17 +6,12 @@ import "parigot.proto";
 // parigot: WasmServiceName=SimpleLocator
 service Net {
   option(parigot.always_pull_up_parameters)=true;
-  rpc Locate(LocateRequest) returns(LocateResponse){
-    option(parigot.abi_call)=true;
-  };
+  rpc DNSCheck(DNSCheckRequest) returns (DNSCheckResponse);
+}
+message DNSCheckRequest {
+  string host = 1;
 }
 
-message LocateRequest {
-  string wasm_package = 1;
-  string wasm_name = 2;
+message DNSCheckResponse {
+  bool ok = 1;
 }
-
-message LocateResponse {
-   int64 token = 2;
-}
-

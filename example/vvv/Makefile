@@ -6,10 +6,13 @@
 PARIGOT_SOURCE=../..
 
 # compiler setup.
-TINYGO_MOD_CACHE="/Users/iansmith/tinygo/pkg/mod"
-TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
+#TINYGO_MOD_CACHE="$HOME/tinygo/pkg/mod"
+#TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
+TINYGO_CMD=tinygo
+
 # currently no GC and no scheduler
-TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 1
+TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
+#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
 BUILD_TAGS=parigot_abi
 
 GO_CMD=GOOS=js GOARCH=wasm go

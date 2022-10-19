@@ -36,12 +36,6 @@ import(
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 
-//xxxx
-//go:wasm-module parigot_abi
-// not clear we care about this: export {{toCamelCase .GetName}}
-//go:noinline
-//xxxx
-
 func {{toCamelCase .GetName}}({{$methParamDecl}}) {{$methodRet}} {
 {{- if $needsRet }}
     return {{.GetWasmMethodName}}_({{$methCall}})

@@ -139,6 +139,7 @@ func (g *GoText) ZeroValuesForProtoTypes(s string) string {
 	}
 	panic("unable to understand basic type " + s)
 }
+
 func (g *GoText) ToId(id string, param bool, _ *codegen.WasmMethod) string {
 	if param {
 		return codegen.ToCamelCaseFirstLower(id)

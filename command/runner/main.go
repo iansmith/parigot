@@ -69,7 +69,6 @@ func mainNormal() {
 		os.Exit(1)
 	}
 	startup(store, module, linkage)
-	print("done with success!\n")
 }
 
 func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmtime.AsExtern) {
@@ -78,11 +77,11 @@ func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmti
 	ext := instance.GetExport(store, "memory")
 	*memPtr = uintptr(ext.Memory().Data(store))
 
-	log.Printf("about to start")
+	log.Printf("about to start: %x,%x", *memPtr, ext.Memory().Data(store))
 	start := instance.GetExport(store, "_start").Func()
 	_, err = start.Call(store)
 	check(err)
-	print("done with success!\n")
+	log.Printf("done with success!\n")
 
 }
 func check(err error) {
@@ -114,10 +113,7 @@ func checkLinkage(wrappers map[string]*wasmtime.Func, module *wasmtime.Module) [
 // temporary while we are getting rid of JS linkage
 func jsPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jspatch.ValueSetIndex)
-	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, func(i0 int32, i1 int32, i2 int32, i3 int32) int32 {
-		log.Printf("fd_write called: %x, %d, %x %d", i0, i1, i2, i3)
-		return 828
-	})
+	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, tinygopatch.WasiWriteFd)
 	result["env.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jspatch.ValuePrepareString)
 	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jspatch.ValueLoadString)

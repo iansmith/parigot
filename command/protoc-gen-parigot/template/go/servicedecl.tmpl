@@ -62,7 +62,7 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
     //no marshalling
     return abi.{{$methCamel}}({{$methCall}})
 {{- else}}
-    {{- if $needsFill}}
+    {{- if $needsFill}} //{{$needsFill}}
 //build the request structure
     req:=&{{toCamelCase $meth}}Request{}
 {{- range .InputFields}}

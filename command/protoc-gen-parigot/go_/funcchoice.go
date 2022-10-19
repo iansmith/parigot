@@ -309,7 +309,8 @@ func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	}
 	t := m.CGInput().CGType()
 	if b3 {
-		return "XXX need walk"
+		//tricky: we had to fill so we don't need anything at this point
+		return ""
 	}
 	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
 	//if !b3 {
