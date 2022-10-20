@@ -1,3 +1,4 @@
 build/*
 proto/g
-
+tmp/*
+Makefile.orig

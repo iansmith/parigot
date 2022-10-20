@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"log"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
@@ -10,7 +11,7 @@ import (
 
 // BasicGenerate is the primary code generation driver. Language-specific code
 // (in generator.Generate()) is called and that code typically does some setup and
-// the calls into this code, passing itself as the g.  This function expects the
+// then calls into this code, passing itself as the g.  This function expects the
 // GenInfo to have been created and filled out prior to arriving here.  Because of
 // the chaining api, t actually is represents _all_ the templates (not just one) that
 // are associated with generator g.   This is called once per .proto file processed.
@@ -22,6 +23,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 		if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
 			continue
 		}
+		log.Printf("xxxx %s {%s} -> %s", info.GetFile().GetName(), info.GetFile().GetPackage(), util.GenerateOutputFilenameBase(info.GetFile()))
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{

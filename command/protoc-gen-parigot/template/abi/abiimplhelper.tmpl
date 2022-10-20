@@ -56,6 +56,15 @@ func strConvert(memPtr uintptr, ptr int32, length int32) string {
 	return s
 }
 
+{{- range .info.Service }}
+{{- range .GetWasmMethod}}
+{{- .SetProtoPackage "command.runner.g"}}
+{{- $methodParamDeclWasm:=call .FuncChoice.MethodParamDeclWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+func {{.GetName}}({{$methodParamDeclWasm}}) {{$methodRet}} {}
+
+{{- end}}
+{{- end}}
 
 func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 // bind the names of the container implementation
@@ -63,11 +72,6 @@ func WasmTimeWrapABI(impl Caller, store wasmtime.Storelike, result map[string]*w
 {{- range .GetWasmMethod}}
 {{- .SetProtoPackage "command.runner.g"}}
 
-{{/*
-{{- $complexParam:=call .FuncChoice.HasComplexParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- if $complexParam}}
-result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
-{{- else }} */}}
 result["{{.Parent.GetWasmServiceName}}.{{.GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 result["env.github.com/iansmith/parigot/g/parigot/abi.{{LastSegmentOfPackage .GetWasmMethodName}}_"]=wasmtime.WrapFunc(store, {{.GetWasmMethodName}}_)
 

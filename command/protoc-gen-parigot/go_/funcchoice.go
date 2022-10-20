@@ -138,25 +138,30 @@ func methodToCGParameter(b1, b2, b3, b4 bool, method *codegen.WasmMethod) []*cod
 func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
 	n := 0
 	count := 0
+	firstParamReturn := false
+	detail, scenario := outputTypeInfo(b4, method)
+	switch scenario {
+	case outTypeCompositeNoFields:
+	case outTypeBasic:
+		switch detail.Basic() {
+		case "TYPE_INT32", "TYPE_BYTE", "TYPE_BOOL", "TYPE_FLOAT":
+		default:
+			firstParamReturn = true
+		}
+	case outTypeComposite:
+		firstParamReturn = true
+	}
+	result := ""
+	if firstParamReturn {
+		result += "retVal int32"
+	}
+	if !method.CGInput().IsEmpty() {
+		result += method.Language().GetFormalArgSeparator()
+	}
 	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
 		result := ""
-		if !parameter.GetCGType().IsBasic() {
-			panic("should not be using composite types in the ABI")
-		}
 		seq := lang.BasicTypeToWasm(parameter.GetCGType().Basic())
 		used := len(seq)
-		// XXX This special case has something to do with tinygo's mapping of byte slices.
-		// XXX note this parameter comes from the _OUTPUT_ type
-		// XXX this code is only called in the case of the ABI, so no need to check that
-		cgt := method.CGOutput().GetCGType()
-		field := cgt.CompositeType().GetField()
-		if n == 0 && len(field) == 1 {
-			cgt = codegen.NewCGTypeFromField(field[0], method, method.ProtoPackage())
-			if cgt.IsBasic() && cgt.Basic() == "TYPE_BYTES" {
-				result = "ret int32,"
-			}
-		}
-
 		for i := 0; i < used; i++ {
 			l := letters[i : i+1]
 			name := fmt.Sprintf("p%d", n)

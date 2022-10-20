@@ -3,5 +3,6 @@ antlr-*.log
 build/*
 enable-parigot
 g/parigot
-
+tmp/*
 tinygotest/*
+Makefile.orig

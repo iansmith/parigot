@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("unable to understand arguments, providing an input WASM file is required")
 	}
 
-	_, baseArg0 := filepath.Split("jsstrip")
+	_, baseArg0 := filepath.Split("surgery")
 	tmp, err := os.MkdirTemp("", baseArg0)
 	if err != nil {
 		log.Fatalf("cannot create temp dir: %v", err)

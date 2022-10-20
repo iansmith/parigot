@@ -39,7 +39,7 @@
 syntax = "proto3";
 package abi;
 import "parigot.proto";
-option go_package = "github.com/iansmith/parigot/g/abi;abi";
+option go_package = "github.com/iansmith/parigot/g/parigot/abi;abi";
 option (parigot.abi) = true;
 
 service Abi {

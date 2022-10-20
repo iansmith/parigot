@@ -8,6 +8,7 @@ RUN usermod -aG sudo parigot
 ## we allow sudo for convenience if you need to modify something inside
 ## the container without going through this Dockerfile
 RUN mkdir /home/parigot/deps
+RUN mkdir /home/parigot/tmp
 WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
@@ -28,6 +29,8 @@ RUN chmod g+w /usr/local/lib/tinygo/targets
 RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt
 RUN cp /usr/local/lib/tinygo/targets/wasm-undefined.txt /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
 RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
+RUN chgrp parigot /home/parigot/tmp
+RUN chmod g+w /home/parigot/tmp
 
 WORKDIR /home/parigot/deps
 RUN git clone -q  --recursive https://github.com/WebAssembly/wabt
@@ -88,8 +91,8 @@ RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /home/parigot/src/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
 # git config
-echo '[safe]' > /home/parigot/gitconfig
-
+RUN echo '[safe]' > /home/parigot/.gitconfig
+RUN echo '  directory = /home/parigot/src' >> /home/parigot/.gitconfig
 # final touches
 ADD enable-parigot /home/parigot/
 ADD .gitconfig /home/parigot/

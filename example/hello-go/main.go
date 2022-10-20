@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/iansmith/parigot/abi/go/abi"
+	"github.com/iansmith/parigot/g/parigot/abi"
 	"github.com/iansmith/parigot/lib/base/go/log"
 )
 

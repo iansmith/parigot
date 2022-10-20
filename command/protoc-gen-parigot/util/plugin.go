@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -23,10 +24,11 @@ const (
 	abiArg     = "abi"
 	locatorArg = "locator"
 )
+const pattern = "parse"
 
 var buffer [bufferSize]byte
 
-func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGeneratorRequest {
+func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string) *pluginpb.CodeGeneratorRequest {
 	curr := 0
 	ok := false
 
@@ -50,7 +52,16 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool) *pluginpb.CodeGenerato
 		log.Fatalf("unable to understand generator request:%v", err)
 	}
 	if saveTemp {
-		dir, err := os.MkdirTemp("/tmp/", "parse")
+		var dir string
+		var err error
+		if tmpDir != "" {
+			dir, err = os.MkdirTemp(tmpDir, pattern)
+		} else {
+			dir, err = os.MkdirTemp("/tmp/", pattern)
+			if errors.Is(err, os.ErrNotExist) { //maybe relative to CWD
+				dir, err = os.MkdirTemp("tmp", pattern)
+			}
+		}
 		if err != nil {
 			log.Fatalf("%v", err)
 		}

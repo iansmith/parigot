@@ -27,6 +27,7 @@ var abiOnlyMap = map[string]codegen.Generator{}
 var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
 var terminal = flag.Bool("t", false, "dump the generated code to stdout instead of using protobuf format")
+var tmpDir = flag.String("d", "tmp", "provide a directory to use as the temp directior, defaults to ./tmp")
 
 func main() {
 	flag.Parse()
@@ -47,7 +48,7 @@ func main() {
 		}
 		source = fp
 	}
-	genReq := util.ReadStdinIntoBuffer(source, *save)
+	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir)
 	resp := pluginpb.CodeGeneratorResponse{
 		Error:             nil,
 		SupportedFeatures: nil,
