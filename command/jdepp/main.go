@@ -98,6 +98,9 @@ func main() {
 					for _, t := range templ {
 						depSet[t] = struct{}{}
 					}
+					// ugh, special cases
+					log.Printf("xxx original import %s", i)
+
 					depSet[filepath.Join(*parigotPath, "build/protoc-gen-parigot")] = struct{}{}
 				}
 				for _, i := range generatedUser {
