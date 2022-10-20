@@ -13,6 +13,7 @@ import (
 	"strings"
 )
 
+var rootParigotPkg = flag.String("rpkg", "github.com/iansmith/parigot", "name of the package that is the root of parigot")
 var generatedParigotPkg = flag.String("ppkg", "github.com/iansmith/parigot/g", "name of the package that indicates a parigot generated file")
 var parigotPath = flag.String("ppath", ".", "path to the root directory of parigot source code")
 var myPkg = flag.String("m", "", "name of an extra package (usually your code) to look for that indicates generated code")
@@ -43,6 +44,12 @@ func main() {
 	moduleMap := make(map[string]string)
 	ignoredModuleMap := make(map[string]string)
 	populateModuleMaps(flag.Arg(0), rootPackage, moduleMap, ignoredModuleMap)
+	log.Printf("sssss  %d and rootpkg %s,%s", len(moduleMap), rootPackage, *rootParigotPkg)
+	if rootPackage != *rootParigotPkg {
+		dummy := make(map[string]string)
+		populateModuleMaps(*parigotPath, *rootParigotPkg, moduleMap, dummy)
+		log.Printf("sssss  %d", len(moduleMap))
+	}
 
 	programEntryFile := nonIgnoredMainGo(flag.Arg(0), ignoredModuleMap)
 
@@ -98,8 +105,31 @@ func main() {
 					for _, t := range templ {
 						depSet[t] = struct{}{}
 					}
-					// ugh, special cases
-					log.Printf("xxx original import %s", i)
+					keyPart := strings.TrimPrefix(i, *generatedParigotPkg)
+					for path, mod := range moduleMap {
+						path := filepath.Clean(path)
+						if strings.HasSuffix(mod, keyPart) {
+							// ugh, special cases
+							if !strings.HasSuffix(filepath.Clean(path), "/go") {
+								panic(fmt.Sprintf("can't understand parigot layout, expected module in %s to end in /go", path))
+							}
+							dir := strings.TrimSuffix(path, "/go")
+							_, err := os.Stat(filepath.Join(dir, "proto"))
+							if err != nil && errors.Is(err, os.ErrNotExist) {
+								panic(fmt.Sprintf("can't figure out parigot layout, expected module in %s to have sibling /proto", path))
+							}
+							if err != nil {
+								log.Fatalf("%v", err)
+							}
+							file, err := findNamedFile(filepath.Join(dir, "proto"), ".proto", true)
+							if err != nil {
+								log.Fatalf("%v", err)
+							}
+							for _, f := range file {
+								depSet[f] = struct{}{}
+							}
+						}
+					}
 
 					depSet[filepath.Join(*parigotPath, "build/protoc-gen-parigot")] = struct{}{}
 				}
@@ -324,10 +354,12 @@ func inputArgToRootPackage(arg string) string {
 	return rootPackage
 }
 func populateModuleMaps(arg, rootPackage string, moduleMap map[string]string, ignoredModuleMap map[string]string) {
-	goDotMod, err := findGoModFile(flag.Arg(0))
+	log.Printf("rrrr %s,%s", arg, rootPackage)
+	goDotMod, err := findGoModFile(arg)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
+	log.Printf("rrrr22222 %+v", goDotMod)
 
 	for _, f := range goDotMod {
 		pkg, ignore, err := goModToPackage(f, rootPackage)
