@@ -11,8 +11,8 @@ PARIGOT_SOURCE=../..
 TINYGO_CMD=tinygo
 
 # currently no GC and no scheduler
-TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
-#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
+#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
+TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
 BUILD_TAGS=parigot_abi
 
 GO_CMD=GOOS=js GOARCH=wasm go
@@ -28,18 +28,20 @@ all: $(GENERATED)/demo/vvv/servicedecl.go build/storeclient.wasm
 
 build/storeclient.wasm: storeclient/main.go
 	@echo
-	@echo "\033[92mbuilding client side: vvv ===================================================================================\033[0m"
+	@echo "\033[92mbuilding client side: vvv ==========================================================================\033[0m"
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
 	#$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
 	wasm2wat --no-check -o build/vvv_client.wat build/vvv_client.wasm
 
 build/vvv.wasm: main.go
 	@echo
-	@echo "\033[92mbuilding app: vvv ===================================================================================\033[0m"
+	@echo "\033[92mbuilding app: vvv ==================================================================================\033[0m"
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/vvv.wasm main.go
 
 # we only need a single representative file to insure regeneration of all the generate services
 $(GENERATED)/demo/vvv/servicedecl.go: proto/business.proto
+	@echo
+	@echo "\033[92mgenerating interfaces: vvv =========================================================================\033[0m"
 	$(BUF_CMD) lint
 	$(BUF_CMD) generate
 

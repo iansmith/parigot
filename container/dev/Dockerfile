@@ -1,6 +1,7 @@
 FROM ubuntu:jammy-20221003
 RUN apt-get update
-RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano hugo
+RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
+    hugo sudo openjdk-18-jdk-headless
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -29,8 +30,6 @@ RUN chmod g+w /usr/local/lib/tinygo/targets
 RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt
 RUN cp /usr/local/lib/tinygo/targets/wasm-undefined.txt /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
 RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
-RUN chgrp parigot /home/parigot/tmp
-RUN chmod g+w /home/parigot/tmp
 
 WORKDIR /home/parigot/deps
 RUN git clone -q  --recursive https://github.com/WebAssembly/wabt
@@ -93,6 +92,11 @@ RUN ln -s /home/parigot/src/build/protoc-gen-parigot /home/parigot/tools/bin/pro
 # git config
 RUN echo '[safe]' > /home/parigot/.gitconfig
 RUN echo '  directory = /home/parigot/src' >> /home/parigot/.gitconfig
+
+# tmp dir
+RUN chgrp parigot /home/parigot/tmp
+RUN chmod g+w /home/parigot/tmp
+
 # final touches
 ADD enable-parigot /home/parigot/
 ADD .gitconfig /home/parigot/

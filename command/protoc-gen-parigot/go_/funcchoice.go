@@ -3,7 +3,6 @@ package go_
 import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
-	"log"
 	"strings"
 )
 
@@ -150,7 +149,6 @@ func funcChoicesUsesReturnValuePtr(b1, b2, b3, b4 bool, method *codegen.WasmMeth
 	case outTypeComposite:
 		firstParamReturn = true
 	}
-	log.Printf("UGH %s,%v", method.GetWasmMethodName(), firstParamReturn)
 	return firstParamReturn
 }
 
@@ -168,7 +166,6 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 			result += method.Language().GetFormalArgSeparator()
 		}
 	}
-	log.Printf("before walking: %s->%s", method.GetWasmMethodName(), result)
 	rest := paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
 		res := ""
 		seq := lang.BasicTypeToWasm(parameter.GetCGType().Basic())

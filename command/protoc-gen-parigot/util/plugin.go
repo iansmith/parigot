@@ -2,7 +2,6 @@ package util
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -54,12 +53,12 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string) *plugin
 	if saveTemp {
 		var dir string
 		var err error
-		if tmpDir != "" {
-			dir, err = os.MkdirTemp(tmpDir, pattern)
-		} else {
+		candidateTmp := tmpDir
+		dir, err = os.MkdirTemp(candidateTmp, pattern)
+		if err != nil {
 			dir, err = os.MkdirTemp("/tmp/", pattern)
-			if errors.Is(err, os.ErrNotExist) { //maybe relative to CWD
-				dir, err = os.MkdirTemp("tmp", pattern)
+			if err != nil {
+				dir, err = os.MkdirTemp("../tmp", pattern)
 			}
 		}
 		if err != nil {

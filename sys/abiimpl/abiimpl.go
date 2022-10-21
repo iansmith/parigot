@@ -55,7 +55,7 @@ func (a *AbiImpl) Locate(retVal int32, pkg, service string) {
 	os.Exit(1)
 }
 
-func (a *AbiImpl) Dispatch(retval int32, sid int64, method string, blob []byte) {
+func (a *AbiImpl) Dispatch(retval int32, sid int32, method string, blob []byte) {
 	print("Dispatch")
 	os.Exit(1)
 }

@@ -18,8 +18,15 @@ func MemPtr() uintptr {
 	return *memPtr
 }
 
-func ValueSetIndex(int64, int32, int64, int32) {
-	print("not implemented: js.valueSetIndex")
+func ValueSetIndex(v int32, i int32, x int32, wtf int32) {
+	log.Printf("not implemented: js.valueSetIndex (%x,%d,%x,%x)",
+		v, i, x, wtf)
+	os.Exit(1)
+}
+
+func ValueSet(vaddr int32, ptr int32, len int32, xaddr int32, wtf int32) {
+	print("not implemented: js.valueSet %x,%x,%d,%x,%x",
+		vaddr, ptr, len, xaddr, wtf)
 	os.Exit(1)
 }
 
@@ -47,10 +54,11 @@ func ValueCall(result int32, v int32, m int32, m_len int32, args int32, args_len
 	os.Exit(1)
 }
 
-//func StringVal() {
-//	print("not implemented: js.stringVal")
-//	os.Exit(1)
-//}
+func StringVal(retVal int32, ptr int32, len int32, wtf int32) {
+	log.Printf("js.stringVal called %x,%x,%d,%x",
+		retVal, ptr, len, wtf)
+	os.Exit(1)
+}
 
 func StrConvert(memPtr uintptr, ptr int32, length int32) string {
 	// we could probably go bytesConvert and claim our cap was equal to our len but...

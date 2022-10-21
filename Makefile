@@ -22,22 +22,34 @@ build/protoc-gen-parigot: \
 command/transform/wasm_parser.go: $(WASM_GRAMMAR)
 	@echo
 	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ====================================================\033[0m"
-	pushd command >& /dev/null && java -Xmx500M -cp "../tools/lib/antlr-4.9-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4 && popd >& /dev/null
+	pushd command 2>&1 /dev/null && java -Xmx500M -cp "../../tools/lib/antlr-4.11.1-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4 && popd 2>&1 /dev/null
 
 command/runner/g/abihelper.p.go: g/parigot/abi/abi.p.go
 	@echo
 	@echo "\033[92mabi helper =========================================================================================\033[0m"
 	mv g/parigot/abi/abihelper.p.go command/runner/g/abihelper.p.go
+	touch command/runner/g/abihelper.p.go
 
-build/runner: g/parigot/abi/abi.p.go g/parigot/log/logservicedecl.p.go g/parigot/net/netservicedecl.p.go command/runner/g/abihelper.p.go
+build/runner: g/parigot/abi/abi.p.go \
+	g/parigot/log/logservicedecl.p.go \
+	g/parigot/net/netservicedecl.p.go \
+	command/runner/g/abihelper.p.go \
+	../tools/tinygo0.26/targets/wasm-undefined.txt
 	@echo
 	@echo "\033[92mrunner =============================================================================================\033[0m"
 	go build -o build/runner github.com/iansmith/parigot/command/runner
 
-g/parigot/abi/abi%go g/parigot/log/logservicedecl%go g/parigot/net/netservicedecl%go: build/protoc-gen-parigot
+g/parigot/abi/abi.p%go g/parigot/log/logservicedecl.p%go g/parigot/net/netservicedecl.p%go g/parigot/abi/abiwasm-undefined%txt: build/protoc-gen-parigot
 	@echo
 	@echo "\033[92mbuilding parigot interfaces ========================================================================\033[0m"
 	buf generate
+
+../tools/tinygo0.26/targets/wasm-undefined.txt: g/parigot/abi/abiwasm-undefined.txt
+	@echo
+	@echo "\033[92mupdating undefined symbols =========================================================================\033[0m"
+	cp ../tools/tinygo0.26/targets/wasm-undefined.txt.orig ../tools/tinygo0.26/targets/wasm-undefined.txt
+	cat g/parigot/abi/abiwasm-undefined.txt >> ../tools/tinygo0.26/targets/wasm-undefined.txt
+	touch ../tools/tinygo0.26/targets/wasm-undefined.txt
 
 clean:
 	@echo "\033[92mclean ==============================================================================================\033[0m"
