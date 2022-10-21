@@ -1,5 +1,5 @@
 grammar Wasm;
-
+// foo
 module returns [*Module m]:
     Lparen ModuleWord topLevelSeq Rparen
     {

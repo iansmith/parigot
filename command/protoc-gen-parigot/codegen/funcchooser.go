@@ -23,6 +23,7 @@ type FuncChooser struct {
 	MethodCall          QuadWithMethodString
 	DecodeRequired      QuadWithMethodBool
 	NoDecodeRequired    QuadWithMethodBool
+	UsesReturnValuePtr  QuadWithMethodBool
 	MethodParamDeclWasm QuadWithMethodString
 	HasComplexParam     QuadWithMethodBool
 	MethodCallWasm      QuadWithMethodString

@@ -48,24 +48,18 @@ clean:
 	rm -rf build/*
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: example/vvv/build/vvv
-example/vvv/build/vvv: \
-	example/vvv/main.go \
+### jdepp computed dependencies for binary: example/vvv/build/storeclient
+example/vvv/build/storeclient: \
 	example/vvv/storeclient/main.go \
-	command/protoc-gen-parigot/template/go/messagedecl.tmpl \
-	command/protoc-gen-parigot/template/go/servicedecl.tmpl \
-	command/protoc-gen-parigot/template/go/servicesimpleloc.tmpl \
 	abi/atlanta.base/proto/abi/abi.proto \
 	build/protoc-gen-parigot \
 	example/vvv/proto/business.proto
 
-### jdepp computed dependencies for binary: example/vvv/build/storeclient
-example/vvv/build/storeclient: \
-	command/protoc-gen-parigot/template/go/servicesimpleloc.tmpl \
-	abi/atlanta.base/proto/abi/abi.proto \
+### jdepp computed dependencies for binary: example/vvv/build/vvv
+example/vvv/build/vvv: \
 	build/protoc-gen-parigot \
 	example/vvv/proto/business.proto \
+	example/vvv/main.go \
 	example/vvv/storeclient/main.go \
-	command/protoc-gen-parigot/template/go/messagedecl.tmpl \
-	command/protoc-gen-parigot/template/go/servicedecl.tmpl
+	abi/atlanta.base/proto/abi/abi.proto
 

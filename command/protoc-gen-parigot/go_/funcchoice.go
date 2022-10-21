@@ -3,6 +3,7 @@ package go_
 import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
+	"log"
 	"strings"
 )
 
@@ -28,6 +29,7 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		HasComplexParam:     funcChoicesHasComplexParam,
 		MethodCallWasm:      funcChoicesMethodCallWasm,
 		InputToSend:         funcChoicesInputToSend,
+		UsesReturnValuePtr:  funcChoicesUsesReturnValuePtr,
 	}
 }
 
@@ -132,12 +134,9 @@ func methodToCGParameter(b1, b2, b3, b4 bool, method *codegen.WasmMethod) []*cod
 	return []*codegen.CGParameter{p}
 }
 
-// funcChoicesMethodParamDeclWasm is used for declaring the parameters of a method declaration
-// for the abi.  ABI methods can only use the 4 basic types and have the complex types
-// expanded.
-func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
-	n := 0
-	count := 0
+// funcChoicesUsesReturnValuePtr returns true if this method has a return value that
+// can't be put on the stack and must put in a return value structure.
+func funcChoicesUsesReturnValuePtr(b1, b2, b3, b4 bool, method *codegen.WasmMethod) bool {
 	firstParamReturn := false
 	detail, scenario := outputTypeInfo(b4, method)
 	switch scenario {
@@ -151,15 +150,27 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 	case outTypeComposite:
 		firstParamReturn = true
 	}
+	log.Printf("UGH %s,%v", method.GetWasmMethodName(), firstParamReturn)
+	return firstParamReturn
+}
+
+// funcChoicesMethodParamDeclWasm is used for declaring the parameters of a method declaration
+// for the abi.  ABI methods can only use the 4 basic types and have the complex types
+// expanded.
+func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	n := 0
+	count := 0
+	firstParamReturn := funcChoicesUsesReturnValuePtr(b1, b2, b3, b4, method)
 	result := ""
 	if firstParamReturn {
 		result += "retVal int32"
+		if !method.CGInput().IsEmpty() {
+			result += method.Language().GetFormalArgSeparator()
+		}
 	}
-	if !method.CGInput().IsEmpty() {
-		result += method.Language().GetFormalArgSeparator()
-	}
-	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
-		result := ""
+	log.Printf("before walking: %s->%s", method.GetWasmMethodName(), result)
+	rest := paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
+		res := ""
 		seq := lang.BasicTypeToWasm(parameter.GetCGType().Basic())
 		used := len(seq)
 		for i := 0; i < used; i++ {
@@ -168,15 +179,16 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 			if used > 1 {
 				name = fmt.Sprintf("p%d%s", n, l)
 			}
-			result += fmt.Sprintf("%s %s", name, lang.BasicTypeToString(seq[i], true))
+			res += fmt.Sprintf("%s %s", name, lang.BasicTypeToString(seq[i], true))
 			if i != used-1 {
-				result += lang.GetFormalArgSeparator()
+				res += lang.GetFormalArgSeparator()
 			}
 		}
 		count += used
 		n++
-		return result, ""
+		return res, ""
 	})
+	return result + rest
 }
 
 // funcChoicesMethodParamDecl is used for declaring the parameters of a method declaration on
@@ -263,11 +275,14 @@ func outputTypeInfo(b4 bool, method *codegen.WasmMethod) (*codegen.CGType, int) 
 			//v := method.Language().ZeroValuesForProtoTypes(inner.String(""))
 			return inner, outTypeBasic
 		}
-		// we allow this to fall through because we return the same thing
-		// as they didn't have b4 set, just on the inner one
-		t = inner
+		return inner, outTypeComposite
 	}
-	//v := t.String(method.ProtoPackage())
+	if t.IsBasic() {
+		panic(fmt.Sprintf("should not have a method returning a basic for %s", method.GetWasmMethodName()))
+	}
+	if t.IsCompositeNoFields() {
+		return nil, outTypeCompositeNoFields
+	}
 	return t, outTypeComposite
 
 }

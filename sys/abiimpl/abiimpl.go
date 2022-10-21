@@ -1,9 +1,7 @@
 package abiimpl
 
 import (
-	"github.com/iansmith/parigot/g/parigot/abi"
 	"os"
-	"time"
 )
 
 type AbiImpl struct {
@@ -42,10 +40,9 @@ func (a *AbiImpl) Exit(i int32) {
 	os.Exit(int(i))
 }
 
-func (a *AbiImpl) Now() abi.NowResponse {
-	return abi.NowResponse{
-		Now: time.Now().UnixNano(),
-	}
+func (a *AbiImpl) Now(retVal int32) {
+	print("Now")
+	os.Exit(1)
 }
 
 func (a *AbiImpl) SetNow(_ int64, _ bool) {
@@ -53,14 +50,12 @@ func (a *AbiImpl) SetNow(_ int64, _ bool) {
 	os.Exit(1)
 }
 
-func (a *AbiImpl) Locate(team, service string) abi.LocateResponse {
+func (a *AbiImpl) Locate(retVal int32, pkg, service string) {
 	print("Locate")
 	os.Exit(1)
-	return abi.LocateResponse{}
 }
 
-func (a *AbiImpl) Dispatch(sid int64, method string, blob []byte) abi.DispatchResponse {
+func (a *AbiImpl) Dispatch(retval int32, sid int64, method string, blob []byte) {
 	print("Dispatch")
 	os.Exit(1)
-	return abi.DispatchResponse{}
 }

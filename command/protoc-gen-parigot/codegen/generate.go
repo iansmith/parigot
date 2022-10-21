@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"io"
-	"log"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
@@ -23,7 +22,6 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 		if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
 			continue
 		}
-		log.Printf("xxxx %s {%s} -> %s", info.GetFile().GetName(), info.GetFile().GetPackage(), util.GenerateOutputFilenameBase(info.GetFile()))
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{

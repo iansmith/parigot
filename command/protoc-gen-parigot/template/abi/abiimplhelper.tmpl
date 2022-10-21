@@ -9,8 +9,6 @@ package g
 import (
     "unsafe"
 
-    "github.com/iansmith/parigot/g/parigot/abi"
-
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
@@ -25,7 +23,13 @@ type Caller interface {
 
 {{- $methodParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
+{{- $usesRet:=call .FuncChoice.UsesReturnValuePtr .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+
+    {{- if $usesRet}}
+    {{.GetName}}(retVal int32,{{$methodParamDecl}})
+    {{- else }}
     {{.GetName}}({{$methodParamDecl}}) {{$methodRet}}
+    {{- end }}
 {{- end}}
 {{- end}}
     GetMemPtr() uintptr
@@ -56,12 +60,39 @@ func strConvert(memPtr uintptr, ptr int32, length int32) string {
 	return s
 }
 
+// These functions with the trailing underscore are the true implementations
+// at the WASM level. Note that these can only use the 4 basic WASM types
+// (int32,int64,float32,float64) and must understand the calling convention
+// of the compiler.
+//
+// The implementations shown here are really just for the convenience of the
+// container implementation.
+//
+
 {{- range .info.Service }}
 {{- range .GetWasmMethod}}
 {{- .SetProtoPackage "command.runner.g"}}
 {{- $methodParamDeclWasm:=call .FuncChoice.MethodParamDeclWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+{{- $methodCallWasm:=call .FuncChoice.MethodCallWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-func {{.GetName}}({{$methodParamDeclWasm}}) {{$methodRet}} {}
+{{- $usesRet:=call .FuncChoice.UsesReturnValuePtr .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
+{{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  }}
+
+{{- if $usesRet }}
+func {{.GetWasmMethodName}}_({{$methodParamDeclWasm}}) {
+{{- else }}
+func {{.GetWasmMethodName}}_({{$methodParamDeclWasm}}) {{$methodRet}} {
+{{- end }}
+    {{- if $usesRet }}
+    impl.{{.GetName}}(retVal,{{$methodCallWasm}})
+    {{- else}}
+    {{- if $needsRet}}
+    return impl.{{.GetName}}({{$methodCallWasm}})
+    {{- else}}
+    impl.{{.GetName}}({{$methodCallWasm}})
+    {{- end}}
+    {{- end}}
+}
 
 {{- end}}
 {{- end}}
@@ -81,37 +112,4 @@ result["env.github.com/iansmith/parigot/g/parigot/abi.{{LastSegmentOfPackage .Ge
 {{- end }}
 }
 
-
-// These functions are the ones that are actually behind the abi for each
-// function call that cannot accept and return wasm compatible values.
-// These will get bound to the implementation of the interface provided with
-// SetCaller().  Note that these true implementations can only use the four
-// real types of WASM (I32,F32,I64,F64).
-
-{{- range .info.Service }}
-{{- range .GetWasmMethod}}
-{{- .SetProtoPackage "command.runner.g"}}
-
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput true . }}
-{{- $needsRet:=call .FuncChoice.NeedsRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput}}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{/*
-{{- $methParamDeclWasm:=call .FuncChoice.MethodParamDeclWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-*/}}
-{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-
-{{/*
-{{- $methodCallWasm:=call .FuncChoice.MethodCallWasm .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
-*/}}
-{{- $methodCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput  . }}
-
-func {{.GetWasmMethodName}}_({{$methParamDecl}}) {{$methodRet}} {
-{{- if $needsRet}}
-    return impl.{{.GetName}}({{$methodCall}})
-{{- else }}
-    impl.{{.GetName}}({{$methodCall}})
-{{- end}}
-}
-{{- end }}
-{{- end }}
 

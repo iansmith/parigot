@@ -98,13 +98,13 @@ func main() {
 					}
 				}
 				for _, i := range generatedParigot {
-					templ, err := parigotTemplatesForImport(i)
-					if err != nil {
-						log.Fatalf("v", err)
-					}
-					for _, t := range templ {
-						depSet[t] = struct{}{}
-					}
+					//templ, err := parigotTemplatesForImport(i)
+					//if err != nil {
+					//	log.Fatalf("v", err)
+					//}
+					//for _, t := range templ {
+					//	depSet[t] = struct{}{}
+					//}
 					keyPart := strings.TrimPrefix(i, *generatedParigotPkg)
 					for path, mod := range moduleMap {
 						path := filepath.Clean(path)
