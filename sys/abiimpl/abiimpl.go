@@ -1,6 +1,7 @@
 package abiimpl
 
 import (
+	"log"
 	"os"
 )
 
@@ -51,11 +52,15 @@ func (a *AbiImpl) SetNow(_ int64, _ bool) {
 }
 
 func (a *AbiImpl) Locate(retVal int32, pkg, service string) {
-	print("Locate")
+	log.Printf("Locate %s,%s->%x", pkg, service, retVal)
 	os.Exit(1)
 }
 
-func (a *AbiImpl) Dispatch(retval int32, sid int32, method string, blob []byte) {
+func DebugPrint(ct int32) {
+	log.Printf("----DebugPrint %d", ct)
+}
+
+func (a *AbiImpl) Dispatch(retval int32, sid int64 /*xxx*/, method string, blob []byte) {
 	print("Dispatch")
 	os.Exit(1)
 }

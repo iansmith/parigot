@@ -17,6 +17,11 @@ const (
 	FatalLevel = 5
 )
 
+// init functions in parigot must be idempotent! It can and will be called many times.
+func init() {
+	abi.RegisterService("parigot", "log")
+}
+
 var Dev = NewLocalT(true)
 
 type T interface {

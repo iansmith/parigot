@@ -231,6 +231,8 @@ func funcChoicesMethodCallWasm(b1, b2, b3, b4 bool, method *codegen.WasmMethod) 
 			result = fmt.Sprintf("bytesConvert(impl.GetMemPtr(),p%da,p%db,p%dc)", n, n, n)
 		case "TYPE_BOOL":
 			result = fmt.Sprintf("p%d!=0", n)
+		case "TYPE_INT64":
+			result = fmt.Sprintf("int64(p%d)", n)
 		default:
 			result = fmt.Sprintf("p%d", n)
 		}

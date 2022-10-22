@@ -63,8 +63,9 @@ func (u *unlink) addImportsForCandidates(mod *transform.Module) {
 		impt := &transform.ImportDef{
 			ModuleName:  split[0],
 			ImportedAs:  strings.Join(split[1:], "."),
-			FuncNameRef: &transform.FuncNameRef{Name: u.candidateSym[cand], Type: &transform.TypeRef{Num: funcNum}},
+			FuncNameRef: &transform.FuncNameRef{Name: new(string), Type: &transform.TypeRef{Num: funcNum}},
 		}
+		*impt.FuncNameRef.Name = u.candidateSym[cand]
 		count, ok := u.packages[split[0]]
 		if ok {
 			u.packages[split[0]] = count + 1
@@ -85,36 +86,37 @@ func (u *unlink) compileFuncTypes(tl transform.TopLevel) {
 func (u *unlink) compileImports(tl transform.TopLevel) {
 	idef := tl.(*transform.ImportDef)
 	for _, pkg := range stdlibName {
-		if strings.HasPrefix(idef.FuncNameRef.Name, pkg) {
-			u.imports[idef.FuncNameRef.Name] = idef.FuncNameRef.Type.Num
+		if strings.HasPrefix(*idef.FuncNameRef.Name, pkg) {
+			u.imports[*idef.FuncNameRef.Name] = idef.FuncNameRef.Type.Num
 		}
 	}
 }
 func (u *unlink) compileCandidates(tl transform.TopLevel) {
 	fdef := tl.(*transform.FuncDef)
 	for _, pkg := range stdlibName {
-		if strings.HasPrefix(fdef.Name, pkg) {
-			_, ok := u.imports[fdef.Name]
+		if fdef.Name != nil && strings.HasPrefix(*fdef.Name, pkg) {
+			_, ok := u.imports[*fdef.Name]
 			if ok {
 				continue //already imported
 			}
-			noDollar := strings.TrimPrefix(fdef.Name, "$")
+			noDollar := strings.TrimPrefix(*fdef.Name, "$")
 			u.candidateFT[noDollar] = fdef.Type.Num
-			u.candidateSym[noDollar] = fdef.Name
+			u.candidateSym[noDollar] = *fdef.Name
 		}
 	}
 }
 func (u *unlink) unlinkStdlib(tl transform.TopLevel) transform.TopLevel {
 	idef := tl.(*transform.FuncDef)
 	for _, pkg := range stdlibName {
-		if strings.HasPrefix(idef.Name, pkg) {
+		if idef.Name != nil && strings.HasPrefix(*idef.Name, pkg) {
 			u.removed++
 			return nil
 		}
 	}
-	_, ok := u.remaining[idef.Name]
+	// xxx what if no name only number?
+	_, ok := u.remaining[*idef.Name]
 	if !ok {
-		u.remaining[idef.Name] = struct{}{}
+		u.remaining[*idef.Name] = struct{}{}
 	}
 	return idef
 }

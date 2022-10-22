@@ -5,6 +5,7 @@ import (
 	"github.com/iansmith/parigot/sys/abiimpl"
 	"log"
 	"os"
+	"reflect"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/abi/jspatch"
@@ -17,6 +18,8 @@ var libs = []string{}
 var memPtr *uintptr
 
 func main() {
+	type x struct{}
+	log.Printf("??? %s", reflect.TypeOf(x{}).PkgPath())
 	mainNormal()
 }
 func mainTest() {
@@ -59,6 +62,7 @@ func mainNormal() {
 	memPtr = new(uintptr)
 	jspatch.SetMemPtr(memPtr)
 	impl := abiimpl.NewAbiImpl(memPtr)
+	g.SetCaller(impl)
 	g.WasmTimeWrapABI(impl, store, wrappers)
 	tinygoPatch(store, wrappers)
 	jsPatch(store, wrappers)
@@ -125,6 +129,8 @@ func jsPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 	//result["env.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, jspatch.ValueIndex)
 	result["env.syscall/js.valueCall"] = wasmtime.WrapFunc(store, jspatch.ValueCall)
 	result["env.syscall/js.valueNew"] = wasmtime.WrapFunc(store, jspatch.ValueNew)
+
+	result["parigot.debugprint"] = wasmtime.WrapFunc(store, abiimpl.DebugPrint)
 }
 
 // temporary while we are getting rid of runtime of tinygo

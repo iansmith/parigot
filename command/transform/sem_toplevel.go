@@ -66,7 +66,8 @@ func (i *ImportDef) IndentedString(indented int) string {
 
 // FuncDef represents WAT like this:   (func $_*internal/task.gcData_.swap (type 1) (param i32) (local i32) ...statements )
 type FuncDef struct {
-	Name   string
+	Name   *string
+	Number *int
 	Type   *TypeRef
 	Param  *ParamDef
 	Local  *LocalDef
@@ -80,8 +81,17 @@ func (f *FuncDef) TopLevelType() TopLevelT {
 
 func (f *FuncDef) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
+	s := ""
+	if f.Name != nil {
+		s = *f.Name
+	} else {
+		if f.Number == nil {
+			panic("function has neither name nor number")
+		}
+		s = fmt.Sprint(*f.Number)
+	}
 	buf.WriteString(fmt.Sprintf("(func %s",
-		f.Name))
+		s))
 	if f.Type != nil {
 		buf.WriteString(" " + f.Type.String())
 	}

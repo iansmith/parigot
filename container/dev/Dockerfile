@@ -71,6 +71,10 @@ RUN ln -s /usr/local/bin/tinygo /home/parigot/tools/bin
 #RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
 RUN ln -s /home/parigot/deps/wasmtime-v1.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
 
+RUN mkdir -p /home/parigot/tools/lib
+WORKDIR /home/parigot/tools/lib
+RUN wget -q https://www.antlr.org/download/antlr-4.9.3-complete.jar
+
 WORKDIR /home/parigot
 RUN chown -R parigot .
 RUN chgrp -R parigot .

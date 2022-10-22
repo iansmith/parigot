@@ -140,10 +140,17 @@ funcSpec returns [*FuncSpec f]:
     ;
 
 funcNameRef returns [*FuncNameRef f]:
-    Lparen FuncWord Ident typeRef? Rparen
+    Lparen FuncWord (Ident|typeAnno) typeRef? Rparen
     {
-        op:=&FuncNameRef{
-            Name: $Ident.GetText(),
+        op:=&FuncNameRef{}
+
+        if localctx.Get_Ident()!=nil {
+            op.Name =new(string)
+            *op.Name=$Ident.GetText()
+        }
+        if localctx.Get_typeAnno()!=nil {
+            op.Number=new(int)
+            *op.Number=$typeAnno.t
         }
         if localctx.Get_typeRef()!=nil {
             op.Type = $typeRef.t
@@ -224,7 +231,7 @@ localDef returns [*LocalDef l]: Lparen LocalWord typeNameSeq Rparen
     ;
 
 funcDef returns [*FuncDef f]:
-    FuncWord Ident typeRef paramDef? resultDef? localDef? funcBody
+    FuncWord (Ident|typeAnno) typeRef paramDef? resultDef? localDef? funcBody
     {
         var pd *ParamDef
         var r *ResultDef
@@ -239,16 +246,23 @@ funcDef returns [*FuncDef f]:
         if localctx.Get_localDef()!=nil {
             l=$localDef.l
         }
-
-        localctx.SetF(
-        &FuncDef{
-            Name:$Ident.GetText(),
+        fdef:=&FuncDef{
             Type: $typeRef.t,
             Param: pd,
             Result: r,
             Local: l,
             Code: $funcBody.f,
-        })
+        }
+        if localctx.Get_Ident()!=nil {
+            fdef.Name =new(string)
+            *fdef.Name=$Ident.GetText()
+        }
+        if localctx.Get_typeAnno()!=nil {
+            fdef.Number=new(int)
+            *fdef.Number=$typeAnno.t
+        }
+
+        localctx.SetF(fdef)
     }
     ;
 
@@ -308,11 +322,20 @@ argOp returns [Stmt a]:
     ;
 
 callOp returns [Stmt c]:
-    CallWord i=Ident
+    CallWord (i=Ident|n=Num)
     {
+        arg:=""
+        if $i==nil {
+            if $n==nil {
+                panic("call has neither name or number")
+            }
+            arg=$n.GetText()
+        } else {
+            arg=$i.GetText()
+        }
         localctx.SetC(
             &CallOp{
-                Arg:localctx.GetI().GetText(),
+                Arg:arg,
             },
         )
     }
@@ -441,9 +464,14 @@ blockStmt returns [Stmt b]:
     ;
 
 loopStmt returns [Stmt l]:
-    LoopWord stmtSeq EndWord
+    LoopWord resultDef? stmtSeq EndWord
     {
-        localctx.SetL(&LoopStmt{&BlockStmt{Code:$stmtSeq.s}})
+
+        tmp:=&LoopStmt{BlockStmt:&BlockStmt{Code:$stmtSeq.s}}
+        if localctx.Get_resultDef() !=nil {
+            tmp.Result = $resultDef.r
+        }
+        localctx.SetL(tmp)
     }
     ;
 
@@ -610,7 +638,7 @@ Num: ('-')? ( '0' .. '9')+;
 fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':' | '#') ;
 fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@'| ':' | '#' | Digit);
 Ident:IdentFirst IdentAfter*;
-
+IntNumber: Digit+ ;
 fragment Digit: '0'..'9';
 ConstValue: ('-')?  Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)+)? ;
 

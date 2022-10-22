@@ -465,7 +465,9 @@ func (g *GoText) BasicTypeToWasm(t string) []string {
 	case "TYPE_BYTES":
 		// all are 32 bits
 		return []string{"TYPE_INT32", "TYPE_INT32", "TYPE_INT32"}
-	case "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE":
+	case "TYPE_INT64":
+		return []string{"TYPE_INT32"}
+	case "TYPE_INT32", "TYPE_FLOAT", "TYPE_DOUBLE":
 		return []string{t}
 	}
 	panic(fmt.Sprintf("unable to convert simple type %s to wasm", t))

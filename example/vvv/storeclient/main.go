@@ -1,18 +1,30 @@
 package main
 
 import (
-	"demo/vvv/proto/g/vvv"
 	"flag"
 	"fmt"
+	"time"
+
+	"demo/vvv/proto/g/vvv"
+
 	"github.com/iansmith/parigot/g/parigot/abi"
 	"github.com/iansmith/parigot/g/parigot/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
 )
 
 //go:export foo
 func foo() {
 	abi.Exit(83)
+}
+
+//go:export PkgPathHack
+func PkgPathHack(x2 int32, x3 int32) string {
+	return fmt.Sprintf("unknown%d.%d.%d", x2, x3)
+}
+
+//go:export Foobie
+func Foobie(x int) string {
+	return fmt.Sprintf("%d", x)
 }
 
 //export main.main

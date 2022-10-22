@@ -47,12 +47,21 @@ func (r *ResultDef) String() string {
 // FuncNameRef represents something that looks like this:  (func $syscall/js.stringVal (type 12)))
 // and is used by the ImportDef struct.
 type FuncNameRef struct {
-	Name string
-	Type *TypeRef
+	Name   *string
+	Number *int
+	Type   *TypeRef
 }
 
 func (f *FuncNameRef) String() string {
-	n := f.Name
+	var n string
+	if f.Name != nil {
+		n = *f.Name
+	} else {
+		if f.Number == nil {
+			panic("function has neither a name nor a annotation indicating its number")
+		}
+		n = fmt.Sprintf("(;%d;)", *f.Number)
+	}
 	if n != "" {
 		n = " " + n
 	}

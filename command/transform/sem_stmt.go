@@ -86,6 +86,7 @@ func (i *IfStmt) AddStmt(s Stmt) {
 
 type LoopStmt struct {
 	*BlockStmt
+	Result *ResultDef
 }
 
 func (l *LoopStmt) IndentedString(indented int) string {

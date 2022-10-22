@@ -42,17 +42,16 @@ func findTopLevelLocation(m *transform.Module, t transform.TopLevelT, atEnd bool
 
 // changeStmtCodeOnly walks all the stmts in a sequence and then calls fn at each stmt.
 // If fn returns anything different from the input, that becomes the new stmt.  If fn returnns
-// nil, the stmt is elided. Modified version of the sequence of statements is returned.
-func changeStmtCodeOnly(code []transform.Stmt, fn func(stmt transform.Stmt) transform.Stmt) []transform.Stmt {
+// nil, the stmt is elided.  Because this returns an array of statements, if you want
+// to return the same value you started with (indicating no change) you have to wrap
+// in a slice of length 1.  If you return multiple statements, _all_ these new statements
+// are used as the new "statement". Modified version of the sequence of statements is returned.
+func changeStmtCodeOnly(code []transform.Stmt, nestingLevel int, fn func(stmt transform.Stmt, nestingLevel int) []transform.Stmt) []transform.Stmt {
 	newCode := []transform.Stmt{}
 	for _, stmt := range code {
-		result := fn(stmt)
-		if result != stmt {
-			if result != nil {
-				newCode = append(newCode, result)
-			}
-		} else {
-			newCode = append(newCode, result)
+		result := fn(stmt, nestingLevel)
+		if result != nil {
+			newCode = append(newCode, result...)
 		}
 		// recurse through the code blocks that are nested
 		if stmt.StmtType() == transform.IfStmtT ||
@@ -60,27 +59,26 @@ func changeStmtCodeOnly(code []transform.Stmt, fn func(stmt transform.Stmt) tran
 			if stmt.StmtType() == transform.IfStmtT {
 				ifStmt := stmt.(*transform.IfStmt)
 				if ifStmt.IfPart != nil {
-					changeStmtCodeOnly(ifStmt.IfPart, fn)
+					ifStmt.IfPart = changeStmtCodeOnly(ifStmt.IfPart, nestingLevel+1, fn)
 				}
 				if ifStmt.ElsePart != nil {
-					changeStmtCodeOnly(ifStmt.ElsePart, fn)
+					ifStmt.ElsePart = changeStmtCodeOnly(ifStmt.ElsePart, nestingLevel+1, fn)
 				}
 			}
 			if stmt.StmtType() == transform.BlockStmtT {
 				bl, ok := stmt.(*transform.BlockStmt)
 				if ok {
 					if bl.Code != nil {
-						changeStmtCodeOnly(bl.Code, fn)
+						bl.Code = changeStmtCodeOnly(bl.Code, nestingLevel+1, fn)
 					}
 				}
 				loop, ok := stmt.(*transform.LoopStmt)
 				if ok {
 					bl = loop.BlockStmt
 					if bl.Code != nil {
-						changeStmtCodeOnly(bl.Code, fn)
+						bl.Code = changeStmtCodeOnly(bl.Code, nestingLevel+1, fn)
 					}
 				}
-
 			}
 		}
 	}
@@ -88,14 +86,15 @@ func changeStmtCodeOnly(code []transform.Stmt, fn func(stmt transform.Stmt) tran
 }
 
 // changeStatementInModule walks all the code in a module, calling fn at each statement.
-// If fn returns anything different from the input, that becomes the new stmt. If fn returns
-// nil, the statement is elided.
-func changeStatementInModule(m *transform.Module, fn func(stmt transform.Stmt) transform.Stmt) {
+// If fn returns anything different from the input, that becomes the new stmt. Since the
+// return can be multiple statements, you must wrap the original stmt in a len 1
+// slice of statements if you want to indicate no change.
+func changeStatementInModule(m *transform.Module, fn func(stmt transform.Stmt, nestingLevel int) []transform.Stmt) {
 	for _, candidate := range m.Code {
 		if candidate.TopLevelType() != transform.FuncDefT {
 			continue
 		}
-		changeStmtCodeOnly(candidate.(*transform.FuncDef).Code, fn)
+		candidate.(*transform.FuncDef).Code = changeStmtCodeOnly(candidate.(*transform.FuncDef).Code, 0, fn)
 	}
 }
 

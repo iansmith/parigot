@@ -23,6 +23,8 @@ var second *bool = flag.Bool("2", false, "2nd pass")
 var third *bool = flag.Bool("3", false, "3rd pass")
 var op *string = flag.String("op", "", "name of the operation to perform on the binary")
 var dumpStats *bool = flag.Bool("d", false, "dump info about unlink")
+var fnName *string = flag.String("f", "", "function name to operate on, for dbgprint")
+var replaceFuncNames *string = flag.String("r", "", "function name to operate on, for replacefn")
 var start time.Time
 
 func main() {
@@ -115,11 +117,27 @@ func transformation(mod *transform.Module) {
 	if *op == "" {
 		log.Fatalf("you need to supply the -op parameter to express which op to perform")
 	}
-	switch *op {
-	case "old":
+	switch {
+	case *op == "replacefn":
+		if *replaceFuncNames == "" {
+			log.Fatalf("operation replacefn needs two functions to operate on, use the -r option and comma separate")
+		}
+		parts := strings.Split(*replaceFuncNames, ",")
+		if len(parts) != 2 {
+			log.Fatalf("operation replacefn needs two functions to operate on,"+
+				"use the -r option and comma separate, could not understand '%s", *replaceFuncNames)
+		}
+		repl := newReplaceFn(parts[0], parts[1])
+		repl.validateFunctions(mod)
+		changeStatementInModule(mod, repl.replace)
+		fallthrough
+	case *fnName != "":
+		dbg := newDbgPrint(*fnName)
+		dbg.driver(mod)
+	//case "old":
 	//changeToplevelInModule(mod, transform.ImportDefT, )
 	//changeStatementInModule(mod, changeCallsToUseTrueABI)
-	case "unlink":
+	case *op == "unlink":
 		u := newUnlink()
 		findToplevelInModule(mod, transform.ImportDefT, u.compileImports)
 		findToplevelInModule(mod, transform.TypeDefT, u.compileFuncTypes)
@@ -137,7 +155,7 @@ func transformation(mod *transform.Module) {
 func changeImportsToTrueABI(tl transform.TopLevel) transform.TopLevel {
 	idef := tl.(*transform.ImportDef)
 	if idef.ModuleName == parigotModule {
-		idef.FuncNameRef.Name = idef.FuncNameRef.Name + parigotSuffix
+		*idef.FuncNameRef.Name = *idef.FuncNameRef.Name + parigotSuffix
 	}
 	return idef
 }

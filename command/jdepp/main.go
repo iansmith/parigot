@@ -44,11 +44,9 @@ func main() {
 	moduleMap := make(map[string]string)
 	ignoredModuleMap := make(map[string]string)
 	populateModuleMaps(flag.Arg(0), rootPackage, moduleMap, ignoredModuleMap)
-	log.Printf("sssss  %d and rootpkg %s,%s", len(moduleMap), rootPackage, *rootParigotPkg)
 	if rootPackage != *rootParigotPkg {
 		dummy := make(map[string]string)
 		populateModuleMaps(*parigotPath, *rootParigotPkg, moduleMap, dummy)
-		log.Printf("sssss  %d", len(moduleMap))
 	}
 
 	programEntryFile := nonIgnoredMainGo(flag.Arg(0), ignoredModuleMap)

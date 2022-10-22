@@ -76,16 +76,20 @@ type jsObject interface {
 }
 
 var object = make(map[int]jsObject)
-var null = &window{jsObj: &jsObj{n: 2}}
-var trueBool = &window{jsObj: &jsObj{n: 3}}
-var falseBool = &window{jsObj: &jsObj{n: 4}}
+var null = &jsObj{n: 2}
+var trueBool = &jsObj{n: 3}
+var falseBool = &jsObj{n: 4}
 var win = &window{jsObj: &jsObj{n: 5}}
+var zero = &jsObj{n: 1}
+var notANumber = &jsObj{n: 0}
 
 func init() {
 	object[5] = win
 	object[4] = falseBool
 	object[3] = trueBool
 	object[2] = null
+	object[1] = zero
+	object[0] = notANumber
 }
 
 type jsObj struct {
