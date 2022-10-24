@@ -52,10 +52,10 @@ func paramWalker(b1, b2, b3, b4 bool, method *codegen.WasmMethod,
 		if typ == "" {
 			asString[i] = formal
 		} else {
-			asString[i] = lang.GetFormalTypeCombination(formal, typ)
+			asString[i] = lang.FormalTypeCombination(formal, typ)
 		}
 	}
-	return strings.Join(asString, lang.GetFormalArgSeparator())
+	return strings.Join(asString, lang.FormalArgSeparator())
 }
 
 func basicTypeRequiresDecode(s string) bool {
@@ -163,7 +163,7 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 	if firstParamReturn {
 		result += "retVal int32"
 		if !method.CGInput().IsEmpty() {
-			result += method.Language().GetFormalArgSeparator()
+			result += method.Language().FormalArgSeparator()
 		}
 	}
 	rest := paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
@@ -178,7 +178,7 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 			}
 			res += fmt.Sprintf("%s %s", name, lang.BasicTypeToString(seq[i], true))
 			if i != used-1 {
-				res += lang.GetFormalArgSeparator()
+				res += lang.FormalArgSeparator()
 			}
 		}
 		count += used
@@ -192,16 +192,32 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 // on a service.  the part in caps is the part we are declaring here, using go syntax:
 // func foo(A BAR, B BAZ)string
 func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
-	return paramWalker(b1, b2, b3, b4, method, func(parameter *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
-		s := ""
-		if parameter.GetCGType().IsBasic() {
-			s = lang.BasicTypeToString(parameter.GetCGType().Basic(), true)
-		} else {
-			cgt := parameter.GetCGType()
-			s = lang.ToTypeName(cgt.String(protoPkg), false, method)
+	result := ""
+	if !b1 && !b2 {
+		panic(fmt.Sprintf("method %s has neither input nor output", method.WasmMethodName()))
+	}
+	if b1 {
+		// have input
+		t := method.CGInput().CGType()
+		if t.IsBasic() {
+			panic(fmt.Sprintf("unexpected basic parameter in method %s", method.WasmMethodName()))
 		}
-		return lang.ToId(parameter.GetFormalName(), true, method), s
-	})
+		typ := t.String(method.ProtoPackage())
+		result += method.Language().FormalTypeCombination("in", "*"+typ)
+		if b2 {
+			result += method.Language().FormalArgSeparator()
+		}
+	}
+	if b2 {
+		//have output
+		t := method.CGInput().CGType()
+		if t.IsBasic() {
+			panic(fmt.Sprintf("unexpected basic return value in method %s", method.WasmMethodName()))
+		}
+		typ := t.String(method.ProtoPackage())
+		result += method.Language().FormalTypeCombination("out", "*"+typ)
+	}
+	return result
 }
 
 // funcChoicesMethodCall is used for calling a method of a service.
@@ -277,7 +293,7 @@ func outputTypeInfo(b4 bool, method *codegen.WasmMethod) (*codegen.CGType, int) 
 		return inner, outTypeComposite
 	}
 	if t.IsBasic() {
-		panic(fmt.Sprintf("should not have a method returning a basic for %s", method.GetWasmMethodName()))
+		panic(fmt.Sprintf("should not have a method returning a basic for %s", method.WasmMethodName()))
 	}
 	if t.IsCompositeNoFields() {
 		return nil, outTypeCompositeNoFields
@@ -399,15 +415,7 @@ func outReturnToString(b2, b4 bool, m *codegen.WasmMethod, abi bool) string {
 }
 
 func funcChoicesMethodRet(b1, b2, b3, b4 bool, abi bool, m *codegen.WasmMethod) string {
-
-	if abi {
-		// sadly, the abi is a special case because it doesn't return error values
-		return outReturnToString(b2, b4, m, true)
-	}
-	if !b2 {
-		return "error"
-	}
-	return outReturnToString(b2, b4, m, false)
+	return "error"
 }
 
 func funcChoicesRetValue(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
@@ -435,7 +443,7 @@ func funcChoicesRetValue(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	//	return ""
 	//}
 	if b2 {
-		return fmt.Sprintf("%sResponse{},nil", m.GetWasmMethodName())
+		return fmt.Sprintf("%sResponse{},nil", m.WasmMethodName())
 	}
 	return "nil"
 }

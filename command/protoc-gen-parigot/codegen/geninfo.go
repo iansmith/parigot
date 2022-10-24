@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
-	"log"
 )
 
 type GenInfo struct {
@@ -44,14 +43,6 @@ func (g *GenInfo) GetFile() *descriptorpb.FileDescriptorProto {
 // stdin.  This request is associated with the currently operating code generation.
 func (g *GenInfo) GetRequest() *pluginpb.CodeGeneratorRequest {
 	return g.request
-}
-
-func (g *GenInfo) IsAbi() bool {
-	if g.file.GetOptions() == nil {
-		log.Printf("no options on %s\n", g.file.GetName())
-		return false
-	}
-	return IsAbi(g.file.GetOptions().String())
 }
 
 type InputParam struct {
@@ -210,7 +201,7 @@ func (m *ServiceRecord) String() string {
 	return fmt.Sprintf("ServiceRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
 }
 func (g *GenInfo) RegisterService(w *WasmService) {
-	g.finder.AddServiceType(w.GetWasmServiceName(), w.GetProtoPackage(), w.GetGoPackage(), w)
+	g.finder.AddServiceType(w.GetWasmServiceName(), w.ProtoPackage(), w.GetGoPackage(), w)
 }
 
 func (g *GenInfo) RegisterMessage(w *WasmMessage) {

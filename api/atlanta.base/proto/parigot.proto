@@ -26,3 +26,11 @@ extend google.protobuf.FileOptions {
 extend google.protobuf.MessageOptions {
   optional string wasm_message_name = 543210;
 }
+
+message LocateErrorId {
+  int64 error = 1;
+}
+
+message ServiceId {
+  int64 id = 1;
+}

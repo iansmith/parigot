@@ -1,0 +1,41 @@
+syntax = "proto3";
+package parigot.log;
+option go_package="github.com/iansmith/parigot/g/log;log";
+import "parigot.proto";
+
+service Kernel {
+  rpc Locate(LocateRequest) returns(LocateResponse);
+  rpc Register(RegisterRequest) returns(RegisterResponse);
+  rpc Dispatch(DispatchRequest) returns(DispatchResponse);
+}
+
+message LocateRequest {
+  string packageName = 1;
+  string service = 2;
+}
+
+message LocateResponse {
+  parigot.ServiceId service_id =1;
+  parigot.LocateErrorId error_id=2;
+}
+
+message DispatchRequest {
+  int64 service_sid =1;
+  string method=2;
+  bytes blob=3;
+}
+
+message DispatchResponse {
+  bytes blob = 1;
+  int64 error_code=2;
+}
+
+message RegisterRequest {
+  string proto_package = 1;
+  string service = 2;
+}
+
+message RegisterResponse {
+  int64 service_id =1;
+  int32 error_code = 2;
+}

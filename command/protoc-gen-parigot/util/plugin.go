@@ -18,9 +18,6 @@ const (
 	bufferSize = 2 * oneMB
 	readSize   = 4096
 
-	pathArg    = "path"
-	trueValue  = "true"
-	abiArg     = "abi"
 	locatorArg = "locator"
 )
 const pattern = "parse"

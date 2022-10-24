@@ -27,7 +27,7 @@ func (w *WasmService) GetLanguage() LanguageText {
 func (w *WasmService) HasNoPackageOption() bool {
 	return w.noPackage
 }
-func (w *WasmService) GetProtoPackage() string {
+func (w *WasmService) ProtoPackage() string {
 	return w.GetParent().GetPackage()
 }
 func (w *WasmService) GetGoPackage() string {

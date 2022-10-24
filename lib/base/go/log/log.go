@@ -2,9 +2,10 @@ package log
 
 import (
 	"bytes"
+	"github.com/iansmith/parigot/g/parigot/abi"
 	"time"
 
-	"github.com/iansmith/parigot/g/parigot/abi"
+	"github.com/iansmith/parigot/g/parigot/kernel"
 )
 
 type LogLevel int32
@@ -19,7 +20,7 @@ const (
 
 // init functions in parigot must be idempotent! It can and will be called many times.
 func init() {
-	abi.RegisterService("parigot", "log")
+	kernel.Register("parigot", "log")
 }
 
 var Dev = NewLocalT(true)

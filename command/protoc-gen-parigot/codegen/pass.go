@@ -125,13 +125,13 @@ func MethodsPass(gen *GenInfo,
 func walkParametersPulled(m *WasmMethod,
 	fn func(method *WasmMethod, num int, parameter *CGParameter) string) string {
 	in := m.CGInput()
-	protoPkg := m.Parent().GetProtoPackage()
+	protoPkg := m.Parent().ProtoPackage()
 	paramList := ExpandParamInfoForInput(in, m, protoPkg)
 	result := ""
 	for i, cgp := range paramList {
 		result += fn(m, i, cgp)
 		if i != len(paramList)-1 {
-			result += m.Language().GetFormalArgSeparator()
+			result += m.Language().FormalArgSeparator()
 		}
 	}
 	return result
@@ -159,7 +159,7 @@ func walkOutputPulledParam(m *WasmMethod,
 		log.Fatalf("cant pull up parameters from output type %s, it has more than 1 value",
 			t.String(""))
 	}
-	protoPkg := m.Parent().GetProtoPackage()
+	protoPkg := m.Parent().ProtoPackage()
 	f := t.CompositeType().GetField()[0]
 	childType := NewCGTypeFromField(f, m, protoPkg)
 	cgParam := NewCGParameterNoFormal(childType)

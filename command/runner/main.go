@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/sys/abiimpl"
 	"log"
 	"os"
 	"reflect"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
-	"github.com/iansmith/parigot/abi/jspatch"
-	"github.com/iansmith/parigot/abi/tinygopatch"
-	"github.com/iansmith/parigot/command/runner/g"
+	"github.com/iansmith/parigot/sys/kernel"
+	"github.com/iansmith/parigot/sys/kernel/jspatch"
+	"github.com/iansmith/parigot/sys/kernel/tinygopatch"
 )
 
 var libs = []string{}
@@ -61,9 +60,10 @@ func mainNormal() {
 	// add functions
 	memPtr = new(uintptr)
 	jspatch.SetMemPtr(memPtr)
-	impl := abiimpl.NewAbiImpl(memPtr)
-	g.SetCaller(impl)
-	g.WasmTimeWrapABI(impl, store, wrappers)
+	_ /*impl*/ = abiimpl.NewAbiImpl(memPtr)
+	///xxx fixme
+	//g.SetCaller(impl)
+	//g.WasmTimeWrapABI(impl, store, wrappers)
 	tinygoPatch(store, wrappers)
 	jsPatch(store, wrappers)
 

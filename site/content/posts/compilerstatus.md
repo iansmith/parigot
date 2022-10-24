@@ -32,7 +32,7 @@ definition of a go function.  The function has the same name as it had in the
 proto file plus an underscore.  The use of the $ notation indicates one of these
 variables:
 ```
-func {{.GetWasmMethodName}}_({{$methParamDeclWasm}}) {{$methodRet}} {
+func {{.WasmMethodName}}_({{$methParamDeclWasm}}) {{$methodRet}} {
 {{- if $needsRet}}
 return impl.{{.GetName}}({{$methodCallWasm}})
 {{- else }}

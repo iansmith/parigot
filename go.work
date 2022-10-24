@@ -1,8 +1,7 @@
 go 1.19
 
 use lib
-use sys
-use abi/atlanta.base/go
+use sys/atlanta.base
 use command
 use api/atlanta.base/go
 use g

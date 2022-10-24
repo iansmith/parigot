@@ -17,12 +17,12 @@ type LanguageText interface {
 	// GetFormalArgSeparator returns the string that separates arguments in
 	// declaration or call.  In go this is a comma. e.g foo(a,b,c) because
 	// comma.
-	GetFormalArgSeparator() string
+	FormalArgSeparator() string
 	// GetFormalTypeCombination returns has the combination of a formal declaration
 	// and a type. It can produce its output in any order or drop the type in
 	// entirely in languages that don't require.  Note that the text of these
 	// two values have already been processed. For ("a","foo") go returns "a foo".
-	GetFormalTypeCombination(formal, typ string) string
+	FormalTypeCombination(formal, typ string) string
 	// BasicTypeToString returns the language specific version of the input
 	// or panics because it does not know how.  The caller should insure
 	// that the value sent to this function is in fact a basic type like

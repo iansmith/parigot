@@ -9,7 +9,6 @@ import (
 // This file does lots of option processing.  Typically, one is using these options
 // to "match" the binary interface of somebody else's WASM module.
 const (
-	fileOptionForAbi         = "543210"
 	serviceOptionForWasmName = "543210"
 	messageOptionForWasmName = "543210"
 	methodOptionForWasmName  = "543210"
@@ -21,7 +20,6 @@ const (
 
 	methodOptionPullParams = "543211"
 	methodOptionPullOutput = "543213"
-	methodOptionCallsAbi   = "543212"
 
 	messageOptionNoPackage = "543211"
 )
@@ -46,14 +44,6 @@ func optionsToMap(s string) map[string]string {
 		result[k] = v
 	}
 	return result
-}
-
-// IsAbi checks to see if the options given on the file has an option which looks like:
-// option (parigot.abi) = true. This is a free standing function so it can be called
-// when you not yet in code generation and thus don't have access to the GenInfo.
-func IsAbi(s string) bool {
-	_, b := isBooleanOptionPresent(s, fileOptionForAbi)
-	return b
 }
 
 // isBooleanOptionPresent does all the string futzing to find an desired option or return false beacuse
@@ -114,10 +104,5 @@ func pullParamsOption(s string) bool {
 }
 func pullOutputOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, methodOptionPullOutput)
-	return b
-}
-
-func abiCallOption(s string) bool {
-	_, b := isBooleanOptionPresent(s, methodOptionCallsAbi)
 	return b
 }

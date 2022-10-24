@@ -9,7 +9,6 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/abi"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/go_"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
@@ -35,7 +34,6 @@ func main() {
 	// info is the root of the all the nodes that we use for code gen
 	info := codegen.NewGenInfo()
 	generatorMap["go"] = go_.NewGoGen(info)
-	abiOnlyMap["abi"] = abi.NewAbiGen(info)
 
 	// plugin reads from stdin normally, but we allow input from files and copying
 	// the stdin to some output file later testing
@@ -163,9 +161,6 @@ func loadTemplates(generator codegen.Generator) (*template.Template, error) {
 }
 
 func getGeneratorMap(desc *descriptorpb.FileDescriptorProto) map[string]codegen.Generator {
-	if codegen.IsAbi(desc.GetOptions().String()) {
-		return abiOnlyMap // map with JUST the abi generator
-	}
 	return generatorMap // normal map with one entry per languages
 
 }

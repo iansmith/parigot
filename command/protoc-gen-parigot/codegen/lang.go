@@ -1,16 +1,15 @@
 package codegen
 
 import (
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 	"text/template"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // Generator represents a language-specific collection of files and code that can
-// convert a parigot proto file into code for the specific language.  This type is
-// also "borrowed" for the use of generating ABI interfaces, although it works
-// the same way.
+// convert a parigot proto file into code for the specific language.
 type Generator interface {
 	Process(proto *descriptorpb.FileDescriptorProto) error
 	Generate(t *template.Template, g *GenInfo) ([]*util.OutputFile, error)

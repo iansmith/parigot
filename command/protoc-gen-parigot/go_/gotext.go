@@ -210,11 +210,11 @@ func (g *GoText) GetFormalNameUnused(
 	return "_"
 }
 
-func (g *GoText) GetFormalTypeCombination(formal, typ string) string {
+func (g *GoText) FormalTypeCombination(formal, typ string) string {
 	return formal + " " + typ
 }
 
-func (g *GoText) GetFormalArgSeparator() string {
+func (g *GoText) FormalArgSeparator() string {
 	return ","
 }
 
@@ -244,7 +244,7 @@ func (g *GoText) CallFuncWithArg(
 	for i, arg := range p {
 		paramToFunc += arg.GetFormalName()
 		if i != len(p)-1 {
-			paramToFunc += g.GetFormalArgSeparator()
+			paramToFunc += g.FormalArgSeparator()
 		}
 	}
 	return fmt.Sprintf("%s(%s)", funcName, paramToFunc)
@@ -386,7 +386,7 @@ func (g *GoText) AllInputNumberedParam(m *codegen.WasmMethod) string {
 					result += g.GetCGTypeName(protoPkg, method, param)
 				}
 				if i != used-1 {
-					result += g.GetFormalArgSeparator()
+					result += g.FormalArgSeparator()
 				}
 			}
 			count += used

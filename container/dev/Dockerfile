@@ -89,10 +89,13 @@ RUN wget -q https://www.antlr.org/download/antlr-4.9.3-complete.jar
 RUN mkdir /home/parigot/dotfiles
 RUN chown parigot /home/parigot/dotfiles
 RUN chgrp parigot /home/parigot/dotfiles
-RUN mkdir /home/parigot/ssh
-RUN chgrp parigot /home/parigot/ssh
-RUN chown parigot /home/parigot/ssh
-RUN chmod 700 /home/parigot/ssh
+RUN mkdir /home/parigot/dotfiles/ssh
+RUN chgrp parigot /home/parigot/dotfiles/ssh
+RUN chown parigot /home/parigot/dotfiles/ssh
+RUN chmod 700 /home/parigot/dotfiles/ssh
+ADD recv.sh /home/parigot/dotfiles
+RUN chmod +x /home/parigot/dotfiles/recv.sh
+
 #RUN ln -s /home/parigot/ssh /home/parigot/.ssh
 #RUN ln -s /home/parigot/dotfiles/gitconfig /home/parigot/.gitconfig
 #RUN ln -s /home/parigot/dotfiles/zshrc /home/parigot/.zshrc
@@ -109,11 +112,17 @@ RUN mkdir /home/parigot/src
 WORKDIR /home/parigot
 RUN chown -R parigot .
 RUN chgrp -R parigot .
+RUN chsh -s /usr/bin/zsh parigot
+
+# sample enable script
+ADD enable-parigot /home/parigot/
+RUN chown parigot /home/parigot/enable-parigot
+RUN chgrp parigot /home/parigot/enable-parigot
 
 #temporary
 USER parigot
 #go progs
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.2/bin
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.2/bin:/home/parigot/.local/bin
 
 RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
@@ -124,11 +133,8 @@ RUN go install github.com/bufbuild/buf/cmd/buf@latest
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /home/parigot/src/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
-
-
-# sample enable script
-ADD enable-parigot /home/parigot/
-
+# add error correction
+RUN pip3 install thefuck
 
 # set some vars
 WORKDIR /home/parigot/src
@@ -137,7 +143,6 @@ ENV GOTOOLS=/home/parigot/tools/go1.19.2
 ENV WABTTOOLS=/home/parigot/tools/wabt
 
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
-
 
 ENTRYPOINT ["bash"]
 

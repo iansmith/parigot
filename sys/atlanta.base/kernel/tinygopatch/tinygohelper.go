@@ -2,7 +2,7 @@ package tinygopatch
 
 import (
 	"encoding/binary"
-	"github.com/iansmith/parigot/abi/jspatch"
+	"github.com/iansmith/parigot/sys/kernel/jspatch"
 	"log"
 	"math"
 	"time"

@@ -1,8 +1,7 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
     "log"
-    "github.com/iansmith/parigot/api/parigot"
-    "github.com/iansmith/parigot/g/parigot/abi"
+    "github.com/iansmith/parigot/g/parigot/kernel"
 )
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}
@@ -14,7 +13,7 @@ type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-    {{.GetWasmMethodName}}({{$methParamDecl}}) {{$methodRet}}
+    {{.WasmMethodName}}({{$methParamDecl}}) {{$methodRet}}
 {{- end }}
 }
 {{end}} {{/* closes top service, the interface stuff*/}}
@@ -27,22 +26,24 @@ type {{$svcCamel}}Impl struct {
 }
 
 func Locate{{$svc}}() ({{$svcCamel}},error) {
-    resp:=abi.Locate("parigot","{{$svc}}")
-    respPtr:=&resp
-    if resp.GetErrorCode() != 0 {
-        locateErrorId:=parigot.NewLocateErrorId(respPtr.GetErrorCode())
-        return nil, parigot.NewErrorFromId("failed to locate {{$svc}}",
-            parigot.AnyId(locateErrorId))
+    var resp kernel.LocateResponse{}
+    err:=kernel.Locate("{{.ProtoPackage}}","{{$svc}}",&resp)
+    if err!=nil {
+        return nil, err
     }
-    cs:=parigot.NewClientSideService(parigot.ServiceId(respPtr.GetServiceId()))
+    if resp.GetErrorId() != 0 {
+        return nil, parigot.NewErrorFromId("failed to locate {{$svc}}",
+            parigot.GetErrorId())
+    }
+    cs:=parigot.NewClientSideService(resp.GetServiceId())
     return &{{toCamelCase .GetWasmServiceName}}Impl{
         ClientSideService: cs,
     },nil
 }
 
 {{- range .GetWasmMethod}}
-{{- $meth:=.GetWasmMethodName}}
-{{- $methCamel:=toCamelCase .GetWasmMethodName}}
+{{- $meth:=.WasmMethodName}}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsFill:=call .FuncChoice.NeedsFill .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
@@ -76,7 +77,7 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 {{- if ne $outLocal ""}}
     resp:=&{{$outLocal}}
  {{- end}}
-    err:= i.Dispatch("{{.GetWasmMethodName}}",{{$inputToSend}},{{$outbound}})
+    err:= i.Dispatch("{{.WasmMethodName}}",{{$inputToSend}},{{$outbound}})
     if err!=nil {
        return {{$retError}}err
     }
@@ -88,7 +89,7 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 
 func init() {
 {{- range .info.Service }}
-    x:=abi.Register("{{.GetProtoPackage}}", "{{.GetWasmServiceName}}")
+    x:=abi.Register("{{.ProtoPackage}}", "{{.GetWasmServiceName}}")
     log.Printf("service.id %x",x.ServiceId, x.ErrorCode)
 {{- end }}
 }

@@ -25,7 +25,7 @@ type WasmMethod struct {
 func (w *WasmMethod) InputFields() []*WasmField {
 	if w.CGInput().Len() == 0 {
 		log.Fatalf("attempt to use InputFields but no input fields present in %s",
-			w.GetWasmMethodName())
+			w.WasmMethodName())
 	}
 	return w.CGInput().CGType().CompositeType().GetField()
 }
@@ -33,7 +33,7 @@ func (w *WasmMethod) InputFields() []*WasmField {
 func (w *WasmMethod) GetOutputFields() []*WasmField {
 	if w.CGOutput().Len() == 0 {
 		log.Fatalf("attempt to use GetOutputFields but no out fields present in %s",
-			w.GetWasmMethodName())
+			w.WasmMethodName())
 	}
 	return w.CGOutput().GetCGType().CompositeType().GetField()
 }
@@ -53,7 +53,7 @@ func (w *WasmMethod) ProtoPackage() string {
 	if w.protoPackageOverride != nil {
 		return *w.protoPackageOverride
 	}
-	return w.Parent().GetProtoPackage()
+	return w.Parent().ProtoPackage()
 }
 
 func (w *WasmMethod) Finder() Finder {
@@ -77,7 +77,7 @@ func (w *WasmMethod) CGOutput() *OutputParam {
 	return w.output
 }
 
-// GetWasmMethodName looks through the data structure given that represents the
+// WasmMethodName looks through the data structure given that represents the
 // original protobuf structure trying to find constructs like this:
 //
 //		service Foo {
@@ -86,7 +86,7 @@ func (w *WasmMethod) CGOutput() *OutputParam {
 //	}
 //
 // If no such construction is found, it returns the simple name.
-func (w *WasmMethod) GetWasmMethodName() string {
+func (w *WasmMethod) WasmMethodName() string {
 	if w.wasmMethodName != "" {
 		return w.wasmMethodName
 	}
