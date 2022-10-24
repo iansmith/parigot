@@ -1,11 +1,7 @@
 package main
 
-import (
-	"github.com/iansmith/parigot/g/parigot/abi"
-	"github.com/iansmith/parigot/lib/base/go/log"
-)
+import "fmt"
 
 func main() {
-	log.Dev.Debug("hello, logger")
-	abi.Exit(1)
+	fmt.Printf("hello")
 }

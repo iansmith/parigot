@@ -1,6 +1,8 @@
 package codegen
 
-import "google.golang.org/protobuf/types/descriptorpb"
+import (
+	"google.golang.org/protobuf/types/descriptorpb"
+)
 
 // WasmService is like a descriptorpb.ServiceDescriptorProto (which it contains) but
 // also adds things that are specific to parigot, notably wasm-specific names.  This
@@ -89,6 +91,9 @@ func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	if s.kernel {
 		return
 	}
-	imp["log"] = struct{}{}
+	imp["github.com/iansmith/parigot/lib/k"] = struct{}{}
 	imp["github.com/iansmith/parigot/lib/client"] = struct{}{}
+	imp["github.com/iansmith/parigot/lib/id"] = struct{}{}
+	imp["github.com/iansmith/parigot/lib/perror"] = struct{}{}
+	imp["github.com/iansmith/parigot/g/parigot/kernel"] = struct{}{}
 }

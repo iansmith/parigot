@@ -1,9 +1,8 @@
 syntax = "proto3";
 package demo.vvv;
-option go_package = "demo/vvv/proto/gen/demo/vvv;vvv";
+option go_package = "demo/vvv/proto/g/demo/vvv;vvv";
 import "google/protobuf/timestamp.proto";
 
-// parigot: WasmServiceName=VinnysStore
 service Store {
   rpc BestOfAllTime(BestOfAllTimeRequest) returns(BestOfAllTimeResponse);
   rpc Revenue(RevenueRequest) returns (RevenueResponse);

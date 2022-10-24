@@ -108,11 +108,6 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 				if err != nil {
 					return nil, err
 				}
-				all, err := templateFS.ReadFile(generator.KernelInterface())
-				if err != nil {
-					return nil, err
-				}
-				info.SetKernelInterface(string(all))
 				file, err := generator.Generate(t, info)
 				if err != nil {
 					return nil, err

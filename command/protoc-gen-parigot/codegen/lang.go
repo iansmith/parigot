@@ -18,5 +18,4 @@ type Generator interface {
 	GeneratingMessage() []string
 	ResultName() []string
 	LanguageText() LanguageText
-	KernelInterface() string
 }

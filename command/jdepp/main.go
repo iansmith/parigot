@@ -352,12 +352,10 @@ func inputArgToRootPackage(arg string) string {
 	return rootPackage
 }
 func populateModuleMaps(arg, rootPackage string, moduleMap map[string]string, ignoredModuleMap map[string]string) {
-	log.Printf("rrrr %s,%s", arg, rootPackage)
 	goDotMod, err := findGoModFile(arg)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	log.Printf("rrrr22222 %+v", goDotMod)
 
 	for _, f := range goDotMod {
 		pkg, ignore, err := goModToPackage(f, rootPackage)

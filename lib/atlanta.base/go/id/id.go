@@ -34,6 +34,10 @@ type LocateError Any
 // It returns a well known constant for its errors.
 type DispatchError Any
 
+// RegisterError is returned by a failed call to Register in the ABI.
+// It returns a well known constant for its errors.
+type RegisterError Any
+
 // NewService is used by the kernel to create a new service id in production.
 // The value is generated randomly (56 bits).
 func NewService() Service {
@@ -68,7 +72,7 @@ func IsService(v int64) bool {
 // Short formats the last two bytes and the letter indicator for printing.
 // This is used for debugging sessions, not for production.
 // Two bytes means 64K combinations so you have to very unlucky to get a collision.
-func Short(n Any) string {
+func Short(n int64) string {
 	buf := make([]byte, binary.MaxVarintLen64)
 	binary.LittleEndian.PutUint64(buf, uint64(n))
 	buf[6] = 0
@@ -122,4 +126,8 @@ func idFromInt(s byte, i int64) Any {
 	buf[7] = s
 	x := binary.LittleEndian.Uint64(buf)
 	return Any(x)
+}
+
+func IsError(i int64) bool {
+	return i != 0
 }

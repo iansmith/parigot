@@ -348,19 +348,21 @@ func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 	return b2
 }
 func funcChoicesInputParam(b1, _, _, _ bool, m *codegen.WasmMethod) string {
-	if !b1 {
-		return ""
-	}
 	t := m.CGInput().CGType()
-	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
+	typ := m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
+	if !b1 {
+		return "var req " + typ
+	}
+	return "req:=in"
 }
 
 func funcChoicesOutputParam(_, b2, _, _ bool, m *codegen.WasmMethod) string {
-	if !b2 {
-		return ""
-	}
 	t := m.CGInput().CGType()
-	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
+	typ := m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
+	if !b2 {
+		return "var out " + typ
+	}
+	return ""
 }
 
 func funcChoicesInputToSend(b1, _, b3, _ bool, m *codegen.WasmMethod) string {

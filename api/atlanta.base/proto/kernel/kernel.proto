@@ -20,8 +20,8 @@ message ExitResponse{}
 
 
 message LocateRequest {
-  string packageName = 1;
-  string service = 2;
+  string package_name = 1;
+  string service_name = 2;
 }
 
 message LocateResponse {
@@ -49,6 +49,6 @@ message RegisterRequest {
 }
 
 message RegisterResponse {
-  int64 service_id =1;
-  int32 error_code = 2;
+  parigot.ServiceId service_id =1;
+  parigot.RegisterErrorId error_id=2;
 }

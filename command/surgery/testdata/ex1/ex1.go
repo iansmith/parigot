@@ -2,7 +2,6 @@ package ex1
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/lib/base/go/log"
 )
 
 type composite struct {
@@ -16,6 +15,6 @@ func sayHi(c *composite) string {
 
 func Driver() {
 	print("0\n")
-	c := &composite{"billy", 13}
-	log.Dev.Debug(sayHi(c))
+	_ = &composite{"billy", 13}
+	//log.Dev.Debug(sayHi(c))
 }

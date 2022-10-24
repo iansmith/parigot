@@ -1,15 +1,15 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
-{{- range .imports }}
-    "{{.}}"
-    "{{.}}"
+{{- range $j,$i := .imports }}
+    "{{$j}}"
 {{- end}} {{/* imports */}}
 )
 
-{{ $info:=.info }}
+{{- $info:=.info }}
 {{- range .info.Service }}
-{{ $svc:=.GetWasmServiceName }}
-{{ $svcCamel:=toCamelCase .GetWasmServiceName }}
+{{- if .NoKernelOption}}
+{{- $svc:=.GetWasmServiceName }}
+{{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 //
 // {{$svcCamel}}
 //
@@ -20,34 +20,36 @@ type {{$svcCamel}} interface {
     {{.WasmMethodName}}({{$methParamDecl}}) {{$methodRet}}
 {{- end }}
 }
-{{end}} {{/* closes top service, the interface stuff*/}}
+{{- end }}{{/* closes no kernel option */}}
+{{- end}} {{/* closes top service, the interface stuff*/}}
 
 {{- range .info.Service }}
+{{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 type {{$svcCamel}}Client struct {
     *client.ClientSideService
 }
 
-{{ if .NoKernelOption}}
-func Locate{{$svc}}() ({{$svcCamel}},error) {
-    var resp kernel.LocateResponse{}
-    err:=kernel.Locate("{{.ProtoPackage}}","{{$svc}}",&resp)
+func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
+    var resp kernel.LocateResponse
+    req:=&kernel.LocateRequest{
+        PackageName:"{{.ProtoPackage}}",
+        ServiceName: "{{$svc}}",
+    }
+    err:=k.Locate(req,&resp)
     if err!=nil {
         return nil, err
     }
-    if resp.GetErrorId() != 0 {
-        return nil, parigot.NewErrorFromId("failed to locate {{$svc}}",
-            parigot.GetErrorId())
+    if id.IsError(resp.GetErrorId().GetError()){
+        return nil, e.NewPerrorFromId("semantic error in locate call:", resp.GetErrorId().GetError())
     }
-    cs:=parigot.NewClientSideService(resp.GetServiceId())
-    return &{{toCamelCase .GetWasmServiceName}}Impl{
+    cs:=client.NewClientSideService(id.Service(resp.GetServiceId().GetId()))
+    return &{{$svcCamel}}Client{
         ClientSideService: cs,
     },nil
 }
-{{- end }} {{/*kernel option*/}}
 
-{{ if .NoKernelOption }}
 {{- range .GetWasmMethod}}
 
 {{- $meth:=.WasmMethodName}}
@@ -79,11 +81,13 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{- end}}{{/* range input fields */}}
 {{- else }} {{/* other side of needs fill in */}}
-    req := in;
+    {{ $inParam }}
 {{- end}}{{/*needs fill*/}}
 
 {{- if $needsFillOut}}
     var out =&{{$outParam}}  // take apart the structure
+{{- else }} {{/* other side of needs fill out */}}
+    {{ $outParam }}
 {{- end}}
 
     err:= i.Dispatch("{{.WasmMethodName}}",req,out)
@@ -99,19 +103,26 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
     return nil
 }
 {{- end }} {{/*ranging over methods*/}}
-{{- end}} {{/* kernel option */}}
-
-{{ if .HasKernelOption }}
-{{ $info.KernelInterface}}
-{{- end }}
+{{- end }} {{/* no kernel option */}}
 {{- end}}{{/*ranging over services*/}}
 
 
-{{- if .noKernelOption }}
 func init() {
+
 {{- range .info.Service }}
-    x:=abi.Register("{{.ProtoPackage}}", "{{.GetWasmServiceName}}")
-    log.Printf("service.id %x",x.ServiceId, x.ErrorCode)
+{{- if .NoKernelOption }}
+    req{{.GetWasmServiceName}}:=&kernel.RegisterRequest{
+        ProtoPackage: "{{.ProtoPackage}}",
+        Service:      "{{.GetWasmServiceName}}",
+    }
+    resp{{.GetWasmServiceName}}:=kernel.RegisterResponse{}
+    if k.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})!=nil {
+        panic("unable to register service "+"{{.GetWasmServiceName}}")
+    }
+    if id.IsError(resp{{.GetWasmServiceName}}.GetErrorId().GetError()){
+        panic(fmt.Sprintf("semantic error trying to register {{.GetWasmServiceName}}: %s",
+        resp{{.GetWasmServiceName}}.GetErrorId().GetError()))
+    }
+{{- end }} {{/* if no kernel */}}
 {{- end }}
 }
-{{- end }} {{/* if no kernel */}}

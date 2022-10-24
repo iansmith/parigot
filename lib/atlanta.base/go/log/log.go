@@ -62,7 +62,7 @@ func (l *LocalT) Fatal(f string) {
 	} else {
 		// if you are aborting, then you probably want to print something
 		outputString("FATAL", f)
-		abi.Exit(1)
+		//abi.Exit(1)
 	}
 }
 
@@ -74,8 +74,8 @@ func NewLocalT(abortOnFatal bool) T {
 
 func outputString(prefix, f string, rest ...string) {
 	var buf bytes.Buffer
-	resp := abi.Now()
-	t := time.Unix(0, resp.Now)
+	//resp := abi.Now()
+	t := time.Now() //xxx fix me should be k.Now()
 	t = t.UTC()
 	stamp := t.Format(time.Stamp)
 	buf.WriteString(stamp + " UTC")
@@ -88,7 +88,7 @@ func outputString(prefix, f string, rest ...string) {
 		last = r
 	}
 	addNewlineIfDontHaveOne(last, &buf)
-	abi.OutputString(buf.String())
+	//abi.OutputString(buf.String())
 }
 func addNewlineIfDontHaveOne(s string, buf *bytes.Buffer) {
 	// could do this with converting the buffer to bytes or string but this
