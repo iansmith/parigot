@@ -12,7 +12,7 @@ TINYGO_CMD=tinygo
 
 # currently no GC and no scheduler
 #TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
-TINYGO_WASM_OPTS=-target wasm -debug -gc leaking -scheduler none -opt 0 -x -work
+TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
 BUILD_TAGS=parigot_abi
 
 GO_CMD=GOOS=js GOARCH=wasm go

@@ -1,5 +1,6 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
+    "log"
     "github.com/iansmith/parigot/api/parigot"
     "github.com/iansmith/parigot/g/parigot/abi"
 )
@@ -84,3 +85,10 @@ func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
 }
 {{- end}}{{/*ranging over methods*/}}
 {{- end}}{{/*ranging over services*/}}
+
+func init() {
+{{- range .info.Service }}
+    x:=abi.Register("{{.GetProtoPackage}}", "{{.GetWasmServiceName}}")
+    log.Printf("service.id %x",x.ServiceId, x.ErrorCode)
+{{- end }}
+}

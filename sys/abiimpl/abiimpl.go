@@ -1,6 +1,7 @@
 package abiimpl
 
 import (
+	"github.com/iansmith/parigot/api/parigot"
 	"log"
 	"os"
 )
@@ -48,6 +49,21 @@ func (a *AbiImpl) Now(retVal int32) {
 
 func (a *AbiImpl) SetNow(_ int64, _ bool) {
 	print("SetNow\n")
+	os.Exit(1)
+}
+
+var packageRegistry = make(map[string]map[string]parigot.ServiceId)
+var serviceCounter = 1
+
+func (a *AbiImpl) Register(retVal int32, protoPackage string, service string) {
+	serviceRegistry, ok := packageRegistry[protoPackage]
+	if !ok {
+		serviceRegistry = make(map[string]parigot.ServiceId)
+	}
+	sid := parigot.NewServiceIdFromInt(int64(serviceCounter + 1))
+	serviceCounter++
+	serviceRegistry[service] = sid
+	log.Printf("Register: What's the retval? %x", retVal)
 	os.Exit(1)
 }
 

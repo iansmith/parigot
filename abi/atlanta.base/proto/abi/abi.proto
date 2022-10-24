@@ -29,11 +29,11 @@
 // that is capacity large and the first length bytes are in use.
 //
 // We use the "pull up" notion for parameter so the API that is generated for
-// go matches the "intuition" about the function.  E.g. Exit(<struct of 1 int64>)
-// and Exit(int64) maybe be identical at the binary level because the compiler
-// may choose to pass the struct as a single int64...or it might not and use a
+// go matches the "intuition" about the function.  E.g. Exit(<struct of 1 int32>)
+// and Exit(int32) maybe be identical at the binary level because the compiler
+// may choose to pass the struct as a single int32...or it might not and use a
 // pointer.  We use the "pull up" so the programmer sees the _true_ definition
-// of the function, Exit(int64), rather than having the intermediary type (albeit
+// of the function, Exit(int32), rather than having the intermediary type (albeit
 // required by protobuf) that could cause confusion.
 
 syntax = "proto3";
@@ -51,7 +51,7 @@ service Abi {
     option (parigot.pull_output_up) = true;
     option (parigot.wasm_method_name) = "output_string";
   }
-  // f(int64) ->
+  // f(int32) ->
   rpc Exit(ExitRequest) returns(ExitResponse) {// will die
     option (parigot.pull_output_up) = true;
     option (parigot.wasm_method_name) = "exit";
@@ -70,7 +70,7 @@ service Abi {
   };
 
   // result = (int64,int32)
-  // f(result *int32,ptr *int32,len int32, ptr2 *int32, len2 int32) ->
+  // f(result_ptr *int32,ptr *int32,len int32, ptr2 *int32, len2 int32) ->
   rpc Locate(LocateRequest) returns (LocateResponse){
     option (parigot.wasm_method_name) = "locate";
   }
@@ -79,6 +79,10 @@ service Abi {
   // f(result_ptr *int32,sid int64, ptr *int32, len int32, ptr *int32, len int32, cap int32) ->
   rpc Dispatch(DispatchRequest) returns (DispatchResponse){
     option (parigot.wasm_method_name) = "dispatch";
+  }
+
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (parigot.wasm_method_name) = "register";
   }
 
   //temp
@@ -139,4 +143,15 @@ message DispatchRequest {
 message DispatchResponse {
   bytes blob = 1;
   int64 error_code=2;
+}
+
+message RegisterRequest {
+  string proto_package = 1;
+  string service = 2;
+}
+
+message RegisterResponse {
+  int64 service_id =1;
+  int32 error_code = 2;
+
 }

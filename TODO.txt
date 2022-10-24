@@ -6,33 +6,44 @@ draft: false
 
 ## smallish
 
+### WASM
 * Do a check of the WASM spec to make sure I have all the opcodes and instruction formats
 covered in the parser, `command/Wasm.g4`
   * Need to figure out if we want to support particular version (2.0?)
   and possibly particular feature sets
 
-
-* make each generated package have a "register" method to register everything
+### compiler (protoc-gen-parigot)
 * make locator template something that can be selected from the command line
-* make log() on client side service do somethnig sensible and possibly automatically
-inject the service name into the log messages
 * walk through the code paths and get return values to always be parigot.Error
-
 * flow the errors through the compiler so we can report them back to the protoc level
 * enums, especially for the errors coming back from dispatch -- and that should be
 coordinated with client side service
-* prevent generation of extra messages Locate<blah>Request and LocateBlahResponse
-
+* repeated objects in a messages
 * rip out all of the "Get<Blah>" methods and make them more goish.
 
+### logging
+* Need to have a debug "blob" for services that captures everything together
+* service calls with parameters, log messages
+
+### transform
+* rip out all of the "Get<Blah>" methods and make them more goish.
+
+### link-time
 * investigate unlinking for languages that end up with runtimes in the wasm
 
+### surgery
+* change the way we implement replacement functions to be a replacement import
+    * add the "normal" replacement, if that works correctly
 
-Web Coord Language
+### ids
+* change to either 128 or 192 bit ids, packed into a struct
+* add an extra byte that is reserved for future use (net of 112, 176 bits)
+* if 192, add a crc
+
+## Web Coord Language
 - define css rules of interest
 - laconic style html dev
 - section of text functions that are connected to html dev
 - css can also be attached to html dev
 - events attached to html
-- functions provided in typescript
-
+- functions provided in assemblyscript? typescript? go?
