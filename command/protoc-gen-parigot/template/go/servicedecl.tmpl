@@ -1,8 +1,12 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
-    "log"
-    "github.com/iansmith/parigot/g/parigot/kernel"
+{{- range .imports }}
+    "{{.}}"
+    "{{.}}"
+{{- end}} {{/* imports */}}
 )
+
+{{ $info:=.info }}
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=toCamelCase .GetWasmServiceName }}
@@ -21,10 +25,11 @@ type {{$svcCamel}} interface {
 {{- range .info.Service }}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
-type {{$svcCamel}}Impl struct {
-    *parigot.ClientSideService
+type {{$svcCamel}}Client struct {
+    *client.ClientSideService
 }
 
+{{ if .NoKernelOption}}
 func Locate{{$svc}}() ({{$svcCamel}},error) {
     var resp kernel.LocateResponse{}
     err:=kernel.Locate("{{.ProtoPackage}}","{{$svc}}",&resp)
@@ -40,14 +45,19 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
         ClientSideService: cs,
     },nil
 }
+{{- end }} {{/*kernel option*/}}
 
+{{ if .NoKernelOption }}
 {{- range .GetWasmMethod}}
+
 {{- $meth:=.WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsFill:=call .FuncChoice.NeedsFill .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsFillIn:=call .FuncChoice.NeedsFillIn .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsFillOut:=call .FuncChoice.NeedsFillOut .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
@@ -56,40 +66,52 @@ func Locate{{$svc}}() ({{$svcCamel}},error) {
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+
+{{/*
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+*/}}
 
-func (i *{{$svcCamel}}Impl) {{$methCamel}}({{$methParamDecl}}) {{$methodRet}} {
+func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 
-{{- if .HasAbiCallOption}}
-    //no marshalling
-    return abi.{{$methCamel}}({{$methCall}})
-{{- else}}
-    {{- if $needsFill}} //{{$needsFill}}
-//build the request structure
-    req:=&{{toCamelCase $meth}}Request{}
+{{- if $needsFillIn}}
+    req:=&{{$inParam}}{}  // build the structure: {{$inParam}}
 {{- range .InputFields}}
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{- end}}{{/* range input fields */}}
+{{- else }} {{/* other side of needs fill in */}}
+    req := in;
 {{- end}}{{/*needs fill*/}}
-{{- if ne $inParam ""}}
-    req:=&{{$inParam}}
-{{- end}}{{/* has in param*/}}
-{{- if ne $outLocal ""}}
-    resp:=&{{$outLocal}}
- {{- end}}
-    err:= i.Dispatch("{{.WasmMethodName}}",{{$inputToSend}},{{$outbound}})
+
+{{- if $needsFillOut}}
+    var out =&{{$outParam}}  // take apart the structure
+{{- end}}
+
+    err:= i.Dispatch("{{.WasmMethodName}}",req,out)
     if err!=nil {
-       return {{$retError}}err
+       return err
     }
-    return {{$retValue}}
-{{end}}{{/*abi used */}}
+
+{{- if $needsFillOut}} //take apart response structure: {{$outParam}}
+{{- range .OutputFields}}
+    *{{.Name}}={{.Field}}
+{{- end}}{{/* range output fields */}}
+{{- end}}{{/*needs fill*/}}
+    return nil
 }
-{{- end}}{{/*ranging over methods*/}}
+{{- end }} {{/*ranging over methods*/}}
+{{- end}} {{/* kernel option */}}
+
+{{ if .HasKernelOption }}
+{{ $info.KernelInterface}}
+{{- end }}
 {{- end}}{{/*ranging over services*/}}
 
+
+{{- if .noKernelOption }}
 func init() {
 {{- range .info.Service }}
     x:=abi.Register("{{.ProtoPackage}}", "{{.GetWasmServiceName}}")
     log.Printf("service.id %x",x.ServiceId, x.ErrorCode)
 {{- end }}
 }
+{{- end }} {{/* if no kernel */}}

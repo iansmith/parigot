@@ -8,9 +8,11 @@ type FiveWithMethodString func(b1, b2, b3, b4, abi bool, m *WasmMethod) string
 
 type FuncChooser struct {
 	Bits                QuadString
-	NeedsFill           QuadOptions
+	NeedsFillIn         QuadOptions
+	NeedsFillOut        QuadOptions
 	NeedsRet            QuadOptions
 	InputParam          QuadWithMethodString
+	OutputParam         QuadWithMethodString
 	NeedsPullApart      QuadOptions
 	Inbound             QuadString
 	Outbound            QuadString

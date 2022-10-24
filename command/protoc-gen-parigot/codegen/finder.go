@@ -1,8 +1,10 @@
 package codegen
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
+	"runtime/debug"
 	"strings"
 )
 
@@ -91,8 +93,9 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next Finder) *WasmMessage {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) && protoPackage != "" {
-		log.Fatalf("can't understand service/type structure: [%s,%s]",
-			protoPackage, name)
+		debug.PrintStack()
+		panic(fmt.Sprintf("can't understand message/type structure: [%s,%s]",
+			protoPackage, name))
 	}
 	if protoPackage != "google.protobuf" {
 		if verbose {
@@ -137,8 +140,8 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next 
 func (s *SimpleFinder) FindServiceByName(protoPackage string, name string, next Finder) *WasmService {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) {
-		log.Fatalf("can't understand service/type structure: protoPackage='%s',name='%s']",
-			protoPackage, name)
+		panic(fmt.Sprintf("can't understand service/type structure: [%s,%s]",
+			protoPackage, name))
 	}
 	shortName := LastSegmentOfPackage(name)
 	for candidate, svc := range s.service {

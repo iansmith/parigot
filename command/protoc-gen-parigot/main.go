@@ -21,7 +21,6 @@ import (
 var templateFS embed.FS
 
 var generatorMap = map[string]codegen.Generator{}
-var abiOnlyMap = map[string]codegen.Generator{}
 
 var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
@@ -109,6 +108,11 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 				if err != nil {
 					return nil, err
 				}
+				all, err := templateFS.ReadFile(generator.KernelInterface())
+				if err != nil {
+					return nil, err
+				}
+				info.SetKernelInterface(string(all))
 				file, err := generator.Generate(t, info)
 				if err != nil {
 					return nil, err

@@ -2,10 +2,7 @@ package log
 
 import (
 	"bytes"
-	"github.com/iansmith/parigot/g/parigot/abi"
 	"time"
-
-	"github.com/iansmith/parigot/g/parigot/kernel"
 )
 
 type LogLevel int32
@@ -17,11 +14,6 @@ const (
 	ErrorLevel = 4
 	FatalLevel = 5
 )
-
-// init functions in parigot must be idempotent! It can and will be called many times.
-func init() {
-	kernel.Register("parigot", "log")
-}
 
 var Dev = NewLocalT(true)
 

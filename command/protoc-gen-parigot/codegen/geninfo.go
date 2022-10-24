@@ -7,16 +7,30 @@ import (
 )
 
 type GenInfo struct {
-	request *pluginpb.CodeGeneratorRequest
-	file    *descriptorpb.FileDescriptorProto
-	lang    LanguageText
-	finder  *SimpleFinder
+	request         *pluginpb.CodeGeneratorRequest
+	file            *descriptorpb.FileDescriptorProto
+	lang            LanguageText
+	finder          *SimpleFinder
+	kernelInterface string
 }
 
 func NewGenInfo() *GenInfo {
 	return &GenInfo{
 		finder: NewSimpleFinder(),
 	}
+}
+
+// SetKernelInterface is called by the driver to set the blob of text that needs
+// to be added to the kernel service to make it interface correctly with the kernel.
+// The generator supplies the filename that this is read from in the templates dir.
+func (g *GenInfo) SetKernelInterface(s string) {
+	g.kernelInterface = s
+}
+
+// KernelInterface is called by a template for a particular language when it wants
+// to emit the blob of text that is the extra, kernel-specific code.
+func (g *GenInfo) KernelInterface() string {
+	return g.kernelInterface
 }
 
 // Service returns all the wasm services of this GenInfo.

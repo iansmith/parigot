@@ -1,4 +1,4 @@
-package parigot
+package _go
 
 import (
 	"bytes"

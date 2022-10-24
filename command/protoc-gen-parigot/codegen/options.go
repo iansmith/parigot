@@ -17,6 +17,7 @@ const (
 	serviceOptionNoPackage        = "543211"
 	serviceOptionAlwaysPullParams = "543212"
 	serviceOptionAlwaysPullOutput = "543213"
+	serviceOptionKernel           = "543214"
 
 	methodOptionPullParams = "543211"
 	methodOptionPullOutput = "543213"
@@ -85,6 +86,11 @@ func isWasmMessageName(s string) (string, bool) {
 
 func hasNoPackageOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, serviceOptionNoPackage)
+	return b
+}
+
+func hasKernelOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, serviceOptionKernel)
 	return b
 }
 

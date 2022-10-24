@@ -9,6 +9,7 @@ import (
 
 const (
 	serviceDecl = "template/go/servicedecl.tmpl"
+	kernelCode  = "template/go/kernel.go.tmpl"
 )
 
 type GoGen struct {
@@ -22,6 +23,9 @@ func NewGoGen(finder codegen.Finder) *GoGen {
 		lang:   NewGoText(),
 	}
 	return gen
+}
+func (g *GoGen) KernelInterface() string {
+	return kernelCode
 }
 
 func (g *GoGen) GeneratingMessage() []string {

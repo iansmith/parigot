@@ -1,13 +1,23 @@
 syntax = "proto3";
-package parigot.log;
-option go_package="github.com/iansmith/parigot/g/log;log";
+package parigot.kernel;
+option go_package="github.com/iansmith/parigot/g/parigot/kernel;kernel";
 import "parigot.proto";
 
 service Kernel {
+  option(parigot.always_pull_up_parameters)=true;
+  option(parigot.kernel_service)=true;
   rpc Locate(LocateRequest) returns(LocateResponse);
   rpc Register(RegisterRequest) returns(RegisterResponse);
   rpc Dispatch(DispatchRequest) returns(DispatchResponse);
+  rpc Exit(ExitRequest) returns(ExitResponse); //will die
 }
+
+
+message ExitRequest {
+  int32 code = 1;
+}
+message ExitResponse{}
+
 
 message LocateRequest {
   string packageName = 1;
@@ -22,7 +32,10 @@ message LocateResponse {
 message DispatchRequest {
   int64 service_sid =1;
   string method=2;
-  bytes blob=3;
+  string caller =3;
+  bytes inPctx = 4;
+  bytes inBlob=5;
+  bytes outBlob=6;
 }
 
 message DispatchResponse {

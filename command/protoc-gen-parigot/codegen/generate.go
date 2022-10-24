@@ -22,12 +22,18 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 		if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
 			continue
 		}
+		//gather imports
+		imp := make(map[string]struct{})
+		for _, svc := range info.Service() {
+			svc.AddImportsNeeded(imp)
+		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{
-			"file": info.GetFile(),
-			"req":  info.GetRequest(),
-			"info": info,
+			"file":    info.GetFile(),
+			"req":     info.GetRequest(),
+			"info":    info,
+			"imports": imp,
 		}
 		err := executeTemplate(f, t, n, data)
 		if err != nil {

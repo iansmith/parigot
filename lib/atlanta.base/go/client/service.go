@@ -1,15 +1,18 @@
-package parigot
+package client
 
 import (
 	"fmt"
+
+	"github.com/iansmith/parigot/lib/id"
+
 	"google.golang.org/protobuf/proto"
 )
 
 type ClientSideService struct {
-	svc ServiceId
+	svc id.Service
 }
 
-func NewClientSideService(svc ServiceId) *ClientSideService {
+func NewClientSideService(svc id.Service) *ClientSideService {
 	return &ClientSideService{
 		svc: svc,
 	}

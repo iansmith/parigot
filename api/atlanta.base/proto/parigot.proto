@@ -8,6 +8,7 @@ extend google.protobuf.ServiceOptions {
   optional bool always_pull_up_parameters = 543212;
   optional bool always_pull_up_output = 543213;
   optional bool no_package = 543211;
+  optional bool kernel_service = 543214;
   optional string wasm_service_name = 543210;
 }
 extend google.protobuf.MethodOptions {

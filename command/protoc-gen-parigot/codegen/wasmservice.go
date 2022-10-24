@@ -15,6 +15,7 @@ type WasmService struct {
 	alwaysPullOutput     bool
 	noPackage            bool
 	finder               Finder
+	kernel               bool
 }
 
 func (w *WasmService) Finder() Finder {
@@ -24,6 +25,13 @@ func (w *WasmService) Finder() Finder {
 func (w *WasmService) GetLanguage() LanguageText {
 	return w.lang
 }
+func (w *WasmService) HasKernelOption() bool {
+	return w.kernel
+}
+func (w *WasmService) NoKernelOption() bool {
+	return !w.kernel
+}
+
 func (w *WasmService) HasNoPackageOption() bool {
 	return w.noPackage
 }
@@ -75,4 +83,12 @@ func (s *WasmService) AlwaysPullParameters() bool {
 
 func (s *WasmService) AlwaysPullOutput() bool {
 	return s.alwaysPullOutput
+}
+
+func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
+	if s.kernel {
+		return
+	}
+	imp["log"] = struct{}{}
+	imp["github.com/iansmith/parigot/lib/client"] = struct{}{}
 }

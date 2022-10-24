@@ -1,9 +1,10 @@
 package abiimpl
 
 import (
-	"github.com/iansmith/parigot/api/parigot"
 	"log"
 	"os"
+
+	"github.com/iansmith/parigot/lib/id"
 )
 
 type AbiImpl struct {
@@ -52,15 +53,15 @@ func (a *AbiImpl) SetNow(_ int64, _ bool) {
 	os.Exit(1)
 }
 
-var packageRegistry = make(map[string]map[string]parigot.ServiceId)
+var packageRegistry = make(map[string]map[string]id.Service)
 var serviceCounter = 1
 
 func (a *AbiImpl) Register(retVal int32, protoPackage string, service string) {
 	serviceRegistry, ok := packageRegistry[protoPackage]
 	if !ok {
-		serviceRegistry = make(map[string]parigot.ServiceId)
+		serviceRegistry = make(map[string]id.Service)
 	}
-	sid := parigot.NewServiceIdFromInt(int64(serviceCounter + 1))
+	sid := id.NewServiceFromInt(int64(serviceCounter + 1))
 	serviceCounter++
 	serviceRegistry[service] = sid
 	log.Printf("Register: What's the retval? %x", retVal)

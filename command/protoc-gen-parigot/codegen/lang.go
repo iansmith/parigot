@@ -17,5 +17,6 @@ type Generator interface {
 	FuncMap() template.FuncMap
 	GeneratingMessage() []string
 	ResultName() []string
-	LanguageText() LanguageText //golang actually puts a AbiLanguageText in here
+	LanguageText() LanguageText
+	KernelInterface() string
 }

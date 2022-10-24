@@ -6,12 +6,26 @@ import (
 	"strings"
 )
 
+type FieldSpec struct {
+	name, typ string
+}
+
+func (f *FieldSpec) Name() string {
+	return f.name
+}
+
+func (f *FieldSpec) Type() string {
+	return f.typ
+}
+
 func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	return &codegen.FuncChooser{
 		Bits:                funcChoicesToBits,
-		NeedsFill:           funcChoicesNeedsFill,
+		NeedsFillIn:         funcChoicesNeedsFillIn,
+		NeedsFillOut:        funcChoicesNeedsFillOut,
 		NeedsRet:            funcChoicesNeedsRet,
 		InputParam:          funcChoicesInputParam,
+		OutputParam:         funcChoicesOutputParam,
 		NeedsPullApart:      funcChoicesNeedsPullApart,
 		Inbound:             funcChoicesInbound,
 		Outbound:            funcChoicesOutbound,
@@ -323,38 +337,30 @@ func funcChoicesZeroValueRet(_, b2, _, b4 bool, abi bool, method *codegen.WasmMe
 	return "return " + result
 }
 
-func funcChoicesNeedsFill(b1, b2, b3, b4 bool) bool {
-	return funcChoicesToInt(b1, b2, b3, b4) == 0xa
+func funcChoicesNeedsFillIn(b1, b2, b3, b4 bool) bool {
+	return funcChoicesToInt(b1, b2, b3, b4) == 0xa //b1 and b3
 }
+func funcChoicesNeedsFillOut(b1, b2, b3, b4 bool) bool {
+	return funcChoicesToInt(b1, b2, b3, b4) == 0x5 //b2 and b4
+}
+
 func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 	return b2
 }
-func funcChoicesInputParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
+func funcChoicesInputParam(b1, _, _, _ bool, m *codegen.WasmMethod) string {
 	if !b1 {
 		return ""
-		//detail, scenario := outputTypeInfo(b4, m)
-		//switch scenario {
-		//case outTypeCompositeNoFields:
-		//	return ""
-		//case outTypeComposite:
-		//	return m.Language().EmptyComposite(detail.String(m.ProtoPackage()), m)
-		//case outTypeBasic:
-		//	m.Language().ZeroValuesForProtoTypes(detail.Basic())
-		//}
 	}
 	t := m.CGInput().CGType()
-	if b3 {
-		//tricky: we had to fill so we don't need anything at this point
+	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
+}
+
+func funcChoicesOutputParam(_, b2, _, _ bool, m *codegen.WasmMethod) string {
+	if !b2 {
 		return ""
 	}
+	t := m.CGInput().CGType()
 	return m.Language().ToId(t.String(m.ProtoPackage()), true, m)
-	//if !b3 {
-	//	// this is the big object case
-	//	return m.Language().EmptyComposite(t.String(m.ProtoPackage()), m)
-	//}
-	//// we should have already checked that this is an ok pull-up
-	//t = codegen.NewCGTypeFromField(t.CompositeType().GetField()[0], m, m.ProtoPackage())
-	//return m.Language().ZeroValuesForProtoTypes(t.Basic())
 }
 
 func funcChoicesInputToSend(b1, _, b3, _ bool, m *codegen.WasmMethod) string {
