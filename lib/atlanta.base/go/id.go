@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/iansmith/parigot/g/parigot"
-	"github.com/iansmith/parigot/lib/interface_"
+	"github.com/iansmith/parigot/g/pb"
+	"github.com/iansmith/parigot/lib/libint"
 )
 
 const service = 's'
@@ -125,7 +125,7 @@ func (i id) Type() string {
 }
 
 // Equal returns true if the two ids are of the same type and have the same number.
-func (i id) Equal(otherId interface_.Id) bool {
+func (i id) Equal(otherId libint.Id) bool {
 	bufI := make([]byte, binary.MaxVarintLen64)
 	binary.LittleEndian.PutUint64(bufI, uint64(i.high))
 	bI := bufI[7]
@@ -140,20 +140,20 @@ func (i id) Equal(otherId interface_.Id) bool {
 }
 
 // ServiceId is returned when the locator succeeds at finding your service.
-type ServiceId interface_.Id
+type ServiceId libint.Id
 
 // LocateError is return when the locator failed to find your service or
 // had other problems.  It returns well known constants for the different
 // types of errors it has.
-type LocateError interface_.Id
+type LocateError libint.Id
 
 // DispatchError is returned by a failed call to Dispatch in the ABI.
 // It returns a well known constant for its errors.
-type DispatchError interface_.Id
+type DispatchError libint.Id
 
 // RegisterError is returned by a failed call to Register in the ABI.
 // It returns a well known constant for its errors.
-type RegisterError interface_.Id
+type RegisterError libint.Id
 
 // NewService creates a new, random service id.
 func NewService() ServiceId {
@@ -177,10 +177,10 @@ func NewLocateError(errorCode byte) LocateError {
 }
 
 // newId creates a new random Id with the given type
-func newId(typ byte) interface_.Id {
+func newId(typ byte) libint.Id {
 	return newIdFromRaw(typ, rand.Uint64(), rand.Uint64())
 }
-func newIdFromRaw(typ byte, high uint64, low uint64) interface_.Id {
+func newIdFromRaw(typ byte, high uint64, low uint64) libint.Id {
 	highBuf := make([]byte, binary.MaxVarintLen64)
 	binary.LittleEndian.PutUint64(highBuf, high)
 	highBuf[7] = typ
@@ -213,6 +213,12 @@ func idFromInt(s byte, value byte) id {
 
 // FromServiceId converts from the wrapped protobuf version of service id
 // to the normal version.
-func FromServiceId(serviceId parigot.ServiceId) ServiceId {
+func FromServiceId(serviceId *parigot.ServiceId) ServiceId {
 	return newIdFromRaw(service, serviceId.GetHigh(), serviceId.GetLow())
+}
+
+// FromLocateErrorId converts from the wrapped protobuf version of locator error id
+// to the normal version.
+func FromLocateErrorId(loc *parigot.LocateErrorId) LocateError {
+	return newIdFromRaw(service, loc.GetHigh(), loc.GetLow())
 }

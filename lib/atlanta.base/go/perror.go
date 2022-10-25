@@ -2,7 +2,7 @@ package lib
 
 import (
 	"bytes"
-	"github.com/iansmith/parigot/lib/interface_"
+	"github.com/iansmith/parigot/lib/libint"
 )
 
 type PerrorImpl struct {
@@ -22,7 +22,7 @@ func NewPerrorFromError(msg string, err error) *PerrorImpl {
 	}
 }
 
-func NewPerrorFromId(msg string, idv interface_.Id) *PerrorImpl {
+func NewPerrorFromId(msg string, idv libint.Id) *PerrorImpl {
 	return &PerrorImpl{
 		message: msg + idv.Short(),
 	}

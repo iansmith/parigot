@@ -1,13 +1,13 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/g/parigot/kernel"
-	"github.com/iansmith/parigot/lib/interface_"
+	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/lib/libint"
 	"google.golang.org/protobuf/proto"
 )
 
 type ClientSideService struct {
-	svc    interface_.Id
+	svc    libint.Id
 	caller string
 }
 
@@ -25,7 +25,7 @@ func (c *ClientSideService) Dispatch(method string, in proto.Message, out *kerne
 	return c.DispatchFull(nil, method, c.caller, in, out)
 }
 
-func (c *ClientSideService) DispatchFull(ctx interface_.Pctx, method string, caller string, in proto.Message, out *kernel.DispatchResponse) error {
+func (c *ClientSideService) DispatchFull(ctx Pctx, method string, caller string, in proto.Message, out *kernel.DispatchResponse) error {
 
 	if ctx == nil {
 		ctx = NewPctx()

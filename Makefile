@@ -52,7 +52,7 @@ g/parigot/log/logservicedecl.p%go g/parigot/net/netservicedecl.p%go g/parigot/ke
 clean:
 	@echo "\033[92mclean ==============================================================================================\033[0m"
 	rm -f build/*
-	rm -rf g/parigot/*
+	rm -rf g/kernel g/log g/net g/*.p.go g/pb
 	rm -f $(TRANSFORM)/Wasm.* $(TRANSFORM)/WasmLexer.* $(TRANSFORM)/wasm_base_listener.go $(TRANSFORM)/wasm_lexer.go $(TRANSFORM)/wasm_parser.go $(TRANSFORM)/wasm_listener.go
 
 

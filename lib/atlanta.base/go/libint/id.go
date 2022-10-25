@@ -1,4 +1,4 @@
-package interface_
+package libint
 
 // Id is a type representing a global identifier in parigot.  They are composed of
 // a character ('x') and a number.  In production, that number is 112 bits of

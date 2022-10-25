@@ -1,7 +1,7 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
 
-option go_package="github.com/iansmith/parigot/g/parigot;parigot";
+option go_package="github.com/iansmith/parigot/g/pb;parigot";
 
 package parigot;
 extend google.protobuf.ServiceOptions {
@@ -29,21 +29,21 @@ extend google.protobuf.MessageOptions {
 }
 
 message LocateErrorId {
-  int64 high = 1;
-  int64 low = 2;
+  uint64 high = 1;
+  uint64 low = 2;
 }
 
 message DispatchErrorId {
-  int64 high = 1;
-  int64 low = 2;
+  uint64 high = 1;
+  uint64 low = 2;
 }
 
 message RegisterErrorId {
-  int64 high = 1;
-  int64 low = 2;
+  uint64 high = 1;
+  uint64 low = 2;
 }
 
 message ServiceId {
-  int64 high = 1;
-  int64 low = 2;
+  uint64 high = 1;
+  uint64 low = 2;
 }

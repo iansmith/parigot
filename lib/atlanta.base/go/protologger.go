@@ -1,11 +1,10 @@
 package lib
 
 import (
-	log2 "github.com/iansmith/parigot/g/parigot/log"
-	"github.com/iansmith/parigot/lib/interface_"
+	pb "github.com/iansmith/parigot/g/pb/log"
 )
 
-func NewProtoLogger(line []*log2.LogRequest) interface_.Log {
+func NewProtoLogger(line []*pb.LogRequest) Log {
 	return &protoLogger{
 		line:         line,
 		abortOnFatal: true,
@@ -13,7 +12,7 @@ func NewProtoLogger(line []*log2.LogRequest) interface_.Log {
 }
 
 type protoLogger struct {
-	line         []*log2.LogRequest
+	line         []*pb.LogRequest
 	abortOnFatal bool
 }
 
@@ -24,8 +23,8 @@ func (p *protoLogger) SetAbortOnFatal(a bool) {
 	p.abortOnFatal = a
 }
 
-func (p *protoLogger) Log(prefix string, level interface_.LogLevel, msg string) {
-	in := log2.LogRequest{
+func (p *protoLogger) Log(prefix string, level LogLevel, msg string) {
+	in := pb.LogRequest{
 		Stamp:   nil,
 		Level:   int32(level),
 		Message: prefix + ":" + msg,
