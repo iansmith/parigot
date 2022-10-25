@@ -77,12 +77,19 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 		if m.GetFullName() == message.GetFullName() {
 			if m.GetProtoPackage() == currentPkg {
 				if verbose {
-					log.Printf("! [simplefinder addressing name] found %s [%d] (current pkg was %s)", m.GetName(), len(m.GetField()), currentPkg)
+					log.Printf("! [simplefinder addressing name] found %s in package [%d] (current pkg was %s)", m.GetName(), len(m.GetField()), currentPkg)
 				}
 				return m.GetName()
 			}
 			if verbose {
-				log.Printf("! [simplefinder addressing name] found %s [%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
+				log.Printf("! [simplefinder addressing name] found %s, but in diff package [%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
+			}
+			parts := strings.Split(m.GetFullName(), ".")
+			if len(parts) > 2 {
+				return strings.Join(parts[len(parts)-2:], ".")
+			}
+			if verbose {
+				log.Printf("! [simplefinder addressing name] found %s, but in diff package and I cant understand the splitting of the name, giving up[%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
 			}
 			return m.GetFullName()
 		} else {

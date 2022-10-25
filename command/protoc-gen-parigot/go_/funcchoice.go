@@ -47,6 +47,15 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	}
 }
 
+func collectImports(m *codegen.WasmMethod) {
+	in := m.CGInput().CGType()
+	parts := strings.Split(in.CompositeType().GetFullName(), ".")
+	log.Printf("IN %s -> %s", in.ShortName(), parts[0:len(parts)-1])
+	out := m.CGInput().CGType()
+	parts = strings.Split(out.CompositeType().GetFullName(), ".")
+	log.Printf("OUT %s -> %s", in.ShortName(), parts[0:len(parts)-1])
+}
+
 // paramWalker is a utility function for creating a parameter decl list or a
 // parameter call list.  It takes a function that returns 1 or 2 argumest. If
 // the function returns 1 argument (2nd string is "") paramWalker assumes you
@@ -231,7 +240,7 @@ func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod)
 	}
 	if b2 {
 		//have output
-		t := method.CGInput().CGType()
+		t := method.CGOutput().GetCGType()
 		if t.IsBasic() {
 			panic(fmt.Sprintf("unexpected basic return value in method %s", method.WasmMethodName()))
 		}

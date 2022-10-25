@@ -89,11 +89,13 @@ func (s *WasmService) AlwaysPullOutput() bool {
 }
 
 func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
+	for _, m := range s.GetWasmMethod() {
+		m.AddImportsNeeded(imp)
+	}
 	if s.kernel {
 		return
 	}
 	imp["github.com/iansmith/parigot/lib"] = struct{}{}
-	imp["github.com/iansmith/parigot/g/pb/kernel"] = struct{}{}
 	imp["google.golang.org/protobuf/proto"] = struct{}{}
 	imp["fmt"] = struct{}{}
 }

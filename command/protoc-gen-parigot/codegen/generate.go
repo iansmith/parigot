@@ -24,7 +24,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 		}
 		//gather imports
 		imp := make(map[string]struct{})
-		for _, svc := range info.Service() {
+		for _, svc := range info.Service() /* xxx should be per file?*/ {
 			svc.AddImportsNeeded(imp)
 		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
@@ -58,6 +58,16 @@ func executeTemplate(w io.Writer, t *template.Template, name string, data map[st
 // into the given GenInfo object.  It walks the full proto file as specified by
 // proto.
 func Collect(result *GenInfo, lang LanguageText) *GenInfo {
+	//we are going to generate the file in result so make sure everything is registered
+	for _, s := range result.file.GetService() {
+		w := NewWasmService(result.file, s, lang, result)
+		result.RegisterService(w)
+	}
+	for _, m := range result.file.GetMessageType() {
+		w := NewWasmMessage(result.file, m, lang, result)
+		result.RegisterMessage(w)
+	}
+
 	//
 	// Now we have the basic stuff in place we need put things in place that
 	// require connections between structures.  Notably, we have to read in

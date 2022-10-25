@@ -1,8 +1,10 @@
 package codegen
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
+	"strings"
 )
 
 // WasmMethod is like a descriptorpb.MethodDescriptorProto (which it contains) but
@@ -36,6 +38,28 @@ func (w *WasmMethod) GetOutputFields() []*WasmField {
 			w.WasmMethodName())
 	}
 	return w.CGOutput().GetCGType().CompositeType().GetField()
+}
+
+func (w *WasmMethod) importForMessage(m *WasmMessage) string {
+	fullName := m.GetFullName()
+	parts := strings.Split(fullName, ".")
+	formattedName := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
+	if len(parts) > 2 {
+		return fmt.Sprintf("github.com/iansmith/parigot/g/%s", strings.Join(parts[:len(parts)-1], "/"))
+	}
+	log.Fatalf("method: %s: full name of input: %s, formatted name: %s [%d]",
+		w.WasmMethodName(), fullName, formattedName, len(parts))
+	return ""
+}
+func (w *WasmMethod) addImportForInput(comp *WasmMessage, imp map[string]struct{}) {
+	imp[w.importForMessage(comp)] = struct{}{}
+}
+func (w *WasmMethod) addImportForOutput(comp *WasmMessage, imp map[string]struct{}) {
+	imp[w.importForMessage(comp)] = struct{}{}
+}
+func (w *WasmMethod) AddImportsNeeded(imp map[string]struct{}) {
+	w.addImportForInput(w.CGInput().CGType().CompositeType(), imp)
+	w.addImportForOutput(w.CGOutput().GetCGType().CompositeType(), imp)
 }
 
 func (w *WasmMethod) HasNoPackageOption() bool {
