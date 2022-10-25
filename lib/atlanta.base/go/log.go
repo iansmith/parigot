@@ -1,18 +1,8 @@
-package log
+package lib
 
 import (
 	"bytes"
 	"time"
-)
-
-type LogLevel int32
-
-const (
-	DebugLevel = 1
-	InfoLevel  = 2
-	WarnLevel  = 3
-	ErrorLevel = 4
-	FatalLevel = 5
 )
 
 var Dev = NewLocalT(true)

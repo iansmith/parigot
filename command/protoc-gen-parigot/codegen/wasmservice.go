@@ -92,10 +92,8 @@ func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	if s.kernel {
 		return
 	}
-	imp["github.com/iansmith/parigot/lib/k"] = struct{}{}
-	imp["github.com/iansmith/parigot/lib/client"] = struct{}{}
-	imp["github.com/iansmith/parigot/lib/id"] = struct{}{}
-	imp["github.com/iansmith/parigot/lib/perror"] = struct{}{}
+	imp["github.com/iansmith/parigot/lib/interface_"] = struct{}{}
 	imp["github.com/iansmith/parigot/g/parigot/kernel"] = struct{}{}
 	imp["google.golang.org/protobuf/proto"] = struct{}{}
+	imp["fmt"] = struct{}{}
 }

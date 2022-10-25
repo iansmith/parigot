@@ -32,6 +32,5 @@ message LogCollection {
 }
 
 service Log {
-  option(parigot.always_pull_up_parameters)=true;
   rpc Log(LogRequest) returns (LogResult);
 }

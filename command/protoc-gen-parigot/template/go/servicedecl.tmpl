@@ -28,7 +28,7 @@ type {{$svcCamel}} interface {
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 type {{$svcCamel}}Client struct {
-    *client.ClientSideService
+    interface_.Client
 }
 
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
@@ -37,7 +37,7 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
     }
-    err:=k.Locate(req,&resp)
+    err:=lib.Locate(req,&resp)
     if err!=nil {
         return nil, err
     }
@@ -129,10 +129,10 @@ func init() {
         Service:      "{{.GetWasmServiceName}}",
     }
     resp{{.GetWasmServiceName}}:=kernel.RegisterResponse{}
-    if k.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})!=nil {
+    if lib.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})!=nil {
         panic("unable to register service "+"{{.GetWasmServiceName}}")
     }
-    if id.IsError(resp{{.GetWasmServiceName}}.GetErrorId().GetError()){
+    if lib.IsError(resp{{.GetWasmServiceName}}.GetErrorId().GetError()){
         panic(fmt.Sprintf("semantic error trying to register {{.GetWasmServiceName}}: %s",
         resp{{.GetWasmServiceName}}.GetErrorId().GetError()))
     }

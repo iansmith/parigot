@@ -1,28 +1,21 @@
-package context
+package lib
 
 import (
-	"github.com/iansmith/parigot/g/parigot/log"
-	logC "github.com/iansmith/parigot/lib/log"
+	glog "github.com/iansmith/parigot/g/parigot/log"
+	"github.com/iansmith/parigot/lib/interface_"
 	"google.golang.org/protobuf/proto"
 )
 
-type Pctx interface {
-	Log() log.Log
-	Entry(group string, name string) (string, bool)
-	SetEntry(group string, name string, value string) bool
-	ToBytes() ([]byte, error)
-}
-
 type pctx struct {
-	logger log.Log
-	line   []*log.LogRequest
+	logger interface_.Log
+	line   []*glog.LogRequest
 	entry  map[string]string
 }
 
-func NewPctx() Pctx {
-	line := []*log.LogRequest{}
+func NewPctx() interface_.Pctx {
+	line := []*glog.LogRequest{}
 	entry := make(map[string]string)
-	logger := logC.NewProtoLogger(line)
+	logger := NewProtoLogger(line)
 	return &pctx{
 		logger: logger,
 		line:   line,
@@ -30,7 +23,7 @@ func NewPctx() Pctx {
 	}
 }
 
-func NewPctxWithLog(l log.Log) Pctx {
+func NewPctxWithLog(l interface_.Log) interface_.Pctx {
 	return &pctx{
 		logger: l,
 		entry:  make(map[string]string),
@@ -45,7 +38,7 @@ func (p *pctx) ToBytes() ([]byte, error) {
 	return proto.Marshal(c)
 }
 
-func (p *pctx) Log() log.Log {
+func (p *pctx) Log() interface_.Log {
 	return p.logger
 }
 

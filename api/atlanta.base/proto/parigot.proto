@@ -29,17 +29,21 @@ extend google.protobuf.MessageOptions {
 }
 
 message LocateErrorId {
-  int64 error = 1;
+  int64 high = 1;
+  int64 low = 2;
 }
 
 message DispatchErrorId {
-  int64 error = 1;
+  int64 high = 1;
+  int64 low = 2;
 }
 
 message RegisterErrorId {
-  int64 error = 1;
+  int64 high = 1;
+  int64 low = 2;
 }
 
 message ServiceId {
-  int64 id = 1;
+  int64 high = 1;
+  int64 low = 2;
 }

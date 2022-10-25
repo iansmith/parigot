@@ -57,9 +57,7 @@ prepath=$parigot/tools/prepath
 
 ### note: this version does NOT have /usr/local/bin in the PATH.
 ### don't use this construction:  PATH=$PATH:blahblah, make it absolute and idempotent
-export PATH=$prepath:/usr/bin:/bin:/usr/sbin:/sbin:$gopath:$tinygopath:$wabtpath:$nodepath:$JAVA_HOME/bin:$binpath
-
-
+export PATH=$prepath:/usr/bin:/bin:/usr/sbin:/sbin:$gopath:$tinygopath:$wabtpath:$nodepath:$JAVA_HOME/bin:$binpath:$HOME/.local/bin
 
 ##
 ## PARIGOT VARS

@@ -2,7 +2,7 @@
 // that functionality easily and without having to create a KernelClient each time.
 // It allows you to use the notation kernel.Exit(0), for example, if you import this
 // under the default name.
-package k
+package lib
 
 import (
 	"fmt"

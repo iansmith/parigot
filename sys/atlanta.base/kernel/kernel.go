@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/iansmith/parigot/lib/id"
+	"github.com/iansmith/parigot/lib"
 )
 
 type AbiImpl struct {
@@ -53,16 +53,19 @@ func (a *AbiImpl) SetNow(_ int64, _ bool) {
 	os.Exit(1)
 }
 
-var packageRegistry = make(map[string]map[string]id.Service)
+var packageRegistry = make(map[string]map[string]lib.ServiceId)
 var serviceCounter = 1
 
 func (a *AbiImpl) Register(retVal int32, protoPackage string, service string) {
 	serviceRegistry, ok := packageRegistry[protoPackage]
 	if !ok {
-		serviceRegistry = make(map[string]id.Service)
+		serviceRegistry = make(map[string]lib.ServiceId)
 	}
-	sid := id.NewServiceFromInt(int64(serviceCounter + 1))
+	sid := lib.NewServiceFromInt(byte(serviceCounter + 1))
 	serviceCounter++
+	if serviceCounter > 255 {
+		panic("service counter exceeded maximum of 255")
+	}
 	serviceRegistry[service] = sid
 	log.Printf("Register: What's the retval? %x", retVal)
 	os.Exit(1)

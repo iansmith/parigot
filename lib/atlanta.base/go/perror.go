@@ -1,8 +1,8 @@
-package perror
+package lib
 
 import (
 	"bytes"
-	"github.com/iansmith/parigot/lib/id"
+	"github.com/iansmith/parigot/lib/interface_"
 )
 
 type PerrorImpl struct {
@@ -22,9 +22,9 @@ func NewPerrorFromError(msg string, err error) *PerrorImpl {
 	}
 }
 
-func NewPerrorFromId(msg string, idv int64) *PerrorImpl {
+func NewPerrorFromId(msg string, idv interface_.Id) *PerrorImpl {
 	return &PerrorImpl{
-		message: msg + id.Short(idv),
+		message: msg + idv.Short(),
 	}
 }
 

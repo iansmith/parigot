@@ -1,20 +1,17 @@
-package client
+package lib
 
 import (
 	"github.com/iansmith/parigot/g/parigot/kernel"
-	"github.com/iansmith/parigot/lib/context"
-	"github.com/iansmith/parigot/lib/id"
-	"github.com/iansmith/parigot/lib/k"
-	"github.com/iansmith/parigot/lib/perror"
+	"github.com/iansmith/parigot/lib/interface_"
 	"google.golang.org/protobuf/proto"
 )
 
 type ClientSideService struct {
-	svc    id.Service
+	svc    interface_.Id
 	caller string
 }
 
-func NewClientSideService(svc id.Service) *ClientSideService {
+func NewClientSideService(svc ServiceId) *ClientSideService {
 	return &ClientSideService{
 		svc: svc,
 	}
@@ -28,10 +25,10 @@ func (c *ClientSideService) Dispatch(method string, in proto.Message, out *kerne
 	return c.DispatchFull(nil, method, c.caller, in, out)
 }
 
-func (c *ClientSideService) DispatchFull(ctx context.Pctx, method string, caller string, in proto.Message, out *kernel.DispatchResponse) error {
+func (c *ClientSideService) DispatchFull(ctx interface_.Pctx, method string, caller string, in proto.Message, out *kernel.DispatchResponse) error {
 
 	if ctx == nil {
-		ctx = context.NewPctx()
+		ctx = NewPctx()
 	}
 
 	req := &kernel.DispatchRequest{
@@ -50,10 +47,10 @@ func (c *ClientSideService) DispatchFull(ctx context.Pctx, method string, caller
 	}
 	req.InBlob = b
 	resp := kernel.DispatchResponse{}
-	err = k.Dispatch(req, &resp)
+	err = Dispatch(req, &resp)
 
 	if err != nil {
-		return perror.NewPerrorFromError("internal error in dispatch", err)
+		return NewPerrorFromError("internal error in dispatch", err)
 	}
 	return nil
 }
