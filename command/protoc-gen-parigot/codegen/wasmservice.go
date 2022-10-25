@@ -79,6 +79,7 @@ func (s *WasmService) GetWasmMethod() []*WasmMethod {
 func (s *WasmService) GetParent() *descriptorpb.FileDescriptorProto {
 	return s.parent
 }
+
 func (s *WasmService) AlwaysPullParameters() bool {
 	return s.alwaysPullParameters
 }
@@ -96,4 +97,5 @@ func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	imp["github.com/iansmith/parigot/lib/id"] = struct{}{}
 	imp["github.com/iansmith/parigot/lib/perror"] = struct{}{}
 	imp["github.com/iansmith/parigot/g/parigot/kernel"] = struct{}{}
+	imp["google.golang.org/protobuf/proto"] = struct{}{}
 }

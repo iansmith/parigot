@@ -1,44 +1,62 @@
 package context
 
-import "github.com/iansmith/parigot/g/parigot/log"
+import (
+	"github.com/iansmith/parigot/g/parigot/log"
+	logC "github.com/iansmith/parigot/lib/log"
+	"google.golang.org/protobuf/proto"
+)
 
 type Pctx interface {
 	Log() log.Log
 	Entry(group string, name string) (string, bool)
 	SetEntry(group string, name string, value string) bool
+	ToBytes() ([]byte, error)
 }
 
 type pctx struct {
-	log   log.Log
-	entry map[string]map[string]string
+	logger log.Log
+	line   []*log.LogRequest
+	entry  map[string]string
 }
 
-func NewPctx(l log.Log) Pctx {
+func NewPctx() Pctx {
+	line := []*log.LogRequest{}
+	entry := make(map[string]string)
+	logger := logC.NewProtoLogger(line)
 	return &pctx{
-		log:   l,
-		entry: make(map[string]map[string]string),
+		logger: logger,
+		line:   line,
+		entry:  entry,
 	}
 }
+
+func NewPctxWithLog(l log.Log) Pctx {
+	return &pctx{
+		logger: l,
+		entry:  make(map[string]string),
+	}
+}
+
+func (p *pctx) ToBytes() ([]byte, error) {
+	c := &log.LogCollection{
+		Req:   p.line,
+		Entry: p.entry,
+	}
+	return proto.Marshal(c)
+}
+
 func (p *pctx) Log() log.Log {
-	return p.log
+	return p.logger
 }
 
 func (p *pctx) Entry(group, name string) (string, bool) {
-	g, present := p.entry[group]
-	if !present {
-		g = make(map[string]string)
-		p.entry[group] = g
-	}
-	result, found := g[name]
+	key := group + "." + name
+	result, found := p.entry[key]
 	return result, found
 }
 func (p *pctx) SetEntry(group, name, value string) bool {
-	g, present := p.entry[group]
-	if !present {
-		g = make(map[string]string)
-		p.entry[group] = g
-	}
-	_, found := g[name]
-	g[name] = value
-	return found
+	key := group + "." + name
+	_, present := p.entry[key]
+	p.entry[key] = value
+	return present
 }

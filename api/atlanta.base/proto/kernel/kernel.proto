@@ -33,14 +33,13 @@ message DispatchRequest {
   int64 service_sid =1;
   string method=2;
   string caller =3;
-  bytes inPctx = 4;
-  bytes inBlob=5;
-  bytes outBlob=6;
+  bytes in_pctx = 4;
+  bytes in_blob=5;
 }
 
 message DispatchResponse {
-  bytes blob = 1;
-  int64 error_code=2;
+  bytes out_blob = 1;
+  parigot.DispatchErrorId error_id =2;
 }
 
 message RegisterRequest {

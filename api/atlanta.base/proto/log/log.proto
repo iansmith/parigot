@@ -26,6 +26,11 @@ message LogRequest {
 message LogResult {
 }
 
+message LogCollection {
+  repeated LogRequest req =1;
+  map <string,string> entry = 2;
+}
+
 service Log {
   option(parigot.always_pull_up_parameters)=true;
   rpc Log(LogRequest) returns (LogResult);

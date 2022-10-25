@@ -1,4 +1,4 @@
-package e
+package perror
 
 import (
 	"bytes"

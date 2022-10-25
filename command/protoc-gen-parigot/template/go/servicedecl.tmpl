@@ -42,7 +42,7 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         return nil, err
     }
     if id.IsError(resp.GetErrorId().GetError()){
-        return nil, e.NewPerrorFromId("semantic error in locate call:", resp.GetErrorId().GetError())
+        return nil, perror.NewPerrorFromId("semantic error in locate call:", resp.GetErrorId().GetError())
     }
     cs:=client.NewClientSideService(id.Service(resp.GetServiceId().GetId()))
     return &{{$svcCamel}}Client{
@@ -60,17 +60,17 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 {{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
-{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
 {{/*
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
+{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 */}}
 
 func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
@@ -81,18 +81,27 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
     req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
 {{- end}}{{/* range input fields */}}
 {{- else }} {{/* other side of needs fill in */}}
-    {{ $inParam }}
+    {{ $inbound }}
 {{- end}}{{/*needs fill*/}}
 
-{{- if $needsFillOut}}
-    var out =&{{$outParam}}  // take apart the structure
-{{- else }} {{/* other side of needs fill out */}}
-    {{ $outParam }}
-{{- end}}
-
-    err:= i.Dispatch("{{.WasmMethodName}}",req,out)
+    resp:=&kernel.DispatchResponse{}
+    err:= i.Dispatch("{{.WasmMethodName}}",req,resp)
     if err!=nil {
        return err
+    }
+    if id.IsError(resp.GetErrorId().GetError()) {
+        return perror.NewPerrorFromId("semantic error in dispatch call:", resp.GetErrorId().GetError())
+    }
+
+{{- if .OutputCodeNeeded }}
+
+{{- if $needsFillOut}}
+        out:={{$outParam}}
+{{- end}} {{/* needs fill out */}}
+
+    err = proto.Unmarshal(resp.OutBlob,out)
+    if err!=nil {
+        panic("unmarshal failed for type {{$outParam}}")
     }
 
 {{- if $needsFillOut}} //take apart response structure: {{$outParam}}
@@ -101,10 +110,14 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 {{- end}}{{/* range output fields */}}
 {{- end}}{{/*needs fill*/}}
     return nil
+
+{{- else }} {{/* other side of output code needed */}}
+    return nil
+{{- end }} {{/* output code needed */}}
 }
 {{- end }} {{/*ranging over methods*/}}
 {{- end }} {{/* no kernel option */}}
-{{- end}}{{/*ranging over services*/}}
+{{- end}} {{/*ranging over services*/}}
 
 
 func init() {

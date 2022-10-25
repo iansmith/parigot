@@ -32,6 +32,10 @@ message LocateErrorId {
   int64 error = 1;
 }
 
+message DispatchErrorId {
+  int64 error = 1;
+}
+
 message RegisterErrorId {
   int64 error = 1;
 }

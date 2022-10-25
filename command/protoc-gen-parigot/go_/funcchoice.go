@@ -349,20 +349,12 @@ func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 }
 func funcChoicesInputParam(b1, _, _, _ bool, m *codegen.WasmMethod) string {
 	t := m.CGInput().CGType()
-	typ := m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
-	if !b1 {
-		return "var req " + typ
-	}
-	return "req:=in"
+	return m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
 }
 
 func funcChoicesOutputParam(_, b2, _, _ bool, m *codegen.WasmMethod) string {
 	t := m.CGInput().CGType()
-	typ := m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
-	if !b2 {
-		return "var out " + typ
-	}
-	return ""
+	return m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
 }
 
 func funcChoicesInputToSend(b1, _, b3, _ bool, m *codegen.WasmMethod) string {
@@ -455,13 +447,13 @@ func funcChoicesRetValue(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	}
 	return "nil"
 }
-func funcChoicesInbound(b1, b2, b3, b4 bool) string {
+func funcChoicesInbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b1 {
-		return "req"
+		return "req:=in"
 	}
-	return "nil"
+	return "var req " + funcChoicesInputParam(b1, b2, b3, b4, m)
 }
-func funcChoicesOutbound(b1, b2, b3, b4 bool) string {
+func funcChoicesOutbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b2 {
 		return "resp"
 	}
