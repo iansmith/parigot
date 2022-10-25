@@ -38,8 +38,7 @@ func NewPctxWithLog(l Log) Pctx {
 
 func (p *pctx) ToBytes() ([]byte, error) {
 	c := &glog.LogCollection{
-		Req:   p.line,
-		Entry: p.entry,
+		Req: p.line,
 	}
 	return proto.Marshal(c)
 }

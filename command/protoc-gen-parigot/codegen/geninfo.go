@@ -175,18 +175,27 @@ type ServiceRecord struct {
 }
 
 type MessageRecord struct {
-	wasmName     string
+	msg          string
 	protoPackage string
 	goPackage    string
 }
 
-func NewMessageRecord(wasmName, protoPackage, goPackage string) *MessageRecord {
+func (m *MessageRecord) WasmName() string {
+	return m.msg
+}
+
+func (m *MessageRecord) flatten() string {
+	return m.msg + m.protoPackage + m.goPackage
+}
+
+func NewMessageRecord(name, protoPackage, goPackage string) *MessageRecord {
 	return &MessageRecord{
-		wasmName:     wasmName,
+		msg:          name,
 		protoPackage: protoPackage,
 		goPackage:    goPackage,
 	}
 }
+
 func NewServiceRecord(wasmName, protoPackage, goPackage string) *ServiceRecord {
 	return &ServiceRecord{
 		wasmName:     wasmName,
@@ -196,7 +205,7 @@ func NewServiceRecord(wasmName, protoPackage, goPackage string) *ServiceRecord {
 }
 
 func (m *MessageRecord) String() string {
-	return fmt.Sprintf("MessageRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
+	return fmt.Sprintf("MessageRec(%s,%s,%s)", m.WasmName(), m.protoPackage, m.goPackage)
 }
 func (m *ServiceRecord) String() string {
 	return fmt.Sprintf("ServiceRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
@@ -209,15 +218,15 @@ func (g *GenInfo) RegisterMessage(w *WasmMessage) {
 	g.finder.AddMessageType(w.GetWasmMessageName(), w.GetProtoPackage(), w.GetGoPackage(), w)
 }
 
-func (g *GenInfo) FindServiceByName(protoPackage string, name string, next Finder) *WasmService {
-	return g.finder.FindServiceByName(protoPackage, name, next)
+func (g *GenInfo) FindServiceByName(protoPackage string, name string) *WasmService {
+	return g.finder.FindServiceByName(protoPackage, name)
 }
-func (g *GenInfo) FindMessageByName(protoPackage string, name string, next Finder) *WasmMessage {
-	return g.finder.FindMessageByName(protoPackage, name, next)
+func (g *GenInfo) FindMessageByName(protoPackage string, name string) *WasmMessage {
+	return g.finder.FindMessageByName(protoPackage, name)
 }
 
-func (g *GenInfo) AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage) {
-	g.finder.AddMessageType(wasmName, protoPackage, goPackage, message)
+func (g *GenInfo) AddMessageType(name, protoPackage, goPackage string, message *WasmMessage) {
+	g.finder.AddMessageType(name, protoPackage, goPackage, message)
 
 }
 func (g *GenInfo) AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService) {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/iansmith/parigot/g/pb"
+	"github.com/iansmith/parigot/g/pb/parigot"
 	"github.com/iansmith/parigot/lib/libint"
 )
 
@@ -91,9 +91,9 @@ func (i id) String() string {
 	return result
 }
 
-// Error() returns true if the type of this id is an error type and there
+// IsError() returns true if the type of this id is an error type and there
 // is an error value.  0 is the only non-error value.
-func (i id) Error() bool {
+func (i id) IsError() bool {
 	buf := make([]byte, binary.MaxVarintLen64)
 	binary.LittleEndian.PutUint64(buf, uint64(i.high))
 	b := buf[7]
@@ -220,5 +220,17 @@ func FromServiceId(serviceId *parigot.ServiceId) ServiceId {
 // FromLocateErrorId converts from the wrapped protobuf version of locator error id
 // to the normal version.
 func FromLocateErrorId(loc *parigot.LocateErrorId) LocateError {
-	return newIdFromRaw(service, loc.GetHigh(), loc.GetLow())
+	return newIdFromRaw(locateError, loc.GetHigh(), loc.GetLow())
+}
+
+// FromDispatchErrorId converts from the wrapped protobuf version of dispatch error id
+// to the normal version.
+func FromDispatchErrorId(loc *parigot.DispatchErrorId) LocateError {
+	return newIdFromRaw(dispatchError, loc.GetHigh(), loc.GetLow())
+}
+
+// FromRegisterErrorId converts from the wrapped protobuf version of a register error id
+// to the normal version.
+func FromRegisterErrorId(loc *parigot.RegisterErrorId) LocateError {
+	return newIdFromRaw(registerError, loc.GetHigh(), loc.GetLow())
 }

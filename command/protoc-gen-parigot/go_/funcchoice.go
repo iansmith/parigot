@@ -3,6 +3,7 @@ package go_
 import (
 	"fmt"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
+	"log"
 	"strings"
 )
 
@@ -208,6 +209,12 @@ func funcChoicesMethodParamDeclWasm(b1, b2, b3, b4 bool, method *codegen.WasmMet
 func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
 	result := ""
 	if !b1 && !b2 {
+		log.Printf("xxx debug! %s: %s[%d],%s[%d]", method.WasmMethodName(),
+			method.CGInput().CGType().String(method.ProtoPackage()),
+			len(method.CGInput().CGType().CompositeType().GetField()),
+			method.CGOutput().GetCGType().String(method.ProtoPackage()),
+			len(method.CGOutput().GetCGType().CompositeType().GetField()),
+		)
 		panic(fmt.Sprintf("method %s has neither input nor output", method.WasmMethodName()))
 	}
 	if b1 {

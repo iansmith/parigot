@@ -1,53 +1,14 @@
 syntax = "proto3";
-package parigot.kernel;
-option go_package="github.com/iansmith/parigot/g/parigot/kernel;kernel";
-import "parigot.proto";
+package kernel;
+option go_package="github.com/iansmith/parigot/g/kernel;kernel";
+import "pb/parigot/parigot.proto";
+import "pb/kernel/kernel.proto";
 
 service Kernel {
-  option(parigot.always_pull_up_parameters)=true;
-  option(parigot.kernel_service)=true;
-  rpc Locate(LocateRequest) returns(LocateResponse);
-  rpc Register(RegisterRequest) returns(RegisterResponse);
-  rpc Dispatch(DispatchRequest) returns(DispatchResponse);
-  rpc Exit(ExitRequest) returns(ExitResponse); //will die
-}
-
-
-message ExitRequest {
-  int32 code = 1;
-}
-message ExitResponse{}
-
-
-message LocateRequest {
-  string package_name = 1;
-  string service_name = 2;
-}
-
-message LocateResponse {
-  parigot.ServiceId service_id =1;
-  parigot.LocateErrorId error_id=2;
-}
-
-message DispatchRequest {
-  int64 service_sid =1;
-  string method=2;
-  string caller =3;
-  bytes in_pctx = 4;
-  bytes in_blob=5;
-}
-
-message DispatchResponse {
-  bytes out_blob = 1;
-  parigot.DispatchErrorId error_id =2;
-}
-
-message RegisterRequest {
-  string proto_package = 1;
-  string service = 2;
-}
-
-message RegisterResponse {
-  parigot.ServiceId service_id =1;
-  parigot.RegisterErrorId error_id=2;
+  option(pb.parigot.always_pull_up_parameters)=true;
+  option(pb.parigot.kernel_service)=true;
+  rpc Locate(pb.kernel.LocateRequest) returns(pb.kernel.LocateResponse);
+  rpc Register(pb.kernel.RegisterRequest) returns(pb.kernel.RegisterResponse);
+  rpc Dispatch(pb.kernel.DispatchRequest) returns(pb.kernel.DispatchResponse);
+  rpc Exit(pb.kernel.ExitRequest) returns(pb.kernel.ExitResponse); //will die
 }

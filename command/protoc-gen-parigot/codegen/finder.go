@@ -4,15 +4,14 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
-	"runtime/debug"
 	"strings"
 )
 
 const verbose = false
 
 type Finder interface {
-	FindMessageByName(protoPkg string, messageName string, next Finder) *WasmMessage
-	FindServiceByName(protoPkg string, messageName string, next Finder) *WasmService
+	FindMessageByName(protoPkg string, messageName string) *WasmMessage
+	FindServiceByName(protoPkg string, messageName string) *WasmService
 	AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage)
 	AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
@@ -31,11 +30,16 @@ func NewSimpleFinder() *SimpleFinder {
 		message: make(map[*MessageRecord]*WasmMessage),
 	}
 }
-func (s *SimpleFinder) AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage) {
-	rec := NewMessageRecord(wasmName, protoPackage, goPackage)
+
+var hack = make(map[string]int)
+
+func (s *SimpleFinder) AddMessageType(name, protoPackage, goPackage string, message *WasmMessage) {
+	rec := NewMessageRecord(name, protoPackage, goPackage)
+	message.Collect()
 	if verbose {
 		if rec.protoPackage != "google.protobuf" && rec.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
-			log.Printf("adding message type %s", rec.String())
+			log.Printf("adding message type %s [%d]", rec.String(), len(message.GetField()))
+
 		}
 	}
 	s.message[rec] = message
@@ -43,6 +47,7 @@ func (s *SimpleFinder) AddMessageType(wasmName, protoPackage, goPackage string, 
 
 func (s *SimpleFinder) AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService) {
 	rec := NewServiceRecord(wasmName, protoPackage, goPackage)
+	service.Collect()
 	if verbose {
 		if rec.protoPackage != "google.protobuf" && rec.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
 			log.Printf("adding service type %s", rec.String())
@@ -70,11 +75,14 @@ func (s *SimpleFinder) Service() []*WasmService {
 func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *WasmMessage) string {
 	for candidate, m := range s.message {
 		if m.GetFullName() == message.GetFullName() {
-			if verbose {
-				log.Printf("! [simplefinder addressing name] found %s (current pkg was %s)", m.GetFullName(), currentPkg)
-			}
 			if m.GetProtoPackage() == currentPkg {
+				if verbose {
+					log.Printf("! [simplefinder addressing name] found %s [%d] (current pkg was %s)", m.GetName(), len(m.GetField()), currentPkg)
+				}
 				return m.GetName()
+			}
+			if verbose {
+				log.Printf("! [simplefinder addressing name] found %s [%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
 			}
 			return m.GetFullName()
 		} else {
@@ -90,12 +98,12 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 	return ""
 }
 
-func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next Finder) *WasmMessage {
+func (s *SimpleFinder) FindMessageByName(protoPackage string, name string) *WasmMessage {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) && protoPackage != "" {
-		debug.PrintStack()
-		panic(fmt.Sprintf("can't understand message/type structure: [%s,%s]",
-			protoPackage, name))
+		//debug.PrintStack()
+		//panic(fmt.Sprintf("can't understand message/type structure: [%s,%s]",
+		//	protoPackage, name))
 	}
 	if protoPackage != "google.protobuf" {
 		if verbose {
@@ -106,7 +114,7 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next 
 	shortName := LastSegmentOfPackage(name)
 	for candidate, m := range s.message {
 		if candidate.protoPackage == protoPackage {
-			if candidate.wasmName == shortName {
+			if candidate.WasmName() == shortName {
 				if verbose {
 					log.Printf("! [simplefinder message] found %s", m.GetWasmMessageName())
 				}
@@ -115,7 +123,7 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next 
 				if verbose {
 					if candidate.protoPackage != "google.protobuf" && candidate.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
 						log.Printf("- [simplefinder message]  match package (%s) but not name %s vs %s",
-							protoPackage, candidate.wasmName, shortName)
+							protoPackage, candidate.WasmName(), shortName)
 					}
 
 				}
@@ -129,15 +137,24 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string, next 
 			}
 		}
 	}
-	if next != nil {
-		log.Printf("trying next finder...")
-		next.FindMessageByName(protoPackage, name, nil)
+	// we did not find it inside the package that contains the protoPackage, which is
+	// the person who will be addressing it?  we are now going to try to make sure
+	// we can get the message in the direct way
+	for candidate, m := range s.message {
+		if "."+candidate.protoPackage+"."+candidate.WasmName() == name {
+			if verbose {
+				log.Printf("! [simplefinder message] found %s [%d] in a different package than %s", name, len(m.GetField()), protoPackage)
+			}
+			return m
+		}
+	}
+	if verbose {
+		log.Printf("- [simplefinder message] missed completely on %s", name)
 	}
 	return nil
-
 }
 
-func (s *SimpleFinder) FindServiceByName(protoPackage string, name string, next Finder) *WasmService {
+func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *WasmService {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) {
 		panic(fmt.Sprintf("can't understand service/type structure: [%s,%s]",
@@ -157,10 +174,6 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string, next 
 			log.Printf("  [simplefinder service] missed %s versus [%s,%s]",
 				candidate.String(), protoPackage, name)
 		}
-	}
-	if next != nil {
-		log.Printf("trying next finder...")
-		next.FindServiceByName(protoPackage, name, nil)
 	}
 	return nil
 

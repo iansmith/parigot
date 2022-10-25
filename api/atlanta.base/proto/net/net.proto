@@ -1,17 +1,11 @@
 syntax = "proto3";
-package parigot.net;
+package net;
 option go_package="github.com/iansmith/parigot/g/net;net";
-import "parigot.proto";
+import "pb/parigot/parigot.proto";
+import "pb/net/net.proto";
 
 // parigot: WasmServiceName=SimpleLocator
 service Net {
-  option(parigot.always_pull_up_parameters)=true;
-  rpc DNSCheck(DNSCheckRequest) returns (DNSCheckResponse);
-}
-message DNSCheckRequest {
-  string host = 1;
-}
-
-message DNSCheckResponse {
-  bool ok = 1;
+  option(pb.parigot.always_pull_up_parameters)=true;
+  rpc DNSCheck(pb.net.DNSCheckRequest) returns (pb.net.DNSCheckResponse);
 }

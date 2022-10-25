@@ -18,10 +18,10 @@ type Id interface {
 	// five characters of string.  If the number is a small integer, the leading
 	// zeros are omitted.
 	String() string
-	// Error returns true if this is an error type id and there is an error.  It returns
+	// IsError returns true if this is an error type id and there is an error.  It returns
 	// false if this is an error type id and there is no error (0 value).  If
 	// this is not an error type id, it panics.
-	Error() bool
+	IsError() bool
 	// Type returns the name of the type of id, like "service" or "locate error"
 	Type() string
 	// Equal returns true if the two ids are of the same type and have the same number.

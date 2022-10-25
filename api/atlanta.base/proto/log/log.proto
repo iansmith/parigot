@@ -1,36 +1,16 @@
 syntax = "proto3";
-package parigot.log;
-option go_package="github.com/iansmith/parigot/g/parigot/log;log";
-import "parigot.proto";
+package log;
+option go_package="github.com/iansmith/parigot/g/log;log";
+import "pb/log/log.proto";
 import "google/protobuf/timestamp.proto";
+
 
 // This is the Log service for parigot. This has three intended environments
 // 1) development, 2) production and 3) external service (e.g. datadog).  The
 // objective is to make #1 maximally informative, #2 have high performance, and
 // #3 possible.
 
-// LogEvents are intended to be major things, most importantly network calls.
-message LogEvent {
-  string event = 1;
-  google.protobuf.Timestamp stamp = 2;
-  repeated LogRequest message = 3;
-  LogEvent nextEvent =4;
-}
-
-message LogRequest {
-  google.protobuf.Timestamp stamp = 1;
-  int32 level = 2;
-  string message  =3;
-}
-
-message LogResult {
-}
-
-message LogCollection {
-  repeated LogRequest req =1;
-  map <string,string> entry = 2;
-}
 
 service Log {
-  rpc Log(LogRequest) returns (LogResult);
+  rpc Log(pb.log.LogRequest) returns (pb.log.LogResult);
 }

@@ -1,6 +1,8 @@
 package codegen
 
-import "google.golang.org/protobuf/types/descriptorpb"
+import (
+	"google.golang.org/protobuf/types/descriptorpb"
+)
 
 // WasmMessage is like a descriptorpb.DescriptorProto (which it contains) but
 // also adds things that are specific to parigot, notably wasm-specific names.  This
@@ -93,4 +95,12 @@ func (m *WasmMessage) HasNoPackageOption() bool {
 
 func (m *WasmMessage) NotGoogleMessage() bool {
 	return m.GetProtoPackage() != "google.protobuf" && m.GetGoPackage() != "google.golang.org/protobuf/types/descriptorpb)"
+}
+
+func (m *WasmMessage) Collect() {
+	m.field = make([]*WasmField, len(m.DescriptorProto.GetField()))
+	for j, f := range m.DescriptorProto.GetField() {
+		field := NewWasmField(f, m)
+		m.field[j] = field
+	}
 }

@@ -1,9 +1,8 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
+option go_package="github.com/iansmith/parigot/g/pb/parigot;parigot";
+package pb.parigot;
 
-option go_package="github.com/iansmith/parigot/g/pb;parigot";
-
-package parigot;
 extend google.protobuf.ServiceOptions {
   optional bool always_pull_up_parameters = 543212;
   optional bool always_pull_up_output = 543213;

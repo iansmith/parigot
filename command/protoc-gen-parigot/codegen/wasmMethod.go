@@ -167,26 +167,26 @@ func (m *WasmMethod) OutputCodeNeeded() bool {
 	if cgt.IsCompositeNoFields() {
 		return false
 	}
-	if m.PullOutput() {
-		field := cgt.CompositeType().GetField()
-		if len(field) > 1 {
-			log.Fatalf("Currently, it is not allowed to pull up an output with more than 1 field:%s",
-				cgt.CompositeType().GetName())
-		}
-		// we checked for zero before, so we know len(field)==1
-		only := cgt.CompositeType().GetField()[0]
-		cgt = NewCGTypeFromField(only, m, m.ProtoPackage())
-		// we ban the pull up to a composite, because that's just confusing
-		// should we recurse on that?
-		if !cgt.IsBasic() {
-			log.Fatalf("Pulling up an output to another composite result is ambiguous:",
-				cgt.CompositeType().GetName())
-		}
-		if cgt.Basic() == "TYPE_INT64" {
-			log.Fatalf("Due to a javascript limitation, you cannot return a single int64 from a function "+
-				" and your pull up of the output of type %s would result in that", m.CGOutput().GetTypeName())
-		}
-	}
+	//if m.PullOutput() {
+	//	field := cgt.CompositeType().GetField()
+	//	if len(field) > 1 {
+	//		log.Fatalf("Currently, it is not allowed to pull up an output with more than 1 field:%s",
+	//			cgt.CompositeType().GetName())
+	//	}
+	//	// we checked for zero before, so we know len(field)==1
+	//	only := cgt.CompositeType().GetField()[0]
+	//	cgt = NewCGTypeFromField(only, m, m.ProtoPackage())
+	//	// we ban the pull up to a composite, because that's just confusing
+	//	// should we recurse on that?
+	//	if !cgt.IsBasic() {
+	//		log.Fatalf("Pulling up an output to another composite result is ambiguous:",
+	//			cgt.CompositeType().GetName())
+	//	}
+	//	if cgt.Basic() == "TYPE_INT64" {
+	//		log.Fatalf("Due to a javascript limitation, you cannot return a single int64 from a function "+
+	//			" and your pull up of the output of type %s would result in that", m.CGOutput().GetTypeName())
+	//	}
+	//}
 	return true
 }
 

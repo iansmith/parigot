@@ -23,7 +23,7 @@ func NewCGTypeFromField(f *WasmField, m *WasmMethod, protoPkg string) *CGType {
 	nameOfFieldType := f.GetType().String()
 	t := m.Language().BasicTypeToString(nameOfFieldType, false)
 	if t == "" {
-		msg := m.Finder().FindMessageByName(protoPkg, nameOfFieldType, nil)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfFieldType)
 		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
 	return NewCGTypeFromBasic(nameOfFieldType, m.Language(), protoPkg)
@@ -32,7 +32,7 @@ func NewCGTypeFromInput(in *InputParam, m *WasmMethod, protoPkg string) *CGType 
 	nameOfInputType := in.GetTypeName()
 	t := m.Language().BasicTypeToString(nameOfInputType, false)
 	if t == "" {
-		msg := m.Finder().FindMessageByName(protoPkg, nameOfInputType, nil)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfInputType)
 		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
 	return NewCGTypeFromBasic(nameOfInputType, m.Language(), protoPkg)
@@ -42,7 +42,7 @@ func NewCGTypeFromOutput(out *OutputParam, m *WasmMethod, protoPkg string) *CGTy
 	nameOfOutType := out.GetTypeName()
 	t := m.Language().BasicTypeToString(nameOfOutType, false)
 	if t == "" {
-		msg := m.Finder().FindMessageByName(protoPkg, nameOfOutType, nil)
+		msg := m.Finder().FindMessageByName(protoPkg, nameOfOutType)
 		return NewCGTypeFromComposite(msg, m.Language(), m.Finder(), protoPkg)
 	}
 	return NewCGTypeFromBasic(nameOfOutType, m.Language(), protoPkg)
@@ -146,7 +146,7 @@ func GetCGTypeForInputParam(i *InputParam) *CGType {
 		}
 	}
 	// not a basic type, so we'll try composites
-	msg := finder.FindMessageByName(protoPkg, i.GetTypeName(), nil)
+	msg := finder.FindMessageByName(protoPkg, i.GetTypeName())
 	if msg == nil {
 		panic(fmt.Sprintf("attempted to find message in pkg %s with name %s, but failed",
 			protoPkg, i.GetTypeName()))
@@ -171,7 +171,7 @@ func GetCGTypeForOutputParam(o *OutputParam) *CGType {
 		}
 	}
 	// not a basic type, so we'll try composites
-	msg := finder.FindMessageByName(protoPkg, o.GetTypeName(), nil)
+	msg := finder.FindMessageByName(protoPkg, o.GetTypeName())
 	if msg == nil {
 		panic(fmt.Sprintf("attempted to find message in pkg %s with name %s, but failed",
 			protoPkg, o.GetTypeName()))

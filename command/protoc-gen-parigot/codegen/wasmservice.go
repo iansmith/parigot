@@ -93,5 +93,14 @@ func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 		return
 	}
 	imp["github.com/iansmith/parigot/lib"] = struct{}{}
+	imp["github.com/iansmith/parigot/g/pb/kernel"] = struct{}{}
+	imp["google.golang.org/protobuf/proto"] = struct{}{}
 	imp["fmt"] = struct{}{}
+}
+
+func (s *WasmService) Collect() {
+	s.method = make([]*WasmMethod, len(s.GetMethod()))
+	for j, m := range s.GetMethod() {
+		s.method[j] = NewWasmMethod(m, s)
+	}
 }

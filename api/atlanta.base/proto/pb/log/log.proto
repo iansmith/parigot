@@ -1,0 +1,28 @@
+syntax = "proto3";
+package pb.log;
+option go_package="github.com/iansmith/parigot/g/pb/log;log";
+import "google/protobuf/timestamp.proto";
+
+// LogEvents are intended to be major things, most importantly network calls.
+message LogEvent {
+  string event = 1;
+  google.protobuf.Timestamp stamp = 2;
+  repeated LogRequest message = 3;
+  LogEvent nextEvent =4;
+}
+
+message LogRequest {
+  google.protobuf.Timestamp stamp = 1;
+  int32 level = 2;
+  string message  =3;
+}
+
+message LogResult {
+}
+
+// LogCollection is a series of LogEvents.  Each LogEvent can have a (nested) set of
+// LogRequests.  So a long function may have many LogEvents (e.g. "I called network service foo")
+// each one of which showing the log that resulted from that call.
+message LogCollection {
+  repeated LogRequest req =1;
+}

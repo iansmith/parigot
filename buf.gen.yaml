@@ -4,7 +4,7 @@ plugins:
     out: g/
     opt: paths=source_relative
   - name: go
-    out: g/pb
+    out: g/
     opt: paths=source_relative
   - name: connect-go
     out: g/

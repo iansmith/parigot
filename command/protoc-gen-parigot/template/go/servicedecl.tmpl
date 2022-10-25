@@ -28,7 +28,7 @@ type {{$svcCamel}} interface {
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 type {{$svcCamel}}Client struct {
-    interface_.Client
+    *lib.ClientSideService
 }
 
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
@@ -41,10 +41,12 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
     if err!=nil {
         return nil, err
     }
-    if id.IsError(resp.GetErrorId().GetError()){
-        return nil, perror.NewPerrorFromId("semantic error in locate call:", resp.GetErrorId().GetError())
+    locateErr:=lib.FromLocateErrorId(resp.GetErrorId())
+    if locateErr.IsError(){
+        return nil, lib.NewPerrorFromId("semantic error in locate call:", locateErr)
     }
-    cs:=client.NewClientSideService(id.Service(resp.GetServiceId().GetId()))
+    service:=lib.FromServiceId(resp.GetServiceId())
+    cs:=lib.NewClientSideService(service)
     return &{{$svcCamel}}Client{
         ClientSideService: cs,
     },nil
@@ -89,8 +91,9 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
     if err!=nil {
        return err
     }
-    if id.IsError(resp.GetErrorId().GetError()) {
-        return perror.NewPerrorFromId("semantic error in dispatch call:", resp.GetErrorId().GetError())
+    dispErr:=lib.FromDispatchErrorId(resp.GetErrorId())
+    if dispErr.IsError() {
+        return lib.NewPerrorFromId("semantic error in dispatch call:", dispErr)
     }
 
 {{- if .OutputCodeNeeded }}
@@ -132,9 +135,10 @@ func init() {
     if lib.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})!=nil {
         panic("unable to register service "+"{{.GetWasmServiceName}}")
     }
-    if lib.IsError(resp{{.GetWasmServiceName}}.GetErrorId().GetError()){
+    reg{{.GetWasmServiceName}}Err:=lib.FromRegisterErrorId(resp{{.GetWasmServiceName}}.GetErrorId())
+    if reg{{.GetWasmServiceName}}Err.IsError() {
         panic(fmt.Sprintf("semantic error trying to register {{.GetWasmServiceName}}: %s",
-        resp{{.GetWasmServiceName}}.GetErrorId().GetError()))
+            reg{{.GetWasmServiceName}}Err))
     }
 {{- end }} {{/* if no kernel */}}
 {{- end }}

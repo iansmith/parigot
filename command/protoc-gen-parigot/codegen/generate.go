@@ -58,23 +58,6 @@ func executeTemplate(w io.Writer, t *template.Template, name string, data map[st
 // into the given GenInfo object.  It walks the full proto file as specified by
 // proto.
 func Collect(result *GenInfo, lang LanguageText) *GenInfo {
-	for _, s := range result.file.GetService() {
-		w := NewWasmService(result.file, s, lang, result)
-		result.RegisterService(w)
-		w.method = make([]*WasmMethod, len(s.GetMethod()))
-		for j, m := range s.GetMethod() {
-			w.method[j] = NewWasmMethod(m, w)
-		}
-	}
-	for _, m := range result.GetFile().GetMessageType() {
-		w := NewWasmMessage(result.GetFile(), m, lang, result)
-		result.RegisterMessage(w)
-		w.field = make([]*WasmField, len(w.DescriptorProto.GetField()))
-		for j, f := range w.DescriptorProto.GetField() {
-			field := NewWasmField(f, w)
-			w.field[j] = field
-		}
-	}
 	//
 	// Now we have the basic stuff in place we need put things in place that
 	// require connections between structures.  Notably, we have to read in
@@ -84,6 +67,8 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		for _, m := range s.GetWasmMethod() {
 			in := newInputParam(m)
 			out := newOutputParam(m)
+			result.AddMessageType(in.GetTypeName(), m.ProtoPackage(), m.GoPackage(), in.CGType().CompositeType())
+			result.AddMessageType(out.GetTypeName(), m.ProtoPackage(), m.GoPackage(), out.GetCGType().CompositeType())
 			out.lang = lang
 			m.input = in
 			m.output = out
