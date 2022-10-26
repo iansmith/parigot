@@ -1,0 +1,30 @@
+syntax = "proto3";
+package demo.vvv.pb;
+option go_package = "demo/vvv/proto/g/vvv/pb;pb";
+import "google/protobuf/timestamp.proto";
+
+message SoldItemRequest {
+  float amount = 1;
+  google.protobuf.Timestamp when = 2;
+}
+message SoldItemResponse {
+}
+
+message Media {
+  string title = 1;
+}
+
+message BestOfAllTimeRequest {
+}
+
+message BestOfAllTimeResponse {
+  Media media = 1;
+}
+
+message RevenueRequest{
+  string date = 1;
+}
+message RevenueResponse{
+  float revenue = 1;
+}
+

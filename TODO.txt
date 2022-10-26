@@ -21,6 +21,8 @@ coordinated with client side service
 * repeated objects in a messages ??
 * pull up of params and outputs
 * rip out all of the "Get<Blah>" methods and make them more goish.
+* walk through the basic usages of protoc-gen-parigot and make it not produce any files that are not used
+* make the replacement operation able to use imports
 
 ### logging
 * Need to have a debug "blob" for services that captures everything together

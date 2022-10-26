@@ -24,7 +24,7 @@ var third *bool = flag.Bool("3", false, "3rd pass")
 var op *string = flag.String("op", "", "name of the operation to perform on the binary")
 var dumpStats *bool = flag.Bool("d", false, "dump info about unlink")
 var fnName *string = flag.String("f", "", "function name to operate on, for dbgprint")
-var replaceFuncNames *string = flag.String("r", "", "function name to operate on, for replacefn")
+var replaceFuncNames *string = flag.String("r", "", "function name to operate on, for replacefn or a filename to read a series of replacements from")
 var start time.Time
 
 func main() {
@@ -123,17 +123,22 @@ func transformation(mod *transform.Module) {
 			log.Fatalf("operation replacefn needs two functions to operate on, use the -r option and comma separate")
 		}
 		parts := strings.Split(*replaceFuncNames, ",")
-		if len(parts) != 2 {
-			log.Fatalf("operation replacefn needs two functions to operate on,"+
-				"use the -r option and comma separate, could not understand '%s", *replaceFuncNames)
+		var fp *os.File
+		var repl *replaceFn
+		if len(parts) == 1 {
+			var err error
+			log.Printf("assuming that the -r parameter is a filename: '%s'", *replaceFuncNames)
+			fp, err = os.Open(*replaceFuncNames)
+			if err != nil {
+				log.Fatalf("operation replacefn needs two functions to operate on,"+
+					"use the -r option and comma separate, could not understand '%s'", *replaceFuncNames)
+			}
+			repl = newReplaceFn("", "", fp)
+		} else {
+			repl = newReplaceFn(parts[0], parts[1], nil)
 		}
-		repl := newReplaceFn(parts[0], parts[1])
 		repl.validateFunctions(mod)
 		changeStatementInModule(mod, repl.replace)
-		fallthrough
-	case *fnName != "":
-		dbg := newDbgPrint(*fnName)
-		dbg.driver(mod)
 	//case "old":
 	//changeToplevelInModule(mod, transform.ImportDefT, )
 	//changeStatementInModule(mod, changeCallsToUseTrueABI)
@@ -149,6 +154,11 @@ func transformation(mod *transform.Module) {
 		}
 	default:
 		log.Fatalf("unknow op %s", *op)
+	}
+	if *fnName != "" {
+		dbg := newDbgPrint(*fnName)
+		log.Printf("instrumenting function '%s'", *fnName)
+		dbg.driver(mod)
 	}
 }
 

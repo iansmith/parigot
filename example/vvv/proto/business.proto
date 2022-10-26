@@ -1,37 +1,10 @@
 syntax = "proto3";
 package demo.vvv;
-option go_package = "demo/vvv/proto/g/demo/vvv;vvv";
-import "google/protobuf/timestamp.proto";
+option go_package = "demo/vvv/proto/g/vvv;vvv";
+import "pb/businesspb.proto";
 
 service Store {
-  rpc BestOfAllTime(BestOfAllTimeRequest) returns(BestOfAllTimeResponse);
-  rpc Revenue(RevenueRequest) returns (RevenueResponse);
-  rpc SoldItem(SoldItemRequest) returns (SoldItemResponse);
-}
-
-message SoldItemRequest {
-  float amount = 1;
-  google.protobuf.Timestamp when = 2;
-}
-
-message SoldItemResponse {
-}
-
-
-message Media {
-  string title = 1;
-}
-
-message BestOfAllTimeRequest {
-}
-
-message BestOfAllTimeResponse {
-  Media media = 1;
-}
-
-message RevenueRequest{
-  string date = 1;
-}
-message RevenueResponse{
-  float revenue = 1;
+  rpc BestOfAllTime(pb.BestOfAllTimeRequest) returns(pb.BestOfAllTimeResponse);
+  rpc Revenue(pb.RevenueRequest) returns (pb.RevenueResponse);
+  rpc SoldItem(pb.SoldItemRequest) returns (pb.SoldItemResponse);
 }

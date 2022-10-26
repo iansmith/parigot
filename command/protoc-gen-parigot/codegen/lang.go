@@ -12,7 +12,7 @@ import (
 // convert a parigot proto file into code for the specific language.
 type Generator interface {
 	Process(proto *descriptorpb.FileDescriptorProto) error
-	Generate(t *template.Template, g *GenInfo) ([]*util.OutputFile, error)
+	Generate(t *template.Template, g *GenInfo, imp2Pkg map[string]string) ([]*util.OutputFile, error)
 	TemplateName() []string
 	FuncMap() template.FuncMap
 	GeneratingMessage() []string

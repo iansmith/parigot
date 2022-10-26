@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"reflect"
+	"time"
+	"unsafe"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/sys/kernel"
@@ -78,12 +81,15 @@ func mainNormal() {
 func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmtime.AsExtern) {
 	instance, err := wasmtime.NewInstance(store, module, linkage)
 	check(err)
-	ext := instance.GetExport(store, "memory")
+	ext := instance.GetExport(store, "mem")
 	*memPtr = uintptr(ext.Memory().Data(store))
 
-	log.Printf("about to start: %x,%x", *memPtr, ext.Memory().Data(store))
-	start := instance.GetExport(store, "_start").Func()
-	_, err = start.Call(store)
+	start := instance.GetExport(store, "run")
+	if start == nil {
+		log.Fatalf("couldn't find start symbol")
+	}
+	f := start.Func()
+	_, err = f.Call(store, 0, 0)
 	check(err)
 	log.Printf("done with success!\n")
 
@@ -131,6 +137,43 @@ func jsPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
 	result["env.syscall/js.valueNew"] = wasmtime.WrapFunc(store, jspatch.ValueNew)
 
 	result["parigot.debugprint"] = wasmtime.WrapFunc(store, abiimpl.DebugPrint)
+	result["go.debug"] = wasmtime.WrapFunc(store, func(x int32) {
+		print("got a go debug call", x, "\n")
+	})
+	result["go.runtime.resetMemoryDataView"] = wasmtime.WrapFunc(store, func(x int32) {
+		print("got a resetMemoryDataView call", x, "\n")
+	})
+	result["go.runtime.wasmExit"] = wasmtime.WrapFunc(store, func(sp int32) {
+		log.Printf("wasmExit: %d", jspatch.GetInt32(*memPtr, sp+8))
+	})
+	result["go.runtime.wasmWrite"] = wasmtime.WrapFunc(store, func(sp int32) {
+		_ = jspatch.GetInt64(*memPtr, sp+8)
+		p := jspatch.GetInt64(*memPtr, sp+16)
+		n := jspatch.GetInt32(*memPtr, sp+24)
+		content := make([]byte, n)
+		ptr := (*memPtr + uintptr(p))
+		for i := int32(0); i < n; i++ {
+			content[i] = *((*byte)(unsafe.Pointer(ptr + uintptr(i))))
+		}
+		//log.Printf("wasm write on file descriptor %d with %x and len %d: %s", fd, p, n, string(content))
+		fmt.Printf("%s", string(content))
+	})
+	result["go.runtime.nanotime1"] = wasmtime.WrapFunc(store, func(sp int32) {
+		jspatch.SetInt64(*memPtr, sp+8, time.Now().UnixNano())
+	})
+	result["go.runtime.walltime"] = wasmtime.WrapFunc(store, func(x int32) {
+		print("got a walltime call", x, "\n")
+	})
+	result["go.runtime.scheduleTimeoutEvent"] = wasmtime.WrapFunc(store, func(x int32) {
+		print("got a schedule timeout event call", x, "\n")
+	})
+	result["go.runtime.clearTimeoutEvent"] = wasmtime.WrapFunc(store, func(x int32) {
+		print("got a CLEAR timeout event call", x, "\n")
+	})
+	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, func(sp int32) {
+		b := jspatch.LoadSlice(*memPtr, sp+8)
+		_, _ = rand.Read(b) //docs say no returned error
+	})
 }
 
 // temporary while we are getting rid of runtime of tinygo

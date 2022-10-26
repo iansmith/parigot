@@ -8,11 +8,11 @@ PARIGOT_SOURCE=../..
 # compiler setup.
 #TINYGO_MOD_CACHE="$HOME/tinygo/pkg/mod"
 #TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
-TINYGO_CMD=tinygo
+#TINYGO_CMD=tinygo
 
 # currently no GC and no scheduler
 #TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
-TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
+#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
 BUILD_TAGS=parigot_abi
 
 GO_CMD=GOOS=js GOARCH=wasm go
@@ -23,15 +23,21 @@ BUF_CMD=buf
 # anything in a /g directory is generated and should not be checked in. it can deleted at will.
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
-GENERATED=g/parigot
-all: $(GENERATED)/demo/vvv/servicedecl.go build/storeclient.wasm
+GENERATED=proto/g/
+all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.wasm
 
 build/storeclient.wasm: storeclient/main.go
 	@echo
-	@echo "\033[92mbuilding client side: vvv ==========================================================================\033[0m"
-	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
-	#$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/vvv_client.wasm storeclient/main.go
-	wasm2wat --no-check -o build/vvv_client.wat build/vvv_client.wasm
+	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
+	#$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
+	wasm2wat --no-check -o build/storeclient.wat build/storeclient.wasm
+
+build/storeclient-repl.wasm: build/storeclient.wasm
+	@echo
+	@echo "\033[92mfunction surgery (reflection) ======================================================================\033[0m"
+	$(PARIGOT_SOURCE)/build/surgery -op replacefn -r replacement.txt \
+		-o build/storeclient-repl.wasm -f '$$runtime.initAll' build/storeclient.wasm
 
 build/vvv.wasm: main.go
 	@echo
@@ -39,14 +45,14 @@ build/vvv.wasm: main.go
 	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/vvv.wasm main.go
 
 # we only need a single representative file to insure regeneration of all the generate services
-$(GENERATED)/demo/vvv/servicedecl.go: proto/business.proto
+$(GENERATED)/vvv/businessservicedecl.p.go: proto/business.proto
 	@echo
 	@echo "\033[92mgenerating interfaces: vvv =========================================================================\033[0m"
 	$(BUF_CMD) lint
 	$(BUF_CMD) generate
 
 clean:
-	rm -rf proto/g/parigot/*
+	rm -rf proto/g/vvv
 	rm -rf build/*
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.

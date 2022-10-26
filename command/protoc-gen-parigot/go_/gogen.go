@@ -44,8 +44,16 @@ func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
 	return nil
 }
 
-func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo) ([]*util.OutputFile, error) {
-	return codegen.BasicGenerate(g, t, info)
+func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo, impToPkg map[string]string) ([]*util.OutputFile, error) {
+	if len(info.Service()) == 0 {
+		return nil, nil
+	}
+	for _, svc := range info.Service() {
+		if svc.HasKernelOption() { // xxx dubious, we dump whole file because of one service
+			return nil, nil
+		}
+	}
+	return codegen.BasicGenerate(g, t, info, impToPkg)
 }
 
 func (g *GoGen) LanguageText() codegen.LanguageText {

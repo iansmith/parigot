@@ -467,6 +467,7 @@ func funcChoicesInbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b1 {
 		return "req:=in"
 	}
+	log.Printf("xxx inbound %s", funcChoicesInputParam(b1, b2, b3, b4, m))
 	return "var req " + funcChoicesInputParam(b1, b2, b3, b4, m)
 }
 func funcChoicesOutbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {

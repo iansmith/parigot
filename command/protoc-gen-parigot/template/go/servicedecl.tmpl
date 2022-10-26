@@ -4,6 +4,18 @@ import(
     "{{$j}}"
 {{- end}} {{/* imports */}}
 )
+
+// this set of imports is _unrelated_ to the particulars of what the .proto imported
+import(
+    "fmt"
+
+    "github.com/iansmith/parigot/lib"
+    "github.com/iansmith/parigot/g/pb/kernel"
+
+    "google.golang.org/protobuf/proto"
+
+)
+
 {{- $info:=.info }}
 {{- range .info.Service }}
 {{- if .NoKernelOption}}

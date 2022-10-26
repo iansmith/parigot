@@ -92,12 +92,12 @@ func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	for _, m := range s.GetWasmMethod() {
 		m.AddImportsNeeded(imp)
 	}
-	if s.kernel {
-		return
-	}
-	imp["github.com/iansmith/parigot/lib"] = struct{}{}
-	imp["google.golang.org/protobuf/proto"] = struct{}{}
-	imp["fmt"] = struct{}{}
+	//if s.kernel {
+	//	return
+	//}
+	//imp["github.com/iansmith/parigot/lib"] = struct{}{}
+	//imp["google.golang.org/protobuf/proto"] = struct{}{}
+	//imp["fmt"] = struct{}{}
 }
 
 func (s *WasmService) Collect() {

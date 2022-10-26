@@ -1,7 +1,0 @@
-{{ range .info.Service }}
-{{ if eq .GetServiceName "kernel" }}
-{{- range .GetWasmMethod }}
-github.com/iansmith/parigot/g/parigot/kernel.{{ .WasmMethodName }}_
-{{- end}}
-{{- end}}
-{{- end}}

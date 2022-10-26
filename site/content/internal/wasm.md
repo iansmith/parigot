@@ -22,3 +22,9 @@ meshery for management
 
 https://bit.dev  --- check on this
 https://javascript.plainenglish.io/from-typescript-to-webassembly-in-few-steps-c76f98f00632
+
+new docker tech based on WASM containers
+
+cosmonic
+
+fermyon

@@ -171,7 +171,7 @@ func (g *GoText) ToTypeName(tn string, ref bool, _ *codegen.WasmMethod) string {
 	for i := 0; i < len(parts)-1; i++ {
 		parts[i] = strings.ToLower(parts[i])
 	}
-	parts[len(parts)-1] = strings.ToLower(parts[len(parts)-1])
+	parts[len(parts)-1] = codegen.ToCamelCase(parts[len(parts)-1])
 	name := strings.Join(parts, ".")
 	if ref {
 		name = "*" + name

@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"reflect"
 	"unsafe"
 )
 
@@ -142,4 +143,46 @@ func ValueGet(retval int32, vAddr int32, propLen int32, propPtr int32, what_is_t
 	value := loadValue(vAddr)
 	result := value // this should be a Reflect.get(value,prop)
 	storeValue(retval, result)
+}
+
+func SetInt64(memptr uintptr, addr int32, value int64) {
+	buf := []byte{}
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	ptr := (*memPtr + uintptr(addr))
+	header.Data = ptr
+	header.Len = 8
+	header.Cap = 8
+	binary.LittleEndian.PutUint64(buf, uint64(value))
+}
+
+func GetInt64(memptr uintptr, addr int32) int64 {
+	buf := []byte{}
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	ptr := (memptr + uintptr(addr))
+	header.Data = ptr
+	header.Len = 8
+	header.Cap = 8
+	value := binary.LittleEndian.Uint64(buf)
+	return int64(value)
+}
+func GetInt32(memptr uintptr, addr int32) int32 {
+	buf := []byte{}
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	ptr := (memptr + uintptr(addr))
+	header.Data = ptr
+	header.Len = 4
+	header.Cap = 4
+	value := binary.LittleEndian.Uint32(buf)
+	return int32(value)
+}
+
+func LoadSlice(memptr uintptr, addr int32) []byte {
+	array := GetInt64(memptr, addr)
+	l := GetInt64(memptr, addr+8)
+	result := make([]byte, l)
+	for i := int64(0); i < l; i++ {
+		ptr := memptr + uintptr(array) + uintptr(i)
+		result[i] = *((*byte)(unsafe.Pointer(ptr)))
+	}
+	return result
 }

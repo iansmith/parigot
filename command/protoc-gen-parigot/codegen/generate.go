@@ -14,7 +14,7 @@ import (
 // GenInfo to have been created and filled out prior to arriving here.  Because of
 // the chaining api, t actually is represents _all_ the templates (not just one) that
 // are associated with generator g.   This is called once per .proto file processed.
-func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.OutputFile, error) {
+func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg map[string]string) ([]*util.OutputFile, error) {
 	// run the loop for the templates
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
@@ -24,8 +24,8 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo) ([]*util.Ou
 		}
 		//gather imports
 		imp := make(map[string]struct{})
-		for _, svc := range info.Service() /* xxx should be per file?*/ {
-			svc.AddImportsNeeded(imp)
+		for _, dep := range info.GetFile().GetDependency() {
+			imp[impToPkg[dep]] = struct{}{}
 		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)

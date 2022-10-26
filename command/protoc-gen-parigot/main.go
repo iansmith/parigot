@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
@@ -46,12 +47,21 @@ func main() {
 		source = fp
 	}
 	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir)
+	importToPackageMap := make(map[string]string)
+	for _, f := range genReq.GetProtoFile() {
+		pkg := f.GetOptions().GetGoPackage()
+		if index := strings.LastIndex(pkg, ";"); index != -1 {
+			pkg = pkg[:index]
+		}
+		importToPackageMap[f.GetName()] = pkg
+	}
+
 	resp := pluginpb.CodeGeneratorResponse{
 		Error:             nil,
 		SupportedFeatures: nil,
 	}
 	// generate code, at this point language neutral
-	file, err := generateNeutral(info, genReq)
+	file, err := generateNeutral(info, genReq, importToPackageMap)
 
 	// set up the response going back out stdout to the protocol buffers compiler
 	// response with an error filled in or a set of output files
@@ -88,7 +98,7 @@ func isGenerate(desc *descriptorpb.FileDescriptorProto, genReq *pluginpb.CodeGen
 
 // generateNeutral starts the process of code generation and it does not care
 // about the languages being used.  those get set at the point we compute genMap
-func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest) ([]*util.OutputFile, error) {
+func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
@@ -108,7 +118,7 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 				if err != nil {
 					return nil, err
 				}
-				file, err := generator.Generate(t, info)
+				file, err := generator.Generate(t, info, impToPkg)
 				if err != nil {
 					return nil, err
 				}
