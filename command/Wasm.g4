@@ -183,10 +183,13 @@ elemDef returns [*ElemDef e]:
     ;
 
 dataDef returns [*DataDef d]:
-    DataWord Ident constStmt QuotedString
+    DataWord (typeAnno| Ident)? constStmt QuotedString
     {
+        ident:=""
+        n:=-2
         op:=&DataDef{
-            Segment: $Ident.GetText(),
+            Segment: ident,
+            TypeNum: n,
             Const: $constStmt.c,
             QuotedData: $QuotedString.GetText(),
         }
@@ -494,9 +497,13 @@ ifStmt returns [Stmt i]:
     ;
 
 tableDef returns [TopLevel t]:
-    TableWord typeAnno? min=Num max=Num FuncRefWord
+    TableWord typeAnno? min=Num max=Num? FuncRefWord
     {
-        op:=&TableDef{Min:numToInt($min.GetText()),Max:numToInt($max.GetText())}
+        op:=&TableDef{Min:numToInt($min.GetText())}
+        if $max!=nil {
+            op.Max=new(int)
+            *op.Max=numToInt($max.GetText())
+        }
         if localctx.Get_typeAnno()!=nil {
             op.Type = new(int)
             *op.Type = $typeAnno.t
@@ -542,7 +549,7 @@ ElemWord: 'elem';
 DataWord: 'data';
 
 fragment HexDigit: ('0' .. '9' | 'a'..'f');
-HexFloatConst: ('-')? ('0x')? HexDigit+ ('.' HexDigit+)? 'p' ('+' | '-') Digit+ ;
+HexFloatConst: ('-')? (('0x')? HexDigit+ ('.' HexDigit+)? 'p' ('+' | '-') Digit+ | 'inf');
 
 // op with no params (uses stack only)
 ZeroOpWord:
@@ -570,8 +577,8 @@ IntegerComp:
     'i32.eq' | 'i32.ne' | 'i32.lt_s' | 'i32.lt_u' | 'i32.le_s' | 'i32.le_u' | 'i32.gt_s' | 'i32.gt_u' | 'i32.ge_s' | 'i32.ge_u' |
     'i64.eq' | 'i64.ne' | 'i64.lt_s' | 'i64.lt_u' | 'i64.le_s' | 'i64.le_u' | 'i64.gt_s' | 'i64.gt_u' | 'i64.ge_s' | 'i64.ge_u';
 IntegerUnary:
-    'i32.clz' | 'i32.ctz' | 'i32.popcn' | 'i32.eqz' |
-    'i64.clz' | 'i64.ctz' | 'i64.popcn' | 'i64.eqz';
+    'i32.clz' | 'i32.ctz' | 'i32.popcnt' | 'i32.eqz' |
+    'i64.clz' | 'i64.ctz' | 'i64.popcnt' | 'i64.eqz';
 FloatMath:
     'f32.add' | 'f32.sub'| 'f32.mul' | 'f32.div'| 'f32.copysign' | 'f32.eq'| 'f32.ne' | 'f32.lt' | 'f32.le' | 'f32.gt' |'f32.ge' | 'f32.min' | 'f32.max'|
     'f64.add' | 'f64.sub'| 'f64.mul' | 'f64.div'| 'f64.copysign' | 'f64.eq'| 'f64.ne' | 'f64.lt' | 'f64.le' | 'f64.gt' |'f64.ge' | 'f64.min' | 'f64.max';
@@ -582,7 +589,7 @@ FloatUnary:
 TypeRepresentation:
     'i32.wrap_i64' |
     'i32.trunc_f32' | 'i32.trunc_sat_f32_s' | 'i32.trunc_f64'| 'i32.trunc_sat_f64_u' | 'i32.trunc_sat_f64_s'| 'i32.reinterpret_f32'|
-    'i64.trunc_f32' | 'i64.trunc_sat_f32_s' | 'i64.trunc_f64'| 'i64.trunc_sat_f64_u' | 'i64.trunc_sat_f64_s'| 'i64.reinterpret_f64'|
+    'i64.trunc_f32' | 'i64.trunc_sat_f32_s' | 'i64.trunc_f64'| 'i64.trunc_f64_s'| 'i64.trunc_f64_u'| 'i64.trunc_sat_f64_u' | 'i64.trunc_sat_f64_s'| 'i64.reinterpret_f64'|
     'f32.demote_f64' | 'f32.convert_i32_s' | 'f32.convert_i64_s' | 'f32.convert_i32_u' | 'f32.convert_i64_u' | 'f32.reinterpret_i32' |
     'f64.promote_f32' | 'f64.convert_i32_s'| 'f64.convert_i64_s' | 'f64.convert_i32_u' | 'f64.convert_i64_u' | 'f64.reinterpret_i64';
 
@@ -640,7 +647,7 @@ fragment IdentAfter: ('a' .. 'z' | 'A' .. 'Z' | '.' | '$' | '_' | '/' | '*' | '@
 Ident:IdentFirst IdentAfter*;
 IntNumber: Digit+ ;
 fragment Digit: '0'..'9';
-ConstValue: ('-')?  Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)+)? ;
+ConstValue: ('-')?  (Digit+ ('.' Digit+)? ('e' ('+'|'-') Digit (Digit)+)?| 'inf') ;
 
 //HexPointer: ('-')? '0x' ( '0' .. '9')+ 'p+' ('0'..'9')+;
 Offset: 'offset=' ( '0' .. '9')+;

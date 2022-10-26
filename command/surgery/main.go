@@ -152,6 +152,8 @@ func transformation(mod *transform.Module) {
 		if *dumpStats {
 			u.dumpStats()
 		}
+	case *op == "dbgprint":
+		log.Printf("XXXXX DBGPRINT %v", *fnName)
 	default:
 		log.Fatalf("unknow op %s", *op)
 	}

@@ -9,8 +9,14 @@ type WasiPatch struct {
 	mem *wasmMem
 }
 
-func NewWasiPatch(memptr uintptr) *WasiPatch {
+func NewWasiPatchWithMemPtr(memptr uintptr) *WasiPatch {
 	return &WasiPatch{mem: newWasmMem(memptr)}
+}
+func NewWasiPatch() *WasiPatch {
+	return &WasiPatch{}
+}
+func (w *WasiPatch) SetMemPtr(m uintptr) {
+	w.mem = newWasmMem(m)
 }
 
 func (w *WasiPatch) WasiWrite(sp int32) {

@@ -10,15 +10,43 @@ type JSPatch struct {
 	mem *wasmMem
 }
 
-func NewJSPatch(memPtr uintptr) *JSPatch {
+func NewJSPatchWithMemPtr(memPtr uintptr) *JSPatch {
 	return &JSPatch{
 		mem: newWasmMem(memPtr),
 	}
 }
 
+func NewJSPatch() *JSPatch {
+	return &JSPatch{}
+}
+
+func (j *JSPatch) SetMemPtr(m uintptr) {
+	j.mem = newWasmMem(m)
+}
+
+const verbose = true
 const nanHead = 0x7FF80000
 
+func enter(funcName string, rest ...string) {
+	if !verbose {
+		return
+	}
+	result := ""
+	for i, s := range rest {
+		result += s
+		if i != len(rest)-1 {
+			result += ","
+		}
+	}
+	if len(rest) > 0 {
+		log.Printf("---- entering  %s ---- [%s]", funcName, result)
+	} else {
+		log.Printf("---- entering %s ----", funcName)
+	}
+}
+
 func (j *JSPatch) ValueIndex(sp int32) {
+	enter("ValueIndex")
 	index := j.mem.getInt64(sp + 16)
 	value := j.mem.loadValue(sp + 8)
 	result := value.getIndex(index)
@@ -26,6 +54,7 @@ func (j *JSPatch) ValueIndex(sp int32) {
 }
 
 func (j *JSPatch) ValueSetIndex(sp int32) {
+	enter("ValueSetIndex")
 	index := j.mem.getInt64(sp + 16)
 	value := j.mem.loadValue(sp + 8)
 	newValue := j.mem.loadValue(sp + 24)
@@ -33,6 +62,7 @@ func (j *JSPatch) ValueSetIndex(sp int32) {
 }
 
 func (j *JSPatch) ValueLoadString(sp int32) {
+	enter("ValueLoadIndex")
 	str := j.mem.loadValue(sp + 8)
 	slice := j.mem.loadSlice(sp + 16)
 	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
@@ -43,11 +73,13 @@ func (j *JSPatch) ValueLoadString(sp int32) {
 }
 
 func (j *JSPatch) ValueLength(sp int32) {
+	enter("ValueLength")
 	v := j.mem.loadValue(sp + 8)
 	j.mem.setInt64(sp+16, v.length())
 }
 
 func (j *JSPatch) ValueInstanceOf(sp int32) {
+	enter("ValueInstanceOf")
 	example := j.mem.loadValue(sp + 16)
 	candidate := j.mem.loadValue(sp + 8)
 	if (candidate.isArray() && example.isArray()) ||
@@ -64,6 +96,7 @@ func (j *JSPatch) ValuePrepareString(sp int32) {
 }
 
 func (j *JSPatch) FinalizeRef(sp int32) {
+	enter("FinalizeRef")
 	v := j.mem.getInt32(sp + 8)
 	log.Printf("finalize ref on obj", v)
 	count, ok := refCount[v]
@@ -75,6 +108,7 @@ func (j *JSPatch) FinalizeRef(sp int32) {
 }
 
 func (j *JSPatch) ValueCall(sp int32) {
+	enter("ValueCall")
 	// can go switch the stack on us here?
 	recvr := j.mem.loadValue(sp + 8)
 	prop := j.mem.loadString(sp + 16)
@@ -87,6 +121,7 @@ func (j *JSPatch) ValueCall(sp int32) {
 }
 
 func (j *JSPatch) StringVal(sp int32) {
+	enter("StringVal")
 	s := j.mem.loadString(sp + 8)
 	obj := newJSObjString(nextId(), s)
 	j.mem.storeValue(sp+24, obj)
@@ -94,6 +129,7 @@ func (j *JSPatch) StringVal(sp int32) {
 
 func (j *JSPatch) StrConvert(memPtr uintptr, ptr int32, length int32) string {
 	// we could probably go bytesConvert and claim our cap was equal to our len but...
+	enter("StrConvert")
 	buf := make([]byte, length)
 	for i := int32(0); i < length; i++ {
 		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
@@ -104,6 +140,7 @@ func (j *JSPatch) StrConvert(memPtr uintptr, ptr int32, length int32) string {
 }
 
 func (j *JSPatch) ValueGet(sp int32) {
+	enter("ValueGet")
 	value := j.mem.loadValue(sp + 8)
 	prop := j.mem.loadString(sp + 16)
 	v := value.getProp(prop)
@@ -112,6 +149,7 @@ func (j *JSPatch) ValueGet(sp int32) {
 }
 
 func (j *JSPatch) ValueInvoke(sp int32) {
+	enter("ValueInvoke")
 	// can go switch the stack on us here?
 	callee := j.mem.loadValue(sp + 8)
 	args := j.mem.loadSliceOfValues(sp + 16)
@@ -121,6 +159,7 @@ func (j *JSPatch) ValueInvoke(sp int32) {
 }
 func (j *JSPatch) ValueNew(sp int32) {
 	// can go switch the stack on us here?
+	enter("ValueNew")
 	v := j.mem.loadValue(sp + 8)
 	args := j.mem.loadSliceOfValues(sp + 16)
 	result := v.construct(args)
@@ -129,6 +168,7 @@ func (j *JSPatch) ValueNew(sp int32) {
 
 }
 func (j *JSPatch) ValueSet(sp int32) {
+	enter("ValueSet")
 	value := j.mem.loadValue(sp + 8)
 	prop := j.mem.loadString(sp + 16)
 	newPropVal := j.mem.loadValue(sp + 32)
@@ -136,6 +176,7 @@ func (j *JSPatch) ValueSet(sp int32) {
 }
 
 func (j *JSPatch) ValueDelete(sp int32) {
+	enter("ValueDelete")
 	value := j.mem.loadValue(sp + 8)
 	prop := j.mem.loadString(sp + 16)
 	value.deleteProp(prop)

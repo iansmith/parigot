@@ -118,8 +118,9 @@ func (f *FuncDef) AddStmt(s Stmt) {
 }
 
 type TableDef struct {
-	Type     *int
-	Min, Max int
+	Type *int
+	Min  int
+	Max  *int
 }
 
 func (t *TableDef) TopLevelType() TopLevelT {
@@ -131,7 +132,12 @@ func (t *TableDef) IndentedString(indented int) string {
 	if t.Type != nil {
 		buf.WriteString(fmt.Sprintf(" (;%d;)", *t.Type))
 	}
-	buf.WriteString(fmt.Sprintf(" %d %d funcref)", t.Min, t.Max))
+	if t.Max == nil || *t.Max < t.Min {
+		buf.WriteString(fmt.Sprintf(" %d funcref)", t.Min))
+	} else {
+		buf.WriteString(fmt.Sprintf(" %d %d funcref)", t.Min, t.Max))
+	}
+
 	return buf.String()
 }
 
@@ -232,7 +238,8 @@ func (e *ElemDef) IndentedString(indented int) string {
 }
 
 type DataDef struct {
-	Segment    string
+	Segment    string // can be ""
+	TypeNum    int    // can be negative to indicate no anno found
 	Const      Stmt
 	QuotedData string
 }

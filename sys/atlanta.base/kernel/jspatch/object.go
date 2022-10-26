@@ -1,6 +1,9 @@
 package jspatch
 
-import "log"
+import (
+	"log"
+	"syscall/js"
+)
 
 type jsObject interface {
 	id() int32
@@ -63,6 +66,7 @@ func init() {
 	refCount[arrayFuncId] = 1
 	win.setProp("Object", object[objFuncId])
 	win.setProp("Array", object[arrayFuncId])
+	js.Global().Get("process")
 }
 
 type jsObj struct {
@@ -115,6 +119,9 @@ func (j *jsObj) id() int32 {
 }
 
 func (j *jsObj) getProp(p string) jsObject {
+	if p == "process" {
+		return jsProcess
+	}
 	v, ok := j.prop[p]
 	if !ok {
 		log.Printf("unable to find prop '%s', returning undefined", p)

@@ -31,6 +31,13 @@ func mainNormal() {
 	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
 	check(err)
 	wrappers := make(map[string]*wasmtime.Func)
+
+	jsEnv = jspatch.NewJSPatch()
+	wasiEnv = jspatch.NewWasiPatch()
+	runtimeEnv = jspatch.NewRuntimePatch()
+
+	_ /*impl*/ = abiimpl.NewAbiImpl()
+
 	supportedFunctions(store, wrappers)
 	// check that everything linked
 	linkage := checkLinkage(wrappers, module)
@@ -45,11 +52,9 @@ func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmti
 	check(err)
 	ext := instance.GetExport(store, "mem")
 	mptr := uintptr(ext.Memory().Data(store))
-
-	jsEnv = jspatch.NewJSPatch(mptr)
-	wasiEnv = jspatch.NewWasiPatch(mptr)
-
-	_ /*impl*/ = abiimpl.NewAbiImpl()
+	jsEnv.SetMemPtr(mptr)
+	runtimeEnv.SetMemPtr(mptr)
+	wasiEnv.SetMemPtr(mptr)
 
 	start := instance.GetExport(store, "run")
 	if start == nil {
