@@ -2,52 +2,24 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"math/rand"
-	"os"
-	"reflect"
-	"time"
-	"unsafe"
-
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/sys/kernel"
 	"github.com/iansmith/parigot/sys/kernel/jspatch"
-	"github.com/iansmith/parigot/sys/kernel/tinygopatch"
+	"log"
+	"os"
+	"reflect"
 )
 
 var libs = []string{}
 
-var memPtr *uintptr
+var jsEnv *jspatch.JSPatch
+var wasiEnv *jspatch.WasiPatch
+var runtimeEnv *jspatch.RuntimePatch
 
 func main() {
 	type x struct{}
 	log.Printf("??? %s", reflect.TypeOf(x{}).PkgPath())
 	mainNormal()
-}
-func mainTest() {
-	engine := wasmtime.NewEngine()
-	store := wasmtime.NewStore(engine)
-	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
-	check(err)
-	wrappers := make(map[string]*wasmtime.Func)
-	testWrappers(store, wrappers)
-	linkage := checkLinkage(wrappers, module)
-	if linkage == nil {
-		os.Exit(1)
-	}
-	startup(store, module, linkage)
-}
-func checkAddr(p int32, l int32) {
-	log.Printf("check addr %x,%d", p, l)
-}
-
-func testWrappers(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
-	result["env.checkAddr"] = wasmtime.WrapFunc(store, checkAddr)
-	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store,
-		func(x int32, y int32, z int32, a int32) int32 {
-			log.Printf("fd_write %x,%x,%x,%x", x, y, z, a)
-			return 0
-		})
 }
 
 func mainNormal() {
@@ -59,17 +31,7 @@ func mainNormal() {
 	module, err := wasmtime.NewModuleFromFile(engine, os.Args[1])
 	check(err)
 	wrappers := make(map[string]*wasmtime.Func)
-
-	// add functions
-	memPtr = new(uintptr)
-	jspatch.SetMemPtr(memPtr)
-	_ /*impl*/ = abiimpl.NewAbiImpl(memPtr)
-	///xxx fixme
-	//g.SetCaller(impl)
-	//g.WasmTimeWrapABI(impl, store, wrappers)
-	tinygoPatch(store, wrappers)
-	jsPatch(store, wrappers)
-
+	supportedFunctions(store, wrappers)
 	// check that everything linked
 	linkage := checkLinkage(wrappers, module)
 	if linkage == nil {
@@ -82,7 +44,12 @@ func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmti
 	instance, err := wasmtime.NewInstance(store, module, linkage)
 	check(err)
 	ext := instance.GetExport(store, "mem")
-	*memPtr = uintptr(ext.Memory().Data(store))
+	mptr := uintptr(ext.Memory().Data(store))
+
+	jsEnv = jspatch.NewJSPatch(mptr)
+	wasiEnv = jspatch.NewWasiPatch(mptr)
+
+	_ /*impl*/ = abiimpl.NewAbiImpl()
 
 	start := instance.GetExport(store, "run")
 	if start == nil {
@@ -121,74 +88,34 @@ func checkLinkage(wrappers map[string]*wasmtime.Func, module *wasmtime.Module) [
 }
 
 // temporary while we are getting rid of JS linkage
-func jsPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
-	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jspatch.ValueSetIndex)
-	result["wasi_snapshot_preview1.fd_write"] = wasmtime.WrapFunc(store, tinygopatch.WasiWriteFd)
-	result["wasi_snapshot_preview1.proc_exit"] = wasmtime.WrapFunc(store, tinygopatch.WasiProcExit)
-	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jspatch.ValueGet)
-	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jspatch.ValuePrepareString)
-	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jspatch.ValueLoadString)
-	result["go.syscall/js.finalizeRef"] = wasmtime.WrapFunc(store, jspatch.FinalizeRef)
-	result["go.syscall/js.stringVal"] = wasmtime.WrapFunc(store, jspatch.StringVal)
-	result["go.syscall/js.valueSet"] = wasmtime.WrapFunc(store, jspatch.ValueSet)
-	result["go.syscall/js.valueDelete"] = wasmtime.WrapFunc(store, jspatch.ValueDelete)
-	result["go.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, jspatch.ValueIndex)
-	result["go.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jspatch.ValueSetIndex)
-	//result["env.syscall/js.valueLength"] = wasmtime.WrapFunc(store, jspatch.ValueLength)
-	//result["env.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, jspatch.ValueIndex)
-	result["go.syscall/js.valueCall"] = wasmtime.WrapFunc(store, jspatch.ValueCall)
-	result["env.syscall/js.valueNew"] = wasmtime.WrapFunc(store, jspatch.ValueNew)
-
+func supportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
+	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jsEnv.ValueSetIndex)
+	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jsEnv.ValueGet)
+	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jsEnv.ValuePrepareString)
+	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jsEnv.ValueLoadString)
+	result["go.syscall/js.finalizeRef"] = wasmtime.WrapFunc(store, jsEnv.FinalizeRef)
+	result["go.syscall/js.stringVal"] = wasmtime.WrapFunc(store, jsEnv.StringVal)
+	result["go.syscall/js.valueSet"] = wasmtime.WrapFunc(store, jsEnv.ValueSet)
+	result["go.syscall/js.valueDelete"] = wasmtime.WrapFunc(store, jsEnv.ValueDelete)
+	result["go.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, jsEnv.ValueIndex)
+	result["go.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jsEnv.ValueSetIndex)
+	result["go.syscall/js.valueLength"] = wasmtime.WrapFunc(store, jsEnv.ValueLength)
+	result["go.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jsEnv.ValuePrepareString)
+	result["go.syscall/js.valueCall"] = wasmtime.WrapFunc(store, jsEnv.ValueCall)
+	result["go.syscall/js.valueInvoke"] = wasmtime.WrapFunc(store, jsEnv.ValueInvoke)
+	result["go.syscall/js.valueNew"] = wasmtime.WrapFunc(store, jsEnv.ValueNew)
+	result["go.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, jsEnv.ValueLoadString)
+	result["go.syscall/js.valueInstanceOf"] = wasmtime.WrapFunc(store, jsEnv.ValueInstanceOf)
+	result["go.syscall/js.copyBytesToGo"] = wasmtime.WrapFunc(store, jsEnv.CopyBytesToGo)
+	result["go.syscall/js.copyBytesToJS"] = wasmtime.WrapFunc(store, jsEnv.CopyBytesToJS)
+	result["go.runtime.resetMemoryDataView"] = wasmtime.WrapFunc(store, runtimeEnv.ResetMemoryDataView)
+	result["go.runtime.wasmExit"] = wasmtime.WrapFunc(store, wasiEnv.WasiExit)
+	result["go.runtime.wasmWrite"] = wasmtime.WrapFunc(store, wasiEnv.WasiWrite)
+	result["go.runtime.nanotime1"] = wasmtime.WrapFunc(store, runtimeEnv.Nanotime1)
+	result["go.runtime.walltime"] = wasmtime.WrapFunc(store, runtimeEnv.WallTime)
+	result["go.runtime.scheduleTimeoutEvent"] = wasmtime.WrapFunc(store, runtimeEnv.ScheduleTimeoutEvent)
+	result["go.runtime.clearTimeoutEvent"] = wasmtime.WrapFunc(store, runtimeEnv.ClearTimeoutEvent)
+	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, runtimeEnv.GetRandomData)
 	result["parigot.debugprint"] = wasmtime.WrapFunc(store, abiimpl.DebugPrint)
-	result["go.debug"] = wasmtime.WrapFunc(store, func(x int32) {
-		print("got a go debug call", x, "\n")
-	})
-	result["go.runtime.resetMemoryDataView"] = wasmtime.WrapFunc(store, func(x int32) {
-		print("got a resetMemoryDataView call", x, "\n")
-	})
-	result["go.runtime.wasmExit"] = wasmtime.WrapFunc(store, func(sp int32) {
-		log.Printf("wasmExit: %d", jspatch.getInt32(*memPtr, sp+8))
-	})
-	result["go.runtime.wasmWrite"] = wasmtime.WrapFunc(store, func(sp int32) {
-		_ = jspatch.getInt64(*memPtr, sp+8)
-		p := jspatch.getInt64(*memPtr, sp+16)
-		n := jspatch.getInt32(*memPtr, sp+24)
-		content := make([]byte, n)
-		ptr := (*memPtr + uintptr(p))
-		for i := int32(0); i < n; i++ {
-			content[i] = *((*byte)(unsafe.Pointer(ptr + uintptr(i))))
-		}
-		//log.Printf("wasm write on file descriptor %d with %x and len %d: %s", fd, p, n, string(content))
-		fmt.Printf("%s", string(content))
-	})
-	result["go.runtime.nanotime1"] = wasmtime.WrapFunc(store, func(sp int32) {
-		jspatch.setInt64(*memPtr, sp+8, time.Now().UnixNano())
-	})
-	result["go.runtime.walltime"] = wasmtime.WrapFunc(store, func(x int32) {
-		print("got a walltime call", x, "\n")
-	})
-	result["go.runtime.scheduleTimeoutEvent"] = wasmtime.WrapFunc(store, func(x int32) {
-		print("got a schedule timeout event call", x, "\n")
-	})
-	result["go.runtime.clearTimeoutEvent"] = wasmtime.WrapFunc(store, func(x int32) {
-		print("got a CLEAR timeout event call", x, "\n")
-	})
-	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, func(sp int32) {
-		b := jspatch.loadSlice(*memPtr, sp+8)
-		_, _ = rand.Read(b) //docs say no returned error
-	})
-}
-
-// temporary while we are getting rid of runtime of tinygo
-func tinygoPatch(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
-	result["env.runtime.ticks"] = wasmtime.WrapFunc(store, tinygopatch.Ticks)
-	result["env.runtime.sleepTicks"] = wasmtime.WrapFunc(store, tinygopatch.SleepTicks)
-}
-
-type abiWrapperForMemPtr struct {
-	*abiimpl.AbiImpl
-}
-
-func (a *abiWrapperForMemPtr) GetMemPtr() uintptr {
-	return *memPtr
+	result["go.debug"] = wasmtime.WrapFunc(store, runtimeEnv.GoDebug)
 }

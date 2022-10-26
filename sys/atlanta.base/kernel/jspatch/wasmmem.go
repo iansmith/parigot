@@ -18,6 +18,21 @@ func newWasmMem(memPtr uintptr) *wasmMem {
 	}
 }
 
+func (w *wasmMem) setUint8(addr int32, v byte) {
+	ptr := (*byte)(unsafe.Pointer(w.memPtr + uintptr(addr)))
+	*ptr = v
+}
+
+func (w *wasmMem) loadSliceOfValues(addr int32) jsObject {
+	array := w.getInt64(addr)
+	l := w.getInt64(addr + 8)
+	a := newJSObjArray(nextId(), int(l))
+	for i := int64(0); i < l; i++ {
+		a.setIndex(i, w.loadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
+	}
+	return a
+}
+
 func (w *wasmMem) setInt64(addr int32, value int64) {
 	buf := []byte{}
 	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
@@ -60,7 +75,7 @@ func (w *wasmMem) loadString(addr int32) string {
 	return string(buf)
 }
 
-func (w *wasmMem) loadSlice(memptr uintptr, addr int32) []byte {
+func (w *wasmMem) loadSlice(addr int32) []byte {
 	array := w.getInt64(addr)
 	l := w.getInt64(addr + 8)
 	result := make([]byte, l)

@@ -8,16 +8,10 @@ import (
 )
 
 type AbiImpl struct {
-	memoryPtr *uintptr
 }
 
-func NewAbiImpl(memptr *uintptr) *AbiImpl {
-	return &AbiImpl{
-		memoryPtr: memptr,
-	}
-}
-func (a *AbiImpl) GetMemPtr() uintptr {
-	return *a.memoryPtr
+func NewAbiImpl() *AbiImpl {
+	return &AbiImpl{}
 }
 
 func (a *AbiImpl) OutputString(s string) {

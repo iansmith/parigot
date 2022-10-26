@@ -2,7 +2,6 @@ package tinygopatch
 
 import (
 	"encoding/binary"
-	"github.com/iansmith/parigot/sys/kernel/jspatch"
 	"log"
 	"math"
 	"time"
@@ -24,19 +23,29 @@ func SleepTicks(f float64) {
 	time.Sleep(time.Duration(int(math.Trunc(f))) * time.Millisecond)
 }
 
-func WasiWriteFd(fd int32, iovec int32, len int32, written int32) int32 {
+func strConvert(memPtr uintptr, ptr int32, length int32) string {
+	// we could probably go bytesConvert and claim our cap was equal to our len but...
+	buf := make([]byte, length)
+	for i := int32(0); i < length; i++ {
+		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
+		buf[i] = *b
+	}
+	s := string(buf)
+	return s
+}
+
+func WasiWriteFd(memptr uintptr, fd int32, iovec int32, len int32, written int32) int32 {
 	//log.Printf("fd_write called:  %d, %x, %d %x", fd, iovec, len, written)
-	memPtr := jspatch.MemPtr()
 	buf := make([]byte, len*8)
 	for i := int32(0); i < len*8; i++ {
-		b := (*byte)(unsafe.Pointer(memPtr + uintptr(iovec+i)))
+		b := (*byte)(unsafe.Pointer(memptr + uintptr(iovec+i)))
 		buf[i] = *b
 	}
 	u := binary.LittleEndian.Uint32(buf[0:4])
 	v := binary.LittleEndian.Uint32(buf[4:8])
-	s := jspatch.StrConvert(memPtr, int32(u), int32(v))
+	s := strConvert(memptr, int32(u), int32(v))
 	log.Printf("iovec output: %s", s)
-	b := (*byte)(unsafe.Pointer(memPtr + uintptr(written)))
+	b := (*byte)(unsafe.Pointer(memptr + uintptr(written)))
 	slice := unsafe.Slice(b, 4)
 	binary.LittleEndian.PutUint32(slice, v)
 	log.Printf("wrote result")

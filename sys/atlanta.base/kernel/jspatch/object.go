@@ -9,6 +9,14 @@ type jsObject interface {
 	deleteProp(prop string)
 	getIndex(int64) jsObject
 	setIndex(int64, jsObject)
+	apply(jsObject, jsObject) jsObject
+	call(jsObject) jsObject
+	construct(jsObject) jsObject
+	string() string
+	length() int64
+	isCallable() bool
+	isArray() bool
+	isString() bool
 }
 
 var refCount = make(map[int32]int)
@@ -20,7 +28,13 @@ var falseBool = newJSObj(4)
 var win = newJSObj(5)
 var zero = newJSObj(1)
 var notANumber = newJSObj(0)
-var nextId = int32(6)
+var _nextId = int32(6)
+
+func nextId() int32 {
+	x := _nextId
+	_nextId++
+	return x
+}
 
 func init() {
 	object[5] = win
@@ -37,18 +51,16 @@ func init() {
 	refCount[4] = 1
 	refCount[5] = 1
 
-	objFuncId := nextId
+	objFuncId := nextId()
 	object[objFuncId] = newJSObjCallable(objFuncId, func() {
 		log.Printf("Object function called()")
 	})
 	refCount[objFuncId] = 1
-	nextId++
-	arrayFuncId := nextId
+	arrayFuncId := nextId()
 	object[arrayFuncId] = newJSObjCallable(arrayFuncId, func() {
 		log.Printf("Object function called()")
 	})
 	refCount[arrayFuncId] = 1
-	nextId++
 	win.setProp("Object", object[objFuncId])
 	win.setProp("Array", object[arrayFuncId])
 }
@@ -60,6 +72,8 @@ type jsObj struct {
 	fn        func()
 	array     bool
 	arrayData []jsObject
+	str       bool
+	strValue  string
 }
 
 func newJSObj(n int32) *jsObj {
@@ -69,6 +83,13 @@ func newJSObj(n int32) *jsObj {
 		callable: false,
 	}
 }
+func newJSObjString(n int32, s string) *jsObj {
+	return &jsObj{
+		n:        n,
+		str:      true,
+		strValue: s,
+	}
+}
 
 func newJSObjCallable(n int32, fn func()) *jsObj {
 	return &jsObj{
@@ -76,6 +97,16 @@ func newJSObjCallable(n int32, fn func()) *jsObj {
 		prop:     make(map[string]jsObject),
 		callable: true,
 		fn:       fn,
+	}
+}
+
+func newJSObjArray(n int32, len int) jsObject {
+	return &jsObj{
+		n:         n,
+		prop:      make(map[string]jsObject),
+		callable:  false,
+		array:     true,
+		arrayData: make([]jsObject, len),
 	}
 }
 
@@ -106,7 +137,15 @@ func (j *jsObj) setIndex(i int64, obj jsObject) {
 	}
 	j.arrayData[int(i)] = obj
 }
-
+func (j *jsObj) isCallable() bool {
+	return j.callable
+}
+func (j *jsObj) isArray() bool {
+	return j.array
+}
+func (j *jsObj) isString() bool {
+	return j.str
+}
 func (j *jsObj) getIndex(i int64) jsObject {
 	if !j.array {
 		log.Printf("attempt to index non array (%d), returning null", j.id())
@@ -125,4 +164,52 @@ func (j *jsObj) deleteProp(p string) {
 	delete(j.prop, p)
 	// xxx?
 	// refCount[old.id()]--
+}
+
+func (j *jsObj) apply(method jsObject, args jsObject) jsObject {
+	if !method.isCallable() {
+		log.Printf("attempt to apply something that is not callable, returning null")
+		return null
+	}
+	if !args.isArray() {
+		log.Printf("attempt to apply without array of args, returning null")
+		return null
+	}
+	panic("xxx not implemented: apply!")
+}
+func (j *jsObj) call(args jsObject) jsObject {
+	if !j.isCallable() {
+		log.Printf("attempt to call something that is not callable, returning null")
+		return null
+	}
+	if !args.isArray() {
+		log.Printf("attempt to call without array of args, returning null")
+		return null
+	}
+	panic("xxx not implemented: call!")
+}
+func (j *jsObj) construct(args jsObject) jsObject {
+	if !j.isCallable() {
+		log.Printf("attempt to construct something that is not callable, returning null")
+		return null
+	}
+	if !args.isArray() {
+		log.Printf("attempt to construct without array of args, returning null")
+		return null
+	}
+	panic("xxx not implemented: construct!")
+}
+func (j *jsObj) length() int64 {
+	if !j.isArray() && !j.isString() {
+		log.Printf("attempt to length on something that is not an array or string, returning 0")
+		return 0
+	}
+	return int64(len(j.arrayData))
+}
+func (j *jsObj) string() string {
+	if !j.isString() {
+		log.Printf("only string js objects can be converted to go strings right now, returning empty string")
+		return ""
+	}
+	return j.strValue
 }
