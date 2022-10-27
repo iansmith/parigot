@@ -1,6 +1,11 @@
+//go:build !parigot
+
 package k
 
-import "github.com/iansmith/parigot/g/pb/kernel"
+import (
+	"github.com/iansmith/parigot/g/pb/kernel"
+	_ "unsafe"
+)
 
 func Locate(_ *kernel.LocateRequest, _ *kernel.LocateResponse) int32 {
 	return 0

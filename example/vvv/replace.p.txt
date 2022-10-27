@@ -1,0 +1,7 @@
+$parigot.locate_,parigot.locate
+$parigot.exit_,parigot.exit
+$parigot.register_,parigot.register
+$parigot.dispatch_,parigot.dispatch
+
+
+

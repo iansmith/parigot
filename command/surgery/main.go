@@ -127,7 +127,7 @@ func transformation(mod *transform.Module) {
 		var repl *replaceFn
 		if len(parts) == 1 {
 			var err error
-			log.Printf("assuming that the -r parameter is a filename: '%s'", *replaceFuncNames)
+			log.Printf("\tassuming that the -r parameter is a filename: '%s'", *replaceFuncNames)
 			fp, err = os.Open(*replaceFuncNames)
 			if err != nil {
 				log.Fatalf("operation replacefn needs two functions to operate on,"+
@@ -138,10 +138,8 @@ func transformation(mod *transform.Module) {
 			repl = newReplaceFn(parts[0], parts[1], nil)
 		}
 		repl.validateFunctions(mod)
+		repl.addImports(mod)
 		changeStatementInModule(mod, repl.replace)
-	//case "old":
-	//changeToplevelInModule(mod, transform.ImportDefT, )
-	//changeStatementInModule(mod, changeCallsToUseTrueABI)
 	case *op == "unlink":
 		u := newUnlink()
 		findToplevelInModule(mod, transform.ImportDefT, u.compileImports)
@@ -162,23 +160,4 @@ func transformation(mod *transform.Module) {
 		log.Printf("instrumenting function '%s'", *fnName)
 		dbg.driver(mod)
 	}
-}
-
-func changeImportsToTrueABI(tl transform.TopLevel) transform.TopLevel {
-	idef := tl.(*transform.ImportDef)
-	if idef.ModuleName == parigotModule {
-		*idef.FuncNameRef.Name = *idef.FuncNameRef.Name + parigotSuffix
-	}
-	return idef
-}
-
-func changeCallsToUseTrueABI(stmt transform.Stmt) transform.Stmt {
-	if stmt.StmtType() == transform.OpStmtT &&
-		stmt.(transform.Op).OpType() == transform.CallT {
-		if strings.HasPrefix(stmt.(*transform.CallOp).Arg, abiGoLinkerPath) {
-			stmt.(*transform.CallOp).Arg = stmt.(*transform.CallOp).Arg + parigotSuffix
-		}
-	}
-
-	return stmt
 }

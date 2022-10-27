@@ -1,4 +1,4 @@
-// This package is a thin wrapper around kernel functionality so you can call
+// This package is a thin wrapper around kernel functionality so you can cacd .ll
 // that functionality easily and without having to create a KernelClient each time.
 // It allows you to use the notation kernel.Exit(0), for example, if you import this
 // under the default name.

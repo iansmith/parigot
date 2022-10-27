@@ -13,7 +13,7 @@ PARIGOT_SOURCE=../..
 # currently no GC and no scheduler
 #TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
 #TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
-BUILD_TAGS=parigot_abi
+BUILD_TAGS=parigot
 
 GO_CMD=GOOS=js GOARCH=wasm go
 

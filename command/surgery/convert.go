@@ -75,15 +75,12 @@ func convertWasmToWat(tmpDir string, source string) (string, error) {
 		log.Printf("converting input file ("+source+") failed, cannot create temp file: %v", err)
 		return "", err
 	}
-	defer func() {
-		_ = targetFp.Close()
-	}()
+	targetFp.Close()
 	if _, err := os.Stat(source); errors.Is(err, os.ErrNotExist) {
 		log.Fatalf("converting input file ("+source+") failed, input file does not exist: %v", err)
 		return "", err
 	}
-	cmd := exec.Command(wasmProgram, source)
-	cmd.Stdout = targetFp
+	cmd := exec.Command(wasmProgram, "-o", target, "--no-check", source)
 	errFp, errPath, err := createFileInTmpdir(tmpDir, wasmProgram, true)
 	if err != nil {
 		return "", err
@@ -98,6 +95,7 @@ func convertWasmToWat(tmpDir string, source string) (string, error) {
 		log.Printf("conversion of %s to wat failed,\n\terrors in %s (or possibly %s): %v", source, target, errPath, err)
 		return "", err
 	}
+	log.Printf("xxxx nocheck version %s\n", target)
 	return target, nil
 }
 

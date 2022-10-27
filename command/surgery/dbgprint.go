@@ -102,11 +102,11 @@ func myStmts(count int) []transform.Stmt {
 		Special:    nil,
 	}
 	*constStmt.IntArg = count
+	op := &transform.CallOp{ArgName: new(string)}
+	*op.ArgName = "$parigot.dbgprint"
 	return []transform.Stmt{
 		constStmt,
-		&transform.CallOp{
-			Arg: "$parigot.dbgprint",
-		},
+		op,
 	}
 }
 

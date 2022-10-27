@@ -131,7 +131,8 @@ func (i *IndirectCallOp) IndentedString(indented int) string {
 }
 
 type CallOp struct {
-	Arg string
+	ArgName *string
+	ArgNum  *int
 }
 
 func (i *CallOp) OpType() OpT {
@@ -144,7 +145,14 @@ func (i *CallOp) StmtType() StmtT {
 
 func (i *CallOp) IndentedString(indented int) string {
 	buf := NewIndentedBuffer(indented)
-	buf.WriteString(fmt.Sprintf("call %s", i.Arg))
+	if i.ArgNum == nil && i.ArgName == nil {
+		panic("call op has neither name or number")
+	}
+	if i.ArgNum == nil {
+		buf.WriteString(fmt.Sprintf("call %s", *i.ArgName))
+	} else {
+		buf.WriteString(fmt.Sprintf("call %s", *i.ArgNum))
+	}
 	return buf.String()
 }
 

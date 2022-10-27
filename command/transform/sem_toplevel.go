@@ -212,6 +212,7 @@ func (e *ExportDef) IndentedString(indented int) string {
 type ElemDef struct {
 	Const Stmt
 	Ident []string
+	Num   []string
 	Anno  *int
 }
 
@@ -233,6 +234,14 @@ func (e *ElemDef) IndentedString(indented int) string {
 			buf.WriteString("func ")
 		}
 		buf.WriteString(e.Ident[i])
+	}
+	for i := 0; i < len(e.Num); i++ {
+		if i != 0 {
+			buf.WriteString(" ")
+		} else {
+			buf.WriteString("func ")
+		}
+		buf.WriteString(e.Num[i])
 	}
 	return buf.String() + ")"
 }

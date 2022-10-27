@@ -2,7 +2,6 @@ package main
 
 import (
 	"demo/vvv/proto/g/vvv/pb"
-	"flag"
 	"time"
 
 	"demo/vvv/proto/g/vvv"
@@ -14,35 +13,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-//go:export PkgPathHack
-func PkgPathHack(retval int32, x1 int32, x2 int32) {
-	return
-}
-
-//go:export MethodByNameHack
-func MethodByNameHack(retval int32, p0 int32, p1 int32, p2 int32, p3 int32) {
-	return
-}
-
-//go:export ZeroHack
-func ZeroHack(retval int32, p0 int32, p1 int32, p2 int32) {
-	return
-}
-
-//export main.main
 func main() {
-	print("hello, fart")
-}
-func main2() {
-	print("1")
-	flag.Parse()
-	print("2")
+	print("xxx1\n")
+	//flag.Parse()
+	print("xxx2\n")
 	logger, err := log.LocateLog()
-	print("3")
+	print("xxx3\n")
 	if err != nil {
+		print("failed to get log\n")
 		//abandon ship, can't get logger to even say what happened
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
+	print("got log", logger, "\n")
 	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {

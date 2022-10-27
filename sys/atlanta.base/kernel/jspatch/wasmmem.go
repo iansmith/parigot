@@ -2,6 +2,7 @@ package jspatch
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -26,9 +27,10 @@ func (w *wasmMem) setUint8(addr int32, v byte) {
 func (w *wasmMem) loadSliceOfValues(addr int32) jsObject {
 	array := w.getInt64(addr)
 	l := w.getInt64(addr + 8)
-	a := newJSObjArray(nextId(), int(l))
+	arr := make([]jsObj, l)
+	a := goToJS(arr)
 	for i := int64(0); i < l; i++ {
-		a.setIndex(i, w.loadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
+		a.SetIndex(int(i), w.loadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
 	}
 	return a
 }
@@ -36,11 +38,20 @@ func (w *wasmMem) loadSliceOfValues(addr int32) jsObject {
 func (w *wasmMem) setInt64(addr int32, value int64) {
 	buf := []byte{}
 	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	ptr := (w.memPtr + uintptr(addr))
+	ptr := w.memPtr + uintptr(addr)
 	header.Data = ptr
 	header.Len = 8
 	header.Cap = 8
 	binary.LittleEndian.PutUint64(buf, uint64(value))
+}
+func (w *wasmMem) setInt32(addr int32, value int32) {
+	buf := []byte{}
+	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	ptr := w.memPtr + uintptr(addr)
+	header.Data = ptr
+	header.Len = 4
+	header.Cap = 4
+	binary.LittleEndian.PutUint32(buf, uint32(value))
 }
 
 func (w *wasmMem) getInt64(addr int32) int64 {
@@ -98,24 +109,48 @@ func (w *wasmMem) getFloat64(addr int32) float64 {
 // stupid 64 bit trick load side
 func (w *wasmMem) loadValue(addr int32) jsObject {
 	f := w.getFloat64(addr)
-	log.Printf("loadValue float: %f, %v", f, math.IsNaN(f))
+	if !math.IsNaN(f) { // is all zeros a valid float?
+		if math.Float64bits(f) == 0 {
+			return undefined
+		}
+		return floatValue(f)
+	}
+	// maybe it's not a valid float...
+	if math.Float64bits(f) == 0 {
+		return undefined
+	}
+	// normal procedure
+	t := (math.Float64bits(f) >> 32) & 7
+	enter("loadValue", fmt.Sprint("binary type ", t))
 	id := w.getInt32(addr)
-	log.Printf("loadValue id: %d", id)
-	return object[id]
+	log.Printf("loadValue id: %d,%p", id, object.get(id))
+	return object.get(id)
 }
 
 // stupid 64 bit trick, save side... we are assuming v is a small int
 func (w *wasmMem) storeValue(addr int32, obj jsObject) {
-	log.Printf("storeValue(%x,%x)-- assuming int", addr, obj.id())
+	if obj != undefined {
+		if !obj.isNumber() {
+			log.Printf("storeValue by object id (%x,%d) ", addr, obj.id())
+		} else {
+			log.Printf("storeValue number (%x,%f)", addr, obj.(*jsObj).f64)
+		}
+	} else {
+		log.Printf("storeValue undefined @%x", addr)
+	}
+	if !obj.isNumber() && obj.id() < 0 {
+		panic("attempt store a value that isn't in the global table: " + fmt.Sprint(obj.id()))
+	}
+
+	highOrder, lowOrder := obj.binaryRep()
 	buf := []byte{}
 	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	ptr := (w.memPtr + uintptr(addr+4))
 	header.Data = ptr
 	header.Len = 4
 	header.Cap = 4
-	binary.LittleEndian.PutUint32(buf, uint32(nanHead))
+	binary.LittleEndian.PutUint32(buf, highOrder)
 	ptr -= 4
 	header.Data = ptr
-	binary.LittleEndian.PutUint32(buf, uint32(obj.id()))
-	refCount[obj.id()]++
+	binary.LittleEndian.PutUint32(buf, lowOrder)
 }

@@ -140,7 +140,7 @@ funcSpec returns [*FuncSpec f]:
     ;
 
 funcNameRef returns [*FuncNameRef f]:
-    Lparen FuncWord (Ident|typeAnno) typeRef? Rparen
+    Lparen FuncWord (Ident|typeAnno|n=Num) typeRef? Rparen
     {
         op:=&FuncNameRef{}
 
@@ -151,6 +151,10 @@ funcNameRef returns [*FuncNameRef f]:
         if localctx.Get_typeAnno()!=nil {
             op.Number=new(int)
             *op.Number=$typeAnno.t
+        }
+        if localctx.GetN()!=nil {
+            op.FuncNumber=new(int)
+            *op.FuncNumber=numToInt(localctx.GetN().GetText())
         }
         if localctx.Get_typeRef()!=nil {
             op.Type = $typeRef.t
@@ -168,11 +172,16 @@ paramDef returns [*ParamDef p]:
     ;
 
 elemDef returns [*ElemDef e]:
-    ElemWord t=typeAnno? constStmt FuncWord identSeq
+    ElemWord t=typeAnno? constStmt FuncWord (i=identSeq|n=numSeq)
     {
         op:=&ElemDef{
             Const: $constStmt.c,
-            Ident: $identSeq.i,
+        }
+        if localctx.GetI()!=nil {
+            op.Ident = $i.i
+        }
+        if localctx.GetN()!=nil {
+            op.Num= $n.n
         }
         if localctx.GetT()!=nil {
             op.Anno = new(int)
@@ -205,6 +214,17 @@ identSeq returns [[]string i]:
             result[i]=n.GetText()
         }
         $i=result
+    }
+    ;
+
+numSeq returns [[]string n]:
+    ns+=Num (ns+=Num)*
+    {
+        result:=make([]string,len(localctx.GetNs()))
+        for i,n:=range localctx.GetNs() {
+            result[i]=n.GetText()
+        }
+        $n=result
     }
     ;
 
@@ -327,20 +347,19 @@ argOp returns [Stmt a]:
 callOp returns [Stmt c]:
     CallWord (i=Ident|n=Num)
     {
-        arg:=""
+        op:=&CallOp{}
+
         if $i==nil {
             if $n==nil {
                 panic("call has neither name or number")
             }
-            arg=$n.GetText()
+            op.ArgNum=new(int)
+            *op.ArgNum = numToInt($n.GetText())
         } else {
-            arg=$i.GetText()
+            op.ArgName=new(string)
+            *op.ArgName=$i.GetText()
         }
-        localctx.SetC(
-            &CallOp{
-                Arg:arg,
-            },
-        )
+        localctx.SetC(op)
     }
     ;
 
