@@ -2,18 +2,17 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/g/pb/kernel"
-	"github.com/iansmith/parigot/lib/libint"
 	"google.golang.org/protobuf/proto"
 )
 
 type ClientSideService struct {
-	svc    libint.Id
+	svc    Id
 	caller string
 }
 
-func NewClientSideService(svc ServiceId) *ClientSideService {
+func NewClientSideService(id Id) *ClientSideService {
 	return &ClientSideService{
-		svc: svc,
+		svc: id,
 	}
 }
 
@@ -47,10 +46,10 @@ func (c *ClientSideService) DispatchFull(ctx Pctx, method string, caller string,
 	}
 	req.InBlob = b
 	resp := kernel.DispatchResponse{}
-	err = Dispatch(req, &resp)
+	Dispatch(req, &resp)
 
-	if err != nil {
-		return NewPerrorFromError("internal error in dispatch", err)
-	}
+	//if err != nil {
+	//	return NewPerrorFromError("internal error in dispatch", err)
+	//}
 	return nil
 }

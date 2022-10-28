@@ -3,17 +3,10 @@ import(
 {{- range $j,$i := .imports }}
     "{{$j}}"
 {{- end}} {{/* imports */}}
-)
 
-// this set of imports is _unrelated_ to the particulars of what the .proto imported
-import(
-    "fmt"
-
-    "github.com/iansmith/parigot/lib"
-    "github.com/iansmith/parigot/g/pb/kernel"
-
-    "google.golang.org/protobuf/proto"
-
+    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    "github.com/iansmith/parigot/lib"  // id manipulation
+    "github.com/iansmith/parigot/g/pb/kernel" // dispatch and locate
 )
 
 {{- $info:=.info }}
@@ -43,24 +36,19 @@ type {{$svcCamel}}Client struct {
 }
 
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
-    var resp kernel.LocateResponse
-    req:=&kernel.LocateRequest{
+	var resp kernel.LocateResponse
+	req := &kernel.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
-    }
-    err:=lib.Locate(req,&resp)
+	}
+    service, err:=lib.Locate(req,&resp)
     if err!=nil {
         return nil, err
     }
-    locateErr:=lib.FromLocateErrorId(resp.GetErrorId())
-    if locateErr.IsError(){
-        return nil, lib.NewPerrorFromId("semantic error in locate call:", locateErr)
-    }
-    service:=lib.FromServiceId(resp.GetServiceId())
-    cs:=lib.NewClientSideService(service)
-    return &{{$svcCamel}}Client{
+    cs := lib.NewClientSideService(service)
+    return &{{$svc}}Client{
         ClientSideService: cs,
-    },nil
+    }, nil
 }
 
 {{- range .GetWasmMethod}}
@@ -98,32 +86,24 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 {{- end}}{{/*needs fill*/}}
 
     resp:=&kernel.DispatchResponse{}
-    err:= i.Dispatch("{{.WasmMethodName}}",req,resp)
-    if err!=nil {
-       return err
-    }
-    dispErr:=lib.FromDispatchErrorId(resp.GetErrorId())
-    if dispErr.IsError() {
-        return lib.NewPerrorFromId("semantic error in dispatch call:", dispErr)
-    }
+    i.Dispatch("{{.WasmMethodName}}",req,resp)
 
 {{- if .OutputCodeNeeded }}
-
 {{- if $needsFillOut}}
         out:={{$outParam}}
 {{- end}} {{/* needs fill out */}}
-
-    err = proto.Unmarshal(resp.OutBlob,out)
+    err := proto.Unmarshal(resp.OutBlob,out)
     if err!=nil {
-        panic("unmarshal failed for type {{$outParam}}")
+        return lib.NewPerrorFromId("failed to unmarshal result:",
+        lib.NewProtoErr(lib.ProtoUnmarshalFailed))
     }
-
 {{- if $needsFillOut}} //take apart response structure: {{$outParam}}
 {{- range .OutputFields}}
     *{{.Name}}={{.Field}}
 {{- end}}{{/* range output fields */}}
-{{- end}}{{/*needs fill*/}}
+{{- else}}{{/* other side of needs fill*/}}
     return nil
+{{- end}}{{/*needs fill*/}}
 
 {{- else }} {{/* other side of output code needed */}}
     return nil
@@ -143,13 +123,9 @@ func init() {
         Service:      "{{.GetWasmServiceName}}",
     }
     resp{{.GetWasmServiceName}}:=kernel.RegisterResponse{}
-    if lib.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})!=nil {
-        panic("unable to register service "+"{{.GetWasmServiceName}}")
-    }
-    reg{{.GetWasmServiceName}}Err:=lib.FromRegisterErrorId(resp{{.GetWasmServiceName}}.GetErrorId())
-    if reg{{.GetWasmServiceName}}Err.IsError() {
-        panic(fmt.Sprintf("semantic error trying to register {{.GetWasmServiceName}}: %s",
-            reg{{.GetWasmServiceName}}Err))
+    _, regErr:=lib.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})
+    if regErr!=nil {
+        panic("unable to register service "+"{{.GetWasmServiceName}}:"+ regErr.Error())
     }
 {{- end }} {{/* if no kernel */}}
 {{- end }}

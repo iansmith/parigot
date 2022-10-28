@@ -30,8 +30,8 @@ build/storeclient.wasm: storeclient/main.go
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
 	#$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
-	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
-	wasm2wat --no-check -o build/storeclient.wat build/storeclient.wasm
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go
+	wasm2wat --no-check -o build/storeclient.wat build/storeclient.p.wasm
 
 build/storeclient-repl.wasm: build/storeclient.wasm
 	@echo

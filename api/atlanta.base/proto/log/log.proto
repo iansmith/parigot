@@ -2,7 +2,6 @@ syntax = "proto3";
 package log;
 option go_package="github.com/iansmith/parigot/g/log;log";
 import "pb/log/log.proto";
-import "google/protobuf/timestamp.proto";
 
 
 // This is the Log service for parigot. This has three intended environments

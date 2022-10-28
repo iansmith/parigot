@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
-	"github.com/iansmith/parigot/sys/kernel"
-	"github.com/iansmith/parigot/sys/kernel/jspatch"
+	"github.com/iansmith/parigot/sys"
 	"log"
 	"os"
 	"reflect"
+
+	"github.com/iansmith/parigot/sys/jspatch"
+
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
 var libs = []string{}
@@ -15,6 +17,7 @@ var libs = []string{}
 var jsEnv *jspatch.JSPatch
 var wasiEnv *jspatch.WasiPatch
 var runtimeEnv *jspatch.RuntimePatch
+var syscall *sys.SysCall
 
 func main() {
 	type x struct{}
@@ -35,10 +38,9 @@ func mainNormal() {
 	jsEnv = jspatch.NewJSPatch()
 	wasiEnv = jspatch.NewWasiPatch()
 	runtimeEnv = jspatch.NewRuntimePatch()
+	syscall = sys.NewSysCall()
 
-	_ /*impl*/ = abiimpl.NewAbiImpl()
-
-	supportedFunctions(store, wrappers)
+	supportedFunctions(store, wrappers, syscall)
 	// check that everything linked
 	linkage := checkLinkage(wrappers, module)
 	if linkage == nil {
@@ -52,9 +54,12 @@ func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmti
 	check(err)
 	ext := instance.GetExport(store, "mem")
 	mptr := uintptr(ext.Memory().Data(store))
+
+	// tell everybody about the memory
 	jsEnv.SetMemPtr(mptr)
 	runtimeEnv.SetMemPtr(mptr)
 	wasiEnv.SetMemPtr(mptr)
+	syscall.SetMemPtr(mptr)
 
 	start := instance.GetExport(store, "run")
 	if start == nil {
@@ -92,8 +97,9 @@ func checkLinkage(wrappers map[string]*wasmtime.Func, module *wasmtime.Module) [
 	return linkage
 }
 
-// temporary while we are getting rid of JS linkage
-func supportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func) {
+func supportedFunctions(store wasmtime.Storelike,
+	result map[string]*wasmtime.Func,
+	syscallImpl *sys.SysCall) {
 	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, jsEnv.ValueSetIndex)
 	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, jsEnv.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, jsEnv.ValuePrepareString)
@@ -121,6 +127,12 @@ func supportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Fu
 	result["go.runtime.scheduleTimeoutEvent"] = wasmtime.WrapFunc(store, runtimeEnv.ScheduleTimeoutEvent)
 	result["go.runtime.clearTimeoutEvent"] = wasmtime.WrapFunc(store, runtimeEnv.ClearTimeoutEvent)
 	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, runtimeEnv.GetRandomData)
-	result["parigot.debugprint"] = wasmtime.WrapFunc(store, abiimpl.DebugPrint)
+	result["parigot.debugprint"] = wasmtime.WrapFunc(store, sys.DebugPrint)
 	result["go.debug"] = wasmtime.WrapFunc(store, runtimeEnv.GoDebug)
+
+	//system calls
+	result["go.parigot.locate_"] = wasmtime.WrapFunc(store, syscallImpl.Locate)
+	result["go.parigot.register_"] = wasmtime.WrapFunc(store, syscallImpl.Register)
+	result["go.parigot.exit_"] = wasmtime.WrapFunc(store, syscallImpl.Exit)
+	result["go.parigot.dispatch_"] = wasmtime.WrapFunc(store, syscallImpl.Dispatch)
 }

@@ -8,12 +8,12 @@ import (
 )
 
 type JSPatch struct {
-	mem *wasmMem
+	mem *WasmMem
 }
 
 func NewJSPatchWithMemPtr(memPtr uintptr) *JSPatch {
 	return &JSPatch{
-		mem: newWasmMem(memPtr),
+		mem: NewWasmMem(memPtr),
 	}
 }
 
@@ -22,10 +22,10 @@ func NewJSPatch() *JSPatch {
 }
 
 func (j *JSPatch) SetMemPtr(m uintptr) {
-	j.mem = newWasmMem(m)
+	j.mem = NewWasmMem(m)
 }
 
-const verbose = true
+const verbose = false
 const nanHead = 0x7FF80000
 
 func enter(funcName string, rest ...string) {
@@ -48,25 +48,25 @@ func enter(funcName string, rest ...string) {
 
 func (j *JSPatch) ValueIndex(sp int32) {
 	enter("ValueIndex")
-	index := j.mem.getInt64(sp + 16)
-	value := j.mem.loadValue(sp + 8)
+	index := j.mem.GetInt64(sp + 16)
+	value := j.mem.LoadValue(sp + 8)
 	result := value.Index(int(index))
 	wrapped := goToJS(result)
-	j.mem.storeValue(sp+32, wrapped)
+	j.mem.StoreValue(sp+32, wrapped)
 }
 
 func (j *JSPatch) ValueSetIndex(sp int32) {
 	enter("ValueSetIndex")
-	index := j.mem.getInt64(sp + 16)
-	value := j.mem.loadValue(sp + 8)
-	newValue := j.mem.loadValue(sp + 24)
+	index := j.mem.GetInt64(sp + 16)
+	value := j.mem.LoadValue(sp + 8)
+	newValue := j.mem.LoadValue(sp + 24)
 	value.SetIndex(int(index), newValue)
 }
 
 func (j *JSPatch) ValueLoadString(sp int32) {
 	enter("ValueLoadIndex")
-	str := j.mem.loadValue(sp + 8)
-	slice := j.mem.loadSlice(sp + 16)
+	str := j.mem.LoadValue(sp + 8)
+	slice := j.mem.LoadSlice(sp + 16)
 	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
 	content := str.String()
 	ptr.Data = uintptr(unsafe.Pointer((&content)))
@@ -76,19 +76,19 @@ func (j *JSPatch) ValueLoadString(sp int32) {
 
 func (j *JSPatch) ValueLength(sp int32) {
 	enter("ValueLength")
-	v := j.mem.loadValue(sp + 8)
+	v := j.mem.LoadValue(sp + 8)
 	l := v.Length()
-	j.mem.setInt64(sp+16, int64(l))
+	j.mem.SetInt64(sp+16, int64(l))
 }
 
 func (j *JSPatch) ValueInstanceOf(sp int32) {
 	enter("ValueInstanceOf")
-	example := j.mem.loadValue(sp + 16)
-	candidate := j.mem.loadValue(sp + 8)
+	example := j.mem.LoadValue(sp + 16)
+	candidate := j.mem.LoadValue(sp + 8)
 	if example.InstanceOf(candidate) {
-		j.mem.setUint8(sp+24, 1)
+		j.mem.SetUint8(sp+24, 1)
 	} else {
-		j.mem.setUint8(sp+24, 0)
+		j.mem.SetUint8(sp+24, 0)
 	}
 }
 
@@ -104,19 +104,19 @@ func (j *JSPatch) FinalizeRef(sp int32) {
 func (j *JSPatch) ValueCall(sp int32) {
 	enter("ValueCall")
 	// can go switch the stack on us here?
-	recvr := j.mem.loadValue(sp + 8)
-	prop := j.mem.loadString(sp + 16)
-	args := j.mem.loadSliceOfValues(sp + 32)
+	recvr := j.mem.LoadValue(sp + 8)
+	prop := j.mem.LoadString(sp + 16)
+	args := j.mem.LoadSliceOfValues(sp + 32)
 	v := recvr.Call(prop, args)
-	j.mem.storeValue(sp+56, goToJS(v))
-	j.mem.setUint8(sp+64, 1)
+	j.mem.StoreValue(sp+56, goToJS(v))
+	j.mem.SetUint8(sp+64, 1)
 }
 
 func (j *JSPatch) StringVal(sp int32) {
 	enter("StringVal")
-	s := j.mem.loadString(sp + 8)
+	s := j.mem.LoadString(sp + 8)
 	obj := goToJS(s)
-	j.mem.storeValue(sp+24, obj)
+	j.mem.StoreValue(sp+24, obj)
 }
 
 //func (j *JSPatch) StrConvert(memPtr uintptr, ptr int32, length int32) string {
@@ -133,43 +133,42 @@ func (j *JSPatch) StringVal(sp int32) {
 
 func (j *JSPatch) ValueGet(sp int32) {
 	enter("ValueGet")
-	value := j.mem.loadValue(sp + 8)
-	prop := j.mem.loadString(sp + 16)
+	value := j.mem.LoadValue(sp + 8)
+	prop := j.mem.LoadString(sp + 16)
 	v := value.Get(prop)
-	log.Printf("value get of [obj %d].%s=>%v", value.id(), prop, v)
-	j.mem.storeValue(sp+32, v)
+	j.mem.StoreValue(sp+32, v)
 }
 
 func (j *JSPatch) ValueInvoke(sp int32) {
 	enter("ValueInvoke")
 	// can go switch the stack on us here?
-	callee := j.mem.loadValue(sp + 8)
-	args := j.mem.loadSliceOfValues(sp + 16)
+	callee := j.mem.LoadValue(sp + 8)
+	args := j.mem.LoadSliceOfValues(sp + 16)
 	result := callee.Invoke(args)
-	j.mem.storeValue(sp+40, goToJS(result))
-	j.mem.setUint8(sp+48, 1)
+	j.mem.StoreValue(sp+40, goToJS(result))
+	j.mem.SetUint8(sp+48, 1)
 }
 func (j *JSPatch) ValueNew(sp int32) {
 	// can go switch the stack on us here?
 	enter("ValueNew")
-	v := j.mem.loadValue(sp + 8)
-	args := j.mem.loadSliceOfValues(sp + 16)
+	v := j.mem.LoadValue(sp + 8)
+	args := j.mem.LoadSliceOfValues(sp + 16)
 	panic("don't know how to call constructor for ValueNew:" +
 		fmt.Sprintf("v=%v,args=%v", v, args))
 
 }
 func (j *JSPatch) ValueSet(sp int32) {
 	enter("ValueSet")
-	value := j.mem.loadValue(sp + 8)
-	prop := j.mem.loadString(sp + 16)
-	newPropVal := j.mem.loadValue(sp + 32)
+	value := j.mem.LoadValue(sp + 8)
+	prop := j.mem.LoadString(sp + 16)
+	newPropVal := j.mem.LoadValue(sp + 32)
 	value.Set(prop, newPropVal)
 }
 
 func (j *JSPatch) ValueDelete(sp int32) {
 	enter("ValueDelete")
-	value := j.mem.loadValue(sp + 8)
-	prop := j.mem.loadString(sp + 16)
+	value := j.mem.LoadValue(sp + 8)
+	prop := j.mem.LoadString(sp + 16)
 	value.Delete(prop)
 }
 

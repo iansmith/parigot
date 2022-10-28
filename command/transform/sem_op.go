@@ -151,7 +151,7 @@ func (i *CallOp) IndentedString(indented int) string {
 	if i.ArgNum == nil {
 		buf.WriteString(fmt.Sprintf("call %s", *i.ArgName))
 	} else {
-		buf.WriteString(fmt.Sprintf("call %s", *i.ArgNum))
+		buf.WriteString(fmt.Sprintf("call %d", *i.ArgNum))
 	}
 	return buf.String()
 }

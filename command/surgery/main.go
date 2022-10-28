@@ -25,6 +25,7 @@ var op *string = flag.String("op", "", "name of the operation to perform on the 
 var dumpStats *bool = flag.Bool("d", false, "dump info about unlink")
 var fnName *string = flag.String("f", "", "function name to operate on, for dbgprint")
 var replaceFuncNames *string = flag.String("r", "", "function name to operate on, for replacefn or a filename to read a series of replacements from")
+var changeName *string = flag.String("c", "", "function name to operate on, for changetype")
 var start time.Time
 
 func main() {
@@ -118,6 +119,9 @@ func transformation(mod *transform.Module) {
 		log.Fatalf("you need to supply the -op parameter to express which op to perform")
 	}
 	switch {
+	case *op == "changetype":
+		change := newChangeType(*changeName)
+		change.Run(mod)
 	case *op == "replacefn":
 		if *replaceFuncNames == "" {
 			log.Fatalf("operation replacefn needs two functions to operate on, use the -r option and comma separate")

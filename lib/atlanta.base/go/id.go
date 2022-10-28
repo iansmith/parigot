@@ -3,234 +3,126 @@ package lib
 import (
 	"encoding/binary"
 	"fmt"
-	"math/rand"
-
-	"github.com/iansmith/parigot/g/pb/parigot"
-	"github.com/iansmith/parigot/lib/libint"
+	"reflect"
+	"unsafe"
 )
 
-const service = 's'
-
-const locateError = 'l'
-const dispatchError = 'd'
-const registerError = 'r'
-
-const kernelServiceConst = 1
-
-func init() {
-	rand.New(rand.NewSource(0)) // reproducibility for dev
+// Id is a type representing a global identifier in parigot.  They are composed of
+// a character ('x') and a number.  In production, that number is 112 bits of
+// randomness or a small integer.  The small integer case in production is for
+// error ids, to indicate a call has failed in an "expected" way.
+// In development, the numbers are always small integers, so printing them out
+// is easier.  In all cases, the character that is the highest order byte indicates
+// the type of thing the id represents. Ids of different types with the same number
+// are not equal.
+type Id interface {
+	// Short returns a short string for debugging, like [s-6a29].  The number is
+	// the last 2 bytes of the full id number.
+	Short() string
+	// String returns a long string that uniquely identifies this id.  This is
+	// usualy something like [r-xx-xxxxxxxx-xxxxxxxx-xxxx-xxxx] where all the x's
+	// are hex digits.  Note that Short() is the equivalent of the first and last
+	// five characters of string.  If the number is a small integer, the leading
+	// zeros are omitted.
+	String() string
+	// IsError returns true if this is an error type id and there is an error.  It returns
+	// false if this is an error type id and there is no error (0 value).  If
+	// this is not an error type id, it panics.
+	IsError() bool
+	// Type returns the name of the type of id, like "service" or "locate error"
+	Type() string
+	// Equal returns true if the two ids are of the same type and have the same number.
+	Equal(Id) bool
+	// High returns the high order uint64 of this id. Please don't use this unless you
+	// are sending things over the wire.
+	High() uint64
+	// Low returns the low order uint64 of this id. Please don't use this unless you
+	// are sending things over the wire.
+	Low() uint64
 }
 
-// 128 raw bits, 112 in use as number 16 as type (byte + reserved byte)
-type id struct {
-	high uint64
-	low  uint64
+type IdBase struct {
+	h, l      uint64
+	isErrType bool
+	name      string
+	letter    byte
 }
 
-// Short returns a short version of an id, like [s-1ae2].
-func (i id) Short() string {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(buf, uint64(i.high))
-	b := buf[7]
-	buf[7] = 0
-	buf[6] = 0
-	buf[5] = 0
-	buf[4] = 0
-	buf[3] = 0
-	buf[2] = 0
-	return bufToPrintedRepSmall(b, buf)
-}
-
-func bufToPrintedRepSmall(b byte, buf []byte) string {
-	found := -1
-	for i := binary.MaxVarintLen64 - 1; i >= 0; i-- {
-		if buf[i] != 0 {
-			found = i
-			break
-		}
+func int64ToByteSlice(i uint64) []byte {
+	x := (uintptr)(unsafe.Pointer(&i))
+	sh := reflect.SliceHeader{
+		Data: x,
+		Len:  8,
+		Cap:  8,
 	}
-	if found == -1 {
-		switch b {
-		case dispatchError, registerError, locateError:
-			return fmt.Sprintf("[%c-NoError]", b)
-		default:
-			panic("should not have a zero value with id type " + fmt.Sprint(b))
-		}
-	}
-	// get the small into out of the buf
-	val := binary.LittleEndian.Uint64(buf[0 : found+1])
-	return fmt.Sprintf("[%c-%04x]", val)
+	s := *(*[]byte)(unsafe.Pointer(&sh))
+	return s
 }
 
-// String returns a long string that uniquely identifies this id.  This is
-// usualy something like r-xx-xxxxxxxx-xxxxxxxx-xxxx-xxxx where all the x's
-// are hex digits.  Note that Short() is the equivalent of the first and last
-// five characters of string.  If the number is a small integer, the leading
-// zeros are omitted.
-func (i id) String() string {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(buf, uint64(i.high))
-	b := buf[7]
-	buf[7] = 0
-	buf[6] = 0 //reserved for future expansion
-	num := binary.LittleEndian.Uint64(buf)
-	result := ""
-	if num != 0 {
-		leftover := binary.LittleEndian.Uint64(buf[4:6])
-		rest := binary.LittleEndian.Uint64(buf[0:3])
-		result = fmt.Sprintf("[%c-%02x-%04x-", b, leftover, rest)
+// Short returns a short string that is useful for debugging when you want to know what
+// an Id is.  It prints the type of thing, plus the last 3 bytes in hex.  Given that
+// the three bytes represents 2^24, you would need to be VERY unlucky to end up with
+// a collision that could cause confusion when the short versions are printed.
+func (i *IdBase) Short() string {
+	highBytes := int64ToByteSlice(i.h)
+	key := highBytes[7]
+	if i.isErrType && !i.IsError() {
+		return fmt.Sprintf("[%c-NoErr-]", key)
 	}
-	binary.LittleEndian.PutUint64(buf, uint64(i.low))
-	if num == 0 {
-		return bufToPrintedRepSmall(b, buf)
-	}
-	// normal big case
-	upper := binary.LittleEndian.Uint64(buf[4:8])
-	lower := binary.LittleEndian.Uint64(buf[0:4])
-	result += fmt.Sprintf("%04x-%04x]", upper, lower)
-	return result
+	lowBytes := int64ToByteSlice(i.l)
+	return fmt.Sprintf("[%c-%02x%02x%02x]", key, lowBytes[2], lowBytes[1], lowBytes[0])
 }
 
-// IsError() returns true if the type of this id is an error type and there
-// is an error value.  0 is the only non-error value.
-func (i id) IsError() bool {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(buf, uint64(i.high))
-	b := buf[7]
-	switch b {
-	case dispatchError, registerError, locateError:
-	default:
-		panic("cannot test this id type for error " + fmt.Sprint(b))
-	}
-	return i.low != 0
+func (i *IdBase) String() string {
+	highByte := int64ToByteSlice(i.h)
+	key := highByte[7]
+	highByte[7] = 0
+	highByte[6] = 0 //reserved for future use
+	valueHigh := binary.LittleEndian.Uint64(highByte)
+	two := valueHigh >> 32
+	four := valueHigh & 0xffffffff
+
+	lowPart := make([]uint64, 4)
+	lowPart[3] = i.l & 0xffff
+	lowPart[2] = (i.l >> 16) & 0xffff
+	lowPart[1] = (i.l >> 24) & 0xffff
+	lowPart[0] = (i.l >> 28) & 0xffff
+
+	return fmt.Sprintf("[%c-%02x-%02x:%02x-%02x-%02x-%02x-%02x]", key, two, four,
+		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
 }
 
-// Returns the name of the type of id, like "service" or "locate error"
-func (i id) Type() string {
-	buf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(buf, uint64(i.high))
-	b := buf[7]
-	switch b {
-	case dispatchError:
-		return "dispatch error"
-	case registerError:
-		return "register error"
-	case locateError:
-		return "locate error"
-	case service:
-		return "service"
-	default:
-		panic("unknown id type " + fmt.Sprint(b))
+func (i *IdBase) IsError() bool {
+	if !i.isErrType {
+		panic("IsError called on a non-error type")
 	}
+	high := i.h & 0xffffffffffff
+	return high != 0 || i.l != 0
 }
 
-// Equal returns true if the two ids are of the same type and have the same number.
-func (i id) Equal(otherId libint.Id) bool {
-	bufI := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(bufI, uint64(i.high))
-	bI := bufI[7]
-	other := otherId.(id)
-	bufOther := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(bufOther, uint64(other.high))
-	bOther := bufOther[7]
-	if bI != bOther {
+func (i *IdBase) Type() string {
+	return i.name
+}
+
+func (i *IdBase) Equal(other Id) bool {
+	if i.IsError() != other.IsError() {
 		return false
 	}
-	return i.high == other.high && i.low == other.low
+	return i.h == other.High() && i.l == other.Low()
 }
 
-// ServiceId is returned when the locator succeeds at finding your service.
-type ServiceId libint.Id
-
-// LocateError is return when the locator failed to find your service or
-// had other problems.  It returns well known constants for the different
-// types of errors it has.
-type LocateError libint.Id
-
-// DispatchError is returned by a failed call to Dispatch in the ABI.
-// It returns a well known constant for its errors.
-type DispatchError libint.Id
-
-// RegisterError is returned by a failed call to Register in the ABI.
-// It returns a well known constant for its errors.
-type RegisterError libint.Id
-
-// NewService creates a new, random service id.
-func NewService() ServiceId {
-	return ServiceId(newId(service))
+func (i *IdBase) Low() uint64 {
+	return i.l
 }
-
-// NewService from int creates a service with the given number.  Note that the
-// kernel's id is always 1.
-func NewServiceFromInt(i byte) ServiceId {
-	return idFromInt(service, i)
+func (i *IdBase) High() uint64 {
+	return i.h
 }
-
-// NewDispatchError creates a dispatch error type from the given error code.
-func NewDispatchError(errorCode byte) DispatchError {
-	return DispatchError(idFromInt(dispatchError, errorCode))
-}
-
-// NewLocateError takes an error code and converts it to a Locator error.
-func NewLocateError(errorCode byte) LocateError {
-	return LocateError(idFromInt(locateError, errorCode))
-}
-
-// newId creates a new random Id with the given type
-func newId(typ byte) libint.Id {
-	return newIdFromRaw(typ, rand.Uint64(), rand.Uint64())
-}
-func newIdFromRaw(typ byte, high uint64, low uint64) libint.Id {
-	highBuf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(highBuf, high)
-	highBuf[7] = typ
-	highBuf[6] = 0 //reserved
-	high = binary.LittleEndian.Uint64(highBuf)
-	return id{high: high, low: low}
-}
-
-// idFromInt is used by code that wants to create an id in the right format, but with
-// a given value, like an error code.
-func idFromInt(s byte, value byte) id {
-	i := uint64(value)
-	var high uint64
-	var low uint64
-	highBuf := make([]byte, binary.MaxVarintLen64)
-	lowBuf := make([]byte, binary.MaxVarintLen64)
-	binary.LittleEndian.PutUint64(lowBuf, uint64(i))
-	low = binary.LittleEndian.Uint64(lowBuf)
-	highBuf[7] = s
-	highBuf[6] = 0 // reserved
-	highBuf[5] = 0
-	highBuf[4] = 0
-	highBuf[3] = 0
-	highBuf[2] = 0
-	highBuf[1] = 0
-	highBuf[0] = 0
-	high = binary.LittleEndian.Uint64(highBuf)
-	return id{high: high, low: low}
-}
-
-// FromServiceId converts from the wrapped protobuf version of service id
-// to the normal version.
-func FromServiceId(serviceId *parigot.ServiceId) ServiceId {
-	return newIdFromRaw(service, serviceId.GetHigh(), serviceId.GetLow())
-}
-
-// FromLocateErrorId converts from the wrapped protobuf version of locator error id
-// to the normal version.
-func FromLocateErrorId(loc *parigot.LocateErrorId) LocateError {
-	return newIdFromRaw(locateError, loc.GetHigh(), loc.GetLow())
-}
-
-// FromDispatchErrorId converts from the wrapped protobuf version of dispatch error id
-// to the normal version.
-func FromDispatchErrorId(loc *parigot.DispatchErrorId) LocateError {
-	return newIdFromRaw(dispatchError, loc.GetHigh(), loc.GetLow())
-}
-
-// FromRegisterErrorId converts from the wrapped protobuf version of a register error id
-// to the normal version.
-func FromRegisterErrorId(loc *parigot.RegisterErrorId) LocateError {
-	return newIdFromRaw(registerError, loc.GetHigh(), loc.GetLow())
+func idBaseFromConst(i uint64, isErrType bool, name string, letter byte) *IdBase {
+	return &IdBase{
+		h:         0,
+		l:         i,
+		isErrType: isErrType,
+		name:      name,
+		letter:    letter,
+	}
 }

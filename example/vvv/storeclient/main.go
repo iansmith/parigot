@@ -1,10 +1,12 @@
 package main
 
 import (
-	"demo/vvv/proto/g/vvv/pb"
+	"fmt"
 	"time"
+	_ "unsafe"
 
 	"demo/vvv/proto/g/vvv"
+	"demo/vvv/proto/g/vvv/pb"
 
 	"github.com/iansmith/parigot/g/log"
 	"github.com/iansmith/parigot/g/pb/kernel"
@@ -14,17 +16,14 @@ import (
 )
 
 func main() {
-	print("xxx1\n")
 	//flag.Parse()
-	print("xxx2\n")
 	logger, err := log.LocateLog()
-	print("xxx3\n")
 	if err != nil {
 		print("failed to get log\n")
 		//abandon ship, can't get logger to even say what happened
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
-	print("got log", logger, "\n")
+	print(fmt.Sprintf("got log %x... about to try to log\n", logger))
 	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {

@@ -7,34 +7,34 @@ import (
 )
 
 type RuntimePatch struct {
-	mem *wasmMem
+	mem *WasmMem
 }
 
 func NewRuntimePatchWithMemPtr(memptr uintptr) *RuntimePatch {
-	return &RuntimePatch{mem: newWasmMem(memptr)}
+	return &RuntimePatch{mem: NewWasmMem(memptr)}
 }
 func NewRuntimePatch() *RuntimePatch {
 	return &RuntimePatch{}
 }
 
 func (r *RuntimePatch) Nanotime1(sp int32) {
-	r.mem.setInt64(sp+8, time.Now().UnixNano())
+	r.mem.SetInt64(sp+8, time.Now().UnixNano())
 }
 
 func (j *RuntimePatch) SetMemPtr(m uintptr) {
-	j.mem = newWasmMem(m)
+	j.mem = NewWasmMem(m)
 }
 
 func (r *RuntimePatch) GetRandomData(sp int32) {
-	b := r.mem.loadSlice(sp + 8)
+	b := r.mem.LoadSlice(sp + 8)
 	_, _ = rand.Read(b) //docs say no returned error
 }
 func (r *RuntimePatch) WallTime(sp int32) {
 	secs := time.Now().Unix()
-	r.mem.setInt64(sp+8, secs)
+	r.mem.SetInt64(sp+8, secs)
 	nanos := time.Now().UnixNano()
 	nanos = nanos % 1000000000
-	r.mem.setInt32(sp+16, int32(nanos)) // this is big enough, max size is 1B and 31 bits is 2B
+	r.mem.SetInt32(sp+16, int32(nanos)) // this is big enough, max size is 1B and 31 bits is 2B
 	log.Printf("walltime executed %d,%d", secs, nanos)
 }
 func (r *RuntimePatch) ScheduleTimeoutEvent(sp int32) {

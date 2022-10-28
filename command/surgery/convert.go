@@ -95,7 +95,6 @@ func convertWasmToWat(tmpDir string, source string) (string, error) {
 		log.Printf("conversion of %s to wat failed,\n\terrors in %s (or possibly %s): %v", source, target, errPath, err)
 		return "", err
 	}
-	log.Printf("xxxx nocheck version %s\n", target)
 	return target, nil
 }
 

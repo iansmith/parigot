@@ -5,7 +5,8 @@ TEXT parigot·locate_(SB), NOSPLIT, $0
   RET
 
 TEXT parigot·register_(SB), NOSPLIT, $0
-  CallImport
+    CallImport
+    //CALL go·parigot·register(SB)
   RET
 
 TEXT parigot·dispatch_(SB), NOSPLIT, $0
@@ -15,3 +16,4 @@ TEXT parigot·dispatch_(SB), NOSPLIT, $0
 TEXT parigot·exit_(SB), NOSPLIT, $0
   CallImport
   RET
+
