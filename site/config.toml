@@ -1,4 +1,4 @@
-baseURL = 'http://parigot.github.io/'
+baseURL = 'http://www.parigot.info/'
 languageCode = 'en-us'
 title = 'Parigot'
 theme = "ace-documentation-1.0.4"
