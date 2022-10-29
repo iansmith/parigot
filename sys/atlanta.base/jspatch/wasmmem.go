@@ -77,11 +77,12 @@ func (w *WasmMem) GetInt32(addr int32) int32 {
 	value := binary.LittleEndian.Uint32(buf)
 	return int32(value)
 }
-func (w *WasmMem) LoadStringWithLen(addr int32, l int32) string {
-	ptr := w.GetInt64(addr + 0)
-	buf := make([]byte, l)
-	for i := int32(0); i < l; i++ {
-		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr)+i)))
+func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
+	ptr := w.GetInt64(dataAddr)
+	len_ := w.GetInt64(lenAddr)
+	buf := make([]byte, len_)
+	for i := int64(0); i < len_; i++ {
+		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))
 		buf[i] = *str
 	}
 	return string(buf)

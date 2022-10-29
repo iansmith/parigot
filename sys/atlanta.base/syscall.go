@@ -5,8 +5,6 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/iansmith/parigot/g/pb/kernel"
-	"github.com/iansmith/parigot/g/pb/parigot"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
 )
@@ -62,73 +60,34 @@ func (a *SysCall) SetNow(_ int64, _ bool) {
 var packageRegistry = make(map[string]map[string]lib.Id)
 var serviceCounter = 7 // last USED service num
 
-func (s *SysCall) getRegisterRequest(offset int32) *kernel.RegisterRequest {
-	wasmPtr := s.mem.GetInt32(offset)
-	offPkg := unsafe.Offsetof(kernel.RegisterRequest{}.ProtoPackage)
-	pkg := s.mem.LoadString(wasmPtr + int32(offPkg))
-	offSvc := unsafe.Offsetof(kernel.RegisterRequest{}.Service)
-	svc := s.mem.LoadString(wasmPtr + int32(offSvc))
-	return &kernel.RegisterRequest{
-		ProtoPackage: pkg,
-		Service:      svc,
-	}
+func (s *SysCall) ReadString(structPtr int64, dataOffset uintptr, lenOffset uintptr) string {
+	return s.mem.LoadStringWithLen(int32(structPtr)+int32(dataOffset), int32(structPtr)+int32(lenOffset))
 }
-
-func (s *SysCall) fillRegisterResponse(offset int32,
-	regErrRaw lib.Id,
-	sidRaw lib.Id) {
-
-	regErr := lib.MarshalRegisterErrId(regErrRaw)
-	sid := lib.MarshalServiceId(sidRaw)
-
-	wasmPtr := s.mem.GetInt32(offset)
-	offErr := unsafe.Offsetof(kernel.RegisterResponse{}.ErrorId)
-	errIdPtr := s.mem.GetInt32(wasmPtr + int32(offErr))
-	lowErrOff := unsafe.Offsetof(parigot.RegisterErrorId{}.Low)
-	errValuePtr := uintptr(errIdPtr + int32(lowErrOff))
-	s.mem.SetInt64(int32(errValuePtr), int64(regErr.Low))
-	s.mem.SetInt64(int32(errValuePtr-8), int64(regErr.High))
-
-	offSid := unsafe.Offsetof(kernel.RegisterResponse{}.ServiceId)
-	sidPtr := s.mem.GetInt32(wasmPtr + int32(offSid))
-	lowSidOff := unsafe.Offsetof(kernel.RegisterResponse{}.ServiceId.Low)
-	sidValuePtr := uintptr(sidPtr) + lowSidOff
-	s.mem.SetInt64(int32(sidValuePtr), int64(sid.Low))
-	s.mem.SetInt64(int32(sidValuePtr-8), int64(sid.High))
+func (s *SysCall) Write64BitPair(structPtr int64, dataOffset uintptr, id lib.Id) {
+	derefed := s.mem.GetInt32(int32(structPtr + int64(dataOffset)))
+	// write the error info back to client
+	s.mem.SetInt64(derefed, int64(id.Low()))
+	s.mem.SetInt64(derefed+8, int64(id.High()))
 }
 
 func (s *SysCall) Register(sp int32) {
-	//rreq := s.getRegisterRequest(sp + 8)
-	//serviceRegistry, ok := packageRegistry[rreq.ProtoPackage]
-	//if !ok {
-	//	serviceRegistry = make(map[string]lib.Id)
-	//}
-	//sid := lib.ServiceIdFromUint64(0, uint64(serviceCounter+1))
-	//serviceCounter++
-	//if serviceCounter > MaxService {
-	//	panic("service count exceeded maximum of " + fmt.Sprint(MaxService))
-	//}
-	//serviceRegistry[rreq.Service] = sid
-	//s.fillRegisterResponse(sp+16, lib.NewRegisterErr(0), sid)
-	//pkg := s.mem.LoadStringWithLen(pkgPtr, pkgLen)
-	//svc := s.mem.LoadStringWithLen(svcPtr, svcLen)
-	//log.Printf("got register at ABI:%s,%s", pkg, svc)
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
-	offPkg := unsafe.Offsetof(lib.RegDetail{}.PkgPtr)
-	offLen := unsafe.Offsetof(lib.RegDetail{}.PkgLen)
-	pkg := s.mem.LoadStringTwoPtrs(int32(wasmPtr)+int32(offPkg), int32(wasmPtr)+int32(offLen))
+	pkg := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.RegDetail{}.PkgPtr),
+		unsafe.Offsetof(lib.RegDetail{}.PkgLen))
 
-	offService := unsafe.Offsetof(lib.RegDetail{}.ServicePtr)
-	serviceLen := unsafe.Offsetof(lib.RegDetail{}.ServiceLen)
-	service := s.mem.LoadStringTwoPtrs(int32(wasmPtr)+int32(offService), int32(wasmPtr)+int32(serviceLen))
+	service := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.RegDetail{}.ServicePtr),
+		unsafe.Offsetof(lib.RegDetail{}.ServiceLen))
+
 	log.Printf("registration for %s.%s", pkg, service)
 
-	errOff := unsafe.Offsetof(lib.RegDetail{}.OutErrPtr)
-	errInd := s.mem.GetInt32(int32(wasmPtr + int64(errOff)))
-
-	offSvcPtr := unsafe.Offsetof(lib.RegDetail{}.OutServiceIdPtr)
-	svcInd := s.mem.GetInt32(int32(wasmPtr + int64(offSvcPtr)))
+	//errOff := unsafe.Offsetof(lib.RegDetail{}.OutErrPtr)
+	//errInd := s.mem.GetInt32(int32(wasmPtr + int64(errOff)))
+	//
+	//offSvcPtr := unsafe.Offsetof(lib.RegDetail{}.OutServiceIdPtr)
+	//svcInd := s.mem.GetInt32(int32(wasmPtr + int64(offSvcPtr)))
 
 	serviceRegistry, ok := packageRegistry[pkg]
 	if !ok {
@@ -152,13 +111,17 @@ func (s *SysCall) Register(sp int32) {
 		serviceRegistry[service] = sid
 		serviceCounter++
 		//send back the data to client
-		s.mem.SetInt64(svcInd, int64(sid.Low()))
-		s.mem.SetInt64(svcInd+8, int64(sid.High()))
+		s.Write64BitPair(wasmPtr,
+			unsafe.Offsetof(lib.RegDetail{}.OutServiceIdPtr), sid)
+		//s.mem.SetInt64(svcInd, int64(sid.Low()))
+		//s.mem.SetInt64(svcInd+8, int64(sid.High()))
 	}
+	s.Write64BitPair(wasmPtr,
+		unsafe.Offsetof(lib.RegDetail{}.OutErrPtr), regErr)
 
 	// write the error info back to client
-	s.mem.SetInt64(errInd, int64(regErr.Low()))
-	s.mem.SetInt64(errInd+8, int64(regErr.High()))
+	//s.mem.SetInt64(errInd, int64(regErr.Low()))
+	//s.mem.SetInt64(errInd+8, int64(regErr.High()))
 
 }
 
