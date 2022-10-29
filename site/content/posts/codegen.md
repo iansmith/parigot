@@ -4,7 +4,6 @@ date: 2022-10-13T03:05:34-04:00
 draft: false
 ---
 
-# Codgen
 Yesterday I got the first big part of code generation done.  I feel really good about 
 the investment in the "codegen toolkit". I found that yesterday I was able to
 add functionality with this toolkit quickly and easily.  I think I could write a

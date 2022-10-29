@@ -6,3 +6,4 @@ g/*
 tmp/*
 tinygotest/*
 Makefile.orig
+.DS_Store

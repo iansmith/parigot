@@ -69,7 +69,6 @@ RUN ln -s /home/parigot/deps/go1.19.2 /home/parigot/tools
 RUN ln -s /home/parigot/deps/wabt /home/parigot/tools
 RUN ln -s /usr/local/lib/tinygo /home/parigot/tools/tinygo0.26
 ENV TINYGOROOT=/home/parigot/tools/tinygo0.26
-
 ENV PB_REL=""
 
 # symlink all the single binaries in tools/bin

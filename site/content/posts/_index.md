@@ -1,7 +1,8 @@
 +++
-title = "Parigot Blog"
+title = "Technical Blog"
 description = "Blog posts thinking about and building parigot."
-weight = 2
+weight = 0
 disableReadmoreNav = false
+toc = false
 +++
 

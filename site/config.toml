@@ -2,9 +2,17 @@ baseURL = 'http://parigot.github.io/'
 languageCode = 'en-us'
 title = 'Parigot'
 theme = "ace-documentation-1.0.4"
+ignorefiles = ["posts/*", "doc/*", "internal/*"]
+disableSearch = true
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
 
 [[menu.shortcuts]]
-name = "<i class='fab fa-github'></i>"
-url = "https://github.com/iansmih/parigot"
+name = "<i class='fab fa-github'>Source</i>"
+url = "https://github.com/wedidntmake/thatmistake"
 weight = 10
+
 
