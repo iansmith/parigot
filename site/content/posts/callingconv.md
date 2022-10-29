@@ -1,5 +1,5 @@
 ---
-title: "Callingconv"
+title: "Calling conventions"
 date: 2022-10-24T08:46:09-04:00
 draft: false
 ---
@@ -40,3 +40,6 @@ values that worked for each one.
 
 So, today I'm going to switch to a far simpler calling convention
 based more strongly on the protobuf encoding.
+
+Update: This decision was later [overtaken by events](../first_syscall) and that approach
+is the cousin of this.

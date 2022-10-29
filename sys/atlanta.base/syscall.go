@@ -139,5 +139,5 @@ func DebugPrint(ct int32) {
 func (a *SysCall) Dispatch(int32) {
 	log.Printf("dispatch called")
 	//print("Dispatch")
-	os.Exit(1)
+	os.Exit(1)	
 }

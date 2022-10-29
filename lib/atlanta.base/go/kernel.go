@@ -9,7 +9,6 @@ import (
 	"github.com/iansmith/parigot/g/pb/parigot"
 	"reflect"
 	"unsafe"
-	_ "unsafe"
 
 	"github.com/iansmith/parigot/g/pb/kernel"
 )
