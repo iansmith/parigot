@@ -88,6 +88,12 @@ promise that we know how to read.
         I heard from somebody on the internet that parigot was cool.  
     </label>
     </div>
+    <div class="form-check">
+    <input class="form-check-input" type="checkbox" value="" id="pain">
+    <label class="form-check-label" for="pain">
+        I like pain.
+    </label>
+    </div>
     <div>
     <br/><p>Sometimes it happens that people are <em>wrong</em> on the internet.  In case somebody is <em>wrong</em> about
         parigot, what would you like to tell them?</p>
