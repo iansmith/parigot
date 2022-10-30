@@ -6,24 +6,16 @@ package lib
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/g/pb/parigot"
 	"reflect"
 	"unsafe"
+
+	"github.com/iansmith/parigot/g/pb/parigot"
 
 	"github.com/iansmith/parigot/g/pb/kernel"
 )
 
 func Exit(in *kernel.ExitRequest) {
 	exit(in)
-}
-
-type RegDetail struct {
-	PkgPtr          int64     // in p0a
-	PkgLen          int64     // in p0b
-	ServicePtr      int64     // in p1a
-	ServiceLen      int64     // in p1b
-	OutErrPtr       *[2]int64 // out p0
-	OutServiceIdPtr *[2]int64 // out p1
 }
 
 // Register calls the kernel to register the given type. The Id returned is only
@@ -36,7 +28,7 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 	out.ErrorId.Low = 2
 	out.ServiceId = &parigot.ServiceId{High: 3, Low: 4}
 
-	detail := new(RegDetail)
+	detail := new(RegPayload)
 	pkgSh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
 	detail.PkgPtr = int64(pkgSh.Data)
 	detail.PkgLen = int64(pkgSh.Len)
@@ -60,7 +52,7 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
 	out.ErrorId = MarshalRegisterErrId(err)
-	print(fmt.Sprintf("CLIENT result %s,%s", sid.Short(), err.Short()))
+	print(fmt.Sprintf("CLIENT result of Register %s,%s\n", sid.Short(), err.Short()))
 
 	if err.IsError() {
 		return sid, NewPerrorFromId("failed to register properly", err)
@@ -68,9 +60,43 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 	return sid, nil
 }
 
+//go:noinline
 func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
-	locate(in, out)
-	return nil, nil
+	out.ErrorId = &parigot.LocateErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+	out.ServiceId = &parigot.ServiceId{High: 3, Low: 4}
+
+	detail := new(LocatePayload)
+	pkgSh := (*reflect.StringHeader)(unsafe.Pointer(&in.PackageName))
+	detail.PkgPtr = int64(pkgSh.Data)
+	detail.PkgLen = int64(pkgSh.Len)
+
+	serviceSh := (*reflect.StringHeader)(unsafe.Pointer(&in.ServiceName))
+	detail.ServicePtr = int64(serviceSh.Data)
+	detail.ServiceLen = int64(serviceSh.Len)
+	// choosing low's addr means you ADD 8 to get to the high
+	detail.OutErrPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	detail.OutServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
+
+	u := uintptr(unsafe.Pointer(detail))
+	locate(int32(u))
+	// marshal them back together
+	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutServiceIdPtr))))
+	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
+	out.ServiceId = MarshalServiceId(sid)
+	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
+
+	err := NewRegisterErr(RegisterErrCode(regErrDataPtr[0]))
+	// in case the caller walks the structure repacks a new protobuf
+	out.ServiceId = MarshalServiceId(sid)
+	out.ErrorId = MarshalLocateErrId(err)
+	print(fmt.Sprintf("CLIENT result of Locate() %s,%s\n", sid.Short(), err.Short()))
+
+	if err.IsError() {
+		return sid, NewPerrorFromId("failed to locate properly", err)
+	}
+	return sid, nil
 }
 
 func Dispatch(in *kernel.DispatchRequest, out *kernel.DispatchResponse) {
@@ -79,7 +105,7 @@ func Dispatch(in *kernel.DispatchRequest, out *kernel.DispatchResponse) {
 
 //go:noinline
 //go:linkname locate parigot.locate_
-func locate(in *kernel.LocateRequest, out *kernel.LocateResponse) int32
+func locate(int32)
 
 //go:noinline
 //go:linkname register parigot.register_

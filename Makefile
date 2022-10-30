@@ -27,7 +27,7 @@ build/protoc-gen-parigot: \
 command/transform/wasm_parser.go: $(WASM_GRAMMAR)
 	@echo
 	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ====================================================\033[0m"
-	cd command; java -Xmx500M -cp "../../tools/lib/antlr-4.9.3-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4; cd ..
+	cd command; java -Xmx500M -cp "/home/parigot/tools/lib/antlr-4.9.3-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4; cd ..
 
 build/runner: g/log/logservicedecl.p.go \
 	g/net/netservicedecl.p.go

@@ -74,12 +74,12 @@ func (s *SysCall) Register(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
 	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.RegDetail{}.PkgPtr),
-		unsafe.Offsetof(lib.RegDetail{}.PkgLen))
+		unsafe.Offsetof(lib.RegPayload{}.PkgPtr),
+		unsafe.Offsetof(lib.RegPayload{}.PkgLen))
 
 	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.RegDetail{}.ServicePtr),
-		unsafe.Offsetof(lib.RegDetail{}.ServiceLen))
+		unsafe.Offsetof(lib.RegPayload{}.ServicePtr),
+		unsafe.Offsetof(lib.RegPayload{}.ServiceLen))
 
 	log.Printf("registration for %s.%s", pkg, service)
 
@@ -112,12 +112,12 @@ func (s *SysCall) Register(sp int32) {
 		serviceCounter++
 		//send back the data to client
 		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.RegDetail{}.OutServiceIdPtr), sid)
+			unsafe.Offsetof(lib.RegPayload{}.OutServiceIdPtr), sid)
 		//s.mem.SetInt64(svcInd, int64(sid.Low()))
 		//s.mem.SetInt64(svcInd+8, int64(sid.High()))
 	}
 	s.Write64BitPair(wasmPtr,
-		unsafe.Offsetof(lib.RegDetail{}.OutErrPtr), regErr)
+		unsafe.Offsetof(lib.RegPayload{}.OutErrPtr), regErr)
 
 	// write the error info back to client
 	//s.mem.SetInt64(errInd, int64(regErr.Low()))
@@ -125,11 +125,51 @@ func (s *SysCall) Register(sp int32) {
 
 }
 
-func (a *SysCall) Locate(sp int32) {
-	log.Printf("locate called")
+func (s *SysCall) Locate(sp int32) {
+	wasmPtr := s.mem.GetInt64(sp + 8)
 
-	//log.Printf("Locate %s,%s->%x", pkg, service, retVal)
-	os.Exit(1)
+	pkg := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.LocatePayload{}.PkgPtr),
+		unsafe.Offsetof(lib.LocatePayload{}.PkgLen))
+
+	service := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.LocatePayload{}.ServicePtr),
+		unsafe.Offsetof(lib.LocatePayload{}.ServiceLen))
+
+	log.Printf("locate requested for %s.%s", pkg, service)
+
+	var locErr *lib.Id
+	var serviceId *lib.Id
+	serviceRegistry, ok := packageRegistry[pkg]
+	if !ok {
+		l := lib.NewLocateErr(lib.LocateNotFound)
+		locErr = &l
+	} else {
+		id, ok := serviceRegistry[service]
+		if !ok {
+			l := lib.NewLocateErr(lib.LocateNotFound)
+			locErr = &l
+		} else {
+			serviceId = &id
+		}
+	}
+	// no we need to write the results back to the client
+	switch {
+	case locErr != nil:
+		s.Write64BitPair(wasmPtr,
+			unsafe.Offsetof(lib.LocatePayload{}.OutErrPtr), *locErr)
+	case serviceId != nil:
+		l := lib.NoLocateErr()
+		locErr = &l
+		log.Printf("locate success for %s.%s -> %s", pkg, service, (*serviceId).Short())
+		s.Write64BitPair(wasmPtr,
+			unsafe.Offsetof(lib.LocatePayload{}.OutErrPtr), *locErr)
+		s.Write64BitPair(wasmPtr,
+			unsafe.Offsetof(lib.LocatePayload{}.OutServiceIdPtr), *serviceId)
+	default:
+		panic("did not create an error or service id when performing locate")
+	}
+	return
 }
 
 func DebugPrint(ct int32) {
@@ -139,5 +179,5 @@ func DebugPrint(ct int32) {
 func (a *SysCall) Dispatch(int32) {
 	log.Printf("dispatch called")
 	//print("Dispatch")
-	os.Exit(1)	
+	os.Exit(1)
 }

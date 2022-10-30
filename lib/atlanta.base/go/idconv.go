@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/binary"
+
 	"github.com/iansmith/parigot/g/pb/parigot"
 )
 
@@ -54,14 +55,14 @@ func NewProtoErr(code ProtoErrCode) Id {
 }
 
 func newFromUInt(code uint64, name string, letter byte) Id {
-	idBaseFromConst(code, true, "registerErrorId", 'r')
+	idBaseFromConst(code, true, name, letter)
 	buf := make([]byte, 8)
 	buf[7] = letter
 	return &IdBase{
 		h:         binary.LittleEndian.Uint64(buf),
 		l:         code,
 		isErrType: true,
-		name:      "",
+		name:      name,
 	}
 }
 
