@@ -3,6 +3,7 @@ languageCode = 'en-us'
 title = 'Parigot'
 theme = "ace-documentation-1.0.4"
 ignorefiles = ["posts/*", "doc/*", "internal/*"]
+[params]
 disableSearch = true
 
 [markup]
@@ -15,4 +16,8 @@ name = "<i class='fab fa-github'>Source</i>"
 url = "https://github.com/wedidntmake/thatmistake"
 weight = 10
 
+[[menu.shortcuts]]
+name = "<i class='fab'>Request Early Access</i>"
+url = "/access"
+weight = 10
 
