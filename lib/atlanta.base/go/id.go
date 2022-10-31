@@ -118,8 +118,11 @@ func (i *IdBase) High() uint64 {
 	return i.h
 }
 func idBaseFromConst(i uint64, isErrType bool, name string, letter byte) *IdBase {
+	buf := make([]byte, 8)
+	buf[7] = letter
+	buf[6] = 0 //reserved
 	return &IdBase{
-		h:         0,
+		h:         binary.LittleEndian.Uint64(buf),
 		l:         i,
 		isErrType: isErrType,
 		name:      name,

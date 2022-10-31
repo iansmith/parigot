@@ -9,9 +9,8 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/g/pb/parigot"
-
 	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/g/pb/parigot"
 )
 
 func Exit(in *kernel.ExitRequest) {
@@ -85,9 +84,9 @@ func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
 	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutServiceIdPtr))))
 	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
 	out.ServiceId = MarshalServiceId(sid)
-	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
+	locErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
 
-	err := NewRegisterErr(RegisterErrCode(regErrDataPtr[0]))
+	err := NewLocateErr(LocateErrCode(locErrDataPtr[0]))
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
 	out.ErrorId = MarshalLocateErrId(err)

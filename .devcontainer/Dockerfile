@@ -112,6 +112,8 @@ RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
 RUN go install github.com/bufbuild/buf/cmd/buf@latest
 RUN go install golang.org/x/tools/gopls@latest
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN go install honnef.co/go/tools/cmd/staticcheck@latest
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
@@ -122,7 +124,6 @@ WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
 ENV GOTOOLS=/home/parigot/tools/go1.19.2
 ENV WABTTOOLS=/home/parigot/tools/wabt
-
 
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 

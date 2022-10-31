@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/iansmith/parigot/g/pb/parigot"
 )
@@ -32,38 +33,32 @@ const (
 )
 
 func NoRegisterErr() Id {
-	return newFromUInt(0, "registerErrorId", registerIdErrLetter)
+	return newFromErrorCode(0, "registerErrorId", registerIdErrLetter)
 }
 func NoDispatchErr() Id {
-	return newFromUInt(0, "dispatchErrorId", dispatchIdErrLetter)
+	return newFromErrorCode(0, "dispatchErrorId", dispatchIdErrLetter)
 }
 func NoLocateErr() Id {
-	return newFromUInt(0, "locationErrorId", locateIdErrLetter)
+	return newFromErrorCode(0, "locationErrorId", locateIdErrLetter)
 }
 
 func NewRegisterErr(code RegisterErrCode) Id {
-	return newFromUInt(uint64(code), "registerErrorId", registerIdErrLetter)
+	return newFromErrorCode(uint64(code), "registerErrorId", registerIdErrLetter)
 }
 func NewLocateErr(code LocateErrCode) Id {
-	return newFromUInt(uint64(code), "locateErrorId", locateIdErrLetter)
+	return newFromErrorCode(uint64(code), "locateErrorId", locateIdErrLetter)
 }
 func NewDispatchErr(code DispatchErrCode) Id {
-	return newFromUInt(uint64(code), "dispatchErrorId", dispatchIdErrLetter)
+	log.Printf("createing new dispatch error with code %d", code)
+	return newFromErrorCode(uint64(code), "dispatchErrorId", dispatchIdErrLetter)
 }
 func NewProtoErr(code ProtoErrCode) Id {
-	return newFromUInt(uint64(code), "protoErrorID", protoIdErrLetter)
+	return newFromErrorCode(uint64(code), "protoErrorID", protoIdErrLetter)
 }
 
-func newFromUInt(code uint64, name string, letter byte) Id {
-	idBaseFromConst(code, true, name, letter)
-	buf := make([]byte, 8)
-	buf[7] = letter
-	return &IdBase{
-		h:         binary.LittleEndian.Uint64(buf),
-		l:         code,
-		isErrType: true,
-		name:      name,
-	}
+func newFromErrorCode(code uint64, name string, letter byte) Id {
+	id := idBaseFromConst(code, true, name, letter)
+	return id
 }
 
 func ServiceIdFromUint64(high, low uint64) Id {
