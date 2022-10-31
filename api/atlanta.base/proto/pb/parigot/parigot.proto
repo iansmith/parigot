@@ -1,7 +1,9 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
 option go_package="github.com/iansmith/parigot/g/pb/parigot;parigot";
 package pb.parigot;
+
 
 extend google.protobuf.ServiceOptions {
   optional bool always_pull_up_parameters = 543212;
@@ -27,6 +29,15 @@ extend google.protobuf.MessageOptions {
   optional string wasm_message_name = 543210;
 }
 
+enum LogLevel {
+  LOGLEVEL_UNSPECIFIED = 0;
+  LOGLEVEL_FATAL  =1;
+  LOGLEVEL_ERROR  =2;
+  LOGLEVEL_WARNING  =3;
+  LOGLEVEL_INFO  =4;
+  LOGLEVEL_DEBUG  =5;
+}
+
 message LocateErrorId {
   uint64 high = 1;
   uint64 low = 2;
@@ -45,4 +56,17 @@ message RegisterErrorId {
 message ServiceId {
   uint64 high = 1;
   uint64 low = 2;
+}
+
+message PCtx {
+  repeated PCtxEvent event = 1;
+}
+message PCtxEvent {
+  repeated PCtxMessage line = 1;
+}
+message PCtxMessage {
+  google.protobuf.Timestamp stamp = 1;
+  LogLevel level = 2;
+  string producer = 3;
+  string message = 4;
 }

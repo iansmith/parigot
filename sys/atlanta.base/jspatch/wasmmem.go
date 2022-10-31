@@ -77,6 +77,7 @@ func (w *WasmMem) GetInt32(addr int32) int32 {
 	value := binary.LittleEndian.Uint32(buf)
 	return int32(value)
 }
+
 func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	ptr := w.GetInt64(dataAddr)
 	len_ := w.GetInt64(lenAddr)
@@ -87,6 +88,16 @@ func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	}
 	return string(buf)
 }
+func (w *WasmMem) CopyToPtr(dataAddr int32, content []byte) {
+	ptr := int32(w.GetInt64(dataAddr))
+	len_ := int32(len(content))
+
+	for i := int32(0); i < len_; i++ {
+		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))
+		*str = content[i]
+	}
+}
+
 func (w *WasmMem) LoadStringTwoPtrs(addr int32, l int32) string {
 	data := w.GetInt32(addr)
 	size := w.GetInt32(l)
@@ -112,6 +123,12 @@ func (w *WasmMem) LoadString(addr int32) string {
 func (w *WasmMem) LoadSlice(addr int32) []byte {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
+	return w.LoadSliceWithLenAddr(int32(array), int32(l))
+}
+
+func (w *WasmMem) LoadSliceWithLenAddr(addr, lenAddr int32) []byte {
+	array := w.GetInt64(addr)
+	l := w.GetInt64(lenAddr)
 	result := make([]byte, l)
 	for i := int64(0); i < l; i++ {
 		ptr := w.memPtr + uintptr(array) + uintptr(i)
@@ -119,6 +136,7 @@ func (w *WasmMem) LoadSlice(addr int32) []byte {
 	}
 	return result
 }
+
 func (w *WasmMem) GetFloat32(addr int32) float32 {
 	ptr := (*uint32)(unsafe.Pointer(w.memPtr + uintptr(addr)))
 	return math.Float32frombits(*ptr)

@@ -2,6 +2,8 @@ syntax = "proto3";
 package pb.kernel;
 option go_package="github.com/iansmith/parigot/g/pb/kernel;kernel";
 import "pb/parigot/parigot.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
 
 
 message ExitRequest {
@@ -21,16 +23,17 @@ message LocateResponse {
 }
 
 message DispatchRequest {
-  int64 service_sid =1;
+  parigot.ServiceId service_id = 1;
   string method=2;
   string caller =3;
-  bytes in_pctx = 4;
-  bytes in_blob=5;
+  parigot.PCtx in_pctx = 4;
+  google.protobuf.Any param=5;
 }
 
 message DispatchResponse {
-  bytes out_blob = 1;
-  parigot.DispatchErrorId error_id =2;
+  parigot.PCtx out_pctx = 1;
+  google.protobuf.Any result = 2;
+  parigot.DispatchErrorId error_id =3;
 }
 
 message RegisterRequest {

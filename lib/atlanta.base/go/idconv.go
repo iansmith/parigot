@@ -25,11 +25,21 @@ const (
 	RegisterNamespaceExhausted RegisterErrCode = 2
 
 	DispatchNotFound DispatchErrCode = 1
+	// DispatchTooLarge means that the result of some part of a
+	// Dispatch() call was bigger than the buffer we allocated to hold it.
+	// When this error occurs, none of the client allocated buffers are
+	// touched.
+	DispatchTooLarge DispatchErrCode = 2
+	// DispatchMarshalFailed is an internal error of Dispatch. This means
+	// Dispatch() was trying to marshal some data and the marshal failed.
+	// Typically, it will output to the kernel logs the problem that occurred.
+	DispatchMarshalFailed DispatchErrCode = 3
 
 	LocateNotFound LocateErrCode = 1
 
 	ProtoUnmarshalFailed = 1
 	ProtoMarshalFailed   = 2
+	ProtoDataTooLarge    = 3
 )
 
 func NoRegisterErr() Id {

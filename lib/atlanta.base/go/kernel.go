@@ -11,6 +11,9 @@ import (
 
 	"github.com/iansmith/parigot/g/pb/kernel"
 	"github.com/iansmith/parigot/g/pb/parigot"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 func Exit(in *kernel.ExitRequest) {
@@ -97,9 +100,82 @@ func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
 	}
 	return sid, nil
 }
+func stringToTwoInt64s(s string) (int64, int64) {
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	return int64(sh.Data), int64(sh.Len)
+}
+func sliceToTwoInt64s(b []byte) (int64, int64) {
+	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	return int64(slh.Data), int64(slh.Len)
+}
 
-func Dispatch(in *kernel.DispatchRequest, out *kernel.DispatchResponse) {
-	dispatch(in, out)
+// Dispatch is the primary means that a caller can send an RPC message.
+// If you are in local development mode, this call is handled by the kernel
+// itself, otherwise it implies a remote procedure call.  Note that the
+// kernel calls, including this one, have an in-band and out-of-band error
+// return.  If there was no error out-of-band the second return value will
+// be nil.  However, inside the result there may more error values to check.
+func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
+
+	out := new(kernel.DispatchResponse)
+
+	detail := &DispatchPayload{}
+	detail.ServiceId[0] = int64(in.ServiceId.GetLow())
+	detail.ServiceId[1] = int64(in.ServiceId.GetHigh())
+
+	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
+	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
+
+	b, err := proto.Marshal(in.InPctx)
+	if err != nil {
+		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewProtoErr(ProtoMarshalFailed))
+	}
+
+	b, err = proto.Marshal(in.Param)
+	if err != nil {
+		return nil, NewPerrorFromId("marshal of any for Dispatch()", NewProtoErr(ProtoMarshalFailed))
+	}
+
+	detail.ParamPtr, detail.ParamLen = sliceToTwoInt64s(b)
+
+	resultPctx := make([]byte, GetMaxMessageSize())
+	detail.OutPctxPtr, detail.OutPctxLen = sliceToTwoInt64s(resultPctx)
+
+	resultPtr := make([]byte, GetMaxMessageSize())
+	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(resultPtr)
+	if detail.ResultLen != int64(GetMaxMessageSize()) {
+		panic("GetMaxMessageSize() should be the result length!")
+	}
+
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+
+	// THE CALL
+	u := uintptr(unsafe.Pointer(detail))
+	dispatch(int32(u))
+
+	// we need to process the dispatch error first because if there was
+	// an error, it could be that the pointers were not used
+	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
+	derr := NewDispatchErr(DispatchErrCode(dispatchErrDataPtr[0]))
+	if derr.IsError() {
+		return nil, NewPerrorFromId("dispatch error", derr)
+	}
+
+	// no error sent back to use, now we will unmarshal
+	out.OutPctx = new(parigot.PCtx)
+	err = proto.Unmarshal(resultPctx, out.OutPctx)
+	if err != nil {
+		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
+	}
+
+	bytePtr := (*byte)(unsafe.Pointer(uintptr(detail.ResultPtr)))
+	byteSlice := unsafe.Slice(bytePtr, detail.ResultLen)
+	out.Result = &anypb.Any{} //this is where the outputwill go
+	err = proto.Unmarshal(byteSlice, out.Result)
+	if err != nil {
+		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
+	}
+	return out, nil
 }
 
 //go:noinline
@@ -116,7 +192,7 @@ func register(int32)
 
 //go:noinline
 //go:linkname dispatch parigot.dispatch_
-func dispatch(in *kernel.DispatchRequest, out *kernel.DispatchResponse) int32
+func dispatch(int32)
 
 //go:noinline
 //go:linkname exit parigot.exit_
