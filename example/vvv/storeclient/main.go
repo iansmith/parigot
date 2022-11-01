@@ -24,9 +24,8 @@ func main() {
 		//abandon ship, can't get logger to even say what happened
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
-	callIt(func(x int32) { print(x) })
 	print(fmt.Sprintf("STORECLIENT: got log %p... about to try to log\n", logger))
-	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
+	//logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
 		logger.Log(&log2.LogRequest{Level: 5, Message: "could not find the store:" + err.Error()})

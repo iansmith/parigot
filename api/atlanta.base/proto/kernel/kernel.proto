@@ -10,5 +10,6 @@ service Kernel {
   rpc Locate(pb.kernel.LocateRequest) returns(pb.kernel.LocateResponse);
   rpc Register(pb.kernel.RegisterRequest) returns(pb.kernel.RegisterResponse);
   rpc Dispatch(pb.kernel.DispatchRequest) returns(pb.kernel.DispatchResponse);
+  rpc BindMethod(pb.kernel.BindMethodRequest) returns (pb.kernel.BindMethodRequest);
   rpc Exit(pb.kernel.ExitRequest) returns(pb.kernel.ExitResponse); //will die
 }

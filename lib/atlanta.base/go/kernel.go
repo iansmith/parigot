@@ -190,6 +190,35 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	}
 	return out, nil
 }
+func BindMethod(in *kernel.BindMethodRequest, fn func(int32)) (*kernel.BindMethodResponse, error) {
+	out := new(kernel.BindMethodResponse)
+
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+
+	detail := new(BindPayload)
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
+	detail.PkgPtr = int64(sh.Data)
+	detail.PkgLen = int64(sh.Len)
+	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Service))
+	detail.ServicePtr = int64(sh.Data)
+	detail.ServiceLen = int64(sh.Len)
+	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
+	detail.MethodPtr = int64(sh.Data)
+	detail.MethodLen = int64(sh.Len)
+
+	yech := unsafe.Pointer(&fn)
+	print("CLIENT FUNCPTR:", yech, "\n")
+	ptr := (*func(int32))(yech)
+	detail.FuncPtr = int64(uintptr(unsafe.Pointer(ptr)))
+
+	// THE CALL
+	u := uintptr(unsafe.Pointer(detail))
+	bindMethod(int32(u))
+
+	return nil, nil
+}
 
 //go:noinline
 //go:linkname locate parigot.locate_
@@ -206,6 +235,10 @@ func register(int32)
 //go:noinline
 //go:linkname dispatch parigot.dispatch_
 func dispatch(int32)
+
+//go:noinline
+//go:linkname dispatch parigot.bindmethod_
+func bindMethod(int32)
 
 //go:noinline
 //go:linkname exit parigot.exit_

@@ -45,3 +45,14 @@ message RegisterResponse {
   parigot.ServiceId service_id =1;
   parigot.KernelErrorId error_id=2;
 }
+
+message BindMethodRequest  {
+  string protoPackage = 1;
+  string service = 2;
+  string method = 3;
+  int64 functionPointer = 4; // hee hee hee
+}
+
+message BindMethodResponse {
+  parigot.KernelErrorId error_id = 1;
+}
