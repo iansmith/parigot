@@ -14,6 +14,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func Exit(in *kernel.ExitRequest) {
@@ -44,17 +45,16 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 
 	u := uintptr(unsafe.Pointer(detail))
 	register(int32(u))
+
 	// marshal them back together
 	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutServiceIdPtr))))
 	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
 	out.ServiceId = MarshalServiceId(sid)
 	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
-
 	err := NewRegisterErr(RegisterErrCode(regErrDataPtr[0]))
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
 	out.ErrorId = MarshalRegisterErrId(err)
-	print(fmt.Sprintf("CLIENT result of Register %s,%s\n", sid.Short(), err.Short()))
 
 	if err.IsError() {
 		return sid, NewPerrorFromId("failed to register properly", err)
@@ -93,7 +93,6 @@ func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
 	out.ErrorId = MarshalLocateErrId(err)
-	print(fmt.Sprintf("CLIENT result of Locate() %s,%s\n", sid.Short(), err.Short()))
 
 	if err.IsError() {
 		return sid, NewPerrorFromId("failed to locate properly", err)
@@ -116,7 +115,6 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 // return.  If there was no error out-of-band the second return value will
 // be nil.  However, inside the result there may more error values to check.
 func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
-
 	out := new(kernel.DispatchResponse)
 
 	detail := &DispatchPayload{}
@@ -126,10 +124,24 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
 	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
 
+	if in.GetInPctx() == nil {
+		in.InPctx = &parigot.PCtx{}
+	}
+	in.GetInPctx().Event = append(in.GetInPctx().GetEvent(),
+		&parigot.PCtxEvent{
+			Line: []*parigot.PCtxMessage{
+				&parigot.PCtxMessage{
+					Stamp:   timestamppb.Now(),
+					Level:   parigot.LogLevel_LOGLEVEL_INFO,
+					Message: fmt.Sprintf("Call of %s by %s", in.Method, in.Caller),
+				},
+			},
+		})
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
 		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewProtoErr(ProtoMarshalFailed))
 	}
+	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(b)
 
 	b, err = proto.Marshal(in.Param)
 	if err != nil {
@@ -146,6 +158,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	if detail.ResultLen != int64(GetMaxMessageSize()) {
 		panic("GetMaxMessageSize() should be the result length!")
 	}
+	out.ErrorId = &parigot.DispatchErrorId{High: 1, Low: 2}
 
 	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 
@@ -155,23 +168,23 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 
 	// we need to process the dispatch error first because if there was
 	// an error, it could be that the pointers were not used
+	print("P9", detail.OutPctxPtr, "\n")
 	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
 	derr := NewDispatchErr(DispatchErrCode(dispatchErrDataPtr[0]))
 	if derr.IsError() {
 		return nil, NewPerrorFromId("dispatch error", derr)
 	}
 
-	// no error sent back to use, now we will unmarshal
-	out.OutPctx = new(parigot.PCtx)
-	err = proto.Unmarshal(resultPctx, out.OutPctx)
+	// no error sent back to use, now we will attempt to unmarshal
+	// try the outpctx
+	out.OutPctx = &parigot.PCtx{}
+	err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
 	if err != nil {
 		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
 	}
 
-	bytePtr := (*byte)(unsafe.Pointer(uintptr(detail.ResultPtr)))
-	byteSlice := unsafe.Slice(bytePtr, detail.ResultLen)
-	out.Result = &anypb.Any{} //this is where the outputwill go
-	err = proto.Unmarshal(byteSlice, out.Result)
+	out.Result = &anypb.Any{}
+	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
 	if err != nil {
 		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
 	}

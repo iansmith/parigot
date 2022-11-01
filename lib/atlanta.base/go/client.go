@@ -22,11 +22,13 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param, result proto.Message) (*kernel.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kernel.DispatchResponse, error) {
+	print("CSS dispatch 0\n")
 	a, err := anypb.New(param)
 	if err != nil {
 		return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
 	}
+	print("CSS dispatch 1\n")
 	in := &kernel.DispatchRequest{
 		ServiceId: MarshalServiceId(c.svc),
 		Caller:    c.caller,
@@ -34,6 +36,7 @@ func (c *ClientSideService) Dispatch(method string, param, result proto.Message)
 		InPctx:    nil,
 		Param:     a,
 	}
+	print("CSS dispatch 2\n")
 	// xxx this should be going through dispatch anyway
 	return Dispatch(in)
 }

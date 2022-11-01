@@ -24,9 +24,9 @@ BUF_CMD=buf
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
 GENERATED=proto/g/
-all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.wasm
+all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm
 
-build/storeclient.wasm: storeclient/main.go
+build/storeclient.p.wasm: storeclient/main.go
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
 	#$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
@@ -56,18 +56,20 @@ clean:
 	rm -rf build/*
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
+### jdepp computed dependencies for binary: example/vvv/build/vvv
+example/vvv/build/vvv: \
+	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
+	build/protoc-gen-parigot \
+	example/vvv/main.go \
+	example/vvv/storeclient/main.go \
+	example/vvv/proto/g/vvv/business.pb.go \
+	example/vvv/proto/g/vvv/businessservicedecl.p.go
+
 ### jdepp computed dependencies for binary: example/vvv/build/storeclient
 example/vvv/build/storeclient: \
 	example/vvv/storeclient/main.go \
-	abi/atlanta.base/proto/abi/abi.proto \
-	build/protoc-gen-parigot \
-	example/vvv/proto/business.proto
-
-### jdepp computed dependencies for binary: example/vvv/build/vvv
-example/vvv/build/vvv: \
-	build/protoc-gen-parigot \
-	example/vvv/proto/business.proto \
-	example/vvv/main.go \
-	example/vvv/storeclient/main.go \
-	abi/atlanta.base/proto/abi/abi.proto
+	example/vvv/proto/g/vvv/business.pb.go \
+	example/vvv/proto/g/vvv/businessservicedecl.p.go \
+	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
+	build/protoc-gen-parigot
 

@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const MaxService = 127
@@ -147,7 +148,6 @@ func (s *SysCall) Register(sp int32) {
 
 func (s *SysCall) Locate(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.LocatePayload{}.PkgPtr),
 		unsafe.Offsetof(lib.LocatePayload{}.PkgLen))
@@ -181,7 +181,6 @@ func (s *SysCall) Locate(sp int32) {
 	case serviceId != nil:
 		l := lib.NoLocateErr()
 		locErr = &l
-		log.Printf("locate success for %s.%s -> %s", pkg, service, (*serviceId).Short())
 		s.Write64BitPair(wasmPtr,
 			unsafe.Offsetof(lib.LocatePayload{}.OutErrPtr), *locErr)
 		s.Write64BitPair(wasmPtr,
@@ -200,83 +199,104 @@ func (s *SysCall) Dispatch(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
-	_ = lib.ServiceIdFromUint64(high, low)
+	_ = lib.ServiceIdFromUint64(uint64(high), uint64(low))
 
-	_ = s.ReadString(wasmPtr,
+	method := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodLen))
 
-	_ = s.ReadString(wasmPtr,
+	caller := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.CallerPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.CallerLen))
-
-	_ = s.ReadSlice(wasmPtr,
+	log.Printf("read the two strings: %s,%s", method, caller)
+	pctx := s.ReadSlice(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.PctxPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.PctxLen))
 
-	_ = s.ReadSlice(wasmPtr,
+	params := s.ReadSlice(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
+	log.Printf("read the two slices: %d,%d", len(pctx), len(params))
 
 	// xxx fix me
 	// this is where we should be doing the call
 	// xxx fix me
-	fakeResult := anypb.New(&pb.RevenueResponse{})
-	fakePctx := parigot.PCtx{}
+	fakeResult, err := anypb.New(&pb.RevenueResponse{})
+	if err != nil {
+		s.sendDispatchError(wasmPtr, lib.DispatchTooLarge)
+		return
+	}
+	fakePctx := &parigot.PCtx{
+		Event: []*parigot.PCtxEvent{
+			&parigot.PCtxEvent{
+				Line: []*parigot.PCtxMessage{
+					&parigot.PCtxMessage{
+						Stamp:   timestamppb.Now(),
+						Level:   parigot.LogLevel_LOGLEVEL_DEBUG,
+						Message: "faked from inside the kernel",
+					},
+				},
+			},
+		},
+	}
 
 	// we have to check BOTH of the length values we were given to make
 	// sure our results will fit
-	resultLen := s.mem.ReadInt64(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.ResultLen))
+	resultLen := s.mem.GetInt64(int32(wasmPtr) +
+		int32(unsafe.Offsetof(lib.DispatchPayload{}.ResultLen)))
 
 	// we can't fit the result, so we signal error and abort
-	if proto.Size(fakeResult) > resultLen {
-		dispErr := lib.NewDispatchErr(lib.DispatchTooLarge)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-			dispErr)
+	if int64(proto.Size(fakeResult)) > resultLen {
+		s.sendDispatchError(wasmPtr, lib.DispatchTooLarge)
 		return
 	}
 	pctxLen := s.ReadInt64(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.OutPctxLen))
 
 	// we can't fit the pctx, so we signal error and abort
-	if proto.Size(fakePctx) > pctxLen {
-		dispErr := lib.NewDispatchErr(lib.DispatchTooLarge)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-			dispErr)
-		return
+	if int64(proto.Size(fakePctx)) > pctxLen {
+		s.sendDispatchError(wasmPtr, lib.DispatchTooLarge)
 	}
 
 	// tell the caller how big result is
+	resultLen = int64(proto.Size(fakeResult))
 	s.WriteInt64(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultLen),
-		proto.Size(fakeResult))
+		int64(resultLen))
 
 	// tell the caller how big the pctx is
+	pctxLen = int64(proto.Size(fakePctx))
 	s.WriteInt64(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.OutPctxLen),
-		proto.Size(fakePctx))
+		int64(pctxLen))
 
-	// write the pctx
+	// get the pctx bytes
 	buf, err := proto.Marshal(fakePctx)
 	if err != nil {
-		dispErr := lib.NewDispatchErr(lib.DispatchMarshalFailed)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-			dispErr)
-		log.Printf("Dispatch:failed to marshal a PCtx for which we had enough space: %v", err)
+		s.sendDispatchError(wasmPtr, lib.DispatchMarshalFailed)
 		return
 	}
-	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.PctxPtr), buf)
+	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.OutPctxPtr), buf)
 
 	// write the pctx
 	buf, err = proto.Marshal(fakeResult)
 	if err != nil {
-		dispErr := lib.NewDispatchErr(lib.DispatchMarshalFailed)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-			dispErr)
+		s.sendDispatchError(wasmPtr, lib.DispatchMarshalFailed)
 		log.Printf("Dispatch: failed to marshal a result for which we had enough space: %v", err)
 		return
 	}
-	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.PctxPtr), buf)
+
+	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultPtr), buf)
+
+	dispErr := lib.NoDispatchErr() // the lack of an error
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-		lib.NoDispatchErr())
+		dispErr)
+
+}
+
+func (s *SysCall) sendDispatchError(wasmPtr int64, code lib.DispatchErrCode) {
+	dispErr := lib.NewDispatchErr(code)
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
+		dispErr)
+	return
+
 }

@@ -89,11 +89,10 @@ func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	return string(buf)
 }
 func (w *WasmMem) CopyToPtr(dataAddr int32, content []byte) {
-	ptr := int32(w.GetInt64(dataAddr))
+	ptr := w.GetInt32(dataAddr)
 	len_ := int32(len(content))
-
 	for i := int32(0); i < len_; i++ {
-		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))
+		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr)+i)))
 		*str = content[i]
 	}
 }

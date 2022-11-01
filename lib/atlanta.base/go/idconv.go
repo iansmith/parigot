@@ -2,7 +2,6 @@ package lib
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/iansmith/parigot/g/pb/parigot"
 )
@@ -59,7 +58,8 @@ func NewLocateErr(code LocateErrCode) Id {
 	return newFromErrorCode(uint64(code), "locateErrorId", locateIdErrLetter)
 }
 func NewDispatchErr(code DispatchErrCode) Id {
-	log.Printf("createing new dispatch error with code %d", code)
+	//log.Printf("creating new dispatch error with code")
+	print("new dispatch error ", code, "\n")
 	return newFromErrorCode(uint64(code), "dispatchErrorId", dispatchIdErrLetter)
 }
 func NewProtoErr(code ProtoErrCode) Id {
@@ -67,19 +67,21 @@ func NewProtoErr(code ProtoErrCode) Id {
 }
 
 func newFromErrorCode(code uint64, name string, letter byte) Id {
+	print("new error from code ", code, " name", name, " letter", letter, "\n")
 	id := idBaseFromConst(code, true, name, letter)
+	print("resulting short code ", id.Short(), "\n")
 	return id
 }
 
-func ServiceIdFromUint64(high, low uint64) Id {
+func ServiceIdFromUint64(high uint64, low uint64) Id {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, high)
 	buf[7] = serviceIdLetter
 	buf[6] = 0
 	return &IdBase{h: binary.LittleEndian.Uint64(buf), l: low, isErrType: false,
 		name: "serviceId", letter: serviceIdLetter}
-
 }
+
 func UnmarshalServiceId(sid *parigot.ServiceId) Id {
 	return &IdBase{h: sid.GetHigh(), l: sid.GetLow(), isErrType: false,
 		name: "serviceId", letter: serviceIdLetter}
