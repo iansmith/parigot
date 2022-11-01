@@ -26,7 +26,7 @@ func Exit(in *kernel.ExitRequest) {
 //
 //go:noinline
 func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, error) {
-	out.ErrorId = &parigot.RegisterErrorId{High: 6, Low: 7}
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
 	out.ErrorId.High = 1
 	out.ErrorId.Low = 2
 	out.ServiceId = &parigot.ServiceId{High: 3, Low: 4}
@@ -40,21 +40,21 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 	detail.ServicePtr = int64(serviceSh.Data)
 	detail.ServiceLen = int64(serviceSh.Len)
 	// choosing low's addr means you ADD 8 to get to the high
-	detail.OutErrPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	detail.OutServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
 
 	u := uintptr(unsafe.Pointer(detail))
 	register(int32(u))
 
 	// marshal them back together
-	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutServiceIdPtr))))
+	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ServiceIdPtr))))
 	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
 	out.ServiceId = MarshalServiceId(sid)
-	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
-	err := NewRegisterErr(RegisterErrCode(regErrDataPtr[0]))
+	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
+	err := NewKernelError(KernelErrorCode(regErrDataPtr[0]))
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
-	out.ErrorId = MarshalRegisterErrId(err)
+	out.ErrorId = MarshalKernelErrId(err)
 
 	if err.IsError() {
 		return sid, NewPerrorFromId("failed to register properly", err)
@@ -64,7 +64,7 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 
 //go:noinline
 func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
-	out.ErrorId = &parigot.LocateErrorId{High: 6, Low: 7}
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
 	out.ErrorId.High = 1
 	out.ErrorId.Low = 2
 	out.ServiceId = &parigot.ServiceId{High: 3, Low: 4}
@@ -78,21 +78,21 @@ func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
 	detail.ServicePtr = int64(serviceSh.Data)
 	detail.ServiceLen = int64(serviceSh.Len)
 	// choosing low's addr means you ADD 8 to get to the high
-	detail.OutErrPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	detail.OutServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
 
 	u := uintptr(unsafe.Pointer(detail))
 	locate(int32(u))
 	// marshal them back together
-	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutServiceIdPtr))))
+	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ServiceIdPtr))))
 	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
 	out.ServiceId = MarshalServiceId(sid)
-	locErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.OutErrPtr))))
+	locErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
 
-	err := NewLocateErr(LocateErrCode(locErrDataPtr[0]))
+	err := NewKernelError(KernelErrorCode(locErrDataPtr[0]))
 	// in case the caller walks the structure repacks a new protobuf
 	out.ServiceId = MarshalServiceId(sid)
-	out.ErrorId = MarshalLocateErrId(err)
+	out.ErrorId = MarshalKernelErrId(err)
 
 	if err.IsError() {
 		return sid, NewPerrorFromId("failed to locate properly", err)
@@ -139,13 +139,13 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 		})
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
-		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewProtoErr(ProtoMarshalFailed))
+		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewKernelError(KernelMarshalFailed))
 	}
 	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(b)
 
 	b, err = proto.Marshal(in.Param)
 	if err != nil {
-		return nil, NewPerrorFromId("marshal of any for Dispatch()", NewProtoErr(ProtoMarshalFailed))
+		return nil, NewPerrorFromId("marshal of any for Dispatch()", NewKernelError(KernelMarshalFailed))
 	}
 
 	detail.ParamPtr, detail.ParamLen = sliceToTwoInt64s(b)
@@ -158,7 +158,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	if detail.ResultLen != int64(GetMaxMessageSize()) {
 		panic("GetMaxMessageSize() should be the result length!")
 	}
-	out.ErrorId = &parigot.DispatchErrorId{High: 1, Low: 2}
+	out.ErrorId = &parigot.KernelErrorId{High: 1, Low: 2}
 
 	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 
@@ -170,7 +170,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	// an error, it could be that the pointers were not used
 	print("P9", detail.OutPctxPtr, "\n")
 	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	derr := NewDispatchErr(DispatchErrCode(dispatchErrDataPtr[0]))
+	derr := NewKernelError(KernelErrorCode(dispatchErrDataPtr[0]))
 	if derr.IsError() {
 		return nil, NewPerrorFromId("dispatch error", derr)
 	}
@@ -180,13 +180,13 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	out.OutPctx = &parigot.PCtx{}
 	err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
 	if err != nil {
-		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
+		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewKernelError(KernelUnmarshalFailed))
 	}
 
 	out.Result = &anypb.Any{}
 	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
 	if err != nil {
-		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewProtoErr(ProtoUnmarshalFailed))
+		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewKernelError(KernelUnmarshalFailed))
 	}
 	return out, nil
 }

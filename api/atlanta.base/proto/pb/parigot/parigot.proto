@@ -38,17 +38,7 @@ enum LogLevel {
   LOGLEVEL_DEBUG  =5;
 }
 
-message LocateErrorId {
-  uint64 high = 1;
-  uint64 low = 2;
-}
-
-message DispatchErrorId {
-  uint64 high = 1;
-  uint64 low = 2;
-}
-
-message RegisterErrorId {
+message KernelErrorId {
   uint64 high = 1;
   uint64 low = 2;
 }

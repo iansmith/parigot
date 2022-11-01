@@ -7,69 +7,49 @@ import (
 )
 
 const (
-	registerIdErrLetter = 'r'
+	kernelErrorIdLetter = 'k'
 	serviceIdLetter     = 's'
-	locateIdErrLetter   = 'l'
-	dispatchIdErrLetter = 'd'
-	protoIdErrLetter    = 'p'
 )
 
-type RegisterErrCode uint16
-type DispatchErrCode uint16
-type LocateErrCode uint16
-type ProtoErrCode uint16
+type KernelErrorCode uint16
 
 const (
-	RegisterAlreadyRegistered  RegisterErrCode = 1
-	RegisterNamespaceExhausted RegisterErrCode = 2
-
-	DispatchNotFound DispatchErrCode = 1
-	// DispatchTooLarge means that the result of some part of a
+	// KernelAlreadyRegistered means that the a package, service or method
+	// has already been registered and the attempted 2nd registration has been
+	// rejected.
+	KernelAlreadyRegistered KernelErrorCode = 1
+	// KernelServiceNamespaceExhausted is returned when the kernel can no
+	// along accept additional packages, services, or methods.  This is used
+	// primarily to thwart attempts at DOS attacks.
+	KernelNamespaceExhausted KernelErrorCode = 2
+	// KernelNotFound means that a package, service, or method that was requested
+	// could not be found.
+	KernelNotFound KernelErrorCode = 3
+	// KernelDispatchTooLarge means that the result of some part of a
 	// Dispatch() call was bigger than the buffer we allocated to hold it.
 	// When this error occurs, none of the client allocated buffers are
 	// touched.
-	DispatchTooLarge DispatchErrCode = 2
-	// DispatchMarshalFailed is an internal error of Dispatch. This means
-	// Dispatch() was trying to marshal some data and the marshal failed.
-	// Typically, it will output to the kernel logs the problem that occurred.
-	DispatchMarshalFailed DispatchErrCode = 3
-
-	LocateNotFound LocateErrCode = 1
-
-	ProtoUnmarshalFailed = 1
-	ProtoMarshalFailed   = 2
-	ProtoDataTooLarge    = 3
+	KernelDispatchTooLarge KernelErrorCode = 4
+	// KernelMarshalFailed is an internal error of the kernel. This means that
+	// a marshal of a protobuf has failed.  This is only used in situations
+	// that are internel to the kernel--if user code misbehaves in this fashion
+	// an error is sent to the program _from_ the kernel about the failure.
+	KernelMarshalFailed KernelErrorCode = 5
+	// KernelUnmarshal failed is exactly as KernelMarshalFailed, but for unpacking
+	// data.
+	KernelUnmarshalFailed KernelErrorCode = 6
 )
 
-func NoRegisterErr() Id {
-	return newFromErrorCode(0, "registerErrorId", registerIdErrLetter)
-}
-func NoDispatchErr() Id {
-	return newFromErrorCode(0, "dispatchErrorId", dispatchIdErrLetter)
-}
-func NoLocateErr() Id {
-	return newFromErrorCode(0, "locationErrorId", locateIdErrLetter)
+func NoKernelErr() Id {
+	return newFromErrorCode(0, "kernelErrorId", kernelErrorIdLetter)
 }
 
-func NewRegisterErr(code RegisterErrCode) Id {
-	return newFromErrorCode(uint64(code), "registerErrorId", registerIdErrLetter)
-}
-func NewLocateErr(code LocateErrCode) Id {
-	return newFromErrorCode(uint64(code), "locateErrorId", locateIdErrLetter)
-}
-func NewDispatchErr(code DispatchErrCode) Id {
-	//log.Printf("creating new dispatch error with code")
-	print("new dispatch error ", code, "\n")
-	return newFromErrorCode(uint64(code), "dispatchErrorId", dispatchIdErrLetter)
-}
-func NewProtoErr(code ProtoErrCode) Id {
-	return newFromErrorCode(uint64(code), "protoErrorID", protoIdErrLetter)
+func NewKernelError(kerr KernelErrorCode) Id {
+	return newFromErrorCode(uint64(kerr), "kernelErrorId", kernelErrorIdLetter)
 }
 
 func newFromErrorCode(code uint64, name string, letter byte) Id {
-	print("new error from code ", code, " name", name, " letter", letter, "\n")
 	id := idBaseFromConst(code, true, name, letter)
-	print("resulting short code ", id.Short(), "\n")
 	return id
 }
 
@@ -94,35 +74,12 @@ func MarshalServiceId(id Id) *parigot.ServiceId {
 	}
 }
 
-func UnmarshalRegisterErrorId(sid *parigot.RegisterErrorId) Id {
+func UnmarshalKernelErrorId(sid *parigot.KernelErrorId) Id {
 	return &IdBase{h: sid.GetHigh(), l: sid.GetLow(), isErrType: true,
-		name: "registerErrId", letter: registerIdErrLetter}
+		name: "kernelErrId", letter: kernelErrorIdLetter}
 }
-func MarshalRegisterErrId(id Id) *parigot.RegisterErrorId {
-	return &parigot.RegisterErrorId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-func UnmarshalLocateErrorId(sid *parigot.LocateErrorId) Id {
-	return &IdBase{h: sid.GetHigh(), l: sid.GetLow(), isErrType: true,
-		name: "locateErrId", letter: locateIdErrLetter}
-}
-
-func MarshalLocateErrId(id Id) *parigot.LocateErrorId {
-	return &parigot.LocateErrorId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-func UnmarshalDispatchErrId(sid *parigot.DispatchErrorId) Id {
-	return &IdBase{h: sid.GetHigh(), l: sid.GetLow(), isErrType: true,
-		name: "dispatchErrId", letter: dispatchIdErrLetter}
-}
-func MarshalDispatchErrId(id Id) *parigot.DispatchErrorId {
-	return &parigot.DispatchErrorId{
+func MarshalKernelErrId(id Id) *parigot.KernelErrorId {
+	return &parigot.KernelErrorId{
 		High: id.High(),
 		Low:  id.Low(),
 	}

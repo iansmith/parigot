@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+//go:noinline
 func main() {
 	//flag.Parse()
 	logger, err := log.LocateLog()
@@ -23,6 +24,7 @@ func main() {
 		//abandon ship, can't get logger to even say what happened
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
+	callIt(func(x int32) { print(x) })
 	print(fmt.Sprintf("STORECLIENT: got log %p... about to try to log\n", logger))
 	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
 	vinnysStore, err := vvv.LocateStore()

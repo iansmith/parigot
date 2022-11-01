@@ -19,7 +19,7 @@ message LocateRequest {
 
 message LocateResponse {
   parigot.ServiceId service_id =1;
-  parigot.LocateErrorId error_id=2;
+  parigot.KernelErrorId error_id=2;
 }
 
 message DispatchRequest {
@@ -33,7 +33,7 @@ message DispatchRequest {
 message DispatchResponse {
   parigot.PCtx out_pctx = 1;
   google.protobuf.Any result = 2;
-  parigot.DispatchErrorId error_id =3;
+  parigot.KernelErrorId error_id =3;
 }
 
 message RegisterRequest {
@@ -43,5 +43,5 @@ message RegisterRequest {
 
 message RegisterResponse {
   parigot.ServiceId service_id =1;
-  parigot.RegisterErrorId error_id=2;
+  parigot.KernelErrorId error_id=2;
 }
