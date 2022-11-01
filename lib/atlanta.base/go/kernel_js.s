@@ -13,6 +13,10 @@ TEXT parigot·dispatch_(SB), NOSPLIT, $0
   CallImport
   RET
 
+TEXT parigot·bind_method_(SB), NOSPLIT, $0
+  CallImport
+  RET
+
 TEXT parigot·exit_(SB), NOSPLIT, $0
   CallImport
   RET

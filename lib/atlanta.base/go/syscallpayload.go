@@ -59,11 +59,12 @@ type DispatchPayload struct {
 // BindPayload is sent to the kernel to register a particular function
 // as the implementation of the tuple (pkg,service,method).
 type BindPayload struct {
-	PkgPtr     int64 // in p0a
-	PkgLen     int64 // in p0b
-	ServicePtr int64 // in p1a
-	ServiceLen int64 // in p1b
-	MethodPtr  int64 // in p2a
-	MethodLen  int64 // in p2a
-	FuncPtr    int64 // in p3
+	PkgPtr     int64     // in p0a
+	PkgLen     int64     // in p0b
+	ServicePtr int64     // in p1a
+	ServiceLen int64     // in p1b
+	MethodPtr  int64     // in p2a
+	MethodLen  int64     // in p2a
+	FuncPtr    int64     // in p3
+	ErrorPtr   *[2]int64 // out p0
 }

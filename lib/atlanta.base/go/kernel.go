@@ -168,7 +168,6 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 
 	// we need to process the dispatch error first because if there was
 	// an error, it could be that the pointers were not used
-	print("P9", detail.OutPctxPtr, "\n")
 	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
 	derr := NewKernelError(KernelErrorCode(dispatchErrDataPtr[0]))
 	if derr.IsError() {
@@ -190,6 +189,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	}
 	return out, nil
 }
+
 func BindMethod(in *kernel.BindMethodRequest, fn func(int32)) (*kernel.BindMethodResponse, error) {
 	out := new(kernel.BindMethodResponse)
 
@@ -217,7 +217,14 @@ func BindMethod(in *kernel.BindMethodRequest, fn func(int32)) (*kernel.BindMetho
 	u := uintptr(unsafe.Pointer(detail))
 	bindMethod(int32(u))
 
-	return nil, nil
+	// check for in band errors
+	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
+	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	if kerr.IsError() {
+		return nil, NewPerrorFromId("bind error", kerr)
+	}
+
+	return &kernel.BindMethodResponse{ErrorId: MarshalKernelErrId(kerr)}, nil
 }
 
 //go:noinline
@@ -237,7 +244,7 @@ func register(int32)
 func dispatch(int32)
 
 //go:noinline
-//go:linkname dispatch parigot.bindmethod_
+//go:linkname bindMethod parigot.bind_method_
 func bindMethod(int32)
 
 //go:noinline

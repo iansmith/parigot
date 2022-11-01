@@ -2,9 +2,10 @@ package go_
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
 	"strings"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 )
 
 type FieldSpec struct {
@@ -44,6 +45,8 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		MethodCallWasm:      funcChoicesMethodCallWasm,
 		InputToSend:         funcChoicesInputToSend,
 		UsesReturnValuePtr:  funcChoicesUsesReturnValuePtr,
+		DispatchParam:       funcChoicesDispatchParam,
+		DispatchResult:      funcChoicesDispatchResult,
 	}
 }
 
@@ -332,6 +335,19 @@ func outputTypeInfo(b4 bool, method *codegen.WasmMethod) (*codegen.CGType, int) 
 
 }
 
+func funcChoicesDispatchParam(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	if b1 {
+		return "req"
+	}
+	return "nil"
+}
+func funcChoicesDispatchResult(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	if b2 {
+		return "resp"
+	}
+	return "_"
+}
+
 func funcChoicesZeroValueRet(_, b2, _, b4 bool, abi bool, method *codegen.WasmMethod) string {
 	if !abi {
 		panic("unepected call to ZeroValueRet")
@@ -467,8 +483,7 @@ func funcChoicesInbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b1 {
 		return "req:=in"
 	}
-	log.Printf("xxx inbound %s", funcChoicesInputParam(b1, b2, b3, b4, m))
-	return "var req " + funcChoicesInputParam(b1, b2, b3, b4, m)
+	return "" // no req to send
 }
 func funcChoicesOutbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b2 {

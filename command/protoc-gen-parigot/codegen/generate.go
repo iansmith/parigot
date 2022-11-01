@@ -27,9 +27,6 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 		for _, dep := range info.GetFile().GetDependency() {
 			imp[impToPkg[dep]] = struct{}{}
 		}
-		if someMethodHasOutput(info) {
-			imp["google.golang.org/protobuf/proto"] = struct{}{}
-		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{
@@ -89,14 +86,4 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		}
 	}
 	return result
-}
-func someMethodHasOutput(info *GenInfo) bool {
-	for _, s := range info.Service() {
-		for _, m := range s.GetWasmMethod() {
-			if m.OutputCodeNeeded() {
-				return true
-			}
-		}
-	}
-	return false
 }

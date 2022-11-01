@@ -110,7 +110,7 @@ func (s *SysCall) Register(sp int32) {
 		serviceCounter++
 		sData := &serviceData{
 			serviceId: sid,
-			method:    make(map[string]func(int32)),
+			method:    make(map[string]int64),
 		}
 		pData.service[service] = sData
 		//send back the data to client
@@ -199,7 +199,7 @@ func (s *SysCall) Dispatch(sp int32) {
 	// xxx fix me
 	fakeResult, err := anypb.New(&pb.RevenueResponse{})
 	if err != nil {
-		s.sendKernelError(wasmPtr, lib.KernelDispatchTooLarge)
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDispatchTooLarge)
 		return
 	}
 	fakePctx := &parigot.PCtx{
@@ -223,7 +223,7 @@ func (s *SysCall) Dispatch(sp int32) {
 
 	// we can't fit the result, so we signal error and abort
 	if int64(proto.Size(fakeResult)) > resultLen {
-		s.sendKernelError(wasmPtr, lib.KernelDispatchTooLarge)
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDispatchTooLarge)
 		return
 	}
 	pctxLen := s.ReadInt64(wasmPtr,
@@ -231,7 +231,7 @@ func (s *SysCall) Dispatch(sp int32) {
 
 	// we can't fit the pctx, so we signal error and abort
 	if int64(proto.Size(fakePctx)) > pctxLen {
-		s.sendKernelError(wasmPtr, lib.KernelDispatchTooLarge)
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDispatchTooLarge)
 	}
 
 	// tell the caller how big result is
@@ -247,7 +247,7 @@ func (s *SysCall) Dispatch(sp int32) {
 	// get the pctx bytes
 	buf, err := proto.Marshal(fakePctx)
 	if err != nil {
-		s.sendKernelError(wasmPtr, lib.KernelMarshalFailed)
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelMarshalFailed)
 		return
 	}
 	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.OutPctxPtr), buf)
@@ -255,26 +255,32 @@ func (s *SysCall) Dispatch(sp int32) {
 	// write the pctx
 	buf, err = proto.Marshal(fakeResult)
 	if err != nil {
-		s.sendKernelError(wasmPtr, lib.KernelMarshalFailed)
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelMarshalFailed)
 		log.Printf("Dispatch: failed to marshal a result for which we had enough space: %v", err)
 		return
 	}
 
 	s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultPtr), buf)
 
-	dispErr := lib.NoKernelErr() // the lack of an error
+	noErr := lib.NoKernelErr() // the lack of an error
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-		dispErr)
+		noErr)
 
 }
 
-func (s *SysCall) sendKernelError(wasmPtr int64, code lib.KernelErrorCode) {
+func (s *SysCall) sendKernelErrorFromDispatch(wasmPtr int64, code lib.KernelErrorCode) {
 	dispErr := lib.NewKernelError(code)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 		dispErr)
 	return
+}
 
+func (s *SysCall) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCode) {
+	dispErr := lib.NewKernelError(code)
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
+		dispErr)
+	return
 }
 
 // BindMethod is used to provide a function pointer that is the implementation
@@ -283,36 +289,38 @@ func (s *SysCall) BindMethod(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
 	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindMethodPayload{}.PkgPtr),
-		unsafe.Offsetof(lib.BindMethodPayload{}.PkgLen))
+		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
+		unsafe.Offsetof(lib.BindPayload{}.PkgLen))
 
 	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindMethodPayload{}.ServicePtr),
-		unsafe.Offsetof(lib.BindMethodPayload{}.ServiceLen))
+		unsafe.Offsetof(lib.BindPayload{}.ServicePtr),
+		unsafe.Offsetof(lib.BindPayload{}.ServiceLen))
 
 	method := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindMethodPayload{}.MethodPtr),
-		unsafe.Offsetof(lib.BindMethodPayload{}.MethodLen))
+		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
+		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
 	pData, ok := s.pkgData[pkg]
 	if !ok {
-		s.sendKernelError(lib.KernelNotFound)
+		s.sendKernelErrorFromBind(wasmPtr, lib.KernelNotFound)
 		return
 	}
 	sData, ok := pData.service[service]
 	if !ok {
-		s.sendKernelError(lib.KernelNotFound)
+		s.sendKernelErrorFromBind(wasmPtr, lib.KernelNotFound)
 		return
 	}
 	// the address of the function has to be taken on the other side
 	ptr, ok := sData.method[method]
-	if !ok {
-		s.sendKernelError(lib.KernelNotFound)
+	if ok {
+		s.sendKernelErrorFromBind(wasmPtr, lib.KernelAlreadyRegistered)
 		return
 	}
-	fn := *(*func(int32))(unsafe.Pointer(uintptr(ptr)))
-	//xxx fix me, should be passing a pointer to the params
-	s.mem.SetInt64(sp+24, 0)
-	fn(sp + 32)
-	log.Printf("function returned!")
+	sData.method[method] = ptr
+	noErr := lib.NoKernelErr() // the lack of an error
+
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
+		noErr)
+
+	log.Printf("bind completed")
 }

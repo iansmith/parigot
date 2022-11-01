@@ -64,6 +64,8 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $dispatchParam:=call .FuncChoice.DispatchParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
 {{/*
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
@@ -84,18 +86,16 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 {{- else }} {{/* other side of needs fill in */}}
     {{ $inbound }}
 {{- end}}{{/*needs fill*/}}
-
-    resp:=&kernel.DispatchResponse{}
-    i.Dispatch("{{.WasmMethodName}}",req,resp)
+    
+    {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$dispatchParam}})
 
 {{- if .OutputCodeNeeded }}
 {{- if $needsFillOut}}
         out:={{$outParam}}
 {{- end}} {{/* needs fill out */}}
-    err := proto.Unmarshal(resp.OutBlob,out)
+    err = resp.Result.UnmarshalTo(out)
     if err!=nil {
-        return lib.NewPerrorFromId("failed to unmarshal result:",
-        lib.NewProtoErr(lib.ProtoUnmarshalFailed))
+        return lib.NewPerror("failed to unmarshal result")
     }
 {{- if $needsFillOut}} //take apart response structure: {{$outParam}}
 {{- range .OutputFields}}
@@ -106,7 +106,7 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 {{- end}}{{/*needs fill*/}}
 
 {{- else }} {{/* other side of output code needed */}}
-    return nil
+    return err
 {{- end }} {{/* output code needed */}}
 }
 {{- end }} {{/*ranging over methods*/}}
