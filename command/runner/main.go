@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/sys"
 	"log"
 	"os"
 	"reflect"
+
+	"github.com/iansmith/parigot/sys"
 
 	"github.com/iansmith/parigot/sys/jspatch"
 
@@ -133,6 +134,9 @@ func supportedFunctions(store wasmtime.Storelike,
 	//system calls
 	result["go.parigot.locate_"] = wasmtime.WrapFunc(store, syscallImpl.Locate)
 	result["go.parigot.register_"] = wasmtime.WrapFunc(store, syscallImpl.Register)
+	// xxx fix me: How are we going to clean up the resources for a particular service when it exits?
+	// how do we find the resources associated with the caller of exit().
 	result["go.parigot.exit_"] = wasmtime.WrapFunc(store, syscallImpl.Exit)
 	result["go.parigot.dispatch_"] = wasmtime.WrapFunc(store, syscallImpl.Dispatch)
+	result["go.parigot.bind_method_"] = wasmtime.WrapFunc(store, syscallImpl.BindMethod)
 }

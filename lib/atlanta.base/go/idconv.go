@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/binary"
+	"math/rand"
 
 	"github.com/iansmith/parigot/g/pb/parigot"
 )
@@ -9,6 +10,8 @@ import (
 const (
 	kernelErrorIdLetter = 'k'
 	serviceIdLetter     = 's'
+	methodIdLetter      = 'm'
+	callIdLetter        = 'c'
 )
 
 type KernelErrorCode uint16
@@ -54,12 +57,37 @@ func newFromErrorCode(code uint64, name string, letter byte) Id {
 }
 
 func ServiceIdFromUint64(high uint64, low uint64) Id {
+	return idFromUint64(high, low, "serviceId", serviceIdLetter)
+}
+
+func MethodIdFromUint64(high uint64, low uint64) Id {
+	return idFromUint64(high, low, "methodId", methodIdLetter)
+}
+
+func NewMethodId() Id {
+	high := rand.Uint64()
+	low := rand.Uint64()
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(high))
+	buf[7] = methodIdLetter
+	buf[6] = 0 // reserved
+	high = binary.LittleEndian.Uint64(buf)
+	id := &IdBase{
+		h:         high,
+		l:         low,
+		isErrType: false,
+		letter:    methodIdLetter,
+	}
+	return id
+}
+
+func idFromUint64(high uint64, low uint64, name string, letter byte) Id {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, high)
-	buf[7] = serviceIdLetter
+	buf[7] = letter
 	buf[6] = 0
 	return &IdBase{h: binary.LittleEndian.Uint64(buf), l: low, isErrType: false,
-		name: "serviceId", letter: serviceIdLetter}
+		name: name, letter: letter}
 }
 
 func UnmarshalServiceId(sid *parigot.ServiceId) Id {
@@ -69,6 +97,30 @@ func UnmarshalServiceId(sid *parigot.ServiceId) Id {
 
 func MarshalServiceId(id Id) *parigot.ServiceId {
 	return &parigot.ServiceId{
+		High: id.High(),
+		Low:  id.Low(),
+	}
+}
+
+func UnmarshalMethodId(mid *parigot.MethodId) Id {
+	return &IdBase{h: mid.GetHigh(), l: mid.GetLow(), isErrType: false,
+		name: "methodId", letter: methodIdLetter}
+}
+
+func MarshalMethodId(id Id) *parigot.MethodId {
+	return &parigot.MethodId{
+		High: id.High(),
+		Low:  id.Low(),
+	}
+}
+
+func UnmarshalCallId(mid *parigot.CallId) Id {
+	return &IdBase{h: mid.GetHigh(), l: mid.GetLow(), isErrType: false,
+		name: "callId", letter: callIdLetter}
+}
+
+func MarshalCallId(id Id) *parigot.CallId {
+	return &parigot.CallId{
 		High: id.High(),
 		Low:  id.Low(),
 	}

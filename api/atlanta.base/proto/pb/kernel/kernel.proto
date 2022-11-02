@@ -64,3 +64,24 @@ message BindMethodResponse {
   parigot.MethodId method_id = 1;
   parigot.KernelErrorId error_id = 2;
 }
+
+message BlockUntilCallRequest{
+  bytes pctx_buffer = 1;
+  bytes param_buffer = 2;
+}
+
+message BlockUntilCallResponse{
+  int32 pctx_len =1 ;
+  int32 param_len = 2;
+  parigot.MethodId method = 3;
+  parigot.CallId call = 4;
+}
+
+message ReturnValueRequest{
+  parigot.CallId call = 1;
+  string error_message = 2;
+  bytes result_buffer = 3;
+}
+
+message ReturnValueResponse {
+}

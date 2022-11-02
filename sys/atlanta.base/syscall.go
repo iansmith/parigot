@@ -26,9 +26,22 @@ type packageData struct {
 	service map[string]*serviceData
 }
 
+func newPackageData() *packageData {
+	return &packageData{
+		service: make(map[string]*serviceData),
+	}
+}
+
 type serviceData struct {
 	serviceId lib.Id
-	method    map[string]int64
+	method    map[string]lib.Id
+}
+
+func newServiceData() *serviceData {
+	return &serviceData{
+		serviceId: nil,
+		method:    make(map[string]lib.Id),
+	}
 }
 
 type SysCall struct {
@@ -89,9 +102,7 @@ func (s *SysCall) Register(sp int32) {
 
 	pData, ok := s.pkgData[pkg]
 	if !ok {
-		pData = &packageData{
-			service: make(map[string]*serviceData),
-		}
+		pData = newPackageData()
 		packageRegistry[pkg] = pData
 	}
 	_, duplicate := pData.service[service]
@@ -109,10 +120,8 @@ func (s *SysCall) Register(sp int32) {
 	if !regErr.IsError() {
 		sid := lib.ServiceIdFromUint64(0, uint64(serviceCounter+1))
 		serviceCounter++
-		sData := &serviceData{
-			serviceId: sid,
-			method:    make(map[string]int64),
-		}
+		sData := newServiceData()
+		sData.serviceId = sid
 		pData.service[service] = sData
 		//send back the data to client
 		s.Write64BitPair(wasmPtr,
@@ -284,8 +293,8 @@ func (s *SysCall) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCod
 	return
 }
 
-// BindMethod is used to provide a function pointer that is the implementation
-// of a method.
+// BindMethod is used to indicate the function that will handle a given method.  We don't
+// actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *SysCall) BindMethod(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
@@ -303,24 +312,21 @@ func (s *SysCall) BindMethod(sp int32) {
 
 	pData, ok := s.pkgData[pkg]
 	if !ok {
-		s.sendKernelErrorFromBind(wasmPtr, lib.KernelNotFound)
-		return
+		//we allow this because we don't know if client or server will connect first
+		pData = newPackageData()
+		s.pkgData[pkg] = pData
 	}
 	sData, ok := pData.service[service]
 	if !ok {
-		s.sendKernelErrorFromBind(wasmPtr, lib.KernelNotFound)
-		return
+		sData = newServiceData()
+		pData.service[service] = sData
 	}
-	// the address of the function has to be taken on the other side
-	ptr, ok := sData.method[method]
-	if ok {
-		s.sendKernelErrorFromBind(wasmPtr, lib.KernelAlreadyRegistered)
-		return
-	}
-	sData.method[method] = ptr
+	mid := lib.NewMethodId()
+	sData.method[method] = mid
 	noErr := lib.NoKernelErr() // the lack of an error
 
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.MethodId), mid)
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
 		noErr)
 
 	log.Printf("bind completed")

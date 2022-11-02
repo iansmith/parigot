@@ -206,7 +206,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func BindMethodIn(in *kernel.BindMethodRequest, _ func(*parigot.PCtx, proto.Message) error) (*kernel.BindMethodResponse, error) {
+func BindMethodIn(in *kernel.BindMethodRequest, _ func(Pctx, proto.Message) error) (*kernel.BindMethodResponse, error) {
 	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionIn)
 }
 
@@ -216,7 +216,7 @@ func BindMethodIn(in *kernel.BindMethodRequest, _ func(*parigot.PCtx, proto.Mess
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func BindMethodOut(in *kernel.BindMethodRequest, fn func(*parigot.PCtx) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
+func BindMethodOut(in *kernel.BindMethodRequest, _ func(Pctx) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
 	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionOut)
 }
 
@@ -226,7 +226,7 @@ func BindMethodOut(in *kernel.BindMethodRequest, fn func(*parigot.PCtx) (proto.M
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func BindMethodBoth(in *kernel.BindMethodRequest, fn func(*parigot.PCtx, proto.Message) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
+func BindMethodBoth(in *kernel.BindMethodRequest, _ func(Pctx, proto.Message) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
 	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionBoth)
 }
 
@@ -236,6 +236,8 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
 	out.ErrorId.High = 1
 	out.ErrorId.Low = 2
+
+	out.MethodId = &parigot.MethodId{High: 10, Low: 11}
 
 	detail := new(BindPayload)
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
@@ -247,6 +249,9 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
 	detail.MethodPtr = int64(sh.Data)
 	detail.MethodLen = int64(sh.Len)
+	detail.Direction = int64(dir)
+	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))
@@ -259,7 +264,26 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 		return nil, NewPerrorFromId("bind error", kerr)
 	}
 
-	return &kernel.BindMethodResponse{ErrorId: MarshalKernelErrId(kerr)}, nil
+	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
+	mid := MethodIdFromUint64(uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = MarshalMethodId(mid)
+
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+
+	return out, nil
+}
+
+func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallResponse, error) {
+	// out := &kernel.BlockUntilCallResponse{
+	// 	Method:  &parigot.MethodId{},
+	// 	ErrorId: &parigot.KernelErrorId{},
+	// }
+	print("CLIENT -- BlockUntilCall\n")
+	return nil, nil
+}
+
+func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, error) {
+	return nil, nil
 }
 
 //go:noinline
@@ -285,3 +309,11 @@ func bindMethod(int32)
 //go:noinline
 //go:linkname exit parigot.exit_
 func exit(in *kernel.ExitRequest) int32
+
+//go:noinline
+//go:linkname blockUntilCall parigot.block_until_call_
+func blockUntilCall(int32)
+
+//go:noinline
+//go:linkname returnValue parigot.return_value_
+func returnValue(int32)

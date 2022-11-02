@@ -1,83 +1,70 @@
 package main
 
 import (
+	"fmt"
+
 	"demo/vvv/proto/g/vvv/pb"
 
-	"github.com/iansmith/parigot/g/pb/kernel"
-	"github.com/iansmith/parigot/g/pb/parigot"
+	"github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
 )
 
-type StoreServer interface {
-	BestOfAllTime(pctx *parigot.PCtx) (proto.Message, error)
-	Revenue(pctx *parigot.PCtx, in proto.Message) (proto.Message, error)
-	SoldItem(pctx *parigot.PCtx, in proto.Message) error
-}
-
 func main() {
-	for {
-		methodBuf := make([]byte, lib.GetMaxMessageSize())
-		paramBuf := make([]byte, lib.GetMaxMessageSize())
-		pctxBuf := make([]byte, lib.GetMaxMessageSize())
-
-	}
-
+	run(&myServer{})
 }
 
 // this type better implement StoreServer
 type myServer struct {
 }
 
-func (m *myServer) BestOfAllTime(pctx *parigot.PCtx) (proto.Message, error) {
-	out := &pb.BestOfAllTimeResponse{}
-	pctx.GetLog()
-}
+func (m *myServer) BestOfAllTime(pctx lib.Pctx, inProto proto.Message) (proto.Message, error) {
+	in := inProto.(*pb.BestOfAllTimeRequest)
 
-func (m *myServer) Revenue(pctx *parigot.PCtx, in proto.Message) (proto.Message, error) {
-
-}
-
-func (m *myServer) SoldItem(pctx *parigot.PCtx, in proto.Message) error {
-
-}
-
-func register() (string, error) {
-	impl := &myServer{}
-
-	_, BestOfAllTimeerr := lib.BindMethodOut(&kernel.BindMethodRequest{
-		ProtoPackage: "demo.vvv",
-		Service:      "Store",
-		Method:       "BestOfAllTime",
-	}, impl.BestOfAllTime)
-	if BestOfAllTimeerr != nil {
-		return "BestOfAllTime", BestOfAllTimeerr
+	out := &pb.BestOfAllTimeResponse{
+		Item: &pb.Item{},
 	}
+	pctx.Log(log.LogLevel_LOGLEVEL_DEBUG, "reached BestOfAllTime, computing his choices")
 
-	_, Revenueerr := lib.BindMethodBoth(&kernel.BindMethodRequest{
-		ProtoPackage: "demo.vvv",
-		Service:      "Store",
-		Method:       "Revenue",
-	}, impl.Revenue)
-	if Revenueerr != nil {
-		return "Revenue", Revenueerr
+	if in.Ctype == pb.ContentType_CONTENT_TYPE_MUSIC {
+		out.Item.Creator = "The Smiths"
+		out.Item.Title = "The Queen Is Dead"
+		out.Item.Year = 1984
+		out.Item.Ctype = pb.ContentType_CONTENT_TYPE_MUSIC
+		out.Item.Media = pb.Media_MEDIA_CASSETTE
+		out.Item.Price = 19.99
+		return out, nil
 	}
-
-	_, SoldItemerr := lib.BindMethodIn(&kernel.BindMethodRequest{
-		ProtoPackage: "demo.vvv",
-		Service:      "Store",
-		Method:       "SoldItem",
-	}, impl.SoldItem)
-	if SoldItemerr != nil {
-		return "SoldItem", SoldItemerr
+	if in.Ctype == pb.ContentType_CONTENT_TYPE_MOVIE {
+		out.Item.Creator = "George Lucas"
+		out.Item.Title = "Star Wars Episode IV"
+		out.Item.Year = 1979
+		out.Item.Ctype = pb.ContentType_CONTENT_TYPE_MOVIE
+		out.Item.Media = pb.Media_MEDIA_LASER_DISC
+		out.Item.Price = 89.99
+		return out, nil
 	}
-	return "", nil
+	if in.Ctype == pb.ContentType_CONTENT_TYPE_TV {
+		out.Item.Creator = "Columbia House"
+		out.Item.Title = "M*A*S*H Collectors Edition"
+		out.Item.Year = 1992
+		out.Item.Ctype = pb.ContentType_CONTENT_TYPE_TV
+		out.Item.Media = pb.Media_MEDIA_VHS
+		out.Item.Price = 29.99
+		return out, nil
+	}
+	pctx.Log(log.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("unexpected content type in request %d", int32(in.Ctype)))
+	return nil, fmt.Errorf("unexpected content type request int %d", int32(in.Ctype))
 }
 
-func BlockUntilCall(pctx, param, method []byte) {
-
+func (m *myServer) Revenue(pctx lib.Pctx, in proto.Message) (proto.Message, error) {
+	out := &pb.RevenueResponse{}
+	pctx.Log(log.LogLevel_LOGLEVEL_WARNING, "Revenue() not yet implemented, ignoring input value, returning dummy values")
+	out.Revenue = 817.71
+	return out, nil
 }
 
-//go:noinline
-//go:linkname locate parigot.locate_
-func blockUntilCall(int32)
+func (m *myServer) SoldItem(pctx lib.Pctx, in proto.Message) error {
+	pctx.Log(log.LogLevel_LOGLEVEL_WARNING, "SoldItem() not yet implemented, ignoring input value")
+	return nil
+}

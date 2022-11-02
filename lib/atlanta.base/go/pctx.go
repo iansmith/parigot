@@ -5,9 +5,12 @@ import (
 
 	pblog "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/g/pb/parigot"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Pctx is an interface that wraps parigot.PCtx at the protobuf level. It has methods to allow it to
+// collect logs that are connected to events and to manage a simple key/value store of strings.
 type Pctx interface {
 	Log(pblog.LogLevel, string)
 	EventStart(string)
@@ -18,14 +21,23 @@ type Pctx interface {
 	Now() time.Time
 }
 
+func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
+	pctxWire := parigot.PCtx{}
+	err := proto.Unmarshal(pctxSlice, &pctxWire)
+	if err != nil {
+		return nil, err
+	}
+	return newPctxWithTime(time.Now(), &pctxWire), nil
+}
+
 type pctx struct {
 	*parigot.PCtx
 	now       time.Time
 	openEvent *parigot.PCtxEvent
 }
 
-func NewPctxWithTime(t time.Time) Pctx {
-	return &pctx{now: t}
+func newPctxWithTime(t time.Time, inner *parigot.PCtx) Pctx {
+	return &pctx{now: t, PCtx: inner}
 }
 
 func (p *pctx) Now() time.Time {

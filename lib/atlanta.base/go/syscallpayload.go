@@ -65,7 +65,20 @@ type BindPayload struct {
 	ServiceLen int64     // in p1b
 	MethodPtr  int64     // in p2a
 	MethodLen  int64     // in p2a
-	FuncPtr    int64     // in p3
+	Direction  int64     // in p3
 	MethodId   *[2]int64 // out p0
 	ErrorPtr   *[2]int64 // out p1
+}
+
+// BlockPayload is sent to the kernel request the server block the caller
+// until a method request for the server is ready.  The results of this
+// function are placed in the buffers provided.
+type BlockPayload struct {
+	PctxPtr   int64     // in p0a
+	PctxLen   int64     // in p0b <-- also out p0
+	ParamPtr  int64     // in p1a
+	ParamLen  int64     // in p1b <--- also out p1
+	Direction int64     // in p2
+	MethodId  *[2]int64 // out p2
+	ErrorPtr  *[2]int64 // out p3
 }
