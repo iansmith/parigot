@@ -17,45 +17,19 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const MaxService = 127
-
-var packageRegistry = make(map[string]*packageData)
-var serviceCounter = 7 // last USED service num
-
-type packageData struct {
-	service map[string]*serviceData
-}
-
-func newPackageData() *packageData {
-	return &packageData{
-		service: make(map[string]*serviceData),
-	}
-}
-
-type serviceData struct {
-	serviceId lib.Id
-	method    map[string]lib.Id
-}
-
-func newServiceData() *serviceData {
-	return &serviceData{
-		serviceId: nil,
-		method:    make(map[string]lib.Id),
-	}
-}
-
 type SysCall struct {
-	mem     *jspatch.WasmMem
-	pkgData map[string]*packageData
+	mem        *jspatch.WasmMem
+	nameServer *nameServer
+	proc       *Process // this is US
 }
 
 func (s *SysCall) SetMemPtr(m uintptr) {
 	s.mem = jspatch.NewWasmMem(m)
 }
 
-func NewSysCall() *SysCall {
+func NewSysCall(ns *nameServer) *SysCall {
 	return &SysCall{
-		pkgData: make(map[string]*packageData),
+		nameServer: ns,
 	}
 }
 
@@ -100,36 +74,20 @@ func (s *SysCall) Register(sp int32) {
 
 	log.Printf("registration for %s.%s", pkg, service)
 
-	pData, ok := s.pkgData[pkg]
-	if !ok {
-		pData = newPackageData()
-		packageRegistry[pkg] = pData
-	}
-	_, duplicate := pData.service[service]
+	sid, err := s.nameServer.RegisterClientService(pkg, service)
 
-	var regErr lib.Id
-	switch {
-	case serviceCounter >= MaxService:
-		regErr = lib.NewKernelError(lib.KernelNamespaceExhausted)
-	case duplicate:
-		regErr = lib.NewKernelError(lib.KernelAlreadyRegistered)
-	default:
-		regErr = lib.NoKernelErr()
-	}
-	// assign sid if no error
-	if !regErr.IsError() {
-		sid := lib.ServiceIdFromUint64(0, uint64(serviceCounter+1))
-		serviceCounter++
-		sData := newServiceData()
-		sData.serviceId = sid
-		pData.service[service] = sData
-		//send back the data to client
+	// did the ns complain?
+	if err != nil {
 		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.RegPayload{}.ServiceIdPtr), sid)
+			unsafe.Offsetof(lib.RegPayload{}.ErrorPtr), err)
+		return
 	}
-	// either case, we want to tell the client error status
+	// tell the client there is no error
 	s.Write64BitPair(wasmPtr,
-		unsafe.Offsetof(lib.RegPayload{}.ErrorPtr), regErr)
+		unsafe.Offsetof(lib.RegPayload{}.ErrorPtr), lib.NoKernelErr())
+	s.Write64BitPair(wasmPtr,
+		unsafe.Offsetof(lib.RegPayload{}.ServiceIdPtr), sid)
+
 }
 
 func (s *SysCall) Locate(sp int32) {
@@ -144,37 +102,18 @@ func (s *SysCall) Locate(sp int32) {
 
 	log.Printf("locate requested for %s.%s", pkg, service)
 
-	var locErr *lib.Id
-	var serviceId *lib.Id
-	pData, ok := s.pkgData[pkg]
-	if !ok {
-		l := lib.NewKernelError(lib.KernelNotFound)
-		locErr = &l
-	} else {
-		sData, ok := pData.service[service]
-		if !ok {
-			l := lib.NewKernelError(lib.KernelNotFound)
-			locErr = &l
-		} else {
-			serviceId = &sData.serviceId
-		}
+	sid, err := s.nameServer.GetService(pkg, service)
+
+	if err != nil {
+		s.Write64BitPair(wasmPtr,
+			unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), err)
+		return
 	}
-	// now we need to write the results back to the client
-	switch {
-	case locErr != nil:
-		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), *locErr)
-	case serviceId != nil:
-		l := lib.NoKernelErr()
-		locErr = &l
-		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), *locErr)
-		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.LocatePayload{}.ServiceIdPtr), *serviceId)
-	default:
-		panic("did not create an error or service id when performing locate")
-	}
-	return
+	s.Write64BitPair(wasmPtr,
+		unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), lib.NoKernelErr())
+
+	s.Write64BitPair(wasmPtr,
+		unsafe.Offsetof(lib.LocatePayload{}.ServiceIdPtr), sid)
 }
 
 func DebugPrint(ct int32) {
@@ -310,24 +249,27 @@ func (s *SysCall) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
-	pData, ok := s.pkgData[pkg]
-	if !ok {
-		//we allow this because we don't know if client or server will connect first
-		pData = newPackageData()
-		s.pkgData[pkg] = pData
+	mid, err := s.nameServer.HandleMethod(pkg, service, method, s.proc)
+	if err != nil {
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
+			err)
+		return
+
 	}
-	sData, ok := pData.service[service]
-	if !ok {
-		sData = newServiceData()
-		pData.service[service] = sData
-	}
-	mid := lib.NewMethodId()
-	sData.method[method] = mid
-	noErr := lib.NoKernelErr() // the lack of an error
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.MethodId), mid)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
-		noErr)
+		lib.NoKernelErr())
 
 	log.Printf("bind completed")
+}
+
+// BlockUntilCall is used by servers to block themselves until the kernel sends them a
+// message.
+func (s *SysCall) BlockUntilCall(sp int32) {
+}
+
+// Return value is used by servers to register the return value for a particular function
+// call on a method they implement.
+func (s *SysCall) ReturnValue(sp int32) {
 }
