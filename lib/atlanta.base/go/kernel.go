@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/g/pb/parigot"
 
 	"google.golang.org/protobuf/proto"
@@ -22,7 +23,9 @@ func Exit(in *kernel.ExitRequest) {
 }
 
 // Register calls the kernel to register the given type. The Id returned is only
-// useful when the error is nil.
+// useful when the error is nil.  This should only be called by clients of the
+// interface being registered.  Usually this is done automatically by the init()
+// method of the generated client side code.
 //
 //go:noinline
 func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, error) {
@@ -62,6 +65,13 @@ func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, err
 	return sid, nil
 }
 
+// Locate is a kernel request that returns either a reference to the service
+// or an error.  In the former case, the token returned can be used with Dispatch()
+// to make a call on a remote service.  It is implicit in the use of this call that
+// the caller wants to be a client of the service in question.  This call can
+// be made by clients or servers, but in either case the code in question becomes
+// a client of the named service.
+//
 //go:noinline
 func Locate(in *kernel.LocateRequest, out *kernel.LocateResponse) (Id, error) {
 	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
@@ -110,10 +120,10 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 
 // Dispatch is the primary means that a caller can send an RPC message.
 // If you are in local development mode, this call is handled by the kernel
-// itself, otherwise it implies a remote procedure call.  Note that the
-// kernel calls, including this one, have an in-band and out-of-band error
-// return.  If there was no error out-of-band the second return value will
-// be nil.  However, inside the result there may more error values to check.
+// itself, otherwise it implies a remote procedure call.  This method
+// checks the returned response for errors. If there are errors inside the
+// result they are pulled out and returned in the error parameter.  Thus
+// if the error parameter is nil, the Dispatch() occurred successfully.
 func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	out := new(kernel.DispatchResponse)
 
@@ -132,7 +142,7 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 			Line: []*parigot.PCtxMessage{
 				&parigot.PCtxMessage{
 					Stamp:   timestamppb.Now(),
-					Level:   parigot.LogLevel_LOGLEVEL_INFO,
+					Level:   log.LogLevel_LOGLEVEL_INFO,
 					Message: fmt.Sprintf("Call of %s by %s", in.Method, in.Caller),
 				},
 			},
@@ -190,7 +200,37 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	return out, nil
 }
 
-func BindMethod(in *kernel.BindMethodRequest, fn func(int32)) (*kernel.BindMethodResponse, error) {
+// BindMethodIn binds a method that only has an in parameter.  This should
+// only be called by servers because it provides the implementation of the
+// method in question.  The returned response includes a MethodId and an error.
+// If there was an error, it is pulled out and returned in the 2nd result here.
+// MethodIds are opaque tokens that the kernel uses to communicate to an
+// implementing server which method has been invoked.
+func BindMethodIn(in *kernel.BindMethodRequest, _ func(*parigot.PCtx, proto.Message) error) (*kernel.BindMethodResponse, error) {
+	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionIn)
+}
+
+// BindMethodOut binds a method that only has an out parameter.  This should
+// only be called by servers because it provides the implementation of the
+// method in question.  The returned response includes a MethodId and an error.
+// If there was an error, it is pulled out and returned in the 2nd result here.
+// MethodIds are opaque tokens that the kernel uses to communicate to an
+// implementing server which method has been invoked.
+func BindMethodOut(in *kernel.BindMethodRequest, fn func(*parigot.PCtx) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
+	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionOut)
+}
+
+// BindMethodBoth binds a method that has both an in and out parameter.  This should
+// only be called by servers because it provides the implementation of the
+// method in question.  The returned response includes a MethodId and an error.
+// If there was an error, it is pulled out and returned in the 2nd result here.
+// MethodIds are opaque tokens that the kernel uses to communicate to an
+// implementing server which method has been invoked.
+func BindMethodBoth(in *kernel.BindMethodRequest, fn func(*parigot.PCtx, proto.Message) (proto.Message, error)) (*kernel.BindMethodResponse, error) {
+	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionBoth)
+}
+
+func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) (*kernel.BindMethodResponse, error) {
 	out := new(kernel.BindMethodResponse)
 
 	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
@@ -207,11 +247,6 @@ func BindMethod(in *kernel.BindMethodRequest, fn func(int32)) (*kernel.BindMetho
 	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
 	detail.MethodPtr = int64(sh.Data)
 	detail.MethodLen = int64(sh.Len)
-
-	yech := unsafe.Pointer(&fn)
-	print("CLIENT FUNCPTR:", yech, "\n")
-	ptr := (*func(int32))(yech)
-	detail.FuncPtr = int64(uintptr(unsafe.Pointer(ptr)))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))

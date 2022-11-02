@@ -46,13 +46,21 @@ message RegisterResponse {
   parigot.KernelErrorId error_id=2;
 }
 
+enum MethodDirection {
+  MethodDirectionUnspecified = 0;
+  MethodDirectionIn = 1;
+  MethodDirectionOut = 2;
+  MethodDirectionBoth = 3;
+}
+
 message BindMethodRequest  {
   string protoPackage = 1;
   string service = 2;
   string method = 3;
-  int64 functionPointer = 4; // hee hee hee
+  MethodDirection direction = 4;
 }
 
 message BindMethodResponse {
-  parigot.KernelErrorId error_id = 1;
+  parigot.MethodId method_id = 1;
+  parigot.KernelErrorId error_id = 2;
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"unsafe"
 
+	pblog "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/g/pb/parigot"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
@@ -208,7 +209,7 @@ func (s *SysCall) Dispatch(sp int32) {
 				Line: []*parigot.PCtxMessage{
 					&parigot.PCtxMessage{
 						Stamp:   timestamppb.Now(),
-						Level:   parigot.LogLevel_LOGLEVEL_DEBUG,
+						Level:   pblog.LogLevel_LOGLEVEL_DEBUG,
 						Message: "faked from inside the kernel",
 					},
 				},

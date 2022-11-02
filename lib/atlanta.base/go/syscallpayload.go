@@ -66,5 +66,6 @@ type BindPayload struct {
 	MethodPtr  int64     // in p2a
 	MethodLen  int64     // in p2a
 	FuncPtr    int64     // in p3
-	ErrorPtr   *[2]int64 // out p0
+	MethodId   *[2]int64 // out p0
+	ErrorPtr   *[2]int64 // out p1
 }

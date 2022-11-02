@@ -24,12 +24,17 @@ BUF_CMD=buf
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
 GENERATED=proto/g/
-all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm
+all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm build/server.p.wasm
+
+build/server.p.wasm: main.go
+	@echo
+	@echo "\033[92mbuilding server side: vvv (server) ============================================================\033[0m"
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go
+	wasm2wat --no-check -o build/server.wat build/server.p.wasm
 
 build/storeclient.p.wasm: storeclient/main.go
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
-	#$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go
 	wasm2wat --no-check -o build/storeclient.wat build/storeclient.p.wasm
 
