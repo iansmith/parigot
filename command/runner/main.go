@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/iansmith/parigot/sys"
@@ -46,12 +47,15 @@ func main() {
 	store := wasmtime.NewStore(engine)
 
 	proc := []*sys.Process{}
+	var wg sync.WaitGroup
 	// create processes and check linkage for each one
 	for i, lib := range libs {
 		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib])
 		if err != nil {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
 		}
+		wg.Add(1)
+		go startProcess(p)
 		proc = append(proc, p)
 		if i == evilHackIndex {
 			// this hack is a poor substitue for a topo sort which is what we should be doing
@@ -60,9 +64,13 @@ func main() {
 			time.Sleep(500 * time.Millisecond) //ugh, cough, gack, choke, puke
 		}
 	}
-
-	log.Printf("DONE")
+	wg.Wait()
+	log.Printf("all go routines have exited")
 	os.Exit(0)
+}
+
+func startProcess(p *sys.Process) {
+	p.Start()
 }
 
 func startup(store wasmtime.Storelike, module *wasmtime.Module, linkage []wasmtime.AsExtern) {

@@ -23,8 +23,17 @@ type SysCall struct {
 	proc       *Process // this is US
 }
 
+// SetMemPtr has to be separated out because at the time this object is created, we don't yet
+// know the memory address that is the memPtr.
 func (s *SysCall) SetMemPtr(m uintptr) {
 	s.mem = jspatch.NewWasmMem(m)
+}
+
+// SetProcess has to be separated out because at the time this object is created, we don't yet
+// know the process that this syscall works on behalf of.  This is because the process needs a
+// syscall (this one) to be created.
+func (s *SysCall) SetProcess(p *Process) {
+	s.proc = p
 }
 
 func NewSysCall(ns *nameServer) *SysCall {
@@ -124,7 +133,7 @@ func (s *SysCall) Dispatch(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
-	_ = lib.ServiceIdFromUint64(uint64(high), uint64(low))
+	sid := lib.ServiceIdFromUint64(uint64(high), uint64(low))
 
 	method := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
@@ -146,6 +155,12 @@ func (s *SysCall) Dispatch(sp int32) {
 	// xxx fix me
 	// this is where we should be doing the call
 	// xxx fix me
+	log.Printf("aaa reached the call in dispatch[%d,%d]", len(pctx), len(params))
+	methodId, proc := s.nameServer.FindMethodByName(sid, method)
+	if methodId == nil || proc == nil {
+		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
+	}
+
 	fakeResult, err := anypb.New(&pb.RevenueResponse{})
 	if err != nil {
 		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDispatchTooLarge)
@@ -235,11 +250,14 @@ func (s *SysCall) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCod
 // BindMethod is used to indicate the function that will handle a given method.  We don't
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *SysCall) BindMethod(sp int32) {
+	log.Printf("BindMethod reached-------")
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
+	log.Printf("BindMethod reached-------%x", wasmPtr)
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
 		unsafe.Offsetof(lib.BindPayload{}.PkgLen))
+	log.Printf("BindMethod reached------%s", pkg)
 
 	service := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.BindPayload{}.ServicePtr),
@@ -249,6 +267,7 @@ func (s *SysCall) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
+	log.Printf("about to hit the name service: %s,%s", service, method)
 	mid, err := s.nameServer.HandleMethod(pkg, service, method, s.proc)
 	if err != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),

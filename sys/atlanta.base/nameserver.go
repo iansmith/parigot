@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/lib"
@@ -21,21 +22,21 @@ func newPackageData() *packageData {
 type serviceData struct {
 	serviceId         lib.Id
 	method            map[string]lib.Id
-	methodIdToProcess map[lib.Id]*Process
+	methodIdToProcess map[string] /*really method id*/ *Process
 }
 
 func newServiceData() *serviceData {
 	return &serviceData{
 		serviceId:         nil,
 		method:            make(map[string]lib.Id),
-		methodIdToProcess: make(map[lib.Id]*Process),
+		methodIdToProcess: make(map[string]*Process),
 	}
 }
 
 type nameServer struct {
 	packageRegistry        map[string]*packageData
 	serviceCounter         int
-	serviceIdToServiceData map[lib.Id]*serviceData // accelerator only, we could walk to find this
+	serviceIdToServiceData map[string] /*really service id*/ *serviceData // accelerator only, we could walk to find this
 	lock                   *sync.RWMutex
 }
 
@@ -43,7 +44,7 @@ func newNameServer() *nameServer {
 	return &nameServer{
 		lock:                   new(sync.RWMutex),
 		packageRegistry:        make(map[string]*packageData),
-		serviceIdToServiceData: make(map[lib.Id]*serviceData),
+		serviceIdToServiceData: make(map[string]*serviceData),
 		serviceCounter:         7, //first 8 are reserved
 	}
 }
@@ -69,7 +70,7 @@ func (n *nameServer) RegisterClientService(packagePath string, service string) (
 		sData = newServiceData()
 		n.serviceCounter++
 		sData.serviceId = lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
-		n.serviceIdToServiceData[sData.serviceId] = sData
+		n.serviceIdToServiceData[sData.serviceId.String()] = sData
 		pData.service[service] = sData
 	}
 	return sData.serviceId, nil
@@ -81,7 +82,7 @@ func (n *nameServer) FindMethodByName(serviceId lib.Id, name string) (lib.Id, *P
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	sData, ok := n.serviceIdToServiceData[serviceId]
+	sData, ok := n.serviceIdToServiceData[serviceId.String()]
 	if !ok {
 		return nil, nil
 	}
@@ -89,7 +90,7 @@ func (n *nameServer) FindMethodByName(serviceId lib.Id, name string) (lib.Id, *P
 	if !ok {
 		return nil, nil
 	}
-	return mid, sData.methodIdToProcess[mid]
+	return mid, sData.methodIdToProcess[mid.String()]
 }
 
 // HandleMethod is called by the server side to indicate that it will handle a particular
@@ -98,6 +99,7 @@ func (n *nameServer) HandleMethod(pkgPath, service, method string, proc *Process
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
+	log.Printf("reached the nameserver in process %+v", proc)
 	pData, ok := n.packageRegistry[pkgPath]
 	if !ok {
 		pData = newPackageData()
@@ -109,11 +111,11 @@ func (n *nameServer) HandleMethod(pkgPath, service, method string, proc *Process
 		n.serviceCounter++
 		sData.serviceId = lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
 		pData.service[service] = sData
-		n.serviceIdToServiceData[sData.serviceId] = sData
+		n.serviceIdToServiceData[sData.serviceId.String()] = sData
 	}
 	result := lib.NewMethodId()
 	sData.method[method] = result
-	sData.methodIdToProcess[result] = proc
+	sData.methodIdToProcess[result.String()] = proc
 
 	// xxx fix me, should be able to realize that a method does not exist and reject the attempt to
 	// handle it

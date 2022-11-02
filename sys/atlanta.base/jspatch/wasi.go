@@ -25,5 +25,7 @@ func (w *WasiPatch) WasiWrite(sp int32) {
 	fmt.Printf("%s", string(content))
 }
 func (w *WasiPatch) WasiExit(sp int32) {
+	// xxxxfix me, this should be implemented such that our WASM-level process returns
+	// to end it's goroutine
 	log.Printf("ignoring! wasmExit: %d", w.mem.GetInt32(sp+8))
 }

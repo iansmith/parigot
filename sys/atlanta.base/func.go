@@ -6,7 +6,7 @@ import (
 
 func addSupportedFunctions(store wasmtime.Storelike,
 	result map[string]*wasmtime.Func,
-	rt *runtime) {
+	rt *Runtime) {
 	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueSetIndex)
 	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValuePrepareString)

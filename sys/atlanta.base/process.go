@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var lastProcessId = 7
+
 type callInfo struct {
 	param proto.Message // can be nil
 	pctx  proto.Message // can be nil for optimization reasons
@@ -31,10 +33,15 @@ type Process struct {
 	resultCh chan *resultInfo
 }
 
+// NewProcessFromMod does not handle concurrent use. It assumes that each call to this
+// method is called from the same thread/goroutine, in sequence.
 func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string) (*Process, error) {
 
 	rt := newRuntime()
+	lastProcessId++
+	id := lastProcessId
 	proc := &Process{
+		id:       id,
 		path:     path,
 		parent:   parentStore,
 		module:   mod,
@@ -62,13 +69,15 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	}
 	memptr := uintptr(ext.Memory().Data(parentStore))
 	proc.memPtr = memptr
+	rt.SetMemPtr(memptr)
+
 	log.Printf("xxx module %s has memptr %x", path, memptr)
 
 	return proc, nil
 
 }
 
-func (p *Process) checkLinkage(rt *runtime) ([]wasmtime.AsExtern, error) {
+func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
@@ -93,4 +102,27 @@ func (p *Process) checkLinkage(rt *runtime) ([]wasmtime.AsExtern, error) {
 		}
 	}
 	return linkage, nil
+}
+
+func (p *Process) Start() {
+	start := p.instance.GetExport(p.parent, "run")
+	if start == nil {
+		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
+		return
+	}
+	f := start.Func()
+	log.Printf("xxx parent = %+v", p.parent)
+	result, err := f.Call(p.parent, 0, 0)
+	if err != nil {
+		log.Printf("process %d [%s] trapped: %v", p.id, p.path, err)
+		// xxx fixme, we need to do process cleanup here
+		return
+	}
+	if result == nil {
+		log.Printf("process %d [%s] finished", p.id, p.path)
+	} else {
+		log.Printf("process %d [%s] fineshed: %+v", p.id, p.path, result)
+	}
+	// xxx fixme, we need to do process cleanup here
+	return
 }
