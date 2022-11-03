@@ -117,9 +117,6 @@ func (i *IdBase) IsError() bool {
 }
 
 func (i *IdBase) Equal(other Id) bool {
-	if i.IsError() != other.IsError() {
-		return false
-	}
 	return i.h == other.High() && i.l == other.Low()
 }
 

@@ -28,3 +28,12 @@ message LogRequest {
 }
 
 message LogResult {}
+
+message SetPrefixRequest {
+  string prefix  =1;
+}
+
+message SetPrefixResponse{
+  
+}
+

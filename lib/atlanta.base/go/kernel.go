@@ -210,6 +210,14 @@ func BindMethodIn(in *kernel.BindMethodRequest, _ func(Pctx, proto.Message) erro
 	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionIn)
 }
 
+// BindMethodInNoPctx binds a method that only has an in parameter and does not
+// use the Pctx mechanism for logging.  This may, in fact, be a terrible idea but one
+// cannot write a separate logger server with having this.
+// xxxfixme: temporary? Should this be a different kernel call?
+func BindMethodInNoPctx(in *kernel.BindMethodRequest, _ func(proto.Message) error) (*kernel.BindMethodResponse, error) {
+	return bindMethodByName(in, kernel.MethodDirection_MethodDirectionIn)
+}
+
 // BindMethodOut binds a method that only has an out parameter.  This should
 // only be called by servers because it provides the implementation of the
 // method in question.  The returned response includes a MethodId and an error.
@@ -273,23 +281,80 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 	return out, nil
 }
 
+// xxx this may be a bad idea.  this is probably only temporary til I can work out if we
+// xxx should support this at all. currently, it is used by terminal logger.  I made a copy
+// xxx of the other bindMethodByName so it would be easier to delete this one.
+func bindMethodByNameNoPctx(in *kernel.BindMethodRequest, dir kernel.MethodDirection) (*kernel.BindMethodResponse, error) {
+	out := new(kernel.BindMethodResponse)
+
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+
+	out.MethodId = &parigot.MethodId{High: 10, Low: 11}
+
+	detail := new(BindPayload)
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
+	detail.PkgPtr = int64(sh.Data)
+	detail.PkgLen = int64(sh.Len)
+	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Service))
+	detail.ServicePtr = int64(sh.Data)
+	detail.ServiceLen = int64(sh.Len)
+	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
+	detail.MethodPtr = int64(sh.Data)
+	detail.MethodLen = int64(sh.Len)
+	detail.Direction = int64(dir)
+	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+
+	// THE CALL
+	u := uintptr(unsafe.Pointer(detail))
+	bindMethod(int32(u))
+
+	// check for in band errors
+	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
+	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	if kerr.IsError() {
+		return nil, NewPerrorFromId("bind error", kerr)
+	}
+
+	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
+	mid := MethodIdFromUint64(uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = MarshalMethodId(mid)
+
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+
+	return out, nil
+}
+
+func libprint(call, format string, arg ...interface{}) {
+	part1 := fmt.Sprintf("libparigot:%s", call)
+	part2 := fmt.Sprintf(format, arg...)
+	print(part1, part2, "\n")
+}
+
 func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallResponse, error) {
 	out := &kernel.BlockUntilCallResponse{
 		Method:  &parigot.MethodId{High: 12, Low: 13},
 		Call:    &parigot.CallId{High: 22, Low: 33},
 		ErrorId: &parigot.KernelErrorId{High: 7, Low: 8},
 	}
-	print("SERVER -- BlockUntilCall\n")
+	libprint("BlockUntilCall", "out ptr %p", out)
 
 	payload := &BlockPayload{}
 
-	payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
+	if len(in.PctxBuffer) > 0 {
+		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
+	} else {
+		payload.PctxPtr = 0
+		payload.PctxLen = 0
+	}
 	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
 	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
 	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
-	print(fmt.Sprintf("SERVER -- BlockUntilCall, params ready (%x,%d) and (%x,%d)\n",
-		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen))
+	libprint("BlockUntilCall", "params ready (%x,%d) and (%x,%d)",
+		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen)
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(payload))
@@ -315,12 +380,13 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 	out.ParamLen = int32(payload.ParamLen)
 	out.PctxLen = int32(payload.PctxLen)
 
-	print(fmt.Sprintf("SERVER unpacked the data %+v --- %s", out, out))
+	libprint("BlockUntilCall", "unpacked the data %s,%s --- paramlen %d, pctxlen %d\n", mid.Short(), cid.Short(),
+		out.ParamLen, out.PctxLen)
 	return out, nil
 }
 
 func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, error) {
-	return nil, nil
+	detail := &ReturnValuePayload{}
 }
 
 //go:noinline

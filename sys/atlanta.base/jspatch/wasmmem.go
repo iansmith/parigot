@@ -3,7 +3,6 @@ package jspatch
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"reflect"
 	"unsafe"
@@ -22,6 +21,9 @@ func NewWasmMem(memPtr uintptr) *WasmMem {
 func (w *WasmMem) SetUint8(addr int32, v byte) {
 	ptr := (*byte)(unsafe.Pointer(w.memPtr + uintptr(addr)))
 	*ptr = v
+}
+func (w *WasmMem) String() string {
+	return fmt.Sprintf("mem-%x", w.memPtr)
 }
 
 func (w *WasmMem) TrueAddr(addr int32) uintptr {
@@ -82,7 +84,6 @@ func (w *WasmMem) GetInt32(addr int32) int32 {
 func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	ptr := w.GetInt64(dataAddr)
 	len_ := w.GetInt64(lenAddr)
-	log.Printf("LoadStringWithLen, raw values: %x,%d", ptr, len_)
 	buf := make([]byte, len_)
 	for i := int64(0); i < len_; i++ {
 		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))
@@ -128,8 +129,13 @@ func (w *WasmMem) LoadSlice(addr int32) []byte {
 }
 
 func (w *WasmMem) LoadSliceWithLenAddr(addr, lenAddr int32) []byte {
-	array := w.GetInt64(addr)
 	l := w.GetInt64(lenAddr)
+	if l == 0 {
+		print(fmt.Sprintf("WasmMem: Ignoring to load slice %x,%x true=(%x,%x) because len is zero\n",
+			addr, lenAddr, w.TrueAddr(addr), w.TrueAddr(lenAddr)))
+		return []byte{}
+	}
+	array := w.GetInt64(addr)
 	result := make([]byte, l)
 	for i := int64(0); i < l; i++ {
 		ptr := w.memPtr + uintptr(array) + uintptr(i)

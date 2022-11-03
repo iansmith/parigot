@@ -65,6 +65,7 @@ func (a *SysCall) SetNow(_ int64, _ bool) {
 }
 func (s *SysCall) Register(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("Register", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.RegPayload{}.PkgPtr),
@@ -94,6 +95,7 @@ func (s *SysCall) Register(sp int32) {
 
 func (s *SysCall) Locate(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("Locate", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.LocatePayload{}.PkgPtr),
 		unsafe.Offsetof(lib.LocatePayload{}.PkgLen))
@@ -124,6 +126,8 @@ func DebugPrint(ct int32) {
 
 func (s *SysCall) Dispatch(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("Dispatch", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
 	sid := lib.ServiceIdFromUint64(uint64(high), uint64(low))
@@ -135,7 +139,7 @@ func (s *SysCall) Dispatch(sp int32) {
 	caller := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.CallerPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.CallerLen))
-	log.Printf("read the two strings: %s,%s", method, caller)
+
 	pctx := s.ReadSlice(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.PctxPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.PctxLen))
@@ -143,38 +147,47 @@ func (s *SysCall) Dispatch(sp int32) {
 	param := s.ReadSlice(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
-	log.Printf("read the two slices: %d,%d", len(pctx), len(param))
 
+	s.sysPrint("DISPATCH", "about to FindByName: %s,%s,%v\n", sid.Short(), method, s.nameServer != nil)
 	// we ask the nameserver to find us the appropriate process and method so we can call
 	// the other side... the nameserver also assigns us a call id
 	callCtx := s.nameServer.FindMethodByName(sid, method, s.proc)
-	print(fmt.Sprintf("xxx FindMethodByName done: %+v\n", callCtx))
-
 	if callCtx == nil {
+		s.sysPrint("DISPATCH", "FindMethodByName failed for %s,%s\n", sid.Short(), method)
 		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
 		return
 	}
+	s.sysPrint("DISPATCH", "FindMethodByName done and OK: %s,%s from '%s'\n",
+		callCtx.cid.Short(), callCtx.mid.Short(), caller)
 
+	destParam := make([]byte, len(param))
+	destPctx := make([]byte, len(pctx))
+	copy(destParam, param)
+	if len(pctx) > 0 {
+		copy(destPctx, pctx)
+	} else {
+		destPctx = []byte{}
+	}
 	// send the message...
 	callInfo := &callInfo{
 		mid:    callCtx.mid,
 		cid:    callCtx.cid,
 		caller: callCtx.sender, // also s.proc
-		param:  param,
-		pctx:   pctx,
+		param:  destParam,
+		pctx:   destPctx,
 	}
 
-	log.Printf("sending the call info to other process: %+v", callInfo)
+	log.Printf("sending the call info to other process: %s, %s", callInfo.cid.Short(), callInfo.mid.Short())
 	// the magic: send the call value to the other process
 	callCtx.target.callCh <- callInfo
 
-	log.Printf("waiting for result from other process: %+v", s.proc)
+	s.sysPrint("DISPATCH", "waiting for result from other process: %s", s.proc.String())
 	// wait for the other process to message us back with a result... note that we should be
 	// timing this out after some period of time.  xxx fixme  This situation occurs specifically
 	// if the callee (the server implementation) cannot receive the data because is it too large.
 	resultInfo := <-s.proc.resultCh
 
-	log.Printf("got result from other process (YAY!): %+v", resultInfo)
+	s.sysPrint("DISPATCH", "got result from other process (YAY!): %+v", resultInfo)
 
 	// we have to check BOTH of the length values we were given to make
 	// sure our results will fit
@@ -238,6 +251,7 @@ func (s *SysCall) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCod
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *SysCall) BindMethod(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("BindMethod", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
@@ -251,7 +265,6 @@ func (s *SysCall) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
-	log.Printf("len of service: %d, len of method %d", len(service), len(method))
 	log.Printf("about to hit the name service in Bind: %s,%s", service, method)
 	mid, err := s.nameServer.HandleMethod(pkg, service, method, s.proc)
 	if err != nil {
@@ -271,9 +284,11 @@ func (s *SysCall) BindMethod(sp int32) {
 // message.
 func (s *SysCall) BlockUntilCall(sp int32) {
 	call := <-s.proc.callCh
-	log.Printf("Block until call received a call: %+v", call)
+
+	s.sysPrint("BlockUntilCall", "received a call: %s,%s", call.cid.Short(), call.mid.Short())
 
 	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("BLOCKUNTILCALL", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// check that we can fit the values
 	availablePctxLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxLen))
@@ -288,19 +303,23 @@ func (s *SysCall) BlockUntilCall(sp int32) {
 			lib.NewKernelError(lib.KernelDataTooLarge))
 		return
 	}
-	log.Printf("Block until call checked the sizes and they are ok")
+	s.sysPrint("BLOCKUNTILCALL", "Block until call checked the sizes and they are ok")
 
 	// write the sizes of the incoming values and if size >0 copy the data to the pointer given
 	s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(len(call.pctx)))
 	if len(call.pctx) > 0 {
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxPtr), call.pctx)
+	} else {
+		s.sysPrint("BLOCKUNTILCALL", "skipping pctx, size is zero")
 	}
 	s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.ParamLen))), int64(len(call.param)))
-	if len(call.pctx) > 0 {
+	if len(call.param) > 0 {
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamPtr), call.param)
+	} else {
+		s.sysPrint("BLOCKUNTILCALL", "skipping param, size is zero")
 	}
 
-	log.Printf("Block until copied the data, and it is ok")
+	s.sysPrint("BLOCKUNTILCALL", "Block until copied the data, and it is ok")
 
 	// xxx fixme
 	//direction := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.Direction))
@@ -318,11 +337,17 @@ func (s *SysCall) BlockUntilCall(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.CallId), call.cid)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr), lib.NoKernelErr())
 
-	log.Printf("Block until finished")
+	s.sysPrint("BLOCKUNTILCALL", "Block until finished OK")
 	return // the server goes back to work
 }
 
 // Return value is used by servers to register the return value for a particular function
 // call on a method they implement.
 func (s *SysCall) ReturnValue(sp int32) {
+	panic("RETURN VALUE REACHED")
+}
+
+func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {
+	p1 := fmt.Sprintf("SYSCALL[%s,%s,%s]:", call, s.mem.String(), s.proc.String())
+	print(p1, fmt.Sprintf(spec, arg...), "\n")
 }

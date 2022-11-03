@@ -1,16 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"time"
 	_ "unsafe"
 
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
-	"github.com/iansmith/parigot/g/log"
 	"github.com/iansmith/parigot/g/pb/kernel"
-	log2 "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -18,18 +15,27 @@ import (
 //go:noinline
 func main() {
 	//flag.Parse()
-	logger, err := log.LocateLog()
+	// logger, err := log.LocateLog()
+	// if err != nil {
+	// 	print("failed to get log\n")
+	// 	//abandon ship, can't get logger to even say what happened
+	// 	lib.Exit(&kernel.ExitRequest{Code: 1})
+	// }
+	// print("xxx trying to set prefix storeclient\n")
+	// err = logger.SetPrefix(&pblog.SetPrefixRequest{Prefix: "storeclient"})
+	// if err != nil {
+	// 	print("xxx set prefix returned error ", err.Error(), "\n")
+	// }
+	// print("xxx finished set prefix in storeclient", err == nil, "\n")
+	// logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_INFO, Message: "Test 1 2 3"})
+
+	vinnysStoreCCCc, err := vvv.LocateStore()
 	if err != nil {
-		print("failed to get log\n")
-		//abandon ship, can't get logger to even say what happened
+		//logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_FATAL, Message: "could not find the store:" + err.Error()})
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
-	print(fmt.Sprintf("STORECLIENT: got log %p... about to try to log\n", logger))
-	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
-	vinnysStore, err := vvv.LocateStore()
-	if err != nil {
-		logger.Log(&log2.LogRequest{Level: 5, Message: "could not find the store:" + err.Error()})
-	}
+	vinnysStore.EnablePctx()
+
 	//t := kernel.Now()
 	//logger.LogDebug(fmt.Sprintf("time is now %d ", t), "")
 	vinnysStore.SoldItem(&pb.SoldItemRequest{

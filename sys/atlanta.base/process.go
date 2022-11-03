@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/lib"
@@ -81,15 +82,13 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	if ext.Memory() == nil {
 		return nil, fmt.Errorf("'mem' export is not a memory object")
 	}
+
 	memptr := uintptr(ext.Memory().Data(parentStore))
 	proc.memPtr = memptr
 	rt.SetMemPtr(memptr)
-
-	log.Printf("xxx module %s has memptr %x", path, memptr)
-
 	rt.SetProcess(proc)
-	return proc, nil
 
+	return proc, nil
 }
 
 func (p *Process) String() string {
@@ -120,7 +119,9 @@ func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 		if !ok {
 			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
-			log.Printf("info: linked %s into module %s", importName, p.path)
+			if strings.HasPrefix(importName, "go.parigot") {
+				log.Printf("info: linked %s into module %s", importName, p.path)
+			}
 			linkage = append(linkage, ext)
 		}
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"demo/vvv/proto/g/vvv/pb"
@@ -37,13 +38,15 @@ func run(impl StoreServer) {
 		//
 		// wait for notification
 		//
-		print("SERVER-- about to block\n")
+		print("STORESERVER about to block\n")
 		resp, err := StoreBlockUntilCall(pctxBuf, paramBuf)
 		if err != nil {
 			// error is likely local to this process
 			log.Printf("Unable to dispatch method call: %v", err)
 			continue
 		}
+		print(fmt.Sprintf("STORESERVER block completed, got two values:%d,%d\n",
+			resp.PctxLen, resp.ParamLen))
 		//
 		// incoming values, pctx and params
 		//
@@ -52,6 +55,7 @@ func run(impl StoreServer) {
 		mid := lib.UnmarshalMethodId(resp.GetMethod())
 		cid := lib.UnmarshalCallId(resp.GetCall())
 
+		print(fmt.Sprintf("STORE SERVER unmarshalled arguments %s,%s\n", mid.Short(), cid.Short()))
 		//
 		// create the generic params, pctx and param
 		//
@@ -60,6 +64,7 @@ func run(impl StoreServer) {
 			log.Printf("Unable to create Pctx for call: %v", err)
 			continue
 		}
+		print(fmt.Sprintf("STORESERVER got pctx\n"))
 		// a is an any that represents the params
 		a := &anypb.Any{}
 		err = proto.Unmarshal(paramSlice, a)
@@ -67,6 +72,7 @@ func run(impl StoreServer) {
 			log.Printf("Unable to create parameters for call: %v", err)
 			continue
 		}
+		print(fmt.Sprintf("STORESERVER got param\n"))
 
 		//
 		// pick the method
@@ -95,6 +101,7 @@ func run(impl StoreServer) {
 				break
 			}
 		case mid.Equal(SoldItemMethod):
+			print("STORESERVER got a call on sold item\n")
 			req := &pb.SoldItemRequest{}
 			marshalError = a.UnmarshalTo(req)
 			if marshalError != nil {
@@ -104,9 +111,11 @@ func run(impl StoreServer) {
 			if execError != nil {
 				break
 			}
+			print("STORESERVER executed call to sold item", execError == nil, "\n")
 			out = nil // just to be sure
 		}
 
+		print("STORESERVER executed call to sold item 1111\n")
 		// now check for errors
 		if marshalError != nil {
 			log.Printf("unable to unmarshal parameters:%v", marshalError)
@@ -116,15 +125,17 @@ func run(impl StoreServer) {
 			})
 			continue
 		}
+		print("STORESERVER executed call to sold item 2222\n")
 		// xxx fixme: this should be doing something special here to indicate the USER code barfed
 		if execError != nil {
-			log.Printf("unable to exec user function:%v", execError)
+			log.Printf("STORESERVER unable to exec user function:%v", execError)
 			lib.ReturnValue(&kernel.ReturnValueRequest{
 				Call:         lib.MarshalCallId(cid),
 				ErrorMessage: execError.Error(),
 			})
 			continue
 		}
+		print("STORESERVER executed result aappears to be ok\n")
 
 		//
 		// everything is cool, send results
@@ -138,13 +149,14 @@ func run(impl StoreServer) {
 		}
 		// result problem?
 		if marshalErr != nil {
-			log.Printf("unable to marshal results:%v", marshalErr)
+			print(fmt.Sprintf("STORESERVER unable to marshal results:%v\n", marshalErr))
 			lib.ReturnValue(&kernel.ReturnValueRequest{
 				Call:         lib.MarshalCallId(cid),
 				ErrorMessage: execError.Error(),
 			})
 		}
 
+		print("STORESERVER sending response???\n")
 		// success!
 		lib.ReturnValue(&kernel.ReturnValueRequest{
 			Call:         lib.MarshalCallId(cid),

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"fmt"
 	"time"
 
 	pblog "github.com/iansmith/parigot/g/pb/log"
@@ -36,6 +37,24 @@ type pctx struct {
 	openEvent *parigot.PCtxEvent
 }
 
+// NewPctx creates a new Pctx for use on the client side.
+func NewPctx() Pctx {
+	// xxx fixme ... this should be doing a system call to get the time from kernel
+	now := time.Now()
+	p := &parigot.PCtx{
+		Event: []*parigot.PCtxEvent{
+			&parigot.PCtxEvent{
+				Message: fmt.Sprintf("PCtx created on client side"),
+			},
+		},
+	}
+	return &pctx{
+		PCtx:      p,
+		now:       now,
+		openEvent: p.Event[0],
+	}
+}
+
 func newPctxWithTime(t time.Time, inner *parigot.PCtx) Pctx {
 	return &pctx{now: t, PCtx: inner}
 }
@@ -47,7 +66,7 @@ func (p *pctx) Now() time.Time {
 func (p *pctx) Log(level pblog.LogLevel, msg string) {
 	var t time.Time
 	if p.openEvent == nil {
-		p.EventStart("unknown event")
+		p.EventStart("anonymous event created")
 	}
 	p.openEvent.Line = append(p.openEvent.GetLine(), &parigot.PCtxMessage{
 		Stamp:   timestamppb.New(t),

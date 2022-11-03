@@ -1,8 +1,6 @@
 package sys
 
 import (
-	"log"
-
 	"github.com/iansmith/parigot/sys/jspatch"
 )
 
@@ -25,12 +23,10 @@ func newRuntime(nameServer *NameServer) *Runtime {
 }
 
 func (r *Runtime) SetProcess(p *Process) {
-	log.Printf("RT set process %x", p)
 	r.syscall.SetProcess(p)
 }
 
 func (r *Runtime) SetMemPtr(memPtr uintptr) {
-	log.Printf("RT set memPtr %x", memPtr)
 	r.jsEnv.SetMemPtr(memPtr)
 	r.wasiEnv.SetMemPtr(memPtr)
 	r.runtimeEnv.SetMemPtr(memPtr)

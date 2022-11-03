@@ -96,18 +96,15 @@ func (n *NameServer) FindMethodByName(serviceId lib.Id, name string, caller *Pro
 	defer n.lock.Unlock()
 
 	sData, ok := n.serviceIdToServiceData[serviceId.String()]
-	print(fmt.Sprintf("FINDMEHTODBYNAME[%s] %v\n", serviceId.String(), ok))
 	if !ok {
 		return nil
 	}
 	mid, ok := sData.method[name]
-	print(fmt.Sprintf("FINDMEHTODBYNAME222[%s] %s,%v\n", name, mid, ok))
 	if !ok {
 		return nil
 	}
 	target, ok := sData.methodIdToProcess[mid.String()]
 	if !ok {
-		print(fmt.Sprintf("FINDMEHTODBYNAME fail no target found for %s\n", mid))
 		return nil
 	}
 	cc := &callContext{
@@ -116,7 +113,6 @@ func (n *NameServer) FindMethodByName(serviceId lib.Id, name string, caller *Pro
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
-	print(fmt.Sprintf("FINDMEHTODBYNAME ret %+v\n", cc))
 	return cc
 }
 
@@ -141,10 +137,9 @@ func (n *NameServer) HandleMethod(pkgPath, service, method string, proc *Process
 		n.serviceIdToServiceData[sData.serviceId.String()] = sData
 	}
 	result := lib.NewMethodId()
+	print(fmt.Sprintf("assigning %s to the method %s in service %s\n", result, method, service))
 	sData.method[method] = result
 	sData.methodIdToProcess[result.String()] = proc
-
-	print(fmt.Sprintf("HANDLEMETHOD %s, %v -- %+v\n", method, result, sData.method))
 
 	// xxx fix me, should be able to realize that a method does not exist and reject the attempt to
 	// handle it

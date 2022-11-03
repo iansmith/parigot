@@ -30,7 +30,8 @@ command/transform/wasm_parser.go: $(WASM_GRAMMAR)
 	cd command; java -Xmx500M -cp "/home/parigot/tools/lib/antlr-4.9.3-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4; cd ..
 
 build/runner: g/log/logservicedecl.p.go \
-	g/net/netservicedecl.p.go
+	g/net/netservicedecl.p.go \
+	sys/atlanta.base/*.go 
 	@echo
 	@echo "\033[92mrunner =============================================================================================\033[0m"
 	go build -o build/runner github.com/iansmith/parigot/command/runner
