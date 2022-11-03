@@ -75,6 +75,7 @@ message BlockUntilCallResponse{
   int32 param_len = 2;
   parigot.MethodId method = 3;
   parigot.CallId call = 4;
+  parigot.KernelErrorId error_id= 5;
 }
 
 message ReturnValueRequest{

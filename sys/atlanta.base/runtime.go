@@ -15,17 +15,17 @@ type Runtime struct {
 	syscall    *SysCall
 }
 
-func newRuntime() *Runtime {
-	ns := newNameServer()
+func newRuntime(nameServer *NameServer) *Runtime {
 	return &Runtime{
 		jsEnv:      jspatch.NewJSPatch(),
 		wasiEnv:    jspatch.NewWasiPatch(),
 		runtimeEnv: jspatch.NewRuntimePatch(),
-		syscall:    NewSysCall(ns),
+		syscall:    NewSysCall(nameServer),
 	}
 }
 
 func (r *Runtime) SetProcess(p *Process) {
+	log.Printf("RT set process %x", p)
 	r.syscall.SetProcess(p)
 }
 

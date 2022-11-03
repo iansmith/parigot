@@ -274,12 +274,49 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 }
 
 func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallResponse, error) {
-	// out := &kernel.BlockUntilCallResponse{
-	// 	Method:  &parigot.MethodId{},
-	// 	ErrorId: &parigot.KernelErrorId{},
-	// }
-	print("CLIENT -- BlockUntilCall\n")
-	return nil, nil
+	out := &kernel.BlockUntilCallResponse{
+		Method:  &parigot.MethodId{High: 12, Low: 13},
+		Call:    &parigot.CallId{High: 22, Low: 33},
+		ErrorId: &parigot.KernelErrorId{High: 7, Low: 8},
+	}
+	print("SERVER -- BlockUntilCall\n")
+
+	payload := &BlockPayload{}
+
+	payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
+	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
+	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
+	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
+	print(fmt.Sprintf("SERVER -- BlockUntilCall, params ready (%x,%d) and (%x,%d)\n",
+		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen))
+
+	// THE CALL
+	u := uintptr(unsafe.Pointer(payload))
+	blockUntilCall(int32(u))
+
+	// unpack the result
+	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.ErrorPtr))))
+	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	if kerr.IsError() {
+		return nil, NewPerrorFromId("BlockUntilCall error", kerr)
+	}
+
+	callDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.CallId))))
+	cid := CallIdFromUint64(uint64(callDataPtr[1]), uint64(callDataPtr[0]))
+	methDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.MethodId))))
+	mid := MethodIdFromUint64(uint64(methDataPtr[1]), uint64(methDataPtr[0]))
+
+	out.Call = MarshalCallId(cid)
+	out.Method = MarshalMethodId(mid)
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+
+	// get the data
+	out.ParamLen = int32(payload.ParamLen)
+	out.PctxLen = int32(payload.PctxLen)
+
+	print(fmt.Sprintf("SERVER unpacked the data %+v --- %s", out, out))
+	return out, nil
 }
 
 func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, error) {

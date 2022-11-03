@@ -29,8 +29,8 @@ type Id interface {
 	// false if this is an error type id and there is no error (0 value).  If
 	// this is not an error type id, it panics.
 	IsError() bool
-	// Type returns the name of the type of id, like "service" or "locate error"
-	Type() string
+	// IsErrorType returns true if this represents some type of error code.
+	IsErrorType() bool
 	// Equal returns true if the two ids are of the same type and have the same number.
 	Equal(Id) bool
 	// High returns the high order uint64 of this id. Please don't use this unless you
@@ -42,10 +42,20 @@ type Id interface {
 }
 
 type IdBase struct {
-	h, l      uint64
-	isErrType bool
-	name      string
-	letter    byte
+	h, l uint64
+}
+
+func newIdBaseFromKnown(high uint64, low uint64, isError bool, letter byte) {
+	base := &IdBase{
+		h: high,
+		l: low,
+	}
+	highBytes := int64ToByteSlice(base.h)
+	highBytes[7] = letter
+	highBytes[6] = 0
+	if isError {
+		highBytes[6] = 1
+	}
 }
 
 func int64ToByteSlice(i uint64) []byte {
@@ -66,18 +76,24 @@ func int64ToByteSlice(i uint64) []byte {
 func (i *IdBase) Short() string {
 	highBytes := int64ToByteSlice(i.h)
 	key := highBytes[7]
-	if i.isErrType && !i.IsError() {
+	if i.IsErrorType() && !i.IsError() {
 		return fmt.Sprintf("[%c-NoErr-]", key)
 	}
 	lowBytes := int64ToByteSlice(i.l)
 	return fmt.Sprintf("[%c-%02x%02x%02x]", key, lowBytes[2], lowBytes[1], lowBytes[0])
 }
 
+func (i *IdBase) IsErrorType() bool {
+	highBytes := int64ToByteSlice(i.h)
+	return highBytes[6] == 1
+}
+
 func (i *IdBase) String() string {
-	highByte := int64ToByteSlice(i.h)
+	copy := i.h
+	highByte := int64ToByteSlice(copy)
 	key := highByte[7]
 	highByte[7] = 0
-	highByte[6] = 0 //reserved for future use
+	highByte[6] = 0 //lowest bit is true for an error type
 	valueHigh := binary.LittleEndian.Uint64(highByte)
 	two := valueHigh >> 32
 	four := valueHigh & 0xffffffff
@@ -93,15 +109,11 @@ func (i *IdBase) String() string {
 }
 
 func (i *IdBase) IsError() bool {
-	if !i.isErrType {
+	if !i.IsErrorType() {
 		panic("IsError called on a non-error type")
 	}
 	high := i.h & 0xffffffffffff
 	return high != 0 || i.l != 0
-}
-
-func (i *IdBase) Type() string {
-	return i.name
 }
 
 func (i *IdBase) Equal(other Id) bool {
@@ -117,15 +129,17 @@ func (i *IdBase) Low() uint64 {
 func (i *IdBase) High() uint64 {
 	return i.h
 }
-func idBaseFromConst(i uint64, isErrType bool, name string, letter byte) *IdBase {
+
+// idBaseFromConst is useful for generating a new id from a given low order uint64.
+func idBaseFromConst(i uint64, isErrType bool, letter byte) *IdBase {
 	buf := make([]byte, 8)
 	buf[7] = letter
-	buf[6] = 0 //reserved
+	buf[6] = 0
+	if isErrType {
+		buf[6] = 1 //low bit
+	}
 	return &IdBase{
-		h:         binary.LittleEndian.Uint64(buf),
-		l:         i,
-		isErrType: isErrType,
-		name:      name,
-		letter:    letter,
+		h: binary.LittleEndian.Uint64(buf),
+		l: i,
 	}
 }

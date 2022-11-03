@@ -25,6 +25,9 @@ func main() {
 	// better error messages from the path than some ptr
 	modToPath := make(map[*wasmtime.Module]string)
 
+	// the singular nameserver
+	nameServer := sys.NewNameServer()
+
 	evilHackIndex := 0
 	// libraries
 	var libs []*wasmtime.Module
@@ -50,7 +53,7 @@ func main() {
 	var wg sync.WaitGroup
 	// create processes and check linkage for each one
 	for i, lib := range libs {
-		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib])
+		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], nameServer)
 		if err != nil {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
 		}

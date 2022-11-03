@@ -61,15 +61,6 @@ clean:
 	rm -rf build/*
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: example/vvv/build/vvv
-example/vvv/build/vvv: \
-	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
-	build/protoc-gen-parigot \
-	example/vvv/main.go \
-	example/vvv/storeclient/main.go \
-	example/vvv/proto/g/vvv/business.pb.go \
-	example/vvv/proto/g/vvv/businessservicedecl.p.go
-
 ### jdepp computed dependencies for binary: example/vvv/build/storeclient
 example/vvv/build/storeclient: \
 	example/vvv/storeclient/main.go \
@@ -77,4 +68,14 @@ example/vvv/build/storeclient: \
 	example/vvv/proto/g/vvv/businessservicedecl.p.go \
 	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
 	build/protoc-gen-parigot
+
+### jdepp computed dependencies for binary: example/vvv/build/vvv
+example/vvv/build/vvv: \
+	example/vvv/proto/g/vvv/business.pb.go \
+	example/vvv/proto/g/vvv/businessservicedecl.p.go \
+	example/vvv/gen.go \
+	example/vvv/main.go \
+	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
+	build/protoc-gen-parigot \
+	example/vvv/storeclient/main.go
 

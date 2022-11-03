@@ -3,20 +3,29 @@ package sys
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 
 	"github.com/bytecodealliance/wasmtime-go"
-	"google.golang.org/protobuf/proto"
+	"github.com/iansmith/parigot/lib"
 )
 
 var lastProcessId = 7
 
+// callInfo is the data that is actually passed through the channel to the waiting server
+// side.
 type callInfo struct {
-	param proto.Message // can be nil
-	pctx  proto.Message // can be nil for optimization reasons
+	mid    lib.Id
+	cid    lib.Id
+	param  []byte   // can be nil
+	pctx   []byte   // can be nil for optimization reasons
+	caller *Process // who sent this message, so we can send result
 }
+
+// resultInfo is the response that the recipient of a call sends back to the originator.
 type resultInfo struct {
-	result proto.Message //can be nil
-	pctx   proto.Message // can be nil for optimization reasons
+	cid    lib.Id
+	result []byte //can be nil
+	pctx   []byte // can be nil for optimization reasons
 }
 
 type Process struct {
@@ -34,10 +43,12 @@ type Process struct {
 }
 
 // NewProcessFromMod does not handle concurrent use. It assumes that each call to this
-// method is called from the same thread/goroutine, in sequence.
-func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string) (*Process, error) {
+// method is called from the same thread/goroutine, in sequence.  This is, effectively,
+// a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
+// could have a repl
+func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string, nameServer *NameServer) (*Process, error) {
 
-	rt := newRuntime()
+	rt := newRuntime(nameServer)
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
@@ -49,6 +60,9 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 		memPtr:   0,
 		instance: nil,
 		syscall:  rt.syscall,
+
+		callCh:   make(chan *callInfo),
+		resultCh: make(chan *resultInfo),
 	}
 
 	l, err := proc.checkLinkage(rt)
@@ -73,8 +87,17 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 
 	log.Printf("xxx module %s has memptr %x", path, memptr)
 
+	rt.SetProcess(proc)
 	return proc, nil
 
+}
+
+func (p *Process) String() string {
+	dir, file := filepath.Split(p.path)
+	if dir == "" {
+		dir = "."
+	}
+	return fmt.Sprintf("[proc-%d:%s]", p.id, file)
 }
 
 func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
@@ -111,7 +134,6 @@ func (p *Process) Start() {
 		return
 	}
 	f := start.Func()
-	log.Printf("xxx parent = %+v", p.parent)
 	result, err := f.Call(p.parent, 0, 0)
 	if err != nil {
 		log.Printf("process %d [%s] trapped: %v", p.id, p.path, err)

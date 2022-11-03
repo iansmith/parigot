@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -8,6 +9,13 @@ import (
 )
 
 const MaxService = 127
+
+type callContext struct {
+	mid    lib.Id   // the method id this call is going to be made TO
+	target *Process // the process this call is going to be made TO
+	cid    lib.Id   // call id that should be be used by the caller to match results
+	sender *Process // the process this call is going to be made FROM
+}
 
 type packageData struct {
 	service map[string]*serviceData
@@ -33,18 +41,20 @@ func newServiceData() *serviceData {
 	}
 }
 
-type nameServer struct {
+type NameServer struct {
 	packageRegistry        map[string]*packageData
 	serviceCounter         int
 	serviceIdToServiceData map[string] /*really service id*/ *serviceData // accelerator only, we could walk to find this
+	inFlight               []*callContext
 	lock                   *sync.RWMutex
 }
 
-func newNameServer() *nameServer {
-	return &nameServer{
+func NewNameServer() *NameServer {
+	return &NameServer{
 		lock:                   new(sync.RWMutex),
 		packageRegistry:        make(map[string]*packageData),
 		serviceIdToServiceData: make(map[string]*serviceData),
+		inFlight:               []*callContext{},
 		serviceCounter:         7, //first 8 are reserved
 	}
 }
@@ -52,7 +62,7 @@ func newNameServer() *nameServer {
 // RegisterClientService connects a packagePath.service with a particular service id.
 // This is used by client side code and is ususally called via the init() method in
 // generated code.
-func (n *nameServer) RegisterClientService(packagePath string, service string) (lib.Id, lib.Id) {
+func (n *NameServer) RegisterClientService(packagePath string, service string) (lib.Id, lib.Id) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -76,26 +86,43 @@ func (n *nameServer) RegisterClientService(packagePath string, service string) (
 	return sData.serviceId, nil
 }
 
-// FindMethodByName is called by the client side when doing a dispatch.  It needs to find the
-// process that can handle the request.
-func (n *nameServer) FindMethodByName(serviceId lib.Id, name string) (lib.Id, *Process) {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
+// FindMethodByName is called by the client side when doing a dispatch.  This is where the client
+// exchanges a service.id,name pair for the appropriate call context.  The call context is used
+// by the calling client to 1) know where to send the message and 2) how to block waiting on
+// the result.  The return result here is the property of the nameserver, don't mess with it,
+// just read it.
+func (n *NameServer) FindMethodByName(serviceId lib.Id, name string, caller *Process) *callContext {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 
 	sData, ok := n.serviceIdToServiceData[serviceId.String()]
+	print(fmt.Sprintf("FINDMEHTODBYNAME[%s] %v\n", serviceId.String(), ok))
 	if !ok {
-		return nil, nil
+		return nil
 	}
 	mid, ok := sData.method[name]
+	print(fmt.Sprintf("FINDMEHTODBYNAME222[%s] %s,%v\n", name, mid, ok))
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	return mid, sData.methodIdToProcess[mid.String()]
+	target, ok := sData.methodIdToProcess[mid.String()]
+	if !ok {
+		print(fmt.Sprintf("FINDMEHTODBYNAME fail no target found for %s\n", mid))
+		return nil
+	}
+	cc := &callContext{
+		mid:    mid,
+		target: target,
+		cid:    lib.NewCallId(),
+		sender: caller,
+	}
+	print(fmt.Sprintf("FINDMEHTODBYNAME ret %+v\n", cc))
+	return cc
 }
 
 // HandleMethod is called by the server side to indicate that it will handle a particular
 // method call on a particular service.
-func (n *nameServer) HandleMethod(pkgPath, service, method string, proc *Process) (lib.Id, lib.Id) {
+func (n *NameServer) HandleMethod(pkgPath, service, method string, proc *Process) (lib.Id, lib.Id) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -117,6 +144,8 @@ func (n *nameServer) HandleMethod(pkgPath, service, method string, proc *Process
 	sData.method[method] = result
 	sData.methodIdToProcess[result.String()] = proc
 
+	print(fmt.Sprintf("HANDLEMETHOD %s, %v -- %+v\n", method, result, sData.method))
+
 	// xxx fix me, should be able to realize that a method does not exist and reject the attempt to
 	// handle it
 
@@ -126,7 +155,7 @@ func (n *nameServer) HandleMethod(pkgPath, service, method string, proc *Process
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
-func (n *nameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
+func (n *NameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 

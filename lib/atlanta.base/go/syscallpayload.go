@@ -78,7 +78,8 @@ type BlockPayload struct {
 	PctxLen   int64     // in p0b <-- also out p0
 	ParamPtr  int64     // in p1a
 	ParamLen  int64     // in p1b <--- also out p1
-	Direction int64     // in p2
+	Direction int64     // in p2 ///xxxxshould go away?
 	MethodId  *[2]int64 // out p2
-	ErrorPtr  *[2]int64 // out p3
+	CallId    *[2]int64 // out p3
+	ErrorPtr  *[2]int64 // out p4
 }

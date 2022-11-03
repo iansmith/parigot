@@ -3,6 +3,7 @@ package jspatch
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"unsafe"
@@ -81,6 +82,7 @@ func (w *WasmMem) GetInt32(addr int32) int32 {
 func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	ptr := w.GetInt64(dataAddr)
 	len_ := w.GetInt64(lenAddr)
+	log.Printf("LoadStringWithLen, raw values: %x,%d", ptr, len_)
 	buf := make([]byte, len_)
 	for i := int64(0); i < len_; i++ {
 		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))

@@ -31,13 +31,13 @@ func run(impl StoreServer) {
 	paramBuf := make([]byte, lib.GetMaxMessageSize())
 	pctxBuf := make([]byte, lib.GetMaxMessageSize())
 
-	print("CLIENT -- about hit for loop\n")
+	print("SERVER -- about hit for loop\n")
 	// loop on handling calls
 	for {
 		//
 		// wait for notification
 		//
-		print("CLIENT-- about to block\n")
+		print("SERVER-- about to block\n")
 		resp, err := StoreBlockUntilCall(pctxBuf, paramBuf)
 		if err != nil {
 			// error is likely local to this process
