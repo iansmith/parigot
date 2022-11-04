@@ -48,7 +48,12 @@ func run(impl StoreServer) {
 		//
 		// incoming values, pctx and params
 		//
-		pctxSlice := pctxBuf[:resp.PctxLen]
+		var pctxSlice []byte
+		if resp.PctxLen == 0 {
+			pctxSlice = []byte{}
+		} else {
+			pctxSlice = pctxBuf[:resp.PctxLen]
+		}
 		paramSlice := paramBuf[:resp.ParamLen]
 		mid := lib.UnmarshalMethodId(resp.GetMethod())
 		cid := lib.UnmarshalCallId(resp.GetCall())
@@ -56,7 +61,11 @@ func run(impl StoreServer) {
 		//
 		// create the generic params, pctx and param
 		//
-		pctx, err := lib.NewPctxFromBytes(pctxSlice)
+		var pctx lib.Pctx
+		err = nil
+		if resp.PctxLen != 0 {
+			pctx, err = lib.NewPctxFromBytes(pctxSlice)
+		}
 		if err != nil {
 			log.Printf("Unable to create Pctx for call: %v", err)
 			continue

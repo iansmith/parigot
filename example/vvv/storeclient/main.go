@@ -7,27 +7,29 @@ import (
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
+	"github.com/iansmith/parigot/g/log"
 	"github.com/iansmith/parigot/g/pb/kernel"
+	pblog "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //go:noinline
 func main() {
-	//flag.Parse()
-	// logger, err := log.LocateLog()
-	// if err != nil {
-	// 	print("failed to get log\n")
-	// 	//abandon ship, can't get logger to even say what happened
-	// 	lib.Exit(&kernel.ExitRequest{Code: 1})
-	// }
-	// print("xxx trying to set prefix storeclient\n")
-	// err = logger.SetPrefix(&pblog.SetPrefixRequest{Prefix: "storeclient"})
-	// if err != nil {
-	// 	print("xxx set prefix returned error ", err.Error(), "\n")
-	// }
-	// print("xxx finished set prefix in storeclient", err == nil, "\n")
-	// logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_INFO, Message: "Test 1 2 3"})
+	//flag.Parse() <--- can't do this until we get startup args figured out
+
+	logger, err := log.LocateLog()
+	if err != nil {
+		//abandon ship, can't get logger to even say what happened
+		lib.Exit(&kernel.ExitRequest{Code: 1})
+	}
+	print("STORECLIENT trying to set prefix storeclient\n")
+	err = logger.SetPrefix(&pblog.SetPrefixRequest{Prefix: "storeclient"})
+	if err != nil {
+		print("xxx set prefix returned error ", err.Error(), "\n")
+	}
+	print("xxx finished set prefix in storeclient", err == nil, "\n")
+	logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_INFO, Message: "Test 1 2 3"})
 
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {

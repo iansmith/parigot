@@ -29,8 +29,8 @@ func run(impl TerminalLog) {
 	}
 	print("xxxx terminal log 2222\n")
 	// allocte buffers for values coming back to use
-	paramBuf := []byte{}
-	pctxBuf := make([]byte, lib.GetMaxMessageSize())
+	paramBuf := make([]byte, lib.GetMaxMessageSize())
+	pctxBuf := []byte{}
 
 	print("simple log, heading for the loop\n")
 	print("xxxx terminal log 333\n")
@@ -44,10 +44,10 @@ func run(impl TerminalLog) {
 		resp, err := TerminalLogBlockUntilCall(pctxBuf, paramBuf)
 		if err != nil {
 			// error is likely local to this process
-			log.Printf("Unable to dispatch method call: %v", err)
+			print("terminallog-- Unable to dispatch method call:", err.Error(), "\n")
 			continue
 		}
-		print("TERMINAL %+v, %+v, %+v\n\n")
+		print("xxx terminal log 444aaaa ", resp != nil, ",", resp.PctxLen, "\n")
 		print("xxxx terminal log finished the block 5555, len is ", resp.ParamLen, "\n")
 		//
 		// incoming values, pctx and params
@@ -65,14 +65,14 @@ func run(impl TerminalLog) {
 		// xxx again, we don't have a way right now to avoid the pctx
 		// a is an any that represents the params
 		//
+		a := &anypb.Any{}
 		print("xxxx terminal log 666aaaa", mid.Short(), "\n")
-		err = proto.Unmarshal(paramSlice, &anypb.Any{})
+		err = proto.Unmarshal(paramSlice, a)
 		print("xxxx terminal log 77777", mid.Short(), "\n")
 		if err != nil {
 			log.Printf("Unable to create parameters for call: %v", err)
 			continue
 		}
-		a := &anypb.Any{}
 		//
 		// pick the method
 		//
@@ -175,28 +175,27 @@ func TerminalLogbind() (string, error) {
 	return "", nil
 }
 
-func TerminalLogBlockUntilCall(pctx, param []byte) (*kernel.BlockUntilCallResponse, error) {
+func TerminalLogBlockUntilCall(param []byte) (*kernel.BlockUntilCallResponse, error) {
 	print("TerminalBlockUntilCall: about to block\n")
 	req := &kernel.BlockUntilCallRequest{
-		PctxBuffer:  pctx,
+		PctxBuffer:  nil,
 		ParamBuffer: param,
 	}
 	resp, err := lib.BlockUntilCall(req)
 	print("TerminalBlockUntilCall: returned:", resp == nil, " and ", err == nil, "\n")
 	if err != nil {
-		print("terminalLogBlockUntilCall, aborting because BlockUntilCall failed: %s\n",
-			err.Error())
+		print("terminalLogBlockUntilCall, aborting because BlockUntilCall failed: ",
+			err.Error(), "\n")
 		return nil, err
 	}
 	cid := lib.UnmarshalCallId(resp.Call)
 	mid := lib.UnmarshalMethodId(resp.Method)
 	e := lib.UnmarshalKernelErrorId(resp.ErrorId)
-	print("!!TerminalLogBlockUntilCall:", fmt.Sprintf("raw id info from resp: %s,%s,%s ", cid.Short(),
+	print("TerminalLogBlockUntilCall:", fmt.Sprintf("raw id info from resp: %s,%s,%s ", cid.Short(),
 		mid.Short(), e.Short()), "\n")
-	print("!!TerminalLogBlockUntilCall:", fmt.Sprintf("paramlen=%d, pctxlen=%d", resp.ParamLen,
+	print("TerminalLogBlockUntilCall:", fmt.Sprintf("paramlen=%d, pctxlen=%d", resp.ParamLen,
 		resp.PctxLen), "\n")
-	if err != nil {
-		return nil, err
-	}
+	print("TerminalLogBlockUntilCall:", fmt.Sprintf("paramlen=%d", len(param[:resp.ParamLen])),
+		"\n")
 	return resp, nil
 }

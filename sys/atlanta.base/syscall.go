@@ -291,32 +291,44 @@ func (s *SysCall) BindMethod(sp int32) {
 func (s *SysCall) BlockUntilCall(sp int32) {
 	call := <-s.proc.callCh
 
-	s.sysPrint("BlockUntilCall", "received a call: %s,%s", call.cid.Short(), call.mid.Short())
+	s.sysPrint("BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.mid.Short())
 
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	s.sysPrint("BLOCKUNTILCALL", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	s.sysPrint("BLOCKUNTILCALL ", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// check that we can fit the values
 	availablePctxLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxLen))
-	if int64(len(call.pctx)) > availablePctxLen {
+	s.sysPrint("BLOCKUNTILCALL ", "size of available buffer for pctx: %d, need %d", availablePctxLen,
+		len(call.pctx))
+	if availablePctxLen > 0 && int64(len(call.pctx)) > availablePctxLen {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 			lib.NewKernelError(lib.KernelDataTooLarge))
 		return
 	}
 	availableParamLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamLen))
+	s.sysPrint("BLOCKUNTILCALL ", "size of available buffer for param: %d, need %d", availableParamLen,
+		len(call.param))
 	if int64(len(call.param)) > availableParamLen {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 			lib.NewKernelError(lib.KernelDataTooLarge))
 		return
 	}
-	s.sysPrint("BLOCKUNTILCALL", "Block until call checked the sizes and they are ok")
+	s.sysPrint("BLOCKUNTILCALL ", "Block until call checked the sizes and they are ok")
 
 	// write the sizes of the incoming values and if size >0 copy the data to the pointer given
-	s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(len(call.pctx)))
-	if len(call.pctx) > 0 {
-		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxPtr), call.pctx)
+	if availablePctxLen == 0 {
+		s.sysPrint("BLOCKUNTILCALL ", "ignoring pctx in this call because callee says can't accept it")
+		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(0))
 	} else {
-		s.sysPrint("BLOCKUNTILCALL", "skipping pctx, size is zero")
+		// we want to send the PCTX value and they said ok
+		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(len(call.pctx)))
+		if len(call.pctx) > 0 {
+			s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxPtr), call.pctx)
+		} else {
+			// this is the reverse of the previous, this is because the caller sent no PCTX
+			s.sysPrint("BLOCKUNTILCALL ", "skipping pctx, size is zero")
+
+		}
 	}
 	s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.ParamLen))), int64(len(call.param)))
 	if len(call.param) > 0 {
