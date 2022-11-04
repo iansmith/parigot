@@ -48,8 +48,8 @@ func main() {
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}
-	best := &pb.BestOfAllTimeResponse{}
-	err = vinnysStore.BestOfAllTime(&req, best)
+	//best := &pb.BestOfAllTimeResponse{}
+	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
 		print("STORE CLIENT, BEST OF ALL TIME ", err.Error(), "\n")
 	}

@@ -53,3 +53,9 @@ message RevenueResponse{
   float revenue = 1;
 }
 
+message MediaTypesInStockRequest {
+
+}
+message MediaTypesInStockResponse {
+  repeated Media in_stock = 1;
+}

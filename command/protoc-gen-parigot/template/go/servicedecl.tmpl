@@ -19,10 +19,20 @@ import(
 //
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
-{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-    {{.WasmMethodName}}({{$methParamDecl}}) {{$methodRet}}
-{{- end }}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- if .InputCodeNeeded }}
+    {{$methCamel}}(in {{$inParam}}) 
+{{- else }} 
+    {{$methCamel}}() 
+{{- end -}} 
+{{- if .OutputCodeNeeded -}}
+    ({{$outParam}}, error)
+{{- else -}}
+    error
+{{- end -}} {{/* end of output code needed for declaration */}}
+{{- end }} {{/* end of range over methods */}}
 }
 {{- end }}{{/* closes no kernel option */}}
 {{- end}} {{/* closes top service, the interface stuff*/}}
@@ -31,6 +41,7 @@ type {{$svcCamel}} interface {
 {{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
+
 type {{$svcCamel}}Client struct {
     *lib.ClientSideService
 }
@@ -55,64 +66,64 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 
 {{- $meth:=.WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsFillIn:=call .FuncChoice.NeedsFillIn .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsFillOut:=call .FuncChoice.NeedsFillOut .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $dispatchParam:=call .FuncChoice.DispatchParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
 {{/*
+{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $dispatchParam:=call .FuncChoice.DispatchParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $needsFillIn:=call .FuncChoice.NeedsFillIn .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
+{{- $needsFillOut:=call .FuncChoice.NeedsFillOut .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 {{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
 {{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
 */}}
 
-func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
+{{- if .InputCodeNeeded -}}
+func (i *{{$svcCamel}}Client) {{$methCamel}}(in {{$inParam}}) 
+{{- else -}}
+func (i *{{$svcCamel}}Client) {{$methCamel}}() 
+{{- end -}}
+{{- if .OutputCodeNeeded -}}
+    ({{$outParam}}, error) {
+{{- else -}}
+    error {
+{{- end -}} {{/* end of output code needed for declaration */}}
 
-{{- if $needsFillIn}}
-    req:=&{{$inParam}}{}  // build the structure: {{$inParam}}
-{{- range .InputFields}}
-    req.{{toCamelCase .GetName}}={{.GetWasmFieldName}}
-{{- end}}{{/* range input fields */}}
-{{- else }} {{/* other side of needs fill in */}}
-    {{ $inbound }}
-{{- end}}{{/*needs fill*/}}
-    
-    {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$dispatchParam}})
+{{- if .OutputCodeNeeded }}
+    out:=&{{$outParamDecl}}
+    {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+{{- else }} {{/* other side of output code needed */}}
+    _, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+{{ end }} {{/* end of output code needed for dispatch call */}}
+
     if err!=nil {
 {{- if .OutputCodeNeeded }}
         return nil, err
+    }
 {{- else }}
         return err
+    }
 {{ end }} {{/* end of output code needed for return */}}
 
 {{- if .OutputCodeNeeded }}
-{{- if $needsFillOut}}
-        out:={{$outParam}}
-{{- end}} {{/* needs fill out */}}
     err = resp.Result.UnmarshalTo(out)
     if err!=nil {
-        return lib.NewPerror("failed to unmarshal result")
+        return nil,lib.NewPerror("failed to unmarshal result")
     }
-{{- if $needsFillOut}} //take apart response structure: {{$outParam}}
-{{- range .OutputFields}}
-    *{{.Name}}={{.Field}}
-{{- end}}{{/* range output fields */}}
-{{- else}}{{/* other side of needs fill*/}}
-    return nil
-{{- end}}{{/*needs fill*/}}
-
+    return out,nil
 {{- else }} {{/* other side of output code needed */}}
-    return err
+    return nil
 {{- end }} {{/* output code needed */}}
 }
 {{- end }} {{/*ranging over methods*/}}

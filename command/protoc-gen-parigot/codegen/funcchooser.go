@@ -32,4 +32,5 @@ type FuncChooser struct {
 	InputToSend         QuadWithMethodString
 	DispatchParam       QuadWithMethodString
 	DispatchResult      QuadWithMethodString
+	OutParamDecl        QuadWithMethodString
 }
