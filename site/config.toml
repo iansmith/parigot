@@ -2,7 +2,7 @@ baseURL = 'https://parigot.info/'
 languageCode = 'en-us'
 title = 'Parigot'
 theme = "ace-documentation-1.0.4"
-ignorefiles = ["posts/*","document/*", "internal/*"]
+#ignorefiles = ["posts/*","document/*", "internal/*"]
 [params]
 disableSearch = true
 

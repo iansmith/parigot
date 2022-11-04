@@ -30,4 +30,8 @@ type FuncChooser struct {
 	HasComplexParam     QuadWithMethodBool
 	MethodCallWasm      QuadWithMethodString
 	InputToSend         QuadWithMethodString
+	DispatchParam       QuadWithMethodString
+	DispatchResult      QuadWithMethodString
+	OutParamDecl        QuadWithMethodString
+	BindDirection       QuadWithMethodString
 }

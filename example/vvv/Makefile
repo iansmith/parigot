@@ -24,25 +24,19 @@ BUF_CMD=buf
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
 GENERATED=proto/g/
-all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.wasm
+all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm build/server.p.wasm
 
-build/storeclient.wasm: storeclient/main.go
+build/server.p.wasm: main.go
+	@echo
+	@echo "\033[92mbuilding server side: vvv (server) ============================================================\033[0m"
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go
+	#wasm2wat --no-check -o build/server.wat build/server.p.wasm
+
+build/storeclient.p.wasm: storeclient/main.go ../../sys/atlanta.base/stdlib/terminallog/build/terminallog.p.wasm
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
-	#$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(BUILD_TAGS) -o build/storeclient.wasm storeclient/main.go
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go
-	wasm2wat --no-check -o build/storeclient.wat build/storeclient.p.wasm
-
-build/storeclient-repl.wasm: build/storeclient.wasm
-	@echo
-	@echo "\033[92mfunction surgery (reflection) ======================================================================\033[0m"
-	$(PARIGOT_SOURCE)/build/surgery -op replacefn -r replacement.txt \
-		-o build/storeclient-repl.wasm -f '$$runtime.initAll' build/storeclient.wasm
-
-build/vvv.wasm: main.go
-	@echo
-	@echo "\033[92mbuilding app: vvv ==================================================================================\033[0m"
-	$(TINYGO_CMD) build  $(TINYGO_WASM_OPTS) -tags $(TINYGO_BUILD_TAGS) -o build/vvv.wasm main.go
+	#wasm2wat --no-check -o build/storeclient.wat build/storeclient.p.wasm
 
 # we only need a single representative file to insure regeneration of all the generate services
 $(GENERATED)/vvv/businessservicedecl.p.go: proto/business.proto
@@ -59,15 +53,18 @@ clean:
 ### jdepp computed dependencies for binary: example/vvv/build/storeclient
 example/vvv/build/storeclient: \
 	example/vvv/storeclient/main.go \
-	abi/atlanta.base/proto/abi/abi.proto \
-	build/protoc-gen-parigot \
-	example/vvv/proto/business.proto
+	example/vvv/proto/g/vvv/business.pb.go \
+	example/vvv/proto/g/vvv/businessservicedecl.p.go \
+	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
+	build/protoc-gen-parigot
 
 ### jdepp computed dependencies for binary: example/vvv/build/vvv
 example/vvv/build/vvv: \
-	build/protoc-gen-parigot \
-	example/vvv/proto/business.proto \
+	example/vvv/proto/g/vvv/business.pb.go \
+	example/vvv/proto/g/vvv/businessservicedecl.p.go \
+	example/vvv/gen.go \
 	example/vvv/main.go \
-	example/vvv/storeclient/main.go \
-	abi/atlanta.base/proto/abi/abi.proto
+	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
+	build/protoc-gen-parigot \
+	example/vvv/storeclient/main.go
 

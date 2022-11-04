@@ -3,6 +3,16 @@ package pb.log;
 option go_package="github.com/iansmith/parigot/g/pb/log;log";
 import "google/protobuf/timestamp.proto";
 
+
+enum LogLevel {
+  LOGLEVEL_UNSPECIFIED = 0;
+  LOGLEVEL_FATAL  =1;
+  LOGLEVEL_ERROR  =2;
+  LOGLEVEL_WARNING  =3;
+  LOGLEVEL_INFO  =4;
+  LOGLEVEL_DEBUG  =5;
+}
+
 // LogEvents are intended to be major things, most importantly network calls.
 message LogEvent {
   string event = 1;
@@ -13,16 +23,17 @@ message LogEvent {
 
 message LogRequest {
   google.protobuf.Timestamp stamp = 1;
-  int32 level = 2;
+  LogLevel level = 2;
   string message  =3;
 }
 
-message LogResult {
+message LogResult {}
+
+message SetPrefixRequest {
+  string prefix  =1;
 }
 
-// LogCollection is a series of LogEvents.  Each LogEvent can have a (nested) set of
-// LogRequests.  So a long function may have many LogEvents (e.g. "I called network service foo")
-// each one of which showing the log that resulted from that call.
-message LogCollection {
-  repeated LogRequest req =1;
+message SetPrefixResponse{
+  
 }
+

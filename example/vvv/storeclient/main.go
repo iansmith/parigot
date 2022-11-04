@@ -8,36 +8,56 @@ import (
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
-	"github.com/iansmith/parigot/g/log"
 	"github.com/iansmith/parigot/g/pb/kernel"
-	log2 "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+//go:noinline
 func main() {
-	//flag.Parse()
-	logger, err := log.LocateLog()
-	if err != nil {
-		print("failed to get log\n")
-		//abandon ship, can't get logger to even say what happened
-		lib.Exit(&kernel.ExitRequest{Code: 1})
-	}
-	print(fmt.Sprintf("got log %x... about to try to log\n", logger))
-	logger.Log(&log2.LogRequest{Level: 3, Message: "starting up..."})
+	//flag.Parse() <--- can't do this until we get startup args figured out
+
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
-		logger.Log(&log2.LogRequest{Level: 5, Message: "could not find the store:" + err.Error()})
+		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
-	//t := kernel.Now()
-	//logger.LogDebug(fmt.Sprintf("time is now %d ", t), "")
-	vinnysStore.SoldItem(&pb.SoldItemRequest{
+	vinnysStore.EnablePctx()
+
+	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	//best, err := vinnysStore.BestOfAllTime()
-	//if err != nil {
-	//	logger.LogFatal("could not reach the BestOfAllTime call:"+err.Error(), "")
-	//}
-	//logger.LogDebug("best of all time:"+best.GetMedia().GetTitle(), "")
+	storeclientPrint(" SoldItem returned ok?:  %v", err == nil)
+	req := pb.BestOfAllTimeRequest{
+		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
+	}
+	//best := &pb.BestOfAllTimeResponse{}
+	best, err := vinnysStore.BestOfAllTime(&req)
+	if err != nil {
+		storeclientPrint("BestOfAllTime failed %s", err.Error())
+		lib.Exit(&kernel.ExitRequest{Code: 1})
+	}
+	storeclientPrint("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
+		best.Item.Creator, best.Item.Title, best.Item.Year)
+
+	inStock, err := vinnysStore.MediaTypesInStock()
+	if err != nil {
+		storeclientPrint("MediaTypesInStock() failed  %s", err.Error())
+	} else {
+		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
+		print("\t xxx if I print the strings here I get a 'makeslice: len out of range' crash\n")
+		print("\t")
+		for i, m := range inStock.GetInStock() {
+			//print(m.String(), " ") // ARRRRGH
+			print(m, " ")
+			if i != len(inStock.GetInStock())-1 {
+				print(",")
+			}
+		}
+		print("\n")
+	}
+}
+
+func storeclientPrint(spec string, arg ...interface{}) {
+	print("STORECLIENT:", fmt.Sprintf(spec, arg...), "\n")
 }

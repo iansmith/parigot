@@ -2,12 +2,18 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/g/pb/kernel"
+	pblog "github.com/iansmith/parigot/g/pb/log"
+	"github.com/iansmith/parigot/g/pb/parigot"
+
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ClientSideService struct {
-	svc    Id
-	caller string
+	svc         Id
+	caller      string
+	pctxEnabled bool
+	currentPctx Pctx
 }
 
 func NewClientSideService(id Id) *ClientSideService {
@@ -19,37 +25,48 @@ func NewClientSideService(id Id) *ClientSideService {
 func (c *ClientSideService) SetCaller(caller string) {
 	c.caller = caller
 }
-
-func (c *ClientSideService) Dispatch(method string, in proto.Message, out *kernel.DispatchResponse) error {
-	return c.DispatchFull(nil, method, c.caller, in, out)
+func (c *ClientSideService) EnablePctx() {
+	c.pctxEnabled = true
+}
+func (c *ClientSideService) DisablePctx() {
+	c.pctxEnabled = false
+}
+func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
+	if !c.pctxEnabled {
+		// we can't print a warning, we are not running in an environment with any type of output
+		panic("attempt to use client side logging without pctx enabled")
+	}
+	if c.pctxEnabled {
+		if c.currentPctx == nil {
+			c.currentPctx = NewPctx()
+		}
+		c.currentPctx.Log(level, message)
+	}
 }
 
-func (c *ClientSideService) DispatchFull(ctx Pctx, method string, caller string, in proto.Message, out *kernel.DispatchResponse) error {
-
-	if ctx == nil {
-		ctx = NewPctx()
+// Shorthand to make it cleaner for the calls from a client side proxy.
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kernel.DispatchResponse, error) {
+	var a *anypb.Any
+	var err error
+	if param != nil {
+		a, err = anypb.New(param)
+		if err != nil {
+			return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
+		}
 	}
 
-	req := &kernel.DispatchRequest{
-		ServiceSid: 0,
-		Method:     method,
-		Caller:     caller,
+	var ughPuke *parigot.PCtx
+	if c.currentPctx != nil {
+		ughPuke = c.currentPctx.(*pctx).PCtx
 	}
-	b, err := ctx.ToBytes()
-	if err != nil {
-		panic("unable to marshal protobuf pctx:" + err.Error())
-	}
-	req.InPctx = b
-	b, err = proto.Marshal(in)
-	if err != nil {
-		panic("unable to marshal protobuf dispatch request:" + err.Error())
-	}
-	req.InBlob = b
-	resp := kernel.DispatchResponse{}
-	Dispatch(req, &resp)
 
-	//if err != nil {
-	//	return NewPerrorFromError("internal error in dispatch", err)
-	//}
-	return nil
+	in := &kernel.DispatchRequest{
+		ServiceId: MarshalServiceId(c.svc),
+		Caller:    c.caller,
+		Method:    method,
+		InPctx:    ughPuke,
+		Param:     a,
+	}
+	// xxx this should be going through dispatch anyway
+	return Dispatch(in)
 }

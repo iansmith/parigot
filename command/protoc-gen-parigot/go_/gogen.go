@@ -1,14 +1,16 @@
 package go_
 
 import (
+	"text/template"
+
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 	"google.golang.org/protobuf/types/descriptorpb"
-	"text/template"
 )
 
 const (
 	serviceDecl = "template/go/servicedecl.tmpl"
+	serverDecl  = "template/go/serverdecl.tmpl"
 )
 
 type GoGen struct {
@@ -25,15 +27,15 @@ func NewGoGen(finder codegen.Finder) *GoGen {
 }
 
 func (g *GoGen) GeneratingMessage() []string {
-	return []string{"service declarations into"}
+	return []string{"service declarations into", "server helpers"}
 
 }
 func (g *GoGen) ResultName() []string {
-	return []string{"servicedecl.p.go"}
+	return []string{"servicedecl.p.go", "server.p.go"}
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl}
+	return []string{serviceDecl, serverDecl}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
 	return nil

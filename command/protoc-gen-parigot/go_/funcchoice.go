@@ -2,9 +2,10 @@ package go_
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
 	"strings"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 )
 
 type FieldSpec struct {
@@ -44,6 +45,10 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		MethodCallWasm:      funcChoicesMethodCallWasm,
 		InputToSend:         funcChoicesInputToSend,
 		UsesReturnValuePtr:  funcChoicesUsesReturnValuePtr,
+		DispatchParam:       funcChoicesDispatchParam,
+		DispatchResult:      funcChoicesDispatchResult,
+		OutParamDecl:        funcChoicesOutParamDecl,
+		BindDirection:       funcChoicesBindDirection,
 	}
 }
 
@@ -88,6 +93,19 @@ func basicTypeRequiresDecode(s string) bool {
 		return true
 	}
 	return false
+}
+
+func funcChoicesBindDirection(b1, b2, _, _ bool, m *codegen.WasmMethod) string {
+	if !b1 && !b2 {
+		panic(fmt.Sprintf("method %s has neither input nor output!", m.WasmMethodName()))
+	}
+	if b1 && b2 {
+		return "Both"
+	}
+	if b1 {
+		return "In"
+	}
+	return "Out"
 }
 
 // funcChoicesComplexParam is a convenience method for grouping methods in the ABI
@@ -234,19 +252,19 @@ func funcChoicesMethodParamDecl(b1, b2, b3, b4 bool, method *codegen.WasmMethod)
 		}
 		typ := t.String(method.ProtoPackage())
 		result += method.Language().FormalTypeCombination("in", "*"+typ)
-		if b2 {
-			result += method.Language().FormalArgSeparator()
-		}
+		// if b2 {
+		// 	result += method.Language().FormalArgSeparator()
+		// }
 	}
-	if b2 {
-		//have output
-		t := method.CGOutput().GetCGType()
-		if t.IsBasic() {
-			panic(fmt.Sprintf("unexpected basic return value in method %s", method.WasmMethodName()))
-		}
-		typ := t.String(method.ProtoPackage())
-		result += method.Language().FormalTypeCombination("out", "*"+typ)
-	}
+	// if b2 {
+	// 	//have output
+	// 	t := method.CGOutput().GetCGType()
+	// 	if t.IsBasic() {
+	// 		panic(fmt.Sprintf("unexpected basic return value in method %s", method.WasmMethodName()))
+	// 	}
+	// 	typ := t.String(method.ProtoPackage())
+	// 	result += method.Language().FormalTypeCombination("out", "*"+typ)
+	// }
 	return result
 }
 
@@ -332,6 +350,19 @@ func outputTypeInfo(b4 bool, method *codegen.WasmMethod) (*codegen.CGType, int) 
 
 }
 
+func funcChoicesDispatchParam(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	if b1 {
+		return "req"
+	}
+	return "nil"
+}
+func funcChoicesDispatchResult(b1, b2, b3, b4 bool, method *codegen.WasmMethod) string {
+	if b2 {
+		return "resp"
+	}
+	return "_"
+}
+
 func funcChoicesZeroValueRet(_, b2, _, b4 bool, abi bool, method *codegen.WasmMethod) string {
 	if !abi {
 		panic("unepected call to ZeroValueRet")
@@ -364,13 +395,26 @@ func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 	return b2
 }
 func funcChoicesInputParam(b1, _, _, _ bool, m *codegen.WasmMethod) string {
+	if !b1 {
+		return ""
+	}
 	t := m.CGInput().CGType()
 	return m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
 }
 
 func funcChoicesOutputParam(_, b2, _, _ bool, m *codegen.WasmMethod) string {
-	t := m.CGInput().CGType()
+	if !b2 {
+		return ""
+	}
+	t := m.CGOutput().GetCGType()
 	return m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
+}
+func funcChoicesOutParamDecl(_, b2, _, _ bool, m *codegen.WasmMethod) string {
+	if !b2 {
+		return ""
+	}
+	t := m.CGOutput().GetCGType()
+	return m.Language().ToTypeName(t.String(m.ProtoPackage()), false, m) + "{}"
 }
 
 func funcChoicesInputToSend(b1, _, b3, _ bool, m *codegen.WasmMethod) string {
@@ -463,12 +507,11 @@ func funcChoicesRetValue(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	}
 	return "nil"
 }
-func funcChoicesInbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
+func funcChoicesInbound(b1, _, _, _ bool, m *codegen.WasmMethod) string {
 	if b1 {
-		return "req:=in"
+		return "in"
 	}
-	log.Printf("xxx inbound %s", funcChoicesInputParam(b1, b2, b3, b4, m))
-	return "var req " + funcChoicesInputParam(b1, b2, b3, b4, m)
+	return "nil"
 }
 func funcChoicesOutbound(b1, b2, b3, b4 bool, m *codegen.WasmMethod) string {
 	if b2 {

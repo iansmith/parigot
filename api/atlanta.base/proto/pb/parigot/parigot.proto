@@ -1,7 +1,10 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+import "pb/log/log.proto";
 option go_package="github.com/iansmith/parigot/g/pb/parigot;parigot";
 package pb.parigot;
+
 
 extend google.protobuf.ServiceOptions {
   optional bool always_pull_up_parameters = 543212;
@@ -27,22 +30,84 @@ extend google.protobuf.MessageOptions {
   optional string wasm_message_name = 543210;
 }
 
-message LocateErrorId {
+// KernelErrorId is used to signal errors that occured inside the operating environment 
+// itself.  When one of these errors is returned, typically the processing along that
+// path of control should terminate.
+message KernelErrorId {
   uint64 high = 1;
   uint64 low = 2;
 }
 
-message DispatchErrorId {
+// DeveloperErrorId is used to signal errors that are defined by the developer.
+message DeveloperErrorId {
   uint64 high = 1;
   uint64 low = 2;
 }
 
-message RegisterErrorId {
-  uint64 high = 1;
-  uint64 low = 2;
-}
-
+// ServiceId is a type of Id that is given to _clients_ of a particular service.  With this
+// information (really, capability) the holder of the ServiceId can make calls on the methods
+// of that service.  In unixish terms, this id might be the equivalent of a hostname and port pair.
 message ServiceId {
   uint64 high = 1;
   uint64 low = 2;
+}
+
+// DeveloperId is a type of Id that is defined by the developer.
+message DeveloperId {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+// MethodId is a type of Id that is given to _implementations_ of a particular service.  A "server"
+// for a service will have one MethodId for each method that it can respond to. The kernel 
+// will inform the server which method was called by using a MethodId.  In unixish terms,
+// this id might be the equivalent of a "handler" in a web server that handles a particular
+// type of request.
+message MethodId {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+// CallId is an id given to the implementations of methods of a service.  This id represents
+// a particular call instance, e.g. a single call from a single client program.  There may be
+// many CallIds outstanding at any given time for a service or for any method of that service.
+// The kernel uses the CallId to distinguish between different invocations of a given method.
+// In unixish terms, this might be the equivalent of a connected file descriptor on a 
+// socket that will be closed when the single method invocation ends.
+message CallId {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+// PCtx is the protobuf level version of lib.Pctx.  This type is passed to all implementations
+// of methods that are invoked by the server.  Optionally, client code can use lib.Pctx (a
+// wrapper around this type) to capture logs and other activities that occur during the processing
+// they perform.  For example, the client can provide his Pctx to the server when making a
+// call to a remote service and the logs of the _remote_ service will be collected into the
+// given Pctx.  A PCtx also includes a key/value store based on strings to allow various
+// subsystems to pass data to each other as a single request is processed.  For example, 
+// a userService may put a UserId into the key/value store so that "downstream" calls will
+// already have the user id prepared for them.  This is broadly similar to the 
+// context.Context in go, although more highly structured.
+message PCtx {
+  repeated PCtxEvent event = 1;
+  map<string,string> entry = 2;
+}
+
+// PCtxEvent represents an event that occurred during the processing of a call. This event
+// is recorded (the message) and then future log messages will accumulate "into" that event.
+// A good use of PCtxEvent is to indicate that a network call was made.
+message PCtxEvent {
+  string message = 1;
+  repeated PCtxMessage line = 2;
+}
+
+// PCtxMessage is just a simple log message.  This different from a normal log message in that
+// it can participate in the PCtxEvent and PCtx scheme mentioned above to capture log 
+// messages across the entire chain of calls used to process a single request.
+message PCtxMessage {
+  google.protobuf.Timestamp stamp = 1;
+  pb.log.LogLevel level = 2;
+  string producer = 3;
+  string message = 4;
 }

@@ -2,6 +2,8 @@ syntax = "proto3";
 package pb.kernel;
 option go_package="github.com/iansmith/parigot/g/pb/kernel;kernel";
 import "pb/parigot/parigot.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
 
 
 message ExitRequest {
@@ -17,20 +19,21 @@ message LocateRequest {
 
 message LocateResponse {
   parigot.ServiceId service_id =1;
-  parigot.LocateErrorId error_id=2;
+  parigot.KernelErrorId error_id=2;
 }
 
 message DispatchRequest {
-  int64 service_sid =1;
+  parigot.ServiceId service_id = 1;
   string method=2;
   string caller =3;
-  bytes in_pctx = 4;
-  bytes in_blob=5;
+  parigot.PCtx in_pctx = 4;
+  google.protobuf.Any param=5;
 }
 
 message DispatchResponse {
-  bytes out_blob = 1;
-  parigot.DispatchErrorId error_id =2;
+  parigot.PCtx out_pctx = 1;
+  google.protobuf.Any result = 2;
+  parigot.KernelErrorId error_id =3;
 }
 
 message RegisterRequest {
@@ -40,5 +43,50 @@ message RegisterRequest {
 
 message RegisterResponse {
   parigot.ServiceId service_id =1;
-  parigot.RegisterErrorId error_id=2;
+  parigot.KernelErrorId error_id=2;
+}
+
+enum MethodDirection {
+  MethodDirectionUnspecified = 0;
+  MethodDirectionIn = 1;
+  MethodDirectionOut = 2;
+  MethodDirectionBoth = 3;
+}
+
+message BindMethodRequest  {
+  string protoPackage = 1;
+  string service = 2;
+  string method = 3;
+  MethodDirection direction = 4;
+}
+
+message BindMethodResponse {
+  parigot.MethodId method_id = 1;
+  parigot.KernelErrorId error_id = 2;
+}
+
+message BlockUntilCallRequest{
+  bytes pctx_buffer = 1;
+  bytes param_buffer = 2;
+}
+
+message BlockUntilCallResponse{
+  int32 pctx_len =1 ;
+  int32 param_len = 2;
+  parigot.MethodId method = 3;
+  parigot.CallId call = 4;
+  parigot.KernelErrorId error_id= 5;
+}
+
+message ReturnValueRequest{
+  parigot.CallId call = 1;
+  parigot.MethodId method = 2;
+  string error_message = 3;
+  parigot.KernelErrorId error_id = 4;
+  bytes pctx_buffer = 6;
+  bytes result_buffer = 7;
+}
+
+message ReturnValueResponse {
+  parigot.KernelErrorId error_id = 1;
 }
