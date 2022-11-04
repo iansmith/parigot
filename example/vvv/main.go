@@ -18,6 +18,17 @@ func main() {
 type myServer struct {
 }
 
+//
+// This file contains the true implementations--the server side--for the methods
+// defined in business.proto.
+//
+
+func (m *myServer) MediaTypesInStock(pctx lib.Pctx) (proto.Message, error) {
+	return &pb.MediaTypesInStockResponse{
+		InStock: []pb.Media{pb.Media_MEDIA_BETA, pb.Media_MEDIA_CASSETTE, pb.Media_MEDIA_LASER_DISC, pb.Media_MEDIA_VHS, pb.Media_MEDIA_VINYL, pb.Media_MEDIA_ATARI_CART},
+	}, nil
+}
+
 func (m *myServer) BestOfAllTime(pctx lib.Pctx, inProto proto.Message) (proto.Message, error) {
 	in := inProto.(*pb.BestOfAllTimeRequest)
 

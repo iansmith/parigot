@@ -46,10 +46,15 @@ func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
 func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kernel.DispatchResponse, error) {
-	a, err := anypb.New(param)
-	if err != nil {
-		return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
+	var a *anypb.Any
+	var err error
+	if param != nil {
+		a, err = anypb.New(param)
+		if err != nil {
+			return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
+		}
 	}
+
 	var ughPuke *parigot.PCtx
 	if c.currentPctx != nil {
 		ughPuke = c.currentPctx.(*pctx).PCtx

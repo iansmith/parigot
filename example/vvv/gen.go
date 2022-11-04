@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"demo/vvv/proto/g/vvv/pb"
 
@@ -12,15 +11,19 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+var storeserverVerbose = false
+
 type StoreServer interface {
 	BestOfAllTime(pctx lib.Pctx, in proto.Message) (proto.Message, error)
 	Revenue(pctx lib.Pctx, in proto.Message) (proto.Message, error)
 	SoldItem(pctx lib.Pctx, in proto.Message) error
+	MediaTypesInStock(pctx lib.Pctx) (proto.Message, error)
 }
 
 var BestOfAllTimeMethod lib.Id
 var RevenueMethod lib.Id
 var SoldItemMethod lib.Id
+var MediaTypesInStockMethod lib.Id
 
 func run(impl StoreServer) {
 	// register all methods
@@ -40,11 +43,11 @@ func run(impl StoreServer) {
 		resp, err := StoreBlockUntilCall(pctxBuf, paramBuf)
 		if err != nil {
 			// error is likely local to this process
-			log.Printf("Unable to dispatch method call: %v", err)
+			storeserverPrint("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
 			continue
 		}
-		print(fmt.Sprintf("STORESERVER block completed, got two values:%d,%d\n",
-			resp.PctxLen, resp.ParamLen))
+		storeserverPrint("RUN: primary for loop ", "block completed, got two values:%d,%d",
+			resp.PctxLen, resp.ParamLen)
 		//
 		// incoming values, pctx and params
 		//
@@ -67,14 +70,14 @@ func run(impl StoreServer) {
 			pctx, err = lib.NewPctxFromBytes(pctxSlice)
 		}
 		if err != nil {
-			log.Printf("Unable to create Pctx for call: %v", err)
+			storeserverPrint("RUN: primary for loop ", "Unable to create Pctx for call: %v", err)
 			continue
 		}
 		// a is an any that represents the params
 		a := &anypb.Any{}
 		err = proto.Unmarshal(paramSlice, a)
 		if err != nil {
-			log.Printf("Unable to create parameters for call: %v", err)
+			storeserverPrint("RUN: primary for loop ", "Unable to create parameters for call: %v", err)
 			continue
 		}
 
@@ -87,16 +90,16 @@ func run(impl StoreServer) {
 		case mid.Equal(BestOfAllTimeMethod):
 			req := &pb.BestOfAllTimeRequest{}
 			marshalError = a.UnmarshalTo(req)
-			print(fmt.Sprintf("STORESERVER  BOAT: unmarshalled request with a ok? [%s]", a.GetTypeUrl()), "\n")
+			storeserverPrint("RUN:method switch ", "BOAT: unmarshalled request with a ok? [%s]", a.GetTypeUrl())
 			if marshalError != nil {
 				break
 			}
-			print("STORESERVER BOAT: making call\n")
+			storeserverPrint("RUN:method switch ", "BOAT: making call")
 			out, execError = impl.BestOfAllTime(pctx, req)
 			if execError != nil {
 				break
 			}
-			print("STORESERVER BOAT: got out, ok?", out != nil, "\n")
+			storeserverPrint("RUN: method switch ", "BOAT: got out, ok? %v", out != nil)
 		case mid.Equal(RevenueMethod):
 			req := &pb.RevenueRequest{}
 			marshalError = a.UnmarshalTo(req)
@@ -118,6 +121,11 @@ func run(impl StoreServer) {
 				break
 			}
 			out = nil // just to be sure
+		case mid.Equal(MediaTypesInStockMethod):
+			out, execError = impl.MediaTypesInStock(pctx)
+			if execError != nil {
+				break
+			}
 		}
 
 		//
@@ -141,7 +149,6 @@ func Storebind() (string, error) {
 		return "BestOfAllTime", BestOfAllTimeerr
 	}
 	BestOfAllTimeMethod = lib.UnmarshalMethodId(resp.GetMethodId())
-	print("CLIENT best of all time: ", BestOfAllTimeMethod.Short()+"\n")
 
 	resp, Revenueerr := lib.BindMethodBoth(&kernel.BindMethodRequest{
 		ProtoPackage: "demo.vvv",
@@ -152,7 +159,6 @@ func Storebind() (string, error) {
 		return "Revenue", Revenueerr
 	}
 	RevenueMethod = lib.UnmarshalMethodId(resp.GetMethodId())
-	print("CLIENT revenue: ", RevenueMethod.Short()+"\n")
 
 	resp, SoldItemerr := lib.BindMethodIn(&kernel.BindMethodRequest{
 		ProtoPackage: "demo.vvv",
@@ -163,7 +169,16 @@ func Storebind() (string, error) {
 		return "SoldItem", SoldItemerr
 	}
 	SoldItemMethod = lib.UnmarshalMethodId(resp.GetMethodId())
-	print("CLIENT sold: ", SoldItemMethod.Short()+"\n")
+
+	resp, MediaTypesInStockerr := lib.BindMethodOut(&kernel.BindMethodRequest{
+		ProtoPackage: "demo.vvv",
+		Service:      "Store",
+		Method:       "MediaTypesInStock",
+	}, impl.MediaTypesInStock)
+	if MediaTypesInStockerr != nil {
+		return "MediaTypesInStock", MediaTypesInStockerr
+	}
+	MediaTypesInStockMethod = lib.UnmarshalMethodId(resp.GetMethodId())
 	return "", nil
 }
 
@@ -178,4 +193,12 @@ func StoreBlockUntilCall(pctx, param []byte) (*kernel.BlockUntilCallResponse, er
 		return nil, err
 	}
 	return resp, nil
+}
+
+func storeserverPrint(method string, spec string, arg ...interface{}) {
+	if storeserverVerbose {
+		part1 := fmt.Sprintf("STORESERVER:%s", method)
+		part2 := fmt.Sprintf(spec, arg...)
+		print(part1, part2, "\n")
+	}
 }

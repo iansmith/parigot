@@ -10,6 +10,9 @@ import (
 	"github.com/iansmith/parigot/lib"
 )
 
+// Flip this switch to see debug messages from the process.
+var processVerbose = false
+
 var lastProcessId = 7
 
 // callInfo is the data that is actually passed through the channel to the waiting server
@@ -123,7 +126,7 @@ func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
 			if strings.HasPrefix(importName, "go.parigot") {
-				log.Printf("info: linked %s into module %s", importName, p.path)
+				procPrint("CHECKLINKAGE ", "linked %s into module %s", importName, p.path)
 			}
 			linkage = append(linkage, ext)
 		}
@@ -151,4 +154,12 @@ func (p *Process) Start() {
 	}
 	// xxx fixme, we need to do process cleanup here
 	return
+}
+
+func procPrint(method string, spec string, arg ...interface{}) {
+	if processVerbose {
+		part1 := fmt.Sprintf("PROCESS:%s", method)
+		part2 := fmt.Sprintf(spec, arg...)
+		print(part1, part2, "\n")
+	}
 }

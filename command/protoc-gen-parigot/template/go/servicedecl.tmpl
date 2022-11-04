@@ -119,7 +119,7 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}()
 {{- if .OutputCodeNeeded }}
     err = resp.Result.UnmarshalTo(out)
     if err!=nil {
-        return nil,lib.NewPerror("failed to unmarshal result")
+        return nil,lib.NewPerrorFromError("failed to unmarshal result:",err)
     }
     return out,nil
 {{- else }} {{/* other side of output code needed */}}

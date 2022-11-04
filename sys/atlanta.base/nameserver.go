@@ -2,11 +2,14 @@ package sys
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/lib"
 )
+
+// Flip this switch to get extra debug information from the nameserver when it is doing
+// various lookups.
+var nameserverVerbose = false
 
 const MaxService = 127
 
@@ -113,7 +116,8 @@ func (n *NameServer) FindMethodByName(serviceId lib.Id, name string, caller *Pro
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
-	print("NAMESERVER: adding in flight ", cc.cid.Short(), " and ", cc.sender.String(), "\n")
+	nameserverPrint("FINDMETHODBYNAME", "adding in flight rpc call %s and %s",
+		cc.cid.Short(), cc.sender.String())
 	n.inFlight = append(n.inFlight, cc)
 	return cc
 }
@@ -124,7 +128,8 @@ func (n *NameServer) HandleMethod(pkgPath, service, method string, proc *Process
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	log.Printf("reached the nameserver in process %+v", proc)
+	nameserverPrint("HANDLEMETHOD", "adding method in the nameserver in process %s",
+		proc.String())
 	pData, ok := n.packageRegistry[pkgPath]
 	if !ok {
 		pData = newPackageData()
@@ -139,7 +144,8 @@ func (n *NameServer) HandleMethod(pkgPath, service, method string, proc *Process
 		n.serviceIdToServiceData[sData.serviceId.String()] = sData
 	}
 	result := lib.NewMethodId()
-	print(fmt.Sprintf("assigning %s to the method %s in service %s\n", result, method, service))
+	nameserverPrint("HANDLEMETHOD", "assigning %s to the method %s in service %s",
+		result, method, service)
 	sData.method[method] = result
 	sData.methodIdToProcess[result.String()] = proc
 
@@ -173,11 +179,10 @@ func (n *NameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
 func (n *NameServer) GetProcessForCallId(target lib.Id) *Process {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-	print("NAMESERVER checking in flight ", target.Short(), "\n")
 
 	for i, cctx := range n.inFlight {
-		print("NAMESERVER checking cctx #", i, " target ", target.Short(), " versus ",
-			cctx.cid.Short(), "\n")
+		nameserverPrint("GETPROCESSFORCALLID", "checking in-flight rpc calls, cctx #%d, with target %s versus %s", i, target.Short(),
+			cctx.cid.Short())
 		if cctx.cid.Equal(target) {
 			n.inFlight[i] = n.inFlight[len(n.inFlight)-1]
 			n.inFlight = n.inFlight[:len(n.inFlight)-1]
@@ -186,4 +191,12 @@ func (n *NameServer) GetProcessForCallId(target lib.Id) *Process {
 		}
 	}
 	return nil
+}
+
+func nameserverPrint(methodName string, format string, arg ...interface{}) {
+	if nameserverVerbose {
+		part1 := fmt.Sprintf("NAMESERVER:%s", methodName)
+		part2 := fmt.Sprintf(format, arg...)
+		print(part1, part2, "\n")
+	}
 }

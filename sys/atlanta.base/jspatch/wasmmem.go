@@ -8,6 +8,11 @@ import (
 	"unsafe"
 )
 
+// Flip this switch to get debug output from WasmMem.  It does the lowest level work
+// of grabbing or pushing memory in the other processes address space.  It works on
+// behalf of the kernel as part of every process.
+var wasmmemVerbose = false
+
 type WasmMem struct {
 	memPtr uintptr
 }
@@ -131,8 +136,8 @@ func (w *WasmMem) LoadSlice(addr int32) []byte {
 func (w *WasmMem) LoadSliceWithLenAddr(addr, lenAddr int32) []byte {
 	l := w.GetInt64(lenAddr)
 	if l == 0 {
-		print(fmt.Sprintf("WasmMem: Ignoring to load slice %x,%x true=(%x,%x) because len is zero\n",
-			addr, lenAddr, w.TrueAddr(addr), w.TrueAddr(lenAddr)))
+		wasmmemPrint("LOADSLICEWITHLENADDR", "Ignoring to load slice %x,%x true=(%x,%x) because len is zero",
+			addr, lenAddr, w.TrueAddr(addr), w.TrueAddr(lenAddr))
 		return []byte{}
 	}
 	array := w.GetInt64(addr)
@@ -168,8 +173,7 @@ func (w *WasmMem) LoadValue(addr int32) jsObject {
 		return undefined
 	}
 	// normal procedure
-	t := (math.Float64bits(f) >> 32) & 7
-	enter("LoadValue", fmt.Sprint("binary type ", t))
+	//t := (math.Float64bits(f) >> 32) & 7
 	id := w.GetInt32(addr)
 	return object.get(id)
 }
@@ -191,4 +195,10 @@ func (w *WasmMem) StoreValue(addr int32, obj jsObject) {
 	ptr -= 4
 	header.Data = ptr
 	binary.LittleEndian.PutUint32(buf, lowOrder)
+}
+
+func wasmmemPrint(method string, spec string, arg ...interface{}) {
+	if wasmmemVerbose {
+		print(method, fmt.Sprintf(spec, arg...))
+	}
 }

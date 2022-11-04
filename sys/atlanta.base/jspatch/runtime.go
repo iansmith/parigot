@@ -1,7 +1,6 @@
 package jspatch
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
@@ -35,7 +34,7 @@ func (r *RuntimePatch) WallTime(sp int32) {
 	nanos := time.Now().UnixNano()
 	nanos = nanos % 1000000000
 	r.mem.SetInt32(sp+16, int32(nanos)) // this is big enough, max size is 1B and 31 bits is 2B
-	log.Printf("walltime executed %d,%d", secs, nanos)
+	//log.Printf("walltime executed %d,%d", secs, nanos)
 }
 func (r *RuntimePatch) ScheduleTimeoutEvent(sp int32) {
 	panic("got a scheduleTimeoutEvent call, aborting")

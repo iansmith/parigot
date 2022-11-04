@@ -57,11 +57,12 @@ func (e *perrorImpl) Unwrap() error {
 // internal id, its Short() value is included.
 func (e *perrorImpl) Error() string {
 	var buf bytes.Buffer
-	buf.WriteString(e.message + "\n")
+	buf.WriteString(e.message)
 	if e.underlying != nil {
 		buf.WriteString(e.underlying.Error())
 	} else if e.id != nil {
 		buf.WriteString(e.id.Short())
 	}
+	buf.WriteString("\n")
 	return buf.String()
 }

@@ -22,6 +22,19 @@ func Exit(in *kernel.ExitRequest) {
 	exit(in)
 }
 
+// Flip this switch for debug output that starts with libparigot (like libc) and looks like this:
+// libparigot:DISPATCH preparing for result return value, 69
+// Output from the "BLOCKUNTILCALL" method can get interleaved with the output of the SYSCALL on another
+//
+// process that is sending a message like this:                  vvvvvvvvvvv
+// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
+// params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
+// So that should have been:
+// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
+// libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
+// This is because the terminal is not synchronized and these are in different processes (gouroutines).
+var libparigotVerbose = false
+
 // Register calls the kernel to register the given type. The Id returned is only
 // useful when the error is nil.  This should only be called by clients of the
 // interface being registered.  Usually this is done automatically by the init()
@@ -202,10 +215,10 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 	out.Result = &anypb.Any{}
 	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
 	if err != nil {
-		libprint("DISPATCH", "unmarshal err %v with result len %d", err, detail.ResultLen)
+		libprint("DISPATCH ", "unmarshal err %v with result len %d", err, detail.ResultLen)
 		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewKernelError(KernelUnmarshalFailed))
 	}
-	libprint("DISPATCH", "returning our result %s, done with %s", out.Result, in.Method)
+	libprint("DISPATCH ", "returning our result %s --  done with %s", out.Result, in.Method)
 	return out, nil
 }
 
@@ -337,9 +350,11 @@ func bindMethodByNameNoPctx(in *kernel.BindMethodRequest, dir kernel.MethodDirec
 }
 
 func libprint(call, format string, arg ...interface{}) {
-	part1 := fmt.Sprintf("libparigot:%s", call)
-	part2 := fmt.Sprintf(format, arg...)
-	print(part1, part2, "\n")
+	if libparigotVerbose {
+		part1 := fmt.Sprintf("libparigot:%s", call)
+		part2 := fmt.Sprintf(format, arg...)
+		print(part1, part2, "\n")
+	}
 }
 
 func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallResponse, error) {
@@ -348,7 +363,6 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 		Call:    &parigot.CallId{High: 22, Low: 33},
 		ErrorId: &parigot.KernelErrorId{High: 7, Low: 8},
 	}
-	libprint("BLOCKUNTILCALL ", "out ptr %p", out)
 
 	payload := &BlockPayload{}
 
@@ -389,7 +403,7 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 	out.ParamLen = int32(payload.ParamLen)
 	out.PctxLen = int32(payload.PctxLen)
 
-	libprint("BLOCKUNTILCALL ", "unpacked the data %s,%s --- paramlen %d, pctxlen %d\n", mid.Short(), cid.Short(),
+	libprint("BLOCKUNTILCALL ", "unpacked the data %s,%s --- paramlen %d, pctxlen %d", mid.Short(), cid.Short(),
 		out.ParamLen, out.PctxLen)
 	return out, nil
 }

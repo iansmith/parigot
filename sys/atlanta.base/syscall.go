@@ -10,6 +10,15 @@ import (
 	"github.com/iansmith/parigot/sys/jspatch"
 )
 
+// Flip this switch for debug output that starts with SYSCALL and looks like this:
+// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:about to FindByName: [s-000008],BestOfAllTime,true
+// The output is prefixed in the [] with the name of the syscall, the memory pointer for that
+// process, and the process name/number in its own [].
+//
+// Look at the doc for libparigotVerbose to see about interleaving issue with syscallVerbose and
+// libparigotVerbose.
+var syscallVerbose = false
+
 type SysCall struct {
 	mem        *jspatch.WasmMem
 	nameServer *NameServer
@@ -75,7 +84,7 @@ func (s *SysCall) Register(sp int32) {
 		unsafe.Offsetof(lib.RegPayload{}.ServicePtr),
 		unsafe.Offsetof(lib.RegPayload{}.ServiceLen))
 
-	log.Printf("registration for %s.%s", pkg, service)
+	s.sysPrint("REGISTER ", "registration in progress for %s.%s", pkg, service)
 
 	sid, err := s.nameServer.RegisterClientService(pkg, service)
 
@@ -104,7 +113,7 @@ func (s *SysCall) Locate(sp int32) {
 		unsafe.Offsetof(lib.LocatePayload{}.ServicePtr),
 		unsafe.Offsetof(lib.LocatePayload{}.ServiceLen))
 
-	log.Printf("locate requested for %s.%s", pkg, service)
+	s.sysPrint("LOCATE ", "locate requested for %s.%s", pkg, service)
 
 	sid, err := s.nameServer.GetService(pkg, service)
 
@@ -148,16 +157,16 @@ func (s *SysCall) Dispatch(sp int32) {
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
 
-	s.sysPrint("DISPATCH", "about to FindByName: %s,%s,%v\n", sid.Short(), method, s.nameServer != nil)
+	s.sysPrint("DISPATCH", "about to FindByName: %s,%s,%v", sid.Short(), method, s.nameServer != nil)
 	// we ask the nameserver to find us the appropriate process and method so we can call
 	// the other side... the nameserver also assigns us a call id
 	callCtx := s.nameServer.FindMethodByName(sid, method, s.proc)
 	if callCtx == nil {
-		s.sysPrint("DISPATCH", "FindMethodByName failed for %s,%s\n", sid.Short(), method)
+		s.sysPrint("DISPATCH", "FindMethodByName failed for %s,%s", sid.Short(), method)
 		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
 		return
 	}
-	s.sysPrint("DISPATCH", "FindMethodByName done and OK: %s,%s from '%s'\n",
+	s.sysPrint("DISPATCH", "FindMethodByName done and OK: %s,%s from '%s'",
 		callCtx.cid.Short(), callCtx.mid.Short(), caller)
 
 	destParam := make([]byte, len(param))
@@ -177,7 +186,6 @@ func (s *SysCall) Dispatch(sp int32) {
 		pctx:   destPctx,
 	}
 
-	log.Printf("sending the call info to other process: %s, %s", callInfo.cid.Short(), callInfo.mid.Short())
 	// the magic: send the call value to the other process
 	callCtx.target.callCh <- callInfo
 
@@ -187,7 +195,8 @@ func (s *SysCall) Dispatch(sp int32) {
 	// if the callee (the server implementation) cannot receive the data because is it too large.
 	resultInfo := <-s.proc.resultCh
 
-	s.sysPrint("DISPATCH", "got result from other process %s,%s", resultInfo.cid.Short(), resultInfo.errorId.Short())
+	s.sysPrint("DISPATCH", "got result from other process %s,%s with sizes pctx=%d,result=%d", resultInfo.cid.Short(), resultInfo.errorId.Short(),
+		len(resultInfo.pctx), len(resultInfo.result))
 
 	// we have to check BOTH of the length values we were given to make
 	// sure our results will fit
@@ -257,7 +266,7 @@ func (s *SysCall) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCod
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *SysCall) BindMethod(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	s.sysPrint("BindMethod", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	s.sysPrint("BINDMETHOD ", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
@@ -271,7 +280,7 @@ func (s *SysCall) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
-	log.Printf("about to hit the name service in Bind: %s,%s", service, method)
+	s.sysPrint("BINDMETHOD", "about to ask the name service: %s,%s", service, method)
 	mid, err := s.nameServer.HandleMethod(pkg, service, method, s.proc)
 	if err != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
@@ -283,7 +292,7 @@ func (s *SysCall) BindMethod(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
 		lib.NoKernelErr())
 
-	log.Printf("bind completed, %s bound to %s", method, mid.Short())
+	s.sysPrint("BINDMETHOD", "bind completed, %s bound to %s", method, mid.Short())
 }
 
 // BlockUntilCall is used by servers to block themselves until some other process sends them a
@@ -363,7 +372,7 @@ func (s *SysCall) BlockUntilCall(sp int32) {
 // call on a method they implement.
 func (s *SysCall) ReturnValue(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	s.sysPrint("ReturnValue", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	s.sysPrint("RETURNVALUE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// we just have to create the structure and send it through the correct channel
 	info := &resultInfo{}
@@ -373,31 +382,33 @@ func (s *SysCall) ReturnValue(sp int32) {
 	info.mid = lib.MethodIdFromUint64(uint64(high), uint64(low))
 	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
 	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
-
+	s.sysPrint("RETURNVALUE", "Errorfound in the call? %s", info.errorId)
 	// if pctx len is 0 this is a no op
 	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
 	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
 
-	s.sysPrint("RETURNVALUE", "searching for process for %s", info.cid.Short())
+	s.sysPrint("RETURNVALUE", "searching for process assocated with the call of %s", info.cid.Short())
 	proc := s.nameServer.GetProcessForCallId(info.cid)
 	if proc == nil {
-		s.sysPrint("RETURNVALUE", "unable to find process for %s", info.cid.Short())
+		s.sysPrint("RETURNVALUE", "unable to find process that called %s", info.cid.Short())
 		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 			kerr)
 		return
 	}
-	s.sysPrint("RESULTVALUE", "computed info, found channel, sending")
+	s.sysPrint("RESULTVALUE ", "computed info, found channel, sending")
 	proc.resultCh <- info
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 		lib.NoKernelErr())
-	s.sysPrint("RESULTVALUE", "finished")
+	s.sysPrint("RESULTVALUE ", "finished")
 	return
 }
 
 func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {
-	p1 := fmt.Sprintf("SYSCALL[%s,%s,%s]:", call, s.mem.String(), s.proc.String())
-	print(p1, fmt.Sprintf(spec, arg...), "\n")
+	if syscallVerbose {
+		p1 := fmt.Sprintf("SYSCALL[%s,%s,%s]:", call, s.mem.String(), s.proc.String())
+		print(p1, fmt.Sprintf(spec, arg...), "\n")
+	}
 }

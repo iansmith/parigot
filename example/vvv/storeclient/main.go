@@ -1,15 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"time"
 	_ "unsafe"
 
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
-	"github.com/iansmith/parigot/g/log"
 	"github.com/iansmith/parigot/g/pb/kernel"
-	pblog "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -18,44 +17,44 @@ import (
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	logger, err := log.LocateLog()
-	if err != nil {
-		//abandon ship, can't get logger to even say what happened
-		lib.Exit(&kernel.ExitRequest{Code: 1})
-	}
-	print("STORECLIENT trying to set prefix storeclient\n")
-	err = logger.SetPrefix(&pblog.SetPrefixRequest{Prefix: "storeclient"})
-	if err != nil {
-		print("xxx set prefix returned error ", err.Error(), "\n")
-	}
-	print("xxx finished set prefix in storeclient", err == nil, "\n")
-	logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_INFO, Message: "Test 1 2 3"})
-
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
-		//logger.Log(&pblog.LogRequest{Level: pblog.LogLevel_LOGLEVEL_FATAL, Message: "could not find the store:" + err.Error()})
 		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
 	vinnysStore.EnablePctx()
 
-	//t := kernel.Now()
-	//logger.LogDebug(fmt.Sprintf("time is now %d ", t), "")
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	print("STORECLIENT: got the result for sold item: ", err, "\n")
+	storeclientPrint(" SoldItem returned ok?:  %v", err == nil)
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}
 	//best := &pb.BestOfAllTimeResponse{}
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
-		print("STORE CLIENT, BEST OF ALL TIME ", err.Error(), "\n")
+		storeclientPrint("BestOfAllTime failed %s", err.Error())
+		lib.Exit(&kernel.ExitRequest{Code: 1})
 	}
-	print("STORECLIENT ", best.Item.Creator, ",", best.Item.Title, "\n")
-	// if err != nil {
-	//	logger.LogFatal("could not reach the BestOfAllTime call:"+err.Error(), "")
-	//}
-	//logger.LogDebug("best of all time:"+best.GetMedia().GetTitle(), "")
+	storeclientPrint("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
+		best.Item.Creator, best.Item.Title, best.Item.Year)
+
+	inStock, err := vinnysStore.MediaTypesInStock()
+	if err != nil {
+		storeclientPrint("MediaTypesInStock() failed  %s", err.Error())
+	} else {
+		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
+		for i, m := range inStock.InStock {
+			print("\t", m.String())
+			if i != len(inStock.InStock)-1 {
+				print(",")
+			}
+		}
+		print("\n")
+	}
+}
+
+func storeclientPrint(spec string, arg ...interface{}) {
+	print("STORECLIENT:", fmt.Sprintf(spec, arg...), "\n")
 }
