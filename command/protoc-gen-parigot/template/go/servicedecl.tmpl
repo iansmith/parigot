@@ -88,6 +88,12 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}({{$methParamDecl}}) error {
 {{- end}}{{/*needs fill*/}}
     
     {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$dispatchParam}})
+    if err!=nil {
+{{- if .OutputCodeNeeded }}
+        return nil, err
+{{- else }}
+        return err
+{{ end }} {{/* end of output code needed for return */}}
 
 {{- if .OutputCodeNeeded }}
 {{- if $needsFillOut}}

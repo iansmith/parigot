@@ -48,10 +48,10 @@ func main() {
 	}
 	best := &pb.BestOfAllTimeResponse{}
 	err = vinnysStore.BestOfAllTime(&req, best)
-	print("STORE CLIENT, BEST OF ALL TIME ", err.Error(), "\n")
 	if err != nil {
-		print("STORECLIENT ", best.Item.Creator, ",", best.Item.Title, "\n")
+		print("STORE CLIENT, BEST OF ALL TIME ", err.Error(), "\n")
 	}
+	print("STORECLIENT ", best.Item.Creator, ",", best.Item.Title, "\n")
 	// if err != nil {
 	//	logger.LogFatal("could not reach the BestOfAllTime call:"+err.Error(), "")
 	//}

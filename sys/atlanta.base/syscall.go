@@ -209,6 +209,9 @@ func (s *SysCall) Dispatch(sp int32) {
 		return
 	}
 
+	s.sysPrint("DISPATCH", "telling the  caller the size of the result and pctx [%d,%d]",
+		len(resultInfo.result), len(resultInfo.pctx))
+
 	// tell the caller how big result is
 	resultLen = int64(len(resultInfo.result))
 	s.WriteInt64(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultLen),
@@ -225,11 +228,14 @@ func (s *SysCall) Dispatch(sp int32) {
 
 	if resultLen > 0 {
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultPtr), resultInfo.result)
+		s.sysPrint("DISPATCH ", "copied %d bytes to original caller", len(resultInfo.result))
 	}
 
 	noErr := lib.NoKernelErr() // the lack of an error
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 		noErr)
+
+	s.sysPrint("DISPATCH ", "completed call %s", method)
 
 }
 

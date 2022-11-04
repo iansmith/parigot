@@ -186,17 +186,26 @@ func Dispatch(in *kernel.DispatchRequest) (*kernel.DispatchResponse, error) {
 
 	// no error sent back to use, now we will attempt to unmarshal
 	// try the outpctx
+	libprint("DISPATCH ", "preparing for pctx return value")
 	out.OutPctx = &parigot.PCtx{}
-	err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
+	if detail.OutPctxLen > 0 {
+		err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
+	} else {
+		out.OutPctx = nil
+	}
 	if err != nil {
 		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewKernelError(KernelUnmarshalFailed))
 	}
 
+	libprint("DISPATCH ", "preparing for result return value, %d",
+		detail.ResultLen)
 	out.Result = &anypb.Any{}
 	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
 	if err != nil {
+		libprint("DISPATCH", "unmarshal err %v with result len %d", err, detail.ResultLen)
 		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewKernelError(KernelUnmarshalFailed))
 	}
+	libprint("DISPATCH", "returning our result %s, done with %s", out.Result, in.Method)
 	return out, nil
 }
 
@@ -339,7 +348,7 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 		Call:    &parigot.CallId{High: 22, Low: 33},
 		ErrorId: &parigot.KernelErrorId{High: 7, Low: 8},
 	}
-	libprint("BlockUntilCall", "out ptr %p", out)
+	libprint("BLOCKUNTILCALL ", "out ptr %p", out)
 
 	payload := &BlockPayload{}
 
@@ -353,7 +362,7 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
 	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
-	libprint("BlockUntilCall", "params ready (%x,%d) and (%x,%d)",
+	libprint("BLOCKUNTILCALL ", "params ready (%x,%d) and (%x,%d)",
 		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen)
 
 	// THE CALL
@@ -380,7 +389,7 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 	out.ParamLen = int32(payload.ParamLen)
 	out.PctxLen = int32(payload.PctxLen)
 
-	libprint("BlockUntilCall", "unpacked the data %s,%s --- paramlen %d, pctxlen %d\n", mid.Short(), cid.Short(),
+	libprint("BLOCKUNTILCALL ", "unpacked the data %s,%s --- paramlen %d, pctxlen %d\n", mid.Short(), cid.Short(),
 		out.ParamLen, out.PctxLen)
 	return out, nil
 }
@@ -391,12 +400,11 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 // information into here, and this function sorts it out.
 func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx Pctx) (*kernel.ReturnValueResponse, error) {
 	var err error
-	var cid2 Id
+	var a anypb.Any
 	// xxxfixme we should be doing an examination of execError to see if it is a lib.Perror
 	// xxxfixme and if it is, we should be pushing the user error back the other way
 	rv := &kernel.ReturnValueRequest{}
 	rv.Call = MarshalCallId(cid)
-	libprint("RETURNVALUEENCODE", "cid early: %s, mid early: %s", cid, mid)
 	rv.Method = MarshalMethodId(mid)
 	rv.ErrorId = MarshalKernelErrId(NoKernelErr()) // just to allocate the space
 	if marshalError != nil || execError != nil {
@@ -416,14 +424,16 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	if err != nil {
 		goto internalMarshalProblem
 	}
-	rv.ResultBuffer, err = proto.Marshal(out)
+	err = a.MarshalFrom(out)
 	if err != nil {
 		goto internalMarshalProblem
 	}
-	cid2 = CallIdFromUint64(uint64(rv.Call.High), uint64(rv.Call.Low))
+	rv.ResultBuffer, err = proto.Marshal(&a)
+	if err != nil {
+		goto internalMarshalProblem
+	}
 
-	libprint("RETURNVALUENCODE ", "rv call %x,%x -- cid2 %s -- adr of rv.call.Low %p",
-		rv.Call.High, rv.Call.Low, cid2.String(), unsafe.Pointer(&rv.Call.Low))
+	libprint("RETURNVALUEENCODE ", "size of result buffer %d, out %s", len(rv.ResultBuffer), out)
 	return ReturnValue(rv)
 internalMarshalProblem:
 	// this is an internal error, so we signal it the opposite way we did the others at the top
@@ -437,29 +447,17 @@ encodeError:
 
 func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, error) {
 	detail := &ReturnValuePayload{}
+
 	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(in.ResultBuffer)
+
 	detail.MethodId[0] = int64(in.Method.GetLow())
 	detail.MethodId[1] = int64(in.Method.GetHigh())
 	detail.CallId[0] = int64(in.Call.GetLow())
 	detail.CallId[1] = int64(in.Call.GetHigh())
-
-	// detail.MethodId = (*[2]int64)(unsafe.Pointer(&in.Method.Low))
-	// detail.CallId = (*[2]int64)(unsafe.Pointer(&in.Call.Low))
-	// libprint("RETURNVALUE method id check:", "%x,%x ", detail.MethodId[1], detail.MethodId[0])
-	// libprint("RETURNVALUE ", " detail call id as a pointer %p, indirect %x", detail.CallId, uint64(detail.CallId[0]))
-	// cid3 := CallIdFromUint64(uint64(in.Call.High), uint64(in.Call.Low))
-	// cid4 := CallIdFromUint64(uint64(detail.CallId[0]), uint64(detail.CallId[1]))
-	// cid5 := CallIdFromUint64(uint64(detail.CallId[1]), uint64(detail.CallId[0]))
-
-	// libprint("RETURNVALUE ", "input to lib %x,%x", uint64(detail.CallId[0]), uint64(detail.CallId[1]))
-	// libprint("RETURNVALUE ", "c3=%s, c4=%s, c5=%s",
-	// 	cid3.String(), cid4.String(), cid5.String())
 	detail.KernelErrorPtr[0] = int64(in.ErrorId.GetLow())
 	detail.KernelErrorPtr[1] = int64(in.ErrorId.GetHigh())
 
-	//detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&in.ErrorId.Low))
-	// this call is fired and forget
 	u := uintptr(unsafe.Pointer(detail))
 	returnValue(int32(u))
 	// check to see the return value

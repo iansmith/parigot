@@ -32,13 +32,11 @@ func run(impl StoreServer) {
 	paramBuf := make([]byte, lib.GetMaxMessageSize())
 	pctxBuf := make([]byte, lib.GetMaxMessageSize())
 
-	print("SERVER -- about hit for loop\n")
 	// loop on handling calls
 	for {
 		//
 		// wait for notification
 		//
-		print("STORESERVER about to block\n")
 		resp, err := StoreBlockUntilCall(pctxBuf, paramBuf)
 		if err != nil {
 			// error is likely local to this process
@@ -55,7 +53,6 @@ func run(impl StoreServer) {
 		mid := lib.UnmarshalMethodId(resp.GetMethod())
 		cid := lib.UnmarshalCallId(resp.GetCall())
 
-		print(fmt.Sprintf("STORE SERVER unmarshalled arguments %s,%s\n", mid.Short(), cid.Short()))
 		//
 		// create the generic params, pctx and param
 		//
@@ -64,7 +61,6 @@ func run(impl StoreServer) {
 			log.Printf("Unable to create Pctx for call: %v", err)
 			continue
 		}
-		print(fmt.Sprintf("STORESERVER got pctx\n"))
 		// a is an any that represents the params
 		a := &anypb.Any{}
 		err = proto.Unmarshal(paramSlice, a)
@@ -72,7 +68,6 @@ func run(impl StoreServer) {
 			log.Printf("Unable to create parameters for call: %v", err)
 			continue
 		}
-		print(fmt.Sprintf("STORESERVER got param\n"))
 
 		//
 		// pick the method
@@ -83,13 +78,16 @@ func run(impl StoreServer) {
 		case mid.Equal(BestOfAllTimeMethod):
 			req := &pb.BestOfAllTimeRequest{}
 			marshalError = a.UnmarshalTo(req)
+			print(fmt.Sprintf("STORESERVER  BOAT: unmarshalled request with a ok? [%s]", a.GetTypeUrl()), "\n")
 			if marshalError != nil {
 				break
 			}
+			print("STORESERVER BOAT: making call\n")
 			out, execError = impl.BestOfAllTime(pctx, req)
 			if execError != nil {
 				break
 			}
+			print("STORESERVER BOAT: got out, ok?", out != nil, "\n")
 		case mid.Equal(RevenueMethod):
 			req := &pb.RevenueRequest{}
 			marshalError = a.UnmarshalTo(req)
@@ -101,7 +99,6 @@ func run(impl StoreServer) {
 				break
 			}
 		case mid.Equal(SoldItemMethod):
-			print("STORESERVER got a call on sold item\n")
 			req := &pb.SoldItemRequest{}
 			marshalError = a.UnmarshalTo(req)
 			if marshalError != nil {
@@ -111,11 +108,8 @@ func run(impl StoreServer) {
 			if execError != nil {
 				break
 			}
-			print("STORESERVER executed call to sold item", execError == nil, "\n")
 			out = nil // just to be sure
 		}
-
-		print("STORESERVER executed call to sold item 1111\n")
 
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
