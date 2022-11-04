@@ -116,53 +116,11 @@ func run(impl StoreServer) {
 		}
 
 		print("STORESERVER executed call to sold item 1111\n")
-		// now check for errors
-		if marshalError != nil {
-			log.Printf("unable to unmarshal parameters:%v", marshalError)
-			lib.ReturnValue(&kernel.ReturnValueRequest{
-				Call:         lib.MarshalCallId(cid),
-				ErrorMessage: marshalError.Error(),
-			})
-			continue
-		}
-		print("STORESERVER executed call to sold item 2222\n")
-		// xxx fixme: this should be doing something special here to indicate the USER code barfed
-		if execError != nil {
-			log.Printf("STORESERVER unable to exec user function:%v", execError)
-			lib.ReturnValue(&kernel.ReturnValueRequest{
-				Call:         lib.MarshalCallId(cid),
-				ErrorMessage: execError.Error(),
-			})
-			continue
-		}
-		print("STORESERVER executed result aappears to be ok\n")
 
 		//
-		// everything is cool, send results
+		// could be error, could be everything is cool, send to lib to figure it out
 		//
-		var resultBuf []byte
-		var marshalErr error
-		if out != nil {
-			resultBuf, err = proto.Marshal(out)
-		} else {
-			resultBuf = nil
-		}
-		// result problem?
-		if marshalErr != nil {
-			print(fmt.Sprintf("STORESERVER unable to marshal results:%v\n", marshalErr))
-			lib.ReturnValue(&kernel.ReturnValueRequest{
-				Call:         lib.MarshalCallId(cid),
-				ErrorMessage: execError.Error(),
-			})
-		}
-
-		print("STORESERVER sending response???\n")
-		// success!
-		lib.ReturnValue(&kernel.ReturnValueRequest{
-			Call:         lib.MarshalCallId(cid),
-			ResultBuffer: resultBuf,
-		})
-
+		lib.ReturnValueEncode(cid, mid, marshalError, execError, out, pctx)
 		// about to loop again
 	}
 	// wont reach here

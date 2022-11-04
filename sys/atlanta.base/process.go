@@ -24,9 +24,12 @@ type callInfo struct {
 
 // resultInfo is the response that the recipient of a call sends back to the originator.
 type resultInfo struct {
-	cid    lib.Id
-	result []byte //can be nil
-	pctx   []byte // can be nil for optimization reasons
+	cid     lib.Id
+	mid     lib.Id
+	errorId lib.Id
+	result  []byte //can be nil
+	pctx    []byte // can be nil for optimization reasons
+
 }
 
 type Process struct {

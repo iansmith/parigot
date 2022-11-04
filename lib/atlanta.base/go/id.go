@@ -104,7 +104,7 @@ func (i *IdBase) String() string {
 	lowPart[1] = (i.l >> 24) & 0xffff
 	lowPart[0] = (i.l >> 28) & 0xffff
 
-	return fmt.Sprintf("[%c-%02x-%02x:%02x-%02x-%02x-%02x]", key, two, four,
+	return fmt.Sprintf("[%c-%04x-%08x:%04x-%04x-%04x-%04x]", key, two, four,
 		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
 }
 

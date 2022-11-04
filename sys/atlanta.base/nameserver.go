@@ -113,6 +113,8 @@ func (n *NameServer) FindMethodByName(serviceId lib.Id, name string, caller *Pro
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
+	print("NAMESERVER: adding in flight ", cc.cid.Short(), " and ", cc.sender.String(), "\n")
+	n.inFlight = append(n.inFlight, cc)
 	return cc
 }
 
@@ -163,4 +165,25 @@ func (n *NameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
 		return nil, lib.NewKernelError(lib.KernelNotFound)
 	}
 	return sData.serviceId, nil
+}
+
+// GetProcessForCallId is used to match up responses with requests.  It
+// walks the in-flight calls and if it finds the target cid it returns
+// it and removes it from the in-flight list.
+func (n *NameServer) GetProcessForCallId(target lib.Id) *Process {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	print("NAMESERVER checking in flight ", target.Short(), "\n")
+
+	for i, cctx := range n.inFlight {
+		print("NAMESERVER checking cctx #", i, " target ", target.Short(), " versus ",
+			cctx.cid.Short(), "\n")
+		if cctx.cid.Equal(target) {
+			n.inFlight[i] = n.inFlight[len(n.inFlight)-1]
+			n.inFlight = n.inFlight[:len(n.inFlight)-1]
+			// xxxfix me should we be checking the method id as well?
+			return cctx.sender
+		}
+	}
+	return nil
 }

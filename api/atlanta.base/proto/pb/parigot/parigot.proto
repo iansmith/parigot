@@ -38,10 +38,22 @@ message KernelErrorId {
   uint64 low = 2;
 }
 
+// DeveloperErrorId is used to signal errors that are defined by the developer.
+message DeveloperErrorId {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
 // ServiceId is a type of Id that is given to _clients_ of a particular service.  With this
 // information (really, capability) the holder of the ServiceId can make calls on the methods
 // of that service.  In unixish terms, this id might be the equivalent of a hostname and port pair.
 message ServiceId {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+// DeveloperId is a type of Id that is defined by the developer.
+message DeveloperId {
   uint64 high = 1;
   uint64 low = 2;
 }

@@ -9,10 +9,12 @@ import (
 )
 
 const (
-	kernelErrorIdLetter = 'k'
-	serviceIdLetter     = 's'
-	methodIdLetter      = 'm'
-	callIdLetter        = 'c'
+	kernelErrorIdLetter  = 'k'
+	serviceIdLetter      = 's'
+	methodIdLetter       = 'm'
+	callIdLetter         = 'c'
+	developerIdLetter    = 'y'
+	developerErrorLetter = 'z'
 )
 
 type KernelErrorCode uint16
@@ -42,17 +44,32 @@ const (
 	// KernelUnmarshal failed is exactly as KernelMarshalFailed, but for unpacking
 	// data.
 	KernelUnmarshalFailed KernelErrorCode = 6
+	// KernelCallerUnavailable means that the kernel could not find the original caller
+	// requeted the computation for which results have been provided.  It is most likely
+	// because the caller was killed, exited or timed out.
+	KernelCallerUnavailable KernelErrorCode = 7
 )
 
-// NoKernelReturns a kernel error id, with the value set to zero, or no error.
+// NoKernelErr returns a kernel error id, with the value set to zero, or no error.
 func NoKernelErr() Id {
 	return newFromErrorCode(0, kernelErrorIdLetter)
 }
 
-// NewKernelError returns a kernel error id with the value (low 112 bits) set to the
+// NoDeveloperError returns a developer error id, with the value set to zero, or no error.
+func NoDeveloperErr() Id {
+	return newFromErrorCode(0, developerErrorLetter)
+}
+
+// NewKernelError returns a kernel error id with the value (low 16 bits) set to the
 // error code.
 func NewKernelError(kerr KernelErrorCode) Id {
 	return newFromErrorCode(uint64(kerr), kernelErrorIdLetter)
+}
+
+// NewDeveloperError returns a developer error id with the value (low 16 bits) set to the
+// error code.  Developers may use this as they please.
+func NewUserError(code int16) Id {
+	return newFromErrorCode(uint64(code), developerErrorLetter)
 }
 
 func newFromErrorCode(code uint64, letter byte) Id {
@@ -65,6 +82,13 @@ func newFromErrorCode(code uint64, letter byte) Id {
 // otherwise.
 func ServiceIdFromUint64(high uint64, low uint64) Id {
 	return idFromUint64(high, low, serviceIdLetter)
+}
+
+// DeveloperIdFromUint64 is useful when dealing with wire values.  When you receive the two
+// uint64s, you can use this to turn it into a developer id.  This should not be used
+// otherwise.
+func UserIdFromUint64(high uint64, low uint64) Id {
+	return idFromUint64(high, low, developerIdLetter)
 }
 
 // CallIdFromUint64 is useful when dealing with wire values.  When you receive the two
@@ -97,6 +121,12 @@ func NewMethodId() Id {
 // from the source of randomness.
 func NewServiceId() Id {
 	return newIdRand(serviceIdLetter)
+}
+
+// NewDeveloperId returns a new user id, initialized with the value (low 112 bits) derived
+// from the source of randomness.  Developers may use this as they please.
+func NewDeveloperId() Id {
+	return newIdRand(developerIdLetter)
 }
 
 // newIdRand computes a new id for any given letter with the value drawn from the source of
@@ -150,6 +180,22 @@ func MarshalServiceId(id Id) *parigot.ServiceId {
 	}
 }
 
+// UnmarshalDeveloperId goes from the protobuf concept of a developer id (which is a large
+// protobuf-based structure) to a simple Id.
+func UnmarshalDeveloperId(sid *parigot.DeveloperId) Id {
+	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
+	verifyIdType(result, serviceIdLetter)
+	return result
+}
+
+// MarshalDeveloperId is used to convert a simple id into one suitable for use in a protobuf.
+func MarshalDeveloperId(id Id) *parigot.DeveloperId {
+	return &parigot.DeveloperId{
+		High: id.High(),
+		Low:  id.Low(),
+	}
+}
+
 // UnmarshalMethodId goes from the protobuf concept of a method id (which is a large
 // protobuf-based structure) to a simple Id.
 func UnmarshalMethodId(mid *parigot.MethodId) Id {
@@ -196,6 +242,25 @@ func UnmarshalKernelErrorId(sid *parigot.KernelErrorId) Id {
 // MarshalKernelErrId is used to convert a simple id into one suitable for use in a protobuf.
 func MarshalKernelErrId(id Id) *parigot.KernelErrorId {
 	return &parigot.KernelErrorId{
+		High: id.High(),
+		Low:  id.Low(),
+	}
+}
+
+// UnmarshalDeveloperErrorId goes from the protobuf concept of a developer error id (which is a large
+// protobuf-based structure) to a simple Id.  This call verifies that the value provided from
+// the protobuf is marked as an error type.
+func UnmarshalDeveloperErrId(sid *parigot.DeveloperErrorId) Id {
+	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
+	if !result.IsErrorType() {
+		panic("unmarshaled a developer id that was not marked as an error type")
+	}
+	return result
+}
+
+// MarshalDeveloperErrId is used to convert a simple id into one suitable for use in a protobuf.
+func MarshalDeveloperErrId(id Id) *parigot.DeveloperErrorId {
+	return &parigot.DeveloperErrorId{
 		High: id.High(),
 		Low:  id.Low(),
 	}

@@ -385,8 +385,92 @@ func BlockUntilCall(in *kernel.BlockUntilCallRequest) (*kernel.BlockUntilCallRes
 	return out, nil
 }
 
+// ReturnValueEncode is a layer on top of ReturnValue.  This is here because
+// there are number of cases and doing this in this library means
+// the code generator can be much simpler.  It just passes all the
+// information into here, and this function sorts it out.
+func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx Pctx) (*kernel.ReturnValueResponse, error) {
+	var err error
+	var cid2 Id
+	// xxxfixme we should be doing an examination of execError to see if it is a lib.Perror
+	// xxxfixme and if it is, we should be pushing the user error back the other way
+	rv := &kernel.ReturnValueRequest{}
+	rv.Call = MarshalCallId(cid)
+	libprint("RETURNVALUEENCODE", "cid early: %s, mid early: %s", cid, mid)
+	rv.Method = MarshalMethodId(mid)
+	rv.ErrorId = MarshalKernelErrId(NoKernelErr()) // just to allocate the space
+	if marshalError != nil || execError != nil {
+		if marshalError != nil {
+			rv.ErrorMessage = marshalError.Error()
+		} else {
+			rv.ErrorMessage = execError.Error()
+		}
+		// we use this because the error didn't come from INSIDE
+		// the kernel itself, see below for more
+		rv.ErrorId = MarshalKernelErrId(NoKernelErr())
+		goto encodeError
+	}
+	// these are the mostly normal cases, but they can go hawywire
+	// due to marshalling
+	rv.PctxBuffer, err = pctx.Marshal()
+	if err != nil {
+		goto internalMarshalProblem
+	}
+	rv.ResultBuffer, err = proto.Marshal(out)
+	if err != nil {
+		goto internalMarshalProblem
+	}
+	cid2 = CallIdFromUint64(uint64(rv.Call.High), uint64(rv.Call.Low))
+
+	libprint("RETURNVALUENCODE ", "rv call %x,%x -- cid2 %s -- adr of rv.call.Low %p",
+		rv.Call.High, rv.Call.Low, cid2.String(), unsafe.Pointer(&rv.Call.Low))
+	return ReturnValue(rv)
+internalMarshalProblem:
+	// this is an internal error, so we signal it the opposite way we did the others at the top
+	rv.ErrorMessage = ""
+	rv.ErrorId = MarshalKernelErrId(NewKernelError(KernelMarshalFailed))
+encodeError:
+	rv.PctxBuffer = []byte{}
+	rv.ResultBuffer = []byte{}
+	return ReturnValue(rv)
+}
+
 func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, error) {
 	detail := &ReturnValuePayload{}
+	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
+	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(in.ResultBuffer)
+	detail.MethodId[0] = int64(in.Method.GetLow())
+	detail.MethodId[1] = int64(in.Method.GetHigh())
+	detail.CallId[0] = int64(in.Call.GetLow())
+	detail.CallId[1] = int64(in.Call.GetHigh())
+
+	// detail.MethodId = (*[2]int64)(unsafe.Pointer(&in.Method.Low))
+	// detail.CallId = (*[2]int64)(unsafe.Pointer(&in.Call.Low))
+	// libprint("RETURNVALUE method id check:", "%x,%x ", detail.MethodId[1], detail.MethodId[0])
+	// libprint("RETURNVALUE ", " detail call id as a pointer %p, indirect %x", detail.CallId, uint64(detail.CallId[0]))
+	// cid3 := CallIdFromUint64(uint64(in.Call.High), uint64(in.Call.Low))
+	// cid4 := CallIdFromUint64(uint64(detail.CallId[0]), uint64(detail.CallId[1]))
+	// cid5 := CallIdFromUint64(uint64(detail.CallId[1]), uint64(detail.CallId[0]))
+
+	// libprint("RETURNVALUE ", "input to lib %x,%x", uint64(detail.CallId[0]), uint64(detail.CallId[1]))
+	// libprint("RETURNVALUE ", "c3=%s, c4=%s, c5=%s",
+	// 	cid3.String(), cid4.String(), cid5.String())
+	detail.KernelErrorPtr[0] = int64(in.ErrorId.GetLow())
+	detail.KernelErrorPtr[1] = int64(in.ErrorId.GetHigh())
+
+	//detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&in.ErrorId.Low))
+	// this call is fired and forget
+	u := uintptr(unsafe.Pointer(detail))
+	returnValue(int32(u))
+	// check to see the return value
+	kerr := NewKernelError(KernelErrorCode(detail.KernelErrorPtr[0]))
+	big := MarshalKernelErrId(kerr)
+	if kerr.IsError() {
+		return nil, NewPerrorFromId("failed to process return value", kerr)
+	}
+	return &kernel.ReturnValueResponse{
+		ErrorId: big,
+	}, nil
 }
 
 //go:noinline

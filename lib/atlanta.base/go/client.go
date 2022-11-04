@@ -50,15 +50,16 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kerne
 	if err != nil {
 		return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
 	}
-	var p *parigot.PCtx
+	var ughPuke *parigot.PCtx
 	if c.currentPctx != nil {
-		p = c.currentPctx.(*pctx).PCtx //xxx fixme, shouldn't be looking inside
+		ughPuke = c.currentPctx.(*pctx).PCtx
 	}
+
 	in := &kernel.DispatchRequest{
 		ServiceId: MarshalServiceId(c.svc),
 		Caller:    c.caller,
 		Method:    method,
-		InPctx:    p,
+		InPctx:    ughPuke,
 		Param:     a,
 	}
 	// xxx this should be going through dispatch anyway

@@ -80,9 +80,13 @@ message BlockUntilCallResponse{
 
 message ReturnValueRequest{
   parigot.CallId call = 1;
-  string error_message = 2;
-  bytes result_buffer = 3;
+  parigot.MethodId method = 2;
+  string error_message = 3;
+  parigot.KernelErrorId error_id = 4;
+  bytes pctx_buffer = 6;
+  bytes result_buffer = 7;
 }
 
 message ReturnValueResponse {
+  parigot.KernelErrorId error_id = 1;
 }

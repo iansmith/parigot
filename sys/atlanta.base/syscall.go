@@ -187,7 +187,7 @@ func (s *SysCall) Dispatch(sp int32) {
 	// if the callee (the server implementation) cannot receive the data because is it too large.
 	resultInfo := <-s.proc.resultCh
 
-	s.sysPrint("DISPATCH", "got result from other process (YAY!): %+v", resultInfo)
+	s.sysPrint("DISPATCH", "got result from other process %s,%s", resultInfo.cid.Short(), resultInfo.errorId.Short())
 
 	// we have to check BOTH of the length values we were given to make
 	// sure our results will fit
@@ -344,7 +344,39 @@ func (s *SysCall) BlockUntilCall(sp int32) {
 // Return value is used by servers to register the return value for a particular function
 // call on a method they implement.
 func (s *SysCall) ReturnValue(sp int32) {
-	panic("RETURN VALUE REACHED")
+	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("ReturnValue", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+
+	// we just have to create the structure and send it through the correct channel
+	info := &resultInfo{}
+	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.CallId))
+	info.cid = lib.CallIdFromUint64(uint64(high), uint64(low))
+	low, high = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.MethodId))
+	info.mid = lib.MethodIdFromUint64(uint64(high), uint64(low))
+	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
+	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
+
+	// if pctx len is 0 this is a no op
+	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
+		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
+	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
+		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
+
+	s.sysPrint("RETURNVALUE", "searching for process for %s", info.cid.Short())
+	proc := s.nameServer.GetProcessForCallId(info.cid)
+	if proc == nil {
+		s.sysPrint("RETURNVALUE", "unable to find process for %s", info.cid.Short())
+		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
+			kerr)
+		return
+	}
+	s.sysPrint("RESULTVALUE", "computed info, found channel, sending")
+	proc.resultCh <- info
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
+		lib.NoKernelErr())
+	s.sysPrint("RESULTVALUE", "finished")
+	return
 }
 
 func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {

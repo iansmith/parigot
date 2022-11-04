@@ -20,6 +20,7 @@ type Pctx interface {
 	SetEntry(group string, name string, value string) bool
 	DeleteEntry(group string, name string) bool
 	Now() time.Time
+	Marshal() ([]byte, error)
 }
 
 func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
@@ -107,4 +108,17 @@ func (p *pctx) EventStart(message string) {
 
 func (p *pctx) EventFinish() {
 	p.PCtx.Event = append(p.PCtx.GetEvent(), p.openEvent)
+}
+
+func (p *pctx) Marshal() ([]byte, error) {
+	return proto.Marshal(p.PCtx)
+}
+
+func NewFromUnmarshal(b []byte) (Pctx, error) {
+	p := pctx{}
+	err := proto.Unmarshal(b, p.PCtx)
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }

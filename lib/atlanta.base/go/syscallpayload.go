@@ -70,7 +70,7 @@ type BindPayload struct {
 	ErrorPtr   *[2]int64 // out p1
 }
 
-// BlockPayload is sent to the kernel request the server block the caller
+// BlockPayload is sent to the kernel to request the server block the caller
 // until a method request for the server is ready.  The results of this
 // function are placed in the buffers provided.
 type BlockPayload struct {
@@ -82,4 +82,20 @@ type BlockPayload struct {
 	MethodId  *[2]int64 // out p2
 	CallId    *[2]int64 // out p3
 	ErrorPtr  *[2]int64 // out p4
+}
+
+// ReturnValuePayload is sent to the kernel request the server send these results
+// back to the caller as the results of their previous call.  Note that the CallId
+// allows the original caller to verify this is the right response.
+type ReturnValuePayload struct {
+	PctxPtr        int64    // in p0a
+	PctxLen        int64    // in p0b
+	ResultPtr      int64    // in p1a
+	ResultLen      int64    // in p1b
+	MethodId       [2]int64 // in p2
+	CallId         [2]int64 // in p3
+	KernelErrorPtr [2]int64 // in p4 <--- also out p0
+
+	//xxx should be doing this too
+	//UserErrorPtr   *[2]int64 // out p5
 }
