@@ -1,11 +1,12 @@
 go 1.19
 
 use lib/atlanta.base/go
+
 use sys/atlanta.base
+
 use command
+
 use g
 
 // these are separated because we want them each to build separately and have diff paths
-use example/greet
-use example/hello-go
 use example/vvv

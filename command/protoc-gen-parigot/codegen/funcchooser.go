@@ -33,4 +33,5 @@ type FuncChooser struct {
 	DispatchParam       QuadWithMethodString
 	DispatchResult      QuadWithMethodString
 	OutParamDecl        QuadWithMethodString
+	BindDirection       QuadWithMethodString
 }

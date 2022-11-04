@@ -48,6 +48,7 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		DispatchParam:       funcChoicesDispatchParam,
 		DispatchResult:      funcChoicesDispatchResult,
 		OutParamDecl:        funcChoicesOutParamDecl,
+		BindDirection:       funcChoicesBindDirection,
 	}
 }
 
@@ -92,6 +93,19 @@ func basicTypeRequiresDecode(s string) bool {
 		return true
 	}
 	return false
+}
+
+func funcChoicesBindDirection(b1, b2, _, _ bool, m *codegen.WasmMethod) string {
+	if !b1 && !b2 {
+		panic(fmt.Sprintf("method %s has neither input nor output!", m.WasmMethodName()))
+	}
+	if b1 && b2 {
+		return "Both"
+	}
+	if b1 {
+		return "In"
+	}
+	return "Out"
 }
 
 // funcChoicesComplexParam is a convenience method for grouping methods in the ABI

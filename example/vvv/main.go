@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
 	"github.com/iansmith/parigot/g/pb/log"
@@ -11,10 +12,10 @@ import (
 )
 
 func main() {
-	run(&myServer{})
+	vvv.Run(&myServer{})
 }
 
-// this type better implement StoreServer
+// this type better implement vvv.StoreServer
 type myServer struct {
 }
 

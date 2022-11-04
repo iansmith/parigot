@@ -1,0 +1,200 @@
+package {{ LastSegmentOfPackage .file.GetPackage }}
+
+
+import (
+	"fmt"
+{{ range $j,$i := .imports }}
+    "{{$j}}"
+{{- end}} {{/* imports */}}
+
+	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/lib"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
+)
+
+
+{{- $info:=.info }}
+{{- range .info.Service }}
+{{- $svc:=.GetWasmServiceName }}
+{{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+
+//
+// {{$svcCamel}}Server
+//
+
+type {{$svcCamel}}Server interface {
+{{range .GetWasmMethod }}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- if .InputCodeNeeded }}
+	{{$methCamel}}(pctx lib.Pctx, in proto.Message) 
+{{- else }}
+	{{$methCamel}}(pctx lib.Pctx) 
+{{- end }} 
+{{- if .OutputCodeNeeded -}}
+    (proto.Message, error)
+{{- else -}}
+    error
+{{- end}} {{/* end of output code needed */}}
+{{- end}} {{/* end of range over methods */}}
+}
+{{- end}} {{/* end of range over services */}}
+
+{{- range .info.Service }}
+{{- $svc:=.GetWasmServiceName }}
+{{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+{{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
+
+//
+// {{$svcCamel}} method ids
+//
+{{- range .GetWasmMethod }}
+{{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
+var {{$methCamelFL}}Method lib.Id
+{{- end }} {{/* range over methods */}}
+
+
+var {{$svcCamelFL}}ServerVerbose = false
+
+func Run(impl {{$svcCamel}}Server) {
+	// register all methods
+	method, err := {{$svcCamelFL}}Bind(impl)
+	if err != nil {
+		panic("failed to register method successfully: " + method + ":" + err.Error())
+	}
+	// allocate buffers for values coming back to us
+	paramBuf := make([]byte, lib.GetMaxMessageSize())
+	pctxBuf := make([]byte, lib.GetMaxMessageSize())
+
+	// loop on handling calls
+	for {
+		//
+		// wait for notification
+		//
+		resp, err := {{$svcCamelFL}}BlockUntilCall(pctxBuf, paramBuf)
+		if err != nil {
+			// error is likely local to this process
+			{{$svcCamelFL}}Print("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
+			continue
+		}
+		{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:%d,%d",
+			resp.PctxLen, resp.ParamLen)
+		//
+		// incoming values, pctx and params
+		//
+		var pctxSlice []byte
+		if resp.PctxLen == 0 {
+			pctxSlice = []byte{}
+		} else {
+			pctxSlice = pctxBuf[:resp.PctxLen]
+		}
+		paramSlice := paramBuf[:resp.ParamLen]
+		mid := lib.UnmarshalMethodId(resp.GetMethod())
+		cid := lib.UnmarshalCallId(resp.GetCall())
+
+		//
+		// create the generic params, pctx and param
+		//
+		var pctx lib.Pctx
+		err = nil
+		if resp.PctxLen != 0 {
+			pctx, err = lib.NewPctxFromBytes(pctxSlice)
+		}
+		if err != nil {
+			{{$svcCamelFL}}Print("RUN: primary for loop ", "Unable to create Pctx for call: %v", err)
+			continue
+		}
+		// a is an any that represents the params
+		a := &anypb.Any{}
+		err = proto.Unmarshal(paramSlice, a)
+		if err != nil {
+			{{$svcCamelFL}}Print("RUN: primary for loop ", "Unable to create parameters for call: %v", err)
+			continue
+		}
+
+		//
+		// pick the method
+		//
+		var marshalError, execError error
+		var out proto.Message
+		switch {
+{{- range .GetWasmMethod}}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
+		case mid.Equal({{$methCamelFL}}Method):
+{{- if .InputCodeNeeded}}
+			req := &pb.{{$methCamel}}Request{}
+			marshalError = a.UnmarshalTo(req)
+			if marshalError != nil {
+				break
+			}
+{{- else}}
+            // no input for this method
+{{- end}}
+{{- if .OutputCodeNeeded}}
+
+{{- if .InputCodeNeeded}}
+			out, execError = impl.{{$methCamel}}(pctx, req)
+{{- else }}
+			out, execError = impl.{{$methCamel}}(pctx)
+{{- end }} {{/* end of input code needed for the call of the implementation */}}
+
+{{- else}}
+{{/* no need for checking input code needed here, because if that were false, 
+you would have a method with no input or output, which is checked elsewhere */}}
+            execError = impl.{{$methCamel}}(pctx, req)
+{{- end}}
+			if execError != nil {
+				break
+			}
+{{- end}} {{/*end of ranging over methods for the switch */}}
+        }
+		//
+		// could be error, could be everything is cool, send to lib to figure it out
+		//
+		lib.ReturnValueEncode(cid, mid, marshalError, execError, out, pctx)
+		// about to loop again
+	}
+	// wont reach here
+}
+
+
+func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
+{{- range .GetWasmMethod}}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
+{{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+	resp, {{$methCamelFL}}err := lib.BindMethod{{$dir}}(&kernel.BindMethodRequest{
+		ProtoPackage: "demo.vvv",
+		Service:      "Store",
+		Method:       "BestOfAllTime",
+	}, impl.{{$methCamel}})
+	if {{$methCamelFL}}err != nil {
+		return "{{$methCamel}}", {{$methCamelFL}}err
+	}
+	{{$methCamelFL}}Method = lib.UnmarshalMethodId(resp.GetMethodId())
+{{- end }} {{/* end of rang over services */}}
+	return "",nil
+}
+
+func {{$svcCamelFL}}BlockUntilCall(pctx, param []byte) (*kernel.BlockUntilCallResponse, error) {
+
+	req := &kernel.BlockUntilCallRequest{
+		PctxBuffer:  pctx,
+		ParamBuffer: param,
+	}
+	resp, err := lib.BlockUntilCall(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func {{$svcCamelFL}}Print(method string, spec string, arg ...interface{}) {
+	if {{$svcCamelFL}}ServerVerbose {
+		part1 := fmt.Sprintf("{{$svcCamelFL}}Server:%s", method)
+		part2 := fmt.Sprintf(spec, arg...)
+		print(part1, part2, "\n")
+	}
+}
+{{- end }} {{/* range over services */}}

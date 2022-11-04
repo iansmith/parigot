@@ -29,7 +29,7 @@ all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm build/se
 build/server.p.wasm: main.go
 	@echo
 	@echo "\033[92mbuilding server side: vvv (server) ============================================================\033[0m"
-	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go gen.go
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go
 	#wasm2wat --no-check -o build/server.wat build/server.p.wasm
 
 build/storeclient.p.wasm: storeclient/main.go ../../sys/atlanta.base/stdlib/terminallog/build/terminallog.p.wasm

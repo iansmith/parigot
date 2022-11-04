@@ -45,9 +45,12 @@ func main() {
 		storeclientPrint("MediaTypesInStock() failed  %s", err.Error())
 	} else {
 		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
-		for i, m := range inStock.InStock {
-			print("\t", m.String())
-			if i != len(inStock.InStock)-1 {
+		print("\t xxx if I print the strings here I get a 'makeslice: len out of range' crash\n")
+		print("\t")
+		for i, m := range inStock.GetInStock() {
+			//print(m.String(), " ") // ARRRRGH
+			print(m, " ")
+			if i != len(inStock.GetInStock())-1 {
 				print(",")
 			}
 		}
