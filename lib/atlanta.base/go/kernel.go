@@ -438,8 +438,8 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	if err != nil {
 		goto internalMarshalProblem
 	}
-	err = a.MarshalFrom(out)
 	if err != nil {
+		err = a.MarshalFrom(out)
 		goto internalMarshalProblem
 	}
 	rv.ResultBuffer, err = proto.Marshal(&a)

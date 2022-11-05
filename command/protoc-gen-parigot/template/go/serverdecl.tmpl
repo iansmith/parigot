@@ -165,9 +165,9 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 	resp, {{$methCamelFL}}err := lib.BindMethod{{$dir}}(&kernel.BindMethodRequest{
-		ProtoPackage: "demo.vvv",
-		Service:      "Store",
-		Method:       "BestOfAllTime",
+		ProtoPackage: "{{.ProtoPackage}}",
+		Service:      "{{$svcCamel}}",
+		Method:       "{{$methCamel}}",
 	}, impl.{{$methCamel}})
 	if {{$methCamelFL}}err != nil {
 		return "{{$methCamel}}", {{$methCamelFL}}err

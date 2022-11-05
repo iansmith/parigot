@@ -48,8 +48,8 @@ func main() {
 		print("\t xxx if I print the strings here I get a 'makeslice: len out of range' crash\n")
 		print("\t")
 		for i, m := range inStock.GetInStock() {
-			//print(m.String(), " ") // ARRRRGH
-			print(m, " ")
+			print(m.String(), " ") // ARRRRGH
+			//print(m, " ")
 			if i != len(inStock.GetInStock())-1 {
 				print(",")
 			}

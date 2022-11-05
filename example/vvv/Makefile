@@ -4,15 +4,6 @@
 # this file expects you to have a current directory o•f vvv (the dir containing this file)
 
 PARIGOT_SOURCE=../..
-
-# compiler setup.
-#TINYGO_MOD_CACHE="$HOME/tinygo/pkg/mod"
-#TINYGO_CMD=GOMODCACHE=$(TINYGO_MOD_CACHE) tinygo #really shouldn't need to change this if you use the tools directory
-#TINYGO_CMD=tinygo
-
-# currently no GC and no scheduler
-#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none
-#TINYGO_WASM_OPTS=-target wasm -gc leaking -scheduler none -opt 0 -x -work
 BUILD_TAGS=parigot
 
 GO_CMD=GOOS=js GOARCH=wasm go
@@ -26,13 +17,13 @@ BUF_CMD=buf
 GENERATED=proto/g/
 all: $(GENERATED)/vvv/businessservicedecl.p.go build/storeclient.p.wasm build/server.p.wasm
 
-build/server.p.wasm: main.go
+build/server.p.wasm: main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	@echo
 	@echo "\033[92mbuilding server side: vvv (server) ============================================================\033[0m"
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go
 	#wasm2wat --no-check -o build/server.wat build/server.p.wasm
 
-build/storeclient.p.wasm: storeclient/main.go ../../sys/atlanta.base/stdlib/terminallog/build/terminallog.p.wasm
+build/storeclient.p.wasm: storeclient/main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot ../../sys/atlanta.base/stdlib/terminallog/build/terminallog.p.wasm
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go

@@ -280,7 +280,7 @@ func (s *SysCall) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
-	s.sysPrint("BINDMETHOD", "about to ask the name service: %s,%s", service, method)
+	s.sysPrint("BINDMETHOD", "about to bind %s in service %s", method, service)
 	mid, err := s.nameServer.HandleMethod(pkg, service, method, s.proc)
 	if err != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),

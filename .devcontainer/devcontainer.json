@@ -8,7 +8,7 @@
 			// Update the VARIANT arg to pick a version of Go: 1, 1.19, 1.18
 			// Append -bullseye or -buster to pin to an OS version.
 			// Use -bullseye variants on local arm64/Apple Silicon.
-			"VARIANT": "1.19-bullseye"
+			"VARIANT": "1.19.3-bullseye"
 		}
 	},
 	"runArgs": [
@@ -22,8 +22,8 @@
 		"vscode": {
 			// Set *default* container specific settings.json values on container create.
 			"settings": {
-				"go.toolsManagement.checkForUpdates": "local",
-				"go.useLanguageServer": true
+				/*"go.toolsManagement.checkForUpdates": "local",*/
+				/* "go.useLanguageServer": true*/
 				/*"go.gopath": "/home/parigot/tools/go1.19.3 "*/
 			},
 			// Add the IDs of extensions you want installed when the container is created.

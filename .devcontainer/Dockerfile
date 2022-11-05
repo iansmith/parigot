@@ -62,7 +62,7 @@ WORKDIR /home/parigot/tools/bin
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
 # hugo puts itself in /usr/bin, ugh!
 #RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
-RUN ln -s /home/parigot/deps/wasmtime-v1.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
+RUN ln -s /home/parigot/deps/wasmtime-v2.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
 
 # antlr 4.9 is a platform-neutral lib (java)
 RUN mkdir -p /home/parigot/tools/lib
@@ -108,7 +108,7 @@ WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
 ENV GOTOOLS=/home/parigot/tools/go1.19.3
 ENV WABTTOOLS=/home/parigot/tools/wabt
-
+ENV PARIGOT_TOOLS=/home/parigot/tools
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 
 ENTRYPOINT ["bash"]
