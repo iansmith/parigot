@@ -25,8 +25,19 @@ TEXT parigot·return_value_(SB), NOSPLIT, $0
   CallImport
   RET
 
-
 TEXT parigot·exit_(SB), NOSPLIT, $0
+  CallImport
+  RET
+
+TEXT parigot·require_(SB), NOSPLIT, $0
+  CallImport
+  RET
+
+TEXT parigot·export_(SB), NOSPLIT, $0
+  CallImport
+  RET
+
+TEXT parigot·start_(SB), NOSPLIT, $0
   CallImport
   RET
 

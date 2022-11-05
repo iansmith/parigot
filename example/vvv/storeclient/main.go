@@ -17,6 +17,19 @@ import (
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
+	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
+		panic("unable to require my service: " + err.Error())
+	}
+	if resp, err := lib.Start(); err != nil {
+		if len(resp.LoopComponent) > 0 {
+			storeclientPrint("error during startup, depedency loop found:")
+			for _, c := range resp.LoopComponent {
+				storeclientPrint(c)
+			}
+		}
+		panic("error starting client process:" + err.Error())
+	}
+
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
 		lib.Exit(&kernel.ExitRequest{Code: 1})

@@ -30,8 +30,16 @@ func newPackageData() *packageData {
 	}
 }
 
+type edgeHolder struct {
+	proc    *Process
+	export  []string
+	require []string
+}
+
 type serviceData struct {
 	serviceId         lib.Id
+	closed            bool
+	exported          bool
 	method            map[string]lib.Id
 	methodIdToProcess map[string] /*really method id*/ *Process
 }
@@ -50,6 +58,7 @@ type NameServer struct {
 	serviceIdToServiceData map[string] /*really service id*/ *serviceData // accelerator only, we could walk to find this
 	inFlight               []*callContext
 	lock                   *sync.RWMutex
+	dependencyGraph        map[string]*edgeHolder
 }
 
 func NewNameServer() *NameServer {
@@ -59,6 +68,7 @@ func NewNameServer() *NameServer {
 		serviceIdToServiceData: make(map[string]*serviceData),
 		inFlight:               []*callContext{},
 		serviceCounter:         7, //first 8 are reserved
+		dependencyGraph:        make(map[string]*edgeHolder),
 	}
 }
 
@@ -190,6 +200,126 @@ func (n *NameServer) GetProcessForCallId(target lib.Id) *Process {
 			return cctx.sender
 		}
 	}
+	return nil
+}
+
+// CloseService is called by a server to inform us (via lib
+// and syscall) that there are no more methods to be registered
+// for this service. This can fail if the service was already
+// closed or the service cannot be found and if so, we return
+// the appropriate kernel error to the caller wrapped in a
+// lib.Error.
+func (n *NameServer) CloseService(pkgPath string, service string) lib.Error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	nameserverPrint("CLOSESERVICE", "closing %s.%s",
+		pkgPath, service)
+	sData, err := n.validatePkgAndService(pkgPath, service)
+	if err != nil {
+		return err
+	}
+	if sData.closed {
+		return lib.NewPerrorFromId("already closed",
+			lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported))
+
+	}
+	sData.closed = true
+	return nil
+}
+
+// validatePkgAndService makes sure the package and service are valid.
+// It does not lock, so callers must hold the lock before they call this
+// function.
+func (n *NameServer) validatePkgAndService(pkgPath, service string) (*serviceData, lib.Error) {
+
+	pData, ok := n.packageRegistry[pkgPath]
+	if !ok {
+		return nil, lib.NewPerrorFromId("no such package",
+			lib.NewKernelError(lib.KernelNotFound))
+	}
+	sData, ok := pData.service[service]
+	if !ok {
+		return nil, lib.NewPerrorFromId("no such package",
+			lib.NewKernelError(lib.KernelNotFound))
+	}
+	return sData, nil
+}
+
+// Exports is used to inform the nameserver that a particular process
+// exports the given service.  It returns a kernel error id inside the
+// lib.Error if the service cannot be found or has already been exported
+// by another server.
+func (n *NameServer) Export(proc *Process, pkgPath, service string) lib.Error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	nameserverPrint("EXPORT", "process %s exports %s.%s",
+		proc.String(), pkgPath, service)
+	sData, err := n.validatePkgAndService(pkgPath, service)
+	if err != nil {
+		return err
+	}
+	if !sData.closed {
+		// xxxfix me, should this be an error?
+	}
+	if sData.exported {
+		return lib.NewPerrorFromId("already exported",
+			lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported))
+	}
+	sData.exported = true
+	node, ok := n.dependencyGraph[proc.String()]
+	if !ok {
+		node = &edgeHolder{
+			proc:    proc,
+			export:  []string{},
+			require: []string{},
+		}
+		n.dependencyGraph[proc.String()] = node
+	}
+	node.export = append(node.export, fmt.Sprintf("%s.%s", pkgPath, service))
+	return nil
+}
+
+// Require is used to inform the nameserver that a particular process
+// requires the given service.
+func (n *NameServer) Require(proc *Process, pkgPath, service string) lib.Error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	nameserverPrint("REQUIRE", "process %s exports %s.%s",
+		proc.String(), pkgPath, service)
+
+	pData, ok := n.packageRegistry[pkgPath]
+	if !ok {
+		pData = newPackageData()
+		n.packageRegistry[pkgPath] = pData
+	}
+	sData, ok := pData.service[service]
+	if !ok {
+		sData = newServiceData()
+		n.serviceCounter++
+		sData.serviceId = lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
+		pData.service[service] = sData
+		n.serviceIdToServiceData[sData.serviceId.String()] = sData
+	}
+	node, ok := n.dependencyGraph[proc.String()]
+	if !ok {
+		node = &edgeHolder{
+			proc:    proc,
+			export:  []string{},
+			require: []string{},
+		}
+		n.dependencyGraph[proc.String()] = node
+	}
+	name := fmt.Sprintf("%s.%s", pkgPath, service)
+	for _, r := range node.require {
+		if r == name {
+			return lib.NewPerrorFromId("already required",
+				lib.NewKernelError(lib.KernelServiceAlreadyRequired))
+		}
+	}
+	node.require = append(node.require, name)
 	return nil
 }
 

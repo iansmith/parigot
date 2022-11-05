@@ -90,3 +90,32 @@ message ReturnValueRequest{
 message ReturnValueResponse {
   parigot.KernelErrorId error_id = 1;
 }
+
+message fullyQualifiedService {
+  string packagePath = 1;
+  string service = 2;
+}
+
+message ExportRequest {
+  repeated fullyQualifiedService service = 1;
+}
+
+message ExportResponse {
+  parigot.KernelErrorId error_id = 1;
+}
+
+message RequireRequest {
+  repeated fullyQualifiedService service = 1;
+}
+
+message RequireResponse {
+  parigot.KernelErrorId error_id = 1;
+}
+
+message StartRequest {
+}
+
+message StartResponse {
+  parigot.KernelErrorId error_id = 1;
+  repeated string loopComponent = 2;
+}

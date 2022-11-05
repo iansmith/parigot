@@ -407,6 +407,70 @@ func (s *SysCall) ReturnValue(sp int32) {
 	return
 }
 
+// Export is used when a server wishes to express what services
+// he implements and that he has finished binding all the methods
+// of that service.
+func (s *SysCall) Export(sp int32) {
+	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+
+	// we just have to create the structure and send it through the correct channel
+	pkg := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.ExportPayload{}.PkgPtr),
+		unsafe.Offsetof(lib.ExportPayload{}.PkgLen))
+
+	service := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.ExportPayload{}.ServicePtr),
+		unsafe.Offsetof(lib.ExportPayload{}.ServiceLen))
+
+	if err := s.nameServer.CloseService(pkg, service); err != nil {
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
+			err.Id())
+		return
+	}
+	if err := s.nameServer.Export(s.proc, pkg, service); err != nil {
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
+			err.Id())
+		return
+	}
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
+		lib.NoKernelErr())
+
+}
+
+// Require is used when client or server wishes to indicate that it consumes
+// a service.  This becomes part of the dependency graph.
+func (s *SysCall) Require(sp int32) {
+	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+
+	// we just have to create the structure and send it through the correct channel
+	pkg := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.RequirePayload{}.PkgPtr),
+		unsafe.Offsetof(lib.RequirePayload{}.PkgLen))
+
+	service := s.ReadString(wasmPtr,
+		unsafe.Offsetof(lib.RequirePayload{}.ServicePtr),
+		unsafe.Offsetof(lib.RequirePayload{}.ServiceLen))
+
+	if err := s.nameServer.Require(s.proc, pkg, service); err != nil {
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
+			err.Id())
+		return
+	}
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
+		lib.NoKernelErr())
+
+}
+
+// Start is used to start up the processes in a deterministic order. It will
+// fail and try to return the cycle if a dependency cycle is found.
+func (s *SysCall) Start(sp int32) {
+	wasmPtr := s.mem.GetInt64(sp + 8)
+	s.sysPrint("START", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	panic("start")
+}
+
 func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {
 	if syscallVerbose {
 		p1 := fmt.Sprintf("SYSCALL[%s,%s,%s]:", call, s.mem.String(), s.proc.String())

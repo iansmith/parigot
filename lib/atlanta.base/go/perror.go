@@ -66,3 +66,11 @@ func (e *perrorImpl) Error() string {
 	buf.WriteString("\n")
 	return buf.String()
 }
+
+// Return the wrapped id or panic.
+func (e *perrorImpl) Id() Id {
+	if e.id == nil {
+		panic("attempt to get the id from an error that does not have one")
+	}
+	return e.id
+}

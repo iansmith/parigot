@@ -47,4 +47,7 @@ func addSupportedFunctions(store wasmtime.Storelike,
 	result["go.parigot.bind_method_"] = wasmtime.WrapFunc(store, rt.syscall.BindMethod)
 	result["go.parigot.return_value_"] = wasmtime.WrapFunc(store, rt.syscall.ReturnValue)
 	result["go.parigot.block_until_call_"] = wasmtime.WrapFunc(store, rt.syscall.BlockUntilCall)
+	result["go.parigot.require_"] = wasmtime.WrapFunc(store, rt.syscall.Require)
+	result["go.parigot.export_"] = wasmtime.WrapFunc(store, rt.syscall.Export)
+	result["go.parigot.start_"] = wasmtime.WrapFunc(store, rt.syscall.Start)
 }

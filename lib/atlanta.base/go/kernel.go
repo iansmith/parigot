@@ -7,6 +7,7 @@ package lib
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unsafe"
 
 	"github.com/iansmith/parigot/g/pb/kernel"
@@ -303,6 +304,109 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 	return out, nil
 }
 
+func Start() (*kernel.StartResponse, error) {
+	out := new(kernel.StartResponse)
+
+	// allocate space for any error
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+
+	buffer := make([]byte, 2048) //not sur what the right size for this is
+	detail := new(StartPayload)
+	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	detail.LoopResultPtr, detail.LoopResultLen = sliceToTwoInt64s(buffer)
+	u := uintptr(unsafe.Pointer(detail))
+	start(int32(u))
+
+	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
+	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	if kerr.IsError() {
+		if kerr.Equal(NewKernelError(KernelDependencyCycle)) {
+			if detail.LoopResultLen > 0 {
+				str := string(buffer[:detail.LoopResultLen])
+				parts := strings.Split(str, ";")
+				out.LoopComponent = parts
+			}
+		}
+		out.ErrorId = MarshalKernelErrId(kerr)
+		return out, NewPerrorFromId("kernel failed to start your process", kerr)
+	}
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	return out, nil
+}
+
+// Require is the way that a server or client can express that expects to utilize a service.
+// This call does not block.  If the input structure has multiple services in it, this call
+// will repeatedly call the kernel and it will abort and return the error at the first failure.
+func Require(in *kernel.RequireRequest) (*kernel.RequireResponse, error) {
+	out := new(kernel.RequireResponse)
+
+	// allocate space for any error
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	err := exportOrRequire(in.GetService(), ptr, false)
+	if err != nil {
+		return nil, err
+	}
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	return out, nil
+}
+
+func exportOrRequire(fqs []*kernel.FullyQualifiedService, errorPtr *[2]int64, isExport bool) error {
+	for _, s := range fqs {
+		pkg := s.GetPackagePath()
+		svc := s.GetService()
+
+		detail := new(ExportPayload)
+		sh := (*reflect.StringHeader)(unsafe.Pointer(&pkg))
+		detail.PkgPtr = int64(sh.Data)
+		detail.PkgLen = int64(sh.Len)
+		sh = (*reflect.StringHeader)(unsafe.Pointer(&svc))
+		detail.ServicePtr = int64(sh.Data)
+		detail.ServiceLen = int64(sh.Len)
+		detail.KernelErrorPtr = errorPtr //(*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+
+		// THE CALL
+		u := uintptr(unsafe.Pointer(detail))
+		if isExport {
+			export(int32(u))
+		} else {
+			require(int32(u))
+		}
+
+		// check for in band errors
+		kernelErrDataPtr := detail.KernelErrorPtr //(*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
+		kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+		if kerr.IsError() {
+			return NewPerrorFromId("export error", kerr)
+		}
+	}
+	return nil
+
+}
+
+// Export is the way that a server can express that it is done binding methods
+// the service and it is ready to export it.  This call does not block.  If the input
+// structure has multiple services in it, this call will repeatedly call
+// the kernel and it will abort and return the error at the first failure.
+func Export(in *kernel.ExportRequest) (*kernel.ExportResponse, error) {
+	out := new(kernel.ExportResponse)
+	// allocate space for any error
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	err := exportOrRequire(in.GetService(), ptr, true)
+	if err != nil {
+		return nil, err
+	}
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	return out, nil
+}
+
 // xxx this may be a bad idea.  this is probably only temporary til I can work out if we
 // xxx should support this at all. currently, it is used by terminal logger.  I made a copy
 // xxx of the other bindMethodByName so it would be easier to delete this one.
@@ -496,10 +600,6 @@ func locate(int32)
 //go:linkname register parigot.register_
 func register(int32)
 
-//   go:noinline
-//   go:linkname register2 go.parigot.register
-//   func register2(int32)
-
 //go:noinline
 //go:linkname dispatch parigot.dispatch_
 func dispatch(int32)
@@ -519,3 +619,15 @@ func blockUntilCall(int32)
 //go:noinline
 //go:linkname returnValue parigot.return_value_
 func returnValue(int32)
+
+//go:noinline
+//go:linkname export parigot.export_
+func export(int32)
+
+//go:noinline
+//go:linkname require parigot.require_
+func require(int32)
+
+//go:noinline
+//go:linkname start parigot.start_
+func start(int32)

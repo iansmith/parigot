@@ -99,3 +99,36 @@ type ReturnValuePayload struct {
 	//xxx should be doing this too
 	//UserErrorPtr   *[2]int64 // out p5
 }
+
+// Export payload is used to indicate to the server what
+// services you implement.  No more method implementations
+// can be bound once this method is called, so you want to
+// be sure you've finished your BindMethod() calls before
+// you use this.  This should only be called by a server.
+type ExportPayload struct {
+	PkgPtr         int64     // in p0a
+	PkgLen         int64     // in p0b
+	ServicePtr     int64     // in p1a
+	ServiceLen     int64     // in p1b
+	KernelErrorPtr *[2]int64 // out p0
+
+}
+
+// RequirePayload is use to indicate what services you consume.
+// This function may be called by servers, but is always called
+// by clients.
+type RequirePayload ExportPayload
+
+// Start payload is used by clients and servers to indicate that
+// they are ready to start.  This call blocks until the server has
+// start all the prerequisites (the services requested via RequirePayload)
+// and thus there is no need to wait to use Locate().  This call
+// can fail if there is a dependency cycle.  If it does it will
+// try to write the loop problem into the Loop result buffer here
+// but will not do so if the loop printout is larger than LoopResultLen.
+// Each segment of the loop is separated by ; in the result buffer.
+type StartPayload struct {
+	KernelErrorPtr *[2]int64 // out p0
+	LoopResultPtr  int64     // out p1
+	LoopResultLen  int64     // in p0 and out p2
+}

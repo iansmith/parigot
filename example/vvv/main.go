@@ -12,6 +12,13 @@ import (
 )
 
 func main() {
+	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
+		panic("unable to set up my export")
+	}
+	if _, err := lib.Start(); err != nil {
+		panic(fmt.Sprintf("unable to start my process: %s", err.Error()))
+	}
+
 	vvv.Run(&myServer{})
 }
 

@@ -48,6 +48,19 @@ const (
 	// requeted the computation for which results have been provided.  It is most likely
 	// because the caller was killed, exited or timed out.
 	KernelCallerUnavailable KernelErrorCode = 7
+	// KernelServiceAlreadyClosedOrExported means that some process has already reported
+	// the service in question as closed or has already expressed that it is
+	// exporting (implementing this service).  This is very likely a case where there
+	// are two servers that think they are or should be implementing the same service.
+	KernelServiceAlreadyClosedOrExported KernelErrorCode = 8
+	// KernelServiceAlreadyRequired means that this same process has already
+	// required the given service.
+	KernelServiceAlreadyRequired KernelErrorCode = 9
+	// KernelDependencyCycle means that no deterministic startup ordering
+	// exists for the set of exports and requires in use.  In other words,
+	// you must refactor your program so that you do not have a cyle to make
+	// it come up cleanly.
+	KernelDependencyCycle KernelErrorCode = 10
 )
 
 // NoKernelErr returns a kernel error id, with the value set to zero, or no error.
