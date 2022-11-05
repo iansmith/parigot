@@ -17,7 +17,7 @@ import (
 //
 // Look at the doc for libparigotVerbose to see about interleaving issue with syscallVerbose and
 // libparigotVerbose.
-var syscallVerbose = false
+var syscallVerbose = true
 
 type SysCall struct {
 	mem        *jspatch.WasmMem
@@ -398,7 +398,8 @@ func (s *SysCall) ReturnValue(sp int32) {
 			kerr)
 		return
 	}
-	s.sysPrint("RESULTVALUE ", "computed info, found channel, sending")
+	s.sysPrint("RESULTVALUE ", "computed info, found channel, sending results: %d,%d for result and pctx data",
+		len(info.result), len(info.pctx))
 	proc.resultCh <- info
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 		lib.NoKernelErr())

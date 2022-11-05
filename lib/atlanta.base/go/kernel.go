@@ -33,7 +33,7 @@ func Exit(in *kernel.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = false
+var libparigotVerbose = true
 
 // Register calls the kernel to register the given type. The Id returned is only
 // useful when the error is nil.  This should only be called by clients of the
@@ -438,8 +438,8 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	if err != nil {
 		goto internalMarshalProblem
 	}
+	err = a.MarshalFrom(out)
 	if err != nil {
-		err = a.MarshalFrom(out)
 		goto internalMarshalProblem
 	}
 	rv.ResultBuffer, err = proto.Marshal(&a)
@@ -464,6 +464,9 @@ func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, er
 
 	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(in.ResultBuffer)
+
+	libprint("RETURNVALUE ", "buffers for pctx and result sending to kernel are size %d,%d",
+		len(in.PctxBuffer), len(in.ResultBuffer))
 
 	detail.MethodId[0] = int64(in.Method.GetLow())
 	detail.MethodId[1] = int64(in.Method.GetHigh())
