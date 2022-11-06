@@ -414,7 +414,6 @@ func (s *SysCall) Export(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	s.sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
-	// we just have to create the structure and send it through the correct channel
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.ExportPayload{}.PkgPtr),
 		unsafe.Offsetof(lib.ExportPayload{}.PkgLen))
@@ -423,11 +422,14 @@ func (s *SysCall) Export(sp int32) {
 		unsafe.Offsetof(lib.ExportPayload{}.ServicePtr),
 		unsafe.Offsetof(lib.ExportPayload{}.ServiceLen))
 
+	s.sysPrint("EXPORT", "about close service: %s.%s", pkg, service)
 	if err := s.nameServer.CloseService(pkg, service); err != nil {
+		s.sysPrint("EXPORT", "err is %v, %s", err, err.Error())
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 			err.Id())
 		return
 	}
+	s.sysPrint("EXPORT", "about tell the nameserver we export %s.%s", pkg, service)
 	if err := s.nameServer.Export(s.proc, pkg, service); err != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 			err.Id())
@@ -436,13 +438,15 @@ func (s *SysCall) Export(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 		lib.NoKernelErr())
 
+	s.sysPrint("EXPORT", "done")
+
 }
 
 // Require is used when client or server wishes to indicate that it consumes
 // a service.  This becomes part of the dependency graph.
 func (s *SysCall) Require(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	s.sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	s.sysPrint("REQUIRE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// we just have to create the structure and send it through the correct channel
 	pkg := s.ReadString(wasmPtr,
@@ -453,7 +457,9 @@ func (s *SysCall) Require(sp int32) {
 		unsafe.Offsetof(lib.RequirePayload{}.ServicePtr),
 		unsafe.Offsetof(lib.RequirePayload{}.ServiceLen))
 
+	s.sysPrint("REQUIRE", "telling nameserver %s requires %s.%s", s.proc, pkg, service)
 	if err := s.nameServer.Require(s.proc, pkg, service); err != nil {
+		s.sysPrint("REQUIRE", " nameserver failed require of %s.%s", pkg, service)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
 			err.Id())
 		return
@@ -463,31 +469,33 @@ func (s *SysCall) Require(sp int32) {
 
 }
 
-// Start is used to start up the processes in a deterministic order. It will
-// fail and try to return the cycle if a dependency cycle is found.
-func (s *SysCall) Start(sp int32) {
+// Run is used to start up the processes in a deterministic order. It will
+// fail and return an error if there are problems getting all the require and export
+// requests to match up.
+func (s *SysCall) Run(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	s.sysPrint("START", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-	loop := <-s.proc.runCh
-	s.sysPrint("START", "we are now ready to run and the size of loop is %d", len(loop))
-	if loop == "" {
-		// tell the client everything is cool
-		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(0))
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.KernelErrorPtr),
-			lib.NoKernelErr())
-		return
+	s.sysPrint("RUN", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	w := s.mem.GetInt64(int32(wasmPtr) + int32(unsafe.Offsetof(lib.RunPayload{}.Wait)))
+	wait := false
+	if w != 0 {
+		wait = true
 	}
-	// houston,we have a problem... see if we have enough space to actually put the loop info in there
-	size := s.mem.GetInt64(int32(wasmPtr + int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))))
-	if len(loop) > int(size) {
-		//not enough space
-		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(0))
-	} else {
-		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(len(loop)))
-		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.LoopResultPtr), []byte(loop))
+	s.proc.waiter = wait
+	s.proc.reachedRun = true
+	s.nameServer.runCh <- s.proc
+	s.sysPrint("RUN", "%s is blocked on channel for run confirmation", s.proc)
+	// block until we are told to proceed
+	ok := <-s.proc.runCh
+	s.sysPrint("RUN", "process %s read from the run channel %v", s.proc, ok)
+	if !ok {
+		s.sysPrint("RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
+			lib.NewKernelError(lib.KernelDependencyCycle))
+
 	}
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.KernelErrorPtr),
-		lib.NewKernelError(lib.KernelDependencyCycle))
+	s.sysPrint("RUN", "we are now ready to run, %s", s.proc)
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
+		lib.NoKernelErr())
 }
 
 func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {

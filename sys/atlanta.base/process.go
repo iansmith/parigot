@@ -11,7 +11,7 @@ import (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false
+var processVerbose = true
 
 var lastProcessId = 7
 
@@ -36,18 +36,21 @@ type resultInfo struct {
 }
 
 type Process struct {
-	id       int
-	path     string
-	module   *wasmtime.Module
-	linkage  []wasmtime.AsExtern
-	memPtr   uintptr
-	instance *wasmtime.Instance
-	parent   *wasmtime.Store
-	syscall  *SysCall
+	id         int
+	path       string
+	module     *wasmtime.Module
+	linkage    []wasmtime.AsExtern
+	memPtr     uintptr
+	instance   *wasmtime.Instance
+	parent     *wasmtime.Store
+	syscall    *SysCall
+	waiter     bool
+	reachedRun bool
+	exited     bool
 
 	callCh   chan *callInfo
 	resultCh chan *resultInfo
-	runCh    chan string
+	runCh    chan bool
 }
 
 // NewProcessFromMod does not handle concurrent use. It assumes that each call to this
@@ -60,18 +63,21 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
-		id:       id,
-		path:     path,
-		parent:   parentStore,
-		module:   mod,
-		linkage:  nil,
-		memPtr:   0,
-		instance: nil,
-		syscall:  rt.syscall,
+		id:         id,
+		path:       path,
+		parent:     parentStore,
+		module:     mod,
+		linkage:    nil,
+		memPtr:     0,
+		instance:   nil,
+		syscall:    rt.syscall,
+		waiter:     false,
+		reachedRun: false,
+		exited:     false,
 
 		callCh:   make(chan *callInfo),
 		resultCh: make(chan *resultInfo),
-		runCh:    make(chan string),
+		runCh:    make(chan bool),
 	}
 
 	l, err := proc.checkLinkage(rt)
@@ -108,6 +114,16 @@ func (p *Process) String() string {
 	return fmt.Sprintf("[proc-%d:%s]", p.id, file)
 }
 
+func (p *Process) ReachedStart() bool {
+	return p.reachedRun
+}
+func (p *Process) Exited() bool {
+	return p.exited
+}
+func (p *Process) IsWaiter() bool {
+	return p.waiter
+}
+
 func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 
 	// all available funcs end up in here
@@ -137,30 +153,35 @@ func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 	return linkage, nil
 }
 
-// Run() is used to let a process go past it's call to "start()" in the API.  This is
+// Run() is used to let a process go past its call to "start()" in the API.  This is
 // called when we discover all his requirements have been met.
-func (p *Process) Run(loop string) {
-	p.runCh <- loop
+func (p *Process) Run() {
+	procPrint("RUN", "trying to tell %s to run, everything is ok", p)
+	p.runCh <- true
+	procPrint("RUN", "process %s running", p)
 }
 
 func (p *Process) Start() {
+	procPrint("START ", "we have been loaded/started by the runner: %s", p)
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		return
 	}
 	f := start.Func()
+	procPrint("START ", "calling the entry point for proc %s", p)
 	result, err := f.Call(p.parent, 0, 0)
+	p.exited = true
 	if err != nil {
-		log.Printf("process %d [%s] trapped: %v", p.id, p.path, err)
-		// xxx fixme, we need to do process cleanup here
-		return
-	}
-	if result == nil {
-		log.Printf("process %d [%s] finished", p.id, p.path)
+		log.Printf("process %s trapped: %v", p, err)
 	} else {
-		log.Printf("process %d [%s] fineshed: %+v", p.id, p.path, result)
+		if result == nil {
+			log.Printf("process %s finished", p)
+		} else {
+			log.Printf("process %s finished: %+v", p, result)
+		}
 	}
+	procPrint("START", "has exited")
 	// xxx fixme, we need to do process cleanup here
 	return
 }

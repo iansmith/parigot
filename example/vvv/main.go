@@ -6,19 +6,13 @@ import (
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
+	"github.com/iansmith/parigot/g/pb/kernel"
 	"github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
 )
 
 func main() {
-	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
-		panic("unable to set up my export")
-	}
-	if _, err := lib.Start(); err != nil {
-		panic(fmt.Sprintf("unable to start my process: %s", err.Error()))
-	}
-
 	vvv.Run(&myServer{})
 }
 
@@ -86,4 +80,19 @@ func (m *myServer) Revenue(pctx lib.Pctx, in proto.Message) (proto.Message, erro
 func (m *myServer) SoldItem(pctx lib.Pctx, in proto.Message) error {
 	pctx.Log(log.LogLevel_LOGLEVEL_WARNING, "SoldItem() not yet implemented, ignoring input value")
 	return nil
+}
+
+// Ready is a check, if this returns false the library should abort and not attempt to run this service.
+// Normally this is used to inform the kernel that we are exporting some package and that we are ready to
+// run.
+func (m *myServer) Ready() bool {
+
+	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
+		return false
+	}
+	if _, err := lib.Run(&kernel.RunRequest{Wait: false}); err != nil {
+		return false
+	}
+	return true
+
 }

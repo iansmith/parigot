@@ -36,16 +36,6 @@ message DispatchResponse {
   parigot.KernelErrorId error_id =3;
 }
 
-message RegisterRequest {
-  string proto_package = 1;
-  string service = 2;
-}
-
-message RegisterResponse {
-  parigot.ServiceId service_id =1;
-  parigot.KernelErrorId error_id=2;
-}
-
 enum MethodDirection {
   MethodDirectionUnspecified = 0;
   MethodDirectionIn = 1;
@@ -112,10 +102,10 @@ message RequireResponse {
   parigot.KernelErrorId error_id = 1;
 }
 
-message StartRequest {
+message RunRequest {
+  bool wait = 1;
 }
 
-message StartResponse {
+message RunResponse {
   parigot.KernelErrorId error_id = 1;
-  repeated string loopComponent = 2;
 }

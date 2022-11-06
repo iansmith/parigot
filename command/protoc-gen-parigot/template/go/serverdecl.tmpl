@@ -37,6 +37,7 @@ type {{$svcCamel}}Server interface {
     error
 {{- end}} {{/* end of output code needed */}}
 {{- end}} {{/* end of range over methods */}}
+	Ready() bool
 }
 {{- end}} {{/* end of range over services */}}
 
@@ -173,7 +174,10 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 		return "{{$methCamel}}", {{$methCamelFL}}err
 	}
 	{{$methCamelFL}}Method = lib.UnmarshalMethodId(resp.GetMethodId())
-{{- end }} {{/* end of rang over services */}}
+{{- end }} {{/* end of rang over methods */}}
+	if !impl.Ready(){
+		panic("unable to start {{$svcCamel}} because it failed Ready() check")
+	}
 	return "",nil
 }
 

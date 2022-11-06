@@ -130,20 +130,3 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}()
 {{- end }} {{/* no kernel option */}}
 {{- end}} {{/*ranging over services*/}}
 
-
-func init() {
-
-{{- range .info.Service }}
-{{- if .NoKernelOption }}
-    req{{.GetWasmServiceName}}:=&kernel.RegisterRequest{
-        ProtoPackage: "{{.ProtoPackage}}",
-        Service:      "{{.GetWasmServiceName}}",
-    }
-    resp{{.GetWasmServiceName}}:=kernel.RegisterResponse{}
-    _, regErr:=lib.Register(req{{.GetWasmServiceName}},&resp{{.GetWasmServiceName}})
-    if regErr!=nil {
-        panic("unable to register service "+"{{.GetWasmServiceName}}:"+ regErr.Error())
-    }
-{{- end }} {{/* if no kernel */}}
-{{- end }}
-}

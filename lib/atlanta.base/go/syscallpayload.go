@@ -119,16 +119,16 @@ type ExportPayload struct {
 // by clients.
 type RequirePayload ExportPayload
 
-// Start payload is used by clients and servers to indicate that
+// Run payload is used by clients and servers to indicate that
 // they are ready to start.  This call blocks until the server has
-// start all the prerequisites (the services requested via RequirePayload)
+// started all the prerequisites (the services requested via RequirePayload)
 // and thus there is no need to wait to use Locate().  This call
-// can fail if there is a dependency cycle.  If it does it will
-// try to write the loop problem into the Loop result buffer here
-// but will not do so if the loop printout is larger than LoopResultLen.
-// Each segment of the loop is separated by ; in the result buffer.
-type StartPayload struct {
+// can fail if there is a dependency cycle or dead processes that
+// have requires that cannot possibly be fulfilled.  If finds either
+// of these, it will print information to the terminal and return
+// an error here.  If Wait is true, it means that this process should
+// be one that causes the kernel to remain alive until it finishes.
+type RunPayload struct {
+	Wait           int64     // in p0
 	KernelErrorPtr *[2]int64 // out p0
-	LoopResultPtr  int64     // out p1
-	LoopResultLen  int64     // in p0 and out p2
 }

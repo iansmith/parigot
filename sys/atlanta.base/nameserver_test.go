@@ -1,7 +1,6 @@
 package sys
 
 import (
-	"log"
 	"testing"
 )
 
@@ -30,10 +29,10 @@ func TestSimpleDead(t *testing.T) {
 		a.proc.String(): a,
 		b.proc.String(): b,
 	}
-	if ns.getLoopContent() != "" {
+	if ns.GetLoopContent() != "" {
 		t.Errorf("expected no loop from graph with no exports!")
 	}
-	if ns.getDeadNodeContent() == "" {
+	if ns.GetDeadNodeContent() == "" {
 		t.Errorf("expected loop with nodes a and b but got nothing")
 	}
 }
@@ -63,13 +62,13 @@ func TestSimpleLoop(t *testing.T) {
 		b.proc.String(): b,
 		r.proc.String(): r,
 	}
-	t.Logf("loop is:%s", ns.getLoopContent())
+	t.Logf("loop is:%s", ns.GetLoopContent())
 
-	if ns.getLoopContent() == "" {
+	if ns.GetLoopContent() == "" {
 		t.Errorf("expected loop of a and b but got nothing!")
 	}
-	if ns.getDeadNodeContent() != "" {
-		t.Errorf("expected no dead nodes in simple loop bc red herring would get freed by b:\n" + ns.getDeadNodeContent())
+	if ns.GetDeadNodeContent() != "" {
+		t.Errorf("expected no dead nodes in simple loop bc red herring would get freed by b:\n" + ns.GetDeadNodeContent())
 	}
 	t.Fail()
 }
@@ -121,22 +120,22 @@ func TestLongChain(t *testing.T) {
 		e.proc.String(): e,
 	}
 
-	log.Printf("loop ---> '%s'", ns.getLoopContent())
+	//log.Printf("loop ---> '%s'", ns.GetLoopContent())
 
 	//no loop no dead
-	if ns.getLoopContent() != "" {
+	if ns.GetLoopContent() != "" {
 		t.Errorf("did not expect loop of long chain!")
 	}
-	if ns.getDeadNodeContent() != "" {
+	if ns.GetDeadNodeContent() != "" {
 		t.Errorf("expected no dead nodes in long chain")
 	}
 
 	// now we are going to add an edge that will create a loop
 	e.require = []string{"foo.a"}
-	if ns.getLoopContent() == "" {
+	if ns.GetLoopContent() == "" {
 		t.Errorf("expected loop after adding edge!")
 	}
-	if ns.getDeadNodeContent() != "" {
+	if ns.GetDeadNodeContent() != "" {
 		t.Errorf("expected no dead nodes in long chain")
 	}
 

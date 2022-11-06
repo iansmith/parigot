@@ -7,7 +7,6 @@ package lib
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"unsafe"
 
 	"github.com/iansmith/parigot/g/pb/kernel"
@@ -35,49 +34,6 @@ func Exit(in *kernel.ExitRequest) {
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
 var libparigotVerbose = true
-
-// Register calls the kernel to register the given type. The Id returned is only
-// useful when the error is nil.  This should only be called by clients of the
-// interface being registered.  Usually this is done automatically by the init()
-// method of the generated client side code.
-//
-//go:noinline
-func Register(in *kernel.RegisterRequest, out *kernel.RegisterResponse) (Id, error) {
-	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-	out.ServiceId = &parigot.ServiceId{High: 3, Low: 4}
-
-	detail := new(RegPayload)
-	pkgSh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
-	detail.PkgPtr = int64(pkgSh.Data)
-	detail.PkgLen = int64(pkgSh.Len)
-
-	serviceSh := (*reflect.StringHeader)(unsafe.Pointer(&in.Service))
-	detail.ServicePtr = int64(serviceSh.Data)
-	detail.ServiceLen = int64(serviceSh.Len)
-	// choosing low's addr means you ADD 8 to get to the high
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
-
-	u := uintptr(unsafe.Pointer(detail))
-	register(int32(u))
-
-	// marshal them back together
-	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ServiceIdPtr))))
-	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
-	out.ServiceId = MarshalServiceId(sid)
-	regErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	err := NewKernelError(KernelErrorCode(regErrDataPtr[0]))
-	// in case the caller walks the structure repacks a new protobuf
-	out.ServiceId = MarshalServiceId(sid)
-	out.ErrorId = MarshalKernelErrId(err)
-
-	if err.IsError() {
-		return sid, NewPerrorFromId("failed to register properly", err)
-	}
-	return sid, nil
-}
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -304,52 +260,29 @@ func bindMethodByName(in *kernel.BindMethodRequest, dir kernel.MethodDirection) 
 	return out, nil
 }
 
-func Start() (*kernel.StartResponse, error) {
-	out := new(kernel.StartResponse)
+func Run(in *kernel.RunRequest) (*kernel.RunResponse, error) {
+	out := new(kernel.RunResponse)
 
 	// allocate space for any error
 	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
 	out.ErrorId.High = 1
 	out.ErrorId.Low = 2
 
-	buffer := make([]byte, 2048) //not sur what the right size for this is
-	detail := new(StartPayload)
-	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	detail.LoopResultPtr, detail.LoopResultLen = sliceToTwoInt64s(buffer)
+	detail := new(RunPayload)
+	detail.Wait = 0
+	if in.Wait {
+		detail.Wait = 1
+	}
+
+	// THE CALL, and the walls came down...
 	u := uintptr(unsafe.Pointer(detail))
-	start(int32(u))
+	run(int32(u))
 
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
 	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		if kerr.Equal(NewKernelError(KernelDependencyCycle)) {
-			if detail.LoopResultLen > 0 {
-				str := string(buffer[:detail.LoopResultLen])
-				parts := strings.Split(str, ";")
-				out.LoopComponent = parts
-			}
-		}
 		out.ErrorId = MarshalKernelErrId(kerr)
 		return out, NewPerrorFromId("kernel failed to start your process", kerr)
-	}
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
-	return out, nil
-}
-
-// Require is the way that a server or client can express that expects to utilize a service.
-// This call does not block.  If the input structure has multiple services in it, this call
-// will repeatedly call the kernel and it will abort and return the error at the first failure.
-func Require(in *kernel.RequireRequest) (*kernel.RequireResponse, error) {
-	out := new(kernel.RequireResponse)
-
-	// allocate space for any error
-	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	err := exportOrRequire(in.GetService(), ptr, false)
-	if err != nil {
-		return nil, err
 	}
 	out.ErrorId = MarshalKernelErrId(NoKernelErr())
 	return out, nil
@@ -360,6 +293,11 @@ func exportOrRequire(fqs []*kernel.FullyQualifiedService, errorPtr *[2]int64, is
 		pkg := s.GetPackagePath()
 		svc := s.GetService()
 
+		if isExport {
+			libprint("EXPORT", "exporting service %s.%s", pkg, svc)
+		} else {
+			libprint("REQUIRE", "requiring service %s.%s", pkg, svc)
+		}
 		detail := new(ExportPayload)
 		sh := (*reflect.StringHeader)(unsafe.Pointer(&pkg))
 		detail.PkgPtr = int64(sh.Data)
@@ -381,7 +319,12 @@ func exportOrRequire(fqs []*kernel.FullyQualifiedService, errorPtr *[2]int64, is
 		kernelErrDataPtr := detail.KernelErrorPtr //(*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
 		kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
 		if kerr.IsError() {
-			return NewPerrorFromId("export error", kerr)
+			if isExport {
+				return NewPerrorFromId("export error", kerr)
+			} else {
+				return NewPerrorFromId("require error", kerr)
+			}
+
 		}
 	}
 	return nil
@@ -400,6 +343,26 @@ func Export(in *kernel.ExportRequest) (*kernel.ExportResponse, error) {
 	out.ErrorId.Low = 2
 	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 	err := exportOrRequire(in.GetService(), ptr, true)
+	if err != nil {
+		return nil, err
+	}
+	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	return out, nil
+}
+
+// Require is the way that a client or server can express that uses a particular
+// interface.  This call does not block.  If the input structure has multiple
+// services in it, this call will repeatedly call the kernel and it will abort
+// and return the error at the first failure.
+func Require(in *kernel.RequireRequest) (*kernel.RequireResponse, error) {
+	libprint("REQUIRE ", "request to require %d services", len(in.Service))
+	out := new(kernel.RequireResponse)
+	// allocate space for any error
+	out.ErrorId = &parigot.KernelErrorId{High: 6, Low: 7}
+	out.ErrorId.High = 1
+	out.ErrorId.Low = 2
+	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	err := exportOrRequire(in.GetService(), ptr, false)
 	if err != nil {
 		return nil, err
 	}
@@ -597,10 +560,6 @@ func ReturnValue(in *kernel.ReturnValueRequest) (*kernel.ReturnValueResponse, er
 func locate(int32)
 
 //go:noinline
-//go:linkname register parigot.register_
-func register(int32)
-
-//go:noinline
 //go:linkname dispatch parigot.dispatch_
 func dispatch(int32)
 
@@ -629,5 +588,5 @@ func export(int32)
 func require(int32)
 
 //go:noinline
-//go:linkname start parigot.start_
-func start(int32)
+//go:linkname run parigot.run_
+func run(int32)
