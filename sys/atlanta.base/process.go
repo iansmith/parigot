@@ -47,6 +47,7 @@ type Process struct {
 
 	callCh   chan *callInfo
 	resultCh chan *resultInfo
+	runCh    chan string
 }
 
 // NewProcessFromMod does not handle concurrent use. It assumes that each call to this
@@ -70,6 +71,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 
 		callCh:   make(chan *callInfo),
 		resultCh: make(chan *resultInfo),
+		runCh:    make(chan string),
 	}
 
 	l, err := proc.checkLinkage(rt)
@@ -102,6 +104,7 @@ func (p *Process) String() string {
 	if dir == "" {
 		dir = "."
 	}
+
 	return fmt.Sprintf("[proc-%d:%s]", p.id, file)
 }
 
@@ -132,6 +135,12 @@ func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 		}
 	}
 	return linkage, nil
+}
+
+// Run() is used to let a process go past it's call to "start()" in the API.  This is
+// called when we discover all his requirements have been met.
+func (p *Process) Run(loop string) {
+	p.runCh <- loop
 }
 
 func (p *Process) Start() {

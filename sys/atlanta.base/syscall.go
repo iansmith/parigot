@@ -468,7 +468,26 @@ func (s *SysCall) Require(sp int32) {
 func (s *SysCall) Start(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	s.sysPrint("START", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-	panic("start")
+	loop := <-s.proc.runCh
+	s.sysPrint("START", "we are now ready to run and the size of loop is %d", len(loop))
+	if loop == "" {
+		// tell the client everything is cool
+		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(0))
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.KernelErrorPtr),
+			lib.NoKernelErr())
+		return
+	}
+	// houston,we have a problem... see if we have enough space to actually put the loop info in there
+	size := s.mem.GetInt64(int32(wasmPtr + int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))))
+	if len(loop) > int(size) {
+		//not enough space
+		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(0))
+	} else {
+		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.StartPayload{}.LoopResultLen))), int64(len(loop)))
+		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.LoopResultPtr), []byte(loop))
+	}
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.StartPayload{}.KernelErrorPtr),
+		lib.NewKernelError(lib.KernelDependencyCycle))
 }
 
 func (s *SysCall) sysPrint(call, spec string, arg ...interface{}) {

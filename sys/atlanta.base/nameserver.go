@@ -1,7 +1,9 @@
 package sys
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/lib"
@@ -28,12 +30,6 @@ func newPackageData() *packageData {
 	return &packageData{
 		service: make(map[string]*serviceData),
 	}
-}
-
-type edgeHolder struct {
-	proc    *Process
-	export  []string
-	require []string
 }
 
 type serviceData struct {
@@ -329,4 +325,178 @@ func nameserverPrint(methodName string, format string, arg ...interface{}) {
 		part2 := fmt.Sprintf(format, arg...)
 		print(part1, part2, "\n")
 	}
+}
+
+func (n *NameServer) Start(proc *Process) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	// the only time things can change is when a new process calls start
+	// so we only to make sure here that we find all the eligible processes to start
+
+	node := n.dependencyGraph[proc.String()]
+	candidateList := []*edgeHolder{node}
+
+	for len(candidateList) > 0 {
+		candidate := candidateList[0]
+		// are we ready to run?
+		if candidate.isReady() {
+			// remove candidate from list
+			if len(candidateList) == 1 {
+				candidateList = nil
+			} else {
+				candidateList = candidateList[1:]
+			}
+			delete(n.dependencyGraph, candidate.proc.String())
+			nameserverPrint("START", "process %s is ready to run", proc.String())
+			// we are ready, so lets process his exports through the list of waiting processes
+			for _, other := range n.dependencyGraph {
+				changed := other.removeRequire(candidate.export)
+				if changed {
+					candidateList = append(candidateList, other)
+				}
+			}
+			candidate.proc.Run("")
+		}
+	}
+}
+
+func (n *NameServer) WaitingToRun() int {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return len(n.dependencyGraph)
+}
+
+type depPair struct {
+	proc       *Process
+	service    string
+	linkExport string
+}
+
+func (d *depPair) String() string {
+	if d.linkExport == "" {
+		return fmt.Sprintf("require %s in %s;", d.service, d.proc.String())
+	}
+	return fmt.Sprintf("require %s (via export of %s) in %s;", d.service, d.linkExport, d.proc.String())
+}
+
+// DependencyLoop does a DFS looking for a cycle.
+func (n *NameServer) dependencyLoop(cand *depPair, seen []*depPair) string {
+	log.Printf("---------------- dependency loop ---------\n")
+	log.Printf("candidate: %s\n", cand.String())
+	for _, s := range seen {
+		log.Printf("\tseen %s\n", s.String())
+	}
+	log.Printf("---------------- END ---------\n")
+	found := false
+	//check to see if we found it
+	for _, pair := range seen {
+		if cand.service == pair.service {
+			found = true
+			break
+		}
+	}
+	if found {
+		log.Printf("got it! %s\n", cand.String())
+		var buf bytes.Buffer
+		for _, pair := range seen {
+			buf.WriteString(pair.String())
+		}
+		// add the loop end
+		buf.WriteString(cand.String())
+		log.Printf("got it part 2: %s", buf.String())
+		return buf.String()
+	}
+	//we didn't find it so we are now in seen
+	seen = append(seen, cand)
+	child := n.findCandidateProcessesByExport(cand)
+	for _, c := range child {
+		loop := n.dependencyLoop(c, seen)
+		if loop != "" {
+			return loop
+		}
+	}
+	log.Printf("RET EMPTY %s", cand.String())
+	return ""
+}
+
+// findCandidateProcessesByExport returns the set of processes that export a particular
+// service.
+func (n *NameServer) findCandidateProcessesByExport(pair *depPair) []*depPair {
+	candidateList := []*depPair{}
+	for _, node := range n.dependencyGraph {
+		for _, exp := range node.export {
+			if exp == pair.service {
+				for _, r := range node.require {
+					candidateList = append(candidateList,
+						&depPair{proc: node.proc,
+							linkExport: exp,
+							service:    r})
+				}
+				break
+			}
+		}
+	}
+	return candidateList
+}
+
+func (n *NameServer) getLoopContent() string {
+	if len(n.dependencyGraph) == 0 {
+		panic("should not be sending scanning for loop when every process is running!")
+	}
+	candidateList := []*depPair{}
+	// we want to try all combos
+	for _, v := range n.dependencyGraph {
+		for _, req := range v.require {
+			candidateList = append(candidateList, &depPair{v.proc, req, ""})
+		}
+	}
+	for _, candidate := range candidateList {
+		loop := n.dependencyLoop(candidate, []*depPair{})
+		log.Printf("deploop returned '%s'", loop)
+		if loop != "" {
+			return loop
+		}
+	}
+	return ""
+}
+
+// getDeadNodeContent returns a list of the nodes that cannot possibly be fulfilled.
+func (n *NameServer) getDeadNodeContent() string {
+	candidateList := []*depPair{}
+	// we want to try all combos
+	for _, v := range n.dependencyGraph {
+		for _, req := range v.require {
+			candidateList = append(candidateList, &depPair{v.proc, req, ""})
+		}
+	}
+	//now build a list of the possible exports of the whole graph
+	possibleExport := []string{}
+	for _, v := range n.dependencyGraph {
+		for _, export := range v.export {
+			possibleExport = append(possibleExport, export)
+		}
+	}
+	log.Printf("possible exports: %+v", possibleExport)
+	// strip out all the candidates who could be unlocked by the export
+	result := []*depPair{}
+outer:
+	for _, candidate := range candidateList {
+		for _, export := range possibleExport {
+			if candidate.service == export {
+				continue outer
+			}
+		}
+		log.Printf("candidate passed all exports: %+v", candidate)
+		result = append(result, candidate)
+	}
+	var buf bytes.Buffer
+	for _, r := range result {
+		buf.WriteString(r.String())
+	}
+	return buf.String()
+}
+
+func (n *NameServer) SendLoopMessage() {
+	return
 }

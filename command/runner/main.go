@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"os"
-	"sync"
 	"time"
 
 	"github.com/iansmith/parigot/sys"
@@ -28,7 +26,6 @@ func main() {
 	// the singular nameserver
 	nameServer := sys.NewNameServer()
 
-	evilHackIndex := 0
 	// libraries
 	var libs []*wasmtime.Module
 	if *libFile != "" {
@@ -39,7 +36,6 @@ func main() {
 		}
 	}
 	libs = append(libs, walkArgs(engine, modToPath)...)
-	evilHackIndex = len(libs)
 
 	// check that we actually got something
 	if len(libs) == 0 {
@@ -50,26 +46,26 @@ func main() {
 	store := wasmtime.NewStore(engine)
 
 	proc := []*sys.Process{}
-	var wg sync.WaitGroup
+	maxModules := 0
 	// create processes and check linkage for each one
-	for i, lib := range libs {
+	for _, lib := range libs {
 		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], nameServer)
 		if err != nil {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
 		}
-		wg.Add(1)
+		maxModules++
 		go startProcess(p)
 		proc = append(proc, p)
-		if i == evilHackIndex {
-			// this hack is a poor substitue for a topo sort which is what we should be doing
-			// this tries to let all the processes that are in the lib file get started before
-			// doin the rest... if the lib file is the standard lib, that almost might be sensible
-			time.Sleep(500 * time.Millisecond) //ugh, cough, gack, choke, puke
-		}
 	}
-	wg.Wait()
-	log.Printf("all go routines have exited")
-	os.Exit(0)
+	// we are the period check for being done
+	for {
+		if nameServer.WaitingToRun() == maxModules {
+			// we have a loop and need to abort
+			nameServer.SendLoopMessage()
+			log.Fatalf("unable to run all the modules, dependency loop found")
+		}
+		time.Sleep(1000 * time.Millisecond)
+	}
 }
 
 func startProcess(p *sys.Process) {
