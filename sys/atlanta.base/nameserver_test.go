@@ -12,20 +12,20 @@ func dummyProc(name string, number int) *Process {
 }
 
 func TestSimpleDead(t *testing.T) {
-	ns := NewNameServer()
+	ns := NewLocalNameServer()
 
 	dummyA := dummyProc("a.wasm", 1)
 	dummyB := dummyProc("b.wasm", 2)
 
-	a := &edgeHolder{
+	a := &EdgeHolder{
 		proc:    dummyA,
 		require: []string{"foo.b"},
 	}
-	b := &edgeHolder{
+	b := &EdgeHolder{
 		proc:    dummyB,
 		require: []string{"foo.a"},
 	}
-	ns.dependencyGraph = map[string]*edgeHolder{
+	ns.dependencyGraph = map[string]*EdgeHolder{
 		a.proc.String(): a,
 		b.proc.String(): b,
 	}
@@ -37,27 +37,27 @@ func TestSimpleDead(t *testing.T) {
 	}
 }
 func TestSimpleLoop(t *testing.T) {
-	ns := NewNameServer()
+	ns := NewLocalNameServer()
 
 	redh := dummyProc("redherring.wasm", 3)
 	dummyA := dummyProc("a.wasm", 1)
 	dummyB := dummyProc("b.wasm", 2)
 
-	a := &edgeHolder{
+	a := &EdgeHolder{
 		proc:    dummyA,
 		require: []string{"foo.b"},
 		export:  []string{"foo.a"},
 	}
-	b := &edgeHolder{
+	b := &EdgeHolder{
 		proc:    dummyB,
 		require: []string{"foo.a"},
 		export:  []string{"foo.b"},
 	}
-	r := &edgeHolder{
+	r := &EdgeHolder{
 		proc:    redh,
 		require: []string{"foo.b"},
 	}
-	ns.dependencyGraph = map[string]*edgeHolder{
+	ns.dependencyGraph = map[string]*EdgeHolder{
 		a.proc.String(): a,
 		b.proc.String(): b,
 		r.proc.String(): r,
@@ -74,7 +74,7 @@ func TestSimpleLoop(t *testing.T) {
 }
 
 func TestLongChain(t *testing.T) {
-	ns := NewNameServer()
+	ns := NewLocalNameServer()
 
 	redh := dummyProc("redherring.wasm", 3)
 	dummyA := dummyProc("a.wasm", 1)
@@ -83,35 +83,35 @@ func TestLongChain(t *testing.T) {
 	dummyD := dummyProc("d.wasm", 4)
 	dummyE := dummyProc("e.wasm", 5)
 
-	a := &edgeHolder{
+	a := &EdgeHolder{
 		proc:    dummyA,
 		require: []string{"foo.b"},
 		export:  []string{"foo.a"},
 	}
-	b := &edgeHolder{
+	b := &EdgeHolder{
 		proc:    dummyB,
 		require: []string{"foo.c"},
 		export:  []string{"foo.b"},
 	}
-	r := &edgeHolder{
+	r := &EdgeHolder{
 		proc:    redh,
 		require: []string{"foo.b"},
 	}
-	c := &edgeHolder{
+	c := &EdgeHolder{
 		proc:    dummyC,
 		require: []string{"foo.d"},
 		export:  []string{"foo.c"},
 	}
-	d := &edgeHolder{
+	d := &EdgeHolder{
 		proc:    dummyD,
 		require: []string{"foo.e"},
 		export:  []string{"foo.d"},
 	}
-	e := &edgeHolder{
+	e := &EdgeHolder{
 		proc:   dummyE,
 		export: []string{"foo.e"},
 	}
-	ns.dependencyGraph = map[string]*edgeHolder{
+	ns.dependencyGraph = map[string]*EdgeHolder{
 		a.proc.String(): a,
 		b.proc.String(): b,
 		r.proc.String(): r,

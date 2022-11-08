@@ -29,7 +29,7 @@ build/storeclient.p.wasm: storeclient/main.go $(PARIGOT_SOURCE)/build/protoc-gen
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go
 	#wasm2wat --no-check -o build/storeclient.wat build/storeclient.p.wasm
 
-# we only need a single representative file to insure regeneration of all the generate services
+# we only need a single representative file to insure regeneration of all the generated code
 $(GENERATED)/vvv/businessservicedecl.p.go: proto/business.proto
 	@echo
 	@echo "\033[92mgenerating interfaces: vvv =========================================================================\033[0m"

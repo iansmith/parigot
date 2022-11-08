@@ -1,7 +1,7 @@
-FROM ubuntu:jammy-20221003
+FROM ubuntu:jammy-20221003q
 RUN apt-get update
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
-    hugo sudo openjdk-18-jdk-headless zsh python3-pip
+    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -14,24 +14,11 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # install go1.19
-RUN wget -q https://go.dev/dl/go1.19.2.linux-amd64.tar.gz
+RUN wget -q https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
 RUN tar xzf go*linux*tar.gz
-RUN rm go1.19.2.linux-amd64.tar.gz 
-RUN mv go go1.19.2
-ENV GOROOT=/home/parigot/tools/go1.19.2
-
-# install tinygo 0.26
-RUN wget -q https://github.com/tinygo-org/tinygo/releases/download/v0.26.0/tinygo_0.26.0_amd64.deb
-RUN dpkg -i tinygo_0.26.0_amd64.deb
-RUN rm tinygo_0.26.0_amd64.deb
-
-# for the tinygo config file related to undefined wasm symbols
-RUN chgrp parigot /usr/local/lib/tinygo/targets
-RUN chgrp parigot /usr/local/lib/tinygo/targets/wasm-undefined.txt
-RUN chmod g+w /usr/local/lib/tinygo/targets
-RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt
-RUN cp /usr/local/lib/tinygo/targets/wasm-undefined.txt /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
-RUN chmod g+w /usr/local/lib/tinygo/targets/wasm-undefined.txt.orig
+RUN rm go1.19.3.linux-amd64.tar.gz 
+RUN mv go go1.19.3
+ENV GOROOT=/home/parigot/tools/go1.19.3
 
 # get all the wabt project code
 WORKDIR /home/parigot/deps
@@ -65,10 +52,8 @@ RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 
 # link the 3 big directories of stuff go,tinygo, and wabt
-RUN ln -s /home/parigot/deps/go1.19.2 /home/parigot/tools
+RUN ln -s /home/parigot/deps/go1.19.3 /home/parigot/tools
 RUN ln -s /home/parigot/deps/wabt /home/parigot/tools
-RUN ln -s /usr/local/lib/tinygo /home/parigot/tools/tinygo0.26
-ENV TINYGOROOT=/home/parigot/tools/tinygo0.26
 ENV PB_REL=""
 
 # symlink all the single binaries in tools/bin
@@ -121,7 +106,7 @@ RUN chgrp parigot /home/parigot/enable-parigot
 #temporary
 USER parigot
 #go progs
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.2/bin:/home/parigot/.local/bin
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.3/bin:/home/parigot/.local/bin
 
 RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
@@ -138,7 +123,7 @@ RUN pip3 install thefuck
 # set some vars
 WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
-ENV GOTOOLS=/home/parigot/tools/go1.19.2
+ENV GOTOOLS=/home/parigot/tools/go1.19.3
 ENV WABTTOOLS=/home/parigot/tools/wabt
 
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin

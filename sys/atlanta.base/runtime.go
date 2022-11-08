@@ -1,6 +1,8 @@
 package sys
 
 import (
+	"fmt"
+
 	"github.com/iansmith/parigot/sys/jspatch"
 )
 
@@ -10,20 +12,62 @@ type Runtime struct {
 	jsEnv      *jspatch.JSPatch
 	wasiEnv    *jspatch.WasiPatch
 	runtimeEnv *jspatch.RuntimePatch
-	syscall    *SysCall
+	syscall    *syscallReadWrite
+	spec       *RemoteSpec
 }
 
-func newRuntime(nameServer *NameServer) *Runtime {
+type RemoteSpec struct {
+	remote []string
+	local  []string
+}
+
+func (r *RemoteSpec) IsRemote(proc *Process) bool {
+	for _, path := range r.remote {
+		if path == proc.path {
+			return true
+		}
+	}
+	return false
+}
+func (r *RemoteSpec) IsLocal(proc *Process) bool {
+	for _, path := range r.local {
+		if path == proc.path {
+			return true
+		}
+	}
+	return false
+}
+
+func NewRemoteSpec(remote []string, local []string) *RemoteSpec {
+	if len(remote) > 0 && len(local) > 0 {
+		panic("mixed mode of runtime/syscall is not yet supported")
+	}
+	return &RemoteSpec{local: local, remote: remote}
+}
+
+func newRuntime(spec *RemoteSpec) *Runtime {
 	return &Runtime{
 		jsEnv:      jspatch.NewJSPatch(),
 		wasiEnv:    jspatch.NewWasiPatch(),
 		runtimeEnv: jspatch.NewRuntimePatch(),
-		syscall:    NewSysCall(nameServer),
+		syscall:    NewSysCallRW(),
+		spec:       spec,
 	}
 }
 
 func (r *Runtime) SetProcess(p *Process) {
 	r.syscall.SetProcess(p)
+	p.local = new(bool)
+	local, remote := r.spec.IsLocal(p), r.spec.IsRemote(p)
+
+	if !local && !remote {
+		panic(fmt.Sprintf("process %s is neither local nor remote!", p))
+	}
+	if local {
+		*p.local = true
+	} else {
+		*p.local = false
+	}
 }
 
 func (r *Runtime) SetMemPtr(memPtr uintptr) {

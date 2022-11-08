@@ -1,0 +1,68 @@
+syntax = "proto3";
+package pb.ns;
+option go_package="github.com/iansmith/parigot/g/pb/ns;ns";
+import "pb/protosupport/protosupport.proto";
+
+// This file is the (private) protocol between the remote syscall object in the address space
+// of a client program and the nameserver that the remote syscall talks to over the network.  
+
+message ExportInfo {
+  string package_path =1;
+  string service =2 ;
+  string addr=3;
+}
+message ExportRequest {
+  repeated ExportInfo export = 1;
+}
+
+message ExportResponse {
+  protosupport.KernelErrorId kernel_err = 1;
+  ExportInfo failed = 2;
+}
+
+message RequireInfo {
+  string package_path =1;
+  string service =2 ;
+}
+
+message RequireRequest {
+  repeated RequireInfo require = 1;
+}
+
+message RequireResponse {
+  protosupport.KernelErrorId kernel_err = 1;
+  RequireInfo failed = 2;
+}
+
+
+message CloseServiceRequest {
+  string package_path =1;
+  string service =2 ;
+  string addr=3;
+}
+
+message CloseServiceResponse {
+  protosupport.KernelErrorId kernel_err = 1;
+}
+
+message LocateRequest {
+  string package_path =1;
+  string service =2 ;
+}
+
+message LocateResponse {
+  string addr = 1;
+  protosupport.KernelErrorId kernel_err=2;
+}
+
+message RunBlockRequest {
+  // waiter is true if this thread of control should be waited on to exit
+  bool waiter =1;
+}
+
+// RunBlockResponse can take several seconds to arrive if you have other
+// services that need to start up before the one that sent the request.
+message RunBlockResponse {
+  protosupport.KernelErrorId err_id = 1;
+}
+

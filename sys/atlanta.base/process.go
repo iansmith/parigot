@@ -11,7 +11,7 @@ import (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true
+var processVerbose = false
 
 var lastProcessId = 7
 
@@ -36,17 +36,20 @@ type resultInfo struct {
 }
 
 type Process struct {
-	id         int
-	path       string
-	module     *wasmtime.Module
-	linkage    []wasmtime.AsExtern
-	memPtr     uintptr
-	instance   *wasmtime.Instance
-	parent     *wasmtime.Store
-	syscall    *SysCall
+	id   int
+	path string
+
+	module   *wasmtime.Module
+	linkage  []wasmtime.AsExtern
+	memPtr   uintptr
+	instance *wasmtime.Instance
+	parent   *wasmtime.Store
+	syscall  *syscallReadWrite
+
 	waiter     bool
 	reachedRun bool
 	exited     bool
+	local      *bool
 
 	callCh   chan *callInfo
 	resultCh chan *resultInfo
@@ -57,9 +60,10 @@ type Process struct {
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl
-func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string, nameServer *NameServer) (*Process, error) {
+func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string,
+	rs *RemoteSpec) (*Process, error) {
 
-	rt := newRuntime(nameServer)
+	rt := newRuntime(rs)
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
@@ -169,8 +173,8 @@ func (p *Process) Start() {
 		return
 	}
 	f := start.Func()
-	procPrint("START ", "calling the entry point (%+v,%T), for proc %s",
-		f, f, p)
+	procPrint("START ", "calling the entry point (%+v,%T), for proc %s (parent %v)",
+		f, f, p, p.parent)
 	result, err := f.Call(p.parent, 0, 0)
 	p.exited = true
 	if err != nil {

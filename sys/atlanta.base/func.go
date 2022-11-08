@@ -39,7 +39,7 @@ func addSupportedFunctions(store wasmtime.Storelike,
 
 	//system calls
 	result["go.parigot.locate_"] = wasmtime.WrapFunc(store, rt.syscall.Locate)
-	result["go.parigot.register_"] = wasmtime.WrapFunc(store, rt.syscall.Register)
+	//result["go.parigot.register_"] = wasmtime.WrapFunc(store, rt.syscall.Register)
 	// xxx fix me: How are we going to clean up the resources for a particular service when it exits?
 	// how do we find the resources associated with the caller of exit().
 	result["go.parigot.exit_"] = wasmtime.WrapFunc(store, rt.syscall.Exit)

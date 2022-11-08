@@ -6,7 +6,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib"  // id manipulation
-    "github.com/iansmith/parigot/g/pb/kernel" // dispatch and locate
+    "github.com/iansmith/parigot/g/pb/call" // dispatch and locate
 )
 
 {{- $info:=.info }}
@@ -47,16 +47,17 @@ type {{$svcCamel}}Client struct {
 }
 
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
-	var resp kernel.LocateResponse
-	req := &kernel.LocateRequest{
+	var resp *call.LocateResponse
+	req := &call.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
-    service, err:=lib.Locate(req,&resp)
+    resp, err:=lib.CallConnection().Locate(req)
     if err!=nil {
         return nil, err
     }
-    cs := lib.NewClientSideService(service)
+    service:=lib.UnmarshalServiceId(resp.GetServiceId())
+    cs := lib.NewClientSideService(service, "{{$svc}}Client")
     return &{{$svc}}Client{
         ClientSideService: cs,
     }, nil
