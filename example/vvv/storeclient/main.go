@@ -57,7 +57,7 @@ func main() {
 		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
 		print("\t")
 		for i, m := range inStock.GetInStock() {
-			print(m.String(), " ")
+			print(m.String())
 			if i != len(inStock.GetInStock())-1 {
 				print(",")
 			}

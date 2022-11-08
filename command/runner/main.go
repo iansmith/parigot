@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -48,7 +49,6 @@ func main() {
 	}
 
 	// store is shared by all the instances
-	store := wasmtime.NewStore(engine)
 
 	proc := []*sys.Process{}
 	maxModules := 0
@@ -58,6 +58,7 @@ func main() {
 
 	// create processes and check linkage for each user program
 	for _, lib := range libs {
+		store := wasmtime.NewStore(engine)
 		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], nameServer)
 		if err != nil {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
@@ -78,6 +79,7 @@ func main() {
 			}
 		}
 		if startedCount == len(proc) {
+			everbodyStarted = true
 			break
 		}
 		runnerPrint("MAIN ", "startedCount %d, len %d", startedCount, len(proc))
@@ -94,20 +96,22 @@ func main() {
 		log.Fatalf("aborting")
 	} else {
 		if nameServer.WaitingToRun() > 0 {
+			runnerPrint("MAIN ", "waiting to run %d", nameServer.WaitingToRun())
 			nameServer.SendAbortMessage()
+
+			runnerPrint("MAIN ", "was not able to get all processes started due to export/require problems")
+			loop := nameServer.GetLoopContent()
+			dead := nameServer.GetDeadNodeContent()
+			if loop != "" {
+				loop = strings.Replace(loop, ";", "\n", -1)
+				log.Printf("Loop discovered in the dependencies\n%s\n", loop)
+			}
+			if dead != "" {
+				dead = strings.Replace(dead, ";", "\n", -1)
+				log.Printf("Dead processes are processes that cannot start because no other process exports what they require\n%s\n", dead)
+			}
+			log.Fatalf("aborting due to export/require problems")
 		}
-		log.Printf("was not able to get all processes started due to export/require problems")
-		loop := nameServer.GetLoopContent()
-		dead := nameServer.GetDeadNodeContent()
-		if loop != "" {
-			loop = strings.Replace(loop, ";", "\n", -1)
-			log.Printf("Loop discovered in the dependencies\n%s\n", loop)
-		}
-		if dead != "" {
-			dead = strings.Replace(dead, ";", "\n", -1)
-			log.Printf("Dead processes are processes that cannot start because no other process exports what they require\n%s\n", dead)
-		}
-		log.Fatalf("aborting due to export/require problems")
 	}
 	for {
 		allDead := true
@@ -119,6 +123,7 @@ func main() {
 		}
 		if allDead {
 			log.Printf("all processes have exited, finished")
+			os.Exit(0)
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
