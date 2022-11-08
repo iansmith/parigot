@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bytecodealliance/wasmtime-go"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/lib"
 )
 
@@ -169,19 +169,20 @@ func (p *Process) Start() {
 		return
 	}
 	f := start.Func()
-	procPrint("START ", "calling the entry point for proc %s", p)
+	procPrint("START ", "calling the entry point (%+v,%T), for proc %s",
+		f, f, p)
 	result, err := f.Call(p.parent, 0, 0)
 	p.exited = true
 	if err != nil {
-		log.Printf("process %s trapped: %v", p, err)
+		procPrint("START ", "process %s trapped: %v", p, err)
 	} else {
 		if result == nil {
-			log.Printf("process %s finished", p)
+			procPrint("START ", "process %s finished", p)
 		} else {
-			log.Printf("process %s finished: %+v", p, result)
+			procPrint("START ", "process %s finished: %+v", p, result)
 		}
 	}
-	procPrint("START", "has exited")
+	procPrint("START ", "exiting...")
 	// xxx fixme, we need to do process cleanup here
 	return
 }

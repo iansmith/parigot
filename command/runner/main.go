@@ -63,7 +63,7 @@ func main() {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
 		}
 		maxModules++
-		runnerPrint("MAIN", "starting goroutine for process %s", p)
+		runnerPrint("MAIN ", "starting goroutine for process %s", p)
 		go startProcess(p)
 		proc = append(proc, p)
 	}
@@ -80,6 +80,7 @@ func main() {
 		if startedCount == len(proc) {
 			break
 		}
+		runnerPrint("MAIN ", "startedCount %d, len %d", startedCount, len(proc))
 		time.Sleep(1000 * time.Millisecond)
 		iter++
 	}

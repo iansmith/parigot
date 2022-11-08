@@ -21,7 +21,7 @@ func main() {
 	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	storeclientPrint("about to call start")
+	storeclientPrint("about to call RUN")
 	if _, err := lib.Run(&kernel.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
@@ -55,11 +55,9 @@ func main() {
 		storeclientPrint("MediaTypesInStock() failed  %s", err.Error())
 	} else {
 		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
-		print("\t xxx if I print the strings here I get a 'makeslice: len out of range' crash\n")
 		print("\t")
 		for i, m := range inStock.GetInStock() {
-			print(m.String(), " ") // ARRRRGH
-			//print(m, " ")
+			print(m.String(), " ")
 			if i != len(inStock.GetInStock())-1 {
 				print(",")
 			}

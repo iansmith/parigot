@@ -364,18 +364,18 @@ func (n *NameServer) Run(proc *Process) {
 	node := n.dependencyGraph[proc.String()]
 	candidateList := []*edgeHolder{node}
 
-	nameserverPrint("RUN ", "%v is node but %+v", node, n.dependencyGraph)
+	nameserverPrint("RUN ", "node %s (%d req,%d exp) and dep-graph has %d total entries", proc, len(node.require), len(node.export), len(n.dependencyGraph))
 	for len(candidateList) > 0 {
 		candidate := candidateList[0]
+		// remove candidate from list
+		if len(candidateList) == 1 {
+			candidateList = nil
+		} else {
+			candidateList = candidateList[1:]
+		}
 		// are we ready to run?
 		if candidate.isReady() {
 			nameserverPrint("RUN ", "candidate %s is ready to run", candidate.proc)
-			// remove candidate from list
-			if len(candidateList) == 1 {
-				candidateList = nil
-			} else {
-				candidateList = candidateList[1:]
-			}
 			delete(n.dependencyGraph, candidate.proc.String())
 			// we are ready, so lets process his exports through the list of waiting processes
 			for _, other := range n.dependencyGraph {
@@ -390,6 +390,8 @@ func (n *NameServer) Run(proc *Process) {
 
 			nameserverPrint("RUN ", "running %s", candidate.proc)
 			candidate.proc.Run()
+		} else {
+			nameserverPrint("RUN ", "%s is not ready to run, number of candidates left is %d", candidate.proc, len(candidateList))
 		}
 	}
 	nameserverPrint("RUN ", "we are returning to the RunReader loop")

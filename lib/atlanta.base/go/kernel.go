@@ -273,6 +273,7 @@ func Run(in *kernel.RunRequest) (*kernel.RunResponse, error) {
 	if in.Wait {
 		detail.Wait = 1
 	}
+	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 
 	// THE CALL, and the walls came down...
 	u := uintptr(unsafe.Pointer(detail))
