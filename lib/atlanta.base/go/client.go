@@ -1,9 +1,9 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/g/pb/call"
 	pblog "github.com/iansmith/parigot/g/pb/log"
-	"github.com/iansmith/parigot/g/pb/parigot"
+	"github.com/iansmith/parigot/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -16,9 +16,10 @@ type ClientSideService struct {
 	currentPctx Pctx
 }
 
-func NewClientSideService(id Id) *ClientSideService {
+func NewClientSideService(id Id, caller string) *ClientSideService {
 	return &ClientSideService{
-		svc: id,
+		svc:    id,
+		caller: caller,
 	}
 }
 
@@ -45,7 +46,7 @@ func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kernel.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.DispatchResponse, error) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
@@ -55,12 +56,12 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kerne
 		}
 	}
 
-	var ughPuke *parigot.PCtx
+	var ughPuke *protosupport.PCtx
 	if c.currentPctx != nil {
 		ughPuke = c.currentPctx.(*pctx).PCtx
 	}
 
-	in := &kernel.DispatchRequest{
+	in := &call.DispatchRequest{
 		ServiceId: MarshalServiceId(c.svc),
 		Caller:    c.caller,
 		Method:    method,
@@ -68,5 +69,5 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*kerne
 		Param:     a,
 	}
 	// xxx this should be going through dispatch anyway
-	return Dispatch(in)
+	return CallConnection().Dispatch(in)
 }

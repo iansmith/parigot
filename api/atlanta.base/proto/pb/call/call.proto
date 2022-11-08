@@ -1,0 +1,111 @@
+syntax = "proto3";
+package pb.call;
+option go_package="github.com/iansmith/parigot/g/pb/call;call";
+import "pb/protosupport/protosupport.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+
+message ExitRequest {
+  int32 code = 1;
+}
+message ExitResponse{}
+
+
+message LocateRequest {
+  string package_name = 1;
+  string service_name = 2;
+}
+
+message LocateResponse {
+  protosupport.ServiceId service_id =1;
+  protosupport.KernelErrorId error_id=2;
+}
+
+message DispatchRequest {
+  protosupport.ServiceId service_id = 1;
+  string method=2;
+  string caller =3;
+  protosupport.PCtx in_pctx = 4;
+  google.protobuf.Any param=5;
+}
+
+message DispatchResponse {
+  protosupport.PCtx out_pctx = 1;
+  google.protobuf.Any result = 2;
+  protosupport.KernelErrorId error_id =3;
+}
+
+enum MethodDirection {
+  MethodDirectionUnspecified = 0;
+  MethodDirectionIn = 1;
+  MethodDirectionOut = 2;
+  MethodDirectionBoth = 3;
+}
+
+message BindMethodRequest  {
+  string protoPackage = 1;
+  string service = 2;
+  string method = 3;
+  MethodDirection direction = 4;
+}
+
+message BindMethodResponse {
+  protosupport.MethodId method_id = 1;
+  protosupport.KernelErrorId error_id = 2;
+}
+
+message BlockUntilCallRequest{
+  bytes pctx_buffer = 1;
+  bytes param_buffer = 2;
+}
+
+message BlockUntilCallResponse{
+  int32 pctx_len =1 ;
+  int32 param_len = 2;
+  protosupport.MethodId method = 3;
+  protosupport.CallId call = 4;
+  protosupport.KernelErrorId error_id= 5;
+}
+
+message ReturnValueRequest{
+  protosupport.CallId call = 1;
+  protosupport.MethodId method = 2;
+  string error_message = 3;
+  protosupport.KernelErrorId error_id = 4;
+  bytes pctx_buffer = 6;
+  bytes result_buffer = 7;
+}
+
+message ReturnValueResponse {
+  protosupport.KernelErrorId error_id = 1;
+}
+
+message fullyQualifiedService {
+  string packagePath = 1;
+  string service = 2;
+}
+
+message ExportRequest {
+  repeated fullyQualifiedService service = 1;
+}
+
+message ExportResponse {
+  protosupport.KernelErrorId error_id = 1;
+}
+
+message RequireRequest {
+  repeated fullyQualifiedService service = 1;
+}
+
+message RequireResponse {
+  protosupport.KernelErrorId error_id = 1;
+}
+
+message RunRequest {
+  bool wait = 1;
+}
+
+message RunResponse {
+  protosupport.KernelErrorId error_id = 1;
+}

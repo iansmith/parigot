@@ -5,12 +5,12 @@ import (
 	"time"
 
 	pblog "github.com/iansmith/parigot/g/pb/log"
-	"github.com/iansmith/parigot/g/pb/parigot"
+	"github.com/iansmith/parigot/g/pb/protosupport"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Pctx is an interface that wraps parigot.PCtx at the protobuf level. It has methods to allow it to
+// Pctx is an interface that wraps protosupport.PCtx at the protobuf level. It has methods to allow it to
 // collect logs that are connected to events and to manage a simple key/value store of strings.
 type Pctx interface {
 	Log(pblog.LogLevel, string)
@@ -24,7 +24,7 @@ type Pctx interface {
 }
 
 func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
-	pctxWire := parigot.PCtx{}
+	pctxWire := protosupport.PCtx{}
 	err := proto.Unmarshal(pctxSlice, &pctxWire)
 	if err != nil {
 		return nil, err
@@ -33,18 +33,18 @@ func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
 }
 
 type pctx struct {
-	*parigot.PCtx
+	*protosupport.PCtx
 	now       time.Time
-	openEvent *parigot.PCtxEvent
+	openEvent *protosupport.PCtxEvent
 }
 
 // NewPctx creates a new Pctx for use on the client side.
 func NewPctx() Pctx {
 	// xxx fixme ... this should be doing a system call to get the time from kernel
 	now := time.Now()
-	p := &parigot.PCtx{
-		Event: []*parigot.PCtxEvent{
-			&parigot.PCtxEvent{
+	p := &protosupport.PCtx{
+		Event: []*protosupport.PCtxEvent{
+			&protosupport.PCtxEvent{
 				Message: fmt.Sprintf("PCtx created on client side"),
 			},
 		},
@@ -56,7 +56,7 @@ func NewPctx() Pctx {
 	}
 }
 
-func newPctxWithTime(t time.Time, inner *parigot.PCtx) Pctx {
+func newPctxWithTime(t time.Time, inner *protosupport.PCtx) Pctx {
 	return &pctx{now: t, PCtx: inner}
 }
 
@@ -69,7 +69,7 @@ func (p *pctx) Log(level pblog.LogLevel, msg string) {
 	if p.openEvent == nil {
 		p.EventStart("anonymous event created")
 	}
-	p.openEvent.Line = append(p.openEvent.GetLine(), &parigot.PCtxMessage{
+	p.openEvent.Line = append(p.openEvent.GetLine(), &protosupport.PCtxMessage{
 		Stamp:   timestamppb.New(t),
 		Level:   level,
 		Message: msg,
@@ -101,7 +101,7 @@ func (p *pctx) EventStart(message string) {
 	if p.openEvent != nil {
 		p.PCtx.Event = append(p.PCtx.GetEvent(), p.openEvent)
 	}
-	p.openEvent = &parigot.PCtxEvent{
+	p.openEvent = &protosupport.PCtxEvent{
 		Message: message,
 	}
 }

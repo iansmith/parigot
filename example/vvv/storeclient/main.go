@@ -8,7 +8,6 @@ import (
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
-	"github.com/iansmith/parigot/g/pb/kernel"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -17,19 +16,16 @@ import (
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	storeclientPrint("about to call require1")
 	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	storeclientPrint("about to call RUN")
-	if _, err := lib.Run(&kernel.RunRequest{Wait: true}); err != nil {
+	if _, err := lib.Run(true); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
-	storeclientPrint("start returned")
 
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
-		lib.Exit(&kernel.ExitRequest{Code: 1})
+		lib.Exit(1)
 	}
 	vinnysStore.EnablePctx()
 
@@ -37,7 +33,7 @@ func main() {
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	storeclientPrint(" SoldItem returned ok?:  %v", err == nil)
+	storeclientPrint("SoldItem returned ok?:  %v", err == nil)
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}
@@ -45,7 +41,7 @@ func main() {
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
 		storeclientPrint("BestOfAllTime failed %s", err.Error())
-		lib.Exit(&kernel.ExitRequest{Code: 1})
+		lib.Exit(1)
 	}
 	storeclientPrint("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
 		best.Item.Creator, best.Item.Title, best.Item.Year)
@@ -57,7 +53,8 @@ func main() {
 		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
 		print("\t")
 		for i, m := range inStock.GetInStock() {
-			print(m.String())
+			//print(m.String())
+			print(m.Number(), " -> ", m.String())
 			if i != len(inStock.GetInStock())-1 {
 				print(",")
 			}

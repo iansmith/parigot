@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/iansmith/parigot/g/pb/parigot"
+	"github.com/iansmith/parigot/g/pb/protosupport"
 )
 
 const (
@@ -33,8 +33,7 @@ const (
 	KernelNotFound KernelErrorCode = 3
 	// KernelDataTooLarge means that the size of some part of remote call was bigger
 	// than the buffer allocated to receive it.  This could be a problem either on the call or
-	// the return. When this error occurs, none of the client allocated buffers/pointers
-	// sent in the syscall payload are touched.
+	// the return.
 	KernelDataTooLarge KernelErrorCode = 4
 	// KernelMarshalFailed is an internal error of the kernel. This means that
 	// a marshal of a protobuf has failed.  This is only used in situations
@@ -61,6 +60,18 @@ const (
 	// you must refactor your program so that you do not have a cyle to make
 	// it come up cleanly.
 	KernelDependencyCycle KernelErrorCode = 10
+	// KernelNameserverFailed means that we successfully connected to the nameserver, but failed
+	// during the communication process itself.
+	KernelNameserverFailed KernelErrorCode = 11
+	// KernelNameserverLost means that our internal connection to the remote nameserver
+	// was either still working but has lost "sync" in the protocol or the connection has
+	// become entirely broken.  The kernel will close the connection to remote nameserver
+	// and reestablish it after this error.
+	KernelNameserverLost KernelErrorCode = 12
+	// KernelDataTooSmall means that the kernel was speaking some protocol with a remote server,
+	// such as a remote nameserver, and data read from the remote said was smaller than the protocol
+	// dictated, e.g. it did not contain a checksum after a data block.
+	KernelDataTooSmall KernelErrorCode = 13
 )
 
 // NoKernelErr returns a kernel error id, with the value set to zero, or no error.
@@ -179,15 +190,15 @@ func idFromUint64(high uint64, low uint64, letter byte) Id {
 
 // UnmarshaServiceId goes from the protobuf concept of a service id (which is a large
 // protobuf-based structure) to a simple Id.
-func UnmarshalServiceId(sid *parigot.ServiceId) Id {
+func UnmarshalServiceId(sid *protosupport.ServiceId) Id {
 	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
 	verifyIdType(result, serviceIdLetter)
 	return result
 }
 
 // MarshalServiceId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalServiceId(id Id) *parigot.ServiceId {
-	return &parigot.ServiceId{
+func MarshalServiceId(id Id) *protosupport.ServiceId {
+	return &protosupport.ServiceId{
 		High: id.High(),
 		Low:  id.Low(),
 	}
@@ -195,15 +206,15 @@ func MarshalServiceId(id Id) *parigot.ServiceId {
 
 // UnmarshalDeveloperId goes from the protobuf concept of a developer id (which is a large
 // protobuf-based structure) to a simple Id.
-func UnmarshalDeveloperId(sid *parigot.DeveloperId) Id {
+func UnmarshalDeveloperId(sid *protosupport.DeveloperId) Id {
 	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
 	verifyIdType(result, serviceIdLetter)
 	return result
 }
 
 // MarshalDeveloperId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalDeveloperId(id Id) *parigot.DeveloperId {
-	return &parigot.DeveloperId{
+func MarshalDeveloperId(id Id) *protosupport.DeveloperId {
+	return &protosupport.DeveloperId{
 		High: id.High(),
 		Low:  id.Low(),
 	}
@@ -211,15 +222,15 @@ func MarshalDeveloperId(id Id) *parigot.DeveloperId {
 
 // UnmarshalMethodId goes from the protobuf concept of a method id (which is a large
 // protobuf-based structure) to a simple Id.
-func UnmarshalMethodId(mid *parigot.MethodId) Id {
+func UnmarshalMethodId(mid *protosupport.MethodId) Id {
 	result := &IdBase{h: mid.GetHigh(), l: mid.GetLow()}
 	verifyIdType(result, methodIdLetter)
 	return result
 }
 
 // MarshalMethodId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalMethodId(id Id) *parigot.MethodId {
-	return &parigot.MethodId{
+func MarshalMethodId(id Id) *protosupport.MethodId {
+	return &protosupport.MethodId{
 		High: id.High(),
 		Low:  id.Low(),
 	}
@@ -227,15 +238,15 @@ func MarshalMethodId(id Id) *parigot.MethodId {
 
 // UnmarshalCallId goes from the protobuf concept of a call id (which is a large
 // protobuf-based structure) to a simple Id.
-func UnmarshalCallId(mid *parigot.CallId) Id {
+func UnmarshalCallId(mid *protosupport.CallId) Id {
 	result := &IdBase{h: mid.GetHigh(), l: mid.GetLow()}
 	verifyIdType(result, callIdLetter)
 	return result
 }
 
 // MarshalCallId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalCallId(id Id) *parigot.CallId {
-	return &parigot.CallId{
+func MarshalCallId(id Id) *protosupport.CallId {
+	return &protosupport.CallId{
 		High: id.High(),
 		Low:  id.Low(),
 	}
@@ -244,7 +255,7 @@ func MarshalCallId(id Id) *parigot.CallId {
 // UnmarshalKernelErrorId goes from the protobuf concept of a kernel error id (which is a large
 // protobuf-based structure) to a simple Id.  This call verifies that the value provided from
 // the protobuf is marked as an error type.
-func UnmarshalKernelErrorId(sid *parigot.KernelErrorId) Id {
+func UnmarshalKernelErrorId(sid *protosupport.KernelErrorId) Id {
 	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
 	if !result.IsErrorType() {
 		panic("unmarshaled a kernel id that was not marked as an error type")
@@ -253,8 +264,8 @@ func UnmarshalKernelErrorId(sid *parigot.KernelErrorId) Id {
 }
 
 // MarshalKernelErrId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalKernelErrId(id Id) *parigot.KernelErrorId {
-	return &parigot.KernelErrorId{
+func MarshalKernelErrId(id Id) *protosupport.KernelErrorId {
+	return &protosupport.KernelErrorId{
 		High: id.High(),
 		Low:  id.Low(),
 	}
@@ -263,7 +274,7 @@ func MarshalKernelErrId(id Id) *parigot.KernelErrorId {
 // UnmarshalDeveloperErrorId goes from the protobuf concept of a developer error id (which is a large
 // protobuf-based structure) to a simple Id.  This call verifies that the value provided from
 // the protobuf is marked as an error type.
-func UnmarshalDeveloperErrId(sid *parigot.DeveloperErrorId) Id {
+func UnmarshalDeveloperErrId(sid *protosupport.DeveloperErrorId) Id {
 	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
 	if !result.IsErrorType() {
 		panic("unmarshaled a developer id that was not marked as an error type")
@@ -272,8 +283,8 @@ func UnmarshalDeveloperErrId(sid *parigot.DeveloperErrorId) Id {
 }
 
 // MarshalDeveloperErrId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalDeveloperErrId(id Id) *parigot.DeveloperErrorId {
-	return &parigot.DeveloperErrorId{
+func MarshalDeveloperErrId(id Id) *protosupport.DeveloperErrorId {
+	return &protosupport.DeveloperErrorId{
 		High: id.High(),
 		Low:  id.Low(),
 	}

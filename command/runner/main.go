@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/iansmith/parigot/sys"
@@ -14,11 +13,13 @@ import (
 )
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true
+var runnerVerbose = false
 
-var libFile *string = flag.String("l", "", "the filename that has the list of wasm modules to load")
-
+var libFile *string = flag.String("f", "", "the filename that has the list of wasm modules to load")
+var remote *bool = flag.Bool("r", false, "all services will use remote; use this flag for a docker swarm of microservices")
 var libs = []string{}
+
+var secondsBeforeStartupFailed = 120
 
 func main() {
 	flag.Parse()
@@ -29,8 +30,9 @@ func main() {
 	// better error messages from the path than some ptr
 	modToPath := make(map[*wasmtime.Module]string)
 
-	// the singular nameserver
-	nameServer := sys.NewNameServer()
+	// init the nameservers
+	notifyCh := make(chan *sys.KeyNSPair)
+	sys.InitNameServer(notifyCh, !(*remote), *remote)
 
 	// libraries
 	var libs []*wasmtime.Module
@@ -48,30 +50,50 @@ func main() {
 		log.Fatalf("unable to find any .wasm module files to load, pass filenames on the command line or use the -l option")
 	}
 
-	// store is shared by all the instances
-
 	proc := []*sys.Process{}
 	maxModules := 0
 
-	// this go routine's only purpose is to accept run requests from user programs
-	go nameServer.RunReader()
+	// This go routine's only purpose is to accept run requests from user programs;
+	// it's called the run reader.
+	// This is called by the process saying "Run" which means "Block until my prereqs are ready".
+	// Each time a process calls it and its nameserver get passed to here, and we
+	// to use this indirect structure so the process can block waiting on a channel.
+	go func() {
+		for {
+			runnerPrint("RUNREADER ", "about to read from the channel %x", notifyCh)
+			pair := <-notifyCh
+			runnerPrint("RUNREADER ", "calling nameserver.Run on %s", pair.Key)
+			pair.NameServer.RunIfReady(pair.Key)
+		}
+	}()
+
+	all := []string{}
+	for _, lib := range libs {
+		all = append(all, modToPath[lib])
+	}
+
+	rs := sys.NewRemoteSpec(nil, all)
+	if *remote {
+		rs = sys.NewRemoteSpec(all, nil)
+	}
 
 	// create processes and check linkage for each user program
 	for _, lib := range libs {
 		store := wasmtime.NewStore(engine)
-		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], nameServer)
+		p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], rs)
 		if err != nil {
 			log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
 		}
 		maxModules++
 		runnerPrint("MAIN ", "starting goroutine for process %s", p)
-		go startProcess(p)
+		go p.Start()
 		proc = append(proc, p)
 	}
+
 	// we are the periodic check for things getting up ok
 	everbodyStarted := false
 	iter := 0
-	for iter < 3 {
+	for iter < secondsBeforeStartupFailed {
 		startedCount := 0
 		for _, p := range proc {
 			if p.ReachedStart() {
@@ -93,24 +115,26 @@ func main() {
 				log.Printf("\t%s", p)
 			}
 		}
-		log.Fatalf("aborting")
+		log.Fatalf("aborting because processes failed to start")
 	} else {
-		if nameServer.WaitingToRun() > 0 {
-			runnerPrint("MAIN ", "waiting to run %d", nameServer.WaitingToRun())
-			nameServer.SendAbortMessage()
-
-			runnerPrint("MAIN ", "was not able to get all processes started due to export/require problems")
-			loop := nameServer.GetLoopContent()
-			dead := nameServer.GetDeadNodeContent()
-			if loop != "" {
-				loop = strings.Replace(loop, ";", "\n", -1)
-				log.Printf("Loop discovered in the dependencies\n%s\n", loop)
+		everybodyExited := true
+		for _, p := range proc {
+			if p.IsWaiter() && !p.Exited() {
+				everybodyExited = false
+				break
 			}
-			if dead != "" {
-				dead = strings.Replace(dead, ";", "\n", -1)
-				log.Printf("Dead processes are processes that cannot start because no other process exports what they require\n%s\n", dead)
+		}
+		if !everybodyExited {
+			localInfo, netInfo := sys.StartFailedInfo()
+			if localInfo != "" || netInfo != "" {
+				if localInfo != "" {
+					log.Printf("dependency problem:\n%s", localInfo)
+				}
+				if netInfo != "" {
+					log.Printf("dependency problem:\n%s", netInfo)
+				}
+				log.Fatalf("aborting due to dependency issues")
 			}
-			log.Fatalf("aborting due to export/require problems")
 		}
 	}
 	for {
@@ -127,10 +151,6 @@ func main() {
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
-}
-
-func startProcess(p *sys.Process) {
-	p.Start()
 }
 
 func runnerPrint(method, spec string, arg ...interface{}) {

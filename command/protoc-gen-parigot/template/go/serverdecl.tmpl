@@ -7,7 +7,7 @@ import (
     "{{$j}}"
 {{- end}} {{/* imports */}}
 
-	"github.com/iansmith/parigot/g/pb/kernel"
+	"github.com/iansmith/parigot/g/pb/call"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -165,7 +165,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-	resp, {{$methCamelFL}}err := lib.BindMethod{{$dir}}(&kernel.BindMethodRequest{
+	resp, {{$methCamelFL}}err := lib.CallConnection().BindMethod{{$dir}}(&call.BindMethodRequest{
 		ProtoPackage: "{{.ProtoPackage}}",
 		Service:      "{{$svcCamel}}",
 		Method:       "{{$methCamel}}",
@@ -181,13 +181,13 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	return "",nil
 }
 
-func {{$svcCamelFL}}BlockUntilCall(pctx, param []byte) (*kernel.BlockUntilCallResponse, error) {
+func {{$svcCamelFL}}BlockUntilCall(pctx, param []byte) (*call.BlockUntilCallResponse, error) {
 
-	req := &kernel.BlockUntilCallRequest{
+	req := &call.BlockUntilCallRequest{
 		PctxBuffer:  pctx,
 		ParamBuffer: param,
 	}
-	resp, err := lib.BlockUntilCall(req)
+	resp, err := lib.CallConnection().BlockUntilCall(req)
 	if err != nil {
 		return nil, err
 	}
