@@ -12,6 +12,7 @@ type localSysCall struct {
 // sharedBind uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
 // pass the nested localNameServer inside the netNameServer
 func sharedBind(ns *LocalNameServer, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
+	sysPrint("SHAREDBIND", "about to hit handle method")
 	return ns.HandleMethod(p, packagePath, service, method)
 }
 

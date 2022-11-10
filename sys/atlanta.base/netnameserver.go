@@ -34,7 +34,7 @@ const servicePort = 13331
 func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 	stream, err := setupConnection(addr)
 	if err != nil {
-		panic("unable to connect to our network nameserver:" + err.Error())
+		panic(fmt.Sprintf("unable to connect to our network nameserver @%s:%v", addr, err))
 	}
 	return &NetNameServer{
 		NSCore:       NewNSCore(),
@@ -74,9 +74,9 @@ func (n *NetNameServer) MakeRequest(any *anypb.Any) (*anypb.Any, lib.Id) {
 func setupConnection(addr string) (quic.Stream, error) {
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
-		NextProtos:         []string{"quic-p"},
+		NextProtos:         []string{"quic-parigot-ns"},
 	}
-	netnameserverPrint("setupConnection ", "XXXX NET NAMESERVER XXXX dialing %s ", addr)
+	netnameserverPrint("setupConnection ", "dialing %s...", addr)
 	conn, err := quic.DialAddr(addr, tlsConf, nil)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func setupConnection(addr string) (quic.Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	netnameserverPrint("setupConnection ", "XXXX NET NAMESERVER XXXX dial and open stream was successful to  %s", addr)
+	netnameserverPrint("setupConnection ", "dial and open stream was successful to  %s", addr)
 	return stream, nil
 }
 
