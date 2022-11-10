@@ -3,4 +3,4 @@ RUN apt-get update
 ADD runner /runner
 ADD data.wasm /
 EXPOSE 13339/udp
-ENTRYPOINT ["/runner","/data.wasm"]
+ENTRYPOINT ["/runner","-r","/data.wasm"]

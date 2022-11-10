@@ -17,6 +17,7 @@ func newRemoteSysCall(ns *NetNameServer) *remoteSyscall {
 }
 
 func (r *remoteSyscall) Bind(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
+	sysPrint("BIND", "about to jump to sharedBind")
 	return sharedBind(r.nameServer.local, p, packagePath, service, method)
 }
 

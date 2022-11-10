@@ -10,7 +10,7 @@ import (
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = false
+var nameserverVerbose = true
 
 const MaxService = 127
 
@@ -90,7 +90,7 @@ func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method s
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	nameserverPrint("HANDLEMETHOD", "adding method in the nameserver in process %s",
+	nameserverPrint("HANDLEMETHOD(local) ", "adding method in the nameserver in process %s",
 		proc.String())
 	return n.NSCore.HandleMethod(newDepKeyFromProcess(proc), pkgPath, service, method)
 
@@ -215,7 +215,11 @@ func InitNameServer(runNotifyChannel chan *KeyNSPair, local, remote bool) {
 		LocalNS = NewLocalNameServer(runNotifyChannel)
 	}
 	if remote {
-		NetNS = NewNetNameserver(LocalNS, "parigot_ns:13330")
+		loc := LocalNS
+		if !local {
+			loc = NewLocalNameServer(runNotifyChannel)
+		}
+		NetNS = NewNetNameserver(loc, "parigot_ns:13330")
 	}
 }
 
