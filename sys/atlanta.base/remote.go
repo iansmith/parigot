@@ -30,7 +30,7 @@ func (r *remoteSyscall) RunNotify(key dep.DepKey) {
 }
 
 func (r *remoteSyscall) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
-	return sharedHandleMethod(r.nameServer, key.(*depKeyImpl).proc, pkgPath, service, method)
+	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
 }
 
 func (r *remoteSyscall) FindMethodByName(caller *Process, sid lib.Id, method string) *callContext {
@@ -46,6 +46,6 @@ func (r *remoteSyscall) GetService(p *Process, pkgPath, service string) (lib.Id,
 func (r *remoteSyscall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	panic("Require on remote syscall")
 }
-func (r *remoteSyscall) RunBlock(_ dep.DepKey) bool {
-	panic("run block on remote should be calling the network?")
+func (r *remoteSyscall) RunBlock(key dep.DepKey) (bool, lib.Id) {
+	return r.nameServer.RunBlock(key)
 }

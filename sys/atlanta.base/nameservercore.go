@@ -19,38 +19,44 @@ type NSCore struct {
 	serviceIdToServiceData map[string] /*really service id*/ *serviceData // accelerator only, we could walk to find this
 	dependencyGraph        *dep.DepGraph
 	alreadyExported        []string
+	useLocalServiceId      bool
 }
 
-func NewNSCore() *NSCore {
+func NewNSCore(useLocalServiceId bool) *NSCore {
 	return &NSCore{
 		packageRegistry:        make(map[string]*packageData),
 		serviceIdToServiceData: make(map[string]*serviceData),
 		dependencyGraph:        dep.NewDepGraph(),
 		serviceCounter:         7, //first 8 are reserved
 		alreadyExported:        []string{},
+		useLocalServiceId:      useLocalServiceId,
 	}
 }
 
-type depKeyImpl struct {
+type DepKeyImpl struct {
 	proc *Process
 	addr string
 }
 
-func (d *depKeyImpl) String() string {
+func (d *DepKeyImpl) String() string {
 	if d.proc != nil {
 		return d.proc.String()
 	}
 	return d.addr
 }
-func (d *depKeyImpl) IsKey() bool {
+func (d *DepKeyImpl) IsKey() bool {
 	return true
 }
 
-func newDepKeyFromProcess(p *Process) *depKeyImpl {
-	return &depKeyImpl{proc: p}
+func NewDepKeyFromProcess(p *Process) *DepKeyImpl {
+	return &DepKeyImpl{proc: p}
 }
-func newDepKeyFromAddr(a string) *depKeyImpl {
-	return &depKeyImpl{addr: a}
+func NewDepKeyFromAddr(a string) *DepKeyImpl {
+	return &DepKeyImpl{addr: a}
+}
+
+func (n *NSCore) DependencyGraph() *dep.DepGraph {
+	return n.dependencyGraph
 }
 
 type KeyNSPair struct {
@@ -80,12 +86,22 @@ type serviceData struct {
 	methodIdToImpl map[string]dep.DepKey
 }
 
-func newServiceData() *serviceData {
+func newServiceData(sid lib.Id) *serviceData {
 	return &serviceData{
-		serviceId:      nil,
+		serviceId:      sid,
 		method:         make(map[string]lib.Id),
 		methodIdToImpl: make(map[string]dep.DepKey),
 	}
+}
+
+// newServiceId is called to create a new service id with a strategy based
+// on the useLocalServiceId.
+func (n *NSCore) newServiceId() lib.Id {
+	if n.useLocalServiceId {
+		n.serviceCounter++
+		return lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
+	}
+	return lib.NewServiceId()
 }
 
 func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id) {
@@ -100,15 +116,11 @@ func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id) {
 	return sData.serviceId, nil
 }
 
+// CloseService is used to indicate that 1) the given service will not have
+// more methods being registered to it and thus NotFound can be given for any
+// methods not know after this point and 2) that the given service exists.
 func (n *NSCore) CloseService(pkgPath, service string) lib.Id {
-	sData, err := n.validatePkgAndService(pkgPath, service)
-	if err != nil {
-		return err
-	}
-	if sData.closed {
-		return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
-
-	}
+	sData := n.create(pkgPath, service)
 	sData.closed = true
 	return nil
 }
@@ -128,6 +140,27 @@ func (n *NSCore) validatePkgAndService(pkgPath, service string) (*serviceData, l
 	return sData, nil
 }
 
+// create is called by client code that wants to be sure that a given
+// package is known.  It is, in some sense, the opposite of validatePackageAndService.
+func (n *NSCore) create(pkgPath, service string) *serviceData {
+	pData, ok := n.packageRegistry[pkgPath]
+	if !ok {
+		pData = newPackageData()
+		n.packageRegistry[pkgPath] = pData
+	}
+	sData, ok := pData.service[service]
+	if !ok {
+		sid := n.newServiceId()
+		sData = newServiceData(sid)
+		pData.service[service] = sData
+		n.serviceIdToServiceData[sData.serviceId.String()] = sData
+	}
+	return sData
+}
+
+// Export tells the core that the given key is associated with the implementation
+// of the given pkgPath.Service.  The service must exist or a KernelNotFound error
+// wil result.
 func (n *NSCore) Export(key dep.DepKey, pkgPath, service string) lib.Id {
 	nscorePrint("EXPORT", "process %s exports %s.%s",
 		key.String(), pkgPath, service)
@@ -167,19 +200,7 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 
 	// we create the namespaces if they are not there yet because the exporter
 	// may not have registered yet
-	pData, ok := n.packageRegistry[pkgPath]
-	if !ok {
-		pData = newPackageData()
-		n.packageRegistry[pkgPath] = pData
-	}
-	sData, ok := pData.service[service]
-	if !ok {
-		sData = newServiceData()
-		n.serviceCounter++
-		sData.serviceId = lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
-		pData.service[service] = sData
-		n.serviceIdToServiceData[sData.serviceId.String()] = sData
-	}
+	n.create(pkgPath, service)
 
 	node, ok := n.dependencyGraph.GetEdge(key)
 	if !ok {
@@ -202,7 +223,12 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 	// the only time things can change is when a new process calls run
 	// so we only to make sure here that we find all the eligible processes to run
 
-	node, _ := n.dependencyGraph.GetEdge(key)
+	node, ok := n.dependencyGraph.GetEdge(key)
+	if !ok {
+		nscorePrint("RUNIFREADY ", "Ignoring request to check on key %s", key)
+		nscorePrint("RUNIFREADY ", "state of graph %#v", n.dependencyGraph.AllEdge())
+		return
+	}
 	candidateList := []*dep.EdgeHolder{node}
 
 	nscorePrint("RUNIFREADY ", "node %s (%d req,%d exp) and dep-graph has %d total entries",
@@ -237,7 +263,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 			nscorePrint("RUNIFREADY ", "%s is not ready to run, number of candidates left is %d", candidate.Key(), len(candidateList))
 		}
 	}
-	nscorePrint("RUN ", "we are returning to the RunReader loop")
+	nscorePrint("RUN ", "blocking completed")
 }
 
 func (n *NSCore) StartFailedInfo() string {
@@ -266,19 +292,8 @@ func (n *NSCore) WaitingToRun() int {
 }
 
 func (n *NSCore) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
-	pData, ok := n.packageRegistry[pkgPath]
-	if !ok {
-		pData = newPackageData()
-		n.packageRegistry[pkgPath] = pData
-	}
-	sData, ok := pData.service[service]
-	if !ok {
-		sData = newServiceData()
-		n.serviceCounter++
-		sData.serviceId = lib.ServiceIdFromUint64(0, uint64(n.serviceCounter))
-		pData.service[service] = sData
-		n.serviceIdToServiceData[sData.serviceId.String()] = sData
-	}
+	// create the data for this package and service
+	sData := n.create(pkgPath, service)
 	result := lib.NewMethodId()
 	nameserverPrint("HANDLEMETHOD", "assigning %s to the method %s in service %s",
 		result, method, service)

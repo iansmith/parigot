@@ -24,7 +24,7 @@ type NameServer interface {
 	Export(key dep.DepKey, pkgPath, service string) lib.Id
 	CloseService(pkgPath, service string) lib.Id
 	RunNotify(key dep.DepKey)
-	RunBlock(key dep.DepKey) bool
+	RunBlock(key dep.DepKey) (bool, lib.Id)
 	RunIfReady(key dep.DepKey)
 	StartFailedInfo() string
 }
@@ -47,7 +47,7 @@ func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 		lock:        new(sync.RWMutex),
 		inFlight:    []*callContext{},
 		runNotifyCh: runNotifyChannel,
-		NSCore:      NewNSCore(),
+		NSCore:      NewNSCore(true),
 	}
 }
 
@@ -74,7 +74,7 @@ func (n *LocalNameServer) FindMethodByName(caller *Process, serviceId lib.Id, na
 	}
 	cc := &callContext{
 		mid:    mid,
-		target: target.(*depKeyImpl).proc,
+		target: target.(*DepKeyImpl).proc,
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
@@ -92,7 +92,7 @@ func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method s
 
 	nameserverPrint("HANDLEMETHOD(local) ", "adding method in the nameserver in process %s",
 		proc.String())
-	return n.NSCore.HandleMethod(newDepKeyFromProcess(proc), pkgPath, service, method)
+	return n.NSCore.HandleMethod(NewDepKeyFromProcess(proc), pkgPath, service, method)
 
 }
 
@@ -163,7 +163,7 @@ func (n *LocalNameServer) RunIfReady(key dep.DepKey) {
 	defer n.lock.Unlock()
 
 	n.NSCore.RunIfReady(key, func(key dep.DepKey) {
-		key.(*depKeyImpl).proc.Run()
+		key.(*DepKeyImpl).proc.Run()
 	})
 }
 
@@ -186,7 +186,7 @@ func (l *LocalNameServer) StartFailedInfo() string {
 // nameserver.
 func (n *LocalNameServer) sendAbortMessage() {
 	for _, v := range n.dependencyGraph.AllEdge() {
-		p := v.Key().(*depKeyImpl).proc
+		p := v.Key().(*DepKeyImpl).proc
 		if p.reachedRun {
 			if !p.exited {
 				p.runCh <- false
@@ -203,9 +203,9 @@ func (l *LocalNameServer) RunNotify(key dep.DepKey) {
 
 // This is called by a proc that is local and this blocks until the nameserver
 // signals to us.
-func (l *LocalNameServer) RunBlock(key dep.DepKey) bool {
-	b := <-key.(*depKeyImpl).proc.runCh
-	return b
+func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
+	b := <-key.(*DepKeyImpl).proc.runCh
+	return b, nil
 }
 
 // InitNameServers initializes the two nameservers with a shared channel that
