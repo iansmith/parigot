@@ -190,6 +190,8 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 		key.String(), pkgPath, service)
 
 	name := fmt.Sprintf("%s.%s", pkgPath, service)
+
+	// this check always fails in the remote case, but n.alreadyExported==nil so it doesn't really hurt
 	for _, s := range n.alreadyExported {
 		if s == name {
 			nameserverPrint("REQUIRE", "process %s required %s.%s but it is already exported",
