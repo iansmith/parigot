@@ -35,6 +35,9 @@ func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedHandleMethod(ns NameServer, proc *Process, pkg, service, method string) (lib.Id, lib.Id) {
 	return ns.HandleMethod(proc, pkg, service, method)
 }
+func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
+	return ns.Require(key, pkg, service)
+}
 
 func newLocalSysCall(ns *LocalNameServer) *localSysCall {
 	return &localSysCall{nameServer: ns}
@@ -65,5 +68,5 @@ func (l *localSysCall) GetService(p *Process, pkgPath, service string) (lib.Id, 
 	return l.nameServer.GetService(pkgPath, service)
 }
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	return l.nameServer.Require(key, pkgPath, service)
+	return sharedRequire(l.nameServer, key, pkgPath, service)
 }

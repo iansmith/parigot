@@ -22,6 +22,7 @@ var NetNS *NetNameServer
 type NameServer interface {
 	HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
 	Export(key dep.DepKey, pkgPath, service string) lib.Id
+	Require(key dep.DepKey, pkgPath, service string) lib.Id
 	CloseService(pkgPath, service string) lib.Id
 	RunNotify(key dep.DepKey)
 	RunBlock(key dep.DepKey) (bool, lib.Id)

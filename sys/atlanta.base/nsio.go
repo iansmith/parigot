@@ -88,12 +88,12 @@ func NSRoundTrip(any *anypb.Any, stream quic.Stream, timeout time.Duration) (*an
 	if kerr.IsError() {
 		return nil, kerr
 	}
-	print("NS Round Trip 2 sent completed\n")
+	print("NS Round Trip 2 sent completed", any.TypeUrl, "\n")
 	result, err := NSReceive(stream, timeout)
 	if err != nil {
-		print("error from receive: ", err.Error(), "\n")
+		print("error from (recv following send of ", any.TypeUrl, "): ", err.Error(), "\n")
 		return nil, lib.NewKernelError(lib.KernelNameserverFailed)
 	}
-	print("NSRoundTrip 3, got read value", result.TypeUrl, "\n")
+	print("NSRoundTrip 3 DONE! got read value", result.TypeUrl, "\n")
 	return result, nil
 }

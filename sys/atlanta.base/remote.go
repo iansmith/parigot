@@ -44,7 +44,7 @@ func (r *remoteSyscall) GetService(p *Process, pkgPath, service string) (lib.Id,
 	panic("GetService on remote syscall")
 }
 func (r *remoteSyscall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	panic("Require on remote syscall")
+	return sharedRequire(r.nameServer, key, pkgPath, service)
 }
 func (r *remoteSyscall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return r.nameServer.RunBlock(key)
