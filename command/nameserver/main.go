@@ -28,11 +28,13 @@ import (
 var koopmanTable = crc32.MakeTable(crc32.Koopman)
 var writeTimeout = 250 * time.Millisecond
 var readTimeout = writeTimeout
+var longTimeout = 10 * time.Second //ugh
 var readBufferSize = 4096
 var magicStringOfBytes = uint64(0x1789071417760704)
 
 const frontMatter = 12
 const trailer = 4
+const readRetries = 8
 
 const parigotNSPort = 13330
 
@@ -55,23 +57,17 @@ var waitLock sync.Mutex
 var typeToHostMap = make(map[string]string)
 var runBlockWaitingList = make(map[string] /*dep.DepKey*/ *waitInfo)
 
-type waitPair struct {
-	waitingFor string
-	waitInfo   *waitInfo
-}
-
 func main() {
 	go timeoutHandler()
 	addr := fmt.Sprintf("0.0.0.0:%d", parigotNSPort)
 
 	log.Printf("main: waiting on client connection...")
+	listener, err := quic.ListenAddr(addr, generateTLSConfig(), nil)
+	if err != nil {
+		// this failure occurs regulararly because of timeouts in the ListenAddr
+		panic("unable to establish my quick server port")
+	}
 	for {
-		listener, err := quic.ListenAddr(addr, generateTLSConfig(), nil)
-		if err != nil {
-			// this failure occurs regulararly because of timeouts in the ListenAddr
-			continue
-		}
-
 		conn, err := listener.Accept(context.Background())
 		if err != nil {
 			log.Printf("main: error in Accept:%v", err)
@@ -82,26 +78,36 @@ func main() {
 			log.Printf("error in accept stream: %v", err)
 			continue
 		}
-		go singleClientLoop(stream)
+		copy_ := new(quic.Stream)
+		*copy_ = stream
+
+		log.Printf("calling single client loop with stream %v", stream.StreamID())
+		go singleClientLoop(*copy_)
 	}
 }
 
 func singleClientLoop(stream quic.Stream) {
+	log.Printf("client stream is %v", stream.StreamID())
+	errCount := 0
 	for {
 		msg, err := sys.NSReceive(stream, readTimeout)
 		if err != nil {
-			log.Printf("singleClientLoop:error in read: %v, closing stream", err)
+			errCount++
+			if errCount < readRetries {
+				continue
+			}
+			log.Printf("singleClientLoop:error in read: %v, closing stream %v (%d errors)", err, stream.StreamID(), errCount)
 			stream.Close()
 			return
 		}
-		log.Printf("singleClientLoop: received bundle of type %s", msg.TypeUrl)
+		log.Printf("singleClientLoop: received bundle of type %s on stream %v", msg.TypeUrl, stream.StreamID())
 		p, err := msg.UnmarshalNew()
 		if err != nil {
 			log.Printf("error in trying to unmarshal result of readStream: %v, closing stream", err)
 			stream.Close()
 			return
 		}
-		log.Printf("dispatching newly received object %T", p)
+		log.Printf("dispatching newly received object %T on stream %v", p, stream.StreamID())
 		switch m := p.(type) {
 		case *ns.CloseServiceRequest:
 			err = closeService(m, stream)
@@ -117,7 +123,7 @@ func singleClientLoop(stream quic.Stream) {
 			panic(fmt.Sprintf("nameserver received a bundle from a client that it could not understand the type of:%T", p))
 		}
 		if err != nil {
-			log.Printf("got error from client stream: %v, closing stream", err)
+			log.Printf("got error from client stream %v: %v, closing stream", stream.StreamID(), err)
 			// close the stream to force a retry
 			stream.Close()
 			return
@@ -150,7 +156,7 @@ func generateTLSConfig() *tls.Config {
 }
 
 func closeService(m *ns.CloseServiceRequest, stream quic.Stream) error {
-	log.Printf("xxx close service , making sure it exists in our graph")
+	log.Printf("xxx close service , making sure it exists in our grap on stream %v", stream.StreamID())
 	core.CloseService(m.GetPackagePath(), m.GetService())
 
 	// at the moment, we really don't track this in the network case
@@ -167,6 +173,7 @@ func export(m *ns.ExportRequest, stream quic.Stream) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 	var failure lib.Id
+	log.Printf("xxx export on stream %v", stream.StreamID())
 
 	for _, export := range m.GetExport() {
 		pkg := export.GetPackagePath()
@@ -242,16 +249,19 @@ func runBlock(m *ns.RunBlockRequest, stream quic.Stream) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
-	log.Printf("runblock: %s,%v", m.GetAddr(), m.GetWaiter())
+	log.Printf("runblock: %s,%v on stream %v", m.GetAddr(), m.GetWaiter(), stream.StreamID())
 	key := sys.NewDepKeyFromAddr(m.GetAddr())
+	copy_ := new(quic.Stream)
+	*copy_ = stream
 	info := &waitInfo{
 		ch:        make(chan bool),
-		stream:    stream,
+		stream:    *copy_,
 		waitStart: time.Now(),
 		waitId:    waitCounter,
 		waitKey:   key,
 	}
 	waitCounter++
+
 	if runBlockWaitingList[key.String()] != nil {
 		log.Printf("RUNBLOCK Found addr %s in the list already, ignoring", m.GetAddr())
 		return nil
@@ -264,7 +274,7 @@ func runBlock(m *ns.RunBlockRequest, stream quic.Stream) error {
 	}
 	// this creates the record in the waiting list so we can block on it with a different goroutine
 	runBlockWaitingList[key.String()] = info
-	go waitForExport(info)
+	go waitForReady(info)
 
 	log.Printf("runblock: 3 run in if ready")
 	// its possible that there is nothing to wait on
@@ -282,21 +292,25 @@ func runBlock(m *ns.RunBlockRequest, stream quic.Stream) error {
 		info.ch <- true
 	})
 
-	log.Printf("runblock: 4 done")
+	log.Printf("runblock: 4 done.... setting read timeout on %p", *copy_)
+	(*copy_).SetReadDeadline(time.Now().Add(longTimeout))
 	return nil
 }
 
 func require(m *ns.RequireRequest, stream quic.Stream) error {
+	log.Printf("require reached start of func %v", stream.StreamID())
 	waitLock.Lock()
 	defer waitLock.Unlock()
+	log.Printf("require after lock %v", stream.StreamID())
 
 	for _, require := range m.GetRequire() {
 		pkg := require.GetPackagePath()
 		svc := require.GetService()
 		key := sys.NewDepKeyFromAddr(require.GetAddr())
 
+		log.Printf("require reached on %p and about to hit nscore require %s", stream, key)
 		// where should we put this?
-		if id := core.Require(key, pkg, svc); id != nil {
+		if id := core.Require(key, pkg, svc); id != nil && id.IsError() {
 			return lib.NewPerrorFromId("require failed", id)
 		}
 	}
@@ -305,6 +319,7 @@ func require(m *ns.RequireRequest, stream quic.Stream) error {
 	resp := &ns.RequireResponse{
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
+	log.Printf("require sending response %v", stream.StreamID())
 	return sendResponse(resp, stream)
 }
 
@@ -321,23 +336,24 @@ func sendResponse(resp proto.Message, stream quic.Stream) error {
 	return nil
 }
 
-// waitForExport runs on a different goroutine, it just waits for somebody to send a message
+// waitForReady runs on a different goroutine, it just waits for somebody to send a message
 // through the channel info.ch
-func waitForExport(info *waitInfo) {
-	log.Printf("blocking client called WaitForExport")
+func waitForReady(info *waitInfo) {
+	log.Printf("blocking client called waitForReady (id is %d), stream is %v", info.waitId, info.stream.StreamID())
 	t := <-info.ch
-	log.Printf("blocking client finished waiting in WaitForExport")
+	log.Printf("blocking client finished waiting in waitForReady (id is %d) stream is %v", info.waitId, info.stream.StreamID())
 
-	resp := &ns.RequireResponse{}
+	resp := &ns.RunBlockResponse{}
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
 	if !t {
 		log.Printf("we've been told that we were timed out (id %d)", info.waitId)
-		resp.KernelErr = lib.MarshalKernelErrId(lib.NewKernelError(lib.KernelNotFound))
+		resp.ErrId = lib.MarshalKernelErrId(lib.NewKernelError(lib.KernelNotFound))
 	} else {
-		resp.KernelErr = lib.MarshalKernelErrId(lib.NoKernelErr())
+		resp.ErrId = lib.MarshalKernelErrId(lib.NoKernelErr())
 	}
+	log.Printf("sending req resp on stream %v", info.stream.StreamID())
 	sendResponse(resp, info.stream)
 
 	// remove from the map before we return and release the lock

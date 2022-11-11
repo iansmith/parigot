@@ -31,6 +31,20 @@ type NetNameServer struct {
 // own udp portspace.
 const servicePort = 13331
 
+var koopmanTable = crc32.MakeTable(crc32.Koopman)
+var writeTimeout = 250 * time.Millisecond
+var readTimeout = writeTimeout
+var longReadTimeout = 10 * time.Second
+var readBufferSize = 4096
+
+// if your message doesn't start with this, you have lost sync and should close the connection
+// so we can try to reconnect
+var magicStringOfBytes = uint64(0x1789071417760704)
+var frontMatterSize = 8 + 4
+var trailerSize = 4
+
+const parigotNSPort = 13330
+
 func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 	stream, err := setupConnection(addr)
 	if err != nil {
@@ -53,20 +67,6 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 		localAddr:    myAddr,
 	}
 }
-
-var koopmanTable = crc32.MakeTable(crc32.Koopman)
-var writeTimeout = 250 * time.Millisecond
-var readTimeout = writeTimeout
-var longReadTimeout = 1 * time.Second // for blocking
-var readBufferSize = 4096
-
-// if your message doesn't start with this, you have lost sync and should close the connection
-// so we can try to reconnect
-var magicStringOfBytes = uint64(0x1789071417760704)
-var frontMatterSize = 8 + 4
-var trailerSize = 4
-
-const parigotNSPort = 13330
 
 func (n *NetNameServer) MakeRequest(any *anypb.Any, timeout time.Duration) (*anypb.Any, lib.Id) {
 	var err error
@@ -118,19 +118,18 @@ func (n *NetNameServer) Export(key dep.DepKey, packagePath, service string) lib.
 	if respErr != nil {
 		return respErr
 	}
-	netnameserverPrint("EXPORT ", "xxx export remote 4, expResult is %s\n", expResult.TypeUrl)
+	netnameserverPrint("EXPORT ", "remote 4, expResult is %s", expResult.TypeUrl)
 	expResp := ns.ExportResponse{}
 	err = expResult.UnmarshalTo(&expResp)
 	if err != nil {
-		netnameserverPrint("EXPORT ", "xxx export remote 4a:%v", err)
+		netnameserverPrint("EXPORT ", "export remote 4a:%v", err)
 		return lib.NewKernelError(lib.KernelUnmarshalFailed)
 	}
 	respOk := lib.UnmarshalKernelErrorId(expResp.KernelErr)
-	netnameserverPrint("EXPORT ", "xxx export remote 4b:%s", respOk.Short())
+	netnameserverPrint("EXPORT ", " export remote 4b:%s", respOk.Short())
 	if respOk.IsError() {
 		return respOk
 	}
-	netnameserverPrint("EXPORT ", "xxx export remote 5\n")
 	netnameserverPrint("EXPORT ", "result was %s", expResult.TypeUrl)
 	return lib.NoKernelErr()
 }
@@ -173,7 +172,7 @@ func (n *NetNameServer) CloseService(packagePath, service string) lib.Id {
 	req := &ns.CloseServiceRequest{PackagePath: packagePath, Service: service}
 	any := &anypb.Any{}
 	err := any.MarshalFrom(req)
-	netnameserverPrint("CLOSESERVICE ", "xxx export remote 1")
+	netnameserverPrint("CLOSESERVICE ", "xxx export remote 1 with %T", req)
 	if err != nil {
 		return lib.NewKernelError(lib.KernelMarshalFailed)
 	}
@@ -181,7 +180,7 @@ func (n *NetNameServer) CloseService(packagePath, service string) lib.Id {
 	if kerr != nil {
 		return kerr
 	}
-	netnameserverPrint("CLOSESERVICE ", " xxx 2")
+	netnameserverPrint("CLOSESERVICE ", " 2 with result %v", result.TypeUrl)
 	resp := ns.CloseServiceResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
@@ -227,11 +226,12 @@ func (n *NetNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	}
 	respErr := lib.UnmarshalKernelErrorId(resp.GetErrId())
 	if respErr.IsError() {
+		netnameserverPrint("RUNBLOCK ", " read error from server %s", respErr.Short())
 		return false, respErr
 	}
 	netnameserverPrint("RUNBLOCK", "DONE! resp error? %v and time out %v?",
 		respErr, resp.GetTimedOut())
-	return resp.GetTimedOut(), nil
+	return !resp.GetTimedOut(), nil
 }
 
 func (n *NetNameServer) RunIfReady(key dep.DepKey) {

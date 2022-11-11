@@ -414,10 +414,10 @@ func (s *syscallReadWrite) Export(sp int32) {
 		unsafe.Offsetof(lib.ExportPayload{}.ServicePtr),
 		unsafe.Offsetof(lib.ExportPayload{}.ServiceLen))
 
-	sysPrint("EXPORT", "about to tell the nameserver we export %s.%s [syscall->%T]", pkg, service,
+	sysPrint("EXPORT", "about to tell the nameserver closeservice and  export %s.%s [syscall->%T]", pkg, service,
 		s.procToSysCall())
 	kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), pkg, service)
-	if kerr != nil {
+	if kerr != nil && kerr.IsError() {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 			kerr)
 		return
@@ -448,7 +448,7 @@ func (s *syscallReadWrite) Require(sp int32) {
 
 	kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), pkg, service)
 
-	if kerr != nil {
+	if kerr != nil && kerr.IsError() {
 		sysPrint("REQUIRE", " nameserver failed require of %s.%s", pkg, service)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
 			kerr)
