@@ -20,10 +20,10 @@ var netnameserverVerbose = true
 
 type NetNameServer struct {
 	*NSCore
-	local        *LocalNameServer
-	stream       quic.Stream
-	remoteNSAddr string
-	port         int
+	local                   *LocalNameServer
+	stream                  quic.Stream
+	remoteNSAddr, localAddr string
+	port                    int
 }
 
 // servicePort is the port that a service listens on for incoming requests.
@@ -36,18 +36,25 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 	if err != nil {
 		panic(fmt.Sprintf("unable to connect to our network nameserver @%s:%v", addr, err))
 	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(fmt.Sprintf("unable to get our own hostname in swarm %v", err))
+	}
+	myAddr := fmt.Sprintf("%s:%d", hostname, servicePort)
+	netnameserverPrint("NewNetNameserver ", "our address is %s", myAddr)
 	return &NetNameServer{
-		NSCore:       NewNSCore(),
 		local:        loc,
 		stream:       stream,
 		remoteNSAddr: addr,
 		port:         servicePort,
+		localAddr:    myAddr,
 	}
 }
 
 var koopmanTable = crc32.MakeTable(crc32.Koopman)
 var writeTimeout = 250 * time.Millisecond
 var readTimeout = writeTimeout
+var longReadTimeout = 1 * time.Second // for blocking
 var readBufferSize = 4096
 
 // if your message doesn't start with this, you have lost sync and should close the connection
@@ -58,7 +65,7 @@ var trailerSize = 4
 
 const parigotNSPort = 13330
 
-func (n *NetNameServer) MakeRequest(any *anypb.Any) (*anypb.Any, lib.Id) {
+func (n *NetNameServer) MakeRequest(any *anypb.Any, timeout time.Duration) (*anypb.Any, lib.Id) {
 	var err error
 	if n.stream == nil {
 		netnameserverPrint("MakeRequest ", "net nameserver xxx1 \n")
@@ -68,7 +75,7 @@ func (n *NetNameServer) MakeRequest(any *anypb.Any) (*anypb.Any, lib.Id) {
 			return nil, lib.NewKernelError(lib.KernelNameserverFailed)
 		}
 	}
-	return NSRoundTrip(any, n.stream)
+	return NSRoundTrip(any, n.stream, timeout)
 }
 
 func setupConnection(addr string) (quic.Stream, error) {
@@ -91,33 +98,32 @@ func setupConnection(addr string) (quic.Stream, error) {
 }
 
 func (n *NetNameServer) Export(key dep.DepKey, packagePath, service string) lib.Id {
-	host, err := os.Hostname()
-	if err != nil {
-		panic("unable to get my own hostname: " + err.Error())
-	}
 	expInfo := &ns.ExportInfo{
 		PackagePath: packagePath,
 		Service:     service,
-		Addr:        fmt.Sprintf("%s:%d", host, n.port)}
+		Addr:        n.localAddr,
+	}
 	expReq := &ns.ExportRequest{
 		Export: []*ns.ExportInfo{expInfo},
 	}
 	var any anypb.Any
-	err = any.MarshalFrom(expReq)
+	err := any.MarshalFrom(expReq)
 	if err != nil {
 		return lib.NewKernelError(lib.KernelMarshalFailed)
 	}
-	expResult, respErr := n.MakeRequest(&any)
+	expResult, respErr := n.MakeRequest(&any, readTimeout)
 	if respErr != nil {
 		return respErr
 	}
-	netnameserverPrint("EXPORT ", "xxx export remote 4\n")
+	netnameserverPrint("EXPORT ", "xxx export remote 4, expResult is %s\n", expResult.TypeUrl)
 	expResp := ns.ExportResponse{}
 	err = expResult.UnmarshalTo(&expResp)
 	if err != nil {
+		netnameserverPrint("EXPORT ", "xxx export remote 4a:%v", err)
 		return lib.NewKernelError(lib.KernelUnmarshalFailed)
 	}
 	respOk := lib.UnmarshalKernelErrorId(expResp.KernelErr)
+	netnameserverPrint("EXPORT ", "xxx export remote 4b:%s", respOk.Short())
 	if respOk.IsError() {
 		return respOk
 	}
@@ -134,7 +140,7 @@ func (n *NetNameServer) CloseService(packagePath, service string) lib.Id {
 	if err != nil {
 		return lib.NewKernelError(lib.KernelMarshalFailed)
 	}
-	result, kerr := n.MakeRequest(any)
+	result, kerr := n.MakeRequest(any, readTimeout)
 	if kerr != nil {
 		return kerr
 	}
@@ -158,11 +164,35 @@ func (n *NetNameServer) HandleMethod(p *Process, packagePath, service, method st
 }
 
 func (n *NetNameServer) RunNotify(key dep.DepKey) {
-	panic("should never call run notify (process) on net nameserver")
+	panic("shouldn't be calling run notify on a net nameserver")
 }
 
-func (n *NetNameServer) RunBlock(key dep.DepKey) bool {
-	panic("should be calling the the network to inform the remote NS")
+func (n *NetNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
+	req := &ns.RunBlockRequest{
+		Waiter: false,
+		Addr:   n.localAddr,
+	}
+	any := &anypb.Any{}
+	err := any.MarshalFrom(req)
+	netnameserverPrint("RUNBLOCK ", "my addr is %s", n.localAddr)
+	if err != nil {
+		return false, lib.NewKernelError(lib.KernelMarshalFailed)
+	}
+	result, kerr := n.MakeRequest(any, longReadTimeout)
+	if kerr != nil {
+		return false, kerr
+	}
+	netnameserverPrint("RUNBLOCK ", " reading from server")
+	resp := ns.RunBlockResponse{}
+	err = result.UnmarshalTo(&resp)
+	if err != nil {
+		return false, lib.NewKernelError(lib.KernelUnmarshalFailed)
+	}
+	respErr := lib.UnmarshalKernelErrorId(resp.GetErrId())
+	if respErr.IsError() {
+		return false, respErr
+	}
+	return resp.GetTimedOut(), nil
 }
 
 func (n *NetNameServer) RunIfReady(key dep.DepKey) {

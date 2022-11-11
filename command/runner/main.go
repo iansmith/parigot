@@ -19,7 +19,7 @@ var libFile *string = flag.String("f", "", "the filename that has the list of wa
 var remote *bool = flag.Bool("r", false, "all services will use remote; use this flag for a docker swarm of microservices")
 var libs = []string{}
 
-var secondsBeforeStartupFailed = 120
+var secondsBeforeStartupFailed = 15
 
 func main() {
 	flag.Parse()

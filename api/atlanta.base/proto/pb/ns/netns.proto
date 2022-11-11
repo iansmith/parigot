@@ -23,6 +23,7 @@ message ExportResponse {
 message RequireInfo {
   string package_path =1;
   string service =2 ;
+  string addr=3;
 }
 
 message RequireRequest {
@@ -58,11 +59,13 @@ message LocateResponse {
 message RunBlockRequest {
   // waiter is true if this thread of control should be waited on to exit
   bool waiter =1;
+  string addr= 2;
 }
 
 // RunBlockResponse can take several seconds to arrive if you have other
 // services that need to start up before the one that sent the request.
 message RunBlockResponse {
   protosupport.KernelErrorId err_id = 1;
+  bool timed_out = 2;
 }
 

@@ -23,14 +23,13 @@ func sharedFindMethodByName(ns *LocalNameServer, caller *Process, sid lib.Id, me
 }
 
 func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
-	if kerr := ns.CloseService(pkg, service); kerr != nil {
+	if kerr := ns.CloseService(pkg, service); kerr != nil && kerr.IsError() {
 		return kerr
 	}
-	if kerr := ns.Export(key, pkg, service); kerr != nil {
+	if kerr := ns.Export(key, pkg, service); kerr != nil && kerr.IsError() {
 		return kerr
 	}
 	return nil
-
 }
 
 func sharedHandleMethod(ns NameServer, proc *Process, pkg, service, method string) (lib.Id, lib.Id) {
@@ -52,7 +51,7 @@ func (l *localSysCall) Export(key dep.DepKey, pkg, service string) lib.Id {
 func (l *localSysCall) RunNotify(key dep.DepKey) {
 	l.nameServer.RunNotify(key)
 }
-func (l *localSysCall) RunBlock(key dep.DepKey) bool {
+func (l *localSysCall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return l.nameServer.RunBlock(key)
 }
 

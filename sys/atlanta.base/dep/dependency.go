@@ -34,6 +34,9 @@ func (d *DepGraph) Len() int {
 func (d *DepGraph) Del(key DepKey) {
 	delete(d.edges, key.String())
 }
+
+// Note that the map you get back here from AllEdge is keyed on the STRING()
+// rep of the key.
 func (d *DepGraph) AllEdge() map[string]*EdgeHolder {
 	return d.edges
 }
@@ -175,6 +178,9 @@ outer:
 }
 
 // EdgeHolder holds the in and out edges of the dependency graph for a single node.
+// The key field is because when you have a value in the graph (this object)
+// you may want the REAL key, not the string rep of the key, which is what the map
+// records.
 type EdgeHolder struct {
 	key     DepKey
 	export  []string

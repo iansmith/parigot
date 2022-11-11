@@ -416,7 +416,7 @@ func (s *syscallReadWrite) Export(sp int32) {
 
 	sysPrint("EXPORT", "about to tell the nameserver we export %s.%s [syscall->%T]", pkg, service,
 		s.procToSysCall())
-	kerr := s.procToSysCall().Export(newDepKeyFromProcess(s.proc), pkg, service)
+	kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), pkg, service)
 	if kerr != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 			kerr)
@@ -446,7 +446,7 @@ func (s *syscallReadWrite) Require(sp int32) {
 
 	sysPrint("REQUIRE", "telling nameserver %s requires %s.%s", s.proc, pkg, service)
 
-	kerr := s.procToSysCall().Require(newDepKeyFromProcess(s.proc), pkg, service)
+	kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), pkg, service)
 
 	if kerr != nil {
 		sysPrint("REQUIRE", " nameserver failed require of %s.%s", pkg, service)
@@ -473,18 +473,21 @@ func (s *syscallReadWrite) Run(sp int32) {
 	s.proc.waiter = wait
 	s.proc.reachedRun = true
 
-	key := newDepKeyFromProcess(s.proc)
+	key := NewDepKeyFromProcess(s.proc)
 	s.procToSysCall().RunNotify(key)
 
 	sysPrint("RUN", "%s is blocked on channel for run confirmation", s.proc)
 	// block until we are told to proceed
-	ok := s.procToSysCall().RunBlock(key)
+	ok, kerr := s.procToSysCall().RunBlock(key)
+	if kerr != nil && kerr.IsError() {
+		sysPrint("RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+		return
+	}
 	sysPrint("RUN", "process %s read from the run channel %v", s.proc, ok)
 	if !ok {
 		sysPrint("RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
 			lib.NewKernelError(lib.KernelDependencyCycle))
-
 	}
 	sysPrint("RUN", "we are now ready to run, %s", s.proc)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),

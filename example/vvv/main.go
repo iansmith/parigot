@@ -87,10 +87,11 @@ func (m *myServer) SoldItem(pctx lib.Pctx, in proto.Message) error {
 func (m *myServer) Ready() bool {
 
 	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
-		print("ready error in attempt to export demo.vvv ", err.Error(), "\n")
+		print("ready: error in attempt to export demo.vvv: ", err.Error(), "\n")
 		return false
 	}
 	if _, err := lib.Run(false); err != nil {
+		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
 	return true
