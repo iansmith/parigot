@@ -40,6 +40,9 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 	if err != nil {
 		panic(fmt.Sprintf("unable to get our own hostname in swarm %v", err))
 	}
+	if os.Getenv("HOSTNAME") != "" {
+		hostname = os.Getenv("HOSTNAME")
+	}
 	myAddr := fmt.Sprintf("%s:%d", hostname, servicePort)
 	netnameserverPrint("NewNetNameserver ", "our address is %s", myAddr)
 	return &NetNameServer{
@@ -132,6 +135,40 @@ func (n *NetNameServer) Export(key dep.DepKey, packagePath, service string) lib.
 	return lib.NoKernelErr()
 }
 
+func (n *NetNameServer) Require(key dep.DepKey, packagePath, service string) lib.Id {
+	reqInfo := &ns.RequireInfo{
+		PackagePath: packagePath,
+		Service:     service,
+		Addr:        n.localAddr,
+	}
+	reqReq := &ns.RequireRequest{
+		Require: []*ns.RequireInfo{reqInfo},
+	}
+	var any anypb.Any
+	err := any.MarshalFrom(reqReq)
+	if err != nil {
+		return lib.NewKernelError(lib.KernelMarshalFailed)
+	}
+	reqResult, respErr := n.MakeRequest(&any, readTimeout)
+	if respErr != nil {
+		return respErr
+	}
+	netnameserverPrint("REQUIRE ", "expResult is %s\n", reqResult.TypeUrl)
+	reqResp := ns.RequireResponse{}
+	err = reqResult.UnmarshalTo(&reqResp)
+	if err != nil {
+		netnameserverPrint("REQUIRE ", "remote call failed:%v", err)
+		return lib.NewKernelError(lib.KernelUnmarshalFailed)
+	}
+	respOk := lib.UnmarshalKernelErrorId(reqResp.KernelErr)
+	netnameserverPrint("REQUIRE ", "remote result :%s", respOk.Short())
+	if respOk.IsError() {
+		return respOk
+	}
+	netnameserverPrint("REQUIRE", "DONE!")
+	return lib.NoKernelErr()
+}
+
 func (n *NetNameServer) CloseService(packagePath, service string) lib.Id {
 	req := &ns.CloseServiceRequest{PackagePath: packagePath, Service: service}
 	any := &anypb.Any{}
@@ -192,6 +229,8 @@ func (n *NetNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	if respErr.IsError() {
 		return false, respErr
 	}
+	netnameserverPrint("RUNBLOCK", "DONE! resp error? %v and time out %v?",
+		respErr, resp.GetTimedOut())
 	return resp.GetTimedOut(), nil
 }
 

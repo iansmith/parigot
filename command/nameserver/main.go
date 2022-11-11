@@ -101,7 +101,7 @@ func singleClientLoop(stream quic.Stream) {
 			stream.Close()
 			return
 		}
-
+		log.Printf("dispatching newly received object %T", p)
 		switch m := p.(type) {
 		case *ns.CloseServiceRequest:
 			err = closeService(m, stream)

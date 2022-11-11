@@ -1,0 +1,51 @@
+services:
+  ## This is the definition for the nameserver, the only infrastructure service
+  ## that you need with a parigot app.  The nameserver maps names of protobuf services
+  ## to hosts that have the implementation. You should probably just use this
+  ## section unchanged.
+  parigot_ns:
+    image: nameserver
+    container_name: parigot_ns
+    # this is just because we use the same Dockerfile, really it's the nameserver
+    entrypoint: /runner
+    expose: 
+      - 13339/udp
+    networks:
+      - parigot_net
+  ## This is the definition for a single service, fully specified.  This is the standard
+  ## configuration for a wasm-based service.  This service, and all others, needs to be able
+  ## to communicate with the nameserver on their private network--in this case
+  ## that network is "parigot_net".  This service, naturally, also expects the nameserver
+  ## to be up and healthy when it starts because it can't boostrap without the nameserver.
+  storeserver:
+    image: storeserver
+    container_name: storeserver
+    entrypoint: /runner -r /data.wasm
+    environment:
+      PARIGOT_NAMESERVER: parigot_ns:13339
+      HOSTNAME: storeserver
+    expose: 
+      - 13330/udp
+    depends_on:
+      parigot_ns:
+        condition: service_started
+    networks:
+      - parigot_net
+  ## This is the definition for a single service, derived from the previous one. All
+  ## further services should look like this one, with only the changes that they make
+  ## from the definition of storeserver being where they should use their own name instead
+  ## storeserver.
+  storeclient:
+    extends:
+      service: storeserver
+    image: storeclient
+    container_name: storeclient
+    environment:
+      HOSTNAME: storeclient
+  ## This is the definition of the overlay network that these containers and the
+  ## nameserver use.
+networks:
+  parigot_net:
+    name: parigot_net
+    driver: overlay
+    attachable: true
