@@ -1,26 +1,17 @@
 package main
 
 import (
-	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"hash/crc32"
 	"log"
-	"math/big"
 	"sync"
 	"time"
 
-	"github.com/iansmith/parigot/g/pb/ns"
+	"github.com/iansmith/parigot/g/pb/net"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys"
 	"github.com/iansmith/parigot/sys/dep"
 
-	quic "github.com/lucas-clemente/quic-go"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -45,11 +36,12 @@ var core = sys.NewNSCore(false)
 
 type waitInfo struct {
 	ch        chan bool
-	stream    quic.Stream
 	waitStart time.Time
 	waitId    int
 	// we keep this just we can reverse the mapping without walking
 	waitKey dep.DepKey
+	// we are still waiting to send the result back to the caller
+	respChan chan *anypb.Any
 }
 
 var waitCounter = 0
@@ -59,121 +51,82 @@ var runBlockWaitingList = make(map[string] /*dep.DepKey*/ *waitInfo)
 
 func main() {
 	go timeoutHandler()
-	addr := fmt.Sprintf("0.0.0.0:%d", parigotNSPort)
 
-	log.Printf("main: waiting on client connection...")
-	listener, err := quic.ListenAddr(addr, generateTLSConfig(), nil)
-	if err != nil {
-		// this failure occurs regulararly because of timeouts in the ListenAddr
-		panic("unable to establish my quick server port")
-	}
+	ch := make(chan *sys.NetResult)
+	_ = sys.NewQuicListener(parigotNSPort, sys.ParigotProtoNameServer, ch)
+
 	for {
-		conn, err := listener.Accept(context.Background())
+		log.Printf("xxxx about to block on %p", ch)
+		nr := <-ch
+		log.Printf("xxxx read from %p", ch)
+
+		p, err := nr.Data().UnmarshalNew()
 		if err != nil {
-			log.Printf("main: error in Accept:%v", err)
+			nr.RespChan() <- nil
 			continue
 		}
-		stream, err := conn.AcceptStream(context.Background())
-		if err != nil {
-			log.Printf("error in accept stream: %v", err)
-			continue
-		}
-		copy_ := new(quic.Stream)
-		*copy_ = stream
 
-		log.Printf("calling single client loop with stream %v", stream.StreamID())
-		go singleClientLoop(*copy_)
-	}
-}
-
-func singleClientLoop(stream quic.Stream) {
-	log.Printf("client stream is %v", stream.StreamID())
-	errCount := 0
-	for {
-		msg, err := sys.NSReceive(stream, readTimeout)
-		if err != nil {
-			errCount++
-			if errCount < readRetries {
-				continue
-			}
-			log.Printf("singleClientLoop:error in read: %v, closing stream %v (%d errors)", err, stream.StreamID(), errCount)
-			stream.Close()
-			return
-		}
-		log.Printf("singleClientLoop: received bundle of type %s on stream %v", msg.TypeUrl, stream.StreamID())
-		p, err := msg.UnmarshalNew()
-		if err != nil {
-			log.Printf("error in trying to unmarshal result of readStream: %v, closing stream", err)
-			stream.Close()
-			return
-		}
-		log.Printf("dispatching newly received object %T on stream %v", p, stream.StreamID())
+		log.Printf("dispatching new proto request")
 		switch m := p.(type) {
-		case *ns.CloseServiceRequest:
-			err = closeService(m, stream)
-		case *ns.ExportRequest:
-			err = export(m, stream)
-		case *ns.LocateRequest:
-			err = locate(m, stream)
-		case *ns.RequireRequest:
-			err = require(m, stream)
-		case *ns.RunBlockRequest:
-			err = runBlock(m, stream)
+		case *net.CloseServiceRequest:
+			log.Printf("dispatching to close service")
+			err = closeService(m, nr.RespChan())
+		case *net.ExportRequest:
+			log.Printf("dispatching to export")
+			err = export(m, nr.RespChan())
+		case *net.GetServiceRequest:
+			log.Printf("dispatching to get service")
+			err = getService(m, nr.RespChan())
+		case *net.RequireRequest:
+			log.Printf("dispatching to get require")
+			err = require(m, nr.RespChan())
+		case *net.RunBlockRequest:
+			log.Printf("dispatching to run block")
+			err = runBlock(m, nr.RespChan())
 		default:
 			panic(fmt.Sprintf("nameserver received a bundle from a client that it could not understand the type of:%T", p))
 		}
 		if err != nil {
-			log.Printf("got error from client stream %v: %v, closing stream", stream.StreamID(), err)
-			// close the stream to force a retry
-			stream.Close()
-			return
+			log.Printf("got error from processing client input: %v", err)
+			// close the stream
+			nr.RespChan() <- nil
 		}
 	}
 }
 
-// Setup a bare-bones TLS config for the server
-func generateTLSConfig() *tls.Config {
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
-	if err != nil {
-		panic(err)
+func closeService(m *net.CloseServiceRequest, respChan chan *anypb.Any) error {
+	log.Printf("close service , making sure it exists in our graph")
+	key := sys.NewDepKeyFromAddr(m.GetAddr())
+	id := core.CloseService(key, m.GetPackagePath(), m.GetService())
+	if id != nil && id.IsError() {
+		log.Printf("closeservice: can't close service %s.%s [%s] because %s",
+			m.GetPackagePath(), m.GetService(), m.GetAddr(), id.Short())
+		respChan <- nil
+		return nil
 	}
-	template := x509.Certificate{SerialNumber: big.NewInt(1)}
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
-	if err != nil {
-		panic(err)
-	}
-	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-
-	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
-	if err != nil {
-		panic(err)
-	}
-	return &tls.Config{
-		Certificates: []tls.Certificate{tlsCert},
-		NextProtos:   []string{"quic-parigot-ns"},
-	}
-}
-
-func closeService(m *ns.CloseServiceRequest, stream quic.Stream) error {
-	log.Printf("xxx close service , making sure it exists in our grap on stream %v", stream.StreamID())
-	core.CloseService(m.GetPackagePath(), m.GetService())
 
 	// at the moment, we really don't track this in the network case
-	resp := &ns.CloseServiceResponse{
+	resp := &net.CloseServiceResponse{
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
-	log.Printf("xxx close service 3\n")
-	return sendResponse(resp, stream)
+	log.Printf("close service, computing response")
+	a := anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		respChan <- nil
+		return err
+	}
+	log.Printf("close service DONE!")
+	respChan <- &a
+	return nil
 }
 
-func export(m *ns.ExportRequest, stream quic.Stream) error {
+func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	// we lock here ONLY because the map requireWaitingList is not safe to read when others
 	// are updating it
 	waitLock.Lock()
 	defer waitLock.Unlock()
 	var failure lib.Id
-	log.Printf("xxx export on stream %v", stream.StreamID())
+	log.Printf("export of %d elements", len(m.GetExport()))
 
 	for _, export := range m.GetExport() {
 		pkg := export.GetPackagePath()
@@ -190,15 +143,26 @@ func export(m *ns.ExportRequest, stream quic.Stream) error {
 		notifyWaiter(name)
 	}
 	if failure != nil {
-		resp := &ns.ExportResponse{
+		resp := &net.ExportResponse{
 			KernelErr: lib.MarshalKernelErrId(failure),
 		}
-		return sendResponse(resp, stream)
+		a := anypb.Any{}
+		if err := a.MarshalFrom(resp); err != nil {
+			return err
+		}
+		respChan <- &a
+		return nil
 	}
-	resp := &ns.ExportResponse{
+	resp := &net.ExportResponse{
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
-	return sendResponse(resp, stream)
+	a := anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		respChan <- nil
+		return err
+	}
+	respChan <- &a
+	return nil
 }
 
 // notifyWaiter tells anybody on the waiting list that this new type is
@@ -230,45 +194,57 @@ func notifyWaiter(exportedTypeName string) {
 	}
 }
 
-func locate(m *ns.LocateRequest, stream quic.Stream) error {
+func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	pkg := m.GetPackagePath()
 	svc := m.GetService()
-	name := fmt.Sprintf("%s.%s", pkg, svc)
-	addr, ok := typeToHostMap[name]
-	if !ok {
-		log.Printf("shouldn't have many locate() failures due to ordering of startup...%s", name)
+
+	sdata := core.GetSData(pkg, svc)
+	if sdata == nil {
+		respChan <- nil
+		return lib.NewPerrorFromId("failed to find sData for "+pkg+"."+svc,
+			lib.NewKernelError(lib.KernelNotFound))
 	}
-	resp := &ns.LocateResponse{
-		Addr:      addr,
+
+	resp := &net.GetServiceResponse{
+
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
-	return sendResponse(resp, stream)
+	resp.Addr = sdata.GetKey().String()
+	resp.Sid = lib.MarshalServiceId(sdata.GetServiceId())
+
+	a := anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		respChan <- nil
+		return err
+	}
+	respChan <- &a
+	return nil
 }
 
-func runBlock(m *ns.RunBlockRequest, stream quic.Stream) error {
+func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
-	log.Printf("runblock: %s,%v on stream %v", m.GetAddr(), m.GetWaiter(), stream.StreamID())
+	log.Printf("runblock: %s,%v ", m.GetAddr(), m.GetWaiter())
 	key := sys.NewDepKeyFromAddr(m.GetAddr())
-	copy_ := new(quic.Stream)
-	*copy_ = stream
 	info := &waitInfo{
 		ch:        make(chan bool),
-		stream:    *copy_,
 		waitStart: time.Now(),
 		waitId:    waitCounter,
 		waitKey:   key,
+		respChan:  respChan,
 	}
 	waitCounter++
 
 	if runBlockWaitingList[key.String()] != nil {
 		log.Printf("RUNBLOCK Found addr %s in the list already, ignoring", m.GetAddr())
+		respChan <- nil
 		return nil
 	}
 	log.Printf("runblock: 2 checked wait list")
 	if m.GetAddr() == "" {
 		log.Printf("RUNBLOCK Run block called with empty address, ignoring")
+		respChan <- nil
 		return nil
 
 	}
@@ -287,63 +263,55 @@ func runBlock(m *ns.RunBlockRequest, stream quic.Stream) error {
 				log.Printf("\t%s:%#v", k, v)
 			}
 			log.Printf("RUNBLOCK: waiting list %#v", runBlockWaitingList)
-			return
 		}
 		info.ch <- true
 	})
 
-	log.Printf("runblock: 4 done.... setting read timeout on %p", *copy_)
-	(*copy_).SetReadDeadline(time.Now().Add(longTimeout))
+	log.Printf("runblock: 4 done....")
 	return nil
 }
 
-func require(m *ns.RequireRequest, stream quic.Stream) error {
-	log.Printf("require reached start of func %v", stream.StreamID())
+func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
+	log.Printf("require reached start of func ")
 	waitLock.Lock()
 	defer waitLock.Unlock()
-	log.Printf("require after lock %v", stream.StreamID())
+	log.Printf("require after lock ")
 
 	for _, require := range m.GetRequire() {
 		pkg := require.GetPackagePath()
 		svc := require.GetService()
 		key := sys.NewDepKeyFromAddr(require.GetAddr())
 
-		log.Printf("require reached on %p and about to hit nscore require %s", stream, key)
+		log.Printf("require, about to hit nscore require %s", key)
 		// where should we put this?
 		if id := core.Require(key, pkg, svc); id != nil && id.IsError() {
+			respChan <- nil
 			return lib.NewPerrorFromId("require failed", id)
 		}
 	}
 
 	// tell them it's ok
-	resp := &ns.RequireResponse{
+	resp := &net.RequireResponse{
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
-	log.Printf("require sending response %v", stream.StreamID())
-	return sendResponse(resp, stream)
-}
-
-func sendResponse(resp proto.Message, stream quic.Stream) error {
-	var any anypb.Any
-	err := any.MarshalFrom(resp)
-	if err != nil {
+	log.Printf("require done, sending response ")
+	a := anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		respChan <- nil
 		return err
 	}
-	kerr := sys.NSSend(&any, stream)
-	if kerr.IsError() {
-		return lib.NewPerrorFromId("failed to send response to client", kerr)
-	}
+	respChan <- &a
 	return nil
 }
 
 // waitForReady runs on a different goroutine, it just waits for somebody to send a message
 // through the channel info.ch
 func waitForReady(info *waitInfo) {
-	log.Printf("blocking client called waitForReady (id is %d), stream is %v", info.waitId, info.stream.StreamID())
+	log.Printf("blocking client called waitForReady (id is %d)", info.waitId)
 	t := <-info.ch
-	log.Printf("blocking client finished waiting in waitForReady (id is %d) stream is %v", info.waitId, info.stream.StreamID())
+	log.Printf("blocking client finished waiting in waitForReady (id is %d)", info.waitId)
 
-	resp := &ns.RunBlockResponse{}
+	resp := &net.RunBlockResponse{}
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
@@ -353,8 +321,15 @@ func waitForReady(info *waitInfo) {
 	} else {
 		resp.ErrId = lib.MarshalKernelErrId(lib.NoKernelErr())
 	}
-	log.Printf("sending req resp on stream %v", info.stream.StreamID())
-	sendResponse(resp, info.stream)
+	log.Printf("sending req resp to original RunBlock requestor")
+
+	a := anypb.Any{}
+	err := a.MarshalFrom(resp)
+	if err != nil {
+		info.respChan <- nil
+	} else {
+		info.respChan <- &a
+	}
 
 	// remove from the map before we return and release the lock
 	_, ok := runBlockWaitingList[info.waitKey.String()]

@@ -114,7 +114,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	in.GetInPctx().Event = append(in.GetInPctx().GetEvent(),
 		&protosupport.PCtxEvent{
 			Line: []*protosupport.PCtxMessage{
-				&protosupport.PCtxMessage{
+				{
 					Stamp:   timestamppb.Now(),
 					Level:   log.LogLevel_LOGLEVEL_INFO,
 					Message: fmt.Sprintf("Call of %s by %s", in.Method, in.Caller),

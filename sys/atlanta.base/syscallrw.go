@@ -25,7 +25,7 @@ var syscallVerbose = true
 type syscallReadWrite struct {
 	mem  *jspatch.WasmMem
 	proc *Process // this is US
-	//these are just caches... recreating these on every call would be a waste
+
 	localSysCall  *localSysCall
 	remoteSysCall *remoteSyscall
 }
@@ -91,9 +91,9 @@ func (s *syscallReadWrite) Locate(sp int32) {
 
 	sysPrint("LOCATE ", "locate requested for %s.%s", pkg, service)
 
-	sid, err := s.procToSysCall().GetService(s.proc, pkg, service)
+	sid, err := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc), pkg, service)
 
-	if err != nil {
+	if err != nil && err.IsError() {
 		s.Write64BitPair(wasmPtr,
 			unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), err)
 		return
@@ -134,9 +134,10 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
 
 	sysPrint("DISPATCH", "about to FindByName: %s,%s", sid.Short(), method)
-	// we ask the nameserver to find us the appropriate process and method so we can call
-	// the other side... the nameserver also assigns us a call id
-	callCtx := s.procToSysCall().FindMethodByName(s.proc, sid, method)
+	// this call sets up the call context and it's tricky because the key abstraction is used
+	// for both the source and des, but one is local (Process) and the other is remote (addr)
+	source := NewDepKeyFromProcess(s.proc)
+	callCtx := s.procToSysCall().FindMethodByName(source, sid, method)
 
 	if callCtx == nil {
 		sysPrint("DISPATCH", "FindMethodByName failed for %s,%s", sid.Short(), method)
@@ -158,19 +159,27 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	callInfo := &callInfo{
 		mid:    callCtx.mid,
 		cid:    callCtx.cid,
-		caller: callCtx.sender, // also s.proc
+		sid:    callCtx.sid,
+		method: callCtx.method,
+		sender: callCtx.sender,
 		param:  destParam,
 		pctx:   destPctx,
 	}
 
 	// the magic: send the call value to the other process
-	callCtx.target.callCh <- callInfo
-
-	sysPrint("DISPATCH", "waiting for result from other process: %s", s.proc.String())
-	// wait for the other process to message us back with a result... note that we should be
-	// timing this out after some period of time.  xxx fixme  This situation occurs specifically
-	// if the callee (the server implementation) cannot receive the data because is it too large.
-	resultInfo := <-s.proc.resultCh
+	resultInfo, kerr := s.procToSysCall().CallService(callCtx.target, callInfo)
+	if kerr != nil && kerr.IsError() {
+		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
+			kerr)
+		return
+	}
+	if resultInfo == nil {
+		sysPrint("DISPATCH", "waiting for result from other process: %s", s.proc.String())
+		// wait for the other process to message us back with a result... note that we should be
+		// timing this out after some period of time.  xxx fixme  This situation occurs specifically
+		// if the callee (the server implementation) cannot receive the data because is it too large.
+		resultInfo = <-s.proc.resultCh
+	}
 
 	sysPrint("DISPATCH", "got result from other process %s,%s with sizes pctx=%d,result=%d", resultInfo.cid.Short(), resultInfo.errorId.Short(),
 		len(resultInfo.pctx), len(resultInfo.result))
@@ -367,8 +376,8 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
 
 	sysPrint("RETURNVALUE", "searching for process assocated with the call of %s", info.cid.Short())
-	proc := s.procToSysCall().GetProcessForCallId(s.proc, info.cid)
-	if proc == nil {
+	key := s.procToSysCall().GetProcessForCallId(info.cid)
+	if key == nil {
 		sysPrint("RETURNVALUE", "unable to find process that called %s", info.cid.Short())
 		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
@@ -377,7 +386,8 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	}
 	sysPrint("RESULTVALUE ", "computed info, found channel, sending results: %d,%d for result and pctx data",
 		len(info.result), len(info.pctx))
-	proc.resultCh <- info
+
+	key.(*DepKeyImpl).proc.resultCh <- info
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 		lib.NoKernelErr())
 	sysPrint("RESULTVALUE ", "finished")

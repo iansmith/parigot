@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go"
@@ -59,12 +60,39 @@ func walkArgs(engine *wasmtime.Engine, modToPath map[*wasmtime.Module]string) []
 	result := []*wasmtime.Module{}
 	for i := 0; i < flag.NArg(); i++ {
 		path := flag.Arg(i)
-		m, err := loadSingleModule(engine, path)
+		info, err := os.Stat(path)
 		if err != nil {
-			log.Fatalf("command line file argument #%d failed: %v", i, err)
+			if os.IsNotExist(err) {
+				log.Fatalf("unable to find command line argument '%s'", path)
+			}
+			log.Fatalf("error trying to stat '%s': %v", path, err)
 		}
-		modToPath[m] = path //for err mesgs
-		result = append(result, m)
+		if info.IsDir() {
+			ent, err := os.ReadDir(path)
+			if err != nil {
+				log.Fatalf("unable to read directory '%s': %v", path, err)
+			}
+			for _, entry := range ent {
+				if !strings.HasSuffix(entry.Name(), ".p.wasm") {
+					continue
+				}
+				foundPath := filepath.Join(path, entry.Name())
+				m, err := loadSingleModule(engine, foundPath)
+				if err != nil {
+					log.Fatalf("found file '%s' but could not load it: %v", foundPath, err)
+				}
+				modToPath[m] = foundPath
+				result = append(result, m)
+			}
+		} else {
+			// single file
+			m, err := loadSingleModule(engine, path)
+			if err != nil {
+				log.Fatalf("command line file argument #%d failed: %v", i, err)
+			}
+			modToPath[m] = path
+			result = append(result, m)
+		}
 	}
 	return result
 }
