@@ -20,7 +20,7 @@ services:
   storeserver:
     image: storeserver
     container_name: storeserver
-    entrypoint: /runner -r /data.wasm
+    entrypoint: /runner -r /
     environment:
       PARIGOT_NAMESERVER: parigot_ns:13339
       HOSTNAME: storeserver

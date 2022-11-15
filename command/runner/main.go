@@ -49,6 +49,7 @@ func main() {
 	if len(libs) == 0 {
 		log.Fatalf("unable to find any .wasm module files to load, pass filenames on the command line or use the -l option")
 	}
+	log.Printf("total number of modules found: %d (%+v)", len(libs), libs)
 
 	proc := []*sys.Process{}
 	maxModules := 0

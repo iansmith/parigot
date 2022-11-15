@@ -18,12 +18,12 @@ func sharedBind(ns *LocalNameServer, p *Process, packagePath, service, method st
 
 // sharedFindMethodByName uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
 // pass the nested localNameServer inside the netNameServer
-func sharedFindMethodByName(ns *LocalNameServer, caller *Process, sid lib.Id, method string) *callContext {
-	return ns.FindMethodByName(caller, sid, method)
+func sharedFindMethodByName(ns *LocalNameServer, key dep.DepKey, sid lib.Id, method string) *callContext {
+	return ns.FindMethodByName(key, sid, method)
 }
 
 func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
-	if kerr := ns.CloseService(pkg, service); kerr != nil && kerr.IsError() {
+	if kerr := ns.CloseService(key, pkg, service); kerr != nil && kerr.IsError() {
 		return kerr
 	}
 	if kerr := ns.Export(key, pkg, service); kerr != nil && kerr.IsError() {
@@ -37,6 +37,12 @@ func sharedHandleMethod(ns NameServer, proc *Process, pkg, service, method strin
 }
 func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	return ns.Require(key, pkg, service)
+}
+func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.Id) {
+	return ns.GetService(key, pkg, service)
+}
+func sharedCallService(ns NameServer, key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+	return ns.CallService(key, info)
 }
 
 func newLocalSysCall(ns *LocalNameServer) *localSysCall {
@@ -58,15 +64,22 @@ func (l *localSysCall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return l.nameServer.RunBlock(key)
 }
 
-func (l *localSysCall) FindMethodByName(caller *Process, serviceId lib.Id, name string) *callContext {
-	return sharedFindMethodByName(l.nameServer, caller, serviceId, name)
+func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, method string) *callContext {
+	return l.nameServer.FindMethodByName(caller, serviceId, method)
 }
-func (l *localSysCall) GetProcessForCallId(p *Process, cid lib.Id) *Process {
+func (l *localSysCall) GetProcessForCallId(cid lib.Id) dep.DepKey {
 	return l.nameServer.GetProcessForCallId(cid)
 }
-func (l *localSysCall) GetService(p *Process, pkgPath, service string) (lib.Id, lib.Id) {
-	return l.nameServer.GetService(pkgPath, service)
+func (l *localSysCall) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+	return sharedCallService(l.nameServer, key, info)
+}
+func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+	return sharedGetService(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
+}
+func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callInfo {
+	v := <-key.(*DepKeyImpl).proc.callCh
+	return v
 }

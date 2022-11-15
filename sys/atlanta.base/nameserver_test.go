@@ -2,6 +2,8 @@ package sys
 
 import (
 	"testing"
+
+	"github.com/iansmith/parigot/sys/dep"
 )
 
 func dummyProc(name string, number int) *Process {
@@ -17,11 +19,11 @@ func TestSimpleDead(t *testing.T) {
 	dummyA := dummyProc("a.wasm", 1)
 	dummyB := dummyProc("b.wasm", 2)
 
-	a := &EdgeHolder{
+	a := &dep.EdgeHolder{
 		proc:    dummyA,
 		require: []string{"foo.b"},
 	}
-	b := &EdgeHolder{
+	b := &dep.EdgeHolder{
 		proc:    dummyB,
 		require: []string{"foo.a"},
 	}

@@ -60,18 +60,24 @@ const (
 	// you must refactor your program so that you do not have a cyle to make
 	// it come up cleanly.
 	KernelDependencyCycle KernelErrorCode = 10
-	// KernelNameserverFailed means that we successfully connected to the nameserver, but failed
+	// KernelNetworkFailed means that we successfully connected to the nameserver, but failed
 	// during the communication process itself.
-	KernelNameserverFailed KernelErrorCode = 11
-	// KernelNameserverLost means that our internal connection to the remote nameserver
+	KernelNetworkFailed KernelErrorCode = 11
+	// KernelNetworkConnectionLost means that our internal connection to the remote nameserver
 	// was either still working but has lost "sync" in the protocol or the connection has
 	// become entirely broken.  The kernel will close the connection to remote nameserver
 	// and reestablish it after this error.
-	KernelNameserverLost KernelErrorCode = 12
+	KernelNetworkConnectionLost KernelErrorCode = 12
 	// KernelDataTooSmall means that the kernel was speaking some protocol with a remote server,
 	// such as a remote nameserver, and data read from the remote said was smaller than the protocol
 	// dictated, e.g. it did not contain a checksum after a data block.
 	KernelDataTooSmall KernelErrorCode = 13
+	// KernelConnectionFailed means that the attempt to open a connection to a remote
+	// service has failed to connect.
+	KernelConnectionFailed KernelErrorCode = 14
+	// KernelNSRetryFailed means that we tried twice to reach the nameserver with
+	// the given request, but both times could not do so.
+	KernelNSRetryFailed KernelErrorCode = 15
 )
 
 // NoKernelErr returns a kernel error id, with the value set to zero, or no error.
@@ -191,6 +197,9 @@ func idFromUint64(high uint64, low uint64, letter byte) Id {
 // UnmarshaServiceId goes from the protobuf concept of a service id (which is a large
 // protobuf-based structure) to a simple Id.
 func UnmarshalServiceId(sid *protosupport.ServiceId) Id {
+	if sid == nil {
+		return nil
+	}
 	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
 	verifyIdType(result, serviceIdLetter)
 	return result
@@ -223,6 +232,9 @@ func MarshalDeveloperId(id Id) *protosupport.DeveloperId {
 // UnmarshalMethodId goes from the protobuf concept of a method id (which is a large
 // protobuf-based structure) to a simple Id.
 func UnmarshalMethodId(mid *protosupport.MethodId) Id {
+	if mid == nil {
+		return nil
+	}
 	result := &IdBase{h: mid.GetHigh(), l: mid.GetLow()}
 	verifyIdType(result, methodIdLetter)
 	return result
@@ -238,8 +250,11 @@ func MarshalMethodId(id Id) *protosupport.MethodId {
 
 // UnmarshalCallId goes from the protobuf concept of a call id (which is a large
 // protobuf-based structure) to a simple Id.
-func UnmarshalCallId(mid *protosupport.CallId) Id {
-	result := &IdBase{h: mid.GetHigh(), l: mid.GetLow()}
+func UnmarshalCallId(cid *protosupport.CallId) Id {
+	if cid == nil {
+		return nil
+	}
+	result := &IdBase{h: cid.GetHigh(), l: cid.GetLow()}
 	verifyIdType(result, callIdLetter)
 	return result
 }

@@ -23,18 +23,23 @@ type NameServer interface {
 	HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
 	Export(key dep.DepKey, pkgPath, service string) lib.Id
 	Require(key dep.DepKey, pkgPath, service string) lib.Id
-	CloseService(pkgPath, service string) lib.Id
+	CloseService(key dep.DepKey, pkgPath, service string) lib.Id
 	RunNotify(key dep.DepKey)
 	RunBlock(key dep.DepKey) (bool, lib.Id)
 	RunIfReady(key dep.DepKey)
+	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id)
 	StartFailedInfo() string
+	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
+	CallService(dep.DepKey, *callInfo) (*resultInfo, lib.Id)
 }
 
 type callContext struct {
-	mid    lib.Id   // the method id this call is going to be made TO
-	target *Process // the process this call is going to be made TO
-	cid    lib.Id   // call id that should be be used by the caller to match results
-	sender *Process // the process this call is going to be made FROM
+	mid    lib.Id     // the method id this call is going to be made TO
+	method string     // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
+	target dep.DepKey // the process/addr this call is going to be made TO
+	cid    lib.Id     // call id that should be be used by the caller to match results
+	sender dep.DepKey // the process/addr this call is going to be made FROM
+	sid    lib.Id     // service that is being called
 }
 type LocalNameServer struct {
 	*NSCore
@@ -57,7 +62,7 @@ func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 // by the calling client to 1) know where to send the message and 2) how to block waiting on
 // the result.  The return result here is the property of the nameserver, don't mess with it,
 // just read it.
-func (n *LocalNameServer) FindMethodByName(caller *Process, serviceId lib.Id, name string) *callContext {
+func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) *callContext {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -75,7 +80,7 @@ func (n *LocalNameServer) FindMethodByName(caller *Process, serviceId lib.Id, na
 	}
 	cc := &callContext{
 		mid:    mid,
-		target: target.(*DepKeyImpl).proc,
+		target: target,
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
@@ -99,7 +104,7 @@ func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method s
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
-func (n *LocalNameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
+func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
@@ -109,7 +114,7 @@ func (n *LocalNameServer) GetService(pkgPath, service string) (lib.Id, lib.Id) {
 // GetProcessForCallId is used to match up responses with requests.  It
 // walks the in-flight calls and if it finds the target cid it returns
 // it and removes it from the in-flight list.
-func (n *LocalNameServer) GetProcessForCallId(target lib.Id) *Process {
+func (n *LocalNameServer) GetProcessForCallId(target lib.Id) dep.DepKey {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -132,11 +137,11 @@ func (n *LocalNameServer) GetProcessForCallId(target lib.Id) *Process {
 // closed or the service cannot be found and if so, we return
 // the appropriate kernel error to the caller wrapped in a
 // lib.Error.
-func (n *LocalNameServer) CloseService(pkgPath string, service string) lib.Id {
+func (n *LocalNameServer) CloseService(key dep.DepKey, pkgPath, service string) lib.Id {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	return n.NSCore.CloseService(pkgPath, service)
+	return n.NSCore.CloseService(key, pkgPath, service)
 }
 
 // Exports is used to inform the nameserver that a particular process
@@ -207,6 +212,11 @@ func (l *LocalNameServer) RunNotify(key dep.DepKey) {
 func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	b := <-key.(*DepKeyImpl).proc.runCh
 	return b, nil
+}
+
+func (l *LocalNameServer) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+	key.(*DepKeyImpl).proc.callCh <- info
+	return nil, nil
 }
 
 // InitNameServers initializes the two nameservers with a shared channel that

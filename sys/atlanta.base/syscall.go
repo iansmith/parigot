@@ -11,7 +11,9 @@ type SysCall interface {
 	Require(key dep.DepKey, packagePath, service string) lib.Id
 	RunBlock(key dep.DepKey) (bool, lib.Id)
 	RunNotify(key dep.DepKey)
-	GetProcessForCallId(p *Process, cid lib.Id) *Process
-	FindMethodByName(p *Process, sid lib.Id, method string) *callContext
-	GetService(p *Process, packagePath, service string) (lib.Id, lib.Id)
+	GetProcessForCallId(cid lib.Id) dep.DepKey
+	FindMethodByName(key dep.DepKey, sid lib.Id, method string) *callContext
+	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.Id)
+	CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id)
+	BlockUntilCall(key dep.DepKey) *callInfo
 }
