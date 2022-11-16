@@ -229,7 +229,8 @@ func (e *EdgeHolder) IsReady() bool {
 func (e *EdgeHolder) RemoveRequire(deadList []string) bool {
 	result := []string{}
 	changed := false
-	depgraphPrint("REMOVEREQUIRE ", " dead list? %d %+v", len(deadList), deadList)
+	depgraphPrint("REMOVEREQUIRE considering if node %s is now enabled to run", e.key.String())
+	depgraphPrint("REMOVEREQUIRE ", " exports to remove list size? %d values? %+v", len(deadList), deadList)
 	for _, req := range e.require {
 		found := false
 		for _, dead := range deadList {
@@ -238,12 +239,13 @@ func (e *EdgeHolder) RemoveRequire(deadList []string) bool {
 				break
 			}
 		}
-		depgraphPrint("REMOVEREQUIRE ", " req %s not found on dead list", req)
+		depgraphPrint("REMOVEREQUIRE ", " req %s not found on dead list of %s", req, e.key.String())
 		if !found {
 			result = append(result, req)
 			changed = true
 		}
 	}
+	depgraphPrint("REMOVEREQUIRE", "did %s change? %v", e.key.String(), changed)
 	e.require = result
 	return changed
 }
