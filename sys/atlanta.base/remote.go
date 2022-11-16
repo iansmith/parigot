@@ -54,5 +54,6 @@ func (r *remoteSyscall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return r.nameServer.RunBlock(key)
 }
 func (l *remoteSyscall) BlockUntilCall(key dep.DepKey) *callInfo {
+	print("xxx block until call hit on remote ", key.String(), "\n")
 	return l.nameServer.BlockUntilCall(key)
 }

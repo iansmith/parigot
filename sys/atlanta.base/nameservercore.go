@@ -285,7 +285,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 			n.alreadyExported = append(n.alreadyExported, candidate.Export()...)
 			nscorePrint("RUNIFREADY ", "already exported updated: %+v", n.alreadyExported)
 
-			nscorePrint("RUNIFREADY ", "running %s", candidate.Key())
+			nscorePrint("RUNIFREADY ", "notifying that %s is ready", candidate.Key())
 			fn(candidate.Key())
 		} else {
 			nscorePrint("RUNIFREADY ", "%s is not ready to run, number of candidates left is %d", candidate.Key(), len(candidateList))

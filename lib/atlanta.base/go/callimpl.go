@@ -430,6 +430,7 @@ func libprint(call, format string, arg ...interface{}) {
 }
 
 func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUntilCallResponse, error) {
+	libprint("BLCKUNTILCALL ", "has been reached %#v", in)
 	out := &call.BlockUntilCallResponse{
 		Method:  &protosupport.MethodId{High: 12, Low: 13},
 		Call:    &protosupport.CallId{High: 22, Low: 33},
@@ -438,12 +439,14 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 
 	payload := &BlockPayload{}
 
+	libprint("BLCKUNTILCALL ", "check buffer sizes")
 	if len(in.PctxBuffer) > 0 {
 		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	} else {
 		payload.PctxPtr = 0
 		payload.PctxLen = 0
 	}
+	libprint("BLCKUNTILCALL ", "prepare for syscall")
 	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
 	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
 	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))

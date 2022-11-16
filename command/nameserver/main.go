@@ -35,7 +35,7 @@ const sleepAmount = 2   //two secs between checks for timeout
 var core = sys.NewNSCore(false)
 
 type waitInfo struct {
-	ch        chan bool
+	//ch        chan bool
 	waitStart time.Time
 	waitId    int
 	// we keep this just we can reverse the mapping without walking
@@ -52,13 +52,53 @@ var runBlockWaitingList = make(map[string] /*dep.DepKey*/ *waitInfo)
 func main() {
 	go timeoutHandler()
 
+	// the listener and the channel he talks to us on
 	ch := make(chan *sys.NetResult)
 	_ = sys.NewQuicListener(parigotNSPort, sys.ParigotProtoNameServer, ch)
 
+	// This nameserver has three kinds of events he needs respond to.
+	// 1) Incoming requests from clients.  These are read by a different
+	// goroutine in the listener but it just queues all the requests in
+	// our channel (ch).  2) Requests to unblock a particular waiting
+	// program-- which is blocked waiting on us to respond to its
+	// runBlock() request.  The _detection_ of when a program is ok
+	// to run in handled by a different goroutine that then sends us
+	// a pointer to the particular waitInfo of the elgible program.
+	// 3) There is a timer that will cause us to timeout programs that
+	// have been waiting on a runblock for too long.  The timer is another
+	// go routine, but it just notifies on the timerCh.
+
+	// we alert him to a new waiter with this empty message
+	newWaiterCh := make(chan dep.DepKey)
+	// he messages us with this channel
+	readyCh := make(chan *waitInfo)
+
+	// The timer thread  sends a message every sleepAmount seconds.
+	timerCh := make(chan struct{})
+	go func() {
+		time.Sleep(sleepAmount * time.Second)
+		timerCh <- struct{}{}
+	}()
+
+	go checkForReadyWaiter(newWaiterCh, readyCh)
+
+	// process this loop until the end of time
 	for {
-		log.Printf("xxxx about to block on %p", ch)
-		nr := <-ch
-		log.Printf("xxxx read from %p", ch)
+
+		var nr *sys.NetResult
+
+		log.Printf("xxxx about to block on three channels...")
+		select {
+		case _ = <-timerCh:
+			timeoutHandler()
+			continue
+		case ready := <-readyCh:
+			log.Printf("got a notify on the ready chan (id=%d)", ready.waitId)
+			sendRunBlockResponse(ready, true)
+			continue
+		case nr = <-ch:
+		}
+		log.Printf("read a request from remote client: %s", nr.Key().String())
 
 		p, err := nr.Data().UnmarshalNew()
 		if err != nil {
@@ -82,7 +122,7 @@ func main() {
 			err = require(m, nr.RespChan())
 		case *net.RunBlockRequest:
 			log.Printf("dispatching to run block")
-			err = runBlock(m, nr.RespChan())
+			err = runBlock(m, nr.RespChan(), newWaiterCh)
 		default:
 			panic(fmt.Sprintf("nameserver received a bundle from a client that it could not understand the type of:%T", p))
 		}
@@ -139,8 +179,6 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 			failure = id
 			break
 		}
-		//might be folks waiting for that
-		notifyWaiter(name)
 	}
 	if failure != nil {
 		resp := &net.ExportResponse{
@@ -163,35 +201,6 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	}
 	respChan <- &a
 	return nil
-}
-
-// notifyWaiter tells anybody on the waiting list that this new type is
-// ready for consumption. This function does not lock, so the caller must
-// be holding the lock.
-func notifyWaiter(exportedTypeName string) {
-	graph := core.DependencyGraph().AllEdge()
-	candidateList := []dep.DepKey{}
-	for _, eh := range graph {
-		//look through the edges
-		for _, req := range eh.Require() {
-			if req == exportedTypeName {
-				candidateList = append(candidateList, eh.Key())
-				eh.RemoveRequire([]string{req})
-				break
-			}
-		}
-	}
-	for _, candidate := range candidateList {
-		core.RunIfReady(candidate, func(key dep.DepKey) {
-			wait := runBlockWaitingList[key.String()]
-			if wait == nil {
-				log.Printf("NOTIFYWAITER unable to find %s on the waiting list", key)
-				return // can't do anything here
-			}
-			// we need to tell him to hit it
-			wait.ch <- true
-		})
-	}
 }
 
 func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
@@ -221,53 +230,37 @@ func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	return nil
 }
 
-func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any) error {
+func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan dep.DepKey) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
-	log.Printf("runblock: %s,%v ", m.GetAddr(), m.GetWaiter())
+	log.Printf("runblock: %s,%v", m.GetAddr(), m.GetWaiter())
 	key := sys.NewDepKeyFromAddr(m.GetAddr())
 	info := &waitInfo{
-		ch:        make(chan bool),
 		waitStart: time.Now(),
 		waitId:    waitCounter,
 		waitKey:   key,
 		respChan:  respChan,
 	}
 	waitCounter++
+	log.Printf("runblock: %s is waiting id %d", m.GetAddr(), info.waitId)
 
 	if runBlockWaitingList[key.String()] != nil {
-		log.Printf("RUNBLOCK Found addr %s in the list already, ignoring", m.GetAddr())
+		log.Printf("runblock found addr %s in the waiting list already, ignoring", m.GetAddr())
 		respChan <- nil
 		return nil
 	}
-	log.Printf("runblock: 2 checked wait list")
+	log.Printf("runblock: checked waiting list...")
 	if m.GetAddr() == "" {
-		log.Printf("RUNBLOCK Run block called with empty address, ignoring")
+		log.Printf("Run block called with empty address, ignoring")
 		respChan <- nil
 		return nil
 
 	}
-	// this creates the record in the waiting list so we can block on it with a different goroutine
+	// this creates the record in the waiting list
 	runBlockWaitingList[key.String()] = info
-	go waitForReady(info)
-
-	log.Printf("runblock: 3 run in if ready")
-	// its possible that there is nothing to wait on
-	core.RunIfReady(key, func(key dep.DepKey) {
-		info, ok := runBlockWaitingList[key.String()]
-		if !ok {
-			log.Printf("RUNBLOCK unable to find their key in the waiting list, even though core says ready to run")
-			log.Printf("RUNBLOCK: waiting list has %d entries", len(runBlockWaitingList))
-			for k, v := range runBlockWaitingList {
-				log.Printf("\t%s:%#v", k, v)
-			}
-			log.Printf("RUNBLOCK: waiting list %#v", runBlockWaitingList)
-		}
-		info.ch <- true
-	})
-
-	log.Printf("runblock: 4 done....")
+	newWaiter <- key
+	log.Printf("runblock: DONE!")
 	return nil
 }
 
@@ -302,58 +295,4 @@ func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
 	}
 	respChan <- &a
 	return nil
-}
-
-// waitForReady runs on a different goroutine, it just waits for somebody to send a message
-// through the channel info.ch
-func waitForReady(info *waitInfo) {
-	log.Printf("blocking client called waitForReady (id is %d)", info.waitId)
-	t := <-info.ch
-	log.Printf("blocking client finished waiting in waitForReady (id is %d)", info.waitId)
-
-	resp := &net.RunBlockResponse{}
-	waitLock.Lock()
-	defer waitLock.Unlock()
-
-	if !t {
-		log.Printf("we've been told that we were timed out (id %d)", info.waitId)
-		resp.ErrId = lib.MarshalKernelErrId(lib.NewKernelError(lib.KernelNotFound))
-	} else {
-		resp.ErrId = lib.MarshalKernelErrId(lib.NoKernelErr())
-	}
-	log.Printf("sending req resp to original RunBlock requestor")
-
-	a := anypb.Any{}
-	err := a.MarshalFrom(resp)
-	if err != nil {
-		info.respChan <- nil
-	} else {
-		info.respChan <- &a
-	}
-
-	// remove from the map before we return and release the lock
-	_, ok := runBlockWaitingList[info.waitKey.String()]
-	if !ok {
-		log.Printf("unable to find the client info waiting for export %s (id %d) ", info.waitKey, info.waitId)
-	} else {
-		delete(runBlockWaitingList, info.waitKey.String())
-	}
-	// we've sent the client the response and removed them from the map, so we are done
-}
-
-func timeoutHandler() {
-	for {
-		time.Sleep(sleepAmount * time.Second)
-
-		// note that we assert the lock up here because it is not safe to read the map requireWaitingList
-		// with others modifying it
-		waitLock.Lock()
-		for _, info := range runBlockWaitingList {
-			if time.Now().Sub(info.waitStart) > time.Duration(timeoutClient*time.Second) {
-				info.ch <- false
-				// note that the channel receiver does the work of removing himself from the requireWaitingList
-			}
-		}
-		waitLock.Unlock()
-	}
 }
