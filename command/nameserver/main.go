@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"hash/crc32"
 	"log"
 	"sync"
 	"time"
@@ -15,23 +14,9 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// XXX these are duplicates of the values in the netnameserver.go code that is the client
-var koopmanTable = crc32.MakeTable(crc32.Koopman)
-var writeTimeout = 250 * time.Millisecond
-var readTimeout = writeTimeout
-var longTimeout = 10 * time.Second //ugh
-var readBufferSize = 4096
-var magicStringOfBytes = uint64(0x1789071417760704)
-
-const frontMatter = 12
-const trailer = 4
-const readRetries = 8
-
 const parigotNSPort = 13330
-
-const timeoutClient = 6 // amount of time after which we decide your require aint gonna happen
+const timeoutClient = 6 // amount of time after which we decide your require(s) aint gonna happen
 const sleepAmount = 2   //two secs between checks for timeout
-
 var core = sys.NewNSCore(false)
 
 type waitInfo struct {
