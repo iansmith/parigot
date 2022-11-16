@@ -71,6 +71,7 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 	inCh := make(chan *NetResult)
 	nsCh := make(chan *NetResult)
 	nns := &NetNameServer{
+		NSCore:    NewNSCore(false),
 		local:     loc,
 		localAddr: myAddr,
 		localKey:  NewDepKeyFromAddr(myAddr),
@@ -80,26 +81,16 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 		nsCall: newQuicCaller(
 			fmt.Sprintf("%s:%d", parigotNSHost, parigotNSPort),
 			ParigotProtoNameServer, nsCh),
-		rpcCaller: make(map[string]*quicCaller),
-		rpcChan:   make(map[string]chan *NetResult),
+		serviceLoc: make(map[string]string),
+		rpcCaller:  make(map[string]*quicCaller),
+		rpcChan:    make(map[string]chan *NetResult),
 	}
 	return nns
 }
 
-// func (n *NetNameServer) makeRequest(in *anypb.Any) (*anypb.Any, lib.Id) {
-// 	n.nsChan <- in
-// 	nsResult := <-n.nsResultCh
-// 	if !nsResult.retry {
-// 		return nsResult.data, nsResult.kerr
-// 	}
-// 	n.nsChan <- in
-// 	second := <-n.nsResultCh
-// 	if second.retry {
-// 		return nil, lib.NewKernelError(lib.KernelNSRetryFailed)
-// 	}
-// 	return second.data, second.kerr
-// }
-
+// makeRequest is just a convenience wrapper around constructing a netResult
+// and doing the write+read to the appropriate channels.  this is ONLY for the
+// nameserver.
 func (n *NetNameServer) makeRequest(a *anypb.Any) *anypb.Any {
 	nr := NetResult{}
 	nr.SetData(a)
@@ -255,27 +246,40 @@ func (n *NetNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.I
 	}
 	addr := resp.GetAddr()
 	sid := lib.NewServiceId()
+	netnameserverPrint("GETSERVICE ", "addr is %s and sid is %s", addr, sid.Short())
 	n.serviceLoc[sid.String()] = addr
 	return sid, nil
 }
 
 func (n *NetNameServer) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext {
+	netnameserverPrint("FINDMETHBYNAME", "key is %s, service id %s, method %s (n.serviceLoc is nil? %v)",
+		key.String(), serviceId.Short(), method, n.serviceLoc == nil)
+	// we need to make sure we have the sid mapping
+	loc, ok := n.serviceLoc[serviceId.String()]
+	if !ok {
+		netnameserverPrint("FINDMETHODBYNAME", "failed to get network addr for %s", serviceId.Short())
+		return nil
+	}
+	var mid lib.Id
 	sData := n.NSCore.GetSDataById(serviceId)
-
-	mid := sData.method[method]
-	if mid == nil {
-		mid := lib.NewMethodId()
-		sData.method[method] = mid
+	if sData != nil {
+		cachedMethodId, ok := sData.method[method]
+		if ok {
+			mid = cachedMethodId
+		}
 	}
 
-	return &callContext{
+	// we are going to return the callContext we'll need for the RPC
+	callCtx := &callContext{
 		mid:    mid,
 		cid:    lib.NewCallId(),
 		method: method,
 		sid:    serviceId,
-		target: key,
-		sender: NewDepKeyFromAddr(n.localAddr),
+		target: NewDepKeyFromAddr(loc),
+		sender: key,
 	}
+	netnameserverPrint("FINDMETHODBYNAME", "done with call context %s", callCtx.cid.Short())
+	return callCtx
 }
 
 func (n *NetNameServer) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
@@ -376,6 +380,7 @@ func (n *NetNameServer) StartFailedInfo() string {
 
 func (n *NetNameServer) BlockUntilCall(key dep.DepKey) *callInfo {
 	for {
+		netnameserverPrint("BLOCKUNTILCALL: key is %s and inCh is %p", key.String(), n.inCh)
 		a := <-n.inCh
 		req := net.RPCRequest{}
 		err := a.Data().UnmarshalTo(&req)

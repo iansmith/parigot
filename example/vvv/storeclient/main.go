@@ -23,11 +23,15 @@ func main() {
 		panic("error starting client process:" + err.Error())
 	}
 
+	storeclientPrint("xxx1 storeclient about to locate")
 	vinnysStore, err := vvv.LocateStore()
+	storeclientPrint("xxx2 locate ok? %v", err == nil)
 	if err != nil {
 		lib.Exit(1)
 	}
+	storeclientPrint("xxx3 enabling pctx %v", vinnysStore == nil)
 	vinnysStore.EnablePctx()
+	storeclientPrint("xxx4 creating new sold item request")
 
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,

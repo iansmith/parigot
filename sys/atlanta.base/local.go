@@ -80,6 +80,7 @@ func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callInfo {
+	print("xxx block until call hit on local ", key.String(), "\n")
 	v := <-key.(*DepKeyImpl).proc.callCh
 	return v
 }

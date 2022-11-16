@@ -144,8 +144,8 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
 		return
 	}
-	sysPrint("DISPATCH", "FindMethodByName done and OK: %s,%s from '%s'",
-		callCtx.cid.Short(), callCtx.mid.Short(), caller)
+	sysPrint("DISPATCH", "FindMethodByName done and OK: %s from '%s'",
+		callCtx.cid.Short(), caller)
 
 	destParam := make([]byte, len(param))
 	destPctx := make([]byte, len(pctx))

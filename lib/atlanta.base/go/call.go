@@ -23,5 +23,6 @@ type Call interface {
 var connector Call = newCallImpl()
 
 func CallConnection() Call {
+	print("xxx call connection returning connector\n")
 	return connector
 }
