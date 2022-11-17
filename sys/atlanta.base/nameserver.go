@@ -17,10 +17,10 @@ const MaxService = 127
 // These are the two nameservers.  They share a runNotifyChannel and created
 // by a call to InitNameServer()
 var LocalNS *LocalNameServer
-var NetNS *NetNameServer
+var NetNS *NSProxy
 
 type NameServer interface {
-	HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
+	//HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
 	Export(key dep.DepKey, pkgPath, service string) lib.Id
 	Require(key dep.DepKey, pkgPath, service string) lib.Id
 	CloseService(key dep.DepKey, pkgPath, service string) lib.Id
@@ -92,15 +92,15 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 
 // HandleMethod is called by the server side to indicate that it will handle a particular
 // method call on a particular service.
-func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method string) (lib.Id, lib.Id) {
-	n.lock.Lock()
-	defer n.lock.Unlock()
+// func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method string) (lib.Id, lib.Id) {
+// 	n.lock.Lock()
+// 	defer n.lock.Unlock()
 
-	nameserverPrint("HANDLEMETHOD(local) ", "adding method in the nameserver in process %s",
-		proc.String())
-	return n.NSCore.HandleMethod(NewDepKeyFromProcess(proc), pkgPath, service, method)
+// 	nameserverPrint("HANDLEMETHOD(local) ", "adding method in the nameserver in process %s",
+// 		proc.String())
+// 	return n.NSCore.HandleMethod(NewDepKeyFromProcess(proc), pkgPath, service, method)
 
-}
+// }
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
@@ -226,11 +226,11 @@ func InitNameServer(runNotifyChannel chan *KeyNSPair, local, remote bool) {
 		LocalNS = NewLocalNameServer(runNotifyChannel)
 	}
 	if remote {
-		loc := LocalNS
-		if !local {
-			loc = NewLocalNameServer(runNotifyChannel)
-		}
-		NetNS = NewNetNameserver(loc, "parigot_ns:13330")
+		// loc := LocalNS
+		// if !local {
+		// 	loc = NewLocalNameServer(runNotifyChannel)
+		// }
+		NetNS = NewNetNameserver("parigot_ns:13330")
 	}
 }
 

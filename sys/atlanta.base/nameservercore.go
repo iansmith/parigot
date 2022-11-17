@@ -167,6 +167,13 @@ func (n *NSCore) GetSDataById(sid lib.Id) *ServiceData {
 // create is called by client code that wants to be sure that a given
 // package is known.  It is, in some sense, the opposite of validatePackageAndService.
 func (n *NSCore) create(key dep.DepKey, pkgPath, service string) *ServiceData {
+	sid := n.newServiceId()
+	return n.CreateWithSid(key, pkgPath, service, sid)
+}
+
+// createWithSid means that the caller wants to pick the service id for the
+// new service being created.
+func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.Id) *ServiceData {
 	pData, ok := n.packageRegistry[pkgPath]
 	if !ok {
 		pData = newPackageData()
@@ -174,10 +181,11 @@ func (n *NSCore) create(key dep.DepKey, pkgPath, service string) *ServiceData {
 	}
 	sData, ok := pData.service[service]
 	if !ok {
-		sid := n.newServiceId()
 		sData = NewServiceData(sid)
 		pData.service[service] = sData
 		n.serviceIdToServiceData[sData.serviceId.String()] = sData
+		nscorePrint("CREATE", "created new service record: %s==%s",
+			sid.Short(), sData.serviceId.Short())
 		sData.key = key
 	}
 	return sData
@@ -319,21 +327,41 @@ func (n *NSCore) WaitingToRun() int {
 	return n.dependencyGraph.Len()
 }
 
-func (n *NSCore) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
-	// create the data for this package and service
-	sData := n.create(key, pkgPath, service)
-	result := lib.NewMethodId()
-	nameserverPrint("HANDLEMETHOD", "assigning %s to the method %s in service %s",
-		result, method, service)
-	sData.method[method] = result
-	sData.methodIdToImpl[result.String()] = key
+func (n *NSCore) FindOrCreateMethodId(key dep.DepKey, packagePath, service, method string) lib.Id {
+	sData, err := n.validatePkgAndService(packagePath, service)
+	if err != nil && err.IsError() {
+		nscorePrint("FINDORCREATEMID", "we need to create a service data for %s.%s", packagePath, service)
+		if !err.Equal(lib.NewKernelError(lib.KernelNotFound)) {
+			nscorePrint("FINDORCREATEMID ", "WARN unable to understand error from validatePackage() %s", err.Short())
+			return nil
+		}
+		sData = n.create(key, packagePath, service)
+	}
+	mid, ok := sData.method[method]
+	if !ok {
+		nscorePrint("FINDORCREATEMID", "we need to create a method id for %s.%s.%s", packagePath, service, method)
+		mid = lib.NewMethodId()
+		sData.method[method] = mid
+	}
+	return mid
 
-	// xxx fixme, should be able to realize that a method does not exist and reject the attempt to
-	// handle it
-
-	//xxx fixme, there should be a limit on the number of methods per service
-	return result, nil
 }
+
+// func (n *NSCore) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
+// 	// create the data for this package and service
+// 	sData := n.create(key, pkgPath, service)
+// 	result := lib.NewMethodId()
+// 	nameserverPrint("HANDLEMETHOD", "assigning %s to the method %s in service %s",
+// 		result, method, service)
+// 	sData.method[method] = result
+// 	sData.methodIdToImpl[result.String()] = key
+
+// 	// xxx fixme, should be able to realize that a method does not exist and reject the attempt to
+// 	// handle it
+
+// 	//xxx fixme, there should be a limit on the number of methods per service
+// 	return result, nil
+// }
 
 func nscorePrint(method, spec string, arg ...interface{}) {
 	if nscoreVerbose {

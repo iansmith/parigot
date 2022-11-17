@@ -54,6 +54,7 @@ type Process struct {
 	waiter     bool
 	reachedRun bool
 	exited     bool
+	server     bool
 	local      *bool
 
 	callCh   chan *callInfo
@@ -83,6 +84,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 		waiter:     false,
 		reachedRun: false,
 		exited:     false,
+		server:     false,
 
 		callCh:   make(chan *callInfo),
 		resultCh: make(chan *resultInfo),
@@ -111,7 +113,16 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	rt.SetMemPtr(memptr)
 	rt.SetProcess(proc)
 
+	if rt.spec.IsRemote(proc) {
+		proc.server = true
+	}
+
 	return proc, nil
+}
+
+func (p *Process) IsServer() bool {
+	// if we have a remote spec, then we are remote
+	return p.server
 }
 
 func (p *Process) String() string {

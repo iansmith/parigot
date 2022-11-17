@@ -457,18 +457,20 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	// THE CALL
 	u := uintptr(unsafe.Pointer(payload))
 	blockUntilCall(int32(u))
-
+	libprint("BLOCKUNTILCALL ", "finished call")
 	// unpack the result
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.ErrorPtr))))
 	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
 		return nil, NewPerrorFromId("BlockUntilCall error", kerr)
 	}
+	libprint("BLOCKUNTILCALL ", "no error found")
 
 	callDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.CallId))))
 	cid := CallIdFromUint64(uint64(callDataPtr[1]), uint64(callDataPtr[0]))
 	methDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.MethodId))))
 	mid := MethodIdFromUint64(uint64(methDataPtr[1]), uint64(methDataPtr[0]))
+	libprint("BLOCKUNTILCALL ", "mid computed %s", mid.Short())
 
 	out.Call = MarshalCallId(cid)
 	out.Method = MarshalMethodId(mid)

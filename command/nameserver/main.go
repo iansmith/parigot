@@ -156,9 +156,12 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	for _, export := range m.GetExport() {
 		pkg := export.GetPackagePath()
 		svc := export.GetService()
+		sid := lib.UnmarshalServiceId(export.GetServiceId())
 		name := fmt.Sprintf("%s.%s", pkg, svc)
 		addr := sys.NewDepKeyFromAddr(export.GetAddr())
-		log.Printf("EXPORT, key is %s, calling core Export for %s", addr, name)
+		log.Printf("EXPORT, key is %s, sid is %s calling core Export for %s",
+			addr, sid, name)
+		core.CreateWithSid(addr, pkg, svc, sid)
 		id := core.Export(addr, pkg, svc)
 		if id != nil {
 			failure = id
@@ -206,6 +209,7 @@ func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	resp.Addr = sdata.GetKey().String()
 	resp.Sid = lib.MarshalServiceId(sdata.GetServiceId())
 
+	log.Printf("found service requested (%s.%s)=>%s on %s", pkg, svc, sdata.GetServiceId(), sdata.GetKey().String())
 	a := anypb.Any{}
 	if err := a.MarshalFrom(resp); err != nil {
 		respChan <- nil

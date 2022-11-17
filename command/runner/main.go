@@ -141,7 +141,7 @@ func main() {
 	for {
 		allDead := true
 		for _, p := range proc {
-			if p.IsWaiter() && !p.Exited() {
+			if (p.IsWaiter() && !p.Exited()) || p.IsServer() {
 				allDead = false
 				break
 			}

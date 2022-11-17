@@ -7,18 +7,18 @@ import (
 
 // remoteSyscall is wrapped around a netNameServer which contains a local nameserver inside it.
 type remoteSyscall struct {
-	nameServer *NetNameServer
+	nameServer *NSProxy
 }
 
-func newRemoteSysCall(ns *NetNameServer) *remoteSyscall {
+func newRemoteSysCall(ns *NSProxy) *remoteSyscall {
 	return &remoteSyscall{
 		nameServer: ns,
 	}
 }
 
 func (r *remoteSyscall) Bind(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint("BIND", "about to jump to sharedBind")
-	return sharedBind(r.nameServer.local, p, packagePath, service, method)
+	sysPrint("BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
+	return sharedBind(r.nameServer.NSCore, p, packagePath, service, method)
 }
 
 func (r *remoteSyscall) Export(key dep.DepKey, pkg, service string) lib.Id {
@@ -33,9 +33,9 @@ func (r *remoteSyscall) RunNotify(key dep.DepKey) {
 	//nothing to do we don't use the runreader
 }
 
-func (r *remoteSyscall) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
-	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
-}
+// func (r *remoteSyscall) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
+// 	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
+// }
 
 func (r *remoteSyscall) FindMethodByName(caller dep.DepKey, sid lib.Id, method string) *callContext {
 	return r.nameServer.FindMethodByName(caller, sid, method)
@@ -54,6 +54,10 @@ func (r *remoteSyscall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return r.nameServer.RunBlock(key)
 }
 func (l *remoteSyscall) BlockUntilCall(key dep.DepKey) *callInfo {
-	print("xxx block until call hit on remote ", key.String(), "\n")
-	return l.nameServer.BlockUntilCall(key)
+	info := l.nameServer.BlockUntilCall(key)
+	// this loop is because we get the "error" case as a nil
+	for info == nil {
+		info = l.nameServer.BlockUntilCall(key)
+	}
+	return info
 }
