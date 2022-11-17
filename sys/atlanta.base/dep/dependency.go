@@ -239,13 +239,16 @@ func (e *EdgeHolder) RemoveRequire(deadList []string) bool {
 				break
 			}
 		}
-		depgraphPrint("REMOVEREQUIRE ", " req %s not found on dead list of %s", req, e.key.String())
-		if !found {
-			result = append(result, req)
+		depgraphPrint("REMOVEREQUIRE ", " req %s found on %s ?? %v", req, e.key.String(), found)
+		if found {
+
 			changed = true
+		} else {
+			result = append(result, req)
+			depgraphPrint("REMOVEREQUIRE ", " not found, so what was the content? %#v", e.require)
 		}
 	}
-	depgraphPrint("REMOVEREQUIRE", "did %s change? %v", e.key.String(), changed)
+	depgraphPrint("REMOVEREQUIRE", "did %s change? %v (new result is %#v)", e.key.String(), changed, result)
 	e.require = result
 	return changed
 }

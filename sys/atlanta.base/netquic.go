@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	"github.com/iansmith/parigot/sys/dep"
 	quic "github.com/lucas-clemente/quic-go"
@@ -73,6 +74,7 @@ func NewQuicListener(port int, proto []string, ch chan *NetResult) *QuicListener
 		panic("cant establish a quic listener:" + err.Error() + " is the listener already running?")
 	}
 	ql := &QuicListener{listener: listener, ch: ch}
+	quicListenerPrint("NEWQUICLISTENER ", "port %d, chan %p", port, ch)
 	go ql.waitForConnections()
 	return ql
 }
@@ -108,20 +110,23 @@ func (q *QuicListener) waitForStreams(conn quic.Connection) {
 // and then pushes it through the channel
 func (q *QuicListener) waitForRequests(stream quic.Stream, remote net.Addr) {
 	for {
+		quicListenerPrint("WAITFORREQ", "about to read from stream (%v), remote=%s, chan=%p",
+			stream.StreamID(), remote.String(), q.ch)
 		a, err := NetReceive(stream, readTimeout)
+		quicListenerPrint("WAITFORREQ", "read from stream (%v), err? %v", stream.StreamID(), err != nil)
 		if err != nil {
 			quicListenerPrint("WAITFORREQ", "error receiving: %v, closing stream", err)
 			stream.Close()
 			return
 		}
-		log.Printf("got to net result construction in listener: %s", a.TypeUrl)
+		quicListenerPrint("WAITFORREQ", "got to net result construction in listener: %s, (stream %v)", a.TypeUrl, stream.StreamID())
 		nr := NetResult{}
 		nr.SetData(a)
 		nr.SetKey(NewDepKeyFromAddr(remote.String()))
 		nr.SetRespChan(make(chan *anypb.Any))
-		log.Printf("sending through channel: %s, sending to %p", a.TypeUrl, q.ch)
+		quicListenerPrint("WAITFORREQ", "sending through channel: %s, sending to %p", a.TypeUrl, q.ch)
 		q.ch <- &nr
-		log.Printf("blocking on response: %s", a.TypeUrl)
+		quicListenerPrint("WAITFORREQ", "blocking on response: %s", a.TypeUrl)
 		out := <-nr.RespChan()
 		if out == nil {
 			log.Printf("got response after block, but it's a nil in response to %s", a.TypeUrl)
@@ -145,49 +150,80 @@ func newQuicCaller(addr string, proto []string, ch chan *NetResult) *quicCaller 
 		proto:      proto,
 		ch:         ch,
 	}
-	go q.start()
+	go q.run()
 	return q
 }
 
-func (q *quicCaller) start() {
+func (q *quicCaller) run() {
+	// this datastructure is not accessed concurrently
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true,
 		NextProtos:         q.proto,
 	}
-	quicCallerPrint("CALL ", "dialing %s...", q.targetAddr)
+	var conn quic.Connection
+	var err error
 	for {
-		conn, err := quic.DialAddr(q.targetAddr, tlsConf, nil)
+		conn, err = quic.DialAddr(q.targetAddr, tlsConf, &quic.Config{
+			KeepAlivePeriod: 5 * time.Second,
+		})
 		if err != nil {
-			panic("unable to establish connection the remote server:" + err.Error() + " are you sure it's running?")
+			quicCallerPrint("RUN ", "unable to make connection to %s, will retry in 5 seconds", q.targetAddr)
+			time.Sleep(5 * time.Second)
+			continue
 		}
-		q.useConnection(conn)
+		quicCallerPrint("RUN ", "created connection to %s, our addr is %s", q.targetAddr, conn.LocalAddr().String())
+		break
+	}
+
+	for {
+		nr := <-q.ch
+		var a *anypb.Any
+
+		stream, err := conn.OpenStreamSync(context.Background())
+		if err != nil {
+			quicCallerPrint("RUN ", "unable create stream to %s (although we connected ok), aborting call, error = %v, %T", q.targetAddr, err, err)
+			nr.respCh <- nil
+			continue
+		}
+		err = NetSend(nr.Data(), stream)
+		if err != nil {
+			quicCallerPrint("RUN ", "unable to write stream, aborting call, error = %v", err)
+			stream.Close()
+			nr.respCh <- nil
+			continue
+		}
+		a, err = NetReceive(stream, longReadTimeout)
+		if err != nil {
+			quicCallerPrint("RUN ", "unable to read stream, aborting call, error = %v", err)
+			stream.Close()
+			nr.respCh <- nil
+			continue
+		}
+		stream.Close()
+		nr.respCh <- a
 	}
 }
 
-func (q *quicCaller) useConnection(conn quic.Connection) {
-	stream, err := conn.OpenStreamSync(context.Background())
+func sendWithRetryOnIdle(a *anypb.Any, stream quic.Stream, conn quic.Connection) (quic.Stream, error) {
+	err := NetSend(a, stream)
+	_, ok := err.(*quic.IdleTimeoutError)
+	if !ok {
+		quicCallerPrint("SENDWITHRETRY", "error is %v, type is %T", err, err)
+		return nil, err
+	}
+	quicCallerPrint("SENDWITHRETRY", "after 1st error connection failure")
+	//stream.Close()
+	stream, err = conn.OpenStreamSync(context.Background())
+	_, ok = err.(*quic.IdleTimeoutError)
+	if !ok {
+		quicCallerPrint("SENDWITHRETRY", " failed attempt to create stream 2nd time, idle again %v", err)
+		return nil, err
+	}
 	if err != nil {
-		netnameserverPrint("USENSSTREAM", "unable to establish stream: %v, will try to reconnect", err)
-		return
+		quicCallerPrint("SENDWITHRETRY", "error on create stream was timout (%v), --- type is %T", err, err)
+		return nil, err
 	}
-	for {
-		a := <-q.ch
-		err := NetSend(a.Data(), stream)
-		if err != nil {
-			a.RespChan() <- nil
-			quicCallerPrint("USECONN ", "failed send data: %v", err)
-			stream.Close()
-			return
-		}
-		result, err := NetReceive(stream, longReadTimeout)
-		if err != nil {
-			a.RespChan() <- nil
-			quicCallerPrint("USECONN ", "failed to receive data: %v", err)
-			stream.Close()
-			return
-		}
-		a.RespChan() <- result
-	}
+	return stream, nil
 }
 
 func quicListenerPrint(method, spec string, arg ...interface{}) {

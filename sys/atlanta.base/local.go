@@ -9,11 +9,12 @@ type localSysCall struct {
 	nameServer *LocalNameServer
 }
 
-// sharedBind uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
-// pass the nested localNameServer inside the netNameServer
-func sharedBind(ns *LocalNameServer, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint("SHAREDBIND", "about to hit handle method")
-	return ns.HandleMethod(p, packagePath, service, method)
+// sharedBind takes an NSCore, not a nameserver.
+func sharedBind(core *NSCore, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
+	sysPrint("SHAREDBIND", "about to hit NSCore")
+	key := NewDepKeyFromProcess(p)
+	mid := core.FindOrCreateMethodId(key, packagePath, service, method)
+	return mid, nil
 }
 
 // sharedFindMethodByName uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
@@ -32,9 +33,9 @@ func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	return nil
 }
 
-func sharedHandleMethod(ns NameServer, proc *Process, pkg, service, method string) (lib.Id, lib.Id) {
-	return ns.HandleMethod(proc, pkg, service, method)
-}
+//	func sharedHandleMethod(ns NameServer, proc *Process, pkg, service, method string) (lib.Id, lib.Id) {
+//		return ns.HandleMethod(proc, pkg, service, method)
+//	}
 func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	return ns.Require(key, pkg, service)
 }
@@ -50,7 +51,8 @@ func newLocalSysCall(ns *LocalNameServer) *localSysCall {
 }
 
 func (l *localSysCall) Bind(proc *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	return sharedBind(l.nameServer, proc, packagePath, service, method)
+	sysPrint("BIND", "[local] bind for method %s on (%s.%s)", method, packagePath, service)
+	return sharedBind(l.nameServer.NSCore, proc, packagePath, service, method)
 }
 
 func (l *localSysCall) Export(key dep.DepKey, pkg, service string) lib.Id {
@@ -80,7 +82,6 @@ func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callInfo {
-	print("xxx block until call hit on local ", key.String(), "\n")
 	v := <-key.(*DepKeyImpl).proc.callCh
 	return v
 }

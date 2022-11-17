@@ -10,6 +10,7 @@ message ExportInfo {
   string package_path =1;
   string service =2 ;
   string addr=3;
+  protosupport.ServiceId service_id= 4;
 }
 message ExportRequest {
   repeated ExportInfo export = 1;

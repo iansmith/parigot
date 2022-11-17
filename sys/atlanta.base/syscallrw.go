@@ -284,9 +284,9 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 // BlockUntilCall is used by servers to block themselves until some other process sends them a
 // message.
 func (s *syscallReadWrite) BlockUntilCall(sp int32) {
-	call := <-s.proc.callCh
+	call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
 
-	sysPrint("BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.mid.Short())
+	sysPrint("BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.method)
 
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	sysPrint("BLOCKUNTILCALL ", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))

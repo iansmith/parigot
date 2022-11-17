@@ -35,9 +35,9 @@ var trailerSize = 4
 const parigotNSPort = 13330
 const parigotNSHost = "parigot_ns"
 
-type NetNameServer struct {
+type NSProxy struct {
 	*NSCore
-	local *LocalNameServer
+	//local *LocalNameServer
 
 	// info about us, in case we need to tell someone who/where we are
 	localKey  dep.DepKey
@@ -57,7 +57,7 @@ type NetNameServer struct {
 	nsCh   chan *NetResult
 }
 
-func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
+func NewNetNameserver(addr string) *NSProxy {
 	hostname, err := os.Hostname()
 	if err != nil {
 		panic(fmt.Sprintf("unable to get our own hostname in swarm %v", err))
@@ -70,9 +70,9 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 
 	inCh := make(chan *NetResult)
 	nsCh := make(chan *NetResult)
-	nns := &NetNameServer{
-		NSCore:    NewNSCore(false),
-		local:     loc,
+	nns := &NSProxy{
+		NSCore: NewNSCore(false),
+		//local:     loc,
 		localAddr: myAddr,
 		localKey:  NewDepKeyFromAddr(myAddr),
 		inCh:      inCh,
@@ -91,7 +91,7 @@ func NewNetNameserver(loc *LocalNameServer, addr string) *NetNameServer {
 // makeRequest is just a convenience wrapper around constructing a netResult
 // and doing the write+read to the appropriate channels.  this is ONLY for the
 // nameserver.
-func (n *NetNameServer) makeRequest(a *anypb.Any) *anypb.Any {
+func (n *NSProxy) makeRequest(a *anypb.Any) *anypb.Any {
 	nr := NetResult{}
 	nr.SetData(a)
 	nr.SetKey(n.localKey)
@@ -105,11 +105,16 @@ func (n *NetNameServer) makeRequest(a *anypb.Any) *anypb.Any {
 // Export is where user code ends up when they call Export, albeit via
 // a system call into the kernel (this side).  This invokes Export on the
 // remote nameserver to do the startup sequence.
-func (n *NetNameServer) Export(key dep.DepKey, packagePath, service string) lib.Id {
+func (n *NSProxy) Export(key dep.DepKey, packagePath, service string) lib.Id {
+	sData := n.NSCore.GetSData(packagePath, service)
+	if sData == nil {
+		sData = n.NSCore.create(key, packagePath, service)
+	}
 	expInfo := &net.ExportInfo{
 		PackagePath: packagePath,
 		Service:     service,
 		Addr:        n.localAddr,
+		ServiceId:   lib.MarshalServiceId(sData.serviceId),
 	}
 	expReq := &net.ExportRequest{
 		Export: []*net.ExportInfo{expInfo},
@@ -142,7 +147,7 @@ func (n *NetNameServer) Export(key dep.DepKey, packagePath, service string) lib.
 // Require is where user code ends up when they call Require, albeit via
 // a system call into the kernel (this side).  This invokes Require on the
 // remote nameserver to do the startup sequence.
-func (n *NetNameServer) Require(key dep.DepKey, packagePath, service string) lib.Id {
+func (n *NSProxy) Require(key dep.DepKey, packagePath, service string) lib.Id {
 	reqInfo := &net.RequireInfo{
 		PackagePath: packagePath,
 		Service:     service,
@@ -179,7 +184,7 @@ func (n *NetNameServer) Require(key dep.DepKey, packagePath, service string) lib
 // CloseService is where user code ends up when they call CloseService, albeit via
 // a system call into the kernel (this side).  This invokes CloseService on the
 // remote nameserver to indicate that a service has completing binding its names.
-func (n *NetNameServer) CloseService(key dep.DepKey, packagePath, service string) lib.Id {
+func (n *NSProxy) CloseService(key dep.DepKey, packagePath, service string) lib.Id {
 	req := &net.CloseServiceRequest{Addr: key.String(),
 		PackagePath: packagePath,
 		Service:     service,
@@ -212,15 +217,15 @@ func (n *NetNameServer) CloseService(key dep.DepKey, packagePath, service string
 // CloseService is where user code ends up when they call CloseService, albeit via
 // a system call into the kernel (this side).  This invokes CloseService on the
 // remote nameserver to indicate that a service has completing binding its names.
-func (n *NetNameServer) HandleMethod(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
+func (n *NSProxy) HandleMethod(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
 	panic("HandleMethod")
 }
 
-func (n *NetNameServer) RunNotify(key dep.DepKey) {
+func (n *NSProxy) RunNotify(key dep.DepKey) {
 	panic("shouldn't be calling run notify on a net nameserver")
 }
 
-func (n *NetNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
 	req := &net.GetServiceRequest{
 		PackagePath: pkgPath,
 		Service:     service,
@@ -251,7 +256,7 @@ func (n *NetNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.I
 	return sid, nil
 }
 
-func (n *NetNameServer) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext {
+func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext {
 	netnameserverPrint("FINDMETHBYNAME", "key is %s, service id %s, method %s (n.serviceLoc is nil? %v)",
 		key.String(), serviceId.Short(), method, n.serviceLoc == nil)
 	// we need to make sure we have the sid mapping
@@ -282,7 +287,7 @@ func (n *NetNameServer) FindMethodByName(key dep.DepKey, serviceId lib.Id, metho
 	return callCtx
 }
 
-func (n *NetNameServer) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+func (n *NSProxy) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
 	netnameserverPrint("CALLSERVICE", "key is %s", key)
 	// do we know where the service is?
 	addr, ok := n.serviceLoc[info.sid.String()]
@@ -336,7 +341,7 @@ func (n *NetNameServer) CallService(key dep.DepKey, info *callInfo) (*resultInfo
 	return resultInfo, nil
 }
 
-func (n *NetNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
+func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	req := &net.RunBlockRequest{
 		Waiter: false,
 		Addr:   n.localAddr,
@@ -362,44 +367,86 @@ func (n *NetNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 		netnameserverPrint("RUNBLOCK ", " read error from server %s", respErr.Short())
 		return false, respErr
 	}
-	netnameserverPrint("RUNBLOCK", "DONE! resp error? %v and time out %v?",
-		respErr, resp.GetTimedOut())
+	netnameserverPrint("RUNBLOCK", "DONE!")
 	return !resp.GetTimedOut(), nil
 }
 
-func (n *NetNameServer) RunIfReady(key dep.DepKey) {
+func (n *NSProxy) RunIfReady(key dep.DepKey) {
 	panic("we need to talk to the network to do this")
 }
 
 // StartFailedInfo is supposed to return details about why the
 // startup failed (e.g. a loop of dependencies). For now, we don't
 // have a way to calculate this in the network case.
-func (n *NetNameServer) StartFailedInfo() string {
+func (n *NSProxy) StartFailedInfo() string {
 	return n.NSCore.StartFailedInfo()
 }
 
-func (n *NetNameServer) BlockUntilCall(key dep.DepKey) *callInfo {
-	for {
-		netnameserverPrint("BLOCKUNTILCALL: key is %s and inCh is %p", key.String(), n.inCh)
-		a := <-n.inCh
-		req := net.RPCRequest{}
-		err := a.Data().UnmarshalTo(&req)
-		if err != nil {
-			netnameserverPrint("BLOCKUNTILCALL", "error trying to unmarshal request: %v", err)
-			a.RespChan() <- nil
-			continue
-		}
-		info := &callInfo{
-			mid:    lib.UnmarshalMethodId(req.GetMethodId()),
-			cid:    lib.UnmarshalCallId(req.GetCallId()),
-			param:  req.GetParam(),
-			pctx:   req.GetPctx(),
-			method: req.GetMethodName(),
-			sid:    lib.UnmarshalServiceId(req.GetServiceId()),
-			respCh: a.RespChan(),
-		}
-		return info
+func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callInfo {
+	netnameserverPrint("BLOCKUNTILCALL ", " key is %s and inCh is %p", key.String(), n.inCh)
+	a := <-n.inCh
+	req := net.RPCRequest{}
+	netnameserverPrint("BLOCKUNTILCALL ", " got a request through the channel %p, a==nil? %v", n.inCh, a == nil)
+	err := a.Data().UnmarshalTo(&req)
+	if err != nil {
+		netnameserverPrint("BLOCKUNTILCALL ", "error trying to unmarshal request: %v", err)
+		a.RespChan() <- nil
+		return nil
 	}
+	// the call id will be nil because the caller doesn't know anything about what is
+	// going on in our address space.  the method id MIGHT be nil, if he hasn't cache the
+	// method id from some previous call.
+	cid := lib.NewCallId()
+	sid := lib.UnmarshalServiceId(req.GetServiceId())
+	var mid lib.Id // empty
+	if req.GetMethodId() != nil {
+		mid = lib.UnmarshalMethodId(req.GetMethodId())
+		// cross check,just in case
+		sData := n.NSCore.GetSDataById(sid)
+		if sData != nil {
+			if !mid.Equal(sData.method[req.GetMethodName()]) {
+				netnameserverPrint("BLOCKUNTILCALL ", "WARN: ignorning provided mid %s because doesn't match our method table for %s",
+					mid.Short(), req.GetMethodName())
+				mid = sData.method[req.GetMethodName()]
+			}
+		}
+	} else {
+		sData := n.NSCore.GetSDataById(sid)
+		if sData == nil {
+			netnameserverPrint("BLOCKUNTILCALL ",
+				"WARN: Unable to find sData for sid %s -- number of entries in package table %d",
+				sid.Short(), len(n.NSCore.packageRegistry))
+			for k, pData := range n.NSCore.packageRegistry {
+				netnameserverPrint("BLOCKUNTILCALL ", "key in pkgReg=%s", k)
+				for s, sd := range pData.service {
+					netnameserverPrint("BLOCKUNTILCALL ", "key in service table=%s, sid on sData %s", s, sd.GetServiceId().Short())
+				}
+			}
+			netnameserverPrint("BLOCKUNTILCALL ", "number of entries in the table id to sdata %d ", len(n.NSCore.serviceIdToServiceData))
+			for k, v := range n.NSCore.serviceIdToServiceData {
+				netnameserverPrint("BLOCKUNTILCALL ", "\t\tservice Id %v -> %v", k, v.serviceId)
+			}
+		} else {
+			var ok bool
+			mid, ok = sData.method[req.GetMethodName()]
+			if !ok {
+				netnameserverPrint("WARN: Unable to find method id for name %s", req.GetMethodName())
+				mid = nil
+			}
+		}
+	}
+
+	info := &callInfo{
+		mid:    mid,
+		cid:    cid,
+		param:  req.GetParam(),
+		pctx:   req.GetPctx(),
+		method: req.GetMethodName(),
+		sid:    sid,
+		respCh: a.RespChan(),
+	}
+	netnameserverPrint("BLOCKUNTILCALL ", "finished creating info, callid=%s, method=%s", info.cid.Short(), info.method)
+	return info
 }
 
 func netnameserverPrint(method, spec string, arg ...interface{}) {
