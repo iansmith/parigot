@@ -36,7 +36,7 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = false
+var libparigotVerbose = true
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -430,7 +430,7 @@ func libprint(call, format string, arg ...interface{}) {
 }
 
 func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUntilCallResponse, error) {
-	libprint("BLCKUNTILCALL ", "has been reached %#v", in)
+	libprint("BLOCKUNTILCALL ", "has been reached ")
 	out := &call.BlockUntilCallResponse{
 		Method:  &protosupport.MethodId{High: 12, Low: 13},
 		Call:    &protosupport.CallId{High: 22, Low: 33},
@@ -439,7 +439,7 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 
 	payload := &BlockPayload{}
 
-	libprint("BLCKUNTILCALL ", "check buffer sizes")
+	libprint("BLOCKUNTILCALL ", "check buffer sizes")
 	if len(in.PctxBuffer) > 0 {
 		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	} else {

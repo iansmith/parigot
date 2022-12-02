@@ -20,6 +20,7 @@ type NSCore struct {
 	dependencyGraph        *dep.DepGraph
 	alreadyExported        []string
 	useLocalServiceId      bool
+	inFlight               map[string]*callContext // key is really lib.Id
 }
 
 func NewNSCore(useLocalServiceId bool) *NSCore {
@@ -30,6 +31,7 @@ func NewNSCore(useLocalServiceId bool) *NSCore {
 		serviceCounter:         7, //first 8 are reserved
 		alreadyExported:        []string{},
 		useLocalServiceId:      useLocalServiceId,
+		inFlight:               make(map[string]*callContext), // key is really lib.Id
 	}
 }
 
@@ -79,12 +81,12 @@ func newPackageData() *packageData {
 }
 
 type ServiceData struct {
-	serviceId      lib.Id
-	closed         bool
-	exported       bool
-	method         map[string]lib.Id
-	methodIdToImpl map[string]dep.DepKey
-	key            dep.DepKey
+	serviceId lib.Id
+	closed    bool
+	exported  bool
+	method    map[string]lib.Id
+	//methodIdToImpl map[string]dep.DepKey
+	key dep.DepKey
 }
 
 func (s *ServiceData) GetServiceId() lib.Id {
@@ -97,10 +99,10 @@ func (s *ServiceData) GetKey() dep.DepKey {
 
 func NewServiceData(sid lib.Id) *ServiceData {
 	return &ServiceData{
-		serviceId:      sid,
-		method:         make(map[string]lib.Id),
-		methodIdToImpl: make(map[string]dep.DepKey),
-		key:            nil,
+		serviceId: sid,
+		method:    make(map[string]lib.Id),
+		//methodIdToImpl: make(map[string]dep.DepKey),
+		key: nil,
 	}
 }
 
@@ -171,6 +173,19 @@ func (n *NSCore) create(key dep.DepKey, pkgPath, service string) *ServiceData {
 	return n.CreateWithSid(key, pkgPath, service, sid)
 }
 
+func (n *NSCore) DumpSIDTables() {
+	for pkg, pData := range n.packageRegistry {
+		nscorePrint("DUMP", "nscore package %s -> %p", pkg, pData)
+		for service, sdata := range pData.service {
+			nscorePrint("DUMP", "\t nscore service %s -> %p", service, sdata)
+			nscorePrint("DUMP", "\t service id on sdata %s", sdata.serviceId.Short())
+		}
+	}
+	for sid, sdata := range n.serviceIdToServiceData {
+		nscorePrint("DUMP", "mappnig: service id %s -> %p, with sid %s", sid, sdata, sdata.serviceId.String())
+	}
+}
+
 // createWithSid means that the caller wants to pick the service id for the
 // new service being created.
 func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.Id) *ServiceData {
@@ -194,7 +209,7 @@ func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.
 // Export tells the core that the given key is associated with the implementation
 // of the given pkgPath.Service.  The service must exist or a KernelNotFound error
 // wil result.
-func (n *NSCore) Export(key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *NSCore) Export(key dep.DepKey, pkgPath, service string, newSid lib.Id) lib.Id {
 	nscorePrint("EXPORT", "process %s exports %s.%s",
 		key.String(), pkgPath, service)
 	sData, err := n.validatePkgAndService(pkgPath, service)
@@ -207,6 +222,14 @@ func (n *NSCore) Export(key dep.DepKey, pkgPath, service string) lib.Id {
 	if sData.exported {
 		return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
 	}
+	if newSid != nil {
+		nscorePrint("EXPORT", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
+		oldSid := sData.serviceId
+		sData.serviceId = newSid
+		delete(n.serviceIdToServiceData, oldSid.String())
+		n.serviceIdToServiceData[newSid.String()] = sData
+	}
+
 	sData.exported = true
 	sData.key = key
 	node, ok := n.dependencyGraph.GetEdge(key)
@@ -369,4 +392,25 @@ func nscorePrint(method, spec string, arg ...interface{}) {
 		part2 := fmt.Sprintf(spec, arg...)
 		print(part1, part2, "\n")
 	}
+}
+
+// getContextForCallId returns the callContext for a given call id.  The call context
+// has all the information for all stages of processing.   If this function returns
+// nil that's bad because it means that we couldn't find a reference to the cid,
+// and that should not happen.  If we return the call context we _also_ have removed
+// that cid from the mapping, since you should only do this lookup once.
+func (n *NSCore) getContextForCallId(cid lib.Id) *callContext {
+	result := n.inFlight[cid.String()]
+	delete(n.inFlight, cid.String())
+	return result
+}
+
+// addCallContextMapping is used to add a new mapping from cid (actually cid.String()) to
+// the given call context. If the mapping already exists, this function panics.
+func (n *NSCore) addCallContextMapping(cid lib.Id, cctx *callContext) {
+	_, ok := n.inFlight[cid.String()]
+	if ok {
+		panic("found already existing element in inFlight mapping for " + cid.String())
+	}
+	n.inFlight[cid.String()] = cctx
 }

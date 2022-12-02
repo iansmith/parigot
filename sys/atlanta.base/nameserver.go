@@ -30,20 +30,24 @@ type NameServer interface {
 	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id)
 	StartFailedInfo() string
 	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
-	CallService(dep.DepKey, *callInfo) (*resultInfo, lib.Id)
+	CallService(dep.DepKey, *callContext) (*resultInfo, lib.Id)
+	GetInfoForCallId(target lib.Id) *callContext
 }
 
 type callContext struct {
-	mid    lib.Id     // the method id this call is going to be made TO
-	method string     // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
-	target dep.DepKey // the process/addr this call is going to be made TO
-	cid    lib.Id     // call id that should be be used by the caller to match results
-	sender dep.DepKey // the process/addr this call is going to be made FROM
-	sid    lib.Id     // service that is being called
+	mid    lib.Id           // the method id this call is going to be made TO
+	method string           // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
+	target dep.DepKey       // the process/addr this call is going to be made TO
+	cid    lib.Id           // call id that should be be used by the caller to match results
+	sender dep.DepKey       // the process/addr this call is going to be made FROM
+	sid    lib.Id           // service that is being called
+	respCh chan *resultInfo // this is where to send the return results
+	param  []byte           // where to put the param data
+	pctx   []byte           // where to put the previous pctx
 }
+
 type LocalNameServer struct {
 	*NSCore
-	inFlight    []*callContext
 	lock        *sync.RWMutex
 	runNotifyCh chan *KeyNSPair
 }
@@ -51,7 +55,6 @@ type LocalNameServer struct {
 func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 	return &LocalNameServer{
 		lock:        new(sync.RWMutex),
-		inFlight:    []*callContext{},
 		runNotifyCh: runNotifyChannel,
 		NSCore:      NewNSCore(true),
 	}
@@ -60,8 +63,7 @@ func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 // FindMethodByName is called by the client side when doing a dispatch.  This is where the client
 // exchanges a service.id,name pair for the appropriate call context.  The call context is used
 // by the calling client to 1) know where to send the message and 2) how to block waiting on
-// the result.  The return result here is the property of the nameserver, don't mess with it,
-// just read it.
+// the result.
 func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) *callContext {
 	n.lock.Lock()
 	defer n.lock.Unlock()
@@ -74,19 +76,17 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 	if !ok {
 		return nil
 	}
-	target, ok := sData.methodIdToImpl[mid.String()]
-	if !ok {
-		return nil
-	}
 	cc := &callContext{
+		method: name,
+		sid:    serviceId,
 		mid:    mid,
-		target: target,
+		respCh: make(chan *resultInfo),
 		cid:    lib.NewCallId(),
 		sender: caller,
 	}
 	nameserverPrint("FINDMETHODBYNAME", "adding in flight rpc call %s and %s",
 		cc.cid.Short(), cc.sender.String())
-	n.inFlight = append(n.inFlight, cc)
+	n.NSCore.addCallContextMapping(cc.cid, cc)
 	return cc
 }
 
@@ -114,21 +114,11 @@ func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib
 // GetProcessForCallId is used to match up responses with requests.  It
 // walks the in-flight calls and if it finds the target cid it returns
 // it and removes it from the in-flight list.
-func (n *LocalNameServer) GetProcessForCallId(target lib.Id) dep.DepKey {
+func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	for i, cctx := range n.inFlight {
-		nameserverPrint("GETPROCESSFORCALLID", "checking in-flight rpc calls, cctx #%d, with target %s versus %s", i, target.Short(),
-			cctx.cid.Short())
-		if cctx.cid.Equal(target) {
-			n.inFlight[i] = n.inFlight[len(n.inFlight)-1]
-			n.inFlight = n.inFlight[:len(n.inFlight)-1]
-			// xxxfix me should we be checking the method id as well?
-			return cctx.sender
-		}
-	}
-	return nil
+	return n.NSCore.getContextForCallId(target)
 }
 
 // CloseService is called by a server to inform us (via lib
@@ -152,7 +142,7 @@ func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	return n.NSCore.Export(key, pkgPath, service)
+	return n.NSCore.Export(key, pkgPath, service, nil)
 }
 
 // Require is used to inform the nameserver that a particular process
@@ -214,7 +204,7 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return b, nil
 }
 
-func (l *LocalNameServer) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	key.(*DepKeyImpl).proc.callCh <- info
 	return nil, nil
 }
@@ -230,7 +220,7 @@ func InitNameServer(runNotifyChannel chan *KeyNSPair, local, remote bool) {
 		// if !local {
 		// 	loc = NewLocalNameServer(runNotifyChannel)
 		// }
-		NetNS = NewNetNameserver("parigot_ns:13330")
+		NetNS = NewNSProxy("parigot_ns:13330")
 	}
 }
 

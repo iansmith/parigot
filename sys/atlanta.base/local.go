@@ -42,7 +42,7 @@ func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.Id) {
 	return ns.GetService(key, pkg, service)
 }
-func sharedCallService(ns NameServer, key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	return ns.CallService(key, info)
 }
 
@@ -69,10 +69,10 @@ func (l *localSysCall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, method string) *callContext {
 	return l.nameServer.FindMethodByName(caller, serviceId, method)
 }
-func (l *localSysCall) GetProcessForCallId(cid lib.Id) dep.DepKey {
-	return l.nameServer.GetProcessForCallId(cid)
+func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {
+	return l.nameServer.GetInfoForCallId(cid)
 }
-func (l *localSysCall) CallService(key dep.DepKey, info *callInfo) (*resultInfo, lib.Id) {
+func (l *localSysCall) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	return sharedCallService(l.nameServer, key, info)
 }
 func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
@@ -81,7 +81,7 @@ func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
 }
-func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callInfo {
+func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callContext {
 	v := <-key.(*DepKeyImpl).proc.callCh
 	return v
 }

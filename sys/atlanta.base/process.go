@@ -57,7 +57,7 @@ type Process struct {
 	server     bool
 	local      *bool
 
-	callCh   chan *callInfo
+	callCh   chan *callContext
 	resultCh chan *resultInfo
 	runCh    chan bool
 }
@@ -86,7 +86,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 		exited:     false,
 		server:     false,
 
-		callCh:   make(chan *callInfo),
+		callCh:   make(chan *callContext),
 		resultCh: make(chan *resultInfo),
 		runCh:    make(chan bool),
 	}

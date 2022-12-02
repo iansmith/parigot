@@ -116,7 +116,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
 	sid := lib.ServiceIdFromUint64(uint64(high), uint64(low))
-
+	sysPrint("DISPATCH", "find method by naem will be called on service %s", sid.Short())
 	method := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodLen))
@@ -156,7 +156,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		destPctx = []byte{}
 	}
 	// send the message...
-	callInfo := &callInfo{
+	callInfo := &callContext{
 		mid:    callCtx.mid,
 		cid:    callCtx.cid,
 		sid:    callCtx.sid,
@@ -167,7 +167,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	}
 
 	// the magic: send the call value to the other process
-	resultInfo, kerr := s.procToSysCall().CallService(callCtx.target, callInfo)
+	resultInfo, kerr := s.procToSysCall().CallService(callCtx.sender, callInfo)
 	if kerr != nil && kerr.IsError() {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 			kerr)
@@ -284,6 +284,7 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 // BlockUntilCall is used by servers to block themselves until some other process sends them a
 // message.
 func (s *syscallReadWrite) BlockUntilCall(sp int32) {
+	// tricky, we have to pass a process here?
 	call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
 
 	sysPrint("BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.method)
@@ -368,26 +369,38 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	info.mid = lib.MethodIdFromUint64(uint64(high), uint64(low))
 	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
 	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
-	sysPrint("RETURNVALUE", "Errorfound in the call? %s", info.errorId)
+	sysPrint("RETURNVALUE", "Error found in the call? %s", info.errorId)
 	// if pctx len is 0 this is a no op
 	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
 	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
 
-	sysPrint("RETURNVALUE", "searching for process assocated with the call of %s", info.cid.Short())
-	key := s.procToSysCall().GetProcessForCallId(info.cid)
-	if key == nil {
-		sysPrint("RETURNVALUE", "unable to find process that called %s", info.cid.Short())
+	sysPrint("RETURNVALUE", "searching for process/addr assocated with the call of %s,%v", info.cid.Short(),
+		s.procToSysCall() == nil)
+
+	sysPrint("RETURNVALUE", "s.procToSysCall() %v,%T", s.procToSysCall(), s.procToSysCall())
+	callInfo := s.procToSysCall().GetInfoForCallId(info.cid)
+	sysPrint("RETURNVALUE", "checking result GetProcessForCallId(), info is nil? %v", info == nil)
+	if callInfo == nil {
+		sysPrint("RETURNVALUE", "unable to find process/addr that called %s", info.cid.Short())
 		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 			kerr)
 		return
 	}
-	sysPrint("RESULTVALUE ", "computed info, found channel, sending results: %d,%d for result and pctx data",
+	sysPrint("RESULTVALUE ", "computed info, found channel, sending results of sizes: %d,%d for result and pctx data",
 		len(info.result), len(info.pctx))
 
-	key.(*DepKeyImpl).proc.resultCh <- info
+	callerProc := callInfo.sender.(*DepKeyImpl).proc
+
+	if callerProc != nil {
+		sysPrint("RETURNVALUE ", "caller proc is %s", callerProc)
+	} else {
+		sysPrint("RETURNVALUE ", "no caller proc, caller addr is %s", callInfo.sender.(*DepKeyImpl).addr)
+	}
+	callInfo.respCh <- info
+
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 		lib.NoKernelErr())
 	sysPrint("RESULTVALUE ", "finished")
@@ -411,7 +424,7 @@ func (s *syscallReadWrite) procToSysCall() SysCall {
 
 // Export is used when a server wishes to express what services
 // he implements and that he has finished binding all the methods
-// of that service.
+// of that service.q
 func (s *syscallReadWrite) Export(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
