@@ -14,6 +14,7 @@ message RPCRequest {
 	// if you supply method_id, it takes precedence over the string
 	protosupport.MethodId method_id = 5;
 	string method_name = 6;
+	string sender = 7;
 }
 message RPCResponse {
 	bytes pctx = 1;

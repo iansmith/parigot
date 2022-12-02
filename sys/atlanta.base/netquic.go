@@ -233,6 +233,7 @@ func quicListenerPrint(method, spec string, arg ...interface{}) {
 		print(part1, part2, "\n")
 	}
 }
+
 func quicCallerPrint(method, spec string, arg ...interface{}) {
 	if quiclistenerVerbose {
 		part1 := fmt.Sprintf("QUICCALLER:%s", method)

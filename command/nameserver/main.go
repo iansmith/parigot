@@ -161,8 +161,8 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 		addr := sys.NewDepKeyFromAddr(export.GetAddr())
 		log.Printf("EXPORT, key is %s, sid is %s calling core Export for %s",
 			addr, sid, name)
-		core.CreateWithSid(addr, pkg, svc, sid)
-		id := core.Export(addr, pkg, svc)
+		//core.CreateWithSid(addr, pkg, svc, sid)
+		id := core.Export(addr, pkg, svc, sid)
 		if id != nil {
 			failure = id
 			break
@@ -194,6 +194,8 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	pkg := m.GetPackagePath()
 	svc := m.GetService()
+
+	core.DumpSIDTables()
 
 	sdata := core.GetSData(pkg, svc)
 	if sdata == nil {

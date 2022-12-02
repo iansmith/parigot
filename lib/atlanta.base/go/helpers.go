@@ -26,11 +26,12 @@ func Require1(packagePath, service string) (*call.RequireResponse, error) {
 	return CallConnection().Require(req)
 }
 
-// ReturnValueEncode is a layer on top of ReturnValue.  This is here because
-// there are number of cases and doing this in this library means
-// the code generator can be much simpler.  It just passes all the
-// information into here, and this function sorts it out.
+// ReturnValueEncode is a layer on top of ReturnValue.  This functions exists because
+// there are number of cases and doing this in this library means the code generator
+// can be much simpler.  It just passes all the information into here, and this function
+// sorts it out.
 func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx Pctx) (*call.ReturnValueResponse, error) {
+	libprint("RETURNVALUEENCODE ", "in return value %s, %s", cid.Short(), mid.Short())
 	var err error
 	var a anypb.Any
 	// xxxfixme we should be doing an examination of execError to see if it is a lib.Perror
@@ -39,6 +40,7 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	rv.Call = MarshalCallId(cid)
 	rv.Method = MarshalMethodId(mid)
 	rv.ErrorId = MarshalKernelErrId(NoKernelErr()) // just to allocate the space
+	libprint("RETURNVALUEENCODE ", "marshalError? %v execError ? %v", marshalError, execError)
 	if marshalError != nil || execError != nil {
 		if marshalError != nil {
 			rv.ErrorMessage = marshalError.Error()
@@ -56,18 +58,24 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	if err != nil {
 		goto internalMarshalProblem
 	}
-	err = a.MarshalFrom(out)
-	if err != nil {
-		goto internalMarshalProblem
-	}
-	rv.ResultBuffer, err = proto.Marshal(&a)
-	if err != nil {
-		goto internalMarshalProblem
+	if out != nil {
+		err = a.MarshalFrom(out)
+		if err != nil {
+			goto internalMarshalProblem
+		}
+		rv.ResultBuffer, err = proto.Marshal(&a)
+		if err != nil {
+			goto internalMarshalProblem
+		}
+	} else {
+		rv.ResultBuffer = nil
 	}
 
 	libprint("RETURNVALUEENCODE ", "size of result buffer %d, out %s", len(rv.ResultBuffer), out)
 	return CallConnection().ReturnValue(rv)
 internalMarshalProblem:
+	libprint("RETURNVALUEENCODE ", "internal encoding error: %v", err)
+
 	// this is an internal error, so we signal it the opposite way we did the others at the top
 	rv.ErrorMessage = ""
 	rv.ErrorId = MarshalKernelErrId(NewKernelError(KernelMarshalFailed))
