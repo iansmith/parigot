@@ -13,7 +13,7 @@ import (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true
+var processVerbose = false
 
 var lastProcessId = 7
 

@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/sys/dep"
 )
 
-var nscoreVerbose = true
+var nscoreVerbose = false
 
 // NScore is used by both the local and remote (net) name server implementations
 // to manage all the dependencies and handle require, export, and runWait.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-var depgraphVerbose = true
+var depgraphVerbose = false
 
 type DepKey interface {
 	String() string

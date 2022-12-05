@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-const nsioVerbose = true
+const nsioVerbose = false
 
 var ParigotProtoNameServer = []string{"quic-parigot-ns"}
 var ParigotProtoRPC = []string{"quic-parigot-rpc"}

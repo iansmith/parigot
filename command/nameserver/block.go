@@ -44,7 +44,6 @@ func checkForReadyWaiter(newCh chan dep.DepKey, notifyCh chan *waitInfo) {
 					log.Printf("WARNING: didn't find %s on the runBlockWaitingList even though NSCore thinks its ready", readyKey.String())
 					return
 				}
-				log.Printf("found that id=%d is ready, so putting him in the ready chan and removing from wait list", info.waitId)
 				notifyCh <- info
 				delete(runBlockWaitingList, readyKey.String())
 			})
