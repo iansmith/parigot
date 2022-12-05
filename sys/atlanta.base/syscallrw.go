@@ -17,7 +17,7 @@ import (
 //
 // Look at the doc for libparigotVerbose to see about interleaving issue with syscallVerbose and
 // libparigotVerbose.
-var syscallVerbose = true
+var syscallVerbose = false
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement

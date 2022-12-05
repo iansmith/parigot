@@ -20,7 +20,6 @@ message RPCResponse {
 	bytes pctx = 1;
 	bytes result = 2; 
 	protosupport.CallId call_id = 3;
-	protosupport.CallId method_id = 4; // so you can cache it for later
+	protosupport.MethodId method_id = 4; // so you can cache it for later
 	protosupport.KernelErrorId kerr_id = 5;
-
 }

@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	quiclistenerVerbose = true
-	quiccallerVerbose   = true
+	quiclistenerVerbose = false
+	quiccallerVerbose   = false
 )
 
 type QuicListener struct {
@@ -130,8 +130,6 @@ func (q *QuicListener) waitForRequests(stream quic.Stream, remote net.Addr) {
 		out := <-nr.RespChan()
 		if out == nil {
 			log.Printf("got response after block, but it's a nil in response to %s", a.TypeUrl)
-		} else {
-			log.Printf("blocking completed, got response: %s in reponse to %s", out.TypeUrl, a.TypeUrl)
 		}
 		if out == nil {
 			continue

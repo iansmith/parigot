@@ -72,18 +72,15 @@ func main() {
 
 		var nr *sys.NetResult
 
-		log.Printf("xxxx about to block on three channels...")
 		select {
 		case _ = <-timerCh:
 			timeoutHandler()
 			continue
 		case ready := <-readyCh:
-			log.Printf("got a notify on the ready chan (id=%d)", ready.waitId)
 			sendRunBlockResponse(ready, true)
 			continue
 		case nr = <-ch:
 		}
-		log.Printf("read a request from remote client: %s", nr.Key().String())
 
 		p, err := nr.Data().UnmarshalNew()
 		if err != nil {
@@ -91,7 +88,6 @@ func main() {
 			continue
 		}
 
-		log.Printf("dispatching new proto request")
 		switch m := p.(type) {
 		case *net.CloseServiceRequest:
 			log.Printf("dispatching to close service")
@@ -241,7 +237,6 @@ func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan d
 		respChan <- nil
 		return nil
 	}
-	log.Printf("runblock: checked waiting list...")
 	if m.GetAddr() == "" {
 		log.Printf("Run block called with empty address, ignoring")
 		respChan <- nil
@@ -256,17 +251,14 @@ func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan d
 }
 
 func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
-	log.Printf("require reached start of func ")
 	waitLock.Lock()
 	defer waitLock.Unlock()
-	log.Printf("require after lock ")
 
 	for _, require := range m.GetRequire() {
 		pkg := require.GetPackagePath()
 		svc := require.GetService()
 		key := sys.NewDepKeyFromAddr(require.GetAddr())
 
-		log.Printf("require, about to hit nscore require %s", key)
 		// where should we put this?
 		if id := core.Require(key, pkg, svc); id != nil && id.IsError() {
 			respChan <- nil
@@ -278,7 +270,6 @@ func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
 	resp := &net.RequireResponse{
 		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
 	}
-	log.Printf("require done, sending response ")
 	a := anypb.Any{}
 	if err := a.MarshalFrom(resp); err != nil {
 		respChan <- nil
