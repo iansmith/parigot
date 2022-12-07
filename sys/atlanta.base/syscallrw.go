@@ -156,18 +156,11 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		destPctx = []byte{}
 	}
 	// send the message...
-	callInfo := &callContext{
-		mid:    callCtx.mid,
-		cid:    callCtx.cid,
-		sid:    callCtx.sid,
-		method: callCtx.method,
-		sender: callCtx.sender,
-		param:  destParam,
-		pctx:   destPctx,
-	}
+	callCtx.param = destParam
+	callCtx.pctx = destPctx
 
 	// the magic: send the call value to the other process
-	resultInfo, kerr := s.procToSysCall().CallService(callCtx.sender, callInfo)
+	resultInfo, kerr := s.procToSysCall().CallService(callCtx.target, callCtx)
 	if kerr != nil && kerr.IsError() {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 			kerr)

@@ -10,7 +10,7 @@ import (
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = true
+var nameserverVerbose = false
 
 const MaxService = 127
 
@@ -83,6 +83,7 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		respCh: make(chan *resultInfo),
 		cid:    lib.NewCallId(),
 		sender: caller,
+		target: sData.key,
 	}
 	nameserverPrint("FINDMETHODBYNAME", "adding in flight rpc call %s and %s",
 		cc.cid.Short(), cc.sender.String())
@@ -205,8 +206,19 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 }
 
 func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
-	key.(*DepKeyImpl).proc.callCh <- info
-	return nil, nil
+	proc := key.(*DepKeyImpl).proc
+	proc.callCh <- info
+	nameserverPrint("CallService", "about to block on the response channel")
+	result := <-info.respCh
+	return result, nil
+}
+
+// BlockUntilCall implements the stopping of a program until a method is
+// called.  Because this all implemented locally in this case, it's just
+// matter of getting or putting the right things from each channel.
+func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
+	v := <-key.(*DepKeyImpl).proc.callCh
+	return v
 }
 
 // InitNameServers initializes the two nameservers with a shared channel that

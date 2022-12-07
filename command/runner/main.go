@@ -13,7 +13,7 @@ import (
 )
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true
+var runnerVerbose = false
 
 var libFile *string = flag.String("f", "", "the filename that has the list of wasm modules to load")
 var remote *bool = flag.Bool("r", false, "all services will use remote; use this flag for a docker swarm of microservices")
