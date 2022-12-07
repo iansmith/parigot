@@ -82,6 +82,15 @@ func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callContext {
-	v := <-key.(*DepKeyImpl).proc.callCh
-	return v
+	//func (l *remoteSyscall) BlockUntilCall(key dep.DepKey) *callContext {
+	info := l.nameServer.BlockUntilCall(key)
+	// this loop is because we get the "error" case as a nil
+	for info == nil {
+		info = l.nameServer.BlockUntilCall(key)
+	}
+	return info
+	// }
+	//
+	//	v := <-key.(*DepKeyImpl).proc.callCh
+	//	return v
 }
