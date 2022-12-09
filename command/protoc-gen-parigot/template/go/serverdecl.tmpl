@@ -123,6 +123,7 @@ func Run(impl {{$svcCamel}}Server) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
+		pctx.EventStart("---> call of {{$svcCamel}}.{{$methCamel}} <---")
 {{- if .InputCodeNeeded}}
 			req := &pb.{{$methCamel}}Request{}
 			marshalError = a.UnmarshalTo(req)

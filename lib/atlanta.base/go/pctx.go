@@ -44,7 +44,7 @@ func NewPctx() Pctx {
 	now := time.Now()
 	p := &protosupport.PCtx{
 		Event: []*protosupport.PCtxEvent{
-			&protosupport.PCtxEvent{
+			{
 				Message: fmt.Sprintf("PCtx created on client side"),
 			},
 		},
@@ -57,7 +57,12 @@ func NewPctx() Pctx {
 }
 
 func newPctxWithTime(t time.Time, inner *protosupport.PCtx) Pctx {
-	return &pctx{now: t, PCtx: inner}
+	p := &pctx{now: t, PCtx: inner}
+	if len(p.Event) > 0 {
+		p.openEvent = p.Event[len(p.Event)-1]
+		print("setting open event!! ", p.Event[len(p.Event)-1].Message, "\n")
+	}
+	return p
 }
 
 func (p *pctx) Now() time.Time {
@@ -65,10 +70,11 @@ func (p *pctx) Now() time.Time {
 }
 
 func (p *pctx) Log(level pblog.LogLevel, msg string) {
-	var t time.Time
+	t := time.Now()
 	if p.openEvent == nil {
 		p.EventStart("anonymous event created")
 	}
+	print("xxx log but p.openEvent ", p.openEvent.Message, "; size is ", len(p.Event), "; and message incoming is ", msg, "\n")
 	p.openEvent.Line = append(p.openEvent.GetLine(), &protosupport.PCtxMessage{
 		Stamp:   timestamppb.New(t),
 		Level:   level,

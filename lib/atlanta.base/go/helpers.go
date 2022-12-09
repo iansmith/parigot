@@ -2,6 +2,7 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/g/pb/call"
+	"github.com/iansmith/parigot/g/pb/log"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -42,11 +43,16 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	rv.ErrorId = MarshalKernelErrId(NoKernelErr()) // just to allocate the space
 	libprint("RETURNVALUEENCODE ", "marshalError? %v execError ? %v", marshalError, execError)
 	if marshalError != nil || execError != nil {
+		eText := ""
 		if marshalError != nil {
 			rv.ErrorMessage = marshalError.Error()
+			eText += "marshalError:" + marshalError.Error()
 		} else {
 			rv.ErrorMessage = execError.Error()
+			eText += "execError:" + execError.Error()
 		}
+		pctx.Log(log.LogLevel_LOGLEVEL_ERROR, eText)
+		pctx.EventFinish()
 		// we use this because the error didn't come from INSIDE
 		// the kernel itself, see below for more
 		rv.ErrorId = MarshalKernelErrId(NoKernelErr())
@@ -54,6 +60,7 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	}
 	// these are the mostly normal cases, but they can go hawywire
 	// due to marshalling
+	pctx.EventFinish()
 	rv.PctxBuffer, err = pctx.Marshal()
 	if err != nil {
 		goto internalMarshalProblem
