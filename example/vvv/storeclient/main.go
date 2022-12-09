@@ -28,12 +28,13 @@ func main() {
 		lib.Exit(1)
 	}
 	vinnysStore.EnablePctx()
-
+	vinnysStore.Log(lib.InfoLevel, fmt.Sprintf("About to call sold item implementation..."))
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	storeclientPrint("SoldItem returned ok?:  %v", err == nil)
+	vinnysStore.Log(lib.InfoLevel, fmt.Sprintf("SoldItem returned ok?:  %v", err == nil))
+	vinnysStore.DumpLog()
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}

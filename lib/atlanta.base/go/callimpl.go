@@ -10,12 +10,10 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/g/pb/call"
-	"github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type callImpl struct {
@@ -113,13 +111,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	}
 	in.GetInPctx().Event = append(in.GetInPctx().GetEvent(),
 		&protosupport.PCtxEvent{
-			Line: []*protosupport.PCtxMessage{
-				{
-					Stamp:   timestamppb.Now(),
-					Level:   log.LogLevel_LOGLEVEL_INFO,
-					Message: fmt.Sprintf("Call of %s by %s", in.Method, in.Caller),
-				},
-			},
+			Message: fmt.Sprintf("--> Call of %s by %s", in.Method, in.Caller),
 		})
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
