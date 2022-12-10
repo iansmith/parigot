@@ -19,6 +19,9 @@ does not care (and does not know) what tools you used to build your service.  An
 formed WASM file is a Parigot microservice, although the WASM file can't do much unless it is
 linked against the client side library of parigot.
 
+# You should probably ignore or take with a grain of salt all the information below this point. It was written well before we knew what we were doing.
+
+
 # ParigotApp
 ParigotApp is an app that supports some parts of normal development workflow.  The  
 development workflows that are supported by parigotApp are:

@@ -1,9 +1,6 @@
 package lib
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/iansmith/parigot/g/pb/call"
 	pblog "github.com/iansmith/parigot/g/pb/log"
 	"github.com/iansmith/parigot/g/pb/protosupport"
@@ -31,15 +28,17 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 func (c *ClientSideService) SetPctx(pctx *protosupport.PCtx) {
-	print("client side service: setting Pctx\n")
-	c.currentPctx = newPctxWithTime(time.Now(), pctx)
+	c.currentPctx = NewPctxFromProtosupport(pctx)
 }
+
 func (c *ClientSideService) EnablePctx() {
 	c.pctxEnabled = true
 }
+
 func (c *ClientSideService) DisablePctx() {
 	c.pctxEnabled = false
 }
+
 func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
 	if !c.pctxEnabled {
 		// we can't print a warning, we are not running in an environment with any type of output
@@ -57,23 +56,9 @@ func (c *ClientSideService) DumpLog() {
 		panic("attempt to dump client side log without pctx enabled")
 	}
 	if c.currentPctx == nil {
-		fmt.Printf("[no log output generated")
+		print("[no log output generated")
 	} else {
-		for i, e := range c.currentPctx.(*pctx).GetEvent() {
-			if e == nil {
-				print(fmt.Sprintf("NO EVENT FOUND #%05d\n", i))
-				continue
-			}
-			print(fmt.Sprintf("%05d:%s (%v,%v)\n", i, e.GetMessage(), e.GetLine() == nil, len(e.GetLine())))
-			for j, m := range e.GetLine() {
-				if m == nil {
-					print(fmt.Sprintf("\tNO MESSAGE FOUND #%05d\n", j))
-					continue
-				}
-				print(fmt.Sprintf("\t%05d:%d:%s:%s\n", j, m.GetLevel(),
-					m.GetStamp().AsTime().Format(time.Kitchen), m.GetMessage()))
-			}
-		}
+		print(c.currentPctx.Dump())
 	}
 
 }
@@ -91,7 +76,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.
 
 	var ughPuke *protosupport.PCtx
 	if c.currentPctx != nil {
-		ughPuke = c.currentPctx.(*pctx).PCtx
+		ughPuke = c.currentPctx.(*pctx).root
 	}
 
 	in := &call.DispatchRequest{

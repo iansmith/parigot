@@ -61,6 +61,7 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	// these are the mostly normal cases, but they can go hawywire
 	// due to marshalling
 	pctx.EventFinish()
+	libprint("RETURNVALUEENCODE -- log -- \n", pctx.Dump())
 	rv.PctxBuffer, err = pctx.Marshal()
 	if err != nil {
 		goto internalMarshalProblem

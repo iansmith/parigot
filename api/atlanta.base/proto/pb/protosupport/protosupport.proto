@@ -75,35 +75,39 @@ message CallId {
   uint64 low = 2;
 }
 
-// PCtx is the protobuf level version of lib.Pctx.  This type is passed to all implementations
-// of methods that are invoked by the server.  Optionally, client code can use lib.Pctx (a
+// PCtx is the protobuf level version of lib.Pctx.  User code can use lib.Pctx (a
 // wrapper around this type) to capture logs and other activities that occur during the processing
-// they perform.  For example, the client can provide his Pctx to the server when making a
-// call to a remote service and the logs of the _remote_ service will be collected into the
-// given Pctx.  A PCtx also includes a key/value store based on strings to allow various
+// they perform.  A PCtx also includes a key/value store based on strings to allow various
 // subsystems to pass data to each other as a single request is processed.  For example, 
 // a userService may put a UserId into the key/value store so that "downstream" calls will
 // already have the user id prepared for them.  This is broadly similar to the 
 // context.Context in go, although more highly structured.
 message PCtx {
-  repeated PCtxEvent event = 1;
+  // Although this typed as PCtxMessage we are assuming that only the "event" field
+  // is actually filled in ... it makes no sense to just have a single line as your "whole log"
+  PCtxMessage event = 1;
   map<string,string> entry = 2;
+  PCtxMessage open = 3;
 }
 
 // PCtxEvent represents an event that occurred during the processing of a call. This event
-// is recorded (the message) and then future log messages will accumulate "into" that event.
-// A good use of PCtxEvent is to indicate that a network call was made.
+// is recorded (the message) and then future log messages will accumulate "into" that event
+// until that event is closed. A good use of PCtxEvent is to indicate that a network call was 
+// made to another service.
 message PCtxEvent {
   string message = 1;
   repeated PCtxMessage line = 2;
+  PCtxMessage parent = 3;
 }
 
-// PCtxMessage is just a simple log message.  This different from a normal log message in that
-// it can participate in the PCtxEvent and PCtx scheme mentioned above to capture log 
-// messages across the entire chain of calls used to process a single request.
+// PCtxMessage is just a simple log message or a nested PctxEvent.  This different from a normal 
+// log message in that it can participate in the PCtxEvent and PCtx scheme mentioned above to 
+// capture log messages across the entire chain of calls used to process a single request.
 message PCtxMessage {
   google.protobuf.Timestamp stamp = 1;
   pb.log.LogLevel level = 2;
   string producer = 3;
   string message = 4;
+
+  PCtxEvent event = 5;
 }

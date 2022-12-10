@@ -34,7 +34,7 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = false
+var libparigotVerbose = true
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -106,13 +106,9 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
 	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
 
-	if in.GetInPctx() == nil {
-		in.InPctx = &protosupport.PCtx{}
-	}
-	in.GetInPctx().Event = append(in.GetInPctx().GetEvent(),
-		&protosupport.PCtxEvent{
-			Message: fmt.Sprintf("--> Call of %s by %s", in.Method, in.Caller),
-		})
+	pctx := NewPctxFromProtosupport(in.InPctx)
+	pctx.EventStart(fmt.Sprintf("--> Call of %s by %s", in.Method, in.Caller))
+
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
 		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewKernelError(KernelMarshalFailed))
