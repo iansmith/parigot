@@ -1,7 +1,0 @@
-Wasm.*
-WasmLexer.*
-wasm_base_listener.go
-wasm_lexer.go
-wasm_parser.go
-wasm_listener.go
-

@@ -258,7 +258,10 @@ func parigotTemplatesForImport(path string) ([]string, error) {
 func populateBinaryMap(entryPoint []string, binaryMap map[string]string) {
 	for _, j := range entryPoint {
 		parent, _ := filepath.Split(j)
-		_, name := filepath.Split(parent[:len(parent)-1])
+		if parent == "" {
+			parent, _ = os.Getwd()
+		}
+		_, name := filepath.Split(parent)
 		binaryMap[name] = parent
 	}
 }

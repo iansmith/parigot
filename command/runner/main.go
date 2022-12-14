@@ -9,7 +9,7 @@ import (
 
 	"github.com/iansmith/parigot/sys"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 )
 
 // Flip this flag for more detailed output from the runner.

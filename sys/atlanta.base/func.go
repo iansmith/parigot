@@ -1,7 +1,7 @@
 package sys
 
 import (
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike,

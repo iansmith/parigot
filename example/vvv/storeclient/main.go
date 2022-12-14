@@ -16,25 +16,45 @@ import (
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
+	print("xxx storeclient 1\n")
 	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
+	print("xxx storeclient 2\n")
+	// if _, err := lib.Require1("log", "Log"); err != nil {
+	// 	panic("unable to require log service: " + err.Error())
+	// }
+	print("xxx storeclient 3\n")
 	if _, err := lib.Run(true); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
+	print("xxx storeclient 4\n")
 
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
 		lib.Exit(1)
 	}
+	print("xxx storeclient 5\n")
+	// logger, err := log.LocateLog()
+	// if err != nil {
+	// 	lib.Exit(1)
+	// }
+	print("xxx storeclient 6\n")
 	vinnysStore.EnablePctx()
-	vinnysStore.Log(lib.InfoLevel, fmt.Sprintf("About to call sold item implementation..."))
+	print("xxx storeclient 7\n")
+	// logger.Log(&pblog.LogRequest{
+	// 	Level:   lib.InfoLevel,
+	// 	Message: fmt.Sprintf("About to call sold item implementation..."),
+	// })
+	print("xxx storeclient 8\n")
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
+	print("xxx storeclient 9\n")
 	vinnysStore.Log(lib.InfoLevel, fmt.Sprintf("SoldItem returned ok?:  %v", err == nil))
-	vinnysStore.DumpLog()
+	print("xxx storeclient 10\n")
+	//vinnysStore.DumpLog()
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}

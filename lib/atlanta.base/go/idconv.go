@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/iansmith/parigot/g/pb/protosupport"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 )
 
 const (

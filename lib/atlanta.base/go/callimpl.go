@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/g/pb/call"
-	"github.com/iansmith/parigot/g/pb/protosupport"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -413,7 +413,7 @@ func libprint(call, format string, arg ...interface{}) {
 	if libparigotVerbose {
 		part1 := fmt.Sprintf("libparigot:%s", call)
 		part2 := fmt.Sprintf(format, arg...)
-		print(part1, part2, "\n")
+		print(part1, " ", part2, "\n")
 	}
 }
 
@@ -427,19 +427,24 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 
 	payload := &BlockPayload{}
 
-	libprint("BLOCKUNTILCALL ", "check buffer sizes")
+	libprint("BLOCKUNTILCALL ", "check buffer sizes-0")
 	if len(in.PctxBuffer) > 0 {
+		libprint("BLOCKUNTILCALL ", "check buffer sizes-A")
 		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	} else {
+		libprint("BLOCKUNTILCALL ", "check buffer sizes-B")
 		payload.PctxPtr = 0
 		payload.PctxLen = 0
 	}
-	libprint("BLCKUNTILCALL ", "prepare for syscall")
+	libprint("BLOCKUNTILCALL ", "prepare for syscall-1")
 	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
+	libprint("BLOCKUNTILCALL ", "prepare for syscall-2")
 	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	libprint("BLOCKUNTILCALL ", "prepare for syscall-3")
 	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
+	libprint("BLOCKUNTILCALL ", "prepare for syscall-4")
 	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
-	libprint("BLOCKUNTILCALL ", "params ready (%x,%d) and (%x,%d)",
+	libprint("BLOCKUNTILCALL ", "params ready (%x,%d) and (%x,%d)\n",
 		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen)
 
 	// THE CALL

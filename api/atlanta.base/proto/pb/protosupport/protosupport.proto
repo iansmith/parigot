@@ -2,7 +2,7 @@ syntax ="proto3";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "pb/log/log.proto";
-option go_package="github.com/iansmith/parigot/g/pb/protosupport;protosupport";
+option go_package="github.com/iansmith/parigot/api/proto/g/pb/protosupport;protosupport";
 package pb.protosupport;
 
 

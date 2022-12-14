@@ -1,6 +1,6 @@
 syntax = "proto3";
 package log;
-option go_package="github.com/iansmith/parigot/g/log;log";
+option go_package="github.com/iansmith/parigot/api/proto/g/log;log";
 import "pb/log/log.proto";
 
 
@@ -12,5 +12,4 @@ import "pb/log/log.proto";
 
 service Log {
   rpc Log(pb.log.LogRequest) returns (pb.log.LogResult);
-  rpc SetPrefix(pb.log.SetPrefixRequest) returns (pb.log.SetPrefixResponse);
 }
