@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/iansmith/parigot/lib"
+
 	"github.com/iansmith/parigot/api/proto/g/log"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/lib"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -34,7 +36,7 @@ func (m *myLogServer) Ready() bool {
 // defined in log.proto.
 //
 
-func (m *myLogServer) Log(pctx lib.Pctx, inProto proto.Message) error {
+func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error {
 	req := inProto.(*pb.LogRequest)
 	print("xxxxlogloglog ", fmt.Sprintf("%s:%s", req.Stamp.AsTime().Format(time.RFC3339), req.GetMessage()))
 	return nil

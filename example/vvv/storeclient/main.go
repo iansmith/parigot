@@ -40,8 +40,6 @@ func main() {
 	// 	lib.Exit(1)
 	// }
 	print("xxx storeclient 6\n")
-	vinnysStore.EnablePctx()
-	print("xxx storeclient 7\n")
 	// logger.Log(&pblog.LogRequest{
 	// 	Level:   lib.InfoLevel,
 	// 	Message: fmt.Sprintf("About to call sold item implementation..."),

@@ -8,6 +8,8 @@ import (
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 )
 
+const protoSignal = "api/proto/g"
+
 // BasicGenerate is the primary code generation driver. Language-specific code
 // (in generator.Generate()) is called and that code typically does some setup and
 // then calls into this code, passing itself as the g.  This function expects the
@@ -25,7 +27,20 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 		//gather imports
 		imp := make(map[string]struct{})
 		for _, dep := range info.GetFile().GetDependency() {
-			imp[impToPkg[dep]] = struct{}{}
+			// if strings.Contains(impToPkg[dep], protoSignal) {
+			// 	// probably will need to be a pb prefix
+			// 	index := strings.Index(impToPkg[dep], protoSignal) + len(protoSignal) + 1
+			// 	//log.Printf("we computed the suffix part as %s", impToPkg[dep][index:])
+			// 	suffix := impToPkg[dep][index:]
+			// 	if strings.HasPrefix(suffix, "pb/") && strings.HasPrefix(dep, suffix) {
+			// 		//log.Printf("matched suffix to prefix: %s", suffix)
+			// 		s := fmt.Sprintf("pb \"%s\"", impToPkg[dep])
+			// 		imp[s] = struct{}{}
+			// 		continue
+			// 	}
+			// }
+			imp["\""+impToPkg[dep]+"\""] = struct{}{}
+			//log.Printf("xxx imp adding %s based on %s", impToPkg[dep], dep)
 		}
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)

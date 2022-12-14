@@ -2,7 +2,8 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
-	"github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -31,7 +32,7 @@ func Require1(packagePath, service string) (*call.RequireResponse, error) {
 // there are number of cases and doing this in this library means the code generator
 // can be much simpler.  It just passes all the information into here, and this function
 // sorts it out.
-func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx Pctx) (*call.ReturnValueResponse, error) {
+func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*call.ReturnValueResponse, error) {
 	libprint("RETURNVALUEENCODE ", "in return value %s, %s", cid.Short(), mid.Short())
 	var err error
 	var a anypb.Any
@@ -51,8 +52,8 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 			rv.ErrorMessage = execError.Error()
 			eText += "execError:" + execError.Error()
 		}
-		pctx.Log(log.LogLevel_LOGLEVEL_ERROR, eText)
-		pctx.EventFinish()
+		//pctx.Log(log.LogLevel_LOGLEVEL_ERROR, eText)
+		//pctx.EventFinish()
 		// we use this because the error didn't come from INSIDE
 		// the kernel itself, see below for more
 		rv.ErrorId = MarshalKernelErrId(NoKernelErr())
@@ -60,9 +61,9 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	}
 	// these are the mostly normal cases, but they can go hawywire
 	// due to marshalling
-	pctx.EventFinish()
-	libprint("RETURNVALUEENCODE -- log -- \n", pctx.Dump())
-	rv.PctxBuffer, err = pctx.Marshal()
+	//pctx.EventFinish()
+	//libprint("RETURNVALUEENCODE -- log -- \n", pctx.Dump())
+	rv.PctxBuffer, err = proto.Marshal(pctx)
 	if err != nil {
 		goto internalMarshalProblem
 	}

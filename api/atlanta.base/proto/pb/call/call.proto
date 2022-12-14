@@ -26,14 +26,14 @@ message DispatchRequest {
   protosupport.ServiceId service_id = 1;
   string method=2;
   string caller =3;
-  protosupport.PCtx in_pctx = 4;
-  google.protobuf.Any param=5;
+  google.protobuf.Any param=4;
+  protosupport.Pctx InPctx = 5;
 }
 
 message DispatchResponse {
-  protosupport.PCtx out_pctx = 1;
-  google.protobuf.Any result = 2;
-  protosupport.KernelErrorId error_id =3;
+  google.protobuf.Any result = 1;
+  protosupport.KernelErrorId error_id =2;
+  protosupport.Pctx OutPctx =3;
 }
 
 enum MethodDirection {
@@ -56,16 +56,16 @@ message BindMethodResponse {
 }
 
 message BlockUntilCallRequest{
-  bytes pctx_buffer = 1;
-  bytes param_buffer = 2;
+  bytes param_buffer = 1;
+  bytes pctx_buffer = 2;
 }
 
 message BlockUntilCallResponse{
-  int32 pctx_len =1 ;
-  int32 param_len = 2;
-  protosupport.MethodId method = 3;
-  protosupport.CallId call = 4;
-  protosupport.KernelErrorId error_id= 5;
+  int32 param_len = 1;
+  protosupport.MethodId method = 2;
+  protosupport.CallId call = 3;
+  protosupport.KernelErrorId error_id= 4;
+  int32 pctx_len = 5;
 }
 
 message ReturnValueRequest{
@@ -73,8 +73,8 @@ message ReturnValueRequest{
   protosupport.MethodId method = 2;
   string error_message = 3;
   protosupport.KernelErrorId error_id = 4;
+  bytes result_buffer = 5;
   bytes pctx_buffer = 6;
-  bytes result_buffer = 7;
 }
 
 message ReturnValueResponse {
