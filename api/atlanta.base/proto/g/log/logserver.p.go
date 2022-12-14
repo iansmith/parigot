@@ -1,11 +1,14 @@
 package log
 
+
 import (
 	"fmt"
 
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
+		 
 
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -16,14 +19,18 @@ import (
 //
 
 type LogServer interface {
-	Log(pctx lib.Pctx, in proto.Message) error
+
+	Log(pctx *protosupport.Pctx, in proto.Message)error  
 	Ready() bool
-}
+} 
 
+//
 // Log method ids
-var logMethod lib.Id
+//
+var logMethod lib.Id 
 
-var logServerVerbose = true
+
+var logServerVerbose = false
 
 func Run(impl LogServer) {
 	// register all methods
@@ -64,10 +71,10 @@ func Run(impl LogServer) {
 		//
 		// create the generic params, pctx and param
 		//
-		var pctx lib.Pctx
+		var pctx *protosupport.Pctx
 		err = nil
 		if resp.PctxLen != 0 {
-			pctx, err = lib.NewPctxFromBytes(pctxSlice)
+			pctx, err = lib.NewFromUnmarshal(pctxSlice)
 		}
 		if err != nil {
 			logPrint("RUN: primary for loop ", "Unable to create Pctx for call: %v", err)
@@ -88,18 +95,17 @@ func Run(impl LogServer) {
 		var out proto.Message
 		switch {
 		case mid.Equal(logMethod):
-			pctx.EventStart("---> call of Log.Log <---")
 			req := &pb.LogRequest{}
 			marshalError = a.UnmarshalTo(req)
 			if marshalError != nil {
 				break
 			}
 
-			execError = impl.Log(pctx, req)
+            execError = impl.Log(pctx, req)
 			if execError != nil {
 				break
-			}
-		}
+			} 
+        }
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
 		//
@@ -108,6 +114,7 @@ func Run(impl LogServer) {
 	}
 	// wont reach here
 }
+
 
 func logBind(impl LogServer) (string, error) {
 
@@ -119,11 +126,11 @@ func logBind(impl LogServer) (string, error) {
 	if logerr != nil {
 		return "Log", logerr
 	}
-	logMethod = lib.UnmarshalMethodId(resp.GetMethodId())
-	if !impl.Ready() {
+	logMethod = lib.UnmarshalMethodId(resp.GetMethodId()) 
+	if !impl.Ready(){
 		panic("unable to start Log because it failed Ready() check")
 	}
-	return "", nil
+	return "",nil
 }
 
 func logBlockUntilCall(pctx, param []byte) (*call.BlockUntilCallResponse, error) {
@@ -132,8 +139,6 @@ func logBlockUntilCall(pctx, param []byte) (*call.BlockUntilCallResponse, error)
 		PctxBuffer:  pctx,
 		ParamBuffer: param,
 	}
-	logPrint("logBlockUntilCall", "about to call BlockUntilCall on CallConnection1")
-	logPrint("logBlockUntilCall", "about to call BlockUntilCall on CallConnection2")
 	resp, err := lib.CallConnection().BlockUntilCall(req)
 	if err != nil {
 		return nil, err
@@ -147,4 +152,4 @@ func logPrint(method string, spec string, arg ...interface{}) {
 		part2 := fmt.Sprintf(spec, arg...)
 		print(part1, part2, "\n")
 	}
-}
+} 

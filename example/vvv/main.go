@@ -3,25 +3,29 @@ package main
 import (
 	"fmt"
 
+	"github.com/iansmith/parigot/api/proto/g/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
-	// if things need to be required you need to force them to the ready state BEFORE calling run()
-	// if _, err := lib.Require1("log", "Log"); err != nil {
-	// 	panic("unable to require log service: " + err.Error())
-	// }
+	//if things need to be required you need to force them to the ready state BEFORE calling run()
+	if _, err := lib.Require1("log", "Log"); err != nil {
+		panic("unable to require log service: " + err.Error())
+	}
 	vvv.Run(&myServer{})
 }
 
 // this type better implement vvv.StoreServer
 type myServer struct {
-	//logger log.Log
+	logger log.Log
 }
 
 //
@@ -29,13 +33,13 @@ type myServer struct {
 // defined in business.proto.
 //
 
-func (m *myServer) MediaTypesInStock(pctx lib.Pctx) (proto.Message, error) {
+func (m *myServer) MediaTypesInStock(pctx *protosupport.Pctx) (proto.Message, error) {
 	return &pb.MediaTypesInStockResponse{
 		InStock: []pb.Media{pb.Media_MEDIA_BETA, pb.Media_MEDIA_CASSETTE, pb.Media_MEDIA_LASER_DISC, pb.Media_MEDIA_VHS, pb.Media_MEDIA_VINYL, pb.Media_MEDIA_ATARI_CART},
 	}, nil
 }
 
-func (m *myServer) BestOfAllTime(pctx lib.Pctx, inProto proto.Message) (proto.Message, error) {
+func (m *myServer) BestOfAllTime(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
 	in := inProto.(*pb.BestOfAllTimeRequest)
 
 	out := &pb.BestOfAllTimeResponse{
@@ -74,14 +78,14 @@ func (m *myServer) BestOfAllTime(pctx lib.Pctx, inProto proto.Message) (proto.Me
 	return nil, fmt.Errorf("unexpected content type request int %d", int32(in.Ctype))
 }
 
-func (m *myServer) Revenue(pctx lib.Pctx, in proto.Message) (proto.Message, error) {
+func (m *myServer) Revenue(pctx *protosupport.Pctx, in proto.Message) (proto.Message, error) {
 	out := &pb.RevenueResponse{}
 	m.log(pctx, pblog.LogLevel_LOGLEVEL_WARNING, "Revenue() not yet implemented, ignoring input value, returning dummy values")
 	out.Revenue = 817.71
 	return out, nil
 }
 
-func (m *myServer) SoldItem(pctx lib.Pctx, in proto.Message) error {
+func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
 	m.log(pctx, pblog.LogLevel_LOGLEVEL_WARNING, "SoldItem() not yet implemented, ignoring input value")
 	return nil
 }
@@ -91,12 +95,12 @@ func (m *myServer) SoldItem(pctx lib.Pctx, in proto.Message) error {
 // run.
 func (m *myServer) Ready() bool {
 
-	// logger, err := log.LocateLog()
-	// if err != nil {
-	// 	print("ERROR trying to create log client: ", err.Error(), "\n")
-	// 	return false
-	// }
-	// m.logger = logger
+	logger, err := log.LocateLog()
+	if err != nil {
+		print("ERROR trying to create log client: ", err.Error(), "\n")
+		return false
+	}
+	m.logger = logger
 
 	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
 		print("ready: error in attempt to export demo.vvv: ", err.Error(), "\n")
@@ -110,13 +114,13 @@ func (m *myServer) Ready() bool {
 
 }
 
-func (m *myServer) log(pctx lib.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
-	// msg := fmt.Sprintf(spec, rest...)
-	// req := pblog.LogRequest{
-	// 	Stamp:   timestamppb.New(pctx.Now()),
-	// 	Level:   level,
-	// 	Message: msg,
-	// }
-	print("log request in server\n")
-	// m.logger.Log(&req)
+func (m *myServer) log(pctx *protosupport.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
+	msg := fmt.Sprintf(spec, rest...)
+	req := pblog.LogRequest{
+		Stamp:   timestamppb.New(pctx.GetNow().AsTime()),
+		Level:   level,
+		Message: msg,
+	}
+	// print("log request in server", fmt.Sprintf(spec, rest...), "\n")
+	m.logger.Log(&req)
 }

@@ -10,16 +10,16 @@ import (
 )
 
 type ClientSideService struct {
-	svc         Id
-	caller      string
-	pctxEnabled bool
-	currentPctx Pctx
+	svc    Id
+	caller string
+	pctx   *protosupport.Pctx
 }
 
 func NewClientSideService(id Id, caller string) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
+		pctx:   &protosupport.Pctx{},
 	}
 }
 
@@ -27,40 +27,11 @@ func (c *ClientSideService) SetCaller(caller string) {
 	c.caller = caller
 }
 
-func (c *ClientSideService) SetPctx(pctx *protosupport.PCtx) {
-	c.currentPctx = NewPctxFromProtosupport(pctx)
-}
-
-func (c *ClientSideService) EnablePctx() {
-	c.pctxEnabled = true
-}
-
-func (c *ClientSideService) DisablePctx() {
-	c.pctxEnabled = false
+func (c *ClientSideService) SetPctx(pctx *protosupport.Pctx) {
+	c.pctx = pctx
 }
 
 func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
-	if !c.pctxEnabled {
-		// we can't print a warning, we are not running in an environment with any type of output
-		panic("attempt to use client side logging without pctx enabled")
-	}
-	if c.pctxEnabled {
-		if c.currentPctx == nil {
-			c.currentPctx = NewPctx()
-		}
-		c.currentPctx.Log(level, message)
-	}
-}
-func (c *ClientSideService) DumpLog() {
-	if !c.pctxEnabled {
-		panic("attempt to dump client side log without pctx enabled")
-	}
-	if c.currentPctx == nil {
-		print("[no log output generated")
-	} else {
-		print(c.currentPctx.Dump())
-	}
-
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
@@ -74,16 +45,11 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.
 		}
 	}
 
-	var ughPuke *protosupport.PCtx
-	if c.currentPctx != nil {
-		ughPuke = c.currentPctx.(*pctx).root
-	}
-
 	in := &call.DispatchRequest{
 		ServiceId: MarshalServiceId(c.svc),
 		Caller:    c.caller,
 		Method:    method,
-		InPctx:    ughPuke,
+		InPctx:    c.pctx,
 		Param:     a,
 	}
 	// xxx this should be going through dispatch anyway

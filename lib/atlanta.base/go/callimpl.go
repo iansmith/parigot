@@ -106,9 +106,6 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
 	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
 
-	pctx := NewPctxFromProtosupport(in.InPctx)
-	pctx.EventStart(fmt.Sprintf("--> Call of %s by %s", in.Method, in.Caller))
-
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
 		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewKernelError(KernelMarshalFailed))
@@ -149,7 +146,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	// no error sent back to use, now we will attempt to unmarshal
 	// try the outpctx
 	libprint("DISPATCH ", "preparing for pctx return value")
-	out.OutPctx = &protosupport.PCtx{}
+	out.OutPctx = &protosupport.Pctx{}
 	if detail.OutPctxLen > 0 {
 		err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
 	} else {
@@ -177,7 +174,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodIn(in *call.BindMethodRequest, _ func(Pctx, proto.Message) error) (*call.BindMethodResponse, error) {
+func (l *callImpl) BindMethodIn(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*call.BindMethodResponse, error) {
 	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionIn)
 }
 
@@ -195,7 +192,7 @@ func (l *callImpl) BindMethodInNoPctx(in *call.BindMethodRequest, _ func(proto.M
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(Pctx) (proto.Message, error)) (*call.BindMethodResponse, error) {
+func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*call.BindMethodResponse, error) {
 	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionOut)
 }
 
@@ -205,7 +202,7 @@ func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(Pctx) (proto
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(Pctx, proto.Message) (proto.Message, error)) (*call.BindMethodResponse, error) {
+func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*call.BindMethodResponse, error) {
 	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionBoth)
 }
 

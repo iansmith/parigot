@@ -1,7 +1,7 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
 {{- range $j,$i := .imports }}
-    "{{$j}}"
+    {{$j}}
 {{- end}} {{/* imports */}}
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
