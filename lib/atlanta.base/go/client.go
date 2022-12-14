@@ -1,9 +1,9 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/g/pb/call"
-	pblog "github.com/iansmith/parigot/g/pb/log"
-	"github.com/iansmith/parigot/g/pb/protosupport"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"

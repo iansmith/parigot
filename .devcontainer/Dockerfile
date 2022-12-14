@@ -36,8 +36,8 @@ RUN rm -rf build
 
 #binary downloads, wasmtime 1.0.1
 WORKDIR /home/parigot/deps
-RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v2.0.1/wasmtime-v2.0.1-x86_64-linux.tar.xz
-RUN unxz wasmtime-v2.0.1-x86_64-linux.tar.xz
+RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v3.0.1/wasmtime-v3.0.1-x86_64-linux.tar.xz
+RUN unxz wasmtime-v3.0.1-x86_64-linux.tar.xz
 RUN tar xf wasmtime*.tar
 RUN rm wasmtime*tar
 

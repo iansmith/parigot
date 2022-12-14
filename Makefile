@@ -5,7 +5,6 @@ FLAVOR=atlanta.base
 
 all: build/runner \
 build/protoc-gen-parigot \
-build/surgery \
 build/jdepp \
 build/nameserver
 
@@ -14,25 +13,13 @@ build/jdepp: command/jdepp/main.go
 	@echo "\033[92mjdepp ============================================================================================\033[0m"
 	go build -o build/jdepp github.com/iansmith/parigot/command/jdepp
 
-build/surgery: command/transform/wasm_parser.go
-	@echo
-	@echo "\033[92msurgery ============================================================================================\033[0m"
-	go build -o build/surgery github.com/iansmith/parigot/command/surgery
-
 build/protoc-gen-parigot: \
 	command/protoc-gen-parigot/template/go/*.tmpl
 	@echo
 	@echo "\033[92mprotoc-gen-parigot =================================================================================\033[0m"
 	go build -o build/protoc-gen-parigot github.com/iansmith/parigot/command/protoc-gen-parigot
 
-command/transform/wasm_parser.go: $(WASM_GRAMMAR)
-	@echo
-	@echo "\033[92mWASM wat file parser \(via Antlr4 and Wasm.g4\) ====================================================\033[0m"
-	cd command; java -Xmx500M -cp "$$PARIGOT_TOOLS/lib/antlr-4.9.3-complete.jar" org.antlr.v4.Tool -Dlanguage=Go -o transform -package transform Wasm.g4; cd ..
-
-build/runner: g/log/logservicedecl.p.go \
-	api/atlanta.base/proto/pb/net/*.proto \
-	sys/atlanta.base/*.go 
+build/runner: sys/atlanta.base/*.go 
 	@echo
 	@echo "\033[92mrunner =============================================================================================\033[0m"
 	go build -o build/runner github.com/iansmith/parigot/command/runner
@@ -77,149 +64,21 @@ test: $(PGP)
 	go run command/protoc-gen-parigot/test/main.go build/protoc-gen-parigot command/protoc-gen-parigot/test/testdata/t0 - abi/abihelper.go
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: build/nameserver
-build/nameserver: \
-	sys/atlanta.base/memutil.go \
-	sys/atlanta.base/nsproxy.go \
-	sys/atlanta.base/syscallrw.go \
-	lib/atlanta.base/go/call.go \
-	lib/atlanta.base/go/callnonjs.go \
-	lib/atlanta.base/go/perror.go \
-	sys/atlanta.base/dep/dependency.go \
-	sys/atlanta.base/nameserver_test.go \
-	sys/atlanta.base/netquic.go \
-	lib/atlanta.base/go/helpers.go \
-	lib/atlanta.base/go/log.go \
-	sys/atlanta.base/nameserver.go \
-	lib/atlanta.base/go/idconv.go \
-	lib/atlanta.base/go/syscallpayload.go \
-	sys/atlanta.base/func.go \
-	sys/atlanta.base/process.go \
-	lib/atlanta.base/go/calljs.go \
-	build/protoc-gen-parigot \
-	sys/atlanta.base/syscall.go \
-	command/nameserver/block.go \
-	lib/atlanta.base/go/id.go \
-	lib/atlanta.base/go/msgsize.go \
-	lib/atlanta.base/go/pctx.go \
-	sys/atlanta.base/local.go \
-	sys/atlanta.base/netio.go \
-	sys/atlanta.base/remote.go \
-	sys/atlanta.base/runtime.go \
-	lib/atlanta.base/go/callimpl.go \
-	lib/atlanta.base/go/client.go \
-	command/nameserver/main.go \
-	sys/atlanta.base/nameservercore.go
-
-### jdepp computed dependencies for binary: build/client
-build/client: \
-	command/nettest/client/main.go
-
-### jdepp computed dependencies for binary: build/runner
-build/runner: \
+### jdepp computed dependencies for binary: build
+build: \
 	command/runner/main.go \
-	sys/atlanta.base/nameserver_test.go \
-	sys/atlanta.base/nameservercore.go \
-	sys/atlanta.base/remote.go \
-	sys/atlanta.base/runtime.go \
-	sys/atlanta.base/syscallrw.go \
-	command/runner/fileload.go \
+	sys/atlanta.base/nameserver.go \
+	sys/atlanta.base/process.go \
 	sys/atlanta.base/local.go \
 	sys/atlanta.base/memutil.go \
+	sys/atlanta.base/runtime.go \
+	command/runner/fileload.go \
 	sys/atlanta.base/netquic.go \
 	sys/atlanta.base/nsproxy.go \
-	sys/atlanta.base/process.go \
+	sys/atlanta.base/syscall.go \
 	sys/atlanta.base/func.go \
-	sys/atlanta.base/nameserver.go \
+	sys/atlanta.base/nameservercore.go \
 	sys/atlanta.base/netio.go \
-	sys/atlanta.base/syscall.go
-
-### jdepp computed dependencies for binary: build/testdata
-build/testdata: \
-	command/surgery/testdata/ex1/ex1.go \
-	command/surgery/testdata/main.go
-
-### jdepp computed dependencies for binary: build/terminallog
-build/terminallog: \
-	sys/atlanta.base/stdlib/terminallog/main.go \
-	lib/atlanta.base/go/callimpl.go \
-	lib/atlanta.base/go/log.go \
-	lib/atlanta.base/go/syscallpayload.go \
-	sys/atlanta.base/stdlib/terminallog/gen.go \
-	lib/atlanta.base/go/callnonjs.go \
-	lib/atlanta.base/go/idconv.go \
-	lib/atlanta.base/go/perror.go \
-	lib/atlanta.base/go/calljs.go \
-	lib/atlanta.base/go/client.go \
-	lib/atlanta.base/go/helpers.go \
-	lib/atlanta.base/go/id.go \
-	lib/atlanta.base/go/call.go \
-	lib/atlanta.base/go/msgsize.go \
-	lib/atlanta.base/go/pctx.go \
-	build/protoc-gen-parigot
-
-### jdepp computed dependencies for binary: build/protoc-gen-parigot
-build/protoc-gen-parigot: \
-	command/protoc-gen-parigot/codegen/options.go \
-	command/protoc-gen-parigot/util/out.go \
-	command/protoc-gen-parigot/util/plugin.go \
-	command/protoc-gen-parigot/go_/gogen.go \
-	command/protoc-gen-parigot/codegen/cgtype.go \
-	command/protoc-gen-parigot/codegen/geninfo.go \
-	command/protoc-gen-parigot/codegen/helper.go \
-	command/protoc-gen-parigot/codegen/lang.go \
-	command/protoc-gen-parigot/test/main.go \
-	command/protoc-gen-parigot/codegen/funcchooser.go \
-	command/protoc-gen-parigot/codegen/wasmfield.go \
-	command/protoc-gen-parigot/main.go \
-	command/protoc-gen-parigot/codegen/finder.go \
-	command/protoc-gen-parigot/codegen/text.go \
-	command/protoc-gen-parigot/go_/funcchoice.go \
-	command/protoc-gen-parigot/go_/gotext.go \
-	command/protoc-gen-parigot/codegen/wasmmessage.go \
-	command/protoc-gen-parigot/codegen/wasmservice.go \
-	command/protoc-gen-parigot/codegen/generate.go \
-	command/protoc-gen-parigot/codegen/pass.go \
-	command/protoc-gen-parigot/codegen/wasm.go \
-	command/protoc-gen-parigot/codegen/wasmMethod.go
-
-### jdepp computed dependencies for binary: build/test
-build/test: \
-	command/protoc-gen-parigot/test/main.go
-
-### jdepp computed dependencies for binary: build/jdepp
-build/jdepp: \
-	command/jdepp/main.go
-
-### jdepp computed dependencies for binary: build/surgery
-build/surgery: \
-	command/transform/sem_op.go \
-	command/transform/typedescriptor.go \
-	command/transform/wasm_lexer.go \
-	command/transform/wasm_parser.go \
-	command/surgery/convert.go \
-	command/transform/build_module.go \
-	command/transform/sem_misc.go \
-	command/transform/sem_module.go \
-	command/surgery/testdata/ex1/ex1.go \
-	command/transform/build_terminal.go \
-	command/transform/wasm_listener.go \
-	command/surgery/testdata/main.go \
-	command/surgery/dbgprint.go \
-	command/surgery/main.go \
-	command/surgery/unlink.go \
-	command/transform/build_stmt.go \
-	command/transform/sem_stmt.go \
-	command/surgery/parse.go \
-	command/surgery/replacefn.go \
-	command/surgery/tree.go \
-	command/transform/build_misc.go \
-	command/surgery/changetype.go \
-	command/transform/sem_func.go \
-	command/transform/sem_toplevel.go \
-	command/transform/wasm_base_listener.go
-
-### jdepp computed dependencies for binary: build/server
-build/server: \
-	command/nettest/server/main.go
+	sys/atlanta.base/remote.go \
+	sys/atlanta.base/syscallrw.go
 

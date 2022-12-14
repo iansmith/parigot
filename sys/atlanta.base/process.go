@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 	"google.golang.org/protobuf/types/known/anypb"

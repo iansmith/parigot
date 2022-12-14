@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	pblog "github.com/iansmith/parigot/g/pb/log"
-	"github.com/iansmith/parigot/g/pb/protosupport"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -150,7 +150,9 @@ func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
 	}
 	root := &pctxWire
 	if root == nil {
-		panic("unable to find any log info inside a pctxWire")
+		print("unable to find any log info inside a pctxWire--ignoring\n")
+		//panic("unable to find any log info inside a pctxWire--ignoring")
+		return NewPctx(), nil
 	}
 	return &pctx{now: time.Now() /*xxxfixme, should ask kernel*/, root: root}, nil
 }
@@ -158,7 +160,9 @@ func NewPctxFromBytes(pctxSlice []byte) (Pctx, error) {
 func NewPctxFromProtosupport(pctxWire *protosupport.PCtx) Pctx {
 	root := pctxWire
 	if root == nil {
-		panic("unable to find any log info inside a pctxWire")
+		print("unable to find any log info inside a pctxWire\n")
+		//panic("unable to find any log info inside a pctxWire")
+		return NewPctx()
 	}
 	return &pctx{now: time.Now() /*xxxfixme, should ask kernel*/, root: root}
 }

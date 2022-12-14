@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/iansmith/parigot/g/pb/net"
+	"github.com/iansmith/parigot/api/proto/g/pb/net"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 	"google.golang.org/protobuf/types/known/anypb"

@@ -23,7 +23,7 @@ build/server.p.wasm: main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/server.p.wasm main.go
 	#wasm2wat --no-check -o build/server.wat build/server.p.wasm
 
-build/storeclient.p.wasm: storeclient/main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot ../../sys/atlanta.base/stdlib/terminallog/build/terminallog.p.wasm
+build/storeclient.p.wasm: storeclient/main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	@echo
 	@echo "\033[92mbuilding client side: vvv (storeclient) ============================================================\033[0m"
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/storeclient.p.wasm storeclient/main.go
@@ -41,21 +41,20 @@ clean:
 	rm -rf build/*
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: example/vvv/build/storeclient
-example/vvv/build/storeclient: \
-	example/vvv/storeclient/main.go \
-	example/vvv/proto/g/vvv/business.pb.go \
-	example/vvv/proto/g/vvv/businessservicedecl.p.go \
-	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
-	build/protoc-gen-parigot
+### jdepp computed dependencies for binary: build/vv
+build/vv: \
+	/workspaces/parigot/example/vvv/main.go \
+	proto/g/vvv/business.pb.go \
+	proto/g/vvv/businessserver.p.go \
+	proto/g/vvv/businessservicedecl.p.go \
+	proto/g/vvv/pb/businesspb.pb.go \
+	/workspaces/parigot/example/vvv/storeclient/main.go
 
-### jdepp computed dependencies for binary: example/vvv/build/vvv
-example/vvv/build/vvv: \
-	example/vvv/proto/g/vvv/business.pb.go \
-	example/vvv/proto/g/vvv/businessservicedecl.p.go \
-	example/vvv/gen.go \
-	example/vvv/main.go \
-	example/vvv/proto/g/vvv/pb/businesspb.pb.go \
-	build/protoc-gen-parigot \
-	example/vvv/storeclient/main.go
+### jdepp computed dependencies for binary: build/storeclient
+build/storeclient: \
+	proto/g/vvv/pb/businesspb.pb.go \
+	storeclient/main.go \
+	proto/g/vvv/business.pb.go \
+	proto/g/vvv/businessserver.p.go \
+	proto/g/vvv/businessservicedecl.p.go
 
