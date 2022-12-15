@@ -1,17 +1,21 @@
 GO_CMD=go #really shouldn't need to change this if you use the tools directory
-WASM_GRAMMAR=command/Wasm.g4
-TRANSFORM=command/transform
 FLAVOR=atlanta.base
 
 all: build/runner \
 build/protoc-gen-parigot \
 build/jdepp \
-build/nameserver
+build/nameserver \
+build/logviewer
 
 build/jdepp: command/jdepp/main.go
 	@echo
 	@echo "\033[92mjdepp ============================================================================================\033[0m"
 	go build -o build/jdepp github.com/iansmith/parigot/command/jdepp
+
+build/logviewer: command/logviewer/main.go
+	@echo
+	@echo "\033[92mlogviewer ============================================================================================\033[0m"
+	go build -o build/logviewer github.com/iansmith/parigot/command/logviewer
 
 build/protoc-gen-parigot: \
 	command/protoc-gen-parigot/template/go/*.tmpl

@@ -24,7 +24,7 @@ var syscallVerbose = false
 // the system call.
 type syscallReadWrite struct {
 	mem  *jspatch.WasmMem
-	proc *Process // this is US
+	proc *Process // this is OUR PROCESS
 
 	localSysCall  *localSysCall
 	remoteSysCall *remoteSyscall

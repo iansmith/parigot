@@ -34,4 +34,4 @@ build/logserver.p.wasm: main.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/logserver.p.wasm main.go
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: example/vvv/build/storeclient
+### jdepp computed dependencies for binary: api/logimpl/build/logserver.p.wasm
