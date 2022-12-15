@@ -1,6 +1,6 @@
-FROM ubuntu:jammy-20221003q
+FROM ubuntu:jammy-20221003
 RUN apt-get update
-RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
+RUN apt-get install --fix-missing -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
     hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
@@ -14,11 +14,11 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # install go1.19
-RUN wget -q https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
+RUN wget -q https://go.dev/dl/go1.19.4.linux-amd64.tar.gz
 RUN tar xzf go*linux*tar.gz
-RUN rm go1.19.3.linux-amd64.tar.gz 
-RUN mv go go1.19.3
-ENV GOROOT=/home/parigot/tools/go1.19.3
+RUN rm go1.19.4.linux-amd64.tar.gz 
+RUN mv go go1.19.4
+ENV GOROOT=/home/parigot/tools/go1.19.4
 
 # get all the wabt project code
 WORKDIR /home/parigot/deps
@@ -36,8 +36,8 @@ RUN rm -rf build
 
 #binary downloads, wasmtime 1.0.1
 WORKDIR /home/parigot/deps
-RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v1.0.1/wasmtime-v1.0.1-x86_64-linux.tar.xz
-RUN unxz wasmtime-v1.0.1-x86_64-linux.tar.xz
+RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v3.0.1/wasmtime-v3.0.1-x86_64-linux.tar.xz
+RUN unxz wasmtime-*.xz
 RUN tar xf wasmtime*.tar
 RUN rm wasmtime*tar
 
@@ -52,7 +52,7 @@ RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 
 # link the 3 big directories of stuff go,tinygo, and wabt
-RUN ln -s /home/parigot/deps/go1.19.3 /home/parigot/tools
+RUN ln -s /home/parigot/deps/go1.19.4 /home/parigot/tools
 RUN ln -s /home/parigot/deps/wabt /home/parigot/tools
 ENV PB_REL=""
 
@@ -62,7 +62,7 @@ WORKDIR /home/parigot/tools/bin
 RUN ln -s /usr/local/bin/tinygo /home/parigot/tools/bin
 # hugo puts itself in /usr/bin, ugh!
 #RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
-RUN ln -s /home/parigot/deps/wasmtime-v1.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
+RUN ln -s /home/parigot/deps/wasmtime-v3.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
 
 # antlr 4.9 is a platform-neutral lib (java)
 RUN mkdir -p /home/parigot/tools/lib
@@ -89,6 +89,12 @@ RUN chmod +x /home/parigot/dotfiles/recv.sh
 RUN chgrp parigot /home/parigot/tmp
 RUN chmod g+w /home/parigot/tmp
 
+# socket dir
+RUN mkdir /var/run/parigot
+RUN chgrp parigot /var/run/parigot
+RUN chmod g+w /var/run/parigot
+
+
 # source directory
 RUN mkdir /home/parigot/src
 
@@ -106,7 +112,7 @@ RUN chgrp parigot /home/parigot/enable-parigot
 #temporary
 USER parigot
 #go progs
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.3/bin:/home/parigot/.local/bin
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/deps/go1.19.4/bin:/home/parigot/.local/bin
 
 RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
@@ -123,7 +129,7 @@ RUN pip3 install thefuck
 # set some vars
 WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
-ENV GOTOOLS=/home/parigot/tools/go1.19.3
+ENV GOTOOLS=/home/parigot/tools/go1.19.4
 ENV WABTTOOLS=/home/parigot/tools/wabt
 
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin

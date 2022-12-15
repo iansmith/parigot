@@ -2,11 +2,11 @@ package sys
 
 import (
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	"github.com/iansmith/parigot/api/logimpl/ui"
+	"github.com/iansmith/parigot/sys/jspatch"
 )
 
-func addSupportedFunctions(store wasmtime.Storelike,
-	result map[string]*wasmtime.Func,
-	rt *Runtime) {
+func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
 	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueSetIndex)
 	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueGet)
 	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValuePrepareString)
@@ -50,4 +50,15 @@ func addSupportedFunctions(store wasmtime.Storelike,
 	result["go.parigot.require_"] = wasmtime.WrapFunc(store, rt.syscall.Require)
 	result["go.parigot.export_"] = wasmtime.WrapFunc(store, rt.syscall.Export)
 	result["go.parigot.run_"] = wasmtime.WrapFunc(store, rt.syscall.Run)
+}
+
+func addSplitModeFunctions(store wasmtime.Storelike,
+	result map[string]*wasmtime.Func,
+	memoryObj *jspatch.WasmMem) {
+
+	// mixed mode entries: this should be automated (xxxfixmexxx)
+	logViewer := ui.LogViewerImpl{}
+	logViewer.SetWasmMem(memoryObj)
+	result["go.logviewer.log_request_via_socket"] = wasmtime.WrapFunc(store, logViewer.LogRequestViaSocket)
+
 }

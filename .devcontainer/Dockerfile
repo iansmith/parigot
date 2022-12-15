@@ -34,7 +34,7 @@ RUN make
 WORKDIR /home/parigot/deps/wabt
 RUN rm -rf build
 
-#binary downloads, wasmtime 1.0.1
+#binary downloads, wasmtime 3.0.1
 WORKDIR /home/parigot/deps
 RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v3.0.1/wasmtime-v3.0.1-x86_64-linux.tar.xz
 RUN unxz wasmtime-v3.0.1-x86_64-linux.tar.xz
@@ -62,7 +62,7 @@ WORKDIR /home/parigot/tools/bin
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
 # hugo puts itself in /usr/bin, ugh!
 #RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
-RUN ln -s /home/parigot/deps/wasmtime-v2.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
+RUN ln -s /home/parigot/deps/wasmtime-v3.0.1-x86_64-linux/wasmtime /home/parigot/tools/bin
 
 # antlr 4.9 is a platform-neutral lib (java)
 RUN mkdir -p /home/parigot/tools/lib
@@ -75,6 +75,11 @@ ADD ohmyzsh /home/parigot/.oh-my-zsh
 RUN chown -R parigot /home/parigot/.zshrc  /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 RUN chgrp -R parigot /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 RUN chmod -R g+w /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
+
+RUN mkdir /var/run/parigot
+RUN chown parigot /var/run/parigot
+RUN chgrp parigot /var/run/parigot
+RUN chmod g+w /var/run/parigot
 
 # safety
 WORKDIR /home/parigot

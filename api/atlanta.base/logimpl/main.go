@@ -1,14 +1,15 @@
 package main
 
 import (
-	"fmt"
-	"time"
+	"reflect"
+	"unsafe"
 
-	"github.com/iansmith/parigot/lib"
-
+	"github.com/iansmith/parigot/api/logimpl/ui"
 	"github.com/iansmith/parigot/api/proto/g/log"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	"github.com/iansmith/parigot/lib"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -38,6 +39,18 @@ func (m *myLogServer) Ready() bool {
 
 func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error {
 	req := inProto.(*pb.LogRequest)
-	print("xxxxlogloglog ", fmt.Sprintf("%s:%s", req.Stamp.AsTime().Format(time.RFC3339), req.GetMessage()))
+	buffer, err := proto.Marshal(req)
+	if err != nil {
+		return err
+	}
+	sh := &reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&buffer[0])),
+		Len:  len(buffer),
+		Cap:  len(buffer),
+	}
+	// we have to convert this because pointers are only 32 bits in most wasm compilers
+	u := uintptr(unsafe.Pointer(sh))
+
+	ui.LogRequestViaSocket(int32(u))
 	return nil
 }

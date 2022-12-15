@@ -149,6 +149,7 @@ func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
 	addSupportedFunctions(p.parent, available, rt)
+	addSplitModeFunctions(p.parent, available, rt.syscall.mem)
 
 	// result of checking the linkage
 	linkage := []wasmtime.AsExtern{}
