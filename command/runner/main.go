@@ -13,7 +13,7 @@ import (
 )
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true
+var runnerVerbose = false
 
 var libFile *string = flag.String("f", "", "the filename that has the list of wasm modules to load")
 var remote *bool = flag.Bool("r", false, "all services will use remote; use this flag for a docker swarm of microservices")
@@ -49,7 +49,6 @@ func main() {
 	if len(libs) == 0 {
 		log.Fatalf("unable to find any .wasm module files to load, pass filenames on the command line or use the -l option")
 	}
-	log.Printf("total number of modules found: %d (%+v)", len(libs), libs)
 
 	proc := []*sys.Process{}
 	maxModules := 0
@@ -61,7 +60,6 @@ func main() {
 	// to use this indirect structure so the process can block waiting on a channel.
 	go func() {
 		for {
-			runnerPrint("RUNREADER ", "about to read from the channel %x", notifyCh)
 			pair := <-notifyCh
 			runnerPrint("RUNREADER ", "calling nameserver.Run on %s", pair.Key)
 			pair.NameServer.RunIfReady(pair.Key)

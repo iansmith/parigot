@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/iansmith/parigot/api/proto/g/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
@@ -115,9 +116,13 @@ func (m *myServer) Ready() bool {
 }
 
 func (m *myServer) log(pctx *protosupport.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
+	n := pctx.GetNow().AsTime() // xxx fixme, should use kernel
+	if n.IsZero() {
+		n = time.Now()
+	}
 	msg := fmt.Sprintf(spec, rest...)
 	req := pblog.LogRequest{
-		Stamp:   timestamppb.New(pctx.GetNow().AsTime()),
+		Stamp:   timestamppb.New(n),
 		Level:   level,
 		Message: msg,
 	}

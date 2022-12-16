@@ -3,7 +3,6 @@ package sys
 import (
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"github.com/iansmith/parigot/api/logimpl/ui"
-	"github.com/iansmith/parigot/sys/jspatch"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
@@ -54,11 +53,9 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 
 func addSplitModeFunctions(store wasmtime.Storelike,
 	result map[string]*wasmtime.Func,
-	memoryObj *jspatch.WasmMem) {
+	logViewer *ui.LogViewerImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	logViewer := ui.LogViewerImpl{}
-	logViewer.SetWasmMem(memoryObj)
 	result["go.logviewer.log_request_via_socket"] = wasmtime.WrapFunc(store, logViewer.LogRequestViaSocket)
 
 }

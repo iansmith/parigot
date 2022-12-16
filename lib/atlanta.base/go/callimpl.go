@@ -34,7 +34,7 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = true
+var libparigotVerbose = false
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -415,7 +415,6 @@ func libprint(call, format string, arg ...interface{}) {
 }
 
 func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUntilCallResponse, error) {
-	libprint("BLOCKUNTILCALL ", "has been reached ")
 	out := &call.BlockUntilCallResponse{
 		Method:  &protosupport.MethodId{High: 12, Low: 13},
 		Call:    &protosupport.CallId{High: 22, Low: 33},
@@ -424,25 +423,16 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 
 	payload := &BlockPayload{}
 
-	libprint("BLOCKUNTILCALL ", "check buffer sizes-0")
 	if len(in.PctxBuffer) > 0 {
-		libprint("BLOCKUNTILCALL ", "check buffer sizes-A")
 		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	} else {
-		libprint("BLOCKUNTILCALL ", "check buffer sizes-B")
 		payload.PctxPtr = 0
 		payload.PctxLen = 0
 	}
-	libprint("BLOCKUNTILCALL ", "prepare for syscall-1")
 	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
-	libprint("BLOCKUNTILCALL ", "prepare for syscall-2")
 	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	libprint("BLOCKUNTILCALL ", "prepare for syscall-3")
 	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
-	libprint("BLOCKUNTILCALL ", "prepare for syscall-4")
 	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
-	libprint("BLOCKUNTILCALL ", "params ready (%x,%d) and (%x,%d)\n",
-		payload.PctxPtr, payload.PctxLen, payload.ParamPtr, payload.ParamLen)
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(payload))
@@ -454,7 +444,6 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	if kerr.IsError() {
 		return nil, NewPerrorFromId("BlockUntilCall error", kerr)
 	}
-	libprint("BLOCKUNTILCALL ", "no error found")
 
 	callDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.CallId))))
 	cid := CallIdFromUint64(uint64(callDataPtr[1]), uint64(callDataPtr[0]))
