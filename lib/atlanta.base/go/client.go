@@ -2,7 +2,6 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
@@ -29,9 +28,6 @@ func (c *ClientSideService) SetCaller(caller string) {
 
 func (c *ClientSideService) SetPctx(pctx *protosupport.Pctx) {
 	c.pctx = pctx
-}
-
-func (c *ClientSideService) Log(level pblog.LogLevel, message string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.

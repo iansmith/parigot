@@ -72,17 +72,17 @@ test: $(PGP)
 build: \
 	command/runner/main.go \
 	sys/atlanta.base/nameserver.go \
-	sys/atlanta.base/process.go \
-	sys/atlanta.base/local.go \
-	sys/atlanta.base/memutil.go \
+	sys/atlanta.base/remote.go \
 	sys/atlanta.base/runtime.go \
-	command/runner/fileload.go \
-	sys/atlanta.base/netquic.go \
+	sys/atlanta.base/func.go \
+	sys/atlanta.base/memutil.go \
 	sys/atlanta.base/nsproxy.go \
 	sys/atlanta.base/syscall.go \
-	sys/atlanta.base/func.go \
 	sys/atlanta.base/nameservercore.go \
 	sys/atlanta.base/netio.go \
-	sys/atlanta.base/remote.go \
+	command/runner/fileload.go \
+	sys/atlanta.base/local.go \
+	sys/atlanta.base/netquic.go \
+	sys/atlanta.base/process.go \
 	sys/atlanta.base/syscallrw.go
 

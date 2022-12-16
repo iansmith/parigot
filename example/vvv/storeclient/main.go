@@ -8,51 +8,42 @@ import (
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
+	"github.com/iansmith/parigot/api/proto/g/log"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var logger log.Log
 
 //go:noinline
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	print("xxx storeclient 1\n")
 	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	print("xxx storeclient 2\n")
-	// if _, err := lib.Require1("log", "Log"); err != nil {
-	// 	panic("unable to require log service: " + err.Error())
-	// }
-	print("xxx storeclient 3\n")
+	if _, err := lib.Require1("log", "Log"); err != nil {
+		panic("unable to require log service: " + err.Error())
+	}
 	if _, err := lib.Run(true); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
-	print("xxx storeclient 4\n")
 
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
 		lib.Exit(1)
 	}
-	print("xxx storeclient 5\n")
-	// logger, err := log.LocateLog()
-	// if err != nil {
-	// 	lib.Exit(1)
-	// }
-	print("xxx storeclient 6\n")
-	// logger.Log(&pblog.LogRequest{
-	// 	Level:   lib.InfoLevel,
-	// 	Message: fmt.Sprintf("About to call sold item implementation..."),
-	// })
-	print("xxx storeclient 8\n")
+	logger, err = log.LocateLog()
+	if err != nil {
+		lib.Exit(1)
+	}
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	print("xxx storeclient 9\n")
-	vinnysStore.Log(lib.InfoLevel, fmt.Sprintf("SoldItem returned ok?:  %v", err == nil))
-	print("xxx storeclient 10\n")
-	//vinnysStore.DumpLog()
+	Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("SoldItem returned ok?:  %v",
+		err == nil))
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
 	}
@@ -62,23 +53,28 @@ func main() {
 		storeclientPrint("BestOfAllTime failed %s", err.Error())
 		lib.Exit(1)
 	}
-	storeclientPrint("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
-		best.Item.Creator, best.Item.Title, best.Item.Year)
+	Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
+		best.Item.Creator, best.Item.Title, best.Item.Year))
 
 	inStock, err := vinnysStore.MediaTypesInStock()
 	if err != nil {
-		storeclientPrint("MediaTypesInStock() failed  %s", err.Error())
+		Log(pblog.LogLevel_LOGLEVEL_ERROR, fmt.Sprintf("MediaTypesInStock() failed  %s", err.Error()))
 	} else {
-		storeclientPrint("MediaTypesInStock: %d", len(inStock.InStock))
-		print("\t")
-		for i, m := range inStock.GetInStock() {
-			//print(m.String()) xxxfixme WHYWHYWHY?
-			print(m.Number(), " -> ", m.String())
-			if i != len(inStock.GetInStock())-1 {
-				print(",")
-			}
+		Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("MediaTypesInStock: %d different types", len(inStock.InStock)))
+		for _, m := range inStock.GetInStock() {
+			Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
-		print("\n")
+	}
+}
+
+func Log(level pblog.LogLevel, message string) {
+	req := &pblog.LogRequest{
+		Stamp:   timestamppb.New(time.Now()), // xxx fix me, should be using the kernel
+		Level:   level,
+		Message: message,
+	}
+	if err := logger.Log(req); err != nil {
+		print("CLIENTSIDESERVICE: error in log call:", err.Error(), "\n")
 	}
 }
 

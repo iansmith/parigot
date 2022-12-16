@@ -10,7 +10,7 @@ import (
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = true
+var nameserverVerbose = false
 
 const MaxService = 127
 
@@ -85,23 +85,11 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		sender: caller,
 		target: sData.key,
 	}
-	nameserverPrint("FINDMETHODBYNAME", "adding in flight rpc call %s and %s",
+	nameserverPrint("FINDMETHODBYNAME ", "adding in flight rpc call %s and %s",
 		cc.cid.Short(), cc.sender.String())
 	n.NSCore.addCallContextMapping(cc.cid, cc)
 	return cc
 }
-
-// HandleMethod is called by the server side to indicate that it will handle a particular
-// method call on a particular service.
-// func (n *LocalNameServer) HandleMethod(proc *Process, pkgPath, service, method string) (lib.Id, lib.Id) {
-// 	n.lock.Lock()
-// 	defer n.lock.Unlock()
-
-// 	nameserverPrint("HANDLEMETHOD(local) ", "adding method in the nameserver in process %s",
-// 		proc.String())
-// 	return n.NSCore.HandleMethod(NewDepKeyFromProcess(proc), pkgPath, service, method)
-
-// }
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
@@ -218,9 +206,9 @@ func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resul
 // called.  Because this all implemented locally in this case, it's just
 // matter of getting or putting the right things from each channel.
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
-	nameserverPrint("BlockUntilCall", "key is %s, about to send to callCh", key.String())
+	nameserverPrint("BlockUntilCall ", "key is %s, about to send to callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
-	nameserverPrint("BlockUntilCall", "got this from proc.callCh: %s, sender %s", v.method,
+	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s", v.method,
 		v.sender.String())
 	return v
 }

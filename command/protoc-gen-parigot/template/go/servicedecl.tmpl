@@ -63,7 +63,7 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
     }, nil
 }
 
-{{- range .GetWasmMethod}}
+{{range .GetWasmMethod}}
 
 {{- $meth:=.WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
@@ -73,22 +73,6 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 {{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
-{{/*
-{{- $methParamDecl:=call .FuncChoice.MethodParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $bits:=call .FuncChoice.Bits .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $outbound:=call .FuncChoice.Outbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $dispatchParam:=call .FuncChoice.DispatchParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $needsFillIn:=call .FuncChoice.NeedsFillIn .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $needsFillOut:=call .FuncChoice.NeedsFillOut .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-{{- $methCall:=call .FuncChoice.MethodCall .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $inputToSend:=call .FuncChoice.InputToSend .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $outLocal:=call .FuncChoice.OutLocal .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $retValue:=call .FuncChoice.RetValue .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $methodRet:=call .FuncChoice.MethodRet .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput false . }}
-{{- $retError:=call .FuncChoice.RetError .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
-{{- $needsPullApart:=call .FuncChoice.NeedsPullApart .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput }}
-*/}}
 
 {{- if .InputCodeNeeded -}}
 func (i *{{$svcCamel}}Client) {{$methCamel}}(in {{$inParam}}) 

@@ -17,43 +17,40 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const socketDir = "PARIGOT_SOCKET_DIR"
-const sockName = "logviewer.sock"
-
 var envVar string
 var sockAddr string
 
 func main() {
 
-	if os.Getenv(socketDir) == "" {
-		log.Printf("Unable to find environment variable: %s", socketDir)
+	if os.Getenv(netconst.SocketEnvVar) == "" {
+		log.Printf("Unable to find environment variable: %s", netconst.SocketEnvVar)
 		log.Printf("This environment variable should point the _directory_ that contains or will contain ")
 		log.Printf("the unix domain sockets.  This directory will be mapped to /var/run/parigot inside ")
 		log.Printf("the dev container, if you are using it.  We recommend using a directory like")
 		log.Printf("'~/parigot/socket' and we recommend using a fully qualified path.  The directory ")
-		log.Printf("passed as %s  must already exist.", socketDir)
+		log.Printf("passed as %s  must already exist.", netconst.SocketEnvVar)
 		os.Exit(1)
 	}
-	dir := os.Getenv(socketDir)
+	dir := os.Getenv(netconst.SocketEnvVar)
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Printf("The directory '%s' which is the value of the ", dir)
-			log.Printf("environment variable '%s' does not exist.", socketDir)
+			log.Printf("environment variable '%s' does not exist.", netconst.SocketEnvVar)
 			log.Printf("If this directory is the one you intended, you need to make sure the directory ")
 			log.Printf("exists with 'mkdir' or similar before running a parigot command that ")
-			log.Printf("uses the '%s' environment variable.", socketDir)
+			log.Printf("uses the '%s' environment variable.", netconst.SocketEnvVar)
 			os.Exit(1)
 		}
 		log.Fatalf("%v", err)
 	}
 	if !info.IsDir() {
-		log.Printf("The value of the environment variable '%s' is not ", socketDir)
+		log.Printf("The value of the environment variable '%s' is not ", netconst.SocketEnvVar)
 		log.Printf("a directory.  Make sure that the value of that variable both is a directory and exists.")
 		os.Exit(1)
 	}
-	envVar = os.Getenv(socketDir)
-	sockAddr = filepath.Join([]string{envVar, sockName}...)
+	envVar = os.Getenv(netconst.SocketEnvVar)
+	sockAddr = filepath.Join([]string{envVar, netconst.SocketName}...)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

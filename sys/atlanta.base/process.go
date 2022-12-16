@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	"github.com/iansmith/parigot/api/logimpl/ui"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true
+var processVerbose = false
 
 var lastProcessId = 7
 
@@ -70,6 +71,9 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	rs *RemoteSpec) (*Process, error) {
 
 	rt := newRuntime(rs)
+	// split mode
+	logViewer := &ui.LogViewerImpl{}
+
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
@@ -91,7 +95,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 		runCh:    make(chan bool),
 	}
 
-	l, err := proc.checkLinkage(rt)
+	l, err := proc.checkLinkage(rt, logViewer)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +115,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	memptr := uintptr(ext.Memory().Data(parentStore))
 	proc.memPtr = memptr
 	rt.SetMemPtr(memptr)
+	logViewer.SetWasmMem(memptr)
 	rt.SetProcess(proc)
 
 	if rt.spec.IsRemote(proc) {
@@ -144,12 +149,12 @@ func (p *Process) IsWaiter() bool {
 	return p.waiter
 }
 
-func (p *Process) checkLinkage(rt *Runtime) ([]wasmtime.AsExtern, error) {
+func (p *Process) checkLinkage(rt *Runtime, lv *ui.LogViewerImpl) ([]wasmtime.AsExtern, error) {
 
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
 	addSupportedFunctions(p.parent, available, rt)
-	addSplitModeFunctions(p.parent, available, rt.syscall.mem)
+	addSplitModeFunctions(p.parent, available, lv)
 
 	// result of checking the linkage
 	linkage := []wasmtime.AsExtern{}
