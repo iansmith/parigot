@@ -10,8 +10,6 @@ import (
 	"hash/crc32"
 	"log"
 	"net"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"unsafe"
@@ -43,25 +41,21 @@ func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 		unsafe.Offsetof(LogViewerPayload{}.Len))
 
 	if l.path == "" {
-		dir := "/var/run/parigot" // default value
-		if os.Getenv(netconst.SocketEnvVar) != "" {
-			dir = os.Getenv(netconst.SocketEnvVar)
-		}
-		path := filepath.Join(dir, netconst.SocketName)
-		l.path = path
-		_, err := os.Stat(path)
+		// dir := "/var/run/parigot" // default value
+		// if os.Getenv(netconst.SocketEnvVar) != "" {
+		// 	dir = os.Getenv(netconst.SocketEnvVar)
+		// }
+		// path := filepath.Join(dir, netconst.SocketName)
+		// l.path = path
+		// conn, err := net.Dial("unixpacket", path)
+		l.path = "host.docker.internal:4004"
+		conn, err := net.Dial("tcp", "host.docker.internal:4004")
 		if err != nil {
-			log.Printf("unable to open %s for connection to log viewer, defaulting to terminal output", path)
+			log.Printf("unable to connect to logViewer on  %s, defaulting to terminal output: %v", "host.docker.internal:4004", err)
 			l.terminal = true
 		} else {
-			conn, err := net.Dial("unix", path)
-			if err != nil {
-				log.Printf("unable to connect to logViewer on  %s, defaulting to terminal output", path)
-				l.terminal = true
-			} else {
-				l.connection = conn
-				l.terminal = false
-			}
+			l.connection = conn
+			l.terminal = false
 		}
 	}
 	if l.terminal {
@@ -86,6 +80,7 @@ func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 			}
 			written += w
 		}
+		fmt.Printf("what is the data? %d, %x\n", len(buffer), buffer)
 	}
 }
 
@@ -101,17 +96,15 @@ func DecodeLogRequestBuffer(buffer []byte) (*pb.LogRequest, error) {
 		return nil, decodeError
 	}
 	size := int(l)
+	log.Printf("xxx decode 1 -- %d\n", size)
 	req := pb.LogRequest{}
-	if err := proto.Unmarshal(buffer[netconst.FrontMatterSize:netconst.FrontMatterSize+size], &req); err != nil {
-		for i := 0; i < size; i += 8 {
-			print("bytes: ", i, " ", buffer[netconst.FrontMatterSize+i+0], " ", buffer[netconst.FrontMatterSize+i+1], " ", buffer[netconst.FrontMatterSize+i+2], " ", buffer[netconst.FrontMatterSize+i+3], " ", buffer[netconst.FrontMatterSize+i+4], " ", buffer[netconst.FrontMatterSize+i+5], " ", buffer[netconst.FrontMatterSize+i+6], " ", buffer[netconst.FrontMatterSize+i+7], "\n")
-		}
-		print(buffer[netconst.FrontMatterSize:netconst.FrontMatterSize+size], "\n")
+	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
+	if err := proto.Unmarshal(objBuffer, &req); err != nil {
 		log.Printf("unable to print log message, request could not be unmarshaled: %v", err)
 		return nil, decodeError
 	}
-	result := crc32.Checksum(buffer[:size+netconst.FrontMatterSize], netconst.KoopmanTable)
-	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size:])
+	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
+	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
 	if expected != result {
 		log.Printf("unable to print log message, bad checksum found on log request")
 		return nil, decodeError

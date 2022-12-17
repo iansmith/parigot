@@ -57,7 +57,7 @@ func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error 
 		return err
 	}
 
-	result := crc32.Checksum(buffer[:netconst.FrontMatterSize+size], netconst.KoopmanTable)
+	result := crc32.Checksum(buffer[netconst.FrontMatterSize:netconst.FrontMatterSize+size], netconst.KoopmanTable)
 	buffer = append(buffer, []byte{0, 0, 0, 0}...) //space for the crc
 	binary.LittleEndian.PutUint32(buffer[netconst.FrontMatterSize+size:], uint32(result))
 	payload := &ui.LogViewerPayload{}
