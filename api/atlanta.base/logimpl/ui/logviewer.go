@@ -80,7 +80,6 @@ func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 			}
 			written += w
 		}
-		fmt.Printf("what is the data? %d, %x\n", len(buffer), buffer)
 	}
 }
 
@@ -96,7 +95,6 @@ func DecodeLogRequestBuffer(buffer []byte) (*pb.LogRequest, error) {
 		return nil, decodeError
 	}
 	size := int(l)
-	log.Printf("xxx decode 1 -- %d\n", size)
 	req := pb.LogRequest{}
 	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, &req); err != nil {
