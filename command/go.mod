@@ -9,7 +9,6 @@ require (
 )
 
 require (
-	fyne.io/fyne/v2 v2.2.4 // indirect
 	github.com/BurntSushi/toml v1.2.0 // indirect
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20220911224424-aa1f1f12a846 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect

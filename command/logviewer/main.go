@@ -4,52 +4,31 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
+	"image/color"
 	"log"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/iansmith/parigot/api/netconst"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"google.golang.org/protobuf/proto"
 )
 
 var envVar string
 var sockAddr string
 
-func main() {
+var logCh = make(chan string, 32)
 
-	if os.Getenv(netconst.SocketEnvVar) == "" {
-		log.Printf("Unable to find environment variable: %s", netconst.SocketEnvVar)
-		log.Printf("This environment variable should point the _directory_ that contains or will contain ")
-		log.Printf("the unix domain sockets.  This directory will be mapped to /var/run/parigot inside ")
-		log.Printf("the dev container, if you are using it.  We recommend using a directory like")
-		log.Printf("'~/parigot/socket' and we recommend using a fully qualified path.  The directory ")
-		log.Printf("passed as %s  must already exist.", netconst.SocketEnvVar)
-		os.Exit(1)
-	}
-	dir := os.Getenv(netconst.SocketEnvVar)
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Printf("The directory '%s' which is the value of the ", dir)
-			log.Printf("environment variable '%s' does not exist.", netconst.SocketEnvVar)
-			log.Printf("If this directory is the one you intended, you need to make sure the directory ")
-			log.Printf("exists with 'mkdir' or similar before running a parigot command that ")
-			log.Printf("uses the '%s' environment variable.", netconst.SocketEnvVar)
-			os.Exit(1)
-		}
-		log.Fatalf("%v", err)
-	}
-	if !info.IsDir() {
-		log.Printf("The value of the environment variable '%s' is not ", netconst.SocketEnvVar)
-		log.Printf("a directory.  Make sure that the value of that variable both is a directory and exists.")
-		os.Exit(1)
-	}
-	envVar = os.Getenv(netconst.SocketEnvVar)
-	sockAddr = ":4004"
+func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -58,6 +37,13 @@ func main() {
 			cleanupAndExit()
 		}
 	}()
+	go processNetwork()
+	launchUI()
+
+}
+
+func processNetwork() {
+	sockAddr = ":4004"
 
 	l, e := net.Listen("tcp", sockAddr)
 	if e != nil {
@@ -140,20 +126,81 @@ func handler(conn net.Conn) {
 	}
 }
 
+type myTheme struct{}
+
+var myThemeInst myTheme
+
+var _ fyne.Theme = (*myTheme)(nil)
+
+func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	//log.Printf("color called with '%s', '%v'", name, variant)
+	return theme.DefaultTheme().Color(name, variant)
+}
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource {
+	log.Printf("font request: %#v", style)
+	return theme.DefaultTheme().Font(style)
+}
+func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
+	//log.Printf("size called with '%s'", name)
+	if theme.SizeNamePadding == name {
+		return 0.0
+	}
+	return theme.DefaultTheme().Size(name)
+}
+func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(name)
+}
+
+const topBottomMargin = 10.0
+const fontSize = 8.0 /* points?*/
+const windowWidth = 600.0
+const windowHeight = 400.0
+
+func launchUI() {
+	a := app.New()
+	a.Settings().SetTheme(myThemeInst)
+	w := a.NewWindow("Parigot Logviewer")
+
+	boxCont := container.NewVBox()
+	top := widget.NewLabel(" ")
+	bottom := widget.NewLabel(" ")
+	top.Resize(fyne.NewSize(100.0, topBottomMargin))
+	bottom.Resize(fyne.NewSize(100.0, topBottomMargin))
+
+	//boxCont.Resize(fyne.Size{Width: 600.0, Height: 400})
+
+	go func() {
+		for {
+			s := <-logCh
+			for strings.HasSuffix(s, "\n") {
+				s = s[:len(s)-1]
+			}
+			label := widget.NewLabel(s)
+			label.TextStyle = fyne.TextStyle{Monospace: true}
+			boxCont.Add(label)
+			//currentSize := fyne.MeasureText(s, fontSize, fyne.TextStyle{Monospace: true})
+			boxCont.Refresh()
+
+		}
+	}()
+	scrollCont := container.NewVScroll(boxCont)
+	cont := container.NewBorder(top, bottom, nil, nil, scrollCont)
+
+	w.SetContent(cont)
+	w.Resize(fyne.NewSize(windowWidth, windowHeight))
+	w.ShowAndRun()
+}
+
 func internalMessage(s string) {
 	log.Printf("xxx internal message %s", s)
 }
 
 func logMessage(req *pb.LogRequest) {
 	s := fmt.Sprintf("%s:%d:%s", req.Stamp.AsTime().Format(time.RFC3339), req.Level, req.Message)
-	log.Printf("xxx log request: %s", s)
+	logCh <- s
 }
 
 func cleanupAndExit() {
 	log.Printf("closing socket: %s", sockAddr)
-	// err := os.Remove(sockAddr)
-	// if err != nil {
-	// 	log.Printf("unable to remove our unix domain socket %s:%v", sockAddr, err)
-	// }
 	os.Exit(1)
 }
