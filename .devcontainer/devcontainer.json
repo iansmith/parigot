@@ -15,7 +15,8 @@
 		"--cap-add=SYS_PTRACE",
 		"--security-opt",
 		"seccomp=unconfined",
-		"-v/Users/iansmith/parigot/socket:/var/run/parigot"
+		"-v/Users/iansmith/parigot/socket:/var/run/parigot:rw",
+		"--add-host=host.docker.internal:host-gateway"
 	],
 	// Configure tool-specific properties.
 	"customizations": {

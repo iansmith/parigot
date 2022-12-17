@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"time"
 
 	"github.com/iansmith/parigot/api/netconst"
@@ -50,7 +49,7 @@ func main() {
 		os.Exit(1)
 	}
 	envVar = os.Getenv(netconst.SocketEnvVar)
-	sockAddr = filepath.Join([]string{envVar, netconst.SocketName}...)
+	sockAddr = ":4004"
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -60,17 +59,19 @@ func main() {
 		}
 	}()
 
+	l, e := net.Listen("tcp", sockAddr)
+	if e != nil {
+		log.Printf("%v", e)
+		cleanupAndExit()
+	}
+	internalMessage(fmt.Sprintf("waiting for connection on %s", sockAddr))
 	for {
-		l, e := net.Listen("unix", sockAddr)
-		if e != nil {
-			log.Printf("%v", e)
-			cleanupAndExit()
-		}
 		conn, e := l.Accept()
 		if e != nil {
 			log.Printf("%v", e)
 			cleanupAndExit()
 		}
+		internalMessage(fmt.Sprintf("handling new connection on %s", sockAddr))
 		go handler(conn)
 	}
 
@@ -80,7 +81,6 @@ func handler(conn net.Conn) {
 	dataBuffer := make([]byte, netconst.FrontMatterSize+netconst.TrailerSize+netconst.ReadBufferSize)
 	magicBuffer := dataBuffer[0:8]
 	lenBuffer := dataBuffer[8:12]
-	crcBuffer := dataBuffer[len(dataBuffer)-4:]
 
 	for {
 		read, err := conn.Read(magicBuffer)
@@ -96,7 +96,7 @@ func handler(conn net.Conn) {
 		if magicNum != netconst.MagicStringOfBytes {
 			internalMessage(fmt.Sprintf("[bad magic number, got %x expected %x, closing %s]", magicNum, netconst.MagicStringOfBytes, sockAddr))
 		}
-		read, err = conn.Read(magicBuffer)
+		read, err = conn.Read(lenBuffer)
 		if err != nil {
 			internalMessage(fmt.Sprintf("[disconnected from %s", sockAddr))
 			return
@@ -111,17 +111,29 @@ func handler(conn net.Conn) {
 			internalMessage(fmt.Sprintf("[data is too large: %d expected no more than %d, closing %s]", length, netconst.ReadBufferSize, sockAddr))
 			return
 		}
+		objBuffer := dataBuffer[netconst.FrontMatterSize : length+netconst.FrontMatterSize]
+		read, err = conn.Read(objBuffer)
+		if err != nil {
+			internalMessage(fmt.Sprintf("[disconnected from %s", sockAddr))
+			return
+		}
 		var req pb.LogRequest
-		err = proto.Unmarshal(dataBuffer[:length], &req)
+		err = proto.Unmarshal(objBuffer, &req)
 		if err != nil {
 			internalMessage(fmt.Sprintf("[unable to unmarshal data from socket: %v, closing %s]", err, sockAddr))
 			return
 		}
-		result := crc32.Checksum(dataBuffer[:netconst.FrontMatterSize+netconst.ReadBufferSize],
-			netconst.KoopmanTable)
+		crcBuffer := dataBuffer[length+netconst.FrontMatterSize : length+netconst.FrontMatterSize+4]
+
+		read, err = conn.Read(crcBuffer)
+		if err != nil {
+			internalMessage(fmt.Sprintf("[disconnected from %s", sockAddr))
+			return
+		}
+		result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
 		expected := binary.LittleEndian.Uint32(crcBuffer)
 		if expected != result {
-			internalMessage(fmt.Sprintf("[bad crc: expected %x but got %x, closing %s]", expected, result, sockAddr))
+			internalMessage(fmt.Sprintf("[bad crc: expected %x but got %x, with CRC over %d bytes, closing %s]", expected, result, length, sockAddr))
 			return
 		}
 		logMessage(&req)
@@ -138,10 +150,10 @@ func logMessage(req *pb.LogRequest) {
 }
 
 func cleanupAndExit() {
-	log.Printf("removing unix domain socket: %s", sockAddr)
-	err := os.Remove(sockAddr)
-	if err != nil {
-		log.Printf("unable to remove our unix domain socket %s:%v", sockAddr, err)
-	}
+	log.Printf("closing socket: %s", sockAddr)
+	// err := os.Remove(sockAddr)
+	// if err != nil {
+	// 	log.Printf("unable to remove our unix domain socket %s:%v", sockAddr, err)
+	// }
 	os.Exit(1)
 }
