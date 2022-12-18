@@ -1,0 +1,27 @@
+package file;
+option go_package="github.com/iansmith/parigot/api/proto/g/file;file";
+import "pb/log/file.proto";
+
+
+// This is the File service for parigot.  It is sandboxed such that caller to this service
+// has limited access to files. The caller can expect that "/app" is a directory in which new
+// files can be created and existing files can be found.  Attempts to create or open files
+// that have spaces in their path are ok, but not paths that include dots (.)  or other special
+// characters (like % or #) which will be immediately rejected with a FILEERRORCODE_PATH_ERROR.
+// Paths should only have characters that letters, numbers, and space.  The filesystem provided
+// is case preserving, but not case sensitive. It is therefore recommended to use only lower case
+// letters in path names.
+//
+// The creating of deeply nested directories within /app is not permitted.  Currently the limit for
+// directory depth is 4, so a directory like /app/foo/bar/baz is ok but a directory like 
+// /app/quux/fleazil/frobnitz/yack is not.
+//
+// This api provides no synchronous interface to reading or writing file content.  The caller will
+// be handed an Id upon successfully starting a read or write.  That Id can be used later to 
+// query the status of the read or write and it is expected that this will be driven by the *end user*,
+// such as a user on the internet with a web browser.
+
+
+service File {
+  rpc Log(pb.log.LogRequest) returns (pb.log.LogResult);
+}

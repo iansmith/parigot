@@ -1,0 +1,35 @@
+syntax = "proto3";
+package pb.log;
+option go_package="github.com/iansmith/parigot/api/proto/g/pb/file;file";
+
+
+enum FileErrorCode {
+  FILEERRORCODE_UNSPECIFIED = 0;
+  FILERRORCODE_SUCCESS  =1;
+  FILEERRORCODE_PATH_ERROR = 2; 
+}
+
+message CreateFileRequest {
+  string path  = 1;
+}
+
+message OpenFileRequest {
+  string path  = 1;
+}
+
+message CreateFileResponse {
+    string path = 1;
+    FileErrorCode code = 2;
+    bool truncated = 3;
+    // The value of this Id is a duplicate encoding of the FileErrorCode if there is any error. If the
+    // code is FILERRORCODE_SUCCESS then this is the handle to the appropriate file.
+    protosupport.Id file_id = 4;
+}
+
+message OpenFileResponse {
+    string path = 1;
+    FileErrorCode code = 2;
+    // The value of this Id is a duplicate encoding of the FileErrorCode if there is any error. If the
+    // code is FILERRORCODE_SUCCESS then this is the handle to the appropriate file.
+    protosupport.Id file_id = 3;
+}
