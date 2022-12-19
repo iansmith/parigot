@@ -42,7 +42,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.
 	}
 
 	in := &call.DispatchRequest{
-		ServiceId: MarshalServiceId(c.svc),
+		ServiceId: Marshal[protosupport.ServiceId](c.svc),
 		Caller:    c.caller,
 		Method:    method,
 		InPctx:    c.pctx,

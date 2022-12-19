@@ -66,8 +66,8 @@ func Run(impl LogServer) {
 			pctxSlice = pctxBuf[:resp.PctxLen]
 		}
 		paramSlice := paramBuf[:resp.ParamLen]
-		mid := lib.UnmarshalMethodId(resp.GetMethod())
-		cid := lib.UnmarshalCallId(resp.GetCall())
+		mid := lib.Unmarshal[*protosupport.MethodId](resp.GetMethod())
+		cid := lib.Unmarshal[*protosupport.CallId](resp.GetCall())
 
 		//
 		// create the generic params, pctx and param
@@ -127,7 +127,7 @@ func logBind(impl LogServer) (string, error) {
 	if logerr != nil {
 		return "Log", logerr
 	}
-	logMethod = lib.UnmarshalMethodId(resp.GetMethodId()) 
+	logMethod = lib.Unmarshal(resp.GetMethodId()) 
 	if !impl.Ready(){
 		panic("unable to start Log because it failed Ready() check")
 	}

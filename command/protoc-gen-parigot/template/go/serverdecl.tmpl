@@ -99,8 +99,8 @@ func Run(impl {{$svcCamel}}Server) {
 			pctxSlice = pctxBuf[:resp.PctxLen]
 		}
 		paramSlice := paramBuf[:resp.ParamLen]
-		mid := lib.UnmarshalMethodId(resp.GetMethod())
-		cid := lib.UnmarshalCallId(resp.GetCall())
+		mid := lib.Unmarshal[*protosupport.MethodId](resp.GetMethod())
+		cid := lib.Unmarshal[*protosupport.CallId](resp.GetCall())
 
 		//
 		// create the generic params, pctx and param
@@ -182,7 +182,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	if {{$methCamelFL}}err != nil {
 		return "{{$methCamel}}", {{$methCamelFL}}err
 	}
-	{{$methCamelFL}}Method = lib.UnmarshalMethodId(resp.GetMethodId())
+	{{$methCamelFL}}Method = lib.Unmarshal(resp.GetMethodId())
 {{- end }} {{/* end of rang over methods */}}
 	if !impl.Ready(){
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")

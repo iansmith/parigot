@@ -1,35 +1,38 @@
 syntax = "proto3";
 package pb.log;
 option go_package="github.com/iansmith/parigot/api/proto/g/pb/file;file";
+import "pb/protosupport/protosupport.proto";
 
 
-enum FileErrorCode {
-  FILEERRORCODE_UNSPECIFIED = 0;
-  FILERRORCODE_SUCCESS  =1;
-  FILEERRORCODE_PATH_ERROR = 2; 
-}
-
-message CreateFileRequest {
+message FileCreateRequest {
   string path  = 1;
 }
 
-message OpenFileRequest {
+message FileOpenRequest {
   string path  = 1;
 }
 
-message CreateFileResponse {
+message FileCloseRequest {
+  protosupport.FileId id = 1;
+}
+
+message FileCreateResponse {
     string path = 1;
-    FileErrorCode code = 2;
+    // This id might contain an error value.
+    protosupport.FileId id = 2;
     bool truncated = 3;
-    // The value of this Id is a duplicate encoding of the FileErrorCode if there is any error. If the
-    // code is FILERRORCODE_SUCCESS then this is the handle to the appropriate file.
-    protosupport.Id file_id = 4;
 }
 
-message OpenFileResponse {
+message FileOpenResponse {
     string path = 1;
-    FileErrorCode code = 2;
-    // The value of this Id is a duplicate encoding of the FileErrorCode if there is any error. If the
-    // code is FILERRORCODE_SUCCESS then this is the handle to the appropriate file.
-    protosupport.Id file_id = 3;
+    // This id might contain an error value.
+    protosupport.FileId id = 2;
+}
+
+// FileCloseResponse is not empty because it can return an error. However, there is no
+// action that the receiver of this response can take other than perhaps issuing a warning
+// to the system operators.
+message FileCloseResponse {
+  // This will be NoError or some error code, not a handle to an open file.
+  protosupport.FileId id = 1;
 }

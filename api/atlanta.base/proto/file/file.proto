@@ -1,6 +1,6 @@
 package file;
 option go_package="github.com/iansmith/parigot/api/proto/g/file;file";
-import "pb/log/file.proto";
+import "pb/file/file.proto";
 
 
 // This is the File service for parigot.  It is sandboxed such that caller to this service
@@ -23,5 +23,7 @@ import "pb/log/file.proto";
 
 
 service File {
-  rpc Log(pb.log.LogRequest) returns (pb.log.LogResult);
+  rpc Open(pb.log.FileOpenRequest) returns (pb.log.FileOpenResponse);
+  rpc Create(pb.log.FileCreateRequest) returns (pb.log.FileCreateResponse);
+  rpc Close(pb.log.FileCloseRequest) returns (pb.log.FileCloseResponse);
 }

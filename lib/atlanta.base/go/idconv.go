@@ -2,24 +2,50 @@ package lib
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math/rand"
 
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 )
 
 const (
-	kernelErrorIdLetter  = 'k'
-	serviceIdLetter      = 's'
-	methodIdLetter       = 'm'
-	callIdLetter         = 'c'
-	developerIdLetter    = 'y'
-	developerErrorLetter = 'z'
+	kernelErrorIdLetter = 'k'
+	serviceIdLetter     = 's'
+	methodIdLetter      = 'm'
+	callIdLetter        = 'c'
+	dbConnIdLetter      = 'D'
+	dbIOIdLetter        = 'I'
+	fileIdLetter        = 'f'
+	fileIOIdLetter      = 'i'
 )
 
 type KernelErrorCode uint16
 
+type AllIdPtr interface {
+	*protosupport.CallId |
+		*protosupport.DBConnId |
+		*protosupport.DBIOId |
+		*protosupport.FileId |
+		*protosupport.FileIOId |
+		*protosupport.MethodId |
+		*protosupport.ServiceId |
+		*protosupport.KernelErrorId
+}
+
+type AllId interface {
+	protosupport.CallId |
+		protosupport.DBConnId |
+		protosupport.DBIOId |
+		protosupport.FileId |
+		protosupport.FileIOId |
+		protosupport.MethodId |
+		protosupport.ServiceId |
+		protosupport.KernelErrorId
+}
+
 const (
+	// NoKernelError means just what it sounds like.  All Ids that are errors represent
+	// no error as 0.
+	KernelNoError KernelErrorCode = 0
 	// KernelAlreadyRegistered means that the a package, service or method
 	// has already been registered and the attempted 2nd registration has been
 	// rejected.
@@ -80,83 +106,61 @@ const (
 	KernelNSRetryFailed KernelErrorCode = 15
 )
 
-// NoKernelErr returns a kernel error id, with the value set to zero, or no error.
-func NoKernelErr() Id {
-	return newFromErrorCode(0, kernelErrorIdLetter)
+// NoError() creates an id of the given type with the "error type" but with no error as the value.
+func NoError[T AllIdPtr]() Id {
+	var t T
+	letter := typeToLetter(t)
+	return newFromErrorCode(0, letter)
 }
 
-// NoDeveloperError returns a developer error id, with the value set to zero, or no error.
-func NoDeveloperErr() Id {
-	return newFromErrorCode(0, developerErrorLetter)
+// NoErrorMarhsalled is a wrapper to call NoError() and then Marshal() on the given type.
+func NoErrorMarshaled[T AllId, P AllIdPtr]() *T {
+	return Marshal[T](NoError[P]())
 }
 
-// NewKernelError returns a kernel error id with the value (low 16 bits) set to the
-// error code.
-func NewKernelError(kerr KernelErrorCode) Id {
-	return newFromErrorCode(uint64(kerr), kernelErrorIdLetter)
+// NewError creates an error of the given type that contains the given error code. which only fills
+// the low 16 bits of the low uint64 of the id.
+func NewError[T AllIdPtr](err uint16) Id {
+	var t T
+	letter := typeToLetter(t)
+	return newFromErrorCode(uint64(err), letter)
 }
 
-// NewDeveloperError returns a developer error id with the value (low 16 bits) set to the
-// error code.  Developers may use this as they please.
-func NewUserError(code int16) Id {
-	return newFromErrorCode(uint64(code), developerErrorLetter)
+// NoKernelError is a wrapper to create a no error from the kernel and marshal it.
+func NoKernelError() *protosupport.KernelErrorId {
+	return NoErrorMarshaled[protosupport.KernelErrorId, *protosupport.KernelErrorId]()
 }
 
+// NewKernelError is just a convenience wrapper around NewError() that has the correct constant type
+// its parameter.  Note that this will accept "NoKer"
+func NewKernelError(code KernelErrorCode) Id {
+	if code == KernelNoError {
+		return NoError[*protosupport.KernelErrorId]()
+	}
+	return NewError[*protosupport.KernelErrorId](uint16(code))
+}
+
+// newFromErrorCode is a convenience wrapper around creating an id which represents an error for
+// any of the wrapper types.
 func newFromErrorCode(code uint64, letter byte) Id {
 	id := idBaseFromConst(code, true, letter)
 	return id
 }
 
-// ServiceIdFromUint64 is useful when dealing with wire values.  When you receive the two
-// uint64s, you can use this to turn it into a service id.  This should not be used
-// otherwise.
-func ServiceIdFromUint64(high uint64, low uint64) Id {
-	return idFromUint64(high, low, serviceIdLetter)
-}
-
-// DeveloperIdFromUint64 is useful when dealing with wire values.  When you receive the two
-// uint64s, you can use this to turn it into a developer id.  This should not be used
-// otherwise.
-func UserIdFromUint64(high uint64, low uint64) Id {
-	return idFromUint64(high, low, developerIdLetter)
-}
-
-// CallIdFromUint64 is useful when dealing with wire values.  When you receive the two
-// uint64s, you can use this to turn it into a call id.  This should not be used
-// otherwise.
-func CallIdFromUint64(high uint64, low uint64) Id {
-	return idFromUint64(high, low, callIdLetter)
-}
-
-// MethodIdFromUint64 is useful when dealing with wire values.  When you receive the two
-// uint64s, you can use this to turn it into a method id.  This should not be used
-// otherwise.
-func MethodIdFromUint64(high uint64, low uint64) Id {
-	return idFromUint64(high, low, methodIdLetter)
-}
-
-// NewCallId returns a new call id, initialized with the value (low 112 bits) derived
-// from the source of randomness.
-func NewCallId() Id {
-	return newIdRand(callIdLetter)
-}
-
-// NewMethodId returns a new method id, initialized with the value (low 112 bits) derived
-// from the source of randomness.
-func NewMethodId() Id {
-	return newIdRand(methodIdLetter)
-}
-
-// NewServiceId returns a new service id, initialized with the value (low 112 bits) derived
-// from the source of randomness.
-func NewServiceId() Id {
-	return newIdRand(serviceIdLetter)
-}
-
-// NewDeveloperId returns a new user id, initialized with the value (low 112 bits) derived
-// from the source of randomness.  Developers may use this as they please.
-func NewDeveloperId() Id {
-	return newIdRand(developerIdLetter)
+// NewFrom64BitPair creates a new instance of Id that has the given high and low uint64s but it
+// also checks that the given high uint64 has the proper letter in the high byte.  If the given
+// high uint64 does not match the proper letter for the type, it panics.  This method is probably
+// not of interest to user code, even though it might look like it.  NewError() and NewRand()
+// are probably the ones to consider instead.
+func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
+	h := make([]byte, 8)
+	binary.LittleEndian.PutUint64(h, high)
+	var t T
+	letter := typeToLetter(t)
+	if letter != h[7] {
+		panic("type of id does not match letter")
+	}
+	return idFromUint64Pair(high, low, letter)
 }
 
 // newIdRand computes a new id for any given letter with the value drawn from the source of
@@ -176,17 +180,8 @@ func newIdRand(letter byte) Id {
 	return id
 }
 
-// sourceTwo64BitNumbers returns two numbers from the default (math) source.  Note that the
-// docs of rand say that it safe for concurrent use, so there is no locking here.  If we switch
-// to cryptographic source, this will probably need a lock.
-func sourceTwo64BitNumbers() (uint64, uint64) {
-	high := rand.Uint64()
-	low := rand.Uint64()
-	return high, low
-}
-
-// idFromUint64 creates a non-error type of id given by letter from the two values provided.
-func idFromUint64(high uint64, low uint64, letter byte) Id {
+// idFromUint64Pair creates a non-error type of id given by letter from the two values provided.
+func idFromUint64Pair(high uint64, low uint64, letter byte) Id {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, high)
 	buf[7] = letter
@@ -194,126 +189,133 @@ func idFromUint64(high uint64, low uint64, letter byte) Id {
 	return &IdBase{h: binary.LittleEndian.Uint64(buf), l: low}
 }
 
-// UnmarshaServiceId goes from the protobuf concept of a service id (which is a large
-// protobuf-based structure) to a simple Id.
-func UnmarshalServiceId(sid *protosupport.ServiceId) Id {
-	if sid == nil {
+// Unmarshal onverts from the internal representation in memory (lib.Id) to the external, wire-format
+// compatible version in protosupport.  This works for all types of Ids.
+func Unmarshal[T AllIdPtr](wrapper T) Id {
+	if wrapper == nil {
 		return nil
 	}
-	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
-	verifyIdType(result, serviceIdLetter)
+	inner := typeToInnerId(wrapper)
+	result := idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
 	return result
 }
 
-// MarshalServiceId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalServiceId(id Id) *protosupport.ServiceId {
-	return &protosupport.ServiceId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-// UnmarshalDeveloperId goes from the protobuf concept of a developer id (which is a large
-// protobuf-based structure) to a simple Id.
-func UnmarshalDeveloperId(sid *protosupport.DeveloperId) Id {
-	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
-	verifyIdType(result, serviceIdLetter)
-	return result
-}
-
-// MarshalDeveloperId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalDeveloperId(id Id) *protosupport.DeveloperId {
-	return &protosupport.DeveloperId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-// UnmarshalMethodId goes from the protobuf concept of a method id (which is a large
-// protobuf-based structure) to a simple Id.
-func UnmarshalMethodId(mid *protosupport.MethodId) Id {
-	if mid == nil {
+// Marshal converts from the wire-format of protobufs to the in-memory format that is two 64 bit
+// integers, in lib.Id.
+func Marshal[T AllId](id Id) *T {
+	if id == nil {
 		return nil
 	}
-	result := &IdBase{h: mid.GetHigh(), l: mid.GetLow()}
-	verifyIdType(result, methodIdLetter)
+	highBytes := int64ToByteSlice(id.High())
+	highByte := highBytes[7]
+
+	inner := &protosupport.BaseId{
+		High:       id.High(),
+		Low:        id.Low(),
+		AsciiValue: uint32(highByte),
+	}
+	result := new(T)
+	var asAny interface{}
+	asAny = result
+	letter := typeToLetter(asAny)
+	if highByte != letter {
+		panic("mismatched letters in id, type letter does not match the letter found")
+	}
+	if asAny == nil {
+		panic("attemp to add put id on an nil wrapper")
+	}
+	addInnerIdToType(asAny, inner)
 	return result
 }
 
-// MarshalMethodId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalMethodId(id Id) *protosupport.MethodId {
-	return &protosupport.MethodId{
-		High: id.High(),
-		Low:  id.Low(),
+// NewId() returns a new id for the given type. The value filled in is derived from a randomness
+// source that is currently math.Rand which not as secure as crypto.Rand but has the advantage of
+// being replayable.  Note that if you intended to create an id representing an error, use
+// NewError() or NoError().
+func NewId[T AllIdPtr]() Id {
+	var t T
+	letter := typeToLetter(t)
+	return newIdRand(letter)
+}
+
+// LocalId() should not be used by user programs.  LocalId() returns a new id for the given type.
+// The value filled in the next integer in a sequence starting at one.  This is used by some parts
+// of the kernel when creating a new Id() in an effort to ease debugging.  User level code should
+// always use NewId().
+func LocalId[T AllIdPtr](v uint64) Id {
+	var t T
+	letter := typeToLetter(t)
+	return idFromUint64Pair(0, v, letter)
+}
+
+// addInnerToType adds the given "inner" id (the real data) to an existing wrapper type that is
+// one of the ones visible to user code.
+func addInnerIdToType(i interface{}, inner *protosupport.BaseId) {
+	switch v := i.(type) {
+	case *protosupport.CallId:
+		v.Id = inner
+	case *protosupport.DBConnId:
+		v.Id = inner
+	case *protosupport.DBIOId:
+		v.Id = inner
+	case *protosupport.FileId:
+		v.Id = inner
+	case *protosupport.FileIOId:
+		v.Id = inner
+	case *protosupport.MethodId:
+		v.Id = inner
+	case *protosupport.ServiceId:
+		v.Id = inner
+	case *protosupport.KernelErrorId:
+		v.Id = inner
+	default:
+		panic("unknown id type")
 	}
 }
 
-// UnmarshalCallId goes from the protobuf concept of a call id (which is a large
-// protobuf-based structure) to a simple Id.
-func UnmarshalCallId(cid *protosupport.CallId) Id {
-	if cid == nil {
-		return nil
+// addInnerToType adds the given "inner" id (the real data) to an existing wrapper type that is
+// one of the ones visible to user code.
+func typeToInnerId(i interface{}) *protosupport.BaseId {
+	switch v := i.(type) {
+	case *protosupport.CallId:
+		return v.GetId()
+	case *protosupport.DBConnId:
+		return v.GetId()
+	case *protosupport.DBIOId:
+		return v.GetId()
+	case *protosupport.FileId:
+		return v.GetId()
+	case *protosupport.FileIOId:
+		return v.GetId()
+	case *protosupport.MethodId:
+		return v.GetId()
+	case *protosupport.ServiceId:
+		return v.GetId()
+	case *protosupport.KernelErrorId:
+		return v.GetId()
 	}
-	result := &IdBase{h: cid.GetHigh(), l: cid.GetLow()}
-	verifyIdType(result, callIdLetter)
-	return result
+	panic("unknown id type")
 }
 
-// MarshalCallId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalCallId(id Id) *protosupport.CallId {
-	return &protosupport.CallId{
-		High: id.High(),
-		Low:  id.Low(),
+// typeToLetter returns the single ascii character (as a byte) that represents a given type of id.
+func typeToLetter(i interface{}) byte {
+	switch i.(type) {
+	case *protosupport.CallId:
+		return callIdLetter
+	case *protosupport.DBConnId:
+		return dbConnIdLetter
+	case *protosupport.DBIOId:
+		return dbIOIdLetter
+	case *protosupport.FileId:
+		return fileIdLetter
+	case *protosupport.FileIOId:
+		return fileIOIdLetter
+	case *protosupport.MethodId:
+		return methodIdLetter
+	case *protosupport.ServiceId:
+		return serviceIdLetter
+	case *protosupport.KernelErrorId:
+		return kernelErrorIdLetter
 	}
-}
-
-// UnmarshalKernelErrorId goes from the protobuf concept of a kernel error id (which is a large
-// protobuf-based structure) to a simple Id.  This call verifies that the value provided from
-// the protobuf is marked as an error type.
-func UnmarshalKernelErrorId(sid *protosupport.KernelErrorId) Id {
-	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
-	if !result.IsErrorType() {
-		panic("unmarshaled a kernel id that was not marked as an error type")
-	}
-	return result
-}
-
-// MarshalKernelErrId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalKernelErrId(id Id) *protosupport.KernelErrorId {
-	return &protosupport.KernelErrorId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-// UnmarshalDeveloperErrorId goes from the protobuf concept of a developer error id (which is a large
-// protobuf-based structure) to a simple Id.  This call verifies that the value provided from
-// the protobuf is marked as an error type.
-func UnmarshalDeveloperErrId(sid *protosupport.DeveloperErrorId) Id {
-	result := &IdBase{h: sid.GetHigh(), l: sid.GetLow()}
-	if !result.IsErrorType() {
-		panic("unmarshaled a developer id that was not marked as an error type")
-	}
-	return result
-}
-
-// MarshalDeveloperErrId is used to convert a simple id into one suitable for use in a protobuf.
-func MarshalDeveloperErrId(id Id) *protosupport.DeveloperErrorId {
-	return &protosupport.DeveloperErrorId{
-		High: id.High(),
-		Low:  id.Low(),
-	}
-}
-
-// verifyIdType is used when unmarshalling or marshaling to make sure the type of the
-// object in question is the one you expect.  It panics if the expectation is violated.
-// It should not be used to verify ids that are of an error type.
-func verifyIdType(id Id, expected byte) {
-	slice := int64ToByteSlice(id.High())
-	if slice[7] != expected {
-		panic(fmt.Sprintf("expected id to be of type %c but was of type %c", expected, slice[7]))
-	}
-	if id.IsErrorType() {
-		panic(fmt.Sprintf("id %s was not expected to be an error type, was expecting %c", id.Short(), expected))
-	}
+	panic("unknown id type")
 }

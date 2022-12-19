@@ -56,7 +56,7 @@ func checkForReadyWaiter(newCh chan dep.DepKey, notifyCh chan *waitInfo) {
 
 func sendRunBlockResponse(info *waitInfo, success bool) {
 	resp := &net.RunBlockResponse{
-		ErrId:    lib.MarshalKernelErrId(lib.NoKernelErr()),
+		ErrId:    lib.NoKernelError(),
 		TimedOut: !success,
 	}
 	var a anypb.Any

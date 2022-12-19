@@ -39,9 +39,9 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 	// xxxfixme we should be doing an examination of execError to see if it is a lib.Perror
 	// xxxfixme and if it is, we should be pushing the user error back the other way
 	rv := &call.ReturnValueRequest{}
-	rv.Call = MarshalCallId(cid)
-	rv.Method = MarshalMethodId(mid)
-	rv.ErrorId = MarshalKernelErrId(NoKernelErr()) // just to allocate the space
+	rv.Call = Marshal[protosupport.CallId](cid)
+	rv.Method = Marshal[protosupport.MethodId](mid)
+	rv.ErrorId = NoKernelError() // just to allocate the space
 	libprint("RETURNVALUEENCODE ", "marshalError? %v execError ? %v", marshalError, execError)
 	if marshalError != nil || execError != nil {
 		eText := ""
@@ -56,7 +56,7 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 		//pctx.EventFinish()
 		// we use this because the error didn't come from INSIDE
 		// the kernel itself, see below for more
-		rv.ErrorId = MarshalKernelErrId(NoKernelErr())
+		rv.ErrorId = NoKernelError()
 		goto encodeError
 	}
 	// these are the mostly normal cases, but they can go hawywire
@@ -87,7 +87,7 @@ internalMarshalProblem:
 
 	// this is an internal error, so we signal it the opposite way we did the others at the top
 	rv.ErrorMessage = ""
-	rv.ErrorId = MarshalKernelErrId(NewKernelError(KernelMarshalFailed))
+	rv.ErrorId = Marshal[protosupport.KernelErrorId](NewKernelError(KernelMarshalFailed))
 encodeError:
 	rv.PctxBuffer = []byte{}
 	rv.ResultBuffer = []byte{}

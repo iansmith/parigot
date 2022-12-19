@@ -6,6 +6,7 @@ import (
 	"os"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
 )
@@ -47,20 +48,9 @@ func NewSysCallRW() *syscallReadWrite {
 	return &syscallReadWrite{}
 }
 
-// func (a *syscallReadWrite) OutputString(s string) {
-// 	print(s)
-// }
-
-// func (a *syscallReadWrite) JSNotImplemented(s string) {
-// 	print(s)
-// 	os.Exit(1)
-// }
-
-// func (a *syscallReadWrite) JSHandleEvent(e int32) {
-// 	print("JSHandleEvent\n")
-// 	os.Exit(1)
-// }
-
+// Exit does an os.Exit(0) which is bad.  There really should be some more signaling because sometimes one service going down
+// needs to alert other services or monitoring software.  Further, exiting the whloe program is probably not what
+// you want in the "all in one address space version" since it brings _all_ the services down.
 func (a *syscallReadWrite) Exit(sp int32) {
 	log.Printf("exit called")
 	a.proc.exited = true
@@ -68,16 +58,9 @@ func (a *syscallReadWrite) Exit(sp int32) {
 	os.Exit(int(0))
 }
 
-// func (a *syscallReadWrite) Now(retVal int32) {
-// 	print("Now")
-// 	os.Exit(1)
-// }
-
-// func (a *syscallReadWrite) SetNow(_ int64, _ bool) {
-// 	print("SetNow\n")
-// 	os.Exit(1)
-// }
-
+// Locate is the syste call thet finds the service requested (or returns an error if it cannot be found )
+// and creates an implementation of the proper interface to allow the caller to talk to that service no
+// matter if that service is across the network or in the same address space.
 func (s *syscallReadWrite) Locate(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
 	sysPrint("Locate", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
@@ -99,14 +82,10 @@ func (s *syscallReadWrite) Locate(sp int32) {
 		return
 	}
 	s.Write64BitPair(wasmPtr,
-		unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), lib.NoKernelErr())
+		unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), lib.NoError[*protosupport.KernelErrorId]())
 
 	s.Write64BitPair(wasmPtr,
 		unsafe.Offsetof(lib.LocatePayload{}.ServiceIdPtr), sid)
-}
-
-func DebugPrint(ct int32) {
-	log.Printf("----DebugPrint %d", ct)
 }
 
 func (s *syscallReadWrite) Dispatch(sp int32) {
@@ -115,7 +94,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
-	sid := lib.ServiceIdFromUint64(uint64(high), uint64(low))
+	sid := lib.NewFrom64BitPair[*protosupport.ServiceId](uint64(high), uint64(low))
 	sysPrint("DISPATCH", "find method by naem will be called on service %s", sid.Short())
 	method := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
@@ -219,7 +198,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		sysPrint("DISPATCH ", "copied %d bytes to original caller", len(resultInfo.result))
 	}
 
-	noErr := lib.NoKernelErr() // the lack of an error
+	noErr := lib.NoError[*protosupport.KernelErrorId]() // the lack of an error
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 		noErr)
 
@@ -269,7 +248,7 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.MethodId), mid)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
-		lib.NoKernelErr())
+		lib.NoError[*protosupport.KernelErrorId]())
 
 	sysPrint("BINDMETHOD", "bind completed, %s bound to %s", method, mid.Short())
 }
@@ -342,7 +321,8 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.MethodId), call.mid)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.CallId), call.cid)
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr), lib.NoKernelErr())
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
+		lib.NoError[*protosupport.KernelErrorId]())
 
 	sysPrint("BLOCKUNTILCALL", "Block until finished OK")
 	return // the server goes back to work
@@ -357,9 +337,9 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	// we just have to create the structure and send it through the correct channel
 	info := &resultInfo{}
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.CallId))
-	info.cid = lib.CallIdFromUint64(uint64(high), uint64(low))
+	info.cid = lib.NewFrom64BitPair[*protosupport.CallId](uint64(high), uint64(low))
 	low, high = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.MethodId))
-	info.mid = lib.MethodIdFromUint64(uint64(high), uint64(low))
+	info.mid = lib.NewFrom64BitPair[*protosupport.MethodId](uint64(high), uint64(low))
 	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
 	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
 	sysPrint("RETURNVALUE", "Error found in the call? %s", info.errorId)
@@ -395,7 +375,7 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	callInfo.respCh <- info
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
-		lib.NoKernelErr())
+		lib.NoError[*protosupport.KernelErrorId]())
 	sysPrint("RESULTVALUE ", "finished")
 	return
 }
@@ -439,7 +419,7 @@ func (s *syscallReadWrite) Export(sp int32) {
 		return
 	}
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
-		lib.NoKernelErr())
+		lib.NoError[*protosupport.KernelErrorId]())
 
 	sysPrint("EXPORT", "done")
 
@@ -471,7 +451,7 @@ func (s *syscallReadWrite) Require(sp int32) {
 		return
 	}
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
-		lib.NoKernelErr())
+		lib.NoError[*protosupport.KernelErrorId]())
 
 }
 
@@ -507,7 +487,7 @@ func (s *syscallReadWrite) Run(sp int32) {
 	}
 	sysPrint("RUN", "we are now ready to run, %s", s.proc)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
-		lib.NoKernelErr())
+		lib.NoError[*protosupport.KernelErrorId]())
 }
 
 func sysPrint(call, spec string, arg ...interface{}) {
