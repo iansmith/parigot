@@ -23,22 +23,92 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// BaseId is the "real" type for all the named Id types.  The named types provide just a bit of sugar
+// when in used in protobuf definitions so it is clear what _type_ of Id is being used.  BaseId should
+// never be used itself, use the Id type that is more specific so folks using your message structure
+// know what is going on.  Only 33 to 126 are allowed and printable is better for the asciiValue.  The
+// asciiValue is just there to make it easier to debug, the byte is also encoded into the high byte
+// of the high slot.
+type BaseId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	AsciiValue uint32 `protobuf:"varint,1,opt,name=asciiValue,proto3" json:"asciiValue,omitempty"`
+	High       uint64 `protobuf:"varint,2,opt,name=high,proto3" json:"high,omitempty"`
+	Low        uint64 `protobuf:"varint,3,opt,name=low,proto3" json:"low,omitempty"`
+}
+
+func (x *BaseId) Reset() {
+	*x = BaseId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[0]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *BaseId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BaseId) ProtoMessage() {}
+
+func (x *BaseId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[0]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BaseId.ProtoReflect.Descriptor instead.
+func (*BaseId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BaseId) GetAsciiValue() uint32 {
+	if x != nil {
+		return x.AsciiValue
+	}
+	return 0
+}
+
+func (x *BaseId) GetHigh() uint64 {
+	if x != nil {
+		return x.High
+	}
+	return 0
+}
+
+func (x *BaseId) GetLow() uint64 {
+	if x != nil {
+		return x.Low
+	}
+	return 0
+}
+
 // KernelErrorId is used to signal errors that occured inside the operating environment
 // itself.  When one of these errors is returned, typically the processing along that
-// path of control should terminate.
+// path of control should terminate.  Note that this is called KernelErrorId because it
+// always represents an error, but most of the other types of id can represent _either_ success or
+// failure (an error).
 type KernelErrorId struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (x *KernelErrorId) Reset() {
 	*x = KernelErrorId{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[0]
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -51,7 +121,7 @@ func (x *KernelErrorId) String() string {
 func (*KernelErrorId) ProtoMessage() {}
 
 func (x *KernelErrorId) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[0]
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -64,77 +134,14 @@ func (x *KernelErrorId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KernelErrorId.ProtoReflect.Descriptor instead.
 func (*KernelErrorId) Descriptor() ([]byte, []int) {
-	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *KernelErrorId) GetHigh() uint64 {
-	if x != nil {
-		return x.High
-	}
-	return 0
-}
-
-func (x *KernelErrorId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
-}
-
-// DeveloperErrorId is used to signal errors that are defined by the developer.
-type DeveloperErrorId struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
-}
-
-func (x *DeveloperErrorId) Reset() {
-	*x = DeveloperErrorId{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeveloperErrorId) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeveloperErrorId) ProtoMessage() {}
-
-func (x *DeveloperErrorId) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeveloperErrorId.ProtoReflect.Descriptor instead.
-func (*DeveloperErrorId) Descriptor() ([]byte, []int) {
 	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *DeveloperErrorId) GetHigh() uint64 {
+func (x *KernelErrorId) GetId() *BaseId {
 	if x != nil {
-		return x.High
+		return x.Id
 	}
-	return 0
-}
-
-func (x *DeveloperErrorId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
+	return nil
 }
 
 // ServiceId is a type of Id that is given to _clients_ of a particular service.  With this
@@ -145,8 +152,7 @@ type ServiceId struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (x *ServiceId) Reset() {
@@ -181,74 +187,11 @@ func (*ServiceId) Descriptor() ([]byte, []int) {
 	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ServiceId) GetHigh() uint64 {
+func (x *ServiceId) GetId() *BaseId {
 	if x != nil {
-		return x.High
+		return x.Id
 	}
-	return 0
-}
-
-func (x *ServiceId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
-}
-
-// DeveloperId is a type of Id that is defined by the developer.
-type DeveloperId struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
-}
-
-func (x *DeveloperId) Reset() {
-	*x = DeveloperId{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *DeveloperId) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeveloperId) ProtoMessage() {}
-
-func (x *DeveloperId) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeveloperId.ProtoReflect.Descriptor instead.
-func (*DeveloperId) Descriptor() ([]byte, []int) {
-	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *DeveloperId) GetHigh() uint64 {
-	if x != nil {
-		return x.High
-	}
-	return 0
-}
-
-func (x *DeveloperId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
+	return nil
 }
 
 // MethodId is a type of Id that is given to _implementations_ of a particular service.  A "server"
@@ -261,14 +204,13 @@ type MethodId struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (x *MethodId) Reset() {
 	*x = MethodId{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[4]
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -281,7 +223,7 @@ func (x *MethodId) String() string {
 func (*MethodId) ProtoMessage() {}
 
 func (x *MethodId) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[4]
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -294,21 +236,14 @@ func (x *MethodId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MethodId.ProtoReflect.Descriptor instead.
 func (*MethodId) Descriptor() ([]byte, []int) {
-	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{4}
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *MethodId) GetHigh() uint64 {
+func (x *MethodId) GetId() *BaseId {
 	if x != nil {
-		return x.High
+		return x.Id
 	}
-	return 0
-}
-
-func (x *MethodId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
+	return nil
 }
 
 // CallId is an id given to the implementations of methods of a service.  This id represents
@@ -322,14 +257,13 @@ type CallId struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	High uint64 `protobuf:"varint,1,opt,name=high,proto3" json:"high,omitempty"`
-	Low  uint64 `protobuf:"varint,2,opt,name=low,proto3" json:"low,omitempty"`
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
 func (x *CallId) Reset() {
 	*x = CallId{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[5]
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -342,7 +276,7 @@ func (x *CallId) String() string {
 func (*CallId) ProtoMessage() {}
 
 func (x *CallId) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[5]
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -355,23 +289,270 @@ func (x *CallId) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CallId.ProtoReflect.Descriptor instead.
 func (*CallId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CallId) GetId() *BaseId {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// UserId represents a user of the application.  Typically, UserIds are going to passed (via Pctx)
+// to the server implementations of methods so the receiving method can determine any needed access
+// control.
+type UserId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (x *UserId) Reset() {
+	*x = UserId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[5]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *UserId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserId) ProtoMessage() {}
+
+func (x *UserId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[5]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserId.ProtoReflect.Descriptor instead.
+func (*UserId) Descriptor() ([]byte, []int) {
 	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CallId) GetHigh() uint64 {
+func (x *UserId) GetId() *BaseId {
 	if x != nil {
-		return x.High
+		return x.Id
 	}
-	return 0
+	return nil
 }
 
-func (x *CallId) GetLow() uint64 {
-	if x != nil {
-		return x.Low
-	}
-	return 0
+// FileId represents a handle to an open file.  Note that FileIds are not guaranteed to exist for long
+// periods of time (minutes), so callers need to be aware that any use of a FileId can fail with
+// an "unknown file id" type of error, despite the fact that the FileId was valid at some point in
+// the past. FileIds can also be used to signal errors from methods like Open, Create, or Close.
+type FileId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 }
 
+func (x *FileId) Reset() {
+	*x = FileId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *FileId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileId) ProtoMessage() {}
+
+func (x *FileId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileId.ProtoReflect.Descriptor instead.
+func (*FileId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *FileId) GetId() *BaseId {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// DbConnId represents a connection to a database.  As with FileIds, these Ids are not guaranteeed to survive
+// for long periods (minutes), so callers using a DbConnId must be prepared for "id not found" or similar errors.
+// DBConnIds can also be used to signal an error in connecting to the database.
+type DBConnId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (x *DBConnId) Reset() {
+	*x = DBConnId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[7]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DBConnId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DBConnId) ProtoMessage() {}
+
+func (x *DBConnId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[7]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DBConnId.ProtoReflect.Descriptor instead.
+func (*DBConnId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DBConnId) GetId() *BaseId {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// DBIOId represents a handle to an operation on a database, such as a query or update.  The DBIOId can be
+// use to query the DBService about an operation that was previously started.  All interactions with a
+// DB using a DBConnId will return DBIOIds not direct results.  DBIOIds can also be used to signal errors
+// in (attempted) DB action such as a query.
+type DBIOId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (x *DBIOId) Reset() {
+	*x = DBIOId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[8]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *DBIOId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DBIOId) ProtoMessage() {}
+
+func (x *DBIOId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[8]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DBIOId.ProtoReflect.Descriptor instead.
+func (*DBIOId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DBIOId) GetId() *BaseId {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// FileIOId represents a handle to an operation on a file, such as a read or write.  The FileIOId can be
+// use to query the FileService about an operation that began previously.  All uses of the Read and Write
+// interfaces of the FileService return FileIOIds rather than immediate results.  FileIOIds can also be used
+// to signal errors in (attempted) reads or writes of a file.
+type FileIOId struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Id *BaseId `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (x *FileIOId) Reset() {
+	*x = FileIOId{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[9]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *FileIOId) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FileIOId) ProtoMessage() {}
+
+func (x *FileIOId) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[9]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FileIOId.ProtoReflect.Descriptor instead.
+func (*FileIOId) Descriptor() ([]byte, []int) {
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FileIOId) GetId() *BaseId {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// Lower is the lower level of the two level structure that makes up a Pctx entry.
 type Lower struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -383,7 +564,7 @@ type Lower struct {
 func (x *Lower) Reset() {
 	*x = Lower{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[6]
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -396,7 +577,7 @@ func (x *Lower) String() string {
 func (*Lower) ProtoMessage() {}
 
 func (x *Lower) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[6]
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +590,7 @@ func (x *Lower) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lower.ProtoReflect.Descriptor instead.
 func (*Lower) Descriptor() ([]byte, []int) {
-	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{6}
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Lower) GetEntryLower() map[string]string {
@@ -419,6 +600,8 @@ func (x *Lower) GetEntryLower() map[string]string {
 	return nil
 }
 
+// Pctx is a state variable that gets passed to the implementation of server methods. It contains a two
+// level "entry" structure for passing databetween microservices and reference to the current time.
 type Pctx struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -431,7 +614,7 @@ type Pctx struct {
 func (x *Pctx) Reset() {
 	*x = Pctx{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_pb_protosupport_protosupport_proto_msgTypes[7]
+		mi := &file_pb_protosupport_protosupport_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -444,7 +627,7 @@ func (x *Pctx) String() string {
 func (*Pctx) ProtoMessage() {}
 
 func (x *Pctx) ProtoReflect() protoreflect.Message {
-	mi := &file_pb_protosupport_protosupport_proto_msgTypes[7]
+	mi := &file_pb_protosupport_protosupport_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +640,7 @@ func (x *Pctx) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pctx.ProtoReflect.Descriptor instead.
 func (*Pctx) Descriptor() ([]byte, []int) {
-	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{7}
+	return file_pb_protosupport_protosupport_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Pctx) GetEntryUpper() map[string]*Lower {
@@ -588,27 +771,42 @@ var file_pb_protosupport_protosupport_proto_rawDesc = []byte{
 	0x72, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x1f, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
 	0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x10, 0x70, 0x62, 0x2f, 0x6c, 0x6f, 0x67,
-	0x2f, 0x6c, 0x6f, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x35, 0x0a, 0x0d, 0x4b, 0x65,
-	0x72, 0x6e, 0x65, 0x6c, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x49, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68,
-	0x69, 0x67, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x68, 0x69, 0x67, 0x68, 0x12,
-	0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6c, 0x6f,
-	0x77, 0x22, 0x38, 0x0a, 0x10, 0x44, 0x65, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65, 0x72, 0x45, 0x72,
-	0x72, 0x6f, 0x72, 0x49, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x69, 0x67, 0x68, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x04, 0x52, 0x04, 0x68, 0x69, 0x67, 0x68, 0x12, 0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77,
-	0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6c, 0x6f, 0x77, 0x22, 0x31, 0x0a, 0x09, 0x53,
-	0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49, 0x64, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x69, 0x67, 0x68,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x68, 0x69, 0x67, 0x68, 0x12, 0x10, 0x0a, 0x03,
-	0x6c, 0x6f, 0x77, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6c, 0x6f, 0x77, 0x22, 0x33,
-	0x0a, 0x0b, 0x44, 0x65, 0x76, 0x65, 0x6c, 0x6f, 0x70, 0x65, 0x72, 0x49, 0x64, 0x12, 0x12, 0x0a,
-	0x04, 0x68, 0x69, 0x67, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x68, 0x69, 0x67,
-	0x68, 0x12, 0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03,
-	0x6c, 0x6f, 0x77, 0x22, 0x30, 0x0a, 0x08, 0x4d, 0x65, 0x74, 0x68, 0x6f, 0x64, 0x49, 0x64, 0x12,
-	0x12, 0x0a, 0x04, 0x68, 0x69, 0x67, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x68,
-	0x69, 0x67, 0x68, 0x12, 0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04,
-	0x52, 0x03, 0x6c, 0x6f, 0x77, 0x22, 0x2e, 0x0a, 0x06, 0x43, 0x61, 0x6c, 0x6c, 0x49, 0x64, 0x12,
-	0x12, 0x0a, 0x04, 0x68, 0x69, 0x67, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x68,
-	0x69, 0x67, 0x68, 0x12, 0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04,
-	0x52, 0x03, 0x6c, 0x6f, 0x77, 0x22, 0x8e, 0x01, 0x0a, 0x05, 0x4c, 0x6f, 0x77, 0x65, 0x72, 0x12,
+	0x2f, 0x6c, 0x6f, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x4e, 0x0a, 0x06, 0x42, 0x61,
+	0x73, 0x65, 0x49, 0x64, 0x12, 0x1e, 0x0a, 0x0a, 0x61, 0x73, 0x63, 0x69, 0x69, 0x56, 0x61, 0x6c,
+	0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x61, 0x73, 0x63, 0x69, 0x69, 0x56,
+	0x61, 0x6c, 0x75, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x68, 0x69, 0x67, 0x68, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x04, 0x52, 0x04, 0x68, 0x69, 0x67, 0x68, 0x12, 0x10, 0x0a, 0x03, 0x6c, 0x6f, 0x77, 0x18,
+	0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x03, 0x6c, 0x6f, 0x77, 0x22, 0x38, 0x0a, 0x0d, 0x4b, 0x65,
+	0x72, 0x6e, 0x65, 0x6c, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02, 0x69,
+	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49, 0x64,
+	0x52, 0x02, 0x69, 0x64, 0x22, 0x34, 0x0a, 0x09, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x49,
+	0x64, 0x12, 0x27, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e,
+	0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e,
+	0x42, 0x61, 0x73, 0x65, 0x49, 0x64, 0x52, 0x02, 0x69, 0x64, 0x22, 0x33, 0x0a, 0x08, 0x4d, 0x65,
+	0x74, 0x68, 0x6f, 0x64, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70,
+	0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49, 0x64, 0x52, 0x02, 0x69, 0x64, 0x22,
+	0x31, 0x0a, 0x06, 0x43, 0x61, 0x6c, 0x6c, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02, 0x69, 0x64, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49, 0x64, 0x52, 0x02,
+	0x69, 0x64, 0x22, 0x31, 0x0a, 0x06, 0x55, 0x73, 0x65, 0x72, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02,
+	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49,
+	0x64, 0x52, 0x02, 0x69, 0x64, 0x22, 0x31, 0x0a, 0x06, 0x46, 0x69, 0x6c, 0x65, 0x49, 0x64, 0x12,
+	0x27, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61,
+	0x73, 0x65, 0x49, 0x64, 0x52, 0x02, 0x69, 0x64, 0x22, 0x33, 0x0a, 0x08, 0x44, 0x42, 0x43, 0x6f,
+	0x6e, 0x6e, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b,
+	0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f,
+	0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49, 0x64, 0x52, 0x02, 0x69, 0x64, 0x22, 0x31, 0x0a,
+	0x06, 0x44, 0x42, 0x49, 0x4f, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75,
+	0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49, 0x64, 0x52, 0x02, 0x69, 0x64,
+	0x22, 0x33, 0x0a, 0x08, 0x46, 0x69, 0x6c, 0x65, 0x49, 0x4f, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x02,
+	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x17, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x73, 0x75, 0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x42, 0x61, 0x73, 0x65, 0x49,
+	0x64, 0x52, 0x02, 0x69, 0x64, 0x22, 0x8e, 0x01, 0x0a, 0x05, 0x4c, 0x6f, 0x77, 0x65, 0x72, 0x12,
 	0x46, 0x0a, 0x0a, 0x65, 0x6e, 0x74, 0x72, 0x79, 0x4c, 0x6f, 0x77, 0x65, 0x72, 0x18, 0x01, 0x20,
 	0x03, 0x28, 0x0b, 0x32, 0x26, 0x2e, 0x70, 0x62, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x73, 0x75,
 	0x70, 0x70, 0x6f, 0x72, 0x74, 0x2e, 0x4c, 0x6f, 0x77, 0x65, 0x72, 0x2e, 0x45, 0x6e, 0x74, 0x72,
@@ -687,43 +885,56 @@ func file_pb_protosupport_protosupport_proto_rawDescGZIP() []byte {
 	return file_pb_protosupport_protosupport_proto_rawDescData
 }
 
-var file_pb_protosupport_protosupport_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_pb_protosupport_protosupport_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_pb_protosupport_protosupport_proto_goTypes = []interface{}{
-	(*KernelErrorId)(nil),               // 0: pb.protosupport.KernelErrorId
-	(*DeveloperErrorId)(nil),            // 1: pb.protosupport.DeveloperErrorId
+	(*BaseId)(nil),                      // 0: pb.protosupport.BaseId
+	(*KernelErrorId)(nil),               // 1: pb.protosupport.KernelErrorId
 	(*ServiceId)(nil),                   // 2: pb.protosupport.ServiceId
-	(*DeveloperId)(nil),                 // 3: pb.protosupport.DeveloperId
-	(*MethodId)(nil),                    // 4: pb.protosupport.MethodId
-	(*CallId)(nil),                      // 5: pb.protosupport.CallId
-	(*Lower)(nil),                       // 6: pb.protosupport.Lower
-	(*Pctx)(nil),                        // 7: pb.protosupport.Pctx
-	nil,                                 // 8: pb.protosupport.Lower.EntryLowerEntry
-	nil,                                 // 9: pb.protosupport.Pctx.EntryUpperEntry
-	(*timestamppb.Timestamp)(nil),       // 10: google.protobuf.Timestamp
-	(*descriptorpb.ServiceOptions)(nil), // 11: google.protobuf.ServiceOptions
-	(*descriptorpb.MethodOptions)(nil),  // 12: google.protobuf.MethodOptions
-	(*descriptorpb.FieldOptions)(nil),   // 13: google.protobuf.FieldOptions
-	(*descriptorpb.FileOptions)(nil),    // 14: google.protobuf.FileOptions
-	(*descriptorpb.MessageOptions)(nil), // 15: google.protobuf.MessageOptions
+	(*MethodId)(nil),                    // 3: pb.protosupport.MethodId
+	(*CallId)(nil),                      // 4: pb.protosupport.CallId
+	(*UserId)(nil),                      // 5: pb.protosupport.UserId
+	(*FileId)(nil),                      // 6: pb.protosupport.FileId
+	(*DBConnId)(nil),                    // 7: pb.protosupport.DBConnId
+	(*DBIOId)(nil),                      // 8: pb.protosupport.DBIOId
+	(*FileIOId)(nil),                    // 9: pb.protosupport.FileIOId
+	(*Lower)(nil),                       // 10: pb.protosupport.Lower
+	(*Pctx)(nil),                        // 11: pb.protosupport.Pctx
+	nil,                                 // 12: pb.protosupport.Lower.EntryLowerEntry
+	nil,                                 // 13: pb.protosupport.Pctx.EntryUpperEntry
+	(*timestamppb.Timestamp)(nil),       // 14: google.protobuf.Timestamp
+	(*descriptorpb.ServiceOptions)(nil), // 15: google.protobuf.ServiceOptions
+	(*descriptorpb.MethodOptions)(nil),  // 16: google.protobuf.MethodOptions
+	(*descriptorpb.FieldOptions)(nil),   // 17: google.protobuf.FieldOptions
+	(*descriptorpb.FileOptions)(nil),    // 18: google.protobuf.FileOptions
+	(*descriptorpb.MessageOptions)(nil), // 19: google.protobuf.MessageOptions
 }
 var file_pb_protosupport_protosupport_proto_depIdxs = []int32{
-	8,  // 0: pb.protosupport.Lower.entryLower:type_name -> pb.protosupport.Lower.EntryLowerEntry
-	9,  // 1: pb.protosupport.Pctx.entryUpper:type_name -> pb.protosupport.Pctx.EntryUpperEntry
-	10, // 2: pb.protosupport.Pctx.now:type_name -> google.protobuf.Timestamp
-	6,  // 3: pb.protosupport.Pctx.EntryUpperEntry.value:type_name -> pb.protosupport.Lower
-	11, // 4: pb.protosupport.no_package:extendee -> google.protobuf.ServiceOptions
-	11, // 5: pb.protosupport.kernel_service:extendee -> google.protobuf.ServiceOptions
-	11, // 6: pb.protosupport.wasm_service_name:extendee -> google.protobuf.ServiceOptions
-	12, // 7: pb.protosupport.wasm_method_name:extendee -> google.protobuf.MethodOptions
-	12, // 8: pb.protosupport.abi_call:extendee -> google.protobuf.MethodOptions
-	13, // 9: pb.protosupport.wasm_field_name:extendee -> google.protobuf.FieldOptions
-	14, // 10: pb.protosupport.abi:extendee -> google.protobuf.FileOptions
-	15, // 11: pb.protosupport.wasm_message_name:extendee -> google.protobuf.MessageOptions
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	4,  // [4:12] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 0: pb.protosupport.KernelErrorId.id:type_name -> pb.protosupport.BaseId
+	0,  // 1: pb.protosupport.ServiceId.id:type_name -> pb.protosupport.BaseId
+	0,  // 2: pb.protosupport.MethodId.id:type_name -> pb.protosupport.BaseId
+	0,  // 3: pb.protosupport.CallId.id:type_name -> pb.protosupport.BaseId
+	0,  // 4: pb.protosupport.UserId.id:type_name -> pb.protosupport.BaseId
+	0,  // 5: pb.protosupport.FileId.id:type_name -> pb.protosupport.BaseId
+	0,  // 6: pb.protosupport.DBConnId.id:type_name -> pb.protosupport.BaseId
+	0,  // 7: pb.protosupport.DBIOId.id:type_name -> pb.protosupport.BaseId
+	0,  // 8: pb.protosupport.FileIOId.id:type_name -> pb.protosupport.BaseId
+	12, // 9: pb.protosupport.Lower.entryLower:type_name -> pb.protosupport.Lower.EntryLowerEntry
+	13, // 10: pb.protosupport.Pctx.entryUpper:type_name -> pb.protosupport.Pctx.EntryUpperEntry
+	14, // 11: pb.protosupport.Pctx.now:type_name -> google.protobuf.Timestamp
+	10, // 12: pb.protosupport.Pctx.EntryUpperEntry.value:type_name -> pb.protosupport.Lower
+	15, // 13: pb.protosupport.no_package:extendee -> google.protobuf.ServiceOptions
+	15, // 14: pb.protosupport.kernel_service:extendee -> google.protobuf.ServiceOptions
+	15, // 15: pb.protosupport.wasm_service_name:extendee -> google.protobuf.ServiceOptions
+	16, // 16: pb.protosupport.wasm_method_name:extendee -> google.protobuf.MethodOptions
+	16, // 17: pb.protosupport.abi_call:extendee -> google.protobuf.MethodOptions
+	17, // 18: pb.protosupport.wasm_field_name:extendee -> google.protobuf.FieldOptions
+	18, // 19: pb.protosupport.abi:extendee -> google.protobuf.FileOptions
+	19, // 20: pb.protosupport.wasm_message_name:extendee -> google.protobuf.MessageOptions
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	13, // [13:21] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_pb_protosupport_protosupport_proto_init() }
@@ -733,7 +944,7 @@ func file_pb_protosupport_protosupport_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_pb_protosupport_protosupport_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*KernelErrorId); i {
+			switch v := v.(*BaseId); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -745,7 +956,7 @@ func file_pb_protosupport_protosupport_proto_init() {
 			}
 		}
 		file_pb_protosupport_protosupport_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeveloperErrorId); i {
+			switch v := v.(*KernelErrorId); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -769,18 +980,6 @@ func file_pb_protosupport_protosupport_proto_init() {
 			}
 		}
 		file_pb_protosupport_protosupport_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DeveloperId); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_pb_protosupport_protosupport_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*MethodId); i {
 			case 0:
 				return &v.state
@@ -792,7 +991,7 @@ func file_pb_protosupport_protosupport_proto_init() {
 				return nil
 			}
 		}
-		file_pb_protosupport_protosupport_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_pb_protosupport_protosupport_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*CallId); i {
 			case 0:
 				return &v.state
@@ -804,8 +1003,20 @@ func file_pb_protosupport_protosupport_proto_init() {
 				return nil
 			}
 		}
+		file_pb_protosupport_protosupport_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*UserId); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 		file_pb_protosupport_protosupport_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Lower); i {
+			switch v := v.(*FileId); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -817,6 +1028,54 @@ func file_pb_protosupport_protosupport_proto_init() {
 			}
 		}
 		file_pb_protosupport_protosupport_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DBConnId); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pb_protosupport_protosupport_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DBIOId); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pb_protosupport_protosupport_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FileIOId); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pb_protosupport_protosupport_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Lower); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_pb_protosupport_protosupport_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Pctx); i {
 			case 0:
 				return &v.state
@@ -835,7 +1094,7 @@ func file_pb_protosupport_protosupport_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_pb_protosupport_protosupport_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 8,
 			NumServices:   0,
 		},

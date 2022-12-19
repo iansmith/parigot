@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/api/proto/g/pb/net"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys"
 	"github.com/iansmith/parigot/sys/dep"
@@ -128,7 +129,7 @@ func closeService(m *net.CloseServiceRequest, respChan chan *anypb.Any) error {
 
 	// at the moment, we really don't track this in the network case
 	resp := &net.CloseServiceResponse{
-		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
+		KernelErr: lib.NoKernelError(),
 	}
 	log.Printf("close service, computing response")
 	a := anypb.Any{}
@@ -152,7 +153,7 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	for _, export := range m.GetExport() {
 		pkg := export.GetPackagePath()
 		svc := export.GetService()
-		sid := lib.UnmarshalServiceId(export.GetServiceId())
+		sid := lib.Unmarshal(export.GetServiceId())
 		name := fmt.Sprintf("%s.%s", pkg, svc)
 		addr := sys.NewDepKeyFromAddr(export.GetAddr())
 		log.Printf("EXPORT, key is %s, sid is %s calling core Export for %s",
@@ -166,7 +167,7 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	}
 	if failure != nil {
 		resp := &net.ExportResponse{
-			KernelErr: lib.MarshalKernelErrId(failure),
+			KernelErr: lib.Marshal[protosupport.KernelErrorId](failure),
 		}
 		a := anypb.Any{}
 		if err := a.MarshalFrom(resp); err != nil {
@@ -176,7 +177,7 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 		return nil
 	}
 	resp := &net.ExportResponse{
-		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
+		KernelErr: lib.NoKernelError(),
 	}
 	a := anypb.Any{}
 	if err := a.MarshalFrom(resp); err != nil {
@@ -201,11 +202,10 @@ func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	}
 
 	resp := &net.GetServiceResponse{
-
-		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
+		KernelErr: lib.NoKernelError(),
 	}
 	resp.Addr = sdata.GetKey().String()
-	resp.Sid = lib.MarshalServiceId(sdata.GetServiceId())
+	resp.Sid = lib.Marshal[protosupport.ServiceId](sdata.GetServiceId())
 
 	log.Printf("found service requested (%s.%s)=>%s on %s", pkg, svc, sdata.GetServiceId(), sdata.GetKey().String())
 	a := anypb.Any{}
@@ -268,7 +268,7 @@ func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
 
 	// tell them it's ok
 	resp := &net.RequireResponse{
-		KernelErr: lib.MarshalKernelErrId(lib.NoKernelErr()),
+		KernelErr: lib.NoKernelError(),
 	}
 	a := anypb.Any{}
 	if err := a.MarshalFrom(resp); err != nil {

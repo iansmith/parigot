@@ -5,6 +5,7 @@ import(
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib"  // id manipulation
     "github.com/iansmith/parigot/api/proto/g/pb/call" // dispatch and locate
+    "github.com/iansmith/parigot/api/proto/g/pb/protosupport" // ids
 )
 //
 // Log
@@ -29,7 +30,7 @@ func LocateLog() (*LogClient,error) {
     if err!=nil {
         return nil, err
     }
-    service:=lib.UnmarshalServiceId(resp.GetServiceId())
+    service:=lib.Unmarshal[*protosupport.ServiceId](resp.GetServiceId())
     cs := lib.NewClientSideService(service, "LogClient")
     return &LogClient{
         ClientSideService: cs,
@@ -45,5 +46,6 @@ func (i *LogClient) Log(in *log.LogRequest)error {
     }
   
     return nil 
-}   
+}
+   
 

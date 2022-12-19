@@ -46,11 +46,10 @@ var libparigotVerbose = false
 //go:noinline
 func (l *callImpl) Locate(in *call.LocateRequest) (*call.LocateResponse, error) {
 	out := new(call.LocateResponse)
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-	out.ServiceId = &protosupport.ServiceId{High: 3, Low: 4}
-
+	out.ErrorId = NoErrorMarshaled[protosupport.KernelErrorId, *protosupport.KernelErrorId]()
+	out.ServiceId = &protosupport.ServiceId{
+		Id: &protosupport.BaseId{},
+	}
 	detail := new(LocatePayload)
 	pkgSh := (*reflect.StringHeader)(unsafe.Pointer(&in.PackageName))
 	detail.PkgPtr = int64(pkgSh.Data)
@@ -60,31 +59,33 @@ func (l *callImpl) Locate(in *call.LocateRequest) (*call.LocateResponse, error) 
 	detail.ServicePtr = int64(serviceSh.Data)
 	detail.ServiceLen = int64(serviceSh.Len)
 	// choosing low's addr means you ADD 8 to get to the high
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
+	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Id.Low))
 
 	u := uintptr(unsafe.Pointer(detail))
 	locate(int32(u))
 	// marshal them back together
 	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ServiceIdPtr))))
-	sid := ServiceIdFromUint64(uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
-	out.ServiceId = MarshalServiceId(sid)
+	sid := NewFrom64BitPair[*protosupport.ServiceId](uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
+	out.ServiceId = Marshal[protosupport.ServiceId](sid)
 	locErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
 
 	err := NewKernelError(KernelErrorCode(locErrDataPtr[0]))
 	// in case the caller walks the structure repacks a new protobuf
-	out.ServiceId = MarshalServiceId(sid)
-	out.ErrorId = MarshalKernelErrId(err)
+	out.ServiceId = Marshal[protosupport.ServiceId](sid)
+	out.ErrorId = Marshal[protosupport.KernelErrorId](err)
 
 	if err.IsError() {
 		return out, NewPerrorFromId("failed to locate properly", err)
 	}
 	return out, nil
 }
+
 func stringToTwoInt64s(s string) (int64, int64) {
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
 	return int64(sh.Data), int64(sh.Len)
 }
+
 func sliceToTwoInt64s(b []byte) (int64, int64) {
 	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	return int64(slh.Data), int64(slh.Len)
@@ -100,8 +101,8 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	out := new(call.DispatchResponse)
 
 	detail := &DispatchPayload{}
-	detail.ServiceId[0] = int64(in.ServiceId.GetLow())
-	detail.ServiceId[1] = int64(in.ServiceId.GetHigh())
+	detail.ServiceId[0] = int64(in.ServiceId.Id.GetLow())
+	detail.ServiceId[1] = int64(in.ServiceId.Id.GetHigh())
 
 	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
 	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
@@ -127,9 +128,8 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	if detail.ResultLen != int64(GetMaxMessageSize()) {
 		panic("GetMaxMessageSize() should be the result length!")
 	}
-	out.ErrorId = &protosupport.KernelErrorId{High: 1, Low: 2}
-
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	out.ErrorId = NoKernelError()
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))
@@ -209,11 +209,7 @@ func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(*protosuppo
 func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
 	out := new(call.BindMethodResponse)
 
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-
-	out.MethodId = &protosupport.MethodId{High: 10, Low: 11}
+	out.ErrorId = NoKernelError()
 
 	detail := new(BindPayload)
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
@@ -226,8 +222,16 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 	detail.MethodPtr = int64(sh.Data)
 	detail.MethodLen = int64(sh.Len)
 	detail.Direction = int64(dir)
-	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Low))
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+
+	// need to allocate the space for result
+	out.MethodId = &protosupport.MethodId{}
+	out.ErrorId = &protosupport.KernelErrorId{}
+
+	out.MethodId.Id = &protosupport.BaseId{}
+	out.ErrorId.Id = &protosupport.BaseId{}
+
+	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Id.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))
@@ -241,10 +245,9 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 	}
 
 	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := MethodIdFromUint64(uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = MarshalMethodId(mid)
-
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = Marshal[protosupport.MethodId](mid)
+	out.ErrorId = NoKernelError()
 
 	return out, nil
 }
@@ -252,17 +255,15 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 	out := new(call.RunResponse)
 
-	// allocate space for any error
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-
 	detail := new(RunPayload)
 	detail.Wait = 0
 	if in.Wait {
 		detail.Wait = 1
 	}
-	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	out.ErrorId = &protosupport.KernelErrorId{
+		Id: &protosupport.BaseId{},
+	}
+	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
 	// THE CALL, and the walls came down...
 	u := uintptr(unsafe.Pointer(detail))
@@ -271,10 +272,10 @@ func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
 	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		out.ErrorId = MarshalKernelErrId(kerr)
+		out.ErrorId = Marshal[protosupport.KernelErrorId](kerr)
 		return out, NewPerrorFromId("kernel failed to start your process", kerr)
 	}
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	out.ErrorId = NoKernelError()
 	return out, nil
 }
 
@@ -328,15 +329,12 @@ func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *
 func (l *callImpl) Export(in *call.ExportRequest) (*call.ExportResponse, error) {
 	out := new(call.ExportResponse)
 	// allocate space for any error
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	out.ErrorId = NoKernelError()
+	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 	err := l.exportOrRequire(in.GetService(), ptr, true)
 	if err != nil {
 		return nil, err
 	}
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
 	return out, nil
 }
 
@@ -348,15 +346,12 @@ func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, erro
 	libprint("REQUIRE ", "request to require %d services", len(in.Service))
 	out := new(call.RequireResponse)
 	// allocate space for any error
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	out.ErrorId = NoKernelError()
+	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 	err := l.exportOrRequire(in.GetService(), ptr, false)
 	if err != nil {
 		return nil, err
 	}
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
 	return out, nil
 }
 
@@ -366,11 +361,7 @@ func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, erro
 func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
 	out := new(call.BindMethodResponse)
 
-	out.ErrorId = &protosupport.KernelErrorId{High: 6, Low: 7}
-	out.ErrorId.High = 1
-	out.ErrorId.Low = 2
-
-	out.MethodId = &protosupport.MethodId{High: 10, Low: 11}
+	out.ErrorId = NoKernelError()
 
 	detail := new(BindPayload)
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
@@ -383,8 +374,8 @@ func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.M
 	detail.MethodPtr = int64(sh.Data)
 	detail.MethodLen = int64(sh.Len)
 	detail.Direction = int64(dir)
-	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Low))
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
+	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Id.Low))
+	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))
@@ -398,10 +389,10 @@ func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.M
 	}
 
 	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := MethodIdFromUint64(uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = MarshalMethodId(mid)
+	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = Marshal[protosupport.MethodId](mid)
 
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	out.ErrorId = NoKernelError()
 
 	return out, nil
 }
@@ -415,10 +406,11 @@ func libprint(call, format string, arg ...interface{}) {
 }
 
 func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUntilCallResponse, error) {
+	// this is JUST for reserving the space for the result to be placed into
 	out := &call.BlockUntilCallResponse{
-		Method:  &protosupport.MethodId{High: 12, Low: 13},
-		Call:    &protosupport.CallId{High: 22, Low: 33},
-		ErrorId: &protosupport.KernelErrorId{High: 7, Low: 8},
+		Method:  NoErrorMarshaled[protosupport.MethodId, *protosupport.MethodId](),
+		Call:    NoErrorMarshaled[protosupport.CallId, *protosupport.CallId](),
+		ErrorId: NoKernelError(),
 	}
 
 	payload := &BlockPayload{}
@@ -430,9 +422,9 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 		payload.PctxLen = 0
 	}
 	payload.ParamPtr, payload.ParamLen = sliceToTwoInt64s(in.ParamBuffer)
-	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Low))
-	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Low))
+	payload.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
+	payload.MethodId = (*[2]int64)(unsafe.Pointer(&out.Method.Id.Low))
+	payload.CallId = (*[2]int64)(unsafe.Pointer(&out.Call.Id.Low))
 
 	// THE CALL
 	u := uintptr(unsafe.Pointer(payload))
@@ -446,14 +438,14 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	}
 
 	callDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.CallId))))
-	cid := CallIdFromUint64(uint64(callDataPtr[1]), uint64(callDataPtr[0]))
+	cid := NewFrom64BitPair[*protosupport.CallId](uint64(callDataPtr[1]), uint64(callDataPtr[0]))
 	methDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.MethodId))))
-	mid := MethodIdFromUint64(uint64(methDataPtr[1]), uint64(methDataPtr[0]))
+	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methDataPtr[1]), uint64(methDataPtr[0]))
 	libprint("BLOCKUNTILCALL ", "mid computed %s", mid.Short())
 
-	out.Call = MarshalCallId(cid)
-	out.Method = MarshalMethodId(mid)
-	out.ErrorId = MarshalKernelErrId(NoKernelErr())
+	out.Call = Marshal[protosupport.CallId](cid)
+	out.Method = Marshal[protosupport.MethodId](mid)
+	out.ErrorId = NoKernelError()
 
 	// get the data
 	out.ParamLen = int32(payload.ParamLen)
@@ -473,18 +465,18 @@ func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueRe
 	libprint("RETURNVALUE ", "buffers for pctx and result sending to kernel are size %d,%d",
 		len(in.PctxBuffer), len(in.ResultBuffer))
 
-	detail.MethodId[0] = int64(in.Method.GetLow())
-	detail.MethodId[1] = int64(in.Method.GetHigh())
-	detail.CallId[0] = int64(in.Call.GetLow())
-	detail.CallId[1] = int64(in.Call.GetHigh())
-	detail.KernelErrorPtr[0] = int64(in.ErrorId.GetLow())
-	detail.KernelErrorPtr[1] = int64(in.ErrorId.GetHigh())
+	detail.MethodId[0] = int64(in.Method.Id.GetLow())
+	detail.MethodId[1] = int64(in.Method.Id.GetHigh())
+	detail.CallId[0] = int64(in.Call.Id.GetLow())
+	detail.CallId[1] = int64(in.Call.Id.GetHigh())
+	detail.KernelErrorPtr[0] = int64(in.ErrorId.Id.GetLow())
+	detail.KernelErrorPtr[1] = int64(in.ErrorId.Id.GetHigh())
 
 	u := uintptr(unsafe.Pointer(detail))
 	returnValue(int32(u))
 	// check to see the return value
 	kerr := NewKernelError(KernelErrorCode(detail.KernelErrorPtr[0]))
-	big := MarshalKernelErrId(kerr)
+	big := Marshal[protosupport.KernelErrorId](kerr)
 	if kerr.IsError() {
 		return nil, NewPerrorFromId("failed to process return value", kerr)
 	}

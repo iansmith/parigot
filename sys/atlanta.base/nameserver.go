@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 )
@@ -81,7 +82,7 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		sid:    serviceId,
 		mid:    mid,
 		respCh: make(chan *resultInfo),
-		cid:    lib.NewCallId(),
+		cid:    lib.NewId[*protosupport.CallId](),
 		sender: caller,
 		target: sData.key,
 	}

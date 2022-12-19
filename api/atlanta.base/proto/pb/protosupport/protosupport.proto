@@ -26,32 +26,32 @@ extend google.protobuf.MessageOptions {
   optional string wasm_message_name = 543210;
 }
 
-// KernelErrorId is used to signal errors that occured inside the operating environment 
-// itself.  When one of these errors is returned, typically the processing along that
-// path of control should terminate.
-message KernelErrorId {
-  uint64 high = 1;
-  uint64 low = 2;
+// BaseId is the "real" type for all the named Id types.  The named types provide just a bit of sugar
+// when in used in protobuf definitions so it is clear what _type_ of Id is being used.  BaseId should
+// never be used itself, use the Id type that is more specific so folks using your message structure
+// know what is going on.  Only 33 to 126 are allowed and printable is better for the asciiValue.  The
+// asciiValue is just there to make it easier to debug, the byte is also encoded into the high byte
+// of the high slot.
+message BaseId {
+  uint32 asciiValue = 1; 
+  uint64 high = 2;
+  uint64 low = 3;
 }
 
-// DeveloperErrorId is used to signal errors that are defined by the developer.
-message DeveloperErrorId {
-  uint64 high = 1;
-  uint64 low = 2;
+// KernelErrorId is used to signal errors that occured inside the operating environment 
+// itself.  When one of these errors is returned, typically the processing along that
+// path of control should terminate.  Note that this is called KernelErrorId because it 
+// always represents an error, but most of the other types of id can represent _either_ success or
+// failure (an error).
+message KernelErrorId {
+  BaseId id = 1;
 }
 
 // ServiceId is a type of Id that is given to _clients_ of a particular service.  With this
 // information (really, capability) the holder of the ServiceId can make calls on the methods
 // of that service.  In unixish terms, this id might be the equivalent of a hostname and port pair.
 message ServiceId {
-  uint64 high = 1;
-  uint64 low = 2;
-}
-
-// DeveloperId is a type of Id that is defined by the developer.
-message DeveloperId {
-  uint64 high = 1;
-  uint64 low = 2;
+  BaseId id = 1;
 }
 
 // MethodId is a type of Id that is given to _implementations_ of a particular service.  A "server"
@@ -60,8 +60,7 @@ message DeveloperId {
 // this id might be the equivalent of a "handler" in a web server that handles a particular
 // type of request.
 message MethodId {
-  uint64 high = 1;
-  uint64 low = 2;
+  BaseId id = 1;
 }
 
 // CallId is an id given to the implementations of methods of a service.  This id represents
@@ -71,14 +70,54 @@ message MethodId {
 // In unixish terms, this might be the equivalent of a connected file descriptor on a 
 // socket that will be closed when the single method invocation ends.
 message CallId {
-  uint64 high = 1;
-  uint64 low = 2;
+  BaseId id = 1;
 }
 
+// UserId represents a user of the application.  Typically, UserIds are going to passed (via Pctx)
+// to the server implementations of methods so the receiving method can determine any needed access
+// control.  
+message UserId {
+  BaseId id =1;
+}
+
+// FileId represents a handle to an open file.  Note that FileIds are not guaranteed to exist for long
+// periods of time (minutes), so callers need to be aware that any use of a FileId can fail with 
+// an "unknown file id" type of error, despite the fact that the FileId was valid at some point in
+// the past. FileIds can also be used to signal errors from methods like Open, Create, or Close.
+message FileId {
+  BaseId id =1;
+}
+
+// DbConnId represents a connection to a database.  As with FileIds, these Ids are not guaranteeed to survive
+// for long periods (minutes), so callers using a DbConnId must be prepared for "id not found" or similar errors.
+// DBConnIds can also be used to signal an error in connecting to the database.
+message DBConnId {
+  BaseId id =1;
+}
+
+// DBIOId represents a handle to an operation on a database, such as a query or update.  The DBIOId can be
+// use to query the DBService about an operation that was previously started.  All interactions with a 
+// DB using a DBConnId will return DBIOIds not direct results.  DBIOIds can also be used to signal errors
+// in (attempted) DB action such as a query.
+message DBIOId {
+  BaseId id =1;
+}
+
+// FileIOId represents a handle to an operation on a file, such as a read or write.  The FileIOId can be
+// use to query the FileService about an operation that began previously.  All uses of the Read and Write
+// interfaces of the FileService return FileIOIds rather than immediate results.  FileIOIds can also be used
+// to signal errors in (attempted) reads or writes of a file.
+message FileIOId {
+  BaseId id =1;
+}
+
+// Lower is the lower level of the two level structure that makes up a Pctx entry.
 message Lower {
   map<string,string> entryLower = 1;
 }
 
+// Pctx is a state variable that gets passed to the implementation of server methods. It contains a two
+// level "entry" structure for passing databetween microservices and reference to the current time.  
 message Pctx {
   map<string,Lower> entryUpper =1;
   google.protobuf.Timestamp now = 2;

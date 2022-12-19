@@ -7,6 +7,7 @@ import(
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib"  // id manipulation
     "github.com/iansmith/parigot/api/proto/g/pb/call" // dispatch and locate
+    "github.com/iansmith/parigot/api/proto/g/pb/protosupport" // ids
 )
 
 {{- $info:=.info }}
@@ -56,7 +57,7 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
     if err!=nil {
         return nil, err
     }
-    service:=lib.UnmarshalServiceId(resp.GetServiceId())
+    service:=lib.Unmarshal[*protosupport.ServiceId](resp.GetServiceId())
     cs := lib.NewClientSideService(service, "{{$svc}}Client")
     return &{{$svc}}Client{
         ClientSideService: cs,
@@ -111,7 +112,7 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}()
     return nil
 {{- end }} {{/* output code needed */}}
 }
-{{- end }} {{/*ranging over methods*/}}
+{{end}} {{/*ranging over methods*/}}
 {{- end }} {{/* no kernel option */}}
 {{- end}} {{/*ranging over services*/}}
 
