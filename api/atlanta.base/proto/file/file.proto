@@ -23,7 +23,7 @@ import "pb/file/file.proto";
 
 
 service File {
-  rpc Open(pb.log.FileOpenRequest) returns (pb.log.FileOpenResponse);
-  rpc Create(pb.log.FileCreateRequest) returns (pb.log.FileCreateResponse);
-  rpc Close(pb.log.FileCloseRequest) returns (pb.log.FileCloseResponse);
+  rpc Open(pb.file.FileOpenRequest) returns (pb.file.FileOpenResponse);
+  rpc Create(pb.file.FileCreateRequest) returns (pb.file.FileCreateResponse);
+  rpc Close(pb.file.FileCloseRequest) returns (pb.file.FileCloseResponse);
 }
