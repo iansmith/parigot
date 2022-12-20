@@ -4,29 +4,38 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/iansmith/parigot/api/proto/g/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-
 	"demo/vvv/proto/g/vvv"
 	"demo/vvv/proto/g/vvv/pb"
 
+	"github.com/iansmith/parigot/api/proto/g/file"
+	"github.com/iansmith/parigot/api/proto/g/log"
+	pbfile "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
-	//if things need to be required you need to force them to the ready state BEFORE calling run()
+	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := lib.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
+	if _, err := lib.Require1("file", "File"); err != nil {
+		panic("unable to require file service:" + err.Error())
+	}
+	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
+		panic("unable to export demo.vvv: " + err.Error())
+	}
+
 	vvv.Run(&myServer{})
 }
 
 // this type better implement vvv.StoreServer
 type myServer struct {
-	logger log.Log
+	logger  log.Log
+	fileSvc file.File
 }
 
 //
@@ -75,26 +84,31 @@ func (m *myServer) BestOfAllTime(pctx *protosupport.Pctx, inProto proto.Message)
 		out.Item.Price = 29.99
 		return out, nil
 	}
-	m.log(pctx, pblog.LogLevel_LOGLEVEL_INFO, "unexpected content type in request %d", int32(in.Ctype))
+	m.log(pctx, pblog.LogLevel_LOG_LEVEL_INFO, "unexpected content type in request %d", int32(in.Ctype))
 	return nil, fmt.Errorf("unexpected content type request int %d", int32(in.Ctype))
 }
 
 func (m *myServer) Revenue(pctx *protosupport.Pctx, in proto.Message) (proto.Message, error) {
 	out := &pb.RevenueResponse{}
-	m.log(pctx, pblog.LogLevel_LOGLEVEL_WARNING, "Revenue() not yet implemented, ignoring input value, returning dummy values")
+	m.log(pctx, pblog.LogLevel_LOG_LEVEL_WARNING, "Revenue() not yet implemented, ignoring input value, returning dummy values")
 	out.Revenue = 817.71
 	return out, nil
 }
 
 func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
-	m.log(pctx, pblog.LogLevel_LOGLEVEL_WARNING, "SoldItem() not yet implemented, ignoring input value")
+	m.log(pctx, pblog.LogLevel_LOG_LEVEL_WARNING, "SoldItem() not yet implemented, ignoring input value")
 	return nil
 }
 
 // Ready is a check, if this returns false the library should abort and not attempt to run this service.
-// Normally this is used to inform the kernel that we are exporting some package and that we are ready to
-// run.
+// Normially, this is used to block using the lib.Run() call.  This call will wait until all the required
+// services are ready.
 func (m *myServer) Ready() bool {
+
+	if _, err := lib.Run(false); err != nil {
+		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
+		return false
+	}
 
 	logger, err := log.LocateLog()
 	if err != nil {
@@ -103,14 +117,18 @@ func (m *myServer) Ready() bool {
 	}
 	m.logger = logger
 
-	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
-		print("ready: error in attempt to export demo.vvv: ", err.Error(), "\n")
+	fs, err := file.LocateFile()
+	if err != nil {
+		print("ERROR trying to create fs client: ", err.Error(), "\n")
 		return false
 	}
-	if _, err := lib.Run(false); err != nil {
-		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
-		return false
+	m.fileSvc = fs
+	// load the test data
+	_, err = m.fileSvc.Load(&pbfile.LoadRequest{Path: "testdata/vvv"})
+	if err != nil {
+		panic("unable to load the test data: " + err.Error())
 	}
+
 	return true
 
 }

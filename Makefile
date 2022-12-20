@@ -64,19 +64,19 @@ test: $(PGP)
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
 ### jdepp computed dependencies for binary: build
 build: \
-	command/runner/main.go \
-	sys/atlanta.base/nameserver.go \
-	sys/atlanta.base/remote.go \
-	sys/atlanta.base/runtime.go \
-	sys/atlanta.base/func.go \
-	sys/atlanta.base/memutil.go \
-	sys/atlanta.base/nsproxy.go \
 	sys/atlanta.base/syscall.go \
-	sys/atlanta.base/nameservercore.go \
-	sys/atlanta.base/netio.go \
 	command/runner/fileload.go \
-	sys/atlanta.base/local.go \
-	sys/atlanta.base/netquic.go \
+	sys/atlanta.base/memutil.go \
 	sys/atlanta.base/process.go \
-	sys/atlanta.base/syscallrw.go
+	sys/atlanta.base/runtime.go \
+	sys/atlanta.base/nsproxy.go \
+	sys/atlanta.base/func.go \
+	sys/atlanta.base/nameserver.go \
+	sys/atlanta.base/nameservercore.go \
+	sys/atlanta.base/netquic.go \
+	command/runner/main.go \
+	sys/atlanta.base/netio.go \
+	sys/atlanta.base/remote.go \
+	sys/atlanta.base/syscallrw.go \
+	sys/atlanta.base/local.go
 

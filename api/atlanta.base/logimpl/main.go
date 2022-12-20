@@ -11,22 +11,21 @@ import (
 )
 
 func main() {
+	// you need to put Require and Export calls in here, but put Run() call in Ready()
+	if _, err := lib.Export1("log", "Log"); err != nil {
+		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
+	}
 	log.Run(&myLogServer{})
 }
 
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	if _, err := lib.Export1("log", "Log"); err != nil {
-		print("ready: error in attempt to export api.Log: ", err.Error(), "\n")
-		return false
-	}
 	if _, err := lib.Run(false); err != nil {
-		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
-		return false
+		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
-	return true
 
+	return true
 }
 
 //
