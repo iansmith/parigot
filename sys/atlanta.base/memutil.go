@@ -19,8 +19,6 @@ func (s *syscallReadWrite) Write64BitPair(structPtr int64, dataOffset uintptr, i
 	s.mem.SetInt64(derefed+8, int64(id.High()))
 }
 func (s *syscallReadWrite) Read64BitPair(structPtr int64, dataOffset uintptr) (int64, int64) {
-	// s.sysPrint("Read64BitPair1 ", "%x", int32(structPtr+int64(dataOffset)))
-	// s.sysPrint("Read64BitPair2 ", "%x", int32(structPtr+int64(dataOffset)+8))
 	low := s.mem.GetInt64(int32(structPtr + int64(dataOffset)))
 	high := s.mem.GetInt64(int32(structPtr + int64(dataOffset) + 8))
 	return low, high

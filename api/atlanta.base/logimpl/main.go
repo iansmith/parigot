@@ -32,7 +32,8 @@ func (m *myLogServer) Ready() bool {
 //
 // This file contains the "setup" code that builds a payload that will be sent to the other part of
 // this service.  That other part is the one that runs natively on the host machine.
-//
+// Note that since there is no return value, we don't bother initializing or reading results from the
+// results defined in splitutil.SinglePayload
 
 func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error {
 	var err error

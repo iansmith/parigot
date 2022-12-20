@@ -2,7 +2,8 @@ package sys
 
 import (
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
-	"github.com/iansmith/parigot/api/logimpl/ui"
+	fileimpl "github.com/iansmith/parigot/api/fileimpl/go_"
+	logimpl "github.com/iansmith/parigot/api/logimpl/go_"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
@@ -53,9 +54,12 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 
 func addSplitModeFunctions(store wasmtime.Storelike,
 	result map[string]*wasmtime.Func,
-	logViewer *ui.LogViewerImpl) {
+	logViewer *logimpl.LogViewerImpl,
+	fileSvc *fileimpl.FileSvcImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
 	result["go.logviewer.log_request_via_socket"] = wasmtime.WrapFunc(store, logViewer.LogRequestViaSocket)
+	// mixed mode entries: this should be automated (xxxfixmexxx)
+	result["go.filesvc.open"] = wasmtime.WrapFunc(store, fileSvc.FileSvcOpen)
 
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/iansmith/parigot/api/fileimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/file"
+	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/api/splitutil"
 	"github.com/iansmith/parigot/lib"
@@ -42,8 +43,10 @@ func (m *myFileServer) Open(pctx *protosupport.Pctx, inProto proto.Message) (pro
 }
 
 func (m *myFileServer) Close(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
+	_ = inProto.(*pb.CloseRequest)
 	panic("Close")
 }
 func (m *myFileServer) Create(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
+	_ = inProto.(*pb.CreateRequest)
 	panic("Create")
 }
