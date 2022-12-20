@@ -5,12 +5,7 @@ import "pb/file/file.proto";
 
 // This is the File service for parigot.  It is sandboxed such that caller to this service
 // has limited access to files. The caller can expect that "/app" is a directory in which new
-// files can be created and existing files can be found.  Attempts to create or open files
-// that have spaces in their path are ok, but not paths that include dots (.)  or other special
-// characters (like % or #) which will be immediately rejected with a FILEERRORCODE_PATH_ERROR.
-// Paths should only have characters that letters, numbers, and space.  The filesystem provided
-// is case preserving, but not case sensitive. It is therefore recommended to use only lower case
-// letters in path names.
+// files can be created and existing files can be found.  
 //
 // The creating of deeply nested directories within /app is not permitted.  Currently the limit for
 // directory depth is 4, so a directory like /app/foo/bar/baz is ok but a directory like 
@@ -23,7 +18,7 @@ import "pb/file/file.proto";
 
 
 service File {
-  rpc Open(pb.file.FileOpenRequest) returns (pb.file.FileOpenResponse);
-  rpc Create(pb.file.FileCreateRequest) returns (pb.file.FileCreateResponse);
-  rpc Close(pb.file.FileCloseRequest) returns (pb.file.FileCloseResponse);
+  rpc Open(pb.file.OpenRequest) returns (pb.file.OpenResponse);
+  rpc Create(pb.file.CreateRequest) returns (pb.file.CreateResponse);
+  rpc Close(pb.file.CloseRequest) returns (pb.file.CloseResponse);
 }

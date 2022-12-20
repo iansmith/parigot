@@ -1,38 +1,38 @@
 syntax = "proto3";
-package pb.log;
+package pb.file;
 option go_package="github.com/iansmith/parigot/api/proto/g/pb/file;file";
 import "pb/protosupport/protosupport.proto";
 
 
-message FileCreateRequest {
+message CreateRequest {
   string path  = 1;
 }
 
-message FileOpenRequest {
+message OpenRequest {
   string path  = 1;
 }
 
-message FileCloseRequest {
+message CloseRequest {
   protosupport.FileId id = 1;
 }
 
-message FileCreateResponse {
+message CreateResponse {
     string path = 1;
     // This id might contain an error value.
     protosupport.FileId id = 2;
     bool truncated = 3;
 }
 
-message FileOpenResponse {
+message OpenResponse {
     string path = 1;
     // This id might contain an error value.
     protosupport.FileId id = 2;
 }
 
-// FileCloseResponse is not empty because it can return an error. However, there is no
+// CloseResponse is not empty because it can return an error. However, there is no
 // action that the receiver of this response can take other than perhaps issuing a warning
 // to the system operators.
-message FileCloseResponse {
+message CloseResponse {
   // This will be NoError or some error code, not a handle to an open file.
   protosupport.FileId id = 1;
 }

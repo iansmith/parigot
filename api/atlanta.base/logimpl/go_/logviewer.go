@@ -30,8 +30,8 @@ type LogViewerImpl struct {
 func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 	wasmPtr := l.mem.GetInt64(sp + 8)
 
-	buffer := l.ReadSlice(wasmPtr, unsafe.Offsetof(splitutil.SplitUtilSinglePayload{}.Ptr),
-		unsafe.Offsetof(splitutil.SplitUtilSinglePayload{}.Len))
+	buffer := l.ReadSlice(wasmPtr, unsafe.Offsetof(splitutil.SinglePayload{}.InPtr),
+		unsafe.Offsetof(splitutil.SinglePayload{}.InLen))
 
 	if l.path == "" {
 		l.path = "host.docker.internal:4004"
@@ -45,7 +45,8 @@ func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 		}
 	}
 	if l.terminal {
-		req, err := splitutil.DecodeProto[pb.LogRequest](buffer)
+		req := pb.LogRequest{}
+		err := splitutil.ExtractProtoFromBytes(buffer, &req)
 		if err != nil {
 			return
 		}
