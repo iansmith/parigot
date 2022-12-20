@@ -2,7 +2,6 @@ syntax = "proto3";
 package pb.call;
 option go_package="github.com/iansmith/parigot/api/proto/g/pb/call;call";
 import "pb/protosupport/protosupport.proto";
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/any.proto";
 
 
@@ -27,24 +26,24 @@ message DispatchRequest {
   string method=2;
   string caller =3;
   google.protobuf.Any param=4;
-  protosupport.Pctx InPctx = 5;
+  protosupport.Pctx in_pctx = 5;
 }
 
 message DispatchResponse {
   google.protobuf.Any result = 1;
   protosupport.KernelErrorId error_id =2;
-  protosupport.Pctx OutPctx =3;
+  protosupport.Pctx out_pctx =3;
 }
 
 enum MethodDirection {
-  MethodDirectionUnspecified = 0;
-  MethodDirectionIn = 1;
-  MethodDirectionOut = 2;
-  MethodDirectionBoth = 3;
+  METHOD_DIRECTION_UNSPECIFIED = 0;
+  METHOD_DIRECTION_IN = 1;
+  METHOD_DIRECTION_OUT = 2;
+  METHOD_DIRECTION_BOTH = 3;
 }
 
 message BindMethodRequest  {
-  string protoPackage = 1;
+  string proto_package = 1;
   string service = 2;
   string method = 3;
   MethodDirection direction = 4;
@@ -81,13 +80,13 @@ message ReturnValueResponse {
   protosupport.KernelErrorId error_id = 1;
 }
 
-message fullyQualifiedService {
-  string packagePath = 1;
+message FullyQualifiedService {
+  string package_path = 1;
   string service = 2;
 }
 
 message ExportRequest {
-  repeated fullyQualifiedService service = 1;
+  repeated FullyQualifiedService service = 1;
 }
 
 message ExportResponse {
@@ -95,7 +94,7 @@ message ExportResponse {
 }
 
 message RequireRequest {
-  repeated fullyQualifiedService service = 1;
+  repeated FullyQualifiedService service = 1;
 }
 
 message RequireResponse {

@@ -11,5 +11,5 @@ import "pb/log/log.proto";
 
 
 service Log {
-  rpc Log(pb.log.LogRequest) returns (pb.log.LogResult);
+  rpc Log(pb.log.LogRequest) returns (pb.log.LogResponse);
 }

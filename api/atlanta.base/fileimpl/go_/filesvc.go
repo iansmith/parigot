@@ -1,7 +1,12 @@
 package go_
 
 import (
+	"errors"
+	"io/fs"
 	"log"
+	"path/filepath"
+	"strings"
+	"unicode"
 	"unsafe"
 
 	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
@@ -40,4 +45,49 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 
 func (l *FileSvcImpl) SetWasmMem(ptr uintptr) {
 	l.mem = jspatch.NewWasmMem(ptr)
+}
+
+// ValidatePathForParigot checks for and avoids many of the common pitfalls in pathnames but is not
+// a substitute for chroot() or similar types jailing of user code implemented by the underlying operating
+// systems.
+func ValidatePathForParigot(path string, op string) (string, error) {
+
+	cleaned := filepath.Clean(path)
+	noFrontSlash := cleaned
+	if strings.HasPrefix(cleaned, "/") {
+		noFrontSlash = noFrontSlash[1:]
+	} else {
+		return "", &fs.PathError{
+			Op:   op,
+			Path: path,
+			Err:  errors.New("parigot requires fully qualified path names"),
+		}
+	}
+	if !fs.ValidPath(noFrontSlash) {
+		return "", &fs.PathError{
+			Op:   op,
+			Path: path,
+			Err:  errors.New("failed ValidPath() test"),
+		}
+	}
+	part := filepath.SplitList(cleaned)
+	if len(part) == 0 {
+		return "", &fs.PathError{
+			Op:   op,
+			Path: path,
+			Err:  errors.New("empty path"), //can this actually happen?
+		}
+	}
+	for _, element := range part {
+		for _, r := range element {
+			if unicode.IsControl(r) {
+				return "", &fs.PathError{
+					Op:   op,
+					Path: path,
+					Err:  errors.New("control characters not allowed"),
+				}
+			}
+		}
+	}
+	return cleaned, nil
 }

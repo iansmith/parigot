@@ -175,7 +175,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
 func (l *callImpl) BindMethodIn(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionIn)
+	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodInNoPctx binds a method that only has an in parameter and does not
@@ -183,7 +183,7 @@ func (l *callImpl) BindMethodIn(in *call.BindMethodRequest, _ func(*protosupport
 // cannot write a separate logger server with having this.
 // xxxfixme: temporary? Should this be a different kernel call?
 func (l *callImpl) BindMethodInNoPctx(in *call.BindMethodRequest, _ func(proto.Message) error) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionIn)
+	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodOut binds a method that only has an out parameter.  This should
@@ -193,7 +193,7 @@ func (l *callImpl) BindMethodInNoPctx(in *call.BindMethodRequest, _ func(proto.M
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
 func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionOut)
+	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_OUT)
 }
 
 // BindMethodBoth binds a method that has both an in and out parameter.  This should
@@ -203,7 +203,7 @@ func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(*protosuppor
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
 func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_MethodDirectionBoth)
+	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_BOTH)
 }
 
 func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {

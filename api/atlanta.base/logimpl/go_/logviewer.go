@@ -71,17 +71,17 @@ func (l *LogViewerImpl) LogRequestViaSocket(sp int32) {
 }
 func intToLogLevel(i int) string {
 	switch {
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_UNSPECIFIED:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_UNSPECIFIED:
 		return "UNKNOWN"
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_DEBUG:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_DEBUG:
 		return "DEBUG"
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_INFO:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_INFO:
 		return "INFO "
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_WARNING:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_WARNING:
 		return "WARN "
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_ERROR:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_ERROR:
 		return "ERROR"
-	case pb.LogLevel(i) == pb.LogLevel_LOGLEVEL_FATAL:
+	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_FATAL:
 		return "FATAL"
 	default:
 		return fmt.Sprintf("UNEXPECTED[%d]", i)

@@ -1,7 +1,6 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
-import "pb/log/log.proto";
 option go_package="github.com/iansmith/parigot/api/proto/g/pb/protosupport;protosupport";
 package pb.protosupport;
 
@@ -33,7 +32,7 @@ extend google.protobuf.MessageOptions {
 // asciiValue is just there to make it easier to debug, the byte is also encoded into the high byte
 // of the high slot.
 message BaseId {
-  uint32 asciiValue = 1; 
+  uint32 ascii_value = 1; 
   uint64 high = 2;
   uint64 low = 3;
 }
@@ -113,12 +112,12 @@ message FileIOId {
 
 // Lower is the lower level of the two level structure that makes up a Pctx entry.
 message Lower {
-  map<string,string> entryLower = 1;
+  map<string,string> entry_lower = 1;
 }
 
 // Pctx is a state variable that gets passed to the implementation of server methods. It contains a two
 // level "entry" structure for passing databetween microservices and reference to the current time.  
 message Pctx {
-  map<string,Lower> entryUpper =1;
+  map<string,Lower> entry_upper =1;
   google.protobuf.Timestamp now = 2;
 }
