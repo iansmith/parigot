@@ -122,7 +122,6 @@ func (w *WasmMem) LoadStringTwoPtrs(addr int32, l int32) string {
 func (w *WasmMem) LoadString(addr int32) string {
 	ptr := w.GetInt64(addr + 0)
 	l := w.GetInt64(addr + 8)
-	print(fmt.Sprintf("xxx wasmmem loadString %x,%d\n", ptr, l))
 	if l > 4096 {
 		print("xxx!!!! wasmmem refusing to load string because length is too large: ", l, "\n")
 		debug.PrintStack()
@@ -134,7 +133,6 @@ func (w *WasmMem) LoadString(addr int32) string {
 		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(ptr+i)))
 		buf[i] = *str
 	}
-	print(fmt.Sprintf("xxx wasmmem loadString completed %d\n", l))
 	return string(buf)
 }
 

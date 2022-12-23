@@ -9,7 +9,6 @@ import (
 	"net"
 	"strings"
 	"time"
-	"unsafe"
 
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/splitutil"
@@ -33,22 +32,15 @@ func init() {
 
 //go:noinline
 func (l *LogViewerImpl) LogRequestHandler(sp int32) {
-	wasmPtr := l.mem.GetInt64(sp + 8)
-
-	buffer := l.ReadSlice(wasmPtr, unsafe.Offsetof(splitutil.SinglePayload{}.InPtr),
-		unsafe.Offsetof(splitutil.SinglePayload{}.InLen))
-
 	req := pb.LogRequest{}
-	err := splitutil.DecodeSingleProto(buffer, &req)
+	// xxxfixme: StackPointerToRequest really should return (or provide access to) the buffer used
+	// xxxfixme: to read the request because we end up regenerating it when we send this to the
+	// xxxfixme: logviewer.
+	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
-		ProcessLogRequest(&pb.LogRequest{
-			Stamp:   timestamppb.New(time.Now()),
-			Level:   pb.LogLevel_LOG_LEVEL_ERROR,
-			Message: fmt.Sprintf("unable to extract LogRequest from data buffer: %v", err),
-		}, false, true, nil)
-		return
+		return // already set the error code
 	}
-	ProcessLogRequest(&req, false, false, buffer)
+	ProcessLogRequest(&req, false, false, nil)
 	return
 }
 

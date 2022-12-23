@@ -126,11 +126,9 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -1: %v -- %s\n", l.fs == nil, req.GetPath())
 	stat, err := os.Stat(req.GetPath())
-	print("xxx-file server load -1a:", err == nil, "\n")
 	if err != nil {
 		return nil, err
 	}
-	print("xxx-file server load -2: %v -- %v\n", stat == nil, err == nil)
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "opened path on host machine: %s", req.GetPath())
 	if !stat.IsDir() {
 		return nil, &os.PathError{
@@ -139,7 +137,7 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 			Err:  errors.New("path is a not a directory"),
 		}
 	}
-	print("xxx-file server load -3\n")
+	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -3\n")
 	memoryPrefix := "/app"
 	// start the import
 	l.fs.MkdirAll(memoryPrefix, os.FileMode(os.ModeDir))

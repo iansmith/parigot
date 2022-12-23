@@ -1,7 +1,6 @@
 package jspatch
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -20,8 +19,6 @@ func (w *WasiPatch) SetMemPtr(m uintptr) {
 }
 
 func (w *WasiPatch) WasiWrite(sp int32) {
-	x := w.mem.GetInt64(sp + 8)
-	print(fmt.Sprintf("xxx wasiwrite %x,%x\n", sp, x))
 	content := w.mem.LoadString(sp + 16)
 	print(string(content), "\n")
 }
