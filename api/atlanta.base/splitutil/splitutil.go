@@ -45,14 +45,19 @@ func newSinglePayload() *SinglePayload {
 	ptr, l := SliceToTwoInt64s(buffer)
 	errorId := lib.NoKernelError()
 
-	return &SinglePayload{
+	idLoad := new([2]int64)
+
+	sp := &SinglePayload{
 		InPtr:  0,
 		InLen:  0,
 		OutPtr: ptr,
 		OutLen: l,
-		ErrPtr: (*[2]int64)(unsafe.Pointer(&errorId.Id.Low)),
+		ErrPtr: idLoad,
 	}
+	sp.ErrPtr[0] = int64(errorId.Id.GetHigh())
+	sp.ErrPtr[1] = int64(errorId.Id.GetLow())
 
+	return sp
 }
 
 // This is the top level entry point for the WASM side.  It sends the proto given and fills in the resp

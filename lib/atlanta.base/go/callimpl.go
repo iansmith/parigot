@@ -34,7 +34,7 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = true
+var libparigotVerbose = false
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -131,11 +131,9 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	out.ErrorId = NoKernelError()
 	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
-	print("xxx dispatch for callimpl: reached the dispatch call ")
 	// THE CALL
 	u := uintptr(unsafe.Pointer(detail))
 	dispatch(int32(u))
-	print("xxx dispatch for callimpl: returned ")
 
 	// we need to process the dispatch error first because if there was
 	// an error, it could be that the pointers were not used

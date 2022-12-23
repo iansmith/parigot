@@ -2,7 +2,6 @@ package jspatch
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"unsafe"
 )
@@ -39,11 +38,11 @@ func enter(funcName string, rest ...string) {
 			result += ","
 		}
 	}
-	if len(rest) > 0 {
-		log.Printf("---- entering  %s ---- [%s]", funcName, result)
-	} else {
-		log.Printf("---- entering %s ----", funcName)
-	}
+	// if len(rest) > 0 {
+	// 	log.Printf("---- entering  %s ---- [%s]", funcName, result)
+	// } else {
+	// 	log.Printf("---- entering %s ----", funcName)
+	// }
 }
 
 func (j *JSPatch) ValueIndex(sp int32) {

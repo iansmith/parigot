@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
@@ -158,7 +159,7 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 	var t T
 	letter := typeToLetter(t)
 	if letter != h[7] {
-		panic("type of id does not match letter")
+		panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
 	}
 	return idFromUint64Pair(high, low, letter)
 }
@@ -195,11 +196,8 @@ func Unmarshal[T AllIdPtr](wrapper T) Id {
 	if wrapper == nil {
 		return nil
 	}
-	print("xxx unmarshal -- 1\n")
 	inner := typeToInnerId(wrapper)
-	print("xxx unmarshal -- 2", inner == nil, "\n")
 	result := idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
-	print("xxx unmarshal -- 3\n")
 	return result
 }
 
