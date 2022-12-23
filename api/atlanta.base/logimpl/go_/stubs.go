@@ -10,5 +10,5 @@ package go_
 import _ "unsafe"
 
 //go:noinline
-//go:linkname LogRequestViaSocket logviewer.log_request_via_socket
-func LogRequestViaSocket(int32)
+//go:linkname LogRequestHandler logviewer.log_request_handler
+func LogRequestHandler(int32)

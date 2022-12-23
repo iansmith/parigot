@@ -12,3 +12,7 @@ import _ "unsafe"
 //go:noinline
 //go:linkname FileSvcOpen filesvc.open
 func FileSvcOpen(int32)
+
+//go:noinline
+//go:linkname FileSvcLoad filesvc.load
+func FileSvcLoad(int32)

@@ -3,6 +3,7 @@ package jspatch
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"unsafe"
 )
 
@@ -46,7 +47,7 @@ type jsObject interface {
 	String() string
 	Length() int
 	InstanceOf(jsObject) bool
-	Call(string, jsObject /*[]jsObject*/) jsObject
+	Call(string /*jsObject*/, []jsObject) jsObject
 	Get(string) jsObject
 	Invoke(jsObject /*[]jsObject*/) jsObject
 	Set(string, jsObject) jsObject /* returns self for chaining*/
@@ -134,7 +135,9 @@ func goToJS(x any) jsObject {
 	switch x := x.(type) {
 	case jsObject:
 		return x
-	//case Func:
+	case func(interface{}):
+		print("got to func case in goToJS\n")
+		return nil
 	//	return x.Value
 	case nil:
 		return object.get(predefinedNull)
@@ -212,7 +215,20 @@ func goToJS(x any) jsObject {
 		}
 		return object.put(val)
 	default:
-		panic("ValueOf: invalid value")
+		v := reflect.ValueOf(x)
+		switch v.Kind() {
+		case reflect.Slice:
+			//ev := reflect.ValueOf(v.Interface())
+			sl := v.Interface().([]jsObj)
+			print("found a slice,xxx,", v.Len(), " and ", v.Index(0).Kind().String(), " -- ", len(sl))
+			arr := newJSObjArr(v.Len())
+			for i := 0; i < v.Len(); i++ {
+				arr.SetIndex(i, &sl[i])
+			}
+			return arr
+		default:
+			panic("we don't know what to do with type " + v.Kind().String())
+		}
 	}
 }
 
@@ -272,6 +288,15 @@ func newJSObjString(s string) *jsObj {
 		s:        s,
 	}
 }
+func newJSObjArr(size int) *jsObj {
+	o := &jsObj{
+		n:        -8008,
+		prop:     make(map[string]jsObject),
+		typeFlag: TypeObject,
+	}
+	o.arr = make([]jsObject, size)
+	return o
+}
 
 type jsObj struct {
 	n        int32
@@ -295,6 +320,7 @@ type jsObj struct {
 	zero     bool
 	global   bool
 	s        string
+	arr      []jsObject
 	fn       func()
 }
 
@@ -309,8 +335,10 @@ func (j *jsObj) String() string {
 func (j *jsObj) Index(int) jsObject {
 	panic("Index")
 }
-func (j *jsObj) SetIndex(int, jsObject) {
-	panic("SetIndex")
+func (j *jsObj) SetIndex(index int, obj jsObject) {
+	print(fmt.Sprintf("xxx set index on %s: index is %d, param is %s\n", j, index, obj))
+	j.arr[index] = obj
+	//panic("SetIndex")
 
 }
 func (j *jsObj) Length() int {
@@ -324,9 +352,25 @@ func (j *jsObj) InstanceOf(o jsObject) bool {
 	}
 	return j.typeFlag == other.typeFlag
 }
-func (j *jsObj) Call(string, jsObject /* []jsObject*/) jsObject {
-	panic("Call")
+func (j *jsObj) Call(name string /*jsObject*/, param []jsObject) jsObject {
+	print("Call invoked:" + j.String() + " -> " + name + " length of params: " + fmt.Sprint(len(param)) + "\n")
+	switch name {
+	case "_makeFuncWrapper":
+		return makeFuncWrapper(param...)
+	default:
+		panic("no implementation in Call for " + name)
+	}
 }
+
+func makeFuncWrapper(param ...jsObject) jsObject {
+	print("xxx faking impl of makeFuncWrapper 1\n")
+	if len(param) != 1 {
+		panic("unable to process arguments to makeFuncWrapper: " + fmt.Sprint(len(param)))
+	}
+	print("xxx faking impl of makeFuncWrapper 2:" + param[0].String() + "\n")
+	return newJSObjNum(0.07)
+}
+
 func (j *jsObj) Get(propName string) jsObject {
 	v, ok := j.prop[propName]
 	if ok {
@@ -380,18 +424,6 @@ func (j *jsObj) binaryRep() (uint32, uint32) {
 	low := uint32(j.n)
 	return high, low
 }
-
-//
-//func (j *jsObj) FuncAddr() func() {
-//	if j.typeFlag != TypeFunction {
-//		panic("attempt to get function address of non function")
-//	}
-//	return j.fn
-//}
-//
-//func (j *jsObj) IsFunc() bool {
-//	return j.typeFlag == TypeFunction
-//}
 
 //
 // OBJMAP

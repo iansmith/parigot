@@ -25,11 +25,11 @@ func (j *JSPatch) SetMemPtr(m uintptr) {
 	j.mem = NewWasmMem(m)
 }
 
-const verbose = false
+const jsEmulVerbose = true
 const nanHead = 0x7FF80000
 
 func enter(funcName string, rest ...string) {
-	if !verbose {
+	if !jsEmulVerbose {
 		return
 	}
 	result := ""
@@ -101,14 +101,17 @@ func (j *JSPatch) FinalizeRef(sp int32) {
 	panic("finalize not implemented (multiple encodings)")
 }
 
+//go:noinline
 func (j *JSPatch) ValueCall(sp int32) {
 	enter("ValueCall")
 	// can go switch the stack on us here?
 	recvr := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
+	print("xxx valuecall -- ", prop, "?", recvr != nil, "\n")
 	args := j.mem.LoadSliceOfValues(sp + 32)
-	v := recvr.Call(prop, args)
-	j.mem.StoreValue(sp+56, goToJS(v))
+	print("xxx valuecall 222 -- exists?", recvr != nil, "\n")
+	v := recvr.Call(prop, []jsObject{args})
+	j.mem.StoreValue(sp+56, v) //xxx should we be doing this without any conversion?
 	j.mem.SetUint8(sp+64, 1)
 }
 
@@ -118,18 +121,6 @@ func (j *JSPatch) StringVal(sp int32) {
 	obj := goToJS(s)
 	j.mem.StoreValue(sp+24, obj)
 }
-
-//func (j *JSPatch) StrConvert(memPtr uintptr, ptr int32, length int32) string {
-//	// we could probably go bytesConvert and claim our cap was equal to our len but...
-//	enter("StrConvert")
-//	buf := make([]byte, length)
-//	for i := int32(0); i < length; i++ {
-//		b := (*byte)(unsafe.Pointer(memPtr + uintptr(ptr+i)))
-//		buf[i] = *b
-//	}
-//	s := string(buf)
-//	return s
-//}
 
 func (j *JSPatch) ValueGet(sp int32) {
 	enter("ValueGet")
