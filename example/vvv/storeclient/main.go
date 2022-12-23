@@ -42,7 +42,7 @@ func main() {
 		Amount: 14.99,
 		When:   timestamppb.New(time.Now()),
 	})
-	Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("SoldItem returned ok?:  %v",
+	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("SoldItem returned ok?:  %v",
 		err == nil))
 	req := pb.BestOfAllTimeRequest{
 		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
@@ -53,16 +53,16 @@ func main() {
 		storeclientPrint("BestOfAllTime failed %s", err.Error())
 		lib.Exit(1)
 	}
-	Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
+	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
 		best.Item.Creator, best.Item.Title, best.Item.Year))
 
 	inStock, err := vinnysStore.MediaTypesInStock()
 	if err != nil {
-		Log(pblog.LogLevel_LOGLEVEL_ERROR, fmt.Sprintf("MediaTypesInStock() failed  %s", err.Error()))
+		Log(pblog.LogLevel_LOG_LEVEL_ERROR, fmt.Sprintf("MediaTypesInStock() failed  %s", err.Error()))
 	} else {
-		Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("MediaTypesInStock: %d different types", len(inStock.InStock)))
+		Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("MediaTypesInStock: %d different types", len(inStock.InStock)))
 		for _, m := range inStock.GetInStock() {
-			Log(pblog.LogLevel_LOGLEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
+			Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
 	}
 }

@@ -2,8 +2,8 @@ package netconst
 
 import "hash/crc32"
 
-// if your message doesn't start with this, you have lost sync and should close the connection
-// so we can try to reconnect
+// if your message doesn't start with this, you have lost sync or had some other encoding
+// problem.  if you can, it might be a good time to try reconnect to the sender.
 var MagicStringOfBytes = uint64(0x1789071417760704)
 var FrontMatterSize = 8 + 4
 var TrailerSize = 4

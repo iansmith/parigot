@@ -195,8 +195,11 @@ func Unmarshal[T AllIdPtr](wrapper T) Id {
 	if wrapper == nil {
 		return nil
 	}
+	print("xxx unmarshal -- 1\n")
 	inner := typeToInnerId(wrapper)
+	print("xxx unmarshal -- 2", inner == nil, "\n")
 	result := idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
+	print("xxx unmarshal -- 3\n")
 	return result
 }
 

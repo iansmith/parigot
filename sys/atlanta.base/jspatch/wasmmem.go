@@ -39,8 +39,10 @@ func (w *WasmMem) TrueAddr(addr int32) uintptr {
 func (w *WasmMem) LoadSliceOfValues(addr int32) jsObject {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
+	print("xxx LoadSliceOfValues -- arrayPtr=", array, " and len is ", l, "\n")
 	arr := make([]jsObj, l)
 	a := goToJS(arr)
+	print("xxx LoadSliceOfValues -- got js object back ", a, "\n")
 	for i := int64(0); i < l; i++ {
 		a.SetIndex(int(i), w.LoadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
 	}
@@ -120,8 +122,8 @@ func (w *WasmMem) LoadStringTwoPtrs(addr int32, l int32) string {
 func (w *WasmMem) LoadString(addr int32) string {
 	ptr := w.GetInt64(addr + 0)
 	l := w.GetInt64(addr + 8)
-	//print(fmt.Sprintf("xxx wasmmem loadString %x,%d\n", ptr, l))
-	if l > 511 {
+	print(fmt.Sprintf("xxx wasmmem loadString %x,%d\n", ptr, l))
+	if l > 4096 {
 		print("xxx!!!! wasmmem refusing to load string because length is too large: ", l, "\n")
 		debug.PrintStack()
 		print("end of stack trace")
@@ -132,6 +134,7 @@ func (w *WasmMem) LoadString(addr int32) string {
 		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(ptr+i)))
 		buf[i] = *str
 	}
+	print(fmt.Sprintf("xxx wasmmem loadString completed %d\n", l))
 	return string(buf)
 }
 

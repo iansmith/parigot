@@ -58,8 +58,9 @@ func addSplitModeFunctions(store wasmtime.Storelike,
 	fileSvc *fileimpl.FileSvcImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	result["go.logviewer.log_request_via_socket"] = wasmtime.WrapFunc(store, logViewer.LogRequestViaSocket)
+	result["go.logviewer.log_request_handler"] = wasmtime.WrapFunc(store, logViewer.LogRequestHandler)
 	// mixed mode entries: this should be automated (xxxfixmexxx)
 	result["go.filesvc.open"] = wasmtime.WrapFunc(store, fileSvc.FileSvcOpen)
+	result["go.filesvc.load"] = wasmtime.WrapFunc(store, fileSvc.FileSvcLoad)
 
 }

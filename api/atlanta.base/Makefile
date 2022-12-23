@@ -28,15 +28,15 @@ clean:
 	rm -rf $(GENERATED)/log
 	rm -rf build/*
 
-build/logserver.p.wasm: logimpl/*.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
+build/logserver.p.wasm: logimpl/*.go logimpl/go_/* $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	@echo
 	@echo "\033[92mbuilding server side: logserver  ============================================================\033[0m"
-	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/logserver.p.wasm logimpl/main.go
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/logserver.p.wasm logimpl/wasmside.go
 
-build/fileserver.p.wasm: fileimpl/*.go $(PARIGOT_SOURCE)/build/protoc-gen-parigot
+build/fileserver.p.wasm: fileimpl/*.go fileimpl/go_/* $(PARIGOT_SOURCE)/build/protoc-gen-parigot
 	@echo
 	@echo "\033[92mbuilding server side: fileserver  ============================================================\033[0m"
-	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/logserver.p.wasm fileimpl/main.go
+	$(GO_CMD) build -a -tags $(BUILD_TAGS) -o build/fileserver.p.wasm fileimpl/wasmside.go
 
 #### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
 

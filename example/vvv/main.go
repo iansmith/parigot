@@ -18,17 +18,21 @@ import (
 )
 
 func main() {
+	print("xxx-main()-1\n")
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := lib.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
+	print("xxx-main()-2\n")
 	if _, err := lib.Require1("file", "File"); err != nil {
 		panic("unable to require file service:" + err.Error())
 	}
+	print("xxx-main()-3\n")
 	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
 		panic("unable to export demo.vvv: " + err.Error())
 	}
 
+	print("xxx-main()-4\n")
 	vvv.Run(&myServer{})
 }
 
@@ -55,7 +59,7 @@ func (m *myServer) BestOfAllTime(pctx *protosupport.Pctx, inProto proto.Message)
 	out := &pb.BestOfAllTimeResponse{
 		Item: &pb.Item{},
 	}
-	m.log(pctx, pblog.LogLevel_LOGLEVEL_DEBUG, "reached BestOfAllTime, computing his choices")
+	m.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "reached BestOfAllTime, computing his choices")
 
 	if in.Ctype == pb.ContentType_CONTENT_TYPE_MUSIC {
 		out.Item.Creator = "The Smiths"
@@ -105,11 +109,13 @@ func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
 // services are ready.
 func (m *myServer) Ready() bool {
 
+	print("xxx-ready()-1\n")
 	if _, err := lib.Run(false); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
 
+	print("xxx-ready()-2\n")
 	logger, err := log.LocateLog()
 	if err != nil {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
@@ -117,18 +123,21 @@ func (m *myServer) Ready() bool {
 	}
 	m.logger = logger
 
+	print("xxx-ready()-3\n")
 	fs, err := file.LocateFile()
 	if err != nil {
 		print("ERROR trying to create fs client: ", err.Error(), "\n")
 		return false
 	}
 	m.fileSvc = fs
+	print("xxx-ready()-4, nil fileSvc?", m.fileSvc == nil, "\n")
 	// load the test data
 	_, err = m.fileSvc.Load(&pbfile.LoadRequest{Path: "testdata/vvv"})
 	if err != nil {
 		panic("unable to load the test data: " + err.Error())
 	}
 
+	print("xxx-ready()-5\n")
 	return true
 
 }
