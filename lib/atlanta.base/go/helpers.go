@@ -32,7 +32,7 @@ func Require1(packagePath, service string) (*call.RequireResponse, error) {
 // there are number of cases and doing this in this library means the code generator
 // can be much simpler.  It just passes all the information into here, and this function
 // sorts it out.
-func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*call.ReturnValueResponse, error) {
+func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*ReturnValueResponse, error) {
 	libprint("RETURNVALUEENCODE ", "in return value %s, %s", cid.Short(), mid.Short())
 	var err error
 	var a anypb.Any

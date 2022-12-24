@@ -1,6 +1,7 @@
 package sys
 
 import (
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 )
@@ -17,7 +18,7 @@ func newRemoteSysCall(ns *NSProxy) *remoteSyscall {
 }
 
 func (r *remoteSyscall) Bind(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint("BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
 	return sharedBind(r.nameServer.NSCore, p, packagePath, service, method)
 }
 
@@ -44,7 +45,7 @@ func (r *remoteSyscall) FindMethodByName(caller dep.DepKey, sid lib.Id, method s
 func (r *remoteSyscall) GetInfoForCallId(cid lib.Id) *callContext {
 	return r.nameServer.GetInfoForCallId(cid)
 }
-func (r *remoteSyscall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+func (r *remoteSyscall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
 	return sharedGetService(r.nameServer, key, pkgPath, service)
 }
 func (r *remoteSyscall) Require(key dep.DepKey, pkgPath, service string) lib.Id {

@@ -9,8 +9,11 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/netconst"
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
+	"github.com/iansmith/parigot/api/splitutil"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -44,41 +47,16 @@ var libparigotVerbose = false
 // a client of the named service.
 //
 //go:noinline
-func (l *callImpl) Locate(in *call.LocateRequest) (*call.LocateResponse, error) {
-	out := new(call.LocateResponse)
-	out.ErrorId = NoErrorMarshaled[protosupport.KernelErrorId, *protosupport.KernelErrorId]()
-	out.ServiceId = &protosupport.ServiceId{
-		Id: &protosupport.BaseId{},
+func (l *callImpl) Locate(in *pbsys.Locate) error {
+	id, err := splitutil.SendReceiveSingleProto(in, in, locate)
+	if err != nil {
+		return err
 	}
-	detail := new(LocatePayload)
-	pkgSh := (*reflect.StringHeader)(unsafe.Pointer(&in.PackageName))
-	detail.PkgPtr = int64(pkgSh.Data)
-	detail.PkgLen = int64(pkgSh.Len)
-
-	serviceSh := (*reflect.StringHeader)(unsafe.Pointer(&in.ServiceName))
-	detail.ServicePtr = int64(serviceSh.Data)
-	detail.ServiceLen = int64(serviceSh.Len)
-	// choosing low's addr means you ADD 8 to get to the high
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-	detail.ServiceIdPtr = (*[2]int64)(unsafe.Pointer(&out.ServiceId.Id.Low))
-
-	u := uintptr(unsafe.Pointer(detail))
-	locate(int32(u))
-	// marshal them back together
-	svcDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ServiceIdPtr))))
-	sid := NewFrom64BitPair[*protosupport.ServiceId](uint64(svcDataPtr[1]), uint64(uint64(svcDataPtr[0])))
-	out.ServiceId = Marshal[protosupport.ServiceId](sid)
-	locErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-
-	err := NewKernelError(KernelErrorCode(locErrDataPtr[0]))
-	// in case the caller walks the structure repacks a new protobuf
-	out.ServiceId = Marshal[protosupport.ServiceId](sid)
-	out.ErrorId = Marshal[protosupport.KernelErrorId](err)
-
-	if err.IsError() {
-		return out, NewPerrorFromId("failed to locate properly", err)
+	if id != nil && id.IsError() {
+		// xxx this is bad, swallowing the real error and converting to text
+		return lib.NewPerrorFromId("failed to locate properly", id)
 	}
-	return out, nil
+	return nil
 }
 
 func stringToTwoInt64s(s string) (int64, int64) {
@@ -100,7 +78,7 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, error) {
 	out := new(call.DispatchResponse)
 
-	detail := &DispatchPayload{}
+	detail := &lib.DispatchPayload{}
 	detail.ServiceId[0] = int64(in.ServiceId.Id.GetLow())
 	detail.ServiceId[1] = int64(in.ServiceId.Id.GetHigh())
 
@@ -109,26 +87,26 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 
 	b, err := proto.Marshal(in.InPctx)
 	if err != nil {
-		return nil, NewPerrorFromId("marshal of PCtx for Dispatch()", NewKernelError(KernelMarshalFailed))
+		return nil, lib.NewPerrorFromId("marshal of PCtx for Dispatch()", lib.NewKernelError(lib.KernelMarshalFailed))
 	}
 	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(b)
 
 	b, err = proto.Marshal(in.Param)
 	if err != nil {
-		return nil, NewPerrorFromId("marshal of any for Dispatch()", NewKernelError(KernelMarshalFailed))
+		return nil, lib.NewPerrorFromId("marshal of any for Dispatch()", lib.NewKernelError(lib.KernelMarshalFailed))
 	}
 
 	detail.ParamPtr, detail.ParamLen = sliceToTwoInt64s(b)
 
-	resultPctx := make([]byte, GetMaxMessageSize())
+	resultPctx := make([]byte, netconst.ReadBufferSize)
 	detail.OutPctxPtr, detail.OutPctxLen = sliceToTwoInt64s(resultPctx)
 
-	resultPtr := make([]byte, GetMaxMessageSize())
+	resultPtr := make([]byte, netconst.ReadBufferSize)
 	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(resultPtr)
-	if detail.ResultLen != int64(GetMaxMessageSize()) {
+	if detail.ResultLen != int64(netconst.ReadBufferSize) {
 		panic("GetMaxMessageSize() should be the result length!")
 	}
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 
 	// THE CALL
@@ -138,9 +116,9 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	// we need to process the dispatch error first because if there was
 	// an error, it could be that the pointers were not used
 	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	derr := NewKernelError(KernelErrorCode(dispatchErrDataPtr[0]))
+	derr := lib.NewKernelError(lib.KernelErrorCode(dispatchErrDataPtr[0]))
 	if derr.IsError() {
-		return nil, NewPerrorFromId("dispatch error", derr)
+		return nil, lib.NewPerrorFromId("dispatch error", derr)
 	}
 
 	// no error sent back to use, now we will attempt to unmarshal
@@ -153,7 +131,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 		out.OutPctx = nil
 	}
 	if err != nil {
-		return nil, NewPerrorFromId("unmarshal of PCtx in Dispatch()", NewKernelError(KernelUnmarshalFailed))
+		return nil, lib.NewPerrorFromId("unmarshal of PCtx in Dispatch()", lib.NewKernelError(lib.KernelUnmarshalFailed))
 	}
 
 	libprint("DISPATCH ", "preparing for result return value, %d",
@@ -162,7 +140,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
 	if err != nil {
 		libprint("DISPATCH ", "unmarshal err %v with result len %d", err, detail.ResultLen)
-		return nil, NewPerrorFromId("unmarshal of result in Dispatch()", NewKernelError(KernelUnmarshalFailed))
+		return nil, lib.NewPerrorFromId("unmarshal of result in Dispatch()", lib.NewKernelError(lib.KernelUnmarshalFailed))
 	}
 	libprint("DISPATCH ", "returning our result %s --  done with %s", out.Result, in.Method)
 	return out, nil
@@ -209,9 +187,9 @@ func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(*protosuppo
 func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
 	out := new(call.BindMethodResponse)
 
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 
-	detail := new(BindPayload)
+	detail := new(lib.BindPayload)
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
 	detail.PkgPtr = int64(sh.Data)
 	detail.PkgLen = int64(sh.Len)
@@ -239,15 +217,15 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 
 	// check for in band errors
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		return nil, NewPerrorFromId("bind error", kerr)
+		return nil, lib.NewPerrorFromId("bind error", kerr)
 	}
 
 	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = Marshal[protosupport.MethodId](mid)
-	out.ErrorId = NoKernelError()
+	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = lib.Marshal[protosupport.MethodId](mid)
+	out.ErrorId = lib.NoKernelError()
 
 	return out, nil
 }
@@ -255,7 +233,7 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 	out := new(call.RunResponse)
 
-	detail := new(RunPayload)
+	detail := new(lib.RunPayload)
 	detail.Wait = 0
 	if in.Wait {
 		detail.Wait = 1
@@ -270,12 +248,12 @@ func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 	run(int32(u))
 
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
-	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		out.ErrorId = Marshal[protosupport.KernelErrorId](kerr)
-		return out, NewPerrorFromId("kernel failed to start your process", kerr)
+		out.ErrorId = lib.Marshal[protosupport.KernelErrorId](kerr)
+		return out, lib.NewPerrorFromId("kernel failed to start your process", kerr)
 	}
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 	return out, nil
 }
 
@@ -289,7 +267,7 @@ func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *
 		} else {
 			libprint("REQUIRE", "requiring service %s.%s", pkg, svc)
 		}
-		detail := new(ExportPayload)
+		detail := new(lib.ExportPayload)
 		sh := (*reflect.StringHeader)(unsafe.Pointer(&pkg))
 		detail.PkgPtr = int64(sh.Data)
 		detail.PkgLen = int64(sh.Len)
@@ -308,12 +286,12 @@ func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *
 
 		// check for in band errors
 		kernelErrDataPtr := detail.KernelErrorPtr //(*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
-		kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+		kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
 		if kerr.IsError() {
 			if isExport {
-				return NewPerrorFromId("export error", kerr)
+				return lib.NewPerrorFromId("export error", kerr)
 			} else {
-				return NewPerrorFromId("require error", kerr)
+				return lib.NewPerrorFromId("require error", kerr)
 			}
 
 		}
@@ -329,7 +307,7 @@ func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *
 func (l *callImpl) Export(in *call.ExportRequest) (*call.ExportResponse, error) {
 	out := new(call.ExportResponse)
 	// allocate space for any error
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 	err := l.exportOrRequire(in.GetService(), ptr, true)
 	if err != nil {
@@ -346,7 +324,7 @@ func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, erro
 	libprint("REQUIRE ", "request to require %d services", len(in.Service))
 	out := new(call.RequireResponse)
 	// allocate space for any error
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
 	err := l.exportOrRequire(in.GetService(), ptr, false)
 	if err != nil {
@@ -361,9 +339,9 @@ func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, erro
 func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
 	out := new(call.BindMethodResponse)
 
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 
-	detail := new(BindPayload)
+	detail := new(lib.BindPayload)
 	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
 	detail.PkgPtr = int64(sh.Data)
 	detail.PkgLen = int64(sh.Len)
@@ -383,16 +361,16 @@ func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.M
 
 	// check for in band errors
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		return nil, NewPerrorFromId("bind error", kerr)
+		return nil, lib.NewPerrorFromId("bind error", kerr)
 	}
 
 	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = Marshal[protosupport.MethodId](mid)
+	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
+	out.MethodId = lib.Marshal[protosupport.MethodId](mid)
 
-	out.ErrorId = NoKernelError()
+	out.ErrorId = lib.NoKernelError()
 
 	return out, nil
 }
@@ -408,12 +386,12 @@ func libprint(call, format string, arg ...interface{}) {
 func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUntilCallResponse, error) {
 	// this is JUST for reserving the space for the result to be placed into
 	out := &call.BlockUntilCallResponse{
-		Method:  NoErrorMarshaled[protosupport.MethodId, *protosupport.MethodId](),
-		Call:    NoErrorMarshaled[protosupport.CallId, *protosupport.CallId](),
-		ErrorId: NoKernelError(),
+		Method:  lib.NoErrorMarshaled[protosupport.MethodId, *protosupport.MethodId](),
+		Call:    lib.NoErrorMarshaled[protosupport.CallId, *protosupport.CallId](),
+		ErrorId: lib.NoKernelError(),
 	}
 
-	payload := &BlockPayload{}
+	payload := &lib.BlockPayload{}
 
 	if len(in.PctxBuffer) > 0 {
 		payload.PctxPtr, payload.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
@@ -432,20 +410,20 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	libprint("BLOCKUNTILCALL ", "finished call")
 	// unpack the result
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.ErrorPtr))))
-	kerr := NewKernelError(KernelErrorCode(kernelErrDataPtr[0]))
+	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
 	if kerr.IsError() {
-		return nil, NewPerrorFromId("BlockUntilCall error", kerr)
+		return nil, lib.NewPerrorFromId("BlockUntilCall error", kerr)
 	}
 
 	callDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.CallId))))
-	cid := NewFrom64BitPair[*protosupport.CallId](uint64(callDataPtr[1]), uint64(callDataPtr[0]))
+	cid := lib.NewFrom64BitPair[*protosupport.CallId](uint64(callDataPtr[1]), uint64(callDataPtr[0]))
 	methDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.MethodId))))
-	mid := NewFrom64BitPair[*protosupport.MethodId](uint64(methDataPtr[1]), uint64(methDataPtr[0]))
+	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methDataPtr[1]), uint64(methDataPtr[0]))
 	libprint("BLOCKUNTILCALL ", "mid computed %s", mid.Short())
 
-	out.Call = Marshal[protosupport.CallId](cid)
-	out.Method = Marshal[protosupport.MethodId](mid)
-	out.ErrorId = NoKernelError()
+	out.Call = lib.Marshal[protosupport.CallId](cid)
+	out.Method = lib.Marshal[protosupport.MethodId](mid)
+	out.ErrorId = lib.NoKernelError()
 
 	// get the data
 	out.ParamLen = int32(payload.ParamLen)
@@ -457,7 +435,7 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 }
 
 func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueResponse, error) {
-	detail := &ReturnValuePayload{}
+	detail := &lib.ReturnValuePayload{}
 
 	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
 	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(in.ResultBuffer)
@@ -475,10 +453,10 @@ func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueRe
 	u := uintptr(unsafe.Pointer(detail))
 	returnValue(int32(u))
 	// check to see the return value
-	kerr := NewKernelError(KernelErrorCode(detail.KernelErrorPtr[0]))
-	big := Marshal[protosupport.KernelErrorId](kerr)
+	kerr := lib.NewKernelError(lib.KernelErrorCode(detail.KernelErrorPtr[0]))
+	big := lib.Marshal[protosupport.KernelErrorId](kerr)
 	if kerr.IsError() {
-		return nil, NewPerrorFromId("failed to process return value", kerr)
+		return nil, lib.NewPerrorFromId("failed to process return value", kerr)
 	}
 	return &call.ReturnValueResponse{
 		ErrorId: big,
@@ -486,5 +464,5 @@ func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueRe
 }
 
 func newCallImpl() Call {
-	return &callImpl{}
+	return &lib.callImpl{}
 }

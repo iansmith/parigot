@@ -1,0 +1,12 @@
+syntax = "proto3";
+package pb.syscall;
+option go_package="github.com/iansmith/parigot/api/proto/g/pb/syscall;syscall";
+import "pb/protosupport/protosupport.proto";
+//import "google/protobuf/any.proto";
+
+// Locate is a read from the kernel of the service id associated with a package, service pair.
+message Locate {
+    string package = 1;
+    string service = 2;
+    protosupport.ServiceId sid = 3;    
+}

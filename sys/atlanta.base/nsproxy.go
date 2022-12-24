@@ -233,7 +233,7 @@ func (n *NSProxy) RunNotify(key dep.DepKey) {
 // GetService looks up the service that is given as a parameter (pkgPath.service) and returns
 // the service id for that service.  The second return parameter is an error code (KernelErrorId)
 // if it is non-nil.
-func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
 	req := &net.GetServiceRequest{
 		PackagePath: pkgPath,
 		Service:     service,
@@ -241,28 +241,28 @@ func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib
 	a := &anypb.Any{}
 	err := a.MarshalFrom(req)
 	if err != nil {
-		return nil, lib.NewKernelError(lib.KernelMarshalFailed)
+		return nil, lib.KernelMarshalFailed
 	}
 
 	result := n.makeRequest(a)
 	if result == nil {
-		return nil, lib.NewKernelError(lib.KernelNetworkFailed)
+		return nil, lib.KernelNetworkFailed
 	}
 	resp := &net.GetServiceResponse{}
 	err = result.UnmarshalTo(resp)
 	if err != nil {
-		return nil, lib.NewKernelError(lib.KernelUnmarshalFailed)
+		return nil, lib.KernelUnmarshalFailed
 	}
 	kerr := lib.Unmarshal(resp.GetKernelErr())
 	if kerr.IsError() {
-		return nil, kerr
+		return nil, lib.KernelErrorCode(kerr.Low())
 	}
 	addr := resp.GetAddr()
 	sidPtr := resp.GetSid()
 	sid := lib.Unmarshal(sidPtr)
 	netnameserverPrint("GETSERVICE ", "addr is %s and sid is %s", addr, sid.Short())
 	n.serviceLoc[sid.String()] = addr
-	return sid, nil
+	return sid, lib.KernelNoError
 }
 
 func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext {

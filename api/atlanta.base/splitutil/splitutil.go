@@ -228,10 +228,11 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 
 }
 
-// ErrorResponse takes the pointer to the SinglePayload structure (in the WASM address space) and sets
+// ErrorResponse takes the pointer to the stack (in the WASM address space) and sets
 // the error contained in it to the code provided.  This is called by the GO side.  This should be
 // use to signal errors back to the WASM code.
-func ErrorResponse(mem *jspatch.WasmMem, wasmPtr int32, code lib.KernelErrorCode) {
+func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
+	wasmPtr := mem.GetInt64(sp + 8)
 	kerr := lib.NewKernelError(code)
 	// low goes first
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)),

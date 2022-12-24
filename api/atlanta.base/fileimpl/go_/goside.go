@@ -41,7 +41,7 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	if err != nil {
 		return
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx FileSvcOpen path to file %s", req.GetPath())
+	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "FileSvcOpen path to file %s", req.GetPath())
 	return
 }
 
@@ -124,7 +124,7 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 }
 
 func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -1: %v -- %s\n", l.fs == nil, req.GetPath())
+	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "file server load -1: %v -- %s\n", l.fs == nil, req.GetPath())
 	stat, err := os.Stat(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -205,7 +205,6 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 // we stop at the first error and return it with no error paths.  If return on Fail is true, we ignore errors
 // and return the paths that generated errors.
 func (l *FileSvcImpl) readDirContents(path string, returnOnFail bool) ([]string, []string, error) {
-	print("file server: read dir contents:", path, "\n")
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "reached readDirContents: %s", path)
 	stat, err := os.Stat(path) // sanity check
 	if err != nil {

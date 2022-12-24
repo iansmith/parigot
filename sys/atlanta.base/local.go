@@ -1,6 +1,8 @@
 package sys
 
 import (
+	"github.com/iansmith/parigot/api/proto/g/pb/log"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 )
@@ -11,7 +13,7 @@ type localSysCall struct {
 
 // sharedBind takes an NSCore, not a nameserver.
 func sharedBind(core *NSCore, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint("SHAREDBIND", "about to hit NSCore")
+	sysPrint(log.LogLevel_LOG_LEVEL_DEBUG, "SHAREDBIND", "about to hit NSCore")
 	key := NewDepKeyFromProcess(p)
 	mid := core.FindOrCreateMethodId(key, packagePath, service, method)
 	return mid, nil
@@ -39,7 +41,7 @@ func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	return ns.Require(key, pkg, service)
 }
-func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.Id) {
+func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.KernelErrorCode) {
 	return ns.GetService(key, pkg, service)
 }
 func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
@@ -51,7 +53,7 @@ func newLocalSysCall(ns *LocalNameServer) *localSysCall {
 }
 
 func (l *localSysCall) Bind(proc *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint("BIND", "[local] bind for method %s on (%s.%s)", method, packagePath, service)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BIND", "[local] bind for method %s on (%s.%s)", method, packagePath, service)
 	return sharedBind(l.nameServer.NSCore, proc, packagePath, service, method)
 }
 
@@ -75,7 +77,7 @@ func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {
 func (l *localSysCall) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	return sharedCallService(l.nameServer, key, info)
 }
-func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
 	return sharedGetService(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {

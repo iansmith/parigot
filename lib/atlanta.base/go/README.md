@@ -1,4 +1,4 @@
 ## /lib/atlanta.base/go
 
-This directory is for the go implementations of the
-client-side libraries.
+This is the library that go clients use to call the parigot kernel.
+
