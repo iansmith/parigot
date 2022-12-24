@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	pbcall "github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 
 	"google.golang.org/protobuf/proto"
@@ -31,7 +31,7 @@ func (c *ClientSideService) SetPctx(pctx *protosupport.Pctx) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*pbcall.DispatchResponse, error) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
@@ -41,7 +41,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.
 		}
 	}
 
-	in := &call.DispatchRequest{
+	in := &pbcall.DispatchRequest{
 		ServiceId: Marshal[protosupport.ServiceId](c.svc),
 		Caller:    c.caller,
 		Method:    method,
@@ -49,5 +49,5 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*call.
 		Param:     a,
 	}
 	// xxx this should be going through dispatch anyway
-	return CallConnection().Dispatch(in)
+	return libcall.CallConnection().Dispatch(in)
 }

@@ -117,16 +117,16 @@ func (n *NSCore) newServiceId() lib.Id {
 	return lib.NewId[*protosupport.ServiceId]()
 }
 
-func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id) {
+func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
 	pData, ok := n.packageRegistry[pkgPath]
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound)
+		return nil, lib.KernelNotFound
 	}
 	sData, ok := pData.service[service]
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound)
+		return nil, lib.KernelNotFound
 	}
-	return sData.serviceId, nil
+	return sData.serviceId, lib.KernelNoError
 }
 
 // CloseService is used to indicate that 1) the given service will not have

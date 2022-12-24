@@ -13,7 +13,7 @@ type SysCall interface {
 	RunNotify(key dep.DepKey)
 	GetInfoForCallId(cid lib.Id) *callContext
 	FindMethodByName(key dep.DepKey, sid lib.Id, method string) *callContext
-	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.Id)
+	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.KernelErrorCode)
 	CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id)
 	BlockUntilCall(key dep.DepKey) *callContext
 }

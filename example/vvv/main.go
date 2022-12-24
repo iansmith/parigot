@@ -127,6 +127,18 @@ func (m *myServer) Ready() bool {
 	if err != nil {
 		panic("unable to load the test data: " + err.Error())
 	}
+	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/boat.toml"})
+	if err != nil {
+		panic("unable to open the boat.toml file")
+	}
+	err = m.logger.Log(&pblog.LogRequest{
+		Stamp:   timestamppb.Now(),
+		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
+		Message: fmt.Sprintf("opened boat.toml %s", resp.GetId().String()),
+	})
+	if err != nil {
+		panic("unable to load the test data: " + err.Error())
+	}
 
 	return true
 

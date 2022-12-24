@@ -28,7 +28,7 @@ type NameServer interface {
 	RunNotify(key dep.DepKey)
 	RunBlock(key dep.DepKey) (bool, lib.Id)
 	RunIfReady(key dep.DepKey)
-	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id)
+	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode)
 	StartFailedInfo() string
 	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
 	CallService(dep.DepKey, *callContext) (*resultInfo, lib.Id)
@@ -94,7 +94,7 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
-func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id) {
+func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 

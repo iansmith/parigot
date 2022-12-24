@@ -4,11 +4,18 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 	"unsafe"
 
+	ilog "github.com/iansmith/parigot/api/logimpl/go_"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
+	"github.com/iansmith/parigot/api/splitutil"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Flip this switch for debug output that starts with SYSCALL and looks like this:
@@ -18,7 +25,7 @@ import (
 //
 // Look at the doc for libparigotVerbose to see about interleaving issue with syscallVerbose and
 // libparigotVerbose.
-var syscallVerbose = false
+var syscallVerbose = true
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
@@ -62,40 +69,30 @@ func (a *syscallReadWrite) Exit(sp int32) {
 // and creates an implementation of the proper interface to allow the caller to talk to that service no
 // matter if that service is across the network or in the same address space.
 func (s *syscallReadWrite) Locate(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("Locate", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.LocatePayload{}.PkgPtr),
-		unsafe.Offsetof(lib.LocatePayload{}.PkgLen))
+	req := pbsys.Locate{}
+	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	if err != nil {
+		return // the error return code is already set
+	}
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "LOCATE ", "locate requested for %s.%s", req.GetPackage(), req.GetService())
 
-	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.LocatePayload{}.ServicePtr),
-		unsafe.Offsetof(lib.LocatePayload{}.ServiceLen))
-
-	sysPrint("LOCATE ", "locate requested for %s.%s", pkg, service)
-
-	sid, err := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc), pkg, service)
-
-	if err != nil && err.IsError() {
-		s.Write64BitPair(wasmPtr,
-			unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), err)
+	sid, kcode := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc), req.GetPackage(), req.GetService())
+	if kcode != lib.KernelNoError {
+		splitutil.ErrorResponse(s.mem, sp, kcode)
 		return
 	}
-	s.Write64BitPair(wasmPtr,
-		unsafe.Offsetof(lib.LocatePayload{}.ErrorPtr), lib.NoError[*protosupport.KernelErrorId]())
-
-	s.Write64BitPair(wasmPtr,
-		unsafe.Offsetof(lib.LocatePayload{}.ServiceIdPtr), sid)
+	req.Sid = lib.Marshal[protosupport.ServiceId](sid)
+	splitutil.RespondSingleProto(s.mem, sp, &req)
 }
 
 func (s *syscallReadWrite) Dispatch(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("Dispatch", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
 
 	sid := lib.NewFrom64BitPair[*protosupport.ServiceId](uint64(high), uint64(low))
-	sysPrint("DISPATCH", "find method by naem will be called on service %s", sid.Short())
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "find method by name will be called on service %s", sid.Short())
 	method := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.MethodLen))
@@ -112,18 +109,18 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamPtr),
 		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
 
-	sysPrint("DISPATCH", "about to FindByName: %s,%s", sid.Short(), method)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "about to FindByName: %s,%s", sid.Short(), method)
 	// this call sets up the call context and it's tricky because the key abstraction is used
 	// for both the source and des, but one is local (Process) and the other is remote (addr)
 	source := NewDepKeyFromProcess(s.proc)
 	callCtx := s.procToSysCall().FindMethodByName(source, sid, method)
 
 	if callCtx == nil {
-		sysPrint("DISPATCH", "FindMethodByName failed for %s,%s", sid.Short(), method)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "DISPATCH", "FindMethodByName failed for %s,%s", sid.Short(), method)
 		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
 		return
 	}
-	sysPrint("DISPATCH", "FindMethodByName done and OK: %s from '%s'",
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "FindMethodByName done and OK: %s from '%s'",
 		callCtx.cid.Short(), caller)
 
 	destParam := make([]byte, len(param))
@@ -146,14 +143,14 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		return
 	}
 	if resultInfo == nil {
-		sysPrint("DISPATCH", "waiting for result from other process: %s", s.proc.String())
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "waiting for result from other process: %s", s.proc.String())
 		// wait for the other process to message us back with a result... note that we should be
 		// timing this out after some period of time.  xxx fixme  This situation occurs specifically
 		// if the callee (the server implementation) cannot receive the data because is it too large.
 		resultInfo = <-s.proc.resultCh
 	}
 
-	sysPrint("DISPATCH", "got result from other process %s,%s with sizes pctx=%d,result=%d", resultInfo.cid.Short(), resultInfo.errorId.Short(),
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "got result from other process %s,%s with sizes pctx=%d,result=%d", resultInfo.cid.Short(), resultInfo.errorId.Short(),
 		len(resultInfo.pctx), len(resultInfo.result))
 
 	// we have to check BOTH of the length values we were given to make
@@ -176,7 +173,7 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		return
 	}
 
-	sysPrint("DISPATCH", "telling the  caller the size of the result and pctx [%d,%d]",
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "telling the  caller the size of the result and pctx [%d,%d]",
 		len(resultInfo.result), len(resultInfo.pctx))
 
 	// tell the caller how big result is
@@ -195,14 +192,14 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 
 	if resultLen > 0 {
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultPtr), resultInfo.result)
-		sysPrint("DISPATCH ", "copied %d bytes to original caller", len(resultInfo.result))
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH ", "copied %d bytes to original caller", len(resultInfo.result))
 	}
 
 	noErr := lib.NoError[*protosupport.KernelErrorId]() // the lack of an error
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
 		noErr)
 
-	sysPrint("DISPATCH ", "completed call %s", method)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "DISPATCH ", "completed call %s", method)
 
 }
 
@@ -224,7 +221,7 @@ func (s *syscallReadWrite) sendKernelErrorFromBind(wasmPtr int64, code lib.Kerne
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *syscallReadWrite) BindMethod(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("BINDMETHOD ", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD ", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
@@ -238,7 +235,7 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
 		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
 
-	sysPrint("BINDMETHOD", "about to bind %s in service %s", method, service)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD", "about to bind %s in service %s", method, service)
 	mid, kerr := s.procToSysCall().Bind(s.proc, pkg, service, method)
 	if kerr != nil {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
@@ -250,7 +247,7 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
 
-	sysPrint("BINDMETHOD", "bind completed, %s bound to %s", method, mid.Short())
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD", "bind completed, %s bound to %s", method, mid.Short())
 }
 
 // BlockUntilCall is used by servers to block themselves until some other process sends them a
@@ -259,14 +256,14 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	// tricky, we have to pass a process here?
 	call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
 
-	sysPrint("BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.method)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "received a call: %s,%s", call.cid.Short(), call.method)
 
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("BLOCKUNTILCALL ", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// check that we can fit the values
 	availablePctxLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxLen))
-	sysPrint("BLOCKUNTILCALL ", "size of available buffer for pctx: %d, need %d", availablePctxLen,
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "size of available buffer for pctx: %d, need %d", availablePctxLen,
 		len(call.pctx))
 	if availablePctxLen > 0 && int64(len(call.pctx)) > availablePctxLen {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
@@ -274,18 +271,18 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 		return
 	}
 	availableParamLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamLen))
-	sysPrint("BLOCKUNTILCALL ", "size of available buffer for param: %d, need %d", availableParamLen,
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "size of available buffer for param: %d, need %d", availableParamLen,
 		len(call.param))
 	if int64(len(call.param)) > availableParamLen {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 			lib.NewKernelError(lib.KernelDataTooLarge))
 		return
 	}
-	sysPrint("BLOCKUNTILCALL ", "Block until call checked the sizes and they are ok")
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "Block until call checked the sizes and they are ok")
 
 	// write the sizes of the incoming values and if size >0 copy the data to the pointer given
 	if availablePctxLen == 0 {
-		sysPrint("BLOCKUNTILCALL ", "ignoring pctx in this call because callee says can't accept it")
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "ignoring pctx in this call because callee says can't accept it")
 		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(0))
 	} else {
 		// we want to send the PCTX value and they said ok
@@ -294,7 +291,7 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 			s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxPtr), call.pctx)
 		} else {
 			// this is the reverse of the previous, this is because the caller sent no PCTX
-			sysPrint("BLOCKUNTILCALL ", "skipping pctx, size is zero")
+			sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "skipping pctx, size is zero")
 
 		}
 	}
@@ -302,10 +299,10 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	if len(call.param) > 0 {
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamPtr), call.param)
 	} else {
-		sysPrint("BLOCKUNTILCALL", "skipping param, size is zero")
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "skipping param, size is zero")
 	}
 
-	sysPrint("BLOCKUNTILCALL", "Block until copied the data, and it is ok")
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until copied the data, and it is ok")
 
 	// xxx fixme
 	//direction := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.Direction))
@@ -324,7 +321,7 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
 
-	sysPrint("BLOCKUNTILCALL", "Block until finished OK")
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until finished OK")
 	return // the server goes back to work
 }
 
@@ -332,7 +329,7 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 // call on a method they implement.
 func (s *syscallReadWrite) ReturnValue(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("RETURNVALUE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// we just have to create the structure and send it through the correct channel
 	info := &resultInfo{}
@@ -342,41 +339,41 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	info.mid = lib.NewFrom64BitPair[*protosupport.MethodId](uint64(high), uint64(low))
 	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
 	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
-	sysPrint("RETURNVALUE", "Error found in the call? %s", info.errorId)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "Error found in the call? %s", info.errorId)
 	// if pctx len is 0 this is a no op
 	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
 	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
 
-	sysPrint("RETURNVALUE", "searching for process/addr assocated with the call of %s,%v", info.cid.Short(),
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "searching for process/addr assocated with the call of %s,%v", info.cid.Short(),
 		s.procToSysCall() == nil)
 
-	sysPrint("RETURNVALUE", "s.procToSysCall() %v,%T", s.procToSysCall(), s.procToSysCall())
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "s.procToSysCall() %v,%T", s.procToSysCall(), s.procToSysCall())
 	callInfo := s.procToSysCall().GetInfoForCallId(info.cid)
-	sysPrint("RETURNVALUE", "checking result GetProcessForCallId(), info is nil? %v", info == nil)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "checking result GetProcessForCallId(), info is nil? %v", info == nil)
 	if callInfo == nil {
-		sysPrint("RETURNVALUE", "unable to find process/addr that called %s", info.cid.Short())
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "unable to find process/addr that called %s", info.cid.Short())
 		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 			kerr)
 		return
 	}
-	sysPrint("RESULTVALUE ", "computed info, found channel, sending results of sizes: %d,%d for result and pctx data",
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "computed info, found channel, sending results of sizes: %d,%d for result and pctx data",
 		len(info.result), len(info.pctx))
 
 	callerProc := callInfo.sender.(*DepKeyImpl).proc
 
 	if callerProc != nil {
-		sysPrint("RETURNVALUE ", "caller proc is %s", callerProc)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "caller proc is %s", callerProc)
 	} else {
-		sysPrint("RETURNVALUE ", "no caller proc, caller addr is %s", callInfo.sender.(*DepKeyImpl).addr)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "no caller proc, caller addr is %s", callInfo.sender.(*DepKeyImpl).addr)
 	}
 	callInfo.respCh <- info
 
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
-	sysPrint("RESULTVALUE ", "finished")
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "finished")
 	return
 }
 
@@ -400,7 +397,7 @@ func (s *syscallReadWrite) procToSysCall() SysCall {
 // of that service.q
 func (s *syscallReadWrite) Export(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	pkg := s.ReadString(wasmPtr,
 		unsafe.Offsetof(lib.ExportPayload{}.PkgPtr),
@@ -410,7 +407,7 @@ func (s *syscallReadWrite) Export(sp int32) {
 		unsafe.Offsetof(lib.ExportPayload{}.ServicePtr),
 		unsafe.Offsetof(lib.ExportPayload{}.ServiceLen))
 
-	sysPrint("EXPORT", "about to tell the nameserver closeservice and  export %s.%s [syscall->%T]", pkg, service,
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "about to tell the nameserver closeservice and  export %s.%s [syscall->%T]", pkg, service,
 		s.procToSysCall())
 	kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), pkg, service)
 	if kerr != nil && kerr.IsError() {
@@ -421,7 +418,7 @@ func (s *syscallReadWrite) Export(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
 
-	sysPrint("EXPORT", "done")
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "done")
 
 }
 
@@ -429,7 +426,7 @@ func (s *syscallReadWrite) Export(sp int32) {
 // a service.  This becomes part of the dependency graph.
 func (s *syscallReadWrite) Require(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("REQUIRE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 
 	// we just have to create the structure and send it through the correct channel
 	pkg := s.ReadString(wasmPtr,
@@ -440,12 +437,12 @@ func (s *syscallReadWrite) Require(sp int32) {
 		unsafe.Offsetof(lib.RequirePayload{}.ServicePtr),
 		unsafe.Offsetof(lib.RequirePayload{}.ServiceLen))
 
-	sysPrint("REQUIRE", "telling nameserver %s requires %s.%s", s.proc, pkg, service)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", "telling nameserver %s requires %s.%s", s.proc, pkg, service)
 
 	kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), pkg, service)
 
 	if kerr != nil && kerr.IsError() {
-		sysPrint("REQUIRE", " nameserver failed require of %s.%s", pkg, service)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", " nameserver failed require of %s.%s", pkg, service)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
 			kerr)
 		return
@@ -460,7 +457,7 @@ func (s *syscallReadWrite) Require(sp int32) {
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
 	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint("RUN", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
 	w := s.mem.GetInt64(int32(wasmPtr) + int32(unsafe.Offsetof(lib.RunPayload{}.Wait)))
 	wait := false
 	if w != 0 {
@@ -472,27 +469,34 @@ func (s *syscallReadWrite) Run(sp int32) {
 	key := NewDepKeyFromProcess(s.proc)
 	s.procToSysCall().RunNotify(key)
 
-	sysPrint("RUN", "%s is blocked on channel for run confirmation", s.proc)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s is blocked on channel for run confirmation", s.proc)
 	// block until we are told to proceed
 	ok, kerr := s.procToSysCall().RunBlock(key)
 	if kerr != nil && kerr.IsError() {
-		sysPrint("RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
 		return
 	}
-	sysPrint("RUN", "process %s read from the run channel %v", s.proc, ok)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "process %s read from the run channel %v", s.proc, ok)
 	if !ok {
-		sysPrint("RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
 			lib.NewKernelError(lib.KernelDependencyCycle))
 	}
-	sysPrint("RUN", "we are now ready to run, %s", s.proc)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, %s", s.proc)
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
 }
 
-func sysPrint(call, spec string, arg ...interface{}) {
+func sysPrint(level pblog.LogLevel, call, spec string, arg ...interface{}) {
 	if syscallVerbose {
-		p1 := fmt.Sprintf("SYSCALL[%s]:", call)
-		print(p1, fmt.Sprintf(spec, arg...), "\n")
+		spec = "%s:" + spec
+		arg = append([]interface{}{call}, arg...)
+		req := &pblog.LogRequest{
+			Stamp:   timestamppb.New(time.Now()),
+			Level:   level,
+			Message: fmt.Sprintf(spec, arg...),
+		}
+		ilog.ProcessLogRequest(req, true, false, nil)
+
 	}
 }
