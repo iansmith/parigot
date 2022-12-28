@@ -17,6 +17,7 @@ import (
 	ilog "github.com/iansmith/parigot/api/logimpl/go_"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/api/splitutil"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
@@ -25,8 +26,9 @@ import (
 )
 
 type FileSvcImpl struct {
-	mem *jspatch.WasmMem
-	fs  *memfs.FS
+	mem      *jspatch.WasmMem
+	fs       *memfs.FS
+	idToFile map[string] /*really lib.Id*/ *os.File
 }
 
 // This is the native code side of the file service.  It reads the payload sent by the wasm world.
@@ -42,6 +44,26 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 		return
 	}
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "FileSvcOpen path to file %s", req.GetPath())
+	newPath, err := ValidatePathForParigot(req.GetPath(), "open")
+	if err != nil {
+		splitutil.ErrorResponse(l.mem, sp, lib.KernelBadPath)
+		return
+	}
+	// newpath can be different if there is something like /app/foo/bar/../baz as the parameter
+	fp, err := os.Open(newPath)
+	if err != nil {
+		print("XXX file svc open failed,", err.Error(), "\n")
+		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound)
+		return
+	}
+	fileId := lib.NewId[*protosupport.FileId]()
+	marshaledId := lib.Marshal[protosupport.FileId](fileId)
+	resp := pb.OpenResponse{Path: req.GetPath(), Id: marshaledId}
+	if l.idToFile == nil {
+		l.idToFile = make(map[string]*os.File)
+	}
+	l.idToFile[fileId.String()] = fp
+	splitutil.RespondSingleProto(l.mem, sp, &resp)
 	return
 }
 
@@ -118,7 +140,6 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	if err == nil {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound /* xxxfixme, this error code is poor*/)
 	}
-
 	// send the result home
 	splitutil.RespondSingleProto(l.mem, sp, resp)
 }
@@ -138,9 +159,16 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 		}
 	}
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -3\n")
-	memoryPrefix := "/app"
+	memoryPrefix := "app" //no first slash for any call that uses io.fs.ValidPath()
 	// start the import
-	l.fs.MkdirAll(memoryPrefix, os.FileMode(os.ModeDir))
+	p := filepath.Join(memoryPrefix, req.GetPath())
+	err = l.fs.MkdirAll(p, os.ModeDir)
+	if err != nil {
+		if !req.ReturnOnFail {
+			panic("tried to mkdir all of " + p + ": " + err.Error())
+		}
+		return nil, err
+	}
 
 	// children is a flattened list of all child files,but does include directories
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "about to run recursive call: %s", req.GetPath())
@@ -165,38 +193,36 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 			l.fs.MkdirAll(filepath.Join(memoryPrefix, child), os.ModeDir)
 			continue
 		}
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load copying -6 %s\n", child)
 		// make sure in memory FS has the directory(ies) we need
 		memPath := filepath.Join(memoryPrefix, child)
-		// dir, _ := filepath.Split(memPath)
-		// err = l.fs.MkdirAll(dir, os.ModeDir)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// print("xxx-file server load -7\n")
-		// read and copy bytes
+		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load copying -6 %s, and mem path %s\n", child, memPath)
 		fp, err := os.Open(child)
 		if err != nil {
 			return nil, err
 		}
-		// because this is available in test, we don't bother trying to be clever here with readAll()
+		// because this is only available in test, we don't bother trying to be clever here to limit size of readAll()
 		all, err := io.ReadAll(fp)
 		if err != nil {
 			return nil, err
 		}
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -8\n")
+		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load copying -7 and read len is %d\n", len(all))
 		stat, err = os.Stat(child)
 		if err != nil {
 			return nil, err
 		}
 		perm := stat.Mode()
+		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server about to write %s with perm %s, we are trying %s ", memPath, perm.String(),
+			os.FileMode(0).String())
 		err = l.fs.WriteFile(memPath, all, perm)
 		if err != nil {
+			logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "failed to write file %s: %v", memPath, err)
 			return nil, err
 		}
+		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server wrote all bytes")
 	}
 	var resp pb.LoadResponse
 	resp.ErrorPath = badpath
+	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server .. number of bad paths: %d, %+v", len(resp.ErrorPath), resp.ErrorPath)
 	return &resp, nil
 }
 

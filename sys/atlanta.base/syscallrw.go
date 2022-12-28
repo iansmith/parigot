@@ -69,20 +69,25 @@ func (a *syscallReadWrite) Exit(sp int32) {
 // and creates an implementation of the proper interface to allow the caller to talk to that service no
 // matter if that service is across the network or in the same address space.
 func (s *syscallReadWrite) Locate(sp int32) {
-	req := pbsys.Locate{}
+	resp := pbsys.LocateResponse{}
+	req := pbsys.LocateRequest{}
 	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	if err != nil {
 		return // the error return code is already set
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "LOCATE ", "locate requested for %s.%s", req.GetPackage(), req.GetService())
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "LOCATE ", "locate requested for %s.%s",
+		req.GetPackageName(), req.GetServiceName())
 
-	sid, kcode := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc), req.GetPackage(), req.GetService())
+	sid, kcode := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
+		req.GetPackageName(), req.GetServiceName())
+
 	if kcode != lib.KernelNoError {
 		splitutil.ErrorResponse(s.mem, sp, kcode)
 		return
 	}
-	req.Sid = lib.Marshal[protosupport.ServiceId](sid)
-	splitutil.RespondSingleProto(s.mem, sp, &req)
+	resp.ServiceId = lib.Marshal[protosupport.ServiceId](sid)
+
+	splitutil.RespondSingleProto(s.mem, sp, &resp)
 }
 
 func (s *syscallReadWrite) Dispatch(sp int32) {
@@ -339,19 +344,17 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	info.mid = lib.NewFrom64BitPair[*protosupport.MethodId](uint64(high), uint64(low))
 	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
 	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "Error found in the call? %s", info.errorId)
+	if !info.errorId.Equal(lib.NewError[*protosupport.KernelErrorId](uint16(lib.KernelNoError))) {
+		short := info.errorId.Short()
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "Error found in the call? %s", short)
+	}
 	// if pctx len is 0 this is a no op
 	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
 	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
 		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
 
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "searching for process/addr assocated with the call of %s,%v", info.cid.Short(),
-		s.procToSysCall() == nil)
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "s.procToSysCall() %v,%T", s.procToSysCall(), s.procToSysCall())
 	callInfo := s.procToSysCall().GetInfoForCallId(info.cid)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "checking result GetProcessForCallId(), info is nil? %v", info == nil)
 	if callInfo == nil {
 		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "unable to find process/addr that called %s", info.cid.Short())
 		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
@@ -364,16 +367,15 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 
 	callerProc := callInfo.sender.(*DepKeyImpl).proc
 
-	if callerProc != nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "caller proc is %s", callerProc)
-	} else {
+	if callerProc == nil {
 		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "no caller proc, caller addr is %s", callInfo.sender.(*DepKeyImpl).addr)
 	}
 	callInfo.respCh <- info
 
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
-		lib.NoError[*protosupport.KernelErrorId]())
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "finished")
+	noerr := lib.NoError[*protosupport.KernelErrorId]()
+	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr), noerr)
+
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "finished with no error: %s", noerr.Short())
 	return
 }
 

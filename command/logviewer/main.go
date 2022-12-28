@@ -202,5 +202,5 @@ func logMessage(req *pb.LogRequest) {
 
 func cleanupAndExit() {
 	log.Printf("closing socket: %s", sockAddr)
-	os.Exit(1)
+	os.Exit(5)
 }

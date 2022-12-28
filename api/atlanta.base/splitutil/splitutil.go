@@ -29,7 +29,7 @@ type SinglePayload struct {
 	InLen  int64
 	OutPtr int64
 	OutLen int64
-	ErrPtr *[2]int64
+	ErrPtr [2]int64
 }
 
 var kerrNone = lib.Unmarshal(lib.NoKernelError())
@@ -43,20 +43,15 @@ var DecodeError = errors.New("decoding error")
 func newSinglePayload() *SinglePayload {
 	buffer := make([]byte, netconst.ReadBufferSize)
 	ptr, l := SliceToTwoInt64s(buffer)
-	errorId := lib.NoKernelError()
-
-	idLoad := new([2]int64)
 
 	sp := &SinglePayload{
 		InPtr:  0,
 		InLen:  0,
 		OutPtr: ptr,
 		OutLen: l,
-		ErrPtr: idLoad,
+		ErrPtr: [2]int64{int64(kerrNone.High()), int64(kerrNone.Low())},
 	}
-	sp.ErrPtr[0] = int64(errorId.Id.GetHigh())
-	sp.ErrPtr[1] = int64(errorId.Id.GetLow())
-
+	print("xxx new single payload, created the pointer 0:", uintptr(sp.ErrPtr[0]), " 1:", uintptr(sp.ErrPtr[1]), "\n")
 	return sp
 }
 
@@ -88,10 +83,15 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 	if ptr.OutLen == 0 {
 		return nil, nil
 	}
-	result := make([]byte, ptr.OutLen)
-	for i := int64(0); i < ptr.OutLen; i++ {
-		ptr := uintptr(ptr.OutPtr) + uintptr(i)
-		result[i] = *((*byte)(unsafe.Pointer(ptr)))
+	var byteBuffer []byte
+	wasmSideSlice := (*reflect.SliceHeader)(unsafe.Pointer(&byteBuffer))
+	wasmSideSlice.Data = uintptr(ptr.OutPtr)
+	wasmSideSlice.Len = int(ptr.OutLen)
+	wasmSideSlice.Cap = int(ptr.OutLen)
+
+	err = DecodeSingleProto(byteBuffer, resp)
+	if err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
@@ -172,6 +172,7 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 	// how much space do we have?
 	offset := int32(unsafe.Offsetof(SinglePayload{}.OutLen))
 	available := mem.GetInt64(wasmPtr + offset)
+	print("xxx - 0 split util encoded buffer ", available, " and full size ", fullSize, "\n")
 
 	// can't fit the response?
 	if fullSize >= available {
@@ -186,6 +187,7 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 		ErrorResponse(mem, wasmPtr, lib.KernelMarshalFailed)
 		return
 	}
+	print("xxx - 1 split util encoded buffer ", len(buffer), " and ", size, "\n")
 
 	ptrOffset := unsafe.Offsetof(SinglePayload{}.OutPtr)
 	// this is tricky: we have to COPY the bytes from the go side to the wasm side bc the pointer
@@ -194,7 +196,7 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 
 	// tell the caller the length
 	mem.SetInt64(wasmPtr+offset, fullSize)
-
+	print("xxx - 2 split util encoded buffer : sent result ptr and size\n")
 }
 
 // DecodeSingleProto decodes a buffer obtained when the client side drops the payload (above) to us
@@ -234,12 +236,13 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
 	wasmPtr := mem.GetInt64(sp + 8)
 	kerr := lib.NewKernelError(code)
-	// low goes first
+	// the [0] value is the high 8 bytes, the [1] the low 8 bytes
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)),
-		int64(kerr.Low()))
+		int64(kerr.High()))
 	// high is 8 bytes higher
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)+8),
-		int64(kerr.High()))
+		int64(kerr.Low()))
+	print(fmt.Sprintf("xxx Error Response: we just set the values to %x,%x\n", kerr.High(), kerr.Low()), "\n")
 }
 
 // StackPointerToRequest assumes that this function was passed a pointer to the WASM stack and that
@@ -249,13 +252,16 @@ func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
 // means we could not decode the package sent from the WASM side.  If an error is returned, the
 // caller can simply return, as the payload has been modified to tell the other side about the error.
 func StackPointerToRequest(mem *jspatch.WasmMem, sp int32, req proto.Message) error {
+	print("xxx stack pointer to req:", sp+8, "and req: ", fmt.Sprintf("%T,%+v", req, req), "\n")
 	wasmPtr := mem.GetInt64(sp + 8)
 
 	buffer := ReadSlice(mem, wasmPtr,
 		unsafe.Offsetof(SinglePayload{}.InPtr),
 		unsafe.Offsetof(SinglePayload{}.InLen))
 
+	print("xxx stack pointer to req: len buffer ", len(buffer), "\n")
 	err := DecodeSingleProto(buffer, req)
+	print("xxx stack pointer to req: decode ok? ", err == nil, "\n")
 	if err != nil {
 		ErrorResponse(mem, int32(wasmPtr), lib.KernelUnmarshalFailed)
 		return err

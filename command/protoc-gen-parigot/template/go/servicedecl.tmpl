@@ -6,9 +6,9 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib"  // id manipulation
-    "github.com/iansmith/parigot/api/proto/g/pb/call" // dispatch and locate
-    "github.com/iansmith/parigot/api/proto/g/pb/protosupport" // ids
-)
+    pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"  
+    "github.com/iansmith/parigot/api/syscall"  
+)   
 
 {{- $info:=.info }}
 {{- range .info.Service }}
@@ -44,21 +44,24 @@ type {{$svcCamel}} interface {
 {{ $svcCamel:=.GetWasmServiceName }}
 
 type {{$svcCamel}}Client struct {
-    *lib.ClientSideService
+    *syscall.ClientSideService
 }
 
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
-	var resp *call.LocateResponse
-	req := &call.LocateRequest{
+	var resp *pbsys.LocateResponse
+	req := &pbsys.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
-    resp, err:=lib.CallConnection().Locate(req)
+    resp, err:=syscall.CallConnection().Locate(req)
     if err!=nil {
         return nil, err
     }
-    service:=lib.Unmarshal[*protosupport.ServiceId](resp.GetServiceId())
-    cs := lib.NewClientSideService(service, "{{$svc}}Client")
+    if resp.GetServiceId()==nil {
+        panic("service id is nil, can't create ClientSideService")
+    }
+    service:=lib.Unmarshal(resp.GetServiceId())
+    cs := syscall.NewClientSideService(service, "{{$svc}}Client")
     return &{{$svc}}Client{
         ClientSideService: cs,
     }, nil

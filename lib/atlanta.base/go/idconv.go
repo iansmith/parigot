@@ -105,6 +105,10 @@ const (
 	// KernelNSRetryFailed means that we tried twice to reach the nameserver with
 	// the given request, but both times could not do so.
 	KernelNSRetryFailed KernelErrorCode = 15
+	// KernelBadPath means that the path cannot correspond to any Parigot file. This does not mean
+	// we tried and succeeded or failed to read the file, it means only that we could determine by
+	// looking at the path that this cannot succeed.
+	KernelBadPath KernelErrorCode = 16
 )
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.
