@@ -22,6 +22,7 @@ var templateDir = flag.String("t", "command/protoc-gen-parigot/template", "locat
 var lang = flag.String("l", "go", "comma separated list of languages to check for")
 var help = flag.Bool("h", false, "this help message")
 var makefile = flag.String("k", "Makefile", "location of the Makefile relative to the start of the search")
+var verbose = flag.Bool("v", true, "print out lots of information about what jdepp is finding")
 
 const magicLine = "#### Do not remove this line or edit below it.  The rest of this file is computed by jdepp."
 
@@ -35,17 +36,26 @@ type binDep struct {
 func main() {
 	flag.Parse()
 	if flag.NArg() == 0 || *help == true {
-		fmt.Printf("[-ppkg parigot generated files package] [-ppoth root of parigot source] [-m extra package containing generated code] [path to start search]\n")
+		fmt.Printf("[-ppkg parigot generated files package] [-ppath root of parigot source] [-m extra package containing generated code] [path to start search]\n")
 		flag.Usage()
 		os.Exit(1)
 	}
 	rootPackage := inputArgToRootPackage(flag.Arg(0))
+	log.Printf("%45s:%s", "root package", rootPackage)
 
 	moduleMap := make(map[string]string)
 	ignoredModuleMap := make(map[string]string)
 	populateModuleMaps(flag.Arg(0), rootPackage, moduleMap, ignoredModuleMap)
+	for k, v := range moduleMap {
+		log.Printf("%45s:%s", "module map["+k+"]", v)
+	}
+	for k, v := range moduleMap {
+		log.Printf("%45s:%s", "ignored module map["+k+"]", v)
+	}
+	log.Printf("%45s:%s", "root parigot package", *rootParigotPkg)
 	if rootPackage != *rootParigotPkg {
 		dummy := make(map[string]string)
+		log.Printf("%45s", "repopulating module maps")
 		populateModuleMaps(*parigotPath, *rootParigotPkg, moduleMap, dummy)
 	}
 

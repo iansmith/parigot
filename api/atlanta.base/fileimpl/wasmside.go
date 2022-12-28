@@ -11,17 +11,17 @@ import (
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/api/splitutil"
-	"github.com/iansmith/parigot/lib"
+	"github.com/iansmith/parigot/api/syscall"
 
 	"google.golang.org/protobuf/proto"
 )
 
 func main() {
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
-	if _, err := lib.Export1("file", "File"); err != nil {
+	if _, err := syscall.Export1("file", "File"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
-	if _, err := lib.Require1("log", "Log"); err != nil {
+	if _, err := syscall.Require1("log", "Log"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
 
@@ -33,7 +33,7 @@ type myFileServer struct {
 }
 
 func (m *myFileServer) Ready() bool {
-	if _, err := lib.Run(false); err != nil {
+	if _, err := syscall.Run(false); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
@@ -89,9 +89,13 @@ func (m *myFileServer) Load(pctx *protosupport.Pctx, inProto proto.Message) (pro
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(inProto, &resp, go_.FileSvcLoad)
 	if err != nil {
+		print("xxx in WASM fileserver.Load() 1, ", err.Error(), "\n")
+		m.log(nil, "xxx in WASM fileserver.Load() 1, %v", err)
 		return nil, err
 	}
 	if errId != nil {
+		print("xxx in WASM fileserver.Load() 2, ", errId.Short(), "\n")
+		m.log(nil, "xxx in WASM fileserver.Load() 2, %s")
 		return nil, errors.New("internal error:" + errId.Short())
 	}
 	return &resp, nil

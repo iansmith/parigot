@@ -1,10 +1,11 @@
 //go:build js
 // +build js
 
+package syscall
+
 // This provides the "stubs" that get filled in when wasmtime is used to run the WASM code. This is path
 // ONLY for the WASM world.  The true implementations are in the package sys because that is *host* code
 // that gets bound with the WrapFunc() machinery of wasmtime.
-package lib
 
 import _ "unsafe"
 

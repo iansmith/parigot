@@ -1,8 +1,5 @@
-// This package is a thin wrapper around kernel functionality. Its primary
-// function is to check responses for errors and return them as a go
-// error (type Perror).
-
-package lib
+// This package is a thin wrapper around kernel functionality intended to be run by clients in WASM.
+package syscall
 
 import (
 	"fmt"
@@ -14,10 +11,15 @@ import (
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/splitutil"
+	"github.com/iansmith/parigot/lib"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+// Your IDE may complain about calls to functions in call_js.s and/or calljs.go.  It may claim that these
+// are not defined when in fact they are defined, if tricky.    If it really bothers you, most likely you
+// can change this be setting the tag "js".  This needs to be defined to get the code in calljs.go.
 
 type callImpl struct {
 }
@@ -47,16 +49,17 @@ var libparigotVerbose = false
 // a client of the named service.
 //
 //go:noinline
-func (l *callImpl) Locate(in *pbsys.Locate) error {
-	id, err := splitutil.SendReceiveSingleProto(in, in, locate)
+func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, error) {
+	resp := pbsys.LocateResponse{}
+	id, err := splitutil.SendReceiveSingleProto(req, &resp, locate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if id != nil && id.IsError() {
 		// xxx this is bad, swallowing the real error and converting to text
-		return lib.NewPerrorFromId("failed to locate properly", id)
+		return nil, lib.NewPerrorFromId("failed to locate properly", id)
 	}
-	return nil
+	return &resp, nil
 }
 
 func stringToTwoInt64s(s string) (int64, int64) {
@@ -79,6 +82,7 @@ func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, e
 	out := new(call.DispatchResponse)
 
 	detail := &lib.DispatchPayload{}
+
 	detail.ServiceId[0] = int64(in.ServiceId.Id.GetLow())
 	detail.ServiceId[1] = int64(in.ServiceId.Id.GetHigh())
 
@@ -464,5 +468,5 @@ func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueRe
 }
 
 func newCallImpl() Call {
-	return &lib.callImpl{}
+	return &callImpl{}
 }

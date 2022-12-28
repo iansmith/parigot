@@ -10,7 +10,7 @@ import (
 
 	"github.com/iansmith/parigot/api/proto/g/log"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/lib"
+	"github.com/iansmith/parigot/api/syscall"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -20,23 +20,23 @@ var logger log.Log
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	if _, err := lib.Require1("demo.vvv", "Store"); err != nil {
+	if _, err := syscall.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	if _, err := lib.Require1("log", "Log"); err != nil {
+	if _, err := syscall.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := lib.Run(true); err != nil {
+	if _, err := syscall.Run(true); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
 
 	vinnysStore, err := vvv.LocateStore()
 	if err != nil {
-		lib.Exit(1)
+		syscall.Exit(1)
 	}
 	logger, err = log.LocateLog()
 	if err != nil {
-		lib.Exit(1)
+		syscall.Exit(1)
 	}
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
@@ -51,7 +51,7 @@ func main() {
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
 		storeclientPrint("BestOfAllTime failed %s", err.Error())
-		lib.Exit(1)
+		syscall.Exit(1)
 	}
 	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
 		best.Item.Creator, best.Item.Title, best.Item.Year))

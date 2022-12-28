@@ -12,20 +12,20 @@ import (
 	pbfile "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/lib"
+	"github.com/iansmith/parigot/api/syscall"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func main() {
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
-	if _, err := lib.Require1("log", "Log"); err != nil {
+	if _, err := syscall.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := lib.Require1("file", "File"); err != nil {
+	if _, err := syscall.Require1("file", "File"); err != nil {
 		panic("unable to require file service:" + err.Error())
 	}
-	if _, err := lib.Export1("demo.vvv", "Store"); err != nil {
+	if _, err := syscall.Export1("demo.vvv", "Store"); err != nil {
 		panic("unable to export demo.vvv: " + err.Error())
 	}
 	vvv.Run(&myServer{})
@@ -100,15 +100,14 @@ func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
 }
 
 // Ready is a check, if this returns false the library should abort and not attempt to run this service.
-// Normially, this is used to block using the lib.Run() call.  This call will wait until all the required
+// Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (m *myServer) Ready() bool {
 
-	if _, err := lib.Run(false); err != nil {
+	if _, err := syscall.Run(false); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
-
 	logger, err := log.LocateLog()
 	if err != nil {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
@@ -116,7 +115,10 @@ func (m *myServer) Ready() bool {
 	}
 	m.logger = logger
 
+	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to locate file")
 	fs, err := file.LocateFile()
+	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "server located (fs!=nil) %v,(err==nil) %v",
+		fs != nil, err == nil)
 	if err != nil {
 		print("ERROR trying to create fs client: ", err.Error(), "\n")
 		return false
@@ -127,7 +129,7 @@ func (m *myServer) Ready() bool {
 	if err != nil {
 		panic("unable to load the test data: " + err.Error())
 	}
-	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/boat.toml"})
+	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/example/vvv/boat.toml"})
 	if err != nil {
 		panic("unable to open the boat.toml file")
 	}
@@ -145,9 +147,9 @@ func (m *myServer) Ready() bool {
 }
 
 func (m *myServer) log(pctx *protosupport.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
-	n := pctx.GetNow().AsTime() // xxx fixme, should use kernel
-	if n.IsZero() {
-		n = time.Now()
+	n := time.Now()
+	if pctx != nil && !pctx.GetNow().AsTime().IsZero() {
+		n = pctx.GetNow().AsTime()
 	}
 	msg := fmt.Sprintf(spec, rest...)
 	req := pblog.LogRequest{
@@ -155,6 +157,5 @@ func (m *myServer) log(pctx *protosupport.Pctx, level pblog.LogLevel, spec strin
 		Level:   level,
 		Message: msg,
 	}
-	// print("log request in server", fmt.Sprintf(spec, rest...), "\n")
 	m.logger.Log(&req)
 }

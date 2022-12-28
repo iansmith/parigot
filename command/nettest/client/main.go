@@ -105,7 +105,7 @@ func main() {
 				if w != 8 {
 					log.Fatalf("short early write")
 				}
-				os.Exit(0)
+				os.Exit(6)
 			}
 		}
 		if r != 8 {

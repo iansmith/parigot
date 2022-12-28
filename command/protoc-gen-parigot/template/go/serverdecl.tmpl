@@ -14,8 +14,9 @@ import (
 	{{end -}}
 {{- end}} {{/* imports */}}
 
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	"github.com/iansmith/parigot/api/syscall"
 	"github.com/iansmith/parigot/lib"
 	
 	"google.golang.org/protobuf/proto"
@@ -162,7 +163,7 @@ you would have a method with no input or output, which is checked elsewhere */}}
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
 		//
-		lib.ReturnValueEncode(cid, mid, marshalError, execError, out, pctx)
+		syscall.ReturnValueEncode(cid, mid, marshalError, execError, out, pctx)
 		// about to loop again
 	}
 	// wont reach here
@@ -174,7 +175,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-	resp, {{$methCamelFL}}err := lib.CallConnection().BindMethod{{$dir}}(&call.BindMethodRequest{
+	resp, {{$methCamelFL}}err := syscall.CallConnection().BindMethod{{$dir}}(&call.BindMethodRequest{
 		ProtoPackage: "{{.ProtoPackage}}",
 		Service:      "{{$svcCamel}}",
 		Method:       "{{$methCamel}}",
@@ -196,7 +197,7 @@ func {{$svcCamelFL}}BlockUntilCall(pctx, param []byte) (*call.BlockUntilCallResp
 		PctxBuffer:  pctx,
 		ParamBuffer: param,
 	}
-	resp, err := lib.CallConnection().BlockUntilCall(req)
+	resp, err := syscall.CallConnection().BlockUntilCall(req)
 	if err != nil {
 		return nil, err
 	}

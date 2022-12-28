@@ -1,8 +1,9 @@
-package lib
+package syscall
 
 import (
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	"github.com/iansmith/parigot/lib"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -32,16 +33,16 @@ func Require1(packagePath, service string) (*call.RequireResponse, error) {
 // there are number of cases and doing this in this library means the code generator
 // can be much simpler.  It just passes all the information into here, and this function
 // sorts it out.
-func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*ReturnValueResponse, error) {
+func ReturnValueEncode(cid, mid lib.Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*call.ReturnValueResponse, error) {
 	libprint("RETURNVALUEENCODE ", "in return value %s, %s", cid.Short(), mid.Short())
 	var err error
 	var a anypb.Any
 	// xxxfixme we should be doing an examination of execError to see if it is a lib.Perror
 	// xxxfixme and if it is, we should be pushing the user error back the other way
 	rv := &call.ReturnValueRequest{}
-	rv.Call = Marshal[protosupport.CallId](cid)
-	rv.Method = Marshal[protosupport.MethodId](mid)
-	rv.ErrorId = NoKernelError() // just to allocate the space
+	rv.Call = lib.Marshal[protosupport.CallId](cid)
+	rv.Method = lib.Marshal[protosupport.MethodId](mid)
+	rv.ErrorId = lib.NoKernelError() // just to allocate the space
 	libprint("RETURNVALUEENCODE ", "marshalError? %v execError ? %v", marshalError, execError)
 	if marshalError != nil || execError != nil {
 		eText := ""
@@ -56,7 +57,7 @@ func ReturnValueEncode(cid, mid Id, marshalError, execError error, out proto.Mes
 		//pctx.EventFinish()
 		// we use this because the error didn't come from INSIDE
 		// the kernel itself, see below for more
-		rv.ErrorId = NoKernelError()
+		rv.ErrorId = lib.NoKernelError()
 		goto encodeError
 	}
 	// these are the mostly normal cases, but they can go hawywire
@@ -87,7 +88,7 @@ internalMarshalProblem:
 
 	// this is an internal error, so we signal it the opposite way we did the others at the top
 	rv.ErrorMessage = ""
-	rv.ErrorId = Marshal[protosupport.KernelErrorId](NewKernelError(KernelMarshalFailed))
+	rv.ErrorId = lib.NoKernelError()
 encodeError:
 	rv.PctxBuffer = []byte{}
 	rv.ResultBuffer = []byte{}
