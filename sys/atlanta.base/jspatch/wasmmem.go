@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-	"runtime/debug"
 	"unsafe"
 )
 
@@ -39,10 +38,8 @@ func (w *WasmMem) TrueAddr(addr int32) uintptr {
 func (w *WasmMem) LoadSliceOfValues(addr int32) jsObject {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
-	print("xxx LoadSliceOfValues -- arrayPtr=", array, " and len is ", l, "\n")
 	arr := make([]jsObj, l)
 	a := goToJS(arr)
-	print("xxx LoadSliceOfValues -- got js object back ", a, "\n")
 	for i := int64(0); i < l; i++ {
 		a.SetIndex(int(i), w.LoadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
 	}
@@ -123,9 +120,15 @@ func (w *WasmMem) LoadString(addr int32) string {
 	ptr := w.GetInt64(addr + 0)
 	l := w.GetInt64(addr + 8)
 	if l > 4096 {
-		print("xxx!!!! wasmmem refusing to load string because length is too large: ", l, "\n")
-		debug.PrintStack()
-		print("end of stack trace")
+		print("WasmMem.LoadString refusing to load string because length is too large: ", l, "\n")
+		// cannot use log here, because it creates an import loop
+		// ilog.ProcessLogRequest(&log.LogRequest{
+		// 	Level:   log.LogLevel_LOG_LEVEL_ERROR,
+		// 	Stamp:   timestamppb.Now(), //xxx fixme(iansmith) should be using kernel time
+		// 	Message: fmt.Sprintf("LOADSTRING: xxx!!!! wasmmem refusing to load string because length is too large: ", l),
+		// }, true, false, nil)
+		// debug.PrintStack()
+		// print("end of stack trace")
 		return ""
 	}
 	buf := make([]byte, l)

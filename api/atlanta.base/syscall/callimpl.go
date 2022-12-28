@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/api/netconst"
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
@@ -14,7 +13,6 @@ import (
 	"github.com/iansmith/parigot/lib"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Your IDE may complain about calls to functions in call_js.s and/or calljs.go.  It may claim that these
@@ -78,76 +76,20 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 // checks the returned response for errors. If there are errors inside the
 // result they are pulled out and returned in the error parameter.  Thus
 // if the error parameter is nil, the Dispatch() occurred successfully.
-func (l *callImpl) Dispatch(in *call.DispatchRequest) (*call.DispatchResponse, error) {
-	out := new(call.DispatchResponse)
+// This is code that runs on the WASM side.
+func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error) {
+	resp := pbsys.DispatchResponse{}
 
-	detail := &lib.DispatchPayload{}
-
-	detail.ServiceId[0] = int64(in.ServiceId.Id.GetLow())
-	detail.ServiceId[1] = int64(in.ServiceId.Id.GetHigh())
-
-	detail.MethodPtr, detail.MethodLen = stringToTwoInt64s(in.Method)
-	detail.CallerPtr, detail.CallerLen = stringToTwoInt64s(in.Caller)
-
-	b, err := proto.Marshal(in.InPctx)
+	libprint("CallImpl.Dispatch", "info from dispatch request: %#v", req)
+	id, err := splitutil.SendReceiveSingleProto(req, &resp, dispatch)
 	if err != nil {
-		return nil, lib.NewPerrorFromId("marshal of PCtx for Dispatch()", lib.NewKernelError(lib.KernelMarshalFailed))
+		return nil, err
 	}
-	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(b)
-
-	b, err = proto.Marshal(in.Param)
-	if err != nil {
-		return nil, lib.NewPerrorFromId("marshal of any for Dispatch()", lib.NewKernelError(lib.KernelMarshalFailed))
+	if id != nil && id.IsError() {
+		// xxx this is bad, swallowing the real error and converting to text
+		return nil, lib.NewPerrorFromId("failed to dispatch properly", id)
 	}
-
-	detail.ParamPtr, detail.ParamLen = sliceToTwoInt64s(b)
-
-	resultPctx := make([]byte, netconst.ReadBufferSize)
-	detail.OutPctxPtr, detail.OutPctxLen = sliceToTwoInt64s(resultPctx)
-
-	resultPtr := make([]byte, netconst.ReadBufferSize)
-	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(resultPtr)
-	if detail.ResultLen != int64(netconst.ReadBufferSize) {
-		panic("GetMaxMessageSize() should be the result length!")
-	}
-	out.ErrorId = lib.NoKernelError()
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-
-	// THE CALL
-	u := uintptr(unsafe.Pointer(detail))
-	dispatch(int32(u))
-
-	// we need to process the dispatch error first because if there was
-	// an error, it could be that the pointers were not used
-	dispatchErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	derr := lib.NewKernelError(lib.KernelErrorCode(dispatchErrDataPtr[0]))
-	if derr.IsError() {
-		return nil, lib.NewPerrorFromId("dispatch error", derr)
-	}
-
-	// no error sent back to use, now we will attempt to unmarshal
-	// try the outpctx
-	libprint("DISPATCH ", "preparing for pctx return value")
-	out.OutPctx = &protosupport.Pctx{}
-	if detail.OutPctxLen > 0 {
-		err = proto.Unmarshal(resultPctx[:detail.OutPctxLen], out.OutPctx)
-	} else {
-		out.OutPctx = nil
-	}
-	if err != nil {
-		return nil, lib.NewPerrorFromId("unmarshal of PCtx in Dispatch()", lib.NewKernelError(lib.KernelUnmarshalFailed))
-	}
-
-	libprint("DISPATCH ", "preparing for result return value, %d",
-		detail.ResultLen)
-	out.Result = &anypb.Any{}
-	err = proto.Unmarshal(resultPtr[:detail.ResultLen], out.Result)
-	if err != nil {
-		libprint("DISPATCH ", "unmarshal err %v with result len %d", err, detail.ResultLen)
-		return nil, lib.NewPerrorFromId("unmarshal of result in Dispatch()", lib.NewKernelError(lib.KernelUnmarshalFailed))
-	}
-	libprint("DISPATCH ", "returning our result %s --  done with %s", out.Result, in.Method)
-	return out, nil
+	return &resp, nil
 }
 
 // BindMethodIn binds a method that only has an in parameter.  This should

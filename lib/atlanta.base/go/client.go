@@ -1,25 +1,27 @@
-package syscall
+package lib
 
 import (
-	pbcall "github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/lib"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
+	"github.com/iansmith/parigot/api/syscall"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ClientSideService struct {
-	svc    lib.Id
+	svc    Id
 	caller string
 	pctx   *protosupport.Pctx
+	logger Log
 }
 
-func NewClientSideService(id lib.Id, caller string) *ClientSideService {
+func NewClientSideService(id Id, caller string, logger Log) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
 		pctx:   &protosupport.Pctx{},
+		logger: logger,
 	}
 }
 
@@ -32,25 +34,24 @@ func (c *ClientSideService) SetPctx(pctx *protosupport.Pctx) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*pbcall.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*pbsys.DispatchResponse, error) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, lib.NewPerrorFromError("unable to convert param for dispatch into Any", err)
+			return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
 		}
 	}
 	if c.svc == nil {
 		panic("cannot dispatch to a nil service! client side service field 'svc' is nil")
 	}
-	in := &pbcall.DispatchRequest{
-		ServiceId: lib.Marshal[protosupport.ServiceId](c.svc),
+	in := &pbsys.DispatchRequest{
+		ServiceId: Marshal[protosupport.ServiceId](c.svc),
 		Caller:    c.caller,
 		Method:    method,
 		InPctx:    c.pctx,
 		Param:     a,
 	}
-	// xxx this should be going through dispatch anyway
-	return CallConnection().Dispatch(in)
+	return syscall.CallConnection().Dispatch(in)
 }

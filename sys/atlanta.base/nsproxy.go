@@ -6,15 +6,18 @@ import (
 	"os"
 	"time"
 
+	ilog "github.com/iansmith/parigot/api/logimpl/go_"
+	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/net"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const netnameserverVerbose = false
+const netnameserverVerbose = true
 
 // servicePort is the port that a service listens on for incoming requests.
 // This port is fixed because each service has its own container, thus its
@@ -304,7 +307,8 @@ func (n *NSProxy) GetInfoForCallId(target lib.Id) *callContext {
 	return n.NSCore.getContextForCallId(target)
 }
 
-// CallService is the CLIENT SIDE of an remote RPC call.
+// CallService is the implementation (in the kernel) for when you have a remote (across
+// the network) nameserver that you need to make an RPC call to.
 func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	netnameserverPrint("CALLSERVICE", "key is %s", key)
 	// do we know where the service is?
@@ -501,6 +505,10 @@ func netnameserverPrint(method, spec string, arg ...interface{}) {
 	if netnameserverVerbose {
 		part1 := fmt.Sprintf("NetNameServer:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		print(part1, part2, "\n")
+		ilog.ProcessLogRequest(&log.LogRequest{
+			Level:   log.LogLevel_LOG_LEVEL_DEBUG,
+			Stamp:   timestamppb.Now(), //xxx fix me, should be getting from kernel
+			Message: part1 + part2,
+		}, true, false, nil)
 	}
 }

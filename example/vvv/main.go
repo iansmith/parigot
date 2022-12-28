@@ -116,7 +116,7 @@ func (m *myServer) Ready() bool {
 	m.logger = logger
 
 	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to locate file")
-	fs, err := file.LocateFile()
+	fs, err := file.LocateFile(logger)
 	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "server located (fs!=nil) %v,(err==nil) %v",
 		fs != nil, err == nil)
 	if err != nil {
@@ -127,20 +127,17 @@ func (m *myServer) Ready() bool {
 	// load the test data
 	_, err = m.fileSvc.Load(&pbfile.LoadRequest{Path: "testdata/vvv"})
 	if err != nil {
-		panic("unable to load the test data: " + err.Error())
+		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to load the test data: %v: ", err.Error())
 	}
 	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/example/vvv/boat.toml"})
 	if err != nil {
-		panic("unable to open the boat.toml file")
+		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to open the boat.toml file:%v", err)
 	}
-	err = m.logger.Log(&pblog.LogRequest{
+	m.logger.Log(&pblog.LogRequest{
 		Stamp:   timestamppb.Now(),
 		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
 		Message: fmt.Sprintf("opened boat.toml %s", resp.GetId().String()),
 	})
-	if err != nil {
-		panic("unable to load the test data: " + err.Error())
-	}
 
 	return true
 

@@ -42,6 +42,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 			imp["\""+impToPkg[dep]+"\""] = struct{}{}
 			//log.Printf("xxx imp adding %s based on %s", impToPkg[dep], dep)
 		}
+
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{

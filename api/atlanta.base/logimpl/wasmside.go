@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/iansmith/parigot/api/logimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/log"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
@@ -43,6 +46,15 @@ func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error 
 	}
 	if errId != nil {
 		print("unable to log due to kernel error:", errId.Short())
+		return nil
+	}
+	req, ok := inProto.(*pb.LogRequest)
+	if !ok {
+		print("unable to to understand input parameter " + fmt.Sprintf("%T", inProto))
+		return nil
+	}
+	if req.Level == pb.LogLevel_LOG_LEVEL_FATAL {
+		os.Exit(7)
 	}
 	return nil
 }
