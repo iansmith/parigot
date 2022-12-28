@@ -15,6 +15,8 @@ import (
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -90,129 +92,68 @@ func (s *syscallReadWrite) Locate(sp int32) {
 	splitutil.RespondSingleProto(s.mem, sp, &resp)
 }
 
+// Dispatch is the way that a client invokes and RPC to another service.  This code is on the kernel
+// side (go implementation of kernel).
 func (s *syscallReadWrite) Dispatch(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-
-	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ServiceId))
-
-	sid := lib.NewFrom64BitPair[*protosupport.ServiceId](uint64(high), uint64(low))
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "find method by name will be called on service %s", sid.Short())
-	method := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.MethodPtr),
-		unsafe.Offsetof(lib.DispatchPayload{}.MethodLen))
-
-	caller := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.CallerPtr),
-		unsafe.Offsetof(lib.DispatchPayload{}.CallerLen))
-
-	pctx := s.ReadSlice(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.PctxPtr),
-		unsafe.Offsetof(lib.DispatchPayload{}.PctxLen))
-
-	param := s.ReadSlice(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.ParamPtr),
-		unsafe.Offsetof(lib.DispatchPayload{}.ParamLen))
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "about to FindByName: %s,%s", sid.Short(), method)
-	// this call sets up the call context and it's tricky because the key abstraction is used
-	// for both the source and des, but one is local (Process) and the other is remote (addr)
-	source := NewDepKeyFromProcess(s.proc)
-	callCtx := s.procToSysCall().FindMethodByName(source, sid, method)
-
-	if callCtx == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "DISPATCH", "FindMethodByName failed for %s,%s", sid.Short(), method)
-		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelNotFound)
-		return
+	resp := pbsys.DispatchResponse{}
+	req := pbsys.DispatchRequest{}
+	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	if err != nil {
+		return // the error return code is already set
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "FindMethodByName done and OK: %s from '%s'",
-		callCtx.cid.Short(), caller)
+	key := NewDepKeyFromProcess(s.proc)
+	sid := lib.Unmarshal[*protosupport.ServiceId](req.GetServiceId())
+	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
 
-	destParam := make([]byte, len(param))
-	destPctx := make([]byte, len(pctx))
-	copy(destParam, param)
-	if len(pctx) > 0 {
-		copy(destPctx, pctx)
-	} else {
-		destPctx = []byte{}
-	}
-	// send the message...
-	callCtx.param = destParam
-	callCtx.pctx = destPctx
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "find method by name requested for %s.%s",
+		sid.Short(), req.Method)
 
-	// the magic: send the call value to the other process
-	resultInfo, kerr := s.procToSysCall().CallService(callCtx.target, callCtx)
-	if kerr != nil && kerr.IsError() {
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-			kerr)
-		return
-	}
-	if resultInfo == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "waiting for result from other process: %s", s.proc.String())
-		// wait for the other process to message us back with a result... note that we should be
-		// timing this out after some period of time.  xxx fixme  This situation occurs specifically
-		// if the callee (the server implementation) cannot receive the data because is it too large.
-		resultInfo = <-s.proc.resultCh
+	if ctx.pctx == nil {
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH ", "xxx call context does not have pctx set")
 	}
 
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "got result from other process %s,%s with sizes pctx=%d,result=%d", resultInfo.cid.Short(), resultInfo.errorId.Short(),
-		len(resultInfo.pctx), len(resultInfo.result))
-
-	// we have to check BOTH of the length values we were given to make
-	// sure our results will fit
-	resultLen := s.mem.GetInt64(int32(wasmPtr) +
-		int32(unsafe.Offsetof(lib.DispatchPayload{}.ResultLen)))
-
-	// we can't fit the result, so we signal error and abort
-	if len(resultInfo.result) > int(resultLen) {
-		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDataTooLarge)
-		return
+	// this call is the machinery for making a call to another service
+	resultInfo, errid := s.procToSysCall().CallService(ctx.target, ctx)
+	if errid != nil {
+		if errid.IsErrorType() && errid.IsError() {
+			kernErr := lib.KernelErrorCode(errid.Low())
+			splitutil.ErrorResponse(s.mem, sp, kernErr)
+			return
+		} else {
+			panic("dispatch is unable to understand result error of type:" + fmt.Sprintf("%T", errid))
+		}
 	}
-
-	pctxLen := s.ReadInt64(wasmPtr,
-		unsafe.Offsetof(lib.DispatchPayload{}.OutPctxLen))
-
-	// we can't fit the pctx, so we signal error and abort
-	if len(resultInfo.result) > int(pctxLen) {
-		s.sendKernelErrorFromDispatch(wasmPtr, lib.KernelDataTooLarge)
-		return
+	if resultInfo.errorId != nil {
+		if resultInfo.errorId.IsErrorType() {
+			if resultInfo.errorId.IsError() {
+				kernErr := lib.KernelErrorCode(resultInfo.errorId.Low())
+				splitutil.ErrorResponse(s.mem, sp, kernErr)
+				return
+			}
+			// IsError is false when the error value is 0 (no error)
+		} else {
+			panic("dispatch is unable to understand result of inband error type in resultInfo:" + fmt.Sprintf("%T, %s", resultInfo.errorId, resultInfo.errorId.Short()))
+		}
 	}
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH", "telling the  caller the size of the result and pctx [%d,%d]",
-		len(resultInfo.result), len(resultInfo.pctx))
-
-	// tell the caller how big result is
-	resultLen = int64(len(resultInfo.result))
-	s.WriteInt64(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultLen),
-		int64(resultLen))
-
-	// tell the caller how big the pctx is
-	pctxLen = int64(len(resultInfo.pctx))
-	s.WriteInt64(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.OutPctxLen),
-		int64(pctxLen))
-
-	if pctxLen > 0 {
-		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.OutPctxPtr), resultInfo.pctx)
+	if len(resultInfo.pctx) > 0 {
+		resp.OutPctx = &protosupport.Pctx{}
+		if err := proto.Unmarshal(resultInfo.pctx, resp.OutPctx); err != nil {
+			splitutil.ErrorResponse(s.mem, sp, lib.KernelUnmarshalFailed)
+			return
+		}
 	}
+	if len(resultInfo.result) > 0 {
+		var a anypb.Any
+		if err := proto.Unmarshal(resultInfo.result, &a); err != nil {
+			splitutil.ErrorResponse(s.mem, sp, lib.KernelUnmarshalFailed)
+			return
 
-	if resultLen > 0 {
-		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ResultPtr), resultInfo.result)
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH ", "copied %d bytes to original caller", len(resultInfo.result))
+		}
+		resp.Result = &a
 	}
-
-	noErr := lib.NoError[*protosupport.KernelErrorId]() // the lack of an error
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-		noErr)
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "DISPATCH ", "completed call %s", method)
-
-}
-
-func (s *syscallReadWrite) sendKernelErrorFromDispatch(wasmPtr int64, code lib.KernelErrorCode) {
-	dispErr := lib.NewKernelError(code)
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.DispatchPayload{}.ErrorPtr),
-		dispErr)
-	return
+	resp.MethodId = lib.Marshal[protosupport.MethodId](resultInfo.mid)
+	resp.CallId = lib.Marshal[protosupport.CallId](resultInfo.cid)
+	splitutil.RespondSingleProto(s.mem, sp, &resp)
 }
 
 func (s *syscallReadWrite) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCode) {

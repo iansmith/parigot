@@ -4,14 +4,17 @@ import (
 	"fmt"
 	"sync"
 
+	ilog "github.com/iansmith/parigot/api/logimpl/go_"
+	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = false
+var nameserverVerbose = true
 
 const MaxService = 127
 
@@ -195,6 +198,7 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 }
 
 func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
+	nameserverPrint("CallService ", "reached the point of hitting the channel, key is %s", key.String())
 	proc := key.(*DepKeyImpl).proc
 	nameserverPrint("CallService", "about to send on call channel %x", proc.callCh)
 	proc.callCh <- info
@@ -207,7 +211,7 @@ func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resul
 // called.  Because this all implemented locally in this case, it's just
 // matter of getting or putting the right things from each channel.
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
-	nameserverPrint("BlockUntilCall ", "key is %s, about to send to callCh", key.String())
+	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
 	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s", v.method,
 		v.sender.String())
@@ -248,6 +252,11 @@ func nameserverPrint(methodName string, format string, arg ...interface{}) {
 	if nameserverVerbose {
 		part1 := fmt.Sprintf("NAMESERVER:%s", methodName)
 		part2 := fmt.Sprintf(format, arg...)
-		print(part1, part2, "\n")
+		req := log.LogRequest{
+			Level:   log.LogLevel_LOG_LEVEL_DEBUG,
+			Stamp:   timestamppb.Now(), //xxx fix me should be using the kernel for this
+			Message: part1 + part2,
+		}
+		ilog.ProcessLogRequest(&req, true, false, nil)
 	}
 }

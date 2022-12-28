@@ -20,7 +20,7 @@ all: $(GENERATED)/log/log.pb.go build/fileserver.p.wasm build/logserver.p.wasm
 # we only need a single representative file to insure regeneration of all the generated code
 $(GENERATED)/log/log.pb.go: proto/log/log.proto proto/pb/log/log.proto proto/file/file.proto proto/pb/file/file.proto proto/pb/syscall/syscall.proto
 	@echo
-	@echo "\033[92mgenerating interfaces: log+ file===============================================================\033[0m"
+	@echo "\033[92mgenerating interfaces: log + file + syscall ==============================================\033[0m"
 	$(BUF_CMD) lint
 	$(BUF_CMD) generate
 

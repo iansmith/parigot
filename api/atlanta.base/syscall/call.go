@@ -15,7 +15,7 @@ import (
 type Call interface {
 	Exit(in *pbcall.ExitRequest)
 	Locate(in *pbsys.LocateRequest) (*pbsys.LocateResponse, error)
-	Dispatch(in *pbcall.DispatchRequest) (*pbcall.DispatchResponse, error)
+	Dispatch(in *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error)
 	BindMethodIn(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*pbcall.BindMethodResponse, error)
 	BindMethodOut(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*pbcall.BindMethodResponse, error)
 	BindMethodBoth(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*pbcall.BindMethodResponse, error)
@@ -26,8 +26,11 @@ type Call interface {
 	ReturnValue(in *pbcall.ReturnValueRequest) (*pbcall.ReturnValueResponse, error)
 }
 
-var connector Call = newCallImpl()
+var connector Call
 
 func CallConnection() Call {
+	if connector == nil {
+		connector = newCallImpl()
+	}
 	return connector
 }

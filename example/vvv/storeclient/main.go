@@ -29,14 +29,13 @@ func main() {
 	if _, err := syscall.Run(true); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
-
-	vinnysStore, err := vvv.LocateStore()
+	logger, err := log.LocateLog(nil)
 	if err != nil {
-		syscall.Exit(1)
+		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate log:%v", err)
 	}
-	logger, err = log.LocateLog()
+	vinnysStore, err := vvv.LocateStore(logger)
 	if err != nil {
-		syscall.Exit(1)
+		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate store:%v", err)
 	}
 	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
 		Amount: 14.99,
@@ -50,8 +49,7 @@ func main() {
 	//best := &pb.BestOfAllTimeResponse{}
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
-		storeclientPrint("BestOfAllTime failed %s", err.Error())
-		syscall.Exit(1)
+		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "BestOfAllTime failed %s", err.Error())
 	}
 	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
 		best.Item.Creator, best.Item.Title, best.Item.Year))
@@ -67,11 +65,11 @@ func main() {
 	}
 }
 
-func Log(level pblog.LogLevel, message string) {
+func Log(level pblog.LogLevel, spec string, arg ...interface{}) {
 	req := &pblog.LogRequest{
 		Stamp:   timestamppb.New(time.Now()), // xxx fix me, should be using the kernel
 		Level:   level,
-		Message: message,
+		Message: fmt.Sprintf(spec, arg...),
 	}
 	if err := logger.Log(req); err != nil {
 		print("CLIENTSIDESERVICE: error in log call:", err.Error(), "\n")
@@ -79,5 +77,5 @@ func Log(level pblog.LogLevel, message string) {
 }
 
 func storeclientPrint(spec string, arg ...interface{}) {
-	print("STORECLIENT:", fmt.Sprintf(spec, arg...), "\n")
+	Log(pblog.LogLevel_LOG_LEVEL_DEBUG, "STORECLIENT:"+spec, arg...)
 }
