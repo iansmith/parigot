@@ -11,5 +11,5 @@ import (
 type Log interface {
 	// AbortOnFatal() bool
 	// SetAbortOnFatal(bool)
-	Log(prefix string, level pblog.LogLevel, msg string)
+	Log(req *pblog.LogRequest) error
 }

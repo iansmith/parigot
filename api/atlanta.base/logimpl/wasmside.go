@@ -6,6 +6,7 @@ import (
 
 	"github.com/iansmith/parigot/api/logimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/api/splitutil"
@@ -14,9 +15,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var callImpl = syscall.NewCallImpl()
+
 func main() {
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
-	if _, err := syscall.Export1("log", "Log"); err != nil {
+	if _, err := callImpl.Export1("log", "Log"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
 	log.Run(&myLogServer{})
@@ -25,7 +28,7 @@ func main() {
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	if _, err := syscall.Run(false); err != nil {
+	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
 

@@ -137,8 +137,9 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 
 	// implement semantics
 	resp, err := l.loadLocal(&req)
-	if err == nil {
+	if err != nil {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound /* xxxfixme, this error code is poor*/)
+		return
 	}
 	// send the result home
 	splitutil.RespondSingleProto(l.mem, sp, resp)

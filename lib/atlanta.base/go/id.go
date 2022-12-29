@@ -85,7 +85,10 @@ func (i *IdBase) Short() string {
 
 func (i *IdBase) IsErrorType() bool {
 	highBytes := int64ToByteSlice(i.h)
-	return highBytes[6] == 1
+	if highBytes[7] == 0x6b && highBytes[6] == 0 {
+		panic(fmt.Sprintf("combination not allowed! kerr but not an error %x,%x:", i.High(), i.Low()))
+	}
+	return highBytes[6]&1 == 1
 }
 
 func (i *IdBase) String() string {

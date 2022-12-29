@@ -158,12 +158,19 @@ func newFromErrorCode(code uint64, letter byte) Id {
 // not of interest to user code, even though it might look like it.  NewError() and NewRand()
 // are probably the ones to consider instead.
 func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
-	h := make([]byte, 8)
-	binary.LittleEndian.PutUint64(h, high)
+	var h [8]byte
+	binary.LittleEndian.PutUint64(h[:], high)
 	var t T
 	letter := typeToLetter(t)
 	if letter != h[7] {
 		panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
+	}
+	if letter == 'k' && h[6] == 0 {
+		panic(fmt.Sprintf("xxx NewFrom64BitPair failed because bad high uint:%x,%x\n", high, low))
+	}
+	if h[6]&1 == 1 {
+		// this is an error so we need to create it with the error code
+		return newFromErrorCode(low, letter)
 	}
 	return idFromUint64Pair(high, low, letter)
 }
@@ -185,7 +192,8 @@ func newIdRand(letter byte) Id {
 	return id
 }
 
-// idFromUint64Pair creates a non-error type of id given by letter from the two values provided.
+// idFromUint64Pair creates a non-error type of id given by letter from the two values provided.  Note
+// that if you pass it a high with the error bit (in byte[6]) set, it will be cleared by this function.
 func idFromUint64Pair(high uint64, low uint64, letter byte) Id {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, high)
@@ -201,8 +209,12 @@ func Unmarshal[T AllIdPtr](wrapper T) Id {
 		return nil
 	}
 	inner := typeToInnerId(wrapper)
-	result := idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
-	return result
+	var highByte [8]byte
+	binary.LittleEndian.PutUint64(highByte[:], inner.GetHigh())
+	if highByte[6]&0x01 == 1 {
+		return newFromErrorCode(inner.GetLow(), byte(inner.GetAsciiValue()))
+	}
+	return idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
 }
 
 // Marshal converts from the wire-format of protobufs to the in-memory format that is two 64 bit

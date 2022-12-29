@@ -7,6 +7,7 @@ import (
 	"github.com/iansmith/parigot/api/fileimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/file"
 	"github.com/iansmith/parigot/api/proto/g/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
@@ -16,12 +17,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var callImpl = syscall.NewCallImpl()
+
 func main() {
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
-	if _, err := syscall.Export1("file", "File"); err != nil {
+	if _, err := callImpl.Export1("file", "File"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
-	if _, err := syscall.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
 
@@ -33,7 +36,7 @@ type myFileServer struct {
 }
 
 func (m *myFileServer) Ready() bool {
-	if _, err := syscall.Run(false); err != nil {
+	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}

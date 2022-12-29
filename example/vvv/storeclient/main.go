@@ -9,27 +9,30 @@ import (
 	"demo/vvv/proto/g/vvv/pb"
 
 	"github.com/iansmith/parigot/api/proto/g/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/syscall"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var logger log.Log
+var callImpl = syscall.NewCallImpl()
 
 //go:noinline
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	if _, err := syscall.Require1("demo.vvv", "Store"); err != nil {
+	if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	if _, err := syscall.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := syscall.Run(true); err != nil {
+	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
-	logger, err := log.LocateLog(nil)
+	var err error
+	logger, err = log.LocateLog()
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate log:%v", err)
 	}
@@ -49,7 +52,7 @@ func main() {
 	//best := &pb.BestOfAllTimeResponse{}
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
-		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "BestOfAllTime failed %s", err.Error())
+		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "BestOfAllTime failure: %s", err.Error())
 	}
 	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
 		best.Item.Creator, best.Item.Title, best.Item.Year))
@@ -71,8 +74,12 @@ func Log(level pblog.LogLevel, spec string, arg ...interface{}) {
 		Level:   level,
 		Message: fmt.Sprintf(spec, arg...),
 	}
+	if logger == nil {
+		print("Internal error in storeclient: logger is nil! "+fmt.Sprintf(spec, arg...), "\n")
+		return
+	}
 	if err := logger.Log(req); err != nil {
-		print("CLIENTSIDESERVICE: error in log call:", err.Error(), "\n")
+		print("StoreClient: error in log call:", err.Error(), "\n")
 	}
 }
 

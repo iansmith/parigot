@@ -37,7 +37,7 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 // SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
 // libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
 // This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = false
+var libparigotVerbose = true
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -85,9 +85,15 @@ func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse
 	if err != nil {
 		return nil, err
 	}
-	if id != nil && id.IsError() {
-		// xxx this is bad, swallowing the real error and converting to text
-		return nil, lib.NewPerrorFromId("failed to dispatch properly", id)
+	if id != nil {
+		if id.IsErrorType() {
+			if id.IsError() {
+				// xxx this is bad, swallowing the real error and converting to text
+				return nil, lib.NewPerrorFromId("failed to dispatch properly", id)
+			}
+		} else {
+			panic(fmt.Sprintf("response to dispatch is unexpected id type: %v, %s", id.IsErrorType(), id.Short()))
+		}
 	}
 	return &resp, nil
 }
@@ -409,6 +415,26 @@ func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueRe
 	}, nil
 }
 
-func newCallImpl() Call {
+// Export1 is a wrapper around Export which makes it easy to say you export a single
+// service. It does not change any of the Export behavior.
+func (l *callImpl) Export1(packagePath, service string) (*call.ExportResponse, error) {
+	fqSvc := &call.FullyQualifiedService{
+		PackagePath: packagePath, Service: service}
+	req := &call.ExportRequest{}
+	req.Service = []*call.FullyQualifiedService{fqSvc}
+	return l.Export(req)
+}
+
+// Require1 is a wrapper around Require which makes it easy to say you require a single
+// service. It does not change any of the Require behavior.
+func (l *callImpl) Require1(packagePath, service string) (*call.RequireResponse, error) {
+	fqSvc := &call.FullyQualifiedService{
+		PackagePath: packagePath, Service: service}
+	req := &call.RequireRequest{}
+	req.Service = []*call.FullyQualifiedService{fqSvc}
+	return l.Require(req)
+}
+
+func NewCallImpl() lib.Call {
 	return &callImpl{}
 }

@@ -84,6 +84,7 @@ func (s *syscallReadWrite) Locate(sp int32) {
 		req.GetPackageName(), req.GetServiceName())
 
 	if kcode != lib.KernelNoError {
+		print(fmt.Sprintf("xxx Locate got kcode back from locate:%x... headed to error response\n", kcode))
 		splitutil.ErrorResponse(s.mem, sp, kcode)
 		return
 	}
@@ -102,18 +103,25 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		return // the error return code is already set
 	}
 	key := NewDepKeyFromProcess(s.proc)
-	sid := lib.Unmarshal[*protosupport.ServiceId](req.GetServiceId())
+	sid := lib.Unmarshal(req.GetServiceId())
 	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
+	ctx.param, err = proto.Marshal(req.Param)
+	if err != nil {
+		splitutil.ErrorResponse(s.mem, sp, lib.KernelUnmarshalFailed)
+		return
+	}
 
 	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "find method by name requested for %s.%s",
 		sid.Short(), req.Method)
 
 	if ctx.pctx == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "DISPATCH ", "xxx call context does not have pctx set")
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "xxx call context does not have pctx set but size of param is %d, any passed in is '%s'",
+			len(ctx.param), req.Param.TypeUrl)
 	}
 
 	// this call is the machinery for making a call to another service
 	resultInfo, errid := s.procToSysCall().CallService(ctx.target, ctx)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "result info returned from call service: %#v", resultInfo)
 	if errid != nil {
 		if errid.IsErrorType() && errid.IsError() {
 			kernErr := lib.KernelErrorCode(errid.Low())
