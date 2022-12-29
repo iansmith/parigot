@@ -9,6 +9,7 @@ import (
 
 	"github.com/iansmith/parigot/api/proto/g/file"
 	"github.com/iansmith/parigot/api/proto/g/log"
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pbfile "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
@@ -17,15 +18,17 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+var callImpl = syscall.NewCallImpl()
+
 func main() {
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
-	if _, err := syscall.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := syscall.Require1("file", "File"); err != nil {
+	if _, err := callImpl.Require1("file", "File"); err != nil {
 		panic("unable to require file service:" + err.Error())
 	}
-	if _, err := syscall.Export1("demo.vvv", "Store"); err != nil {
+	if _, err := callImpl.Export1("demo.vvv", "Store"); err != nil {
 		panic("unable to export demo.vvv: " + err.Error())
 	}
 	vvv.Run(&myServer{})
@@ -104,7 +107,7 @@ func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
 // services are ready.
 func (m *myServer) Ready() bool {
 
-	if _, err := syscall.Run(false); err != nil {
+	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}

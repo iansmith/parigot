@@ -8,7 +8,7 @@ import(
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib"  // id manipulation
     pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"  
-    "github.com/iansmith/parigot/api/syscall"  
+    "github.com/iansmith/parigot/api/syscall"  // to get a callImpl
 
 {{/* this special case for log.Log kinda stinks */}}
 {{- $needLog:=true}}
@@ -54,6 +54,7 @@ type {{$svcCamel}} interface {
 
 type {{$svcCamel}}Client struct {
     *lib.ClientSideService
+    lib.Call
 }
 
 // Locate finds a reference to the client interface of {{$svc}}.  The logger parameter can be 
@@ -68,7 +69,8 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
-    resp, err:=syscall.CallConnection().Locate(req)
+    callImpl:=syscall.NewCallImpl()
+    resp, err:=callImpl.Locate(req)
     if err!=nil {
         return nil, err
     }
@@ -77,13 +79,14 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
     }
     service:=lib.Unmarshal(resp.GetServiceId())
 {{- if $needLog }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",logger)
+    cs := lib.NewClientSideService(service, "{{$svc}}Client",logger,callImpl)
 {{- else }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",nil)
+    cs := lib.NewClientSideService(service, "{{$svc}}Client",nil,callImpl)
 {{- end}} {{/*end of if $needLog*/}}
     
     return &{{$svc}}Client{
         ClientSideService: cs,
+        Call: callImpl,
     }, nil
 }
 
@@ -111,9 +114,9 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}()
 
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
-    {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+    {{$dispatchResult}}, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
 {{- else }} {{/* other side of output code needed */}}
-    _, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+    _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
 {{ end }} {{/* end of output code needed for dispatch call */}}
 
     if err!=nil {

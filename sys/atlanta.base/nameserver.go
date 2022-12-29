@@ -200,10 +200,11 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
 	nameserverPrint("CallService ", "reached the point of hitting the channel, key is %s", key.String())
 	proc := key.(*DepKeyImpl).proc
-	nameserverPrint("CallService", "about to send on call channel %x", proc.callCh)
+	nameserverPrint("CallService ", "about to send on call channel %x, param size is %d", proc.callCh, len(info.param))
 	proc.callCh <- info
-	nameserverPrint("CallService", "about to block on the response channel")
+	nameserverPrint("CallService ", "about to block on the response channel")
 	result := <-info.respCh
+	nameserverPrint("CallService ", "result from response channel: %#v", result)
 	return result, nil
 }
 
@@ -213,8 +214,8 @@ func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resul
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
-	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s", v.method,
-		v.sender.String())
+	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s, size of param %d",
+		v.method, v.sender.String(), len(v.param))
 	return v
 }
 

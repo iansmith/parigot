@@ -1,27 +1,29 @@
 package lib
 
 import (
+	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/api/syscall"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ClientSideService struct {
+	call   Call
 	svc    Id
 	caller string
 	pctx   *protosupport.Pctx
 	logger Log
 }
 
-func NewClientSideService(id Id, caller string, logger Log) *ClientSideService {
+func NewClientSideService(id Id, caller string, logger Log, call Call) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
 		pctx:   &protosupport.Pctx{},
 		logger: logger,
+		call:   call,
 	}
 }
 
@@ -53,5 +55,12 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*pbsys
 		InPctx:    c.pctx,
 		Param:     a,
 	}
-	return syscall.CallConnection().Dispatch(in)
+	return c.call.Dispatch(in)
+}
+
+func (c *ClientSideService) Run() (*call.RunResponse, error) {
+	req := call.RunRequest{
+		Wait: true,
+	}
+	return c.call.Run(&req)
 }
