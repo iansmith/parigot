@@ -101,8 +101,8 @@ func Run(impl {{$svcCamel}}Server) {
 			pctxSlice = pctxBuf[:resp.PctxLen]
 		}
 		paramSlice := paramBuf[:resp.ParamLen]
-		mid := lib.Unmarshal[*protosupport.MethodId](resp.GetMethod())
-		cid := lib.Unmarshal[*protosupport.CallId](resp.GetCall())
+		mid := lib.Unmarshal(resp.GetMethod())
+		cid := lib.Unmarshal(resp.GetCall())
 
 		//
 		// create the generic params, pctx and param

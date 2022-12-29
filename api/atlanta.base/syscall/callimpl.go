@@ -3,6 +3,7 @@ package syscall
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"unsafe"
 
@@ -26,18 +27,10 @@ func (l *callImpl) Exit(in *call.ExitRequest) {
 	exit(in.Code)
 }
 
-// Flip this switch for debug output that starts with libparigot (like libc) and looks like this:
-// libparigot:DISPATCH preparing for result return value, 69
-// Output from the "BLOCKUNTILCALL" method can get interleaved with the output of the SYSCALL on another
-//
-// process that is sending a message like this:                  vvvvvvvvvvv
-// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
-// params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
-// So that should have been:
-// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:params ready (468800,1024) and (468400,1024)SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:telling the  caller the size of the result and pctx [0,0]
-// libparigot:BLOCKUNTILCALL got result from other process [c-9deb99],[k-000005] with sizes pctx=0,result=0
-// This is because the terminal is not synchronized and these are in different processes (gouroutines).
-var libparigotVerbose = true
+var envVerbose = os.Getenv("PARIGOT_VERBOSE")
+
+// Flip this switch for debug output.
+var libparigotVerbose = true || envVerbose != ""
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -53,9 +46,8 @@ func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	if id != nil && id.IsError() {
-		// xxx this is bad, swallowing the real error and converting to text
-		return nil, lib.NewPerrorFromId("failed to locate properly", id)
+	if l.checkIdForError(id) {
+		return nil, l.idErrorToPerror(id, "failed to locate properly")
 	}
 	return &resp, nil
 }
@@ -85,17 +77,29 @@ func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse
 	if err != nil {
 		return nil, err
 	}
+	if l.checkIdForError(id) {
+		return nil, l.idErrorToPerror(id, "failed to dispatch properly")
+	}
+	return &resp, nil
+}
+
+// checkIdForError returns true in the when it found an error value in the provided id, false otherwise.
+func (l *callImpl) checkIdForError(id lib.Id) bool {
 	if id != nil {
 		if id.IsErrorType() {
 			if id.IsError() {
-				// xxx this is bad, swallowing the real error and converting to text
-				return nil, lib.NewPerrorFromId("failed to dispatch properly", id)
+				return true
 			}
 		} else {
-			panic(fmt.Sprintf("response to dispatch is unexpected id type: %v, %s", id.IsErrorType(), id.Short()))
+			panic(fmt.Sprintf("response is unexpected id type: isErrorType=%v, id=%s", id.IsErrorType(), id.Short()))
 		}
 	}
-	return &resp, nil
+	return false
+}
+
+// idErrorToPerror returns an error suitable for returning to user code.
+func (l *callImpl) idErrorToPerror(id lib.Id, message string) lib.Error {
+	return lib.NewPerrorFromId(message, id)
 }
 
 // BindMethodIn binds a method that only has an in parameter.  This should
@@ -386,33 +390,17 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	return out, nil
 }
 
-func (l *callImpl) ReturnValue(in *call.ReturnValueRequest) (*call.ReturnValueResponse, error) {
-	detail := &lib.ReturnValuePayload{}
+func (l *callImpl) ReturnValue(req *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error) {
 
-	detail.PctxPtr, detail.PctxLen = sliceToTwoInt64s(in.PctxBuffer)
-	detail.ResultPtr, detail.ResultLen = sliceToTwoInt64s(in.ResultBuffer)
-
-	libprint("RETURNVALUE ", "buffers for pctx and result sending to kernel are size %d,%d",
-		len(in.PctxBuffer), len(in.ResultBuffer))
-
-	detail.MethodId[0] = int64(in.Method.Id.GetLow())
-	detail.MethodId[1] = int64(in.Method.Id.GetHigh())
-	detail.CallId[0] = int64(in.Call.Id.GetLow())
-	detail.CallId[1] = int64(in.Call.Id.GetHigh())
-	detail.KernelErrorPtr[0] = int64(in.ErrorId.Id.GetLow())
-	detail.KernelErrorPtr[1] = int64(in.ErrorId.Id.GetHigh())
-
-	u := uintptr(unsafe.Pointer(detail))
-	returnValue(int32(u))
-	// check to see the return value
-	kerr := lib.NewKernelError(lib.KernelErrorCode(detail.KernelErrorPtr[0]))
-	big := lib.Marshal[protosupport.KernelErrorId](kerr)
-	if kerr.IsError() {
-		return nil, lib.NewPerrorFromId("failed to process return value", kerr)
+	resp := pbsys.ReturnValueResponse{}
+	id, err := splitutil.SendReceiveSingleProto(req, &resp, returnValue)
+	if err != nil {
+		return nil, err
 	}
-	return &call.ReturnValueResponse{
-		ErrorId: big,
-	}, nil
+	if l.checkIdForError(id) {
+		return nil, l.idErrorToPerror(id, "returnValue failed")
+	}
+	return &resp, nil
 }
 
 // Export1 is a wrapper around Export which makes it easy to say you export a single
