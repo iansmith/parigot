@@ -25,7 +25,7 @@ type Call interface {
 	Export(in *pbcall.ExportRequest) (*pbcall.ExportResponse, error)
 	Require(in *pbcall.RequireRequest) (*pbcall.RequireResponse, error)
 	BlockUntilCall(in *pbcall.BlockUntilCallRequest) (*pbcall.BlockUntilCallResponse, error)
-	ReturnValue(in *pbcall.ReturnValueRequest) (*pbcall.ReturnValueResponse, error)
+	ReturnValue(in *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error)
 	Export1(pkg, name string) (*pbcall.ExportResponse, error)
 	Require1(pkg, name string) (*pbcall.RequireResponse, error)
 }

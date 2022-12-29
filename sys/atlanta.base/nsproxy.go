@@ -10,6 +10,7 @@ import (
 	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/net"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 
@@ -17,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const netnameserverVerbose = true
+var netnameserverVerbose = true || envVerbose != ""
 
 // servicePort is the port that a service listens on for incoming requests.
 // This port is fixed because each service has its own container, thus its
@@ -289,7 +290,7 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 
 	// we are going to return the callContext we'll need for the RPC
 	callCtx := &callContext{
-		respCh: make(chan *resultInfo),
+		respCh: make(chan *pbsys.ReturnValueRequest),
 		mid:    mid,
 		cid:    lib.NewId[*protosupport.CallId](),
 		method: method,
@@ -309,12 +310,25 @@ func (n *NSProxy) GetInfoForCallId(target lib.Id) *callContext {
 
 // CallService is the implementation (in the kernel) for when you have a remote (across
 // the network) nameserver that you need to make an RPC call to.
-func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
+func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+	//this req is only used when the CallService call wants to return an error
+	//or when have completed a network call successfully
+	req := &pbsys.ReturnValueRequest{
+		Call:        lib.Marshal[protosupport.CallId](info.cid),
+		Method:      lib.Marshal[protosupport.MethodId](info.mid),
+		Result:      nil,
+		Pctx:        nil,
+		ExecError:   "could not find the location of service " + info.sid.Short(),
+		ExecErrorId: lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNotFound)),
+	}
+
 	netnameserverPrint("CALLSERVICE", "key is %s", key)
 	// do we know where the service is?
 	addr, ok := n.serviceLoc[info.sid.String()]
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound)
+		req.ExecError = "could not find the location of service " + info.sid.Short()
+		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNotFound))
+		return req
 	}
 	// have we called it before?
 	caller, ok := n.rpcCaller[addr]
@@ -326,8 +340,8 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*resultInfo, l
 		n.rpcChan[addr] = ch
 	}
 	nr := NetResult{}
-	req := net.RPCRequest{
-		Pctx:       info.pctx,
+	rpcReq := net.RPCRequest{
+		Pctx:       info.GetPctx(),
 		Param:      info.param,
 		ServiceId:  lib.Marshal[protosupport.ServiceId](info.sid),
 		MethodId:   nil,
@@ -335,9 +349,11 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*resultInfo, l
 		Sender:     n.localAddr,
 	}
 	a := anypb.Any{}
-	err := a.MarshalFrom(&req)
+	err := a.MarshalFrom(&rpcReq)
 	if err != nil {
-		return nil, lib.NewKernelError(lib.KernelMarshalFailed)
+		req.ExecError = "unable to marshal the return value request:" + err.Error()
+		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelMarshalFailed))
+		return req
 	}
 	nr.SetData(&a)
 	nr.SetKey(key) //????
@@ -347,21 +363,20 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*resultInfo, l
 	result := <-respCh
 	if result == nil {
 		netnameserverPrint("CALLSERVICE", "failed in call to %s", info.sid.Short())
-		return nil, lib.NewKernelError(lib.KernelNetworkFailed)
+		req.ExecError = "network failed"
+		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNetworkFailed))
+		return req
 	}
 	resp := net.RPCResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
-		return nil, lib.NewKernelError(lib.KernelUnmarshalFailed)
+		req.ExecError = "unable to unmarshal the return value response:" + err.Error()
+		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelUnmarshalFailed))
+		return req
 	}
-	resultInfo := &resultInfo{
-		cid:     info.cid,
-		mid:     info.mid,
-		errorId: lib.NoError[*protosupport.KernelErrorId](),
-		result:  resp.GetResult(),
-		pctx:    resp.GetPctx(),
-	}
-	return resultInfo, nil
+	req.Result = resp.GetResult()
+	req.Pctx = resp.GetPctx()
+	return req
 }
 
 func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
@@ -467,7 +482,7 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 		pctx:   req.GetPctx(),
 		method: req.GetMethodName(),
 		sid:    sid,
-		respCh: make(chan *resultInfo), // xxx what should this be? a new channel? who listens to it?
+		respCh: make(chan *pbsys.ReturnValueRequest), // xxx what should this be? a new channel? who listens to it?
 		sender: NewDepKeyFromAddr(req.GetSender()),
 	}
 	n.NSCore.addCallContextMapping(info.cid, info)
@@ -475,8 +490,8 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 		key.String())
 
 	go func(callId lib.Id, sender string) {
-		rinfo := <-info.respCh
-		if rinfo == nil {
+		retReq := <-info.respCh
+		if retReq == nil {
 			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got an error signal on the call %s", callId)
 			return
 		}

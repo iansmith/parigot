@@ -20,14 +20,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Flip this switch for debug output that starts with SYSCALL and looks like this:
-// SYSCALL[DISPATCH,mem-7f0524000000,[proc-9:storeclient.p.wasm]]:about to FindByName: [s-000008],BestOfAllTime,true
-// The output is prefixed in the [] with the name of the syscall, the memory pointer for that
-// process, and the process name/number in its own [].
-//
-// Look at the doc for libparigotVerbose to see about interleaving issue with syscallVerbose and
-// libparigotVerbose.
-var syscallVerbose = true
+// Flip this switch for debug output.
+var envVerbose = os.Getenv("PARIGOT_VERBOSE")
+
+var syscallVerbose = true || envVerbose != ""
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
@@ -279,52 +275,34 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	return // the server goes back to work
 }
 
-// Return value is used by servers to register the return value for a particular function
+// Return value is used by server implementations to set the return value for a particular function
 // call on a method they implement.
 func (s *syscallReadWrite) ReturnValue(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-
-	// we just have to create the structure and send it through the correct channel
-	info := &resultInfo{}
-	low, high := s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.CallId))
-	info.cid = lib.NewFrom64BitPair[*protosupport.CallId](uint64(high), uint64(low))
-	low, high = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.MethodId))
-	info.mid = lib.NewFrom64BitPair[*protosupport.MethodId](uint64(high), uint64(low))
-	low, _ = s.Read64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr))
-	info.errorId = lib.NewKernelError(lib.KernelErrorCode(low))
-	if !info.errorId.Equal(lib.NewError[*protosupport.KernelErrorId](uint16(lib.KernelNoError))) {
-		short := info.errorId.Short()
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "Error found in the call? %s", short)
+	req := pbsys.ReturnValueRequest{}
+	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	cid := lib.Unmarshal(req.Call)
+	mid := lib.Unmarshal(req.Method)
+	if err != nil {
+		return // the error return code is already set
 	}
-	// if pctx len is 0 this is a no op
-	info.pctx = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.PctxPtr),
-		unsafe.Offsetof(lib.ReturnValuePayload{}.PctxLen))
-	info.result = s.ReadSlice(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.ResultPtr),
-		unsafe.Offsetof(lib.ReturnValuePayload{}.ResultLen))
+	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "ReturnValue ", "request accepted for method %s, callId %s",
+		mid.Short(), cid.Short())
 
-	callInfo := s.procToSysCall().GetInfoForCallId(info.cid)
-	if callInfo == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE", "unable to find process/addr that called %s", info.cid.Short())
-		kerr := lib.NewKernelError(lib.KernelCallerUnavailable)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr),
-			kerr)
+	ctx := s.procToSysCall().GetInfoForCallId(cid)
+	if ctx == nil {
+		sysPrint(pblog.LogLevel_LOG_LEVEL_ERROR, "RETURNVALUE", "unable to find process/addr that called %s", cid.Short())
+		splitutil.ErrorResponse(s.mem, sp, lib.KernelCallerUnavailable)
 		return
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "computed info, found channel, sending results of sizes: %d,%d for result and pctx data",
-		len(info.result), len(info.pctx))
-
-	callerProc := callInfo.sender.(*DepKeyImpl).proc
+	callerProc := ctx.sender.(*DepKeyImpl).proc
 
 	if callerProc == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "no caller proc, caller addr is %s", callInfo.sender.(*DepKeyImpl).addr)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
 	}
-	callInfo.respCh <- info
+	ctx.respCh <- &req
+	splitutil.RespondEmpty(s.mem, sp)
 
-	noerr := lib.NoError[*protosupport.KernelErrorId]()
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ReturnValuePayload{}.KernelErrorPtr), noerr)
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "finished with no error: %s", noerr.Short())
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "sent return request and finished with no error")
 	return
 }
 

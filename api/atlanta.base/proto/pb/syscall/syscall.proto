@@ -32,3 +32,16 @@ message DispatchResponse {
     protosupport.CallId call_id = 3;
     protosupport.MethodId method_id = 4;
 }
+
+message ReturnValueRequest{
+  protosupport.CallId call = 1;
+  protosupport.MethodId method = 2;
+  google.protobuf.Any result = 3;
+  protosupport.Pctx pctx = 4;
+  string marshal_error = 5;
+  string exec_error = 6;
+  protosupport.BaseId exec_error_id = 7; 
+}
+
+message ReturnValueResponse {
+}

@@ -7,8 +7,12 @@ import (
 	ilog "github.com/iansmith/parigot/api/logimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -23,6 +27,10 @@ const MaxService = 127
 var LocalNS *LocalNameServer
 var NetNS *NSProxy
 
+// NameServer should probably be renamed. There are two implementations of this interface, one for
+// the local (all in one process) case and another for the remote case (across a network).  Some
+// of the functions in SysCall are actually delegated down to here.  This is typically done to
+// have different behaviors in the local and remote cases.
 type NameServer interface {
 	//HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
 	Export(key dep.DepKey, pkgPath, service string) lib.Id
@@ -34,20 +42,20 @@ type NameServer interface {
 	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode)
 	StartFailedInfo() string
 	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
-	CallService(dep.DepKey, *callContext) (*resultInfo, lib.Id)
+	CallService(dep.DepKey, *callContext) *pbsys.ReturnValueRequest
 	GetInfoForCallId(target lib.Id) *callContext
 }
 
 type callContext struct {
-	mid    lib.Id           // the method id this call is going to be made TO
-	method string           // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
-	target dep.DepKey       // the process/addr this call is going to be made TO
-	cid    lib.Id           // call id that should be be used by the caller to match results
-	sender dep.DepKey       // the process/addr this call is going to be made FROM
-	sid    lib.Id           // service that is being called
-	respCh chan *resultInfo // this is where to send the return results
-	param  []byte           // where to put the param data
-	pctx   []byte           // where to put the previous pctx
+	mid    lib.Id                         // the method id this call is going to be made TO
+	method string                         // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
+	target dep.DepKey                     // the process/addr this call is going to be made TO
+	cid    lib.Id                         // call id that should be be used by the caller to match results
+	sender dep.DepKey                     // the process/addr this call is going to be made FROM
+	sid    lib.Id                         // service that is being called
+	respCh chan *pbsys.ReturnValueRequest // this is where to send the return results
+	param  anypb.Any                      // where to put the param data
+	pctx   protosupport.Pctx              // where to put the previous pctx
 }
 
 type LocalNameServer struct {
@@ -84,7 +92,7 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		method: name,
 		sid:    serviceId,
 		mid:    mid,
-		respCh: make(chan *resultInfo),
+		respCh: make(chan *pbsys.ReturnValueRequest),
 		cid:    lib.NewId[*protosupport.CallId](),
 		sender: caller,
 		target: sData.key,
@@ -197,15 +205,16 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return b, nil
 }
 
-func (l *LocalNameServer) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
+func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.ReturnValueRequest {
 	nameserverPrint("CallService ", "reached the point of hitting the channel, key is %s", key.String())
 	proc := key.(*DepKeyImpl).proc
-	nameserverPrint("CallService ", "about to send on call channel %x, param size is %d", proc.callCh, len(info.param))
-	proc.callCh <- info
+	nameserverPrint("CallService ", "about to send on call channel %x, param size is %d", proc.callCh,
+		proto.Size(&ctx.param))
+	proc.callCh <- ctx
 	nameserverPrint("CallService ", "about to block on the response channel")
-	result := <-info.respCh
+	result := <-ctx.respCh
 	nameserverPrint("CallService ", "result from response channel: %#v", result)
-	return result, nil
+	return result
 }
 
 // BlockUntilCall implements the stopping of a program until a method is
@@ -215,7 +224,7 @@ func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
 	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s, size of param %d",
-		v.method, v.sender.String(), len(v.param))
+		v.method, v.sender.String(), proto.Size(&v.param))
 	return v
 }
 

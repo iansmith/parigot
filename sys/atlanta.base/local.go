@@ -3,6 +3,7 @@ package sys
 import (
 	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 )
@@ -44,7 +45,7 @@ func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.KernelErrorCode) {
 	return ns.GetService(key, pkg, service)
 }
-func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
+func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
 	return ns.CallService(key, info)
 }
 
@@ -61,6 +62,15 @@ func (l *localSysCall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(l.nameServer, key, pkg, service)
 }
 
+func (l *localSysCall) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+	return sharedCallService(l.nameServer, key, info)
+}
+func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+	return sharedGetService(l.nameServer, key, pkgPath, service)
+}
+func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
+	return sharedRequire(l.nameServer, key, pkgPath, service)
+}
 func (l *localSysCall) RunNotify(key dep.DepKey) {
 	l.nameServer.RunNotify(key)
 }
@@ -74,25 +84,11 @@ func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, met
 func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {
 	return l.nameServer.GetInfoForCallId(cid)
 }
-func (l *localSysCall) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
-	return sharedCallService(l.nameServer, key, info)
-}
-func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
-	return sharedGetService(l.nameServer, key, pkgPath, service)
-}
-func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	return sharedRequire(l.nameServer, key, pkgPath, service)
-}
 func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callContext {
-	//func (l *remoteSyscall) BlockUntilCall(key dep.DepKey) *callContext {
 	info := l.nameServer.BlockUntilCall(key)
 	// this loop is because we get the "error" case as a nil
 	for info == nil {
 		info = l.nameServer.BlockUntilCall(key)
 	}
 	return info
-	// }
-	//
-	//	v := <-key.(*DepKeyImpl).proc.callCh
-	//	return v
 }

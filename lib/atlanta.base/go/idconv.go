@@ -29,7 +29,8 @@ type AllIdPtr interface {
 		*protosupport.FileIOId |
 		*protosupport.MethodId |
 		*protosupport.ServiceId |
-		*protosupport.KernelErrorId
+		*protosupport.KernelErrorId |
+		*protosupport.BaseId
 }
 
 type AllId interface {
@@ -40,7 +41,8 @@ type AllId interface {
 		protosupport.FileIOId |
 		protosupport.MethodId |
 		protosupport.ServiceId |
-		protosupport.KernelErrorId
+		protosupport.KernelErrorId |
+		protosupport.BaseId
 }
 
 const (

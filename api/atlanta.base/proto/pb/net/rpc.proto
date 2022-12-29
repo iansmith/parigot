@@ -2,13 +2,14 @@ syntax = "proto3";
 package pb.net;
 option go_package="github.com/iansmith/parigot/g/pb/net;net";
 import "pb/protosupport/protosupport.proto";
+import "google/protobuf/any.proto";
 
 // This file is the (private) protocol that is used between nodes when an RPC
 // is made.  
 
 message RPCRequest {
-	bytes pctx = 1;
-	bytes param = 2; 
+	protosupport.Pctx pctx = 1;
+	google.protobuf.Any param = 2; 
 	protosupport.ServiceId service_id= 3;
 	protosupport.CallId call_id = 4;
 	// if you supply method_id, it takes precedence over the string
@@ -17,8 +18,8 @@ message RPCRequest {
 	string sender = 7;
 }
 message RPCResponse {
-	bytes pctx = 1;
-	bytes result = 2; 
+	protosupport.Pctx pctx = 1;
+	google.protobuf.Any result = 2; 
 	protosupport.CallId call_id = 3;
 	protosupport.MethodId method_id = 4; // so you can cache it for later
 	protosupport.KernelErrorId kerr_id = 5;

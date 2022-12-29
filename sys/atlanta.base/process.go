@@ -10,27 +10,12 @@ import (
 	fileimpl "github.com/iansmith/parigot/api/fileimpl/go_"
 	logimpl "github.com/iansmith/parigot/api/logimpl/go_"
 	"github.com/iansmith/parigot/lib"
-	"github.com/iansmith/parigot/sys/dep"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Flip this switch to see debug messages from the process.
 var processVerbose = false
 
 var lastProcessId = 7
-
-// callInfo is the data that is actually passed through the channel to the waiting server
-// side.  This contains the channel to send the response on.
-type callInfo struct {
-	mid    lib.Id     // method id
-	cid    lib.Id     // call id
-	sid    lib.Id     // service id
-	param  []byte     // can be nil
-	pctx   []byte     // can be nil for optimization reasons
-	sender dep.DepKey // who sent this message, so we can return result
-	method string     // name of the method being called
-	respCh chan *anypb.Any
-}
 
 // resultInfo is the response that the recipient of a call sends back to the originator.
 type resultInfo struct {
