@@ -54,8 +54,8 @@ type callContext struct {
 	sender dep.DepKey                     // the process/addr this call is going to be made FROM
 	sid    lib.Id                         // service that is being called
 	respCh chan *pbsys.ReturnValueRequest // this is where to send the return results
-	param  anypb.Any                      // where to put the param data
-	pctx   protosupport.Pctx              // where to put the previous pctx
+	param  *anypb.Any                     // where to put the param data
+	pctx   *protosupport.Pctx             // where to put the previous pctx
 }
 
 type LocalNameServer struct {
@@ -209,7 +209,7 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.R
 	nameserverPrint("CallService ", "reached the point of hitting the channel, key is %s", key.String())
 	proc := key.(*DepKeyImpl).proc
 	nameserverPrint("CallService ", "about to send on call channel %x, param size is %d", proc.callCh,
-		proto.Size(&ctx.param))
+		proto.Size(ctx.param))
 	proc.callCh <- ctx
 	nameserverPrint("CallService ", "about to block on the response channel")
 	result := <-ctx.respCh
@@ -223,8 +223,8 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.R
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
-	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s, size of param %d",
-		v.method, v.sender.String(), proto.Size(&v.param))
+	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s, size of param %d, type is %s",
+		v.method, v.sender.String(), proto.Size(v.param), v.param.TypeUrl)
 	return v
 }
 

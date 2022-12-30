@@ -14,6 +14,7 @@ import (
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -296,8 +297,8 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 		method: method,
 		sid:    serviceId,
 		sender: key,
-		param:  make([]byte, lib.GetMaxMessageSize()),
-		pctx:   make([]byte, lib.GetMaxMessageSize()),
+		param:  &anypb.Any{},
+		pctx:   &protosupport.Pctx{},
 	}
 	netnameserverPrint("FINDMETHODBYNAME", "done with call context %s", callCtx.cid.Short())
 	n.NSCore.addCallContextMapping(callCtx.cid, callCtx)
@@ -341,7 +342,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 	}
 	nr := NetResult{}
 	rpcReq := net.RPCRequest{
-		Pctx:       info.GetPctx(),
+		Pctx:       info.pctx,
 		Param:      info.param,
 		ServiceId:  lib.Marshal[protosupport.ServiceId](info.sid),
 		MethodId:   nil,
@@ -489,21 +490,21 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 	netnameserverPrint("BLOCKUNTILCALL ", "finished creating info, callid=%s, method=%s and the key is %s", info.cid.Short(), info.method,
 		key.String())
 
-	go func(callId lib.Id, sender string) {
+	go func(callId lib.Id, rinfo *callContext, netr *NetResult) {
 		retReq := <-info.respCh
 		if retReq == nil {
 			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got an error signal on the call %s", callId)
 			return
 		}
 		rpcResp := &net.RPCResponse{
-			Pctx:     rinfo.pctx,
+			Pctx:     retReq.Pctx,
 			CallId:   lib.Marshal[protosupport.CallId](callId),
-			Result:   rinfo.result,
+			Result:   retReq.Result,
 			KerrId:   lib.NoKernelError(),
 			MethodId: lib.Marshal[protosupport.MethodId](mid),
 		}
-		netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got return result on call %s from %s: %d bytes of result, %d bytes of pctx", callId, sender,
-			len(rinfo.result), len(rinfo.pctx))
+		netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got return result on call %s from %s: %d bytes of result, %d bytes of pctx",
+			callId, rinfo.sender, proto.Size(retReq.Result), proto.Size(retReq.Pctx))
 		aResp := &anypb.Any{}
 		err := aResp.MarshalFrom(rpcResp)
 		if err != nil {
@@ -511,8 +512,8 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "failed to marshal response; %v", err)
 			return
 		}
-		a.respCh <- aResp
-	}(info.cid, info.sender.String())
+		netr.respCh <- aResp
+	}(info.cid, info, a)
 	return info
 }
 
