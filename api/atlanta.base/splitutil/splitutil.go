@@ -74,14 +74,12 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 	fn(int32(u))
 	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-	print(fmt.Sprintf("xxx -- returned from fn: %#v and resp is %T, %d\n", ptr, resp, proto.Size(resp)))
 	errRtn := lib.NewFrom64BitPair[*protosupport.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
 	if !errRtn.Equal(kerrNone) {
 		return errRtn, nil
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
-		print(fmt.Sprintf("xxx short circuit of the decoding of the result because it's size 0"))
 		return nil, nil
 	}
 	var byteBuffer []byte
@@ -89,8 +87,6 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
-	print(fmt.Sprintf("xxx - SendRcvSingleProto wasmslice %x, %d, %d\n", wasmSideSlice.Data,
-		wasmSideSlice.Len, wasmSideSlice.Cap))
 
 	err = DecodeSingleProto(byteBuffer, resp)
 	if err != nil {
@@ -172,7 +168,6 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 
 	size := proto.Size(resp)
 	fullSize := int64(netconst.TrailerSize + netconst.FrontMatterSize + size)
-	print(fmt.Sprintf("xxx- respond single proto with size=%d,totalsize=%d\n", size, fullSize))
 	// how much space do we have?
 	offsetForLen := int32(unsafe.Offsetof(SinglePayload{}.OutLen))
 	available := mem.GetInt64(wasmPtr + offsetForLen)
@@ -182,7 +177,6 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 		ErrorResponse(mem, wasmPtr, lib.KernelDataTooLarge)
 		return
 	}
-	print(fmt.Sprintf("xxx - respond single proto and available is %d\n", available))
 	// encode the proto into a buffer... this resulting pointer to the buffer could be 32 or 64 bits
 	buffer, err := encodeSingleProto(resp, size)
 	if err != nil {
@@ -191,7 +185,6 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 		return
 	}
 
-	print(fmt.Sprintf("xxx - respond single proto and flattened buffer is size %d\n", len(buffer)))
 	ptrOffset := unsafe.Offsetof(SinglePayload{}.OutPtr)
 	// this is tricky: we have to COPY the bytes from the go side to the wasm side bc the pointer
 	// returned as buffer is in the GO address space
@@ -199,9 +192,6 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 
 	// tell the caller the length
 	mem.SetInt64(wasmPtr+offsetForLen, fullSize)
-	payload := (*SinglePayload)(unsafe.Pointer(uintptr(wasmPtr)))
-	print(fmt.Sprintf("xxx - respond single proto set out len to be %d -- %#v\n", fullSize, payload))
-	print(fmt.Sprintf("fetch of out len gives %d\n", mem.GetInt64(wasmPtr+offsetForLen)))
 }
 
 // DecodeSingleProto decodes a buffer obtained when the client side drops the payload (above) to us
@@ -212,31 +202,26 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 //
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
 func DecodeSingleProto(buffer []byte, obj proto.Message) error {
-	print(fmt.Sprintf("xxx DecodeSingleProto len of buffer 0x%x, %T size of obj %d\n", len(buffer), obj, proto.Size(obj)))
 	if len(buffer) == 0x1000 {
 		panic("wrong size of buffer")
 	}
 	m := binary.LittleEndian.Uint64(buffer[0:8])
 	if m != netconst.MagicStringOfBytes {
-		print("xxx DecodeSingleProto -- 1\n")
 		return DecodeError
 	}
 	l := binary.LittleEndian.Uint32(buffer[8:12])
 	if l >= uint32(netconst.ReadBufferSize) {
-		print("xxx DecodeSingleProto -- 2\n")
 		return DecodeError
 	}
 	size := int(l)
 
 	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, obj); err != nil {
-		print("xxx DecodeSingleProto -- 3\n")
 		return DecodeError
 	}
 	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
 	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
 	if expected != result {
-		print("xxx DecodeSingleProto -- 4\n")
 		return DecodeError
 	}
 	return nil

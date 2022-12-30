@@ -119,27 +119,24 @@ func (m *myServer) Ready() bool {
 	m.logger = logger
 
 	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to locate file")
-	fs, err := file.LocateFile(logger)
+	fClient, err := file.LocateFile(logger)
 	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "server located (fs!=nil) %v,(err==nil) %v",
-		fs != nil, err == nil)
+		fClient != nil, err == nil)
 	if err != nil {
 		print("ERROR trying to create fs client: ", err.Error(), "\n")
 		return false
 	}
-	m.fileSvc = fs
+	m.fileSvc = fClient
 	// load the test data
 	_, err = m.fileSvc.Load(&pbfile.LoadRequest{Path: "testdata/vvv"})
 	if err != nil {
 		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to load the test data: %v: ", err.Error())
 	}
-	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to open the file %s", "/app/testdata/vvv/boat.toml")
-	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/testdata/vvv/boat.toml"})
-	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "open file returned err nil? %v", err == nil)
+	_, err = m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/testdata/vvv/boat.toml"})
 	if err != nil {
 		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to open the boat.toml file:%v", err)
 	}
-	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "file open ok %s", resp.GetId().String())
-
+	//fileId := lib.Unmarshal[*protosupport.FileId](resp.GetId())
 	return true
 
 }

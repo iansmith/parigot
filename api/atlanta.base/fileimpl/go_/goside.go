@@ -44,9 +44,8 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	if err != nil {
 		return
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "FileSvcOpen path to file %s", req.GetPath())
+	logger(pblog.LogLevel_LOG_LEVEL_INFO, "FileSvcOpen path to file %s", req.GetPath())
 	newPath, err := ValidatePathForParigot(req.GetPath(), "open")
-	print("xxx file svc open reached validation point: "+newPath+" ", err == nil, "\n")
 	if err != nil {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelBadPath)
 		return
@@ -54,13 +53,11 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	// newpath can be quite different if there is something like /app/foo/bar/../baz as the parameter
 	_, err = fs.ReadFile(l.fs, newPath)
 	if err != nil {
-		print("XXX file svc open failed,", err.Error(), "\n")
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound)
 		return
 	}
 	fileId := lib.NewId[*protosupport.FileId]()
 	marshaledId := lib.Marshal[protosupport.FileId](fileId)
-	print("xxx file svc open with impl of id being " + fileId.String() + "\n")
 	resp := pb.OpenResponse{Path: req.GetPath(), Id: marshaledId}
 	if l.idToFilePointer == nil {
 		l.idToFilePointer = make(map[string]int64)
@@ -140,7 +137,6 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	if err != nil {
 		return
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx FileSvcLoad path to LOCAL file %s", req.GetPath())
 	l.fs = memfs.New()
 
 	// implement semantics
@@ -154,12 +150,10 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 }
 
 func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "file server load -1: %v -- %s\n", l.fs == nil, req.GetPath())
 	stat, err := os.Stat(req.GetPath())
 	if err != nil {
 		return nil, err
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "opened path on host machine: %s", req.GetPath())
 	if !stat.IsDir() {
 		return nil, &os.PathError{
 			Op:   "read",
@@ -167,7 +161,6 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 			Err:  errors.New("path is a not a directory"),
 		}
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -3\n")
 	memoryPrefix := "app" //no first slash for any call that uses io.fs.ValidPath()
 	// start the import
 	p := filepath.Join(memoryPrefix, req.GetPath())
@@ -180,8 +173,6 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 	}
 
 	// children is a flattened list of all child files,but does include directories
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "about to run recursive call: %s", req.GetPath())
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -4\n")
 	children, badpath, err := l.readDirContents(req.GetPath(), req.GetReturnOnFail())
 	if err != nil {
 		if !req.ReturnOnFail {
@@ -191,20 +182,17 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 	}
 	// walk child list
 	for _, child := range children {
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load -5, child:%s\n", child)
 		//check for dir, we need to create those, not copy
 		stat, err := os.Stat(child)
 		if err != nil {
 			return nil, err
 		}
 		if stat.IsDir() {
-			logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server creating dir -5a: %s\n", child)
 			l.fs.MkdirAll(filepath.Join(memoryPrefix, child), 0777)
 			continue
 		}
 		// make sure in memory FS has the directory(ies) we need
 		memPath := filepath.Join(memoryPrefix, child)
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load copying -6 %s, and mem path %s\n", child, memPath)
 		fp, err := os.Open(child)
 		if err != nil {
 			return nil, err
@@ -214,39 +202,19 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server load copying -7 and read len is %d\n", len(all))
 		stat, err = os.Stat(child)
 		if err != nil {
 			return nil, err
 		}
-		perm := stat.Mode()
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server about to write %s with perm %s, we are trying %s ", memPath, perm.String(),
-			perm.String())
+		//perm := stat.Mode()
 		err = l.fs.WriteFile(memPath, all, 0755)
 		if err != nil {
-			logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "failed to write file %s: %v", memPath, err)
 			return nil, err
 		}
-		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server wrote all bytes")
 	}
 
-	err = fs.WalkDir(l.fs, ".", func(path string, d fs.DirEntry, err error) error {
-		info, err := fs.Stat(l.fs, path)
-		stat := ""
-		if err != nil {
-			stat = err.Error()
-		} else {
-			stat = fmt.Sprintf("isDir? %v, size? %d, mode? %s", info.IsDir(), info.Size(), info.Mode().String())
-		}
-		print("xxxfileserver walkdir-- " + path + ":" + stat + "\n")
-		return nil
-	})
-	if err != nil {
-		panic(err)
-	}
 	var resp pb.LoadResponse
 	resp.ErrorPath = badpath
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server .. number of bad paths: %d, %+v", len(resp.ErrorPath), resp.ErrorPath)
 	return &resp, nil
 }
 
@@ -255,7 +223,6 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 // we stop at the first error and return it with no error paths.  If return on Fail is true, we ignore errors
 // and return the paths that generated errors.
 func (l *FileSvcImpl) readDirContents(path string, returnOnFail bool) ([]string, []string, error) {
-	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "reached readDirContents: %s", path)
 	stat, err := os.Stat(path) // sanity check
 	if err != nil {
 		if returnOnFail {

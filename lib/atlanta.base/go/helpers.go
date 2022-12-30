@@ -3,7 +3,6 @@ package lib
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
 
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
@@ -27,12 +26,7 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 	rv := &pbsys.ReturnValueRequest{}
 	rv.Call = Marshal[protosupport.CallId](cid)
 	rv.Method = Marshal[protosupport.MethodId](mid)
-	helperprint("ReturnValueEncode ", "out is nil?%v and size is=%d", out == nil, proto.Size(out))
 	if marshalError != nil || execError != nil {
-		helperprint("ReturnValueEncode ", "[%s],[%s]: marshalError? %v execError ? %v",
-			cid.Short(), mid.Short(), marshalError, execError)
-		debug.PrintStack()
-		print("END OF STACK")
 		if marshalError != nil {
 			rv.MarshalError = marshalError.Error()
 		} else {
@@ -46,8 +40,6 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 	}
 	// these are the mostly normal cases, but they can go hawywire
 	// due to marshalling
-	//pctx.EventFinish()
-	//libprint("RETURNVALUEENCODE -- log -- \n", pctx.Dump())
 	rv.Pctx = pctx
 	if out != nil {
 		err = a.MarshalFrom(out)
@@ -55,15 +47,11 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 			goto internalMarshalProblem
 		}
 		rv.Result = &a
-		helperprint("RETURNVALUEENCODE ", "size of result buffer %d, out %s",
-			proto.Size(rv.Result), rv.Result.TypeUrl)
 	} else {
 		rv.Result = nil
 	}
-
 	return callImpl.ReturnValue(rv)
 internalMarshalProblem:
-	helperprint("RETURNVALUEENCODE ", "internal encoding error: %v", err)
 	// this is an internal error, so we signal it the opposite way we did the others at the top
 	rv.MarshalError = "ReturnValueEncode:internal marshaling error"
 encodeError:

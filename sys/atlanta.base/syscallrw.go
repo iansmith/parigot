@@ -22,7 +22,7 @@ import (
 // Flip this switch for debug output.
 var envVerbose = os.Getenv("PARIGOT_VERBOSE")
 
-var syscallVerbose = true || envVerbose != ""
+var syscallVerbose = false || envVerbose != ""
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
@@ -111,21 +111,26 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		sid.Short(), req.Method)
 
 	if ctx.pctx == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "xxx call context does not have pctx set but size of param is %d, any passed in is '%s'",
-			proto.Size(ctx.param), req.Param.TypeUrl)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "xxx call context does not have pctx set but size of param is %d",
+			proto.Size(ctx.param))
 	}
 
 	// this call is the machinery for making a call to another service
 	retReq := s.procToSysCall().CallService(ctx.target, ctx)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "result info returned from call service: %#v", retReq)
-	errid := lib.Unmarshal(retReq.ExecErrorId)
-	if errid != nil {
-		if errid.IsErrorType() && errid.IsError() {
-			kernErr := lib.KernelErrorCode(errid.Low())
-			splitutil.ErrorResponse(s.mem, sp, kernErr)
-			return
-		} else {
-			panic("dispatch is unable to understand result error of type:" + fmt.Sprintf("%T", errid))
+	if retReq.Result != nil {
+		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "result info returned from call service: %#v, with result type %s", retReq,
+			retReq.Result.TypeUrl)
+	}
+	if retReq.ExecErrorId != nil {
+		errid := lib.Unmarshal(retReq.ExecErrorId)
+		if errid != nil {
+			if errid.IsErrorType() && errid.IsError() {
+				kernErr := lib.KernelErrorCode(errid.Low())
+				splitutil.ErrorResponse(s.mem, sp, kernErr)
+				return
+			} else {
+				panic("dispatch is unable to understand result error of type:" + fmt.Sprintf("%T", errid))
+			}
 		}
 	}
 	if retReq.MarshalError != "" {
@@ -144,7 +149,11 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	resp.Result = retReq.Result
 	resp.MethodId = retReq.Method
 	resp.CallId = retReq.Call
-	splitutil.RespondSingleProto(s.mem, sp, &resp)
+	if resp.Result == nil {
+		splitutil.RespondSingleProto(s.mem, sp, &resp)
+	} else {
+		splitutil.RespondSingleProto(s.mem, sp, &resp)
+	}
 }
 
 func (s *syscallReadWrite) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCode) {
@@ -200,8 +209,6 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 
 	// check that we can fit the values
 	availablePctxLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.PctxLen))
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "size of available buffer for pctx: %d, need %d", availablePctxLen,
-		proto.Size(call.pctx))
 	if availablePctxLen > 0 && int64(proto.Size((call.pctx))) > availablePctxLen {
 
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
@@ -209,18 +216,14 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 		return
 	}
 	availableParamLen := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamLen))
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "size of available buffer for param: %d, need %d", availableParamLen,
-		proto.Size(call.param))
 	if int64(proto.Size(call.param)) > availableParamLen {
 		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 			lib.NewKernelError(lib.KernelDataTooLarge))
 		return
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "Block until call checked the sizes and they are ok")
 
 	// write the sizes of the incoming values and if size >0 copy the data to the pointer given
 	if availablePctxLen == 0 {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL ", "ignoring pctx in this call because callee says can't accept it")
 		s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.PctxLen))), int64(0))
 	} else {
 		// we want to send the PCTX value and they said ok
@@ -239,26 +242,20 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 
 		}
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BLOCKUNTILCALL ", "we are setting the lenght of param %d", proto.Size(call.param))
 
 	s.mem.SetInt64(int32(wasmPtr+int64(unsafe.Offsetof(lib.BlockPayload{}.ParamLen))),
 		int64(proto.Size(call.param)))
 	if proto.Size(call.param) > 0 {
 		buf, err := proto.Marshal(call.param)
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BLOCKUNTILCALL ", "flattened param of size %d, flattened %d and type is %T",
-			proto.Size(call.param), len(buf), call.param.TypeUrl)
 		if err != nil {
 			s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 				lib.NewKernelError(lib.KernelMarshalFailed))
 			return
 		}
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BLOCKUNTILCALL ", "about to copy the param to ParamPtr")
 		s.CopyToPtr(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ParamPtr), buf)
 	} else {
 		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "skipping param, size is zero")
 	}
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until copied the data, and it is ok")
 
 	// xxx fixme
 	//direction := s.ReadInt64(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.Direction))
@@ -277,7 +274,7 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BlockPayload{}.ErrorPtr),
 		lib.NoError[*protosupport.KernelErrorId]())
 
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until finished OK with call %#v", call)
+	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until finished OK with call %s", call.method)
 	return // the server goes back to work
 }
 

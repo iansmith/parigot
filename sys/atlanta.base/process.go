@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
@@ -119,6 +120,10 @@ func (p *Process) IsServer() bool {
 	return p.server
 }
 
+func (p *Process) Exit() {
+	p.exited = true
+}
+
 func (p *Process) String() string {
 	dir, file := filepath.Split(p.path)
 	if dir == "" {
@@ -183,6 +188,14 @@ func (p *Process) Start() {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		return
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			print("STACKTRACE\n")
+			debug.PrintStack()
+			print("END OF STACKTRACE\n")
+		}
+		return
+	}()
 	f := start.Func()
 	procPrint("START ", "calling the entry point (%+v,%T), for proc %s (parent %v)",
 		f, f, p, p.parent)
