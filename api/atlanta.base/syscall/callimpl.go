@@ -49,8 +49,6 @@ func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, erro
 	if l.checkIdForError(id) {
 		return nil, l.idErrorToPerror(id, "failed to locate properly")
 	}
-	libprint("Locate", "xxx client side of locate we have completed the loop in locate and resp is %#v",
-		resp)
 	return &resp, nil
 }
 
@@ -74,8 +72,6 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error) {
 	resp := pbsys.DispatchResponse{}
 
-	libprint("CallImpl.Dispatch", "info from dispatch request: %#v, size pctx %d, size param %d", req,
-		proto.Size(req.InPctx), proto.Size(req.Param))
 	id, err := splitutil.SendReceiveSingleProto(req, &resp, dispatch)
 	if err != nil {
 		return nil, err
@@ -221,11 +217,6 @@ func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *
 		pkg := s.GetPackagePath()
 		svc := s.GetService()
 
-		if isExport {
-			libprint("EXPORT", "exporting service %s.%s", pkg, svc)
-		} else {
-			libprint("REQUIRE", "requiring service %s.%s", pkg, svc)
-		}
 		detail := new(lib.ExportPayload)
 		sh := (*reflect.StringHeader)(unsafe.Pointer(&pkg))
 		detail.PkgPtr = int64(sh.Data)
@@ -280,7 +271,6 @@ func (l *callImpl) Export(in *call.ExportRequest) (*call.ExportResponse, error) 
 // services in it, this call will repeatedly call the kernel and it will abort
 // and return the error at the first failure.
 func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, error) {
-	libprint("REQUIRE ", "request to require %d services", len(in.Service))
 	out := new(call.RequireResponse)
 	// allocate space for any error
 	out.ErrorId = lib.NoKernelError()
@@ -366,7 +356,6 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	// THE CALL
 	u := uintptr(unsafe.Pointer(payload))
 	blockUntilCall(int32(u))
-	libprint("BLOCKUNTILCALL ", "finished call")
 	// unpack the result
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.ErrorPtr))))
 	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
@@ -378,7 +367,6 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	cid := lib.NewFrom64BitPair[*protosupport.CallId](uint64(callDataPtr[1]), uint64(callDataPtr[0]))
 	methDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(payload.MethodId))))
 	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methDataPtr[1]), uint64(methDataPtr[0]))
-	libprint("BLOCKUNTILCALL ", "mid computed %s", mid.Short())
 
 	out.Call = lib.Marshal[protosupport.CallId](cid)
 	out.Method = lib.Marshal[protosupport.MethodId](mid)
@@ -388,8 +376,6 @@ func (l *callImpl) BlockUntilCall(in *call.BlockUntilCallRequest) (*call.BlockUn
 	out.ParamLen = int32(payload.ParamLen)
 	out.PctxLen = int32(payload.PctxLen)
 
-	libprint("BLOCKUNTILCALL ", "unpacked the data %s,%s --- paramlen %d, pctxlen %d", mid.Short(), cid.Short(),
-		out.ParamLen, out.PctxLen)
 	return out, nil
 }
 

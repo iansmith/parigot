@@ -18,7 +18,7 @@ import (
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = true
+var nameserverVerbose = false || envVerbose != ""
 
 const MaxService = 127
 
@@ -213,7 +213,12 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.R
 	proc.callCh <- ctx
 	nameserverPrint("CallService ", "about to block on the response channel")
 	result := <-ctx.respCh
-	nameserverPrint("CallService ", "result from response channel: %#v", result)
+	if result.Result == nil {
+		nameserverPrint("CallService", "got a result with no Result value %T", result)
+	} else {
+		nameserverPrint("CallService ", "result from response channel: %#v, result is nil?%v", result,
+			result.Result == nil)
+	}
 	return result
 }
 
@@ -223,8 +228,14 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.R
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh", key.String())
 	v := <-key.(*DepKeyImpl).proc.callCh
-	nameserverPrint("BlockUntilCall ", "got this from proc.callCh: %s, sender %s, size of param %d, type is %s",
-		v.method, v.sender.String(), proto.Size(v.param), v.param.TypeUrl)
+	if v != nil {
+		if v.sender == nil {
+			nameserverPrint("BlockUntilCall", "nameserver found sender is nil")
+		}
+		if v.param == nil {
+			nameserverPrint("BlockUntilCall", "nameserver found param is nil")
+		}
+	}
 	return v
 }
 

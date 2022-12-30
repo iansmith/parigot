@@ -85,7 +85,11 @@ func main() {
 		}
 		maxModules++
 		runnerPrint("MAIN ", "starting goroutine for process %s", p)
-		go p.Start()
+		go func(p *sys.Process) {
+			p.Start()
+			p.Exit()
+			return
+		}(p)
 		proc = append(proc, p)
 	}
 
