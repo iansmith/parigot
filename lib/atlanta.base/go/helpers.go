@@ -27,6 +27,7 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 	rv := &pbsys.ReturnValueRequest{}
 	rv.Call = Marshal[protosupport.CallId](cid)
 	rv.Method = Marshal[protosupport.MethodId](mid)
+	helperprint("ReturnValueEncode ", "out is nil?%v and size is=%d", out == nil, proto.Size(out))
 	if marshalError != nil || execError != nil {
 		helperprint("ReturnValueEncode ", "[%s],[%s]: marshalError? %v execError ? %v",
 			cid.Short(), mid.Short(), marshalError, execError)
@@ -54,12 +55,12 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 			goto internalMarshalProblem
 		}
 		rv.Result = &a
+		helperprint("RETURNVALUEENCODE ", "size of result buffer %d, out %s",
+			proto.Size(rv.Result), rv.Result.TypeUrl)
 	} else {
 		rv.Result = nil
 	}
 
-	helperprint("RETURNVALUEENCODE ", "size of result buffer %d, out %s",
-		proto.Size(rv.Result), rv.Result.TypeUrl)
 	return callImpl.ReturnValue(rv)
 internalMarshalProblem:
 	helperprint("RETURNVALUEENCODE ", "internal encoding error: %v", err)

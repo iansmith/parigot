@@ -132,15 +132,13 @@ func (m *myServer) Ready() bool {
 	if err != nil {
 		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to load the test data: %v: ", err.Error())
 	}
-	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/example/vvv/boat.toml"})
+	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to open the file %s", "/app/testdata/vvv/boat.toml")
+	resp, err := m.fileSvc.Open(&pbfile.OpenRequest{Path: "/app/testdata/vvv/boat.toml"})
+	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "open file returned err nil? %v", err == nil)
 	if err != nil {
 		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to open the boat.toml file:%v", err)
 	}
-	m.logger.Log(&pblog.LogRequest{
-		Stamp:   timestamppb.Now(),
-		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
-		Message: fmt.Sprintf("opened boat.toml %s", resp.GetId().String()),
-	})
+	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "file open ok %s", resp.GetId().String())
 
 	return true
 

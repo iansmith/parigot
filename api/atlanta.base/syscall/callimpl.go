@@ -49,6 +49,8 @@ func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, erro
 	if l.checkIdForError(id) {
 		return nil, l.idErrorToPerror(id, "failed to locate properly")
 	}
+	libprint("Locate", "xxx client side of locate we have completed the loop in locate and resp is %#v",
+		resp)
 	return &resp, nil
 }
 
@@ -72,7 +74,8 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error) {
 	resp := pbsys.DispatchResponse{}
 
-	libprint("CallImpl.Dispatch", "info from dispatch request: %#v", req)
+	libprint("CallImpl.Dispatch", "info from dispatch request: %#v, size pctx %d, size param %d", req,
+		proto.Size(req.InPctx), proto.Size(req.Param))
 	id, err := splitutil.SendReceiveSingleProto(req, &resp, dispatch)
 	if err != nil {
 		return nil, err

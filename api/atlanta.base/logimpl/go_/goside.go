@@ -36,11 +36,14 @@ func (l *LogViewerImpl) LogRequestHandler(sp int32) {
 	// xxxfixme: StackPointerToRequest really should return (or provide access to) the buffer used
 	// xxxfixme: to read the request because we end up regenerating it when we send this to the
 	// xxxfixme: logviewer.
+	print(fmt.Sprintf("reached LogRequestHandler about to convert stack pointer\n"))
 	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
 		return // already set the error code
 	}
+	print(fmt.Sprintf("reached LogRequestHandler about to process request %#v, %s", req, req.Message))
 	ProcessLogRequest(&req, false, false, nil)
+	splitutil.RespondEmpty(l.mem, sp)
 	return
 }
 

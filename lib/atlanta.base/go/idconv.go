@@ -111,6 +111,9 @@ const (
 	// we tried and succeeded or failed to read the file, it means only that we could determine by
 	// looking at the path that this cannot succeed.
 	KernelBadPath KernelErrorCode = 16
+	// KernelExecError means that we received a response from the implenter of a particular
+	// service's function and the execution of that function failed.
+	KernelExecError KernelErrorCode = 17
 )
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.

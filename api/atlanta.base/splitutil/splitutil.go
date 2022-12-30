@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"reflect"
-	"runtime/debug"
 	"unsafe"
 
 	"github.com/iansmith/parigot/api/netconst"
@@ -82,6 +81,7 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
+		print(fmt.Sprintf("xxx short circuit of the decoding of the result because it's size 0"))
 		return nil, nil
 	}
 	var byteBuffer []byte
@@ -89,6 +89,8 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
+	print(fmt.Sprintf("xxx - SendRcvSingleProto wasmslice %x, %d, %d\n", wasmSideSlice.Data,
+		wasmSideSlice.Len, wasmSideSlice.Cap))
 
 	err = DecodeSingleProto(byteBuffer, resp)
 	if err != nil {
@@ -170,17 +172,17 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 
 	size := proto.Size(resp)
 	fullSize := int64(netconst.TrailerSize + netconst.FrontMatterSize + size)
-
+	print(fmt.Sprintf("xxx- respond single proto with size=%d,totalsize=%d\n", size, fullSize))
 	// how much space do we have?
-	offset := int32(unsafe.Offsetof(SinglePayload{}.OutLen))
-	available := mem.GetInt64(wasmPtr + offset)
+	offsetForLen := int32(unsafe.Offsetof(SinglePayload{}.OutLen))
+	available := mem.GetInt64(wasmPtr + offsetForLen)
 
 	// can't fit the response?
 	if fullSize >= available {
 		ErrorResponse(mem, wasmPtr, lib.KernelDataTooLarge)
 		return
 	}
-
+	print(fmt.Sprintf("xxx - respond single proto and available is %d\n", available))
 	// encode the proto into a buffer... this resulting pointer to the buffer could be 32 or 64 bits
 	buffer, err := encodeSingleProto(resp, size)
 	if err != nil {
@@ -189,13 +191,17 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 		return
 	}
 
+	print(fmt.Sprintf("xxx - respond single proto and flattened buffer is size %d\n", len(buffer)))
 	ptrOffset := unsafe.Offsetof(SinglePayload{}.OutPtr)
 	// this is tricky: we have to COPY the bytes from the go side to the wasm side bc the pointer
 	// returned as buffer is in the GO address space
 	CopyToPtr(mem, int64(wasmPtr), ptrOffset, buffer)
 
 	// tell the caller the length
-	mem.SetInt64(wasmPtr+offset, fullSize)
+	mem.SetInt64(wasmPtr+offsetForLen, fullSize)
+	payload := (*SinglePayload)(unsafe.Pointer(uintptr(wasmPtr)))
+	print(fmt.Sprintf("xxx - respond single proto set out len to be %d -- %#v\n", fullSize, payload))
+	print(fmt.Sprintf("fetch of out len gives %d\n", mem.GetInt64(wasmPtr+offsetForLen)))
 }
 
 // DecodeSingleProto decodes a buffer obtained when the client side drops the payload (above) to us
@@ -206,7 +212,7 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 //
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
 func DecodeSingleProto(buffer []byte, obj proto.Message) error {
-	print(fmt.Sprintf("xxx DecodeSingleProto len of buffer 0x%x, %T\n", len(buffer), obj))
+	print(fmt.Sprintf("xxx DecodeSingleProto len of buffer 0x%x, %T size of obj %d\n", len(buffer), obj, proto.Size(obj)))
 	if len(buffer) == 0x1000 {
 		panic("wrong size of buffer")
 	}
@@ -251,9 +257,6 @@ func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
 		int64(kerr.Low()))
 	highBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(highBytes, kerr.High())
-	print(fmt.Sprintf("xxx ErrorResponse called: %x,%x", kerr.High(), kerr.Low()))
-	debug.PrintStack()
-	print("END OF STACK")
 }
 
 // StackPointerToRequest assumes that this function was passed a pointer to the WASM stack and that

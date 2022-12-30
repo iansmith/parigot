@@ -2,6 +2,7 @@ package sys
 
 import (
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 )
@@ -26,7 +27,7 @@ func (r *remoteSyscall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(r.nameServer, key, pkg, service)
 }
 
-func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) (*resultInfo, lib.Id) {
+func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
 	return sharedCallService(r.nameServer, key, info)
 }
 

@@ -26,9 +26,10 @@ import (
 )
 
 type FileSvcImpl struct {
-	mem      *jspatch.WasmMem
-	fs       *memfs.FS
-	idToFile map[string] /*really lib.Id*/ *os.File
+	mem             *jspatch.WasmMem
+	fs              *memfs.FS
+	idToFilePointer map[string] /*really string version of lib.Id*/ int64
+	idToMemPath     map[string]string
 }
 
 // This is the native code side of the file service.  It reads the payload sent by the wasm world.
@@ -45,12 +46,13 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	}
 	logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "FileSvcOpen path to file %s", req.GetPath())
 	newPath, err := ValidatePathForParigot(req.GetPath(), "open")
+	print("xxx file svc open reached validation point: "+newPath+" ", err == nil, "\n")
 	if err != nil {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelBadPath)
 		return
 	}
-	// newpath can be different if there is something like /app/foo/bar/../baz as the parameter
-	fp, err := os.Open(newPath)
+	// newpath can be quite different if there is something like /app/foo/bar/../baz as the parameter
+	_, err = fs.ReadFile(l.fs, newPath)
 	if err != nil {
 		print("XXX file svc open failed,", err.Error(), "\n")
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound)
@@ -58,11 +60,14 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	}
 	fileId := lib.NewId[*protosupport.FileId]()
 	marshaledId := lib.Marshal[protosupport.FileId](fileId)
+	print("xxx file svc open with impl of id being " + fileId.String() + "\n")
 	resp := pb.OpenResponse{Path: req.GetPath(), Id: marshaledId}
-	if l.idToFile == nil {
-		l.idToFile = make(map[string]*os.File)
+	if l.idToFilePointer == nil {
+		l.idToFilePointer = make(map[string]int64)
+		l.idToMemPath = make(map[string]string)
 	}
-	l.idToFile[fileId.String()] = fp
+	l.idToFilePointer[fileId.String()] = 0
+	l.idToMemPath[fileId.String()] = newPath
 	splitutil.RespondSingleProto(l.mem, sp, &resp)
 	return
 }
@@ -122,7 +127,10 @@ func ValidatePathForParigot(path string, op string) (string, error) {
 			}
 		}
 	}
-	return cleaned, nil
+	if !strings.HasPrefix(cleaned, "/") {
+		panic("unable to understand path " + cleaned + " because not fully qualified?")
+	}
+	return cleaned[1:], nil
 }
 
 //go:noinline
@@ -163,7 +171,7 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 	memoryPrefix := "app" //no first slash for any call that uses io.fs.ValidPath()
 	// start the import
 	p := filepath.Join(memoryPrefix, req.GetPath())
-	err = l.fs.MkdirAll(p, os.ModeDir)
+	err = l.fs.MkdirAll(p, 0777)
 	if err != nil {
 		if !req.ReturnOnFail {
 			panic("tried to mkdir all of " + p + ": " + err.Error())
@@ -191,7 +199,7 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 		}
 		if stat.IsDir() {
 			logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server creating dir -5a: %s\n", child)
-			l.fs.MkdirAll(filepath.Join(memoryPrefix, child), os.ModeDir)
+			l.fs.MkdirAll(filepath.Join(memoryPrefix, child), 0777)
 			continue
 		}
 		// make sure in memory FS has the directory(ies) we need
@@ -213,13 +221,28 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 		}
 		perm := stat.Mode()
 		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server about to write %s with perm %s, we are trying %s ", memPath, perm.String(),
-			os.FileMode(0).String())
-		err = l.fs.WriteFile(memPath, all, perm)
+			perm.String())
+		err = l.fs.WriteFile(memPath, all, 0755)
 		if err != nil {
 			logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "failed to write file %s: %v", memPath, err)
 			return nil, err
 		}
 		logger(pblog.LogLevel_LOG_LEVEL_DEBUG, "xxx-file server wrote all bytes")
+	}
+
+	err = fs.WalkDir(l.fs, ".", func(path string, d fs.DirEntry, err error) error {
+		info, err := fs.Stat(l.fs, path)
+		stat := ""
+		if err != nil {
+			stat = err.Error()
+		} else {
+			stat = fmt.Sprintf("isDir? %v, size? %d, mode? %s", info.IsDir(), info.Size(), info.Mode().String())
+		}
+		print("xxxfileserver walkdir-- " + path + ":" + stat + "\n")
+		return nil
+	})
+	if err != nil {
+		panic(err)
 	}
 	var resp pb.LoadResponse
 	resp.ErrorPath = badpath
