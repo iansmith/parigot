@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/iansmith/parigot/api/logimpl/go_"
@@ -31,7 +31,6 @@ func (m *myLogServer) Ready() bool {
 	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
-
 	return true
 }
 
@@ -48,12 +47,11 @@ func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error 
 		return err
 	}
 	if errId != nil {
-		print("unable to log due to kernel error:", errId.Short())
-		return nil
+		return errors.New("Log() failed:" + errId.Short())
 	}
+
 	req, ok := inProto.(*pb.LogRequest)
 	if !ok {
-		print("unable to to understand input parameter " + fmt.Sprintf("%T", inProto))
 		return nil
 	}
 	if req.Level == pb.LogLevel_LOG_LEVEL_FATAL {

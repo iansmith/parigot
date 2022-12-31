@@ -106,22 +106,28 @@ func (m *myServer) SoldItem(pctx *protosupport.Pctx, in proto.Message) error {
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (m *myServer) Ready() bool {
+	print("XXX about to send vvv server READY starting\n")
 
 	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
+	print("XXX about to send vvv server about to locateLog\n")
+
 	logger, err := log.LocateLog()
 	if err != nil {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
 		return false
 	}
 	m.logger = logger
+	print("XXX about to send first log line vvv server READY\n")
 
-	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to locate file")
+	//m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "about to locate file")
+	print("XXX sent locateLog req vvv server READY\n")
 	fClient, err := file.LocateFile(logger)
-	m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "server located (fs!=nil) %v,(err==nil) %v",
-		fClient != nil, err == nil)
+	print("XXX sent locateLog about send first log message ", err == nil, "\n")
+	// m.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "server located (fs!=nil) %v,(err==nil) %v",
+	// 	fClient != nil, err == nil)
 	if err != nil {
 		print("ERROR trying to create fs client: ", err.Error(), "\n")
 		return false
@@ -136,6 +142,9 @@ func (m *myServer) Ready() bool {
 	if err != nil {
 		m.log(nil, pblog.LogLevel_LOG_LEVEL_FATAL, "unable to open the boat.toml file:%v", err)
 	}
+
+	print("XXX about to end vvv server READY\n")
+
 	//fileId := lib.Unmarshal[*protosupport.FileId](resp.GetId())
 	return true
 

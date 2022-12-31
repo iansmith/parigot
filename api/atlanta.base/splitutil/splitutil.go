@@ -99,39 +99,31 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	if callImpl == nil {
 		callImpl = c
 	}
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -1\n", req, resp)
 	u, err := SendSingleProto(req)
 	if err != nil {
 		return nil, err
 	}
 	// u is a pointer to the SinglePayload, send payload through fn
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -2 ptr.outlen=%d\n", req, resp, (*SinglePayload)(unsafe.Pointer(u)).OutLen)
 	fn(int32(u))
 	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-	log("SendReciveSingleProto", "xxx -- send receive single proto -- %T,%T -2A ptr.outlen=%d\n", req, resp, ptr.OutLen)
 	errRtn := lib.NewFrom64BitPair[*protosupport.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -3 %v\n", req, resp, errRtn.Equal(kerrNone))
 	if !errRtn.Equal(kerrNone) {
 		return errRtn, nil
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
-		log("SendReciveSingleProto", "xxx -- send receive single proto -- %T,%T -3a outlen is 0, returning\n", req, resp)
 		return nil, nil
 	}
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -4 building resp buffer %d\n", req, resp, ptr.OutLen)
 	var byteBuffer []byte
 	wasmSideSlice := (*reflect.SliceHeader)(unsafe.Pointer(&byteBuffer))
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -5 length=%d,outlen=%d\n ", req, resp, len(byteBuffer), ptr.OutLen)
 	err = DecodeSingleProto(byteBuffer, resp)
 	if err != nil {
 		return nil, err
 	}
-	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -6 everything ok about to return\n ", req, resp)
 	return nil, nil
 }
 
@@ -244,23 +236,6 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 //
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
 func DecodeSingleProto(buffer []byte, obj proto.Message) error {
-	// if len(buffer) != 0x1000 {
-	// 	log(("--DecodeSingleProto size of buffer is ok: %d\n", len(buffer)))
-	// 	debug.PrintStack()
-	// 	print("END OF STACK\n")
-	// }
-	if len(buffer) == 0x1000 {
-		log("DecodeSingleProto", "--DecodeSingleProto size of buffer is BOGUS, %T: %d\n", obj, len(buffer))
-		// 	panic(fmt.Sprintf("wrong size of buffer (buf size is 0x1000, likely unchanged) %T", obj))
-	}
-	// if len(buffer) == 0 {
-	// 	log(("xxx decode single proto not decoding object %T, size of buffer is 0\n", obj))
-	// 	return nil
-	// }
-	// if proto.Size(obj) == 0 {
-	// 	log(("xxx decode single proto not decoding object %T, size of object is 0\n", obj))
-	// 	return nil
-	// }
 	m := binary.LittleEndian.Uint64(buffer[0:8])
 	if m != netconst.MagicStringOfBytes {
 		return DecodeError
@@ -271,7 +246,6 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 	}
 	size := int(l)
 	if size == 0 {
-		log("DecodeSingleProto", "--DecodeSingleProto size of encoded object is ZERO!\n")
 		buffer = nil
 		return nil
 	}

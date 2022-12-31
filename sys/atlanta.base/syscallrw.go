@@ -101,34 +101,17 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	}
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "find method by name requested for %s.%s",
-		sid.Short(), req.Method)
 	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
 	ctx.param = req.Param
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "after making ctx with FindMethodByName:method=%s,cid=%s,mid=%s,type of param=%s", ctx.method, ctx.cid.Short(), ctx.mid.Short(), ctx.param.TypeUrl)
-
-	if ctx.pctx == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "xxx call context does not have pctx set but size of param is %d",
-			proto.Size(ctx.param))
-	}
 
 	// this call is the machinery for making a call to another service
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "about to hit call service")
 	retReq := s.procToSysCall().CallService(ctx.target, ctx)
-	if retReq.Result != nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "--result info returned from call service: %#v, with result type %s and size %d", retReq,
-			retReq.Result.TypeUrl, proto.Size(retReq.Result))
-	} else {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "--result info  retValue is nil")
-	}
 	if retReq.ExecErrorId != nil {
 		errid := lib.Unmarshal(retReq.ExecErrorId)
 		if errid != nil {
 			if errid.IsErrorType() && errid.IsError() {
 				kernErr := lib.KernelErrorCode(errid.Low())
 				splitutil.ErrorResponse(s.mem, sp, kernErr)
-				sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "error id from other side of the call:%s",
-					errid.Short())
 				return
 			} else {
 				panic("dispatch is unable to understand result error of type:" + fmt.Sprintf("%T", errid))
@@ -136,13 +119,13 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		}
 	}
 	if retReq.MarshalError != "" {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "marshal error from other side of the call:%s",
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "marshal error from other side of the call:%s",
 			retReq.MarshalError)
 		splitutil.ErrorResponse(s.mem, sp, lib.KernelMarshalFailed)
 		return
 	}
 	if retReq.ExecError != "" {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch ", "exec error from other side of the call:%s",
+		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "exec error from other side of the call:%s",
 			retReq.ExecError)
 		splitutil.ErrorResponse(s.mem, sp, lib.KernelExecError)
 		return
@@ -152,10 +135,8 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	resp.MethodId = retReq.Method
 	resp.CallId = retReq.Call
 	if resp.Result == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "returning single proto but resp.Result is nil")
 		splitutil.RespondSingleProto(s.mem, sp, &resp)
 	} else {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Dispatch", "returning single proto and resp.Result is %T", resp.Result)
 		splitutil.RespondSingleProto(s.mem, sp, &resp)
 	}
 }
@@ -202,7 +183,6 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 
 // BlockUntilCall is used by servers to block themselves until some other process sends them a message.
 func (s *syscallReadWrite) BlockUntilCall(sp int32) {
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BlockUntilCall--", "starting on %s", s.proc.String())
 	resp := pbsys.BlockUntilCallResponse{}
 	req := pbsys.BlockUntilCallRequest{}
 	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
@@ -210,14 +190,13 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 		return // the error return code is already set
 	}
 
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BlockUntilCall--", "about to hit the nameserver %s", s.proc.String())
 	// tricky, we have to pass a process here
 	call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
 	resp.Param = call.param
 	resp.Pctx = call.pctx
 	resp.Call = lib.Marshal[protosupport.CallId](call.cid)
 	resp.Method = lib.Marshal[protosupport.MethodId](call.mid)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BLOCKUNTILCALL", "Block until call client side finished OK with call to %s and param?%d", call.method, proto.Size(resp.Param))
+	splitutil.RespondSingleProto(s.mem, sp, &resp)
 	return // the server goes back to work
 }
 
@@ -227,28 +206,21 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 	req := pbsys.ReturnValueRequest{}
 	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	cid := lib.Unmarshal(req.Call)
-	mid := lib.Unmarshal(req.Method)
 	if err != nil {
 		return // the error return code is already set
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "ReturnValue ", "request accepted for method %s, callId %s",
-		mid.Short(), cid.Short())
-
 	ctx := s.procToSysCall().GetInfoForCallId(cid)
 	if ctx == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_ERROR, "RETURNVALUE", "unable to find process/addr that called %s", cid.Short())
 		splitutil.ErrorResponse(s.mem, sp, lib.KernelCallerUnavailable)
 		return
 	}
 	callerProc := ctx.sender.(*DepKeyImpl).proc
 
 	if callerProc == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
+		sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
 	}
 	ctx.respCh <- &req
 	splitutil.RespondEmpty(s.mem, sp)
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RESULTVALUE ", "sent return request and finished with no error")
 	return
 }
 
