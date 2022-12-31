@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"hash/crc32"
 	"reflect"
+	"runtime"
+	"strings"
 	"unsafe"
 
 	"github.com/iansmith/parigot/api/netconst"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // SinglePayload is the data structure passed from the WASM portion of a split mode service to
@@ -38,9 +42,11 @@ var kerrNone = lib.Unmarshal(lib.NoKernelError())
 // understood.
 var DecodeError = errors.New("decoding error")
 
-// newSinglePayload is used to allocate the space for the SinglePayload as well as the needed return values
+var callImpl lib.Call
+
+// NewSinglePayload is used to allocate the space for the SinglePayload as well as the needed return values
 // during a call from WASM to the go language side.  This code is run in WASM.
-func newSinglePayload() *SinglePayload {
+func NewSinglePayload() *SinglePayload {
 	buffer := make([]byte, netconst.ReadBufferSize)
 	ptr, l := SliceToTwoInt64s(buffer)
 
@@ -52,6 +58,30 @@ func newSinglePayload() *SinglePayload {
 		ErrPtr: [2]int64{int64(kerrNone.High()), int64(kerrNone.Low())},
 	}
 	return sp
+}
+func log(funcName string, spec string, rest ...interface{}) {
+	p1 := fmt.Sprintf("splitutil.%s ", funcName)
+	p2 := fmt.Sprintf(spec, rest...)
+	if !strings.HasSuffix(p2, "\n") {
+		p2 += "\n"
+	}
+	req := pblog.LogRequest{
+		Stamp:   timestamppb.Now(), //xxx should be using the kernel version
+		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
+		Message: p1 + p2,
+	}
+	if runtime.GOARCH == "wasm" {
+		if callImpl != nil {
+			_, err := callImpl.BackdoorLog(&req)
+			if err != nil {
+				print(fmt.Sprintf("!!!!!!!!!  backdoorLog failed:%s\n", err.Error()))
+			}
+		} else {
+			print("NO CALL IMPL:" + req.Message + "\n")
+		}
+	} else {
+		print("GO LOG:" + req.Message + "\n")
+	}
 }
 
 // This is the top level entry point for the WASM side.  It sends the proto given and fills in the resp
@@ -65,33 +95,43 @@ func newSinglePayload() *SinglePayload {
 // occurred running go code. If this function returns two nils, everything went through the happy path
 // and resp has been filled in with the object sent from the go side.  If the go side has nothing
 // to return, the resp object is left unchanged.
-func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, error) {
+func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32)) (lib.Id, error) {
+	if callImpl == nil {
+		callImpl = c
+	}
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -1\n", req, resp)
 	u, err := SendSingleProto(req)
 	if err != nil {
 		return nil, err
 	}
 	// u is a pointer to the SinglePayload, send payload through fn
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -2 ptr.outlen=%d\n", req, resp, (*SinglePayload)(unsafe.Pointer(u)).OutLen)
 	fn(int32(u))
 	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
+	log("SendReciveSingleProto", "xxx -- send receive single proto -- %T,%T -2A ptr.outlen=%d\n", req, resp, ptr.OutLen)
 	errRtn := lib.NewFrom64BitPair[*protosupport.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -3 %v\n", req, resp, errRtn.Equal(kerrNone))
 	if !errRtn.Equal(kerrNone) {
 		return errRtn, nil
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
+		log("SendReciveSingleProto", "xxx -- send receive single proto -- %T,%T -3a outlen is 0, returning\n", req, resp)
 		return nil, nil
 	}
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -4 building resp buffer %d\n", req, resp, ptr.OutLen)
 	var byteBuffer []byte
 	wasmSideSlice := (*reflect.SliceHeader)(unsafe.Pointer(&byteBuffer))
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
-
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -5 length=%d,outlen=%d\n ", req, resp, len(byteBuffer), ptr.OutLen)
 	err = DecodeSingleProto(byteBuffer, resp)
 	if err != nil {
 		return nil, err
 	}
+	log("SendReceiveSingleProto", "xxx -- send receive single proto -- %T,%T -6 everything ok about to return\n ", req, resp)
 	return nil, nil
 }
 
@@ -101,18 +141,20 @@ func SendReceiveSingleProto(req, resp proto.Message, fn func(int32)) (lib.Id, er
 // an error.
 func SendSingleProto(req proto.Message) (uintptr, error) {
 	size := proto.Size(req)
-
-	if size+netconst.TrailerSize+netconst.FrontMatterSize >= netconst.ReadBufferSize {
-		return 0, errors.New("request too large to fit in receive buffer:" + fmt.Sprint(size))
+	if size > 0 {
+		if size+netconst.TrailerSize+netconst.FrontMatterSize >= netconst.ReadBufferSize {
+			return 0, errors.New("request too large to fit in receive buffer:" + fmt.Sprint(size))
+		}
 	}
-	payload := newSinglePayload()
+	payload := NewSinglePayload()
 
 	u := uintptr(unsafe.Pointer(payload))
 
 	var err error
+	var buffer []byte
 	// when calling encodeSingleProto from the WASM side here, we are initializing the SinglePayload so
 	// we just copy the returned values into that structure.
-	buffer, err := encodeSingleProto(req, size)
+	buffer, err = encodeSingleProto(req, size)
 	if err != nil {
 		return 0, err
 	}
@@ -202,9 +244,23 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 //
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
 func DecodeSingleProto(buffer []byte, obj proto.Message) error {
+	// if len(buffer) != 0x1000 {
+	// 	log(("--DecodeSingleProto size of buffer is ok: %d\n", len(buffer)))
+	// 	debug.PrintStack()
+	// 	print("END OF STACK\n")
+	// }
 	if len(buffer) == 0x1000 {
-		panic("wrong size of buffer")
+		log("DecodeSingleProto", "--DecodeSingleProto size of buffer is BOGUS, %T: %d\n", obj, len(buffer))
+		// 	panic(fmt.Sprintf("wrong size of buffer (buf size is 0x1000, likely unchanged) %T", obj))
 	}
+	// if len(buffer) == 0 {
+	// 	log(("xxx decode single proto not decoding object %T, size of buffer is 0\n", obj))
+	// 	return nil
+	// }
+	// if proto.Size(obj) == 0 {
+	// 	log(("xxx decode single proto not decoding object %T, size of object is 0\n", obj))
+	// 	return nil
+	// }
 	m := binary.LittleEndian.Uint64(buffer[0:8])
 	if m != netconst.MagicStringOfBytes {
 		return DecodeError
@@ -214,7 +270,11 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 		return DecodeError
 	}
 	size := int(l)
-
+	if size == 0 {
+		log("DecodeSingleProto", "--DecodeSingleProto size of encoded object is ZERO!\n")
+		buffer = nil
+		return nil
+	}
 	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, obj); err != nil {
 		return DecodeError

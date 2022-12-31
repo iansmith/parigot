@@ -56,7 +56,7 @@ func (m *myFileServer) Open(pctx *protosupport.Pctx, inProto proto.Message) (pro
 
 	resp := pb.OpenResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	errId, err := splitutil.SendReceiveSingleProto(inProto, &resp, go_.FileSvcOpen)
+	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (m *myFileServer) log(pctx *protosupport.Pctx, spec string, rest ...interfa
 func (m *myFileServer) Load(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := pb.LoadResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	errId, err := splitutil.SendReceiveSingleProto(inProto, &resp, go_.FileSvcLoad)
+	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
 	if err != nil {
 		print("xxx in WASM fileserver.Load() 1, ", err.Error(), "\n")
 		m.log(nil, "xxx in WASM fileserver.Load() 1, %v", err)

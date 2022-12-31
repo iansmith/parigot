@@ -43,7 +43,7 @@ func (m *myLogServer) Ready() bool {
 func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error {
 	resp := pb.LogResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	errId, err := splitutil.SendReceiveSingleProto(inProto, &resp, go_.LogRequestHandler)
+	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.LogRequestHandler)
 	if err != nil {
 		return err
 	}

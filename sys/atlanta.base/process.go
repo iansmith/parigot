@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
@@ -121,6 +120,7 @@ func (p *Process) IsServer() bool {
 }
 
 func (p *Process) Exit() {
+	print(fmt.Sprintf("process %s exiting\n", p))
 	p.exited = true
 }
 
@@ -188,18 +188,32 @@ func (p *Process) Start() {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		return
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			print("STACKTRACE\n")
-			debug.PrintStack()
-			print("END OF STACKTRACE\n")
-		}
-		return
-	}()
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		p := "not error"
+	// 		e, ok := r.(error)
+	// 		if ok {
+	// 			p = e.Error()
+	// 		} else {
+	// 			s, ok := r.(string)
+	// 			if ok {
+	// 				p = s
+	// 			} else {
+	// 				p = fmt.Sprintf("%T", r)
+
+	// 			}
+	// 		}
+	// 		print("RECOVER:STACKTRACE:", p, "\n")
+	// 		debug.PrintStack()
+	// 		print("RECOVER:END OF STACKTRACE:", p, "\n")
+	// 	}
+	// 	return
+	// }()
 	f := start.Func()
 	procPrint("START ", "calling the entry point (%+v,%T), for proc %s (parent %v)",
 		f, f, p, p.parent)
 	result, err := f.Call(p.parent, 0, 0)
+	print(fmt.Sprintf("process %s has returned from f.Call(): %v, %v", p, result, err))
 	p.exited = true
 	if err != nil {
 		procPrint("START ", "process %s trapped: %v", p, err)

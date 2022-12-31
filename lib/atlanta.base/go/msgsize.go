@@ -5,5 +5,5 @@ package lib
 // of remote functions should allocate this amount of space when they
 // are getting a result back.
 func GetMaxMessageSize() int32 {
-	return 0x400 // 4k
+	return 0x1000 // 4k
 }

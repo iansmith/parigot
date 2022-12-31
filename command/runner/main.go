@@ -143,6 +143,7 @@ func main() {
 	for {
 		allDead := true
 		for _, p := range proc {
+			print(fmt.Sprintf("proc %s: waiter? %v exited? %v server? %v\n", p, p.IsWaiter(), p.Exited(), p.IsServer()))
 			if (p.IsWaiter() && !p.Exited()) || p.IsServer() {
 				allDead = false
 				break

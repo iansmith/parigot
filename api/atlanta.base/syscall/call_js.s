@@ -37,3 +37,7 @@ TEXT parigot·run_(SB), NOSPLIT, $0
   CallImport
   RET
 
+TEXT parigot·backdoor_log_(SB), NOSPLIT, $0
+  CallImport
+  RET
+

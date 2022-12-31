@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"runtime/debug"
 	"unsafe"
 )
 
@@ -215,6 +216,9 @@ func goToJS(x any) jsObject {
 		}
 		return object.put(val)
 	default:
+		print("--------------DUMP FROM JS LAND--------------\n")
+		debug.PrintStack()
+		print("--------------END FROM JS LAND--------------\n")
 		v := reflect.ValueOf(x)
 		switch v.Kind() {
 		case reflect.Slice:
