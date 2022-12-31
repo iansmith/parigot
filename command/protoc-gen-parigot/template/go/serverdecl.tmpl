@@ -16,11 +16,12 @@ import (
 
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	"github.com/iansmith/parigot/api/proto/g/pb/call"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/syscall"
 	"github.com/iansmith/parigot/lib"
 	
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
+	
 )
 
 
@@ -74,55 +75,24 @@ func Run(impl {{$svcCamel}}Server) {
 	if err != nil {
 		panic("failed to register method successfully: " + method + ":" + err.Error())
 	}
-	// allocate buffers for values coming back to us
-	paramBuf := make([]byte, lib.GetMaxMessageSize())
-	pctxBuf := make([]byte, lib.GetMaxMessageSize())
-
 	// loop on handling calls
 	for {
 		//
 		// wait for notification
 		//
-		resp, err := {{$svcCamelFL}}BlockUntilCall(pctxBuf, paramBuf)
+		resp, err := {{$svcCamelFL}}BlockUntilCall()
 		if err != nil {
 			// error is likely local to this process
 			{{$svcCamelFL}}Print("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
 			continue
 		}
-		{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:%d,%d",
-			resp.PctxLen, resp.ParamLen)
+		{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
+			proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
 		//
 		// incoming values, pctx and params
 		//
-		var pctxSlice []byte
-		if resp.PctxLen == 0 {
-			pctxSlice = []byte{}
-		} else {
-			pctxSlice = pctxBuf[:resp.PctxLen]
-		}
-		paramSlice := paramBuf[:resp.ParamLen]
 		mid := lib.Unmarshal(resp.GetMethod())
 		cid := lib.Unmarshal(resp.GetCall())
-
-		//
-		// create the generic params, pctx and param
-		//
-		var pctx *protosupport.Pctx
-		err = nil
-		if resp.PctxLen != 0 {
-			pctx, err = lib.NewFromUnmarshal(pctxSlice)
-		}
-		if err != nil {
-			{{$svcCamelFL}}Print("RUN: primary for loop ", "Unable to create Pctx for call: %v", err)
-			continue
-		}
-		// a is an any that represents the params
-		a := &anypb.Any{}
-		err = proto.Unmarshal(paramSlice, a)
-		if err != nil {
-			{{$svcCamelFL}}Print("RUN: primary for loop ", "Unable to create parameters for call: %v", err)
-			continue
-		}
 
 		//
 		// pick the method
@@ -136,7 +106,7 @@ func Run(impl {{$svcCamel}}Server) {
 		case mid.Equal({{$methCamelFL}}Method):
 {{- if .InputCodeNeeded}}
 			req := &pb.{{$methCamel}}Request{}
-			marshalError = a.UnmarshalTo(req)
+			marshalError = resp.GetParam().UnmarshalTo(req)
 			if marshalError != nil {
 				break
 			}
@@ -146,15 +116,15 @@ func Run(impl {{$svcCamel}}Server) {
 {{- if .OutputCodeNeeded}}
 
 {{- if .InputCodeNeeded}}
-			out, execError = impl.{{$methCamel}}(pctx, req)
+			out, execError = impl.{{$methCamel}}(resp.GetPctx(),req)
 {{- else }}
-			out, execError = impl.{{$methCamel}}(pctx)
+			out, execError = impl.{{$methCamel}}(resp.GetPctx())
 {{- end }} {{/* end of input code needed for the call of the implementation */}}
 
 {{- else}}
 {{/* no need for checking input code needed here, because if that were false, 
 you would have a method with no input or output, which is checked elsewhere */}}
-            execError = impl.{{$methCamel}}(pctx, req)
+            execError = impl.{{$methCamel}}(resp.GetPctx(), req)
 {{- end}}
 			if execError != nil {
 				break
@@ -164,7 +134,7 @@ you would have a method with no input or output, which is checked elsewhere */}}
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
 		//
-		lib.ReturnValueEncode({{$svcCamelFL}}Call, cid, mid, marshalError, execError, out, pctx)
+		lib.ReturnValueEncode({{$svcCamelFL}}Call, cid, mid, marshalError, execError, out, resp.GetPctx())
 		// about to loop again
 	}
 	// wont reach here
@@ -192,12 +162,9 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	return "",nil
 }
 
-func {{$svcCamelFL}}BlockUntilCall(pctx, param []byte) (*call.BlockUntilCallResponse, error) {
+func {{$svcCamelFL}}BlockUntilCall() (*pbsys.BlockUntilCallResponse, error) {
 
-	req := &call.BlockUntilCallRequest{
-		PctxBuffer:  pctx,
-		ParamBuffer: param,
-	}
+	req := &pbsys.BlockUntilCallRequest{}
 	resp, err := {{$svcCamelFL}}Call.BlockUntilCall(req)
 	if err != nil {
 		return nil, err

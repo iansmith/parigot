@@ -2,6 +2,7 @@ package lib
 
 import (
 	pbcall "github.com/iansmith/parigot/api/proto/g/pb/call"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 
@@ -24,8 +25,13 @@ type Call interface {
 	Run(in *pbcall.RunRequest) (*pbcall.RunResponse, error)
 	Export(in *pbcall.ExportRequest) (*pbcall.ExportResponse, error)
 	Require(in *pbcall.RequireRequest) (*pbcall.RequireResponse, error)
-	BlockUntilCall(in *pbcall.BlockUntilCallRequest) (*pbcall.BlockUntilCallResponse, error)
+	BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error)
 	ReturnValue(in *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error)
 	Export1(pkg, name string) (*pbcall.ExportResponse, error)
 	Require1(pkg, name string) (*pbcall.RequireResponse, error)
+
+	// Use of this function is discouraged. This function uses a backdoor to reach the logging service
+	// and does not go through the normal LocateLog() process that can allow better/different implementation
+	// of said service.  This is intended only for debugging when inside parigot's implementation.
+	BackdoorLog(in *pblog.LogRequest) (*pblog.LogResponse, error)
 }

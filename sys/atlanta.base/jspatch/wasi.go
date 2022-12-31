@@ -20,7 +20,7 @@ func (w *WasiPatch) SetMemPtr(m uintptr) {
 
 func (w *WasiPatch) WasiWrite(sp int32) {
 	content := w.mem.LoadString(sp + 16)
-	print(string(content), "\n")
+	print(string(content))
 }
 func (w *WasiPatch) WasiExit(sp int32) {
 	// xxxxfix me, this should be implemented such that our WASM-level process returns

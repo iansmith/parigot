@@ -25,7 +25,7 @@ $(GENERATED)/log/log.pb.go: proto/log/log.proto proto/pb/log/log.proto proto/fil
 	$(BUF_CMD) generate
 
 clean:
-	rm -rf $(GENERATED)/log
+	rm -rf $(GENERATED)/*
 	rm -rf build/*
 
 build/logserver.p.wasm: logimpl/*.go logimpl/go_/* $(PARIGOT_SOURCE)/build/protoc-gen-parigot $(GENERATED)/log/log.pb.go

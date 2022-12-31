@@ -1,6 +1,7 @@
 package jspatch
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 )
@@ -10,6 +11,7 @@ type RuntimePatch struct {
 }
 
 func NewRuntimePatchWithMemPtr(memptr uintptr) *RuntimePatch {
+	print("new runtime patch", memptr, "\n")
 	return &RuntimePatch{mem: NewWasmMem(memptr)}
 }
 func NewRuntimePatch() *RuntimePatch {
@@ -21,6 +23,7 @@ func (r *RuntimePatch) Nanotime1(sp int32) {
 }
 
 func (j *RuntimePatch) SetMemPtr(m uintptr) {
+	print(fmt.Sprintf("set mem ptr: %x\n", m))
 	j.mem = NewWasmMem(m)
 }
 
@@ -48,5 +51,8 @@ func (r *RuntimePatch) GoDebug(sp int32) {
 }
 
 func (r *RuntimePatch) ResetMemoryDataView(sp int32) {
-	panic("got a resetMemoryDataView call, aborting")
+	i0 := r.mem.GetInt64(sp + 8)
+	i1 := r.mem.GetInt64(sp + 16)
+	i2 := r.mem.GetInt64(sp + 24)
+	print(fmt.Sprintf("reset memory data view: %x, %x, %x\n", i0, i1, i2))
 }

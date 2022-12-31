@@ -45,3 +45,14 @@ message ReturnValueRequest{
 
 message ReturnValueResponse {
 }
+
+message BlockUntilCallRequest{
+    int32 dummy = 1;
+}
+
+message BlockUntilCallResponse{
+  google.protobuf.Any param = 1;
+  protosupport.Pctx pctx = 2;
+  protosupport.MethodId method = 3;
+  protosupport.CallId call = 4;
+}

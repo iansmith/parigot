@@ -52,6 +52,9 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 	result["go.parigot.require_"] = wrapWithRecover(store, rt.syscall.Require)
 	result["go.parigot.export_"] = wrapWithRecover(store, rt.syscall.Export)
 	result["go.parigot.run_"] = wrapWithRecover(store, rt.syscall.Run)
+
+	//backdoor to the logger
+	result["go.parigot.backdoor_log_"] = wrapWithRecover(store, rt.syscall.BackdoorLog)
 }
 
 func addSplitModeFunctions(store wasmtime.Storelike,

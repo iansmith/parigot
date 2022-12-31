@@ -44,3 +44,7 @@ func require(int32)
 //go:noinline
 //go:linkname run parigot.run_
 func run(int32)
+
+//go:noinline
+//go:linkname backdoorLog parigot.backdoor_log_
+func backdoorLog(int32)
