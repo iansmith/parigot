@@ -41,7 +41,9 @@ func (m *myFileServer) Ready() bool {
 		return false
 	}
 	var err error
+	print("file server calling locateLog()\n")
 	m.logger, err = log.LocateLog()
+	print("file server calling locateLog ok ?", err == nil, "\n")
 	if err != nil {
 		panic("unable to locate the log:" + err.Error())
 	}

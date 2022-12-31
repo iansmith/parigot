@@ -17,7 +17,6 @@ import (
 	"github.com/iansmith/parigot/lib"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -47,23 +46,24 @@ var libparigotVerbose = true || envVerbose != ""
 //
 //go:noinline
 func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, error) {
+
 	resp := pbsys.LocateResponse{}
-	l.log("Locate", "client side Locate called %s.%s", req.GetPackageName(), req.GetServiceName())
-	id, err := splitutil.SendReceiveSingleProto(l, req, &resp, locate)
-	if err != nil {
-		return nil, err
-	}
-	if checkIdForError(id) {
-		return nil, idErrorToPerror(id, "failed to locate properly")
-	}
-	return &resp, nil
+	return splitImplementation[*pbsys.LocateRequest, *pbsys.LocateResponse](l, req, &resp, locate)
+	// l.log("Locate", "client side Locate called %s.%s", req.GetPackageName(), req.GetServiceName())
+	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, locate)
+
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// if checkIdForError(id) {
+	// 	return nil, idErrorToPerror(id, "failed to locate properly")
+	// }
+
+	// return &resp, nil
 }
 
-func stringToTwoInt64s(s string) (int64, int64) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	return int64(sh.Data), int64(sh.Len)
-}
-
+// sliceToTwoInt64s is a utility used to populate a payload.
 func sliceToTwoInt64s(b []byte) (int64, int64) {
 	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	return int64(slh.Data), int64(slh.Len)
@@ -78,15 +78,16 @@ func sliceToTwoInt64s(b []byte) (int64, int64) {
 // This is code that runs on the WASM side.
 func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error) {
 	resp := pbsys.DispatchResponse{}
+	return splitImplementation[*pbsys.DispatchRequest, *pbsys.DispatchResponse](l, req, &resp, dispatch)
 
-	id, err := splitutil.SendReceiveSingleProto(l, req, &resp, dispatch)
-	if err != nil {
-		return nil, err
-	}
-	if checkIdForError(id) {
-		return nil, idErrorToPerror(id, "failed to dispatch properly")
-	}
-	return &resp, nil
+	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, dispatch)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if checkIdForError(id) {
+	// 	return nil, idErrorToPerror(id, "failed to dispatch properly")
+	// }
+	// return &resp, nil
 }
 
 // checkIdForError returns true in the when it found an error value in the provided id, false otherwise.
@@ -194,7 +195,6 @@ func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodD
 
 func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 	out := new(call.RunResponse)
-
 	detail := new(lib.RunPayload)
 	detail.Wait = 0
 	if in.Wait {
@@ -211,7 +211,7 @@ func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
 
 	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
 	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
-	if kerr.IsError() {
+	if kerr != nil && kerr.IsError() {
 		out.ErrorId = lib.Marshal[protosupport.KernelErrorId](kerr)
 		return out, lib.NewPerrorFromId("kernel failed to start your process", kerr)
 	}
@@ -334,6 +334,8 @@ func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.M
 // Use of this function is discouraged.  This is intended only for debugging the parigot implementation
 // itself. User code should use the normal LocateLog() and the Log service.
 func (l *callImpl) BackdoorLog(in *pblog.LogRequest) (*pblog.LogResponse, error) {
+	// this implementation is unique to this call because it will cause an infinite recursion
+	// if we end using any function that call this logging facility.
 	out := &pblog.LogResponse{}
 	sp := splitutil.NewSinglePayload()
 	buff, err := proto.Marshal(in)
@@ -361,7 +363,6 @@ func (l *callImpl) BackdoorLog(in *pblog.LogRequest) (*pblog.LogResponse, error)
 func (l *callImpl) BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error) {
 	// this is JUST for reserving the space for the result to be placed into
 	out := &pbsys.BlockUntilCallResponse{}
-	l.log("BlockUntilCall", "xxx BlockUntilCall -- 1 in callImpl: about to hit splitutil.SendReceiveSingleProto")
 	id, err := splitutil.SendReceiveSingleProto(l, in, out, blockUntilCall)
 	if err != nil {
 		return nil, err
@@ -369,11 +370,6 @@ func (l *callImpl) BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.Block
 	if checkIdForError(id) {
 		return nil, idErrorToPerror(id, "BlockUntilCall failed")
 	}
-	p := "nil"
-	if out.Param != nil {
-		p = fmt.Sprintf("%s[%d]", out.Param.TypeUrl, proto.Size(out.Param))
-	}
-	l.log("BlockUntilCall", "xxx BlockUntilCall -- 2 out param => %s", p)
 	return out, nil
 }
 
@@ -394,9 +390,7 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 	}
 }
 
-func splitImplementation[T proto.Message, U protoreflect.ProtoMessage](l *callImpl, req T, fn func(int32)) (U, error) {
-
-	var resp U
+func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
 	id, err := splitutil.SendReceiveSingleProto(l, req, resp, fn)
 	if err != nil {
@@ -410,17 +404,18 @@ func splitImplementation[T proto.Message, U protoreflect.ProtoMessage](l *callIm
 }
 
 func (l *callImpl) ReturnValue(req *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error) {
-	l.log("ReturnValue", "client side ReturnValue called %s:%d ",
-		req.GetResult().TypeUrl, proto.Size(req.GetResult()))
 	resp := pbsys.ReturnValueResponse{}
-	id, err := splitutil.SendReceiveSingleProto(l, req, &resp, returnValue)
-	if err != nil {
-		return nil, err
-	}
-	if checkIdForError(id) {
-		return nil, idErrorToPerror(id, "returnValue failed")
-	}
-	return &resp, nil
+	return splitImplementation[*pbsys.ReturnValueRequest, *pbsys.ReturnValueResponse](l, req, &resp, returnValue)
+	// l.log("ReturnValue", "client side ReturnValue called %T:%d ",
+	// 	req.GetResult(), proto.Size(req.GetResult()))
+	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, returnValue)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if checkIdForError(id) {
+	// 	return nil, idErrorToPerror(id, "returnValue failed")
+	// }
+	// return &resp, nil
 }
 
 // Export1 is a wrapper around Export which makes it easy to say you export a single
@@ -442,11 +437,6 @@ func (l *callImpl) Require1(packagePath, service string) (*call.RequireResponse,
 	req.Service = []*call.FullyQualifiedService{fqSvc}
 	return l.Require(req)
 }
-
-// func (l *callImpl) Log(req *pblog.LogRequest) (*pblog.LogResponse, error) {
-// 	Back
-// 	//return splitImplementation[*pblog.LogRequest, *pblog.LogResponse](l, req, backdoorLog)
-// }
 
 func NewCallImpl() lib.Call {
 	return &callImpl{}

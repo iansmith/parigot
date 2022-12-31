@@ -11,7 +11,6 @@ import (
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -97,8 +96,6 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		sender: caller,
 		target: sData.key,
 	}
-	nameserverPrint("FINDMETHODBYNAME ", "adding in flight rpc call %s and %s",
-		cc.cid.Short(), cc.sender.String())
 	n.NSCore.addCallContextMapping(cc.cid, cc)
 	return cc
 }
@@ -206,23 +203,9 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 }
 
 func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.ReturnValueRequest {
-	p := "nil"
-	if ctx.param != nil {
-		p = ctx.param.TypeUrl
-	}
-	nameserverPrint("CallService ", "#1 reached the point of hitting the channel, key is %s, param is %s", key.String(), p)
 	proc := key.(*DepKeyImpl).proc
-	nameserverPrint("CallService ", "#2 about to send on call channel %x, param size is %d, param is %s", proc.callCh,
-		proto.Size(ctx.param), p)
 	proc.callCh <- ctx
-	nameserverPrint("CallService ", "#3 about to block on the response channel, param is %s", p)
 	result := <-ctx.respCh
-	if result.Result == nil {
-		nameserverPrint("CallService", "#4 got a result with no Result value %T, param is %s", result, p)
-	} else {
-		nameserverPrint("CallService ", "#5 result from response channel: %#v, result is not nil, param is %s", result,
-			p)
-	}
 	return result
 }
 
@@ -230,20 +213,7 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.R
 // called.  Because this all implemented locally in this case, it's just
 // matter of getting or putting the right things from each channel.
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
-	nameserverPrint("BlockUntilCall ", "key is %s, about to read from callCh %x\n", key.String(), key.(*DepKeyImpl).proc.callCh)
 	v := <-key.(*DepKeyImpl).proc.callCh
-	if v != nil {
-		if v.sender == nil {
-			nameserverPrint("NS BlockUntilCall", "nameserver found sender is nil")
-		}
-		if v.param == nil {
-			nameserverPrint("NS BlockUntilCall", "nameserver found param is nil")
-		} else {
-			nameserverPrint("NS BlockUntilCall", "xxx ---> NS  block until call context %s\n", v.param.TypeUrl)
-
-		}
-	}
-	nameserverPrint("BlockUntilCall", "about to return: %s,%s,%d", v.method, v.param.TypeUrl, proto.Size(v.param))
 	return v
 }
 

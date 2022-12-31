@@ -22,9 +22,9 @@ var callImpl = syscall.NewCallImpl()
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
-		panic("unable to require my service: " + err.Error())
-	}
+	// if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
+	// 	panic("unable to require my service: " + err.Error())
+	// }
 	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
@@ -36,6 +36,7 @@ func main() {
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate log:%v", err)
 	}
+	Log(pblog.LogLevel_LOG_LEVEL_DEBUG, "houston, we have a solution\n")
 	vinnysStore, err := vvv.LocateStore(logger)
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate store:%v", err)

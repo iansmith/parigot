@@ -1,13 +1,10 @@
 package sys
 
 import (
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	"github.com/iansmith/parigot/api/proto/g/pb/log"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type localSysCall struct {
@@ -16,7 +13,6 @@ type localSysCall struct {
 
 // sharedBind takes an NSCore, not a nameserver.
 func sharedBind(core *NSCore, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint(log.LogLevel_LOG_LEVEL_DEBUG, "SHAREDBIND", "about to hit NSCore")
 	key := NewDepKeyFromProcess(p)
 	mid := core.FindOrCreateMethodId(key, packagePath, service, method)
 	return mid, nil
@@ -91,17 +87,7 @@ func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {
 	return l.nameServer.GetInfoForCallId(cid)
 }
 func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callContext {
-	ilog.ProcessLogRequest(&pblog.LogRequest{
-		Level:   log.LogLevel_LOG_LEVEL_DEBUG,
-		Stamp:   timestamppb.Now(), // xxx should be using the kernel for this
-		Message: "--block until call in local syscall, our key:" + key.String(),
-	}, false, true, nil)
 	info := l.nameServer.BlockUntilCall(key)
-	ilog.ProcessLogRequest(&pblog.LogRequest{
-		Level:   log.LogLevel_LOG_LEVEL_DEBUG,
-		Stamp:   timestamppb.Now(), // xxx should be using the kernel for this
-		Message: "--block until call in local syscall returned:" + key.String(),
-	}, false, true, nil)
 	// this loop is because we get the "error" case as a nil
 	for info == nil {
 		info = l.nameServer.BlockUntilCall(key)
