@@ -114,6 +114,12 @@ const (
 	// KernelExecError means that we received a response from the implenter of a particular
 	// service's function and the execution of that function failed.
 	KernelExecError KernelErrorCode = 17
+	// KernelBadId means received something from your code that was supposed to be an error and
+	// it did not have the proper mark on it (IsErrorType()).
+	KernelBadId KernelErrorCode = 18
+	// KernelDependencyFailure means that the dependency infrastructure has failed.  This is different
+	// than when a user creates bad set of depedencies (KernelDependencyCycle).
+	KernelDependencyFailure KernelErrorCode = 19
 )
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.

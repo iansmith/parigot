@@ -7,10 +7,10 @@ import (
 	"github.com/iansmith/parigot/api/fileimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/file"
 	"github.com/iansmith/parigot/api/proto/g/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/splitutil"
 	"github.com/iansmith/parigot/api/syscall"
 
@@ -36,14 +36,12 @@ type myFileServer struct {
 }
 
 func (m *myFileServer) Ready() bool {
-	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
 	var err error
-	print("file server calling locateLog()\n")
 	m.logger, err = log.LocateLog()
-	print("file server calling locateLog ok ?", err == nil, "\n")
 	if err != nil {
 		panic("unable to locate the log:" + err.Error())
 	}

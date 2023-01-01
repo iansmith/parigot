@@ -28,5 +28,4 @@ type SysCall interface {
 	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.KernelErrorCode)
 	CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest
 	BlockUntilCall(key dep.DepKey) *callContext
-	//BackdoorLog(*pblog.LogRequest) *pblog.LogResponse
 }

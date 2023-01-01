@@ -211,7 +211,7 @@ func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.
 // of the given pkgPath.Service.  The service must exist or a KernelNotFound error
 // wil result.
 func (n *NSCore) Export(key dep.DepKey, pkgPath, service string, newSid lib.Id) lib.Id {
-	nscorePrint("EXPORT", "process %s exports %s.%s",
+	nscorePrint("EXPORT ", "process %s exports %s.%s",
 		key.String(), pkgPath, service)
 	sData, err := n.validatePkgAndService(pkgPath, service)
 	if err != nil {
@@ -224,7 +224,7 @@ func (n *NSCore) Export(key dep.DepKey, pkgPath, service string, newSid lib.Id) 
 		return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
 	}
 	if newSid != nil {
-		nscorePrint("EXPORT", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
+		nscorePrint("EXPORT ", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
 		oldSid := sData.serviceId
 		sData.serviceId = newSid
 		delete(n.serviceIdToServiceData, oldSid.String())
@@ -244,7 +244,7 @@ func (n *NSCore) Export(key dep.DepKey, pkgPath, service string, newSid lib.Id) 
 
 func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	alreadyExported := false
-	nscorePrint("REQUIRE", "process %s requires %s.%s",
+	nscorePrint("REQUIRE ", "process %s requires %s.%s",
 		key.String(), pkgPath, service)
 
 	name := fmt.Sprintf("%s.%s", pkgPath, service)
@@ -252,7 +252,7 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	// this check always fails in the remote case, but n.alreadyExported==nil so it doesn't really hurt
 	for _, s := range n.alreadyExported {
 		if s == name {
-			nameserverPrint("REQUIRE", "process %s required %s.%s but it is already exported",
+			nameserverPrint("REQUIRE ", "process %s required %s.%s but it is already exported",
 				key.String(), pkgPath, service)
 			alreadyExported = true
 		}

@@ -9,8 +9,8 @@ import (
 	"demo/vvv/proto/g/vvv/pb"
 
 	"github.com/iansmith/parigot/api/proto/g/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/syscall"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -22,13 +22,13 @@ var callImpl = syscall.NewCallImpl()
 func main() {
 	//flag.Parse() <--- can't do this until we get startup args figured out
 
-	// if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
-	// 	panic("unable to require my service: " + err.Error())
-	// }
+	if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
+		panic("unable to require my service: " + err.Error())
+	}
 	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
 	var err error
@@ -36,7 +36,6 @@ func main() {
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate log:%v", err)
 	}
-	Log(pblog.LogLevel_LOG_LEVEL_DEBUG, "houston, we have a solution\n")
 	vinnysStore, err := vvv.LocateStore(logger)
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate store:%v", err)
@@ -67,6 +66,7 @@ func main() {
 			Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
 	}
+	callImpl.Exit(&pbsys.ExitRequest{Code: 17})
 }
 
 func Log(level pblog.LogLevel, spec string, arg ...interface{}) {

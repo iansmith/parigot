@@ -15,7 +15,6 @@ import (
 {{- end}} {{/* imports */}}
 
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/syscall"
 	"github.com/iansmith/parigot/lib"
@@ -146,7 +145,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-	resp, {{$methCamelFL}}err := {{$svcCamelFL}}Call.BindMethod{{$dir}}(&call.BindMethodRequest{
+	resp, {{$methCamelFL}}err := {{$svcCamelFL}}Call.BindMethod{{$dir}}(&pbsys.BindMethodRequest{
 		ProtoPackage: "{{.ProtoPackage}}",
 		Service:      "{{$svcCamel}}",
 		Method:       "{{$methCamel}}",
