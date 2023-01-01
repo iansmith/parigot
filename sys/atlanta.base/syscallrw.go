@@ -2,7 +2,6 @@ package sys
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -36,6 +35,18 @@ type syscallReadWrite struct {
 	remoteSysCall *remoteSyscall
 }
 
+func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U, fn func(t T, u U) lib.KernelErrorCode) {
+	err := splitutil.StackPointerToRequest(mem, sp, req)
+	if err != nil {
+		return // the error return code is already set
+	}
+	if id := fn(req, resp); id != lib.KernelNoError {
+		splitutil.ErrorResponse(mem, sp, id)
+		return
+	}
+	splitutil.RespondSingleProto(mem, sp, resp)
+}
+
 // SetMemPtr has to be separated out because at the time this object is created, we don't yet
 // know the memory address that is the memPtr.
 func (s *syscallReadWrite) SetMemPtr(m uintptr) {
@@ -53,14 +64,19 @@ func NewSysCallRW() *syscallReadWrite {
 	return &syscallReadWrite{}
 }
 
-// Exit does an os.Exit(0) which is bad.  There really should be some more signaling because sometimes one service going down
-// needs to alert other services or monitoring software.  Further, exiting the whloe program is probably not what
-// you want in the "all in one address space version" since it brings _all_ the services down.
-func (a *syscallReadWrite) Exit(sp int32) {
-	log.Printf("exit called")
-	a.proc.exited = true
-	// xxx fixme how can we cause a return here instead of using exit()?
-	os.Exit(int(0))
+// Exit causes the WASM program to exit.  This is done by marking the process as dead and then
+// doing panic to force the stack to unroll.... but that has to be done on the client (WASM)
+// side, not here.
+func (s *syscallReadWrite) Exit(sp int32) {
+	req := &pbsys.ExitRequest{}
+	resp := &pbsys.ExitResponse{}
+	s.proc.exited = true
+	splitImplRetOne(s.mem, sp, req, resp,
+		func(req *pbsys.ExitRequest, resp *pbsys.ExitResponse) lib.KernelErrorCode {
+			resp.Code = req.GetCode()
+			return lib.KernelNoError
+		})
+
 }
 
 // Locate is the syste call thet finds the service requested (or returns an error if it cannot be found )
@@ -73,20 +89,14 @@ func (s *syscallReadWrite) Locate(sp int32) {
 	if err != nil {
 		return // the error return code is already set
 	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "LOCATE ", "locate requested for %s.%s",
-		req.GetPackageName(), req.GetServiceName())
-
 	sid, kcode := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
 		req.GetPackageName(), req.GetServiceName())
 
 	if kcode != lib.KernelNoError {
-		print(fmt.Sprintf("xxx Locate got kcode back from locate:%x... headed to error response\n", kcode))
 		splitutil.ErrorResponse(s.mem, sp, kcode)
 		return
 	}
 	resp.ServiceId = lib.Marshal[protosupport.ServiceId](sid)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "Locate", "respond single proto about to be called with %#v,size %d",
-		&resp, proto.Size(&resp))
 	splitutil.RespondSingleProto(s.mem, sp, &resp)
 }
 
@@ -141,87 +151,68 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	}
 }
 
-func (s *syscallReadWrite) sendKernelErrorFromBind(wasmPtr int64, code lib.KernelErrorCode) {
-	dispErr := lib.NewKernelError(code)
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
-		dispErr)
-	return
-}
-
 // BindMethod is used to indicate the function that will handle a given method.  We don't
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *syscallReadWrite) BindMethod(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD ", "wasmptr %x, true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-
-	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindPayload{}.PkgPtr),
-		unsafe.Offsetof(lib.BindPayload{}.PkgLen))
-
-	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindPayload{}.ServicePtr),
-		unsafe.Offsetof(lib.BindPayload{}.ServiceLen))
-
-	method := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.BindPayload{}.MethodPtr),
-		unsafe.Offsetof(lib.BindPayload{}.MethodLen))
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD", "about to bind %s in service %s", method, service)
-	mid, kerr := s.procToSysCall().Bind(s.proc, pkg, service, method)
-	if kerr != nil {
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
-			kerr)
-		return
-	}
-
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.MethodId), mid)
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.BindPayload{}.ErrorPtr),
-		lib.NoError[*protosupport.KernelErrorId]())
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_DEBUG, "BINDMETHOD", "bind completed, %s bound to %s", method, mid.Short())
+	req := pbsys.BindMethodRequest{}
+	resp := pbsys.BindMethodResponse{}
+	splitImplRetOne(s.mem, sp, &req, &resp,
+		func(req *pbsys.BindMethodRequest, resp *pbsys.BindMethodResponse) lib.KernelErrorCode {
+			mid, kerr := s.procToSysCall().Bind(s.proc, req.GetProtoPackage(), req.GetService(), req.GetMethod())
+			if kerr != nil {
+				return lib.KernelErrorCode(kerr.Low())
+			}
+			resp.MethodId = lib.Marshal[protosupport.MethodId](mid)
+			return lib.KernelNoError
+		})
 }
 
 // BlockUntilCall is used by servers to block themselves until some other process sends them a message.
 func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	resp := pbsys.BlockUntilCallResponse{}
 	req := pbsys.BlockUntilCallRequest{}
-	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	splitImplRetOne(s.mem, sp, &req, &resp,
+		func(req *pbsys.BlockUntilCallRequest, resp *pbsys.BlockUntilCallResponse) lib.KernelErrorCode {
+			call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
+			resp.Param = call.param
+			resp.Pctx = call.pctx
+			resp.Call = lib.Marshal[protosupport.CallId](call.cid)
+			resp.Method = lib.Marshal[protosupport.MethodId](call.mid)
+			return lib.KernelNoError
+		})
+}
+
+func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, fn func(t T) lib.KernelErrorCode) {
+	err := splitutil.StackPointerToRequest(mem, sp, req)
 	if err != nil {
 		return // the error return code is already set
 	}
-
-	// tricky, we have to pass a process here
-	call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
-	resp.Param = call.param
-	resp.Pctx = call.pctx
-	resp.Call = lib.Marshal[protosupport.CallId](call.cid)
-	resp.Method = lib.Marshal[protosupport.MethodId](call.mid)
-	splitutil.RespondSingleProto(s.mem, sp, &resp)
-	return // the server goes back to work
+	if id := fn(req); id != lib.KernelNoError {
+		splitutil.ErrorResponse(mem, sp, id)
+		return
+	}
+	splitutil.RespondEmpty(mem, sp)
 }
 
 // Return value is used by server implementations to set the return value for a particular function
 // call on a method they implement.
 func (s *syscallReadWrite) ReturnValue(sp int32) {
 	req := pbsys.ReturnValueRequest{}
-	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
-	cid := lib.Unmarshal(req.Call)
-	if err != nil {
-		return // the error return code is already set
-	}
-	ctx := s.procToSysCall().GetInfoForCallId(cid)
-	if ctx == nil {
-		splitutil.ErrorResponse(s.mem, sp, lib.KernelCallerUnavailable)
-		return
-	}
-	callerProc := ctx.sender.(*DepKeyImpl).proc
-
-	if callerProc == nil {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
-	}
-	ctx.respCh <- &req
-	splitutil.RespondEmpty(s.mem, sp)
-	return
+	splitImplRetEmpty(s.mem, sp, &req, func(t *pbsys.ReturnValueRequest) lib.KernelErrorCode {
+		cid := lib.Unmarshal(req.GetCall())
+		ctx := s.procToSysCall().GetInfoForCallId(cid)
+		if ctx == nil {
+			sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
+			return lib.KernelCallerUnavailable
+		}
+		callerProc := ctx.sender.(*DepKeyImpl).proc
+		if callerProc == nil {
+			sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
+			return lib.KernelCallerUnavailable
+		}
+		ctx.respCh <- &req
+		return lib.KernelNoError
+	})
 }
 
 func (s *syscallReadWrite) procToSysCall() SysCall {
@@ -243,95 +234,59 @@ func (s *syscallReadWrite) procToSysCall() SysCall {
 // he implements and that he has finished binding all the methods
 // of that service.q
 func (s *syscallReadWrite) Export(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-
-	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.ExportPayload{}.PkgPtr),
-		unsafe.Offsetof(lib.ExportPayload{}.PkgLen))
-
-	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.ExportPayload{}.ServicePtr),
-		unsafe.Offsetof(lib.ExportPayload{}.ServiceLen))
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "about to tell the nameserver closeservice and  export %s.%s [syscall->%T]", pkg, service,
-		s.procToSysCall())
-	kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), pkg, service)
-	if kerr != nil && kerr.IsError() {
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
-			kerr)
-		return
-	}
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.ExportPayload{}.KernelErrorPtr),
-		lib.NoError[*protosupport.KernelErrorId]())
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "EXPORT", "done")
-
+	req := &pbsys.ExportRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.ExportRequest) lib.KernelErrorCode {
+		service := req.GetService()
+		for _, svc := range service {
+			// xxx  fixme what should we do in the face of some succeeding some not?
+			kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), svc.GetPackagePath(), svc.GetService())
+			if kerr != nil {
+				return lib.KernelErrorCode(kerr.Low())
+			}
+		}
+		return lib.KernelNoError
+	})
 }
 
 // Require is used when client or server wishes to indicate that it consumes
 // a service.  This becomes part of the dependency graph.
 func (s *syscallReadWrite) Require(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-
-	// we just have to create the structure and send it through the correct channel
-	pkg := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.RequirePayload{}.PkgPtr),
-		unsafe.Offsetof(lib.RequirePayload{}.PkgLen))
-
-	service := s.ReadString(wasmPtr,
-		unsafe.Offsetof(lib.RequirePayload{}.ServicePtr),
-		unsafe.Offsetof(lib.RequirePayload{}.ServiceLen))
-
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", "telling nameserver %s requires %s.%s", s.proc, pkg, service)
-
-	kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), pkg, service)
-
-	if kerr != nil && kerr.IsError() {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "REQUIRE", " nameserver failed require of %s.%s", pkg, service)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
-			kerr)
-		return
-	}
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RequirePayload{}.KernelErrorPtr),
-		lib.NoError[*protosupport.KernelErrorId]())
-
+	req := &pbsys.RequireRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.RequireRequest) lib.KernelErrorCode {
+		service := req.GetService()
+		for _, svc := range service {
+			// xxx  fixme what should we do in the face of some succeeding some not?
+			kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), svc.GetPackagePath(), svc.GetService())
+			if kerr != nil {
+				return lib.KernelErrorCode(kerr.Low())
+			}
+		}
+		return lib.KernelNoError
+	})
 }
 
 // Run is used to start up the processes in a deterministic order. It will
 // fail and return an error if there are problems getting all the require and export
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
-	wasmPtr := s.mem.GetInt64(sp + 8)
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "wasmptr %x,true=%x", wasmPtr, s.mem.TrueAddr(int32(wasmPtr)))
-	w := s.mem.GetInt64(int32(wasmPtr) + int32(unsafe.Offsetof(lib.RunPayload{}.Wait)))
-	wait := false
-	if w != 0 {
-		wait = true
-	}
-	s.proc.waiter = wait
-	s.proc.reachedRun = true
 
-	key := NewDepKeyFromProcess(s.proc)
-	s.procToSysCall().RunNotify(key)
+	req := &pbsys.RunRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.RunRequest) lib.KernelErrorCode {
+		key := NewDepKeyFromProcess(s.proc)
+		s.procToSysCall().RunNotify(key)
+		// block until we are told to proceed
+		ok, kerr := s.procToSysCall().RunBlock(key)
+		if kerr != nil && kerr.IsError() {
+			sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+			return lib.KernelDependencyFailure
+		}
+		if !ok {
+			sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+			return lib.KernelDependencyFailure
+		}
+		return lib.KernelNoError
+	})
 
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s is blocked on channel for run confirmation", s.proc)
-	// block until we are told to proceed
-	ok, kerr := s.procToSysCall().RunBlock(key)
-	if kerr != nil && kerr.IsError() {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
-		return
-	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "process %s read from the run channel %v", s.proc, ok)
-	if !ok {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
-		s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
-			lib.NewKernelError(lib.KernelDependencyCycle))
-	}
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, %s", s.proc)
-	s.Write64BitPair(wasmPtr, unsafe.Offsetof(lib.RunPayload{}.KernelErrorPtr),
-		lib.NoError[*protosupport.KernelErrorId]())
 }
 
 func sysPrint(level pblog.LogLevel, call, spec string, arg ...interface{}) {

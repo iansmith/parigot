@@ -6,9 +6,9 @@ import (
 
 	"github.com/iansmith/parigot/api/logimpl/go_"
 	"github.com/iansmith/parigot/api/proto/g/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/splitutil"
 	"github.com/iansmith/parigot/api/syscall"
 
@@ -28,7 +28,7 @@ func main() {
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	if _, err := callImpl.Run(&call.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
 	return true

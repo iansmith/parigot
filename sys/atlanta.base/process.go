@@ -8,12 +8,17 @@ import (
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	fileimpl "github.com/iansmith/parigot/api/fileimpl/go_"
+	ilog "github.com/iansmith/parigot/api/logimpl/go_"
 	logimpl "github.com/iansmith/parigot/api/logimpl/go_"
+	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
+	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false
+var processVerbose = true || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -45,8 +50,11 @@ type Process struct {
 	local      *bool
 
 	callCh   chan *callContext
+	exitChan chan struct{}
 	resultCh chan *resultInfo
 	runCh    chan bool
+
+	exitCode int
 }
 
 // NewProcessFromMod does not handle concurrent use. It assumes that each call to this
@@ -186,45 +194,39 @@ func (p *Process) Start() {
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
+		p.exitCode = 255
 		return
 	}
-	// defer func() {
-	// 	if r := recover(); r != nil {
-	// 		p := "not error"
-	// 		e, ok := r.(error)
-	// 		if ok {
-	// 			p = e.Error()
-	// 		} else {
-	// 			s, ok := r.(string)
-	// 			if ok {
-	// 				p = s
-	// 			} else {
-	// 				p = fmt.Sprintf("%T", r)
-
-	// 			}
-	// 		}
-	// 		print("RECOVER:STACKTRACE:", p, "\n")
-	// 		debug.PrintStack()
-	// 		print("RECOVER:END OF STACKTRACE:", p, "\n")
-	// 	}
-	// 	return
-	// }()
+	defer func() {
+		if r := recover(); r != nil {
+			e, ok := r.(*pbsys.ExitRequest)
+			if ok {
+				p.exitCode = int(e.GetCode())
+				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
+				return
+			} else {
+				p.exitCode = 255
+				procPrint("Start/Exit", "trapped a panic: %v, exiting with code 255", r)
+			}
+		}
+		return
+	}()
 	f := start.Func()
 	procPrint("START ", "calling the entry point (%+v,%T), for proc %s (parent %v)",
 		f, f, p, p.parent)
 	result, err := f.Call(p.parent, 0, 0)
-	print(fmt.Sprintf("process %s has returned from f.Call(): %v, %v", p, result, err))
+	//procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 	p.exited = true
 	if err != nil {
-		procPrint("START ", "process %s trapped: %v", p, err)
+		p.exitCode = 254
+		procPrint("END ", "process %s trapped: %v", p, err)
 	} else {
 		if result == nil {
-			procPrint("START ", "process %s finished", p)
+			procPrint("END ", "process %s finished (exit code %d)", p, p.exitCode)
 		} else {
-			procPrint("START ", "process %s finished: %+v", p, result)
+			procPrint("END ", "process %s finished: %+v", p, result)
 		}
 	}
-	procPrint("START ", "exiting...")
 	// xxx fixme, we need to do process cleanup here
 	return
 }
@@ -233,6 +235,13 @@ func procPrint(method string, spec string, arg ...interface{}) {
 	if processVerbose {
 		part1 := fmt.Sprintf("PROCESS:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		print(part1, part2, "\n")
+		ilog.ProcessLogRequest(
+			&pblog.LogRequest{
+				Level:   pblog.LogLevel_LOG_LEVEL_INFO,
+				Message: part1 + part2 + "\n",
+				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
+			}, true, false, nil)
+		print(part1 + part2 + "\n")
+
 	}
 }

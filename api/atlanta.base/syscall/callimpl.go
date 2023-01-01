@@ -1,4 +1,3 @@
-// This package is a thin wrapper around kernel functionality intended to be run by clients in WASM.
 package syscall
 
 import (
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
@@ -24,18 +22,15 @@ import (
 // are not defined when in fact they are defined, if tricky.    If it really bothers you, most likely you
 // can change this be setting the tag "js".  This needs to be defined to get the code in calljs.go.
 
+// callImpl is a thin wrapper around kernel functionality intended to be run by clients in WASM.
 type callImpl struct {
 	// logger log.Log
-}
-
-func (l *callImpl) Exit(in *call.ExitRequest) {
-	exit(in.Code)
 }
 
 var envVerbose = os.Getenv("PARIGOT_VERBOSE")
 
 // Flip this switch for debug output.
-var libparigotVerbose = true || envVerbose != ""
+var libparigotVerbose = false || envVerbose != ""
 
 // Locate is a kernel request that returns either a reference to the service
 // or an error.  In the former case, the token returned can be used with Dispatch()
@@ -46,27 +41,17 @@ var libparigotVerbose = true || envVerbose != ""
 //
 //go:noinline
 func (l *callImpl) Locate(req *pbsys.LocateRequest) (*pbsys.LocateResponse, error) {
-
 	resp := pbsys.LocateResponse{}
 	return splitImplementation[*pbsys.LocateRequest, *pbsys.LocateResponse](l, req, &resp, locate)
-	// l.log("Locate", "client side Locate called %s.%s", req.GetPackageName(), req.GetServiceName())
-	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, locate)
-
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// if checkIdForError(id) {
-	// 	return nil, idErrorToPerror(id, "failed to locate properly")
-	// }
-
-	// return &resp, nil
 }
 
-// sliceToTwoInt64s is a utility used to populate a payload.
-func sliceToTwoInt64s(b []byte) (int64, int64) {
-	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	return int64(slh.Data), int64(slh.Len)
+// Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
+// the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
+// will marke it dead and so forth.
+func (l *callImpl) Exit(in *pbsys.ExitRequest) {
+	// resp := pbsys.ExitResponse{}
+	// splitImplementation[*pbsys.ExitRequest, *pbsys.ExitResponse](l, in, &resp, exit)
+	// panic(resp)
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -80,33 +65,13 @@ func (l *callImpl) Dispatch(req *pbsys.DispatchRequest) (*pbsys.DispatchResponse
 	resp := pbsys.DispatchResponse{}
 	return splitImplementation[*pbsys.DispatchRequest, *pbsys.DispatchResponse](l, req, &resp, dispatch)
 
-	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, dispatch)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if checkIdForError(id) {
-	// 	return nil, idErrorToPerror(id, "failed to dispatch properly")
-	// }
-	// return &resp, nil
 }
 
-// checkIdForError returns true in the when it found an error value in the provided id, false otherwise.
-func checkIdForError(id lib.Id) bool {
-	if id != nil {
-		if id.IsErrorType() {
-			if id.IsError() {
-				return true
-			}
-		} else {
-			panic(fmt.Sprintf("response is unexpected id type: isErrorType=%v, id=%s", id.IsErrorType(), id.Short()))
-		}
-	}
-	return false
-}
-
-// idErrorToPerror returns an error suitable for returning to user code.
-func idErrorToPerror(id lib.Id, message string) lib.Error {
-	return lib.NewPerrorFromId(message, id)
+// BlockUntilCall is used to block a process until a request is received from another process.  Even when
+// all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
+func (l *callImpl) BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error) {
+	resp := &pbsys.BlockUntilCallResponse{}
+	return splitImplementation[*pbsys.BlockUntilCallRequest, *pbsys.BlockUntilCallResponse](l, in, resp, blockUntilCall)
 }
 
 // BindMethodIn binds a method that only has an in parameter.  This should
@@ -115,16 +80,16 @@ func idErrorToPerror(id lib.Id, message string) lib.Error {
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodIn(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_IN)
+func (l *callImpl) BindMethodIn(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*pbsys.BindMethodResponse, error) {
+	return l.bindMethodByName(in, pbsys.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodInNoPctx binds a method that only has an in parameter and does not
 // use the Pctx mechanism for logging.  This may, in fact, be a terrible idea but one
 // cannot write a separate logger server with having this.
 // xxxfixme: temporary? Should this be a different kernel call?
-func (l *callImpl) BindMethodInNoPctx(in *call.BindMethodRequest, _ func(proto.Message) error) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_IN)
+func (l *callImpl) BindMethodInNoPctx(in *pbsys.BindMethodRequest, _ func(proto.Message) error) (*pbsys.BindMethodResponse, error) {
+	return l.bindMethodByName(in, pbsys.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodOut binds a method that only has an out parameter.  This should
@@ -133,8 +98,8 @@ func (l *callImpl) BindMethodInNoPctx(in *call.BindMethodRequest, _ func(proto.M
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_OUT)
+func (l *callImpl) BindMethodOut(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*pbsys.BindMethodResponse, error) {
+	return l.bindMethodByName(in, pbsys.MethodDirection_METHOD_DIRECTION_OUT)
 }
 
 // BindMethodBoth binds a method that has both an in and out parameter.  This should
@@ -143,192 +108,49 @@ func (l *callImpl) BindMethodOut(in *call.BindMethodRequest, _ func(*protosuppor
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func (l *callImpl) BindMethodBoth(in *call.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*call.BindMethodResponse, error) {
-	return l.bindMethodByName(in, call.MethodDirection_METHOD_DIRECTION_BOTH)
+func (l *callImpl) BindMethodBoth(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*pbsys.BindMethodResponse, error) {
+	return l.bindMethodByName(in, pbsys.MethodDirection_METHOD_DIRECTION_BOTH)
 }
 
-func (l *callImpl) bindMethodByName(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
-	out := new(call.BindMethodResponse)
-
-	out.ErrorId = lib.NoKernelError()
-
-	detail := new(lib.BindPayload)
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
-	detail.PkgPtr = int64(sh.Data)
-	detail.PkgLen = int64(sh.Len)
-	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Service))
-	detail.ServicePtr = int64(sh.Data)
-	detail.ServiceLen = int64(sh.Len)
-	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
-	detail.MethodPtr = int64(sh.Data)
-	detail.MethodLen = int64(sh.Len)
-	detail.Direction = int64(dir)
-
-	// need to allocate the space for result
-	out.MethodId = &protosupport.MethodId{}
-	out.ErrorId = &protosupport.KernelErrorId{}
-
-	out.MethodId.Id = &protosupport.BaseId{}
-	out.ErrorId.Id = &protosupport.BaseId{}
-
-	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Id.Low))
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-
-	// THE CALL
-	u := uintptr(unsafe.Pointer(detail))
-	bindMethod(int32(u))
-
-	// check for in band errors
-	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
-	if kerr.IsError() {
-		return nil, lib.NewPerrorFromId("bind error", kerr)
-	}
-
-	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = lib.Marshal[protosupport.MethodId](mid)
-	out.ErrorId = lib.NoKernelError()
-
-	return out, nil
+// bindMethodByName is the implementation of all three of the Bind* calls.
+func (l *callImpl) bindMethodByName(in *pbsys.BindMethodRequest, dir pbsys.MethodDirection) (*pbsys.BindMethodResponse, error) {
+	in.Direction = dir
+	out := &pbsys.BindMethodResponse{}
+	return splitImplementation[*pbsys.BindMethodRequest, *pbsys.BindMethodResponse](l, in, out, bindMethod)
 }
 
-func (l *callImpl) Run(in *call.RunRequest) (*call.RunResponse, error) {
-	out := new(call.RunResponse)
-	detail := new(lib.RunPayload)
-	detail.Wait = 0
-	if in.Wait {
-		detail.Wait = 1
-	}
-	out.ErrorId = &protosupport.KernelErrorId{
-		Id: &protosupport.BaseId{},
-	}
-	detail.KernelErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-
-	// THE CALL, and the walls came down...
-	u := uintptr(unsafe.Pointer(detail))
-	run(int32(u))
-
-	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
-	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
-	if kerr != nil && kerr.IsError() {
-		out.ErrorId = lib.Marshal[protosupport.KernelErrorId](kerr)
-		return out, lib.NewPerrorFromId("kernel failed to start your process", kerr)
-	}
-	out.ErrorId = lib.NoKernelError()
-	return out, nil
-}
-
-func (l *callImpl) exportOrRequire(fqs []*call.FullyQualifiedService, errorPtr *[2]int64, isExport bool) error {
-	for _, s := range fqs {
-		pkg := s.GetPackagePath()
-		svc := s.GetService()
-
-		detail := new(lib.ExportPayload)
-		sh := (*reflect.StringHeader)(unsafe.Pointer(&pkg))
-		detail.PkgPtr = int64(sh.Data)
-		detail.PkgLen = int64(sh.Len)
-		sh = (*reflect.StringHeader)(unsafe.Pointer(&svc))
-		detail.ServicePtr = int64(sh.Data)
-		detail.ServiceLen = int64(sh.Len)
-		detail.KernelErrorPtr = errorPtr //(*[2]int64)(unsafe.Pointer(&out.ErrorId.Low))
-
-		// THE CALL
-		u := uintptr(unsafe.Pointer(detail))
-		if isExport {
-			export(int32(u))
-		} else {
-			require(int32(u))
-		}
-
-		// check for in band errors
-		kernelErrDataPtr := detail.KernelErrorPtr //(*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.KernelErrorPtr))))
-		kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
-		if kerr.IsError() {
-			if isExport {
-				return lib.NewPerrorFromId("export error", kerr)
-			} else {
-				return lib.NewPerrorFromId("require error", kerr)
-			}
-
-		}
-	}
-	return nil
-
+// Run is used only at startup.  A call is made to Run when a program has notified the kernel of all the
+// requires and exports it has.  When Run() is called, the program calling
+func (l *callImpl) Run(in *pbsys.RunRequest) (*pbsys.RunResponse, error) {
+	out := new(pbsys.RunResponse)
+	return splitImplementation[*pbsys.RunRequest, *pbsys.RunResponse](l, in, out, run)
 }
 
 // Export is the way that a server can express that it is done binding methods
 // the service and it is ready to export it.  This call does not block.  If the input
 // structure has multiple services in it, this call will repeatedly call
 // the kernel and it will abort and return the error at the first failure.
-func (l *callImpl) Export(in *call.ExportRequest) (*call.ExportResponse, error) {
-	out := new(call.ExportResponse)
-	// allocate space for any error
-	out.ErrorId = lib.NoKernelError()
-	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-	err := l.exportOrRequire(in.GetService(), ptr, true)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+func (l *callImpl) Export(in *pbsys.ExportRequest) (*pbsys.ExportResponse, error) {
+	resp := pbsys.ExportResponse{}
+	return splitImplementation[*pbsys.ExportRequest, *pbsys.ExportResponse](l, in, &resp, export)
+}
+
+// Returnvalue is a call that a service (implementation of a function) uses to return values when a
+// function it implements the function. This is means that the request to "send" a return value must
+// go from the WASM side to the go side.  Thus the calls that start a function call (Dispatch and
+// CallService) also have to send control *back* to WASM from their go implementation.
+func (l *callImpl) ReturnValue(req *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error) {
+	resp := pbsys.ReturnValueResponse{}
+	return splitImplementation[*pbsys.ReturnValueRequest, *pbsys.ReturnValueResponse](l, req, &resp, returnValue)
 }
 
 // Require is the way that a client or server can express that uses a particular
 // interface.  This call does not block.  If the input structure has multiple
 // services in it, this call will repeatedly call the kernel and it will abort
 // and return the error at the first failure.
-func (l *callImpl) Require(in *call.RequireRequest) (*call.RequireResponse, error) {
-	out := new(call.RequireResponse)
-	// allocate space for any error
-	out.ErrorId = lib.NoKernelError()
-	ptr := (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-	err := l.exportOrRequire(in.GetService(), ptr, false)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// xxx this may be a bad idea.  this is probably only temporary til I can work out if we
-// xxx should support this at all. currently, it is used by terminal logger.  I made a copy
-// xxx of the other bindMethodByName so it would be easier to delete this one.
-func (l *callImpl) bindMethodByNameNoPctx(in *call.BindMethodRequest, dir call.MethodDirection) (*call.BindMethodResponse, error) {
-	out := new(call.BindMethodResponse)
-
-	out.ErrorId = lib.NoKernelError()
-
-	detail := new(lib.BindPayload)
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&in.ProtoPackage))
-	detail.PkgPtr = int64(sh.Data)
-	detail.PkgLen = int64(sh.Len)
-	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Service))
-	detail.ServicePtr = int64(sh.Data)
-	detail.ServiceLen = int64(sh.Len)
-	sh = (*reflect.StringHeader)(unsafe.Pointer(&in.Method))
-	detail.MethodPtr = int64(sh.Data)
-	detail.MethodLen = int64(sh.Len)
-	detail.Direction = int64(dir)
-	detail.MethodId = (*[2]int64)(unsafe.Pointer(&out.MethodId.Id.Low))
-	detail.ErrorPtr = (*[2]int64)(unsafe.Pointer(&out.ErrorId.Id.Low))
-
-	// THE CALL
-	u := uintptr(unsafe.Pointer(detail))
-	bindMethod(int32(u))
-
-	// check for in band errors
-	kernelErrDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.ErrorPtr))))
-	kerr := lib.NewKernelError(lib.KernelErrorCode(kernelErrDataPtr[0]))
-	if kerr.IsError() {
-		return nil, lib.NewPerrorFromId("bind error", kerr)
-	}
-
-	methodDataPtr := (*[2]int64)(unsafe.Pointer(uintptr(unsafe.Pointer(detail.MethodId))))
-	mid := lib.NewFrom64BitPair[*protosupport.MethodId](uint64(methodDataPtr[1]), uint64(uint64(methodDataPtr[0])))
-	out.MethodId = lib.Marshal[protosupport.MethodId](mid)
-
-	out.ErrorId = lib.NoKernelError()
-
-	return out, nil
+func (l *callImpl) Require(in *pbsys.RequireRequest) (*pbsys.RequireResponse, error) {
+	resp := pbsys.RequireResponse{}
+	return splitImplementation[*pbsys.RequireRequest, *pbsys.RequireResponse](l, in, &resp, require)
 }
 
 // Use of this function is discouraged.  This is intended only for debugging the parigot implementation
@@ -360,19 +182,7 @@ func (l *callImpl) BackdoorLog(in *pblog.LogRequest) (*pblog.LogResponse, error)
 	return out, nil
 }
 
-func (l *callImpl) BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error) {
-	// this is JUST for reserving the space for the result to be placed into
-	out := &pbsys.BlockUntilCallResponse{}
-	id, err := splitutil.SendReceiveSingleProto(l, in, out, blockUntilCall)
-	if err != nil {
-		return nil, err
-	}
-	if checkIdForError(id) {
-		return nil, idErrorToPerror(id, "BlockUntilCall failed")
-	}
-	return out, nil
-}
-
+// log is used to by the callImpl code to get debug messages on the terminal.
 func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 	p1 := fmt.Sprintf("callImpl.%s", funcName)
 	p2 := fmt.Sprintf(spec, rest...)
@@ -390,6 +200,12 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 	}
 }
 
+// splitImplementation is the implementation for any client side program that calls callImpl.  This
+// is based on the splitutil.SendReceiveSingleProto in terms of how the data moves around.   This
+// code simply sets up the request and response structures and then sends these to the SendReceiveSingleProto
+// which does the work of flattening the content of the parameters and sends that blob of bytes to the
+// kernel.  Similarly, it does the unpacking of the result sent from the Kernel, including handling
+// errors.
 func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
 	id, err := splitutil.SendReceiveSingleProto(l, req, resp, fn)
@@ -403,41 +219,51 @@ func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, r
 
 }
 
-func (l *callImpl) ReturnValue(req *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error) {
-	resp := pbsys.ReturnValueResponse{}
-	return splitImplementation[*pbsys.ReturnValueRequest, *pbsys.ReturnValueResponse](l, req, &resp, returnValue)
-	// l.log("ReturnValue", "client side ReturnValue called %T:%d ",
-	// 	req.GetResult(), proto.Size(req.GetResult()))
-	// id, err := splitutil.SendReceiveSingleProto(l, req, &resp, returnValue)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if checkIdForError(id) {
-	// 	return nil, idErrorToPerror(id, "returnValue failed")
-	// }
-	// return &resp, nil
-}
-
 // Export1 is a wrapper around Export which makes it easy to say you export a single
 // service. It does not change any of the Export behavior.
-func (l *callImpl) Export1(packagePath, service string) (*call.ExportResponse, error) {
-	fqSvc := &call.FullyQualifiedService{
+func (l *callImpl) Export1(packagePath, service string) (*pbsys.ExportResponse, error) {
+	fqSvc := &pbsys.FullyQualifiedService{
 		PackagePath: packagePath, Service: service}
-	req := &call.ExportRequest{}
-	req.Service = []*call.FullyQualifiedService{fqSvc}
+	req := &pbsys.ExportRequest{}
+	req.Service = []*pbsys.FullyQualifiedService{fqSvc}
 	return l.Export(req)
 }
 
 // Require1 is a wrapper around Require which makes it easy to say you require a single
 // service. It does not change any of the Require behavior.
-func (l *callImpl) Require1(packagePath, service string) (*call.RequireResponse, error) {
-	fqSvc := &call.FullyQualifiedService{
+func (l *callImpl) Require1(packagePath, service string) (*pbsys.RequireResponse, error) {
+	fqSvc := &pbsys.FullyQualifiedService{
 		PackagePath: packagePath, Service: service}
-	req := &call.RequireRequest{}
-	req.Service = []*call.FullyQualifiedService{fqSvc}
+	req := &pbsys.RequireRequest{}
+	req.Service = []*pbsys.FullyQualifiedService{fqSvc}
 	return l.Require(req)
 }
 
 func NewCallImpl() lib.Call {
 	return &callImpl{}
+}
+
+// checkIdForError returns true in the when it found an error value in the provided id, false otherwise.
+func checkIdForError(id lib.Id) bool {
+	if id != nil {
+		if id.IsErrorType() {
+			if id.IsError() {
+				return true
+			}
+		} else {
+			panic(fmt.Sprintf("response is unexpected id type: isErrorType=%v, id=%s", id.IsErrorType(), id.Short()))
+		}
+	}
+	return false
+}
+
+// idErrorToPerror returns an error suitable for returning to user code.
+func idErrorToPerror(id lib.Id, message string) lib.Error {
+	return lib.NewPerrorFromId(message, id)
+}
+
+// sliceToTwoInt64s is a utility used to populate a payload.
+func sliceToTwoInt64s(b []byte) (int64, int64) {
+	slh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	return int64(slh.Data), int64(slh.Len)
 }

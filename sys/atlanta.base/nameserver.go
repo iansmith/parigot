@@ -17,7 +17,7 @@ import (
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
 // various lookups.
-var nameserverVerbose = true || envVerbose != ""
+var nameserverVerbose = false || envVerbose != ""
 
 const MaxService = 127
 
@@ -148,7 +148,6 @@ func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id
 func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-
 	return n.NSCore.Require(key, pkgPath, service)
 }
 

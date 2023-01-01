@@ -74,10 +74,8 @@ func log(funcName string, spec string, rest ...interface{}) {
 		if callImpl != nil {
 			_, err := callImpl.BackdoorLog(&req)
 			if err != nil {
-				print(fmt.Sprintf("!!!!!!!!!  backdoorLog failed:%s\n", err.Error()))
+				print(fmt.Sprintf("backdoorLog failed:%s\n", err.Error()))
 			}
-		} else {
-			print("NO CALL IMPL:" + req.Message + "\n")
 		}
 	} else {
 		print("GO LOG:" + req.Message + "\n")
@@ -276,6 +274,24 @@ func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
 		int64(kerr.Low()))
 	highBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(highBytes, kerr.High())
+}
+
+func ErrorResponseId(mem *jspatch.WasmMem, sp int32, errId lib.Id) {
+	if !errId.IsErrorType() {
+		callImpl.BackdoorLog(&pblog.LogRequest{
+			Level:   pblog.LogLevel_LOG_LEVEL_WARNING,
+			Message: "unable to understand error id that is not of error type:" + errId.Short(),
+			Stamp:   timestamppb.Now(), // xxx fix this with a kernel call
+		})
+		ErrorResponse(mem, sp, lib.KernelBadId)
+		return
+	}
+	if errId.IsError() {
+		ErrorResponse(mem, sp, lib.KernelErrorCode(errId.Low()))
+		return
+	}
+	ErrorResponse(mem, sp, lib.KernelNoError)
+	return
 }
 
 // StackPointerToRequest assumes that this function was passed a pointer to the WASM stack and that

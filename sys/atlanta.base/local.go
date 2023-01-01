@@ -1,7 +1,6 @@
 package sys
 
 import (
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/lib"
 	"github.com/iansmith/parigot/sys/dep"
@@ -56,7 +55,6 @@ func newLocalSysCall(ns *LocalNameServer) *localSysCall {
 }
 
 func (l *localSysCall) Bind(proc *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BIND", "[local] bind for method %s on (%s.%s)", method, packagePath, service)
 	return sharedBind(l.nameServer.NSCore, proc, packagePath, service, method)
 }
 

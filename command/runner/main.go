@@ -87,7 +87,6 @@ func main() {
 		runnerPrint("MAIN ", "starting goroutine for process %s", p)
 		go func(p *sys.Process) {
 			p.Start()
-			p.Exit()
 			return
 		}(p)
 		proc = append(proc, p)
@@ -108,7 +107,7 @@ func main() {
 			break
 		}
 		runnerPrint("MAIN ", "startedCount %d, len %d", startedCount, len(proc))
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		iter++
 	}
 	if !everbodyStarted {

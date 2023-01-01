@@ -1,7 +1,6 @@
 package lib
 
 import (
-	pbcall "github.com/iansmith/parigot/api/proto/g/pb/call"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
@@ -16,19 +15,19 @@ import (
 //
 // Call has an analogue called SysCall that is the means by which the kernel receives these calls.
 type Call interface {
-	Exit(in *pbcall.ExitRequest)
+	Exit(in *pbsys.ExitRequest)
 	Locate(in *pbsys.LocateRequest) (*pbsys.LocateResponse, error)
 	Dispatch(in *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error)
-	BindMethodIn(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*pbcall.BindMethodResponse, error)
-	BindMethodOut(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*pbcall.BindMethodResponse, error)
-	BindMethodBoth(in *pbcall.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*pbcall.BindMethodResponse, error)
-	Run(in *pbcall.RunRequest) (*pbcall.RunResponse, error)
-	Export(in *pbcall.ExportRequest) (*pbcall.ExportResponse, error)
-	Require(in *pbcall.RequireRequest) (*pbcall.RequireResponse, error)
+	BindMethodIn(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*pbsys.BindMethodResponse, error)
+	BindMethodOut(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*pbsys.BindMethodResponse, error)
+	BindMethodBoth(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*pbsys.BindMethodResponse, error)
+	Run(in *pbsys.RunRequest) (*pbsys.RunResponse, error)
+	Export(in *pbsys.ExportRequest) (*pbsys.ExportResponse, error)
+	Require(in *pbsys.RequireRequest) (*pbsys.RequireResponse, error)
 	BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error)
 	ReturnValue(in *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error)
-	Export1(pkg, name string) (*pbcall.ExportResponse, error)
-	Require1(pkg, name string) (*pbcall.RequireResponse, error)
+	Export1(pkg, name string) (*pbsys.ExportResponse, error)
+	Require1(pkg, name string) (*pbsys.RequireResponse, error)
 
 	// Use of this function is discouraged. This function uses a backdoor to reach the logging service
 	// and does not go through the normal LocateLog() process that can allow better/different implementation

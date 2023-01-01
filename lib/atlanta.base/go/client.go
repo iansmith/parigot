@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/api/proto/g/pb/call"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 
@@ -58,8 +57,8 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*pbsys
 	return c.call.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*call.RunResponse, error) {
-	req := call.RunRequest{
+func (c *ClientSideService) Run() (*pbsys.RunResponse, error) {
+	req := pbsys.RunRequest{
 		Wait: true,
 	}
 	return c.call.Run(&req)

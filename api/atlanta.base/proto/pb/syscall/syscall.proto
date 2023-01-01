@@ -47,7 +47,6 @@ message ReturnValueResponse {
 }
 
 message BlockUntilCallRequest{
-    int32 dummy = 1;
 }
 
 message BlockUntilCallResponse{
@@ -55,4 +54,56 @@ message BlockUntilCallResponse{
   protosupport.Pctx pctx = 2;
   protosupport.MethodId method = 3;
   protosupport.CallId call = 4;
+}
+
+enum MethodDirection {
+  METHOD_DIRECTION_UNSPECIFIED = 0;
+  METHOD_DIRECTION_IN = 1;
+  METHOD_DIRECTION_OUT = 2;
+  METHOD_DIRECTION_BOTH = 3;
+}
+
+message BindMethodRequest  {
+  string proto_package = 1;
+  string service = 2;
+  string method = 3;
+  MethodDirection direction = 4;
+}
+
+message BindMethodResponse {
+  protosupport.MethodId method_id = 1;
+}
+
+message FullyQualifiedService {
+  string package_path = 1;
+  string service = 2;
+}
+
+message ExportRequest {
+  repeated FullyQualifiedService service = 1;
+}
+
+message ExportResponse {
+}
+
+message RequireRequest {
+  repeated FullyQualifiedService service = 1;
+}
+
+message RequireResponse {
+}
+
+message RunRequest {
+  bool wait = 1;
+}
+
+message RunResponse {
+}
+
+message ExitRequest {
+  int32 code = 1;
+}
+
+message ExitResponse{
+  int32 code = 1;
 }
