@@ -1,7 +1,7 @@
 # parigot
 parigot is an adjective in French that mean _parisien_.  In english, one might use "NewYork-ish" in the same way.
 
-[parigot blurb][https://parigot.info]
+A short [parigot blurb](https://parigot.info).
 
 parigot is a new way to build, test, and deploy microservices.   parigot is not ready for prime time,
 rational or irrational time, production usage, or fibonacci time.  parigot is currently under heavy development (multiple commits per day) and as such might be at any degree of brokenness at any time. 
