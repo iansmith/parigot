@@ -1,5 +1,5 @@
 ---
-title: "First_words"
+title: The bab's first words"
 date: 2022-10-05T20:04:47-04:00
 draft: false
 ---
