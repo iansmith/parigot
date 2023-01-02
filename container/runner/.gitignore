@@ -1,6 +1,2 @@
-data.wasm
-libwasmtime.a
-target/*
-target.alpine.tar
-*.tar.gz
+runner
 *.p.wasm
