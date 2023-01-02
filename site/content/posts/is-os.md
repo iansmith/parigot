@@ -4,17 +4,18 @@ date: 2022-10-01T16:51:56-04:00
 draft: false
 ---
 
->Updated October 6.
+>Updated October 6 and Jan 2.
 
 I've been thinking of this project, parigot, as an operating system.  In particular
-the program that invokes and supervises wasm "apps" will be called the "kernel".  
-There are some business reasons (fear) that one might not want to advertise an "os" or 
+the program that invokes and supervises wasm "apps" will be called the "kernel".   Sadly,
+at the current time the program is named `runner`.
+
+There are some business reasons (fear) that one might not want  to advertise an "os" or 
 "kernel" to the public at large.  That warning aside, I think about parigot as an 
 operating system because:
 
 * It can run any binary, built from any source language, that is compatible with its
-hardware platform. Since that hardware platform is WASM, there are already a number
-of languages that can generate code for it.
+processor architechture and binary file format. Since that processor and format are WASM, there are already a number of languages that can generate code for it.
 
 * A key element in Parigot is the Application _Binary_ interface (ABI), a la linux. Again,
 the language you program in doesn't matter if you can  call the correct binary entry
@@ -25,8 +26,9 @@ or indexes outside the bounds of an array, a trap is generated to the controllin
 the kernel. Typically, the kernel will kill the offending user process.
 
 * The memory space of the kernel is protected from user programs.  In some modes, notably
-development and test, the kernel implementation of API/ABI calls may be provided at
-dynamic link-time, ala Linux VDSOs. 
+development and test, the kernel implementation of API/ABI calls are provided by the
+so called "wasm environment" which means "the program that runs the wasm code inside
+itself."  This is called `runner` in parigot.
 
 * The kernel provides the machinery for programs (microservices) to talk to each other.
 In production, this is networking.  However, in other modes the kernel may provide
@@ -67,8 +69,8 @@ unwilling to block.
 * Parigot prevents users from user programs (services) from having writable global
 variables.  This is enforced at link time.
 
-* The kernel itself is a collection of microservices, or a "world".  In development
-situations, the world of the kernel can be provided as, in linux terms, VDSOs. In 
-production, kernel services are provided by normal network services accessed via, and 
-secured at, the network.
+* The kernel and system services are a collection of microservices, or a "world".  
+In development situations, the world of the kernel, plus user code can be run
+as a single process on your local machine. In production, kernel services are provided by 
+normal network services accessed via, and secured at, the network.
 

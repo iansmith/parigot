@@ -76,12 +76,12 @@ ADD p10k.zsh /home/parigot/.p10k.zsh
 ADD ohmyzsh /home/parigot/.oh-my-zsh
 RUN chown -R parigot /home/parigot/.zshrc  /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 RUN chgrp -R parigot /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
-RUN chmod -R g+w /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
+#RUN chmod -R g+w /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 
 RUN mkdir /var/run/parigot
 RUN chown parigot /var/run/parigot
 RUN chgrp parigot /var/run/parigot
-RUN chmod g+w /var/run/parigot
+#RUN chmod g+w /var/run/parigot
 
 # safety
 WORKDIR /home/parigot

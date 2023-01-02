@@ -4,6 +4,11 @@ date: 2022-10-01T04:42:48-04:00
 draft: false
 ---
 
+### Updated Jan 2
+You can't make a service call into a function call because WASM doesn't permit 
+memory sharing between wasm modules.  There are [some options here](https://docs.wasmtime.dev/api/wasmtime/struct.SharedMemory.html) 
+but I don't want to turn on threads.
+
 Yesterday I started on the ability to programmatically edit WASM binaries.  I did this by
 building a simple Antlr4 grammar for the WAT format of a WASM file.  I got this far enough
 to parse the real output of a 'hello world' program, which is probably pretty close to 

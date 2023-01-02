@@ -1,14 +1,18 @@
 ---
-title: "Editing_toolkit"
+title: "Editing toolkit"
 date: 2022-10-05T12:17:02-04:00
 draft: false
 ---
+
+### Update Jan 2
+This tool was called surgery but is no longer in the build.  In the future, it will be
+used to [unlink](unlinking) binaries.
 
 # command/transform
 I worked for about 3-4 days in an effort to build a binary editing toolkit for WASM. 
 Honestly, I was starting to get worried on Monday (day 4) because I had actually wondered
 to myself, "Should I try to do this right with an editing toolkit, or just hack some
-script together and move on to other, likely more important, thinngs?"  By Monday morning
+script together and move on to other, likely more important, things?"  By Monday morning
 I was feeling like maybe I had gone the wrong way and I should have just done something
 cheep ande cheerful.
 
