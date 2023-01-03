@@ -23,6 +23,11 @@ const (
 	methodOptionPullOutput = "543213"
 
 	messageOptionNoPackage = "543211"
+
+	// if these flags are used in conjunction with a command line flag the generator should output
+	// code for the test methods mentioned in the service defintion.
+	serviceOptionServiceTest = "543215"
+	methodOptionMethodTest   = "543216"
 )
 
 // options to map converts the text string that is the options for a given level
@@ -86,6 +91,15 @@ func isWasmMessageName(s string) (string, bool) {
 
 func hasNoPackageOption(s string) bool {
 	_, b := isBooleanOptionPresent(s, serviceOptionNoPackage)
+	return b
+}
+
+func hasServiceTestOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, serviceOptionServiceTest)
+	return b
+}
+func hasMethodTestOption(s string) bool {
+	_, b := isBooleanOptionPresent(s, methodOptionMethodTest)
 	return b
 }
 

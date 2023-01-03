@@ -18,6 +18,8 @@ import (
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
+var protocVerbose = false
+
 //go:embed template/*
 var templateFS embed.FS
 
@@ -46,15 +48,22 @@ func main() {
 		}
 		source = fp
 	}
-	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir)
+	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir, protocVerbose)
 	importToPackageMap := make(map[string]string)
 	for _, f := range genReq.GetProtoFile() {
 		pkg := f.GetOptions().GetGoPackage()
+		//log.Printf("xxx main compare %s vs %s", pkg, "github.com/iansmith/parigot/api/proto/g/pb/test;test")
+		if pkg == "github.com/iansmith/parigot/api/proto/g/pb/test;test" { //this is only used to signal us, not a real decl
+			continue
+		}
 		if index := strings.LastIndex(pkg, ";"); index != -1 {
 			pkg = pkg[:index]
 		}
+		//rawPkg := f.GetOptions().GetGoPackage()
+		//	log.Printf("->main-> %s -> %s", f.GetName(), pkg)
 		importToPackageMap[f.GetName()] = pkg
 	}
+	//log.Print("--main done--")
 
 	resp := pluginpb.CodeGeneratorResponse{
 		Error:             nil,
@@ -123,8 +132,10 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 					return nil, err
 				}
 				if file == nil {
-					log.Printf("warning: language %s did not create any output for %s, ignoring",
-						lang, desc.GetName())
+					if protocVerbose {
+						log.Printf("warning: language %s did not create any output for %s, ignoring",
+							lang, desc.GetName())
+					}
 				} else {
 					fileList = append(fileList, file...)
 				}

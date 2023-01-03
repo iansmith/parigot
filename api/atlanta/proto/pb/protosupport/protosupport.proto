@@ -1,29 +1,9 @@
 syntax ="proto3";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
-option go_package="github.com/iansmith/parigot/api/proto/g/pb/protosupport;protosupport";
 package pb.protosupport;
+option go_package="github.com/iansmith/parigot/api/proto/g/pb/protosupport;protosupport";
 
-
-extend google.protobuf.ServiceOptions {
-  optional bool no_package = 543211;
-  optional bool kernel_service = 543214;
-  optional string wasm_service_name = 543210;
-}
-extend google.protobuf.MethodOptions {
-  optional string wasm_method_name = 543210;
-  optional bool abi_call = 543212;
-}
-extend google.protobuf.FieldOptions {
-  optional string wasm_field_name = 543210;
-}
-
-extend google.protobuf.FileOptions {
-  optional bool abi = 543210;
-}
-extend google.protobuf.MessageOptions {
-  optional string wasm_message_name = 543210;
-}
 
 // BaseId is the "real" type for all the named Id types.  The named types provide just a bit of sugar
 // when in used in protobuf definitions so it is clear what _type_ of Id is being used.  BaseId should

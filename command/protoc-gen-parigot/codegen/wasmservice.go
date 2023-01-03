@@ -18,6 +18,7 @@ type WasmService struct {
 	noPackage            bool
 	finder               Finder
 	kernel               bool
+	isTest               bool
 }
 
 func (w *WasmService) Finder() Finder {
@@ -42,6 +43,9 @@ func (w *WasmService) ProtoPackage() string {
 }
 func (w *WasmService) GetGoPackage() string {
 	return w.GetParent().GetOptions().GetGoPackage()
+}
+func (w *WasmService) IsTest() bool {
+	return w.isTest
 }
 
 // GetWasmServiceName looks through the data structure given that represents the

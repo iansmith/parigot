@@ -3,10 +3,13 @@ package go_
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 )
+
+const GenTestEnvVar = "PARIGOT_GEN_TEST"
 
 type FieldSpec struct {
 	name, typ string
@@ -22,33 +25,34 @@ func (f *FieldSpec) Type() string {
 
 func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	return &codegen.FuncChooser{
-		Bits:                funcChoicesToBits,
-		NeedsFillIn:         funcChoicesNeedsFillIn,
-		NeedsFillOut:        funcChoicesNeedsFillOut,
-		NeedsRet:            funcChoicesNeedsRet,
-		InputParam:          funcChoicesInputParam,
-		OutputParam:         funcChoicesOutputParam,
-		NeedsPullApart:      funcChoicesNeedsPullApart,
-		Inbound:             funcChoicesInbound,
-		Outbound:            funcChoicesOutbound,
-		RetError:            funcChoicesRetError,
-		RetValue:            funcChoicesRetValue,
-		MethodRet:           funcChoicesMethodRet,
-		ZeroValueRet:        funcChoicesZeroValueRet,
-		MethodParamDecl:     funcChoicesMethodParamDecl,
-		OutLocal:            funcChoicesOutLocal,
-		MethodCall:          funcChoicesMethodCall,
-		DecodeRequired:      funcChoicesDecodeRequired,
-		NoDecodeRequired:    funcChoicesNoDecodeRequired,
-		MethodParamDeclWasm: funcChoicesMethodParamDeclWasm,
-		HasComplexParam:     funcChoicesHasComplexParam,
-		MethodCallWasm:      funcChoicesMethodCallWasm,
-		InputToSend:         funcChoicesInputToSend,
-		UsesReturnValuePtr:  funcChoicesUsesReturnValuePtr,
-		DispatchParam:       funcChoicesDispatchParam,
-		DispatchResult:      funcChoicesDispatchResult,
-		OutParamDecl:        funcChoicesOutParamDecl,
-		BindDirection:       funcChoicesBindDirection,
+		Bits:                  funcChoicesToBits,
+		NeedsFillIn:           funcChoicesNeedsFillIn,
+		NeedsFillOut:          funcChoicesNeedsFillOut,
+		NeedsRet:              funcChoicesNeedsRet,
+		InputParam:            funcChoicesInputParam,
+		OutputParam:           funcChoicesOutputParam,
+		NeedsPullApart:        funcChoicesNeedsPullApart,
+		Inbound:               funcChoicesInbound,
+		Outbound:              funcChoicesOutbound,
+		RetError:              funcChoicesRetError,
+		RetValue:              funcChoicesRetValue,
+		MethodRet:             funcChoicesMethodRet,
+		ZeroValueRet:          funcChoicesZeroValueRet,
+		MethodParamDecl:       funcChoicesMethodParamDecl,
+		OutLocal:              funcChoicesOutLocal,
+		MethodCall:            funcChoicesMethodCall,
+		DecodeRequired:        funcChoicesDecodeRequired,
+		NoDecodeRequired:      funcChoicesNoDecodeRequired,
+		MethodParamDeclWasm:   funcChoicesMethodParamDeclWasm,
+		HasComplexParam:       funcChoicesHasComplexParam,
+		MethodCallWasm:        funcChoicesMethodCallWasm,
+		InputToSend:           funcChoicesInputToSend,
+		UsesReturnValuePtr:    funcChoicesUsesReturnValuePtr,
+		DispatchParam:         funcChoicesDispatchParam,
+		DispatchResult:        funcChoicesDispatchResult,
+		OutParamDecl:          funcChoicesOutParamDecl,
+		BindDirection:         funcChoicesBindDirection,
+		GenMethodPossibleTest: funcGenMethodPossibleTest,
 	}
 }
 
@@ -149,6 +153,33 @@ func funcChoicesDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool 
 // funcChoicesNoDecodeRequired is a convenience method for grouping methods in the ABI
 func funcChoicesNoDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool {
 	return !funcChoicesDecodeRequired(b1, b2, b3, b4, m)
+}
+
+// genMethod will return true in any situation where the method is not marked as a test method
+// or the method_test option is set to false.
+//
+// A marked method looks like this:
+//  rpc Load(pb.file.LoadRequest) returns (pb.file.LoadResponse){
+//    option(pb.protosupport.method_test) = true;
+//  }
+// There are two cases where we will return false:
+// 1) If the service that contains this method is not marked as service_test or is marked but service_test=false.
+// 2) The user has not passed the environment variable PARIGOT_GEN_TEST with some value to our generator
+// (protoc-gen-parigot).
+// We return true if both of these are true.
+
+func funcGenMethodPossibleTest(method *codegen.WasmMethod) bool {
+	if !method.IsTest() {
+		return true
+	}
+	if !method.Parent().IsTest() {
+		return false
+	}
+	if os.Getenv(GenTestEnvVar) == "" {
+		return false
+	}
+	return true
+
 }
 
 // methodToCGParameter returns an array of CGParameter objects corresponding to the

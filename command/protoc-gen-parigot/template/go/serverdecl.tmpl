@@ -4,16 +4,17 @@ package {{ LastSegmentOfPackage .file.GetPackage }}
 import (
 	"fmt"
 {{$ct:=0 -}}
-{{ range $j,$i := .imports -}}
+{{ range $j,$i := .import -}}
 	{{/* this is an awful hack */}}
 	{{if eq $ct 0 -}}
-	    pb {{$j}}
-		{{$ct:=1 -}}
+	    pb {{$j}} 
+		{{$ct = 1 -}}
 	{{else -}}
 		{{$j -}}
 	{{end -}}
 {{- end}} {{/* imports */}}
 
+    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/syscall"
@@ -35,6 +36,14 @@ import (
 
 type {{$svcCamel}}Server interface {
 {{range .GetWasmMethod }}
+
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }} 
+	//skipping {{.WasmMethodName}}(), not in test mode
+    {{- continue}}
+{{- end}}
+
+
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- if .InputCodeNeeded }}
 	{{$methCamel}}(pctx *protosupport.Pctx, in proto.Message) 
@@ -60,6 +69,13 @@ type {{$svcCamel}}Server interface {
 // {{$svcCamel}} method ids
 //
 {{- range .GetWasmMethod }}
+
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }} 
+	//skipping {{.}}, not in test mode
+    {{- continue}} 
+{{- end}}
+
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 var {{$methCamelFL}}Method lib.Id
 {{- end }} {{/* range over methods */}}
@@ -100,6 +116,13 @@ func Run(impl {{$svcCamel}}Server) {
 		var out proto.Message
 		switch {
 {{- range .GetWasmMethod}}
+
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }} 
+	//skipping {{.}}, not in test mode
+    {{- continue}} 
+{{- end}}
+
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
@@ -142,6 +165,13 @@ you would have a method with no input or output, which is checked elsewhere */}}
 
 func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- range .GetWasmMethod}}
+
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }} 
+	//skipping {{.WasmMethodName}}(), not in test mode
+    {{- continue}} 
+{{- end}}
+
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}

@@ -24,7 +24,7 @@ const pattern = "parse"
 
 var buffer [bufferSize]byte
 
-func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string) *pluginpb.CodeGeneratorRequest {
+func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string, protocVerbose bool) *pluginpb.CodeGeneratorRequest {
 	curr := 0
 	ok := false
 
@@ -76,8 +76,10 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string) *plugin
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		log.Printf("saved copy of input to %s (0x%0x bytes) from %s", out, count,
-			protoGuess)
+		if protocVerbose {
+			log.Printf("saved copy of input to %s (0x%0x bytes) from %s", out, count,
+				protoGuess)
+		}
 		outfp.Close()
 	}
 	return &req

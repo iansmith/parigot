@@ -2,6 +2,7 @@ syntax ="proto3";
 package file;
 option go_package="github.com/iansmith/parigot/api/proto/g/file;file";
 import "pb/file/file.proto";
+import "pb/test/testoption.proto";
 
 
 // This is the File service for parigot.  It is sandboxed such that caller to this service
@@ -18,11 +19,14 @@ import "pb/file/file.proto";
 
 
 service File {
+  option (pb.test.service_test) = true;
   rpc Open(pb.file.OpenRequest) returns (pb.file.OpenResponse);
   rpc Create(pb.file.CreateRequest) returns (pb.file.CreateResponse);
   rpc Close(pb.file.CloseRequest) returns (pb.file.CloseResponse);
 
   // Load does check that the file(s) referred to are reasonable in length, do not contain
   // symlinks, are readable, etc.
-  rpc Load(pb.file.LoadRequest) returns (pb.file.LoadResponse);
+  rpc Load(pb.file.LoadRequest) returns (pb.file.LoadResponse){
+    option(pb.test.method_test) = true;
+  }
 }

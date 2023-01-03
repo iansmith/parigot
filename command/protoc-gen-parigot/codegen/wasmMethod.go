@@ -2,9 +2,10 @@ package codegen
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
 	"strings"
+
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // WasmMethod is like a descriptorpb.MethodDescriptorProto (which it contains) but
@@ -18,9 +19,11 @@ type WasmMethod struct {
 	output         *OutputParam
 	// these values doesn't matter if your parent service has the "always"
 	// version of it set
-	pullParameters       bool
-	pullOutput           bool
-	abiCall              bool
+	pullParameters bool
+	pullOutput     bool
+	abiCall        bool
+	// we generate a warning if you set isTest but your service does not
+	isTest               bool
 	protoPackageOverride *string
 }
 
@@ -38,6 +41,9 @@ func (w *WasmMethod) GetOutputFields() []*WasmField {
 			w.WasmMethodName())
 	}
 	return w.CGOutput().GetCGType().CompositeType().GetField()
+}
+func (w *WasmMethod) IsTest() bool {
+	return w.isTest
 }
 
 func (w *WasmMethod) importForMessage(m *WasmMessage) string {
@@ -69,8 +75,8 @@ func (w *WasmMethod) HasNoPackageOption() bool {
 func (w *WasmMethod) HasAbiCallOption() bool {
 	return w.abiCall
 }
-func (w *WasmMethod) NoAbiCallOption() bool {
-	return !w.abiCall
+func (w *WasmMethod) HasMethodTestOption() bool {
+	return w.isTest
 }
 
 func (w *WasmMethod) ProtoPackage() string {
@@ -79,7 +85,6 @@ func (w *WasmMethod) ProtoPackage() string {
 	}
 	return w.Parent().ProtoPackage()
 }
-
 func (w *WasmMethod) Finder() Finder {
 	return w.Parent().Finder()
 }
