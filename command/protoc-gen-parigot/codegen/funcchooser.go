@@ -7,31 +7,32 @@ type QuadWithMethodString func(b1, b2, b3, b4 bool, m *WasmMethod) string
 type FiveWithMethodString func(b1, b2, b3, b4, abi bool, m *WasmMethod) string
 
 type FuncChooser struct {
-	Bits                QuadString
-	NeedsFillIn         QuadOptions
-	NeedsFillOut        QuadOptions
-	NeedsRet            QuadOptions
-	InputParam          QuadWithMethodString
-	OutputParam         QuadWithMethodString
-	NeedsPullApart      QuadOptions
-	Inbound             QuadWithMethodString
-	Outbound            QuadWithMethodString
-	RetError            QuadWithMethodString
-	RetValue            QuadWithMethodString
-	MethodRet           FiveWithMethodString
-	ZeroValueRet        FiveWithMethodString
-	MethodParamDecl     QuadWithMethodString
-	OutLocal            QuadWithMethodString
-	MethodCall          QuadWithMethodString
-	DecodeRequired      QuadWithMethodBool
-	NoDecodeRequired    QuadWithMethodBool
-	UsesReturnValuePtr  QuadWithMethodBool
-	MethodParamDeclWasm QuadWithMethodString
-	HasComplexParam     QuadWithMethodBool
-	MethodCallWasm      QuadWithMethodString
-	InputToSend         QuadWithMethodString
-	DispatchParam       QuadWithMethodString
-	DispatchResult      QuadWithMethodString
-	OutParamDecl        QuadWithMethodString
-	BindDirection       QuadWithMethodString
+	Bits                  QuadString
+	NeedsFillIn           QuadOptions
+	NeedsFillOut          QuadOptions
+	NeedsRet              QuadOptions
+	InputParam            QuadWithMethodString
+	OutputParam           QuadWithMethodString
+	NeedsPullApart        QuadOptions
+	Inbound               QuadWithMethodString
+	Outbound              QuadWithMethodString
+	RetError              QuadWithMethodString
+	RetValue              QuadWithMethodString
+	MethodRet             FiveWithMethodString
+	ZeroValueRet          FiveWithMethodString
+	MethodParamDecl       QuadWithMethodString
+	OutLocal              QuadWithMethodString
+	MethodCall            QuadWithMethodString
+	DecodeRequired        QuadWithMethodBool
+	NoDecodeRequired      QuadWithMethodBool
+	UsesReturnValuePtr    QuadWithMethodBool
+	MethodParamDeclWasm   QuadWithMethodString
+	HasComplexParam       QuadWithMethodBool
+	MethodCallWasm        QuadWithMethodString
+	InputToSend           QuadWithMethodString
+	DispatchParam         QuadWithMethodString
+	DispatchResult        QuadWithMethodString
+	OutParamDecl          QuadWithMethodString
+	BindDirection         QuadWithMethodString
+	GenMethodPossibleTest func(m *WasmMethod) bool
 }

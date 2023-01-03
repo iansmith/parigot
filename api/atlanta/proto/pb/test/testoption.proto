@@ -1,0 +1,11 @@
+syntax ="proto3";
+package pb.test;
+option go_package="github.com/iansmith/parigot/api/proto/g/pb/test;test";
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.ServiceOptions {
+  optional bool service_test = 543215;
+}
+extend google.protobuf.MethodOptions {
+  optional bool method_test = 543216;
+}

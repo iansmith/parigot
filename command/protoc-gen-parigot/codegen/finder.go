@@ -2,9 +2,10 @@ package codegen
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
 	"strings"
+
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 const verbose = false

@@ -1,8 +1,9 @@
 package codegen
 
 import (
-	"google.golang.org/protobuf/types/descriptorpb"
 	"log"
+
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 var parigotTypeList = []string{"TYPE_STRING", "TYPE_INT32", "TYPE_INT64", "TYPE_FLOAT", "TYPE_DOUBLE", "TYPE_BOOL",
@@ -21,6 +22,7 @@ func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService) *Wa
 	if meth.GetOptions() != nil {
 		meth.pullParameters = pullParamsOption(meth.GetOptions().String())
 		meth.pullOutput = pullOutputOption(meth.GetOptions().String())
+		meth.isTest = hasMethodTestOption(meth.GetOptions().String())
 	}
 	return meth
 }
@@ -55,6 +57,7 @@ func NewWasmService(file *descriptorpb.FileDescriptorProto,
 		s.alwaysPullOutput = alwaysPullOutputOption(service.GetOptions().String())
 		s.noPackage = hasNoPackageOption(service.GetOptions().String())
 		s.kernel = hasKernelOption(service.GetOptions().String())
+		s.isTest = hasServiceTestOption(service.GetOptions().String())
 	}
 	return s
 }

@@ -1,6 +1,6 @@
 package {{ LastSegmentOfPackage .file.GetPackage }}
 import(
-{{- range $j,$i := .imports }}
+{{- range $j,$i := .import }}
     {{$j}}
 {{- end}} {{/* imports */}}
 {{- $info:=.info }}
@@ -29,6 +29,13 @@ import(
 //
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
+
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }}
+    // skipping {{.}}, not in test mode
+    {{- continue}}
+{{- end}}
+
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
@@ -100,6 +107,11 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 {{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
+{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
+{{- if eq false $genTest }}
+    // skipping {{.}}, not in test mode
+    {{- continue}}
+{{- end}}
 
 {{- if .InputCodeNeeded -}}
 func (i *{{$svcCamel}}Client) {{$methCamel}}(in {{$inParam}}) 

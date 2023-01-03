@@ -4,7 +4,7 @@ use lib/atlanta.base/go
 
 use sys/atlanta.base
 
-use api/atlanta.base
+use api/atlanta
 
 use command
 

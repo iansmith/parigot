@@ -27,16 +27,20 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 		//gather imports
 		imp := make(map[string]struct{})
 		for _, dep := range info.GetFile().GetDependency() {
+			if dep == "pb/test/testoption.proto" {
+				continue
+			}
+			//log.Printf("import map, adding %s [%s]", dep, n)
 			imp["\""+impToPkg[dep]+"\""] = struct{}{}
 		}
-
 		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
+		//log.Printf("-- done with import map %s", path)
 		f := util.NewOutputFile(path)
 		data := map[string]interface{}{
-			"file":    info.GetFile(),
-			"req":     info.GetRequest(),
-			"info":    info,
-			"imports": imp,
+			"file":   info.GetFile(),
+			"req":    info.GetRequest(),
+			"info":   info,
+			"import": imp,
 		}
 		err := executeTemplate(f, t, n, data)
 		if err != nil {
