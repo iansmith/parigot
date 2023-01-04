@@ -32,8 +32,6 @@ func NewSimpleFinder() *SimpleFinder {
 	}
 }
 
-var hack = make(map[string]int)
-
 func (s *SimpleFinder) AddMessageType(name, protoPackage, goPackage string, message *WasmMessage) {
 	rec := NewMessageRecord(name, protoPackage, goPackage)
 	message.Collect()
@@ -85,9 +83,19 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 			if verbose {
 				log.Printf("! [simplefinder addressing name] found %s, but in diff package [%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
 			}
-			parts := strings.Split(m.GetFullName(), ".")
-			if len(parts) > 2 {
-				return strings.Join(parts[len(parts)-2:], ".")
+			part := strings.Split(m.GetFullName(), ".")
+			if len(part) > 2 {
+				nonMsgPart := strings.Join(part[1:len(part)-1], ".")
+				if nonMsgPart == currentPkg {
+					nonParts := strings.Split(nonMsgPart, ".")
+					if isVersion(nonParts[len(nonParts)-1]) {
+						nonMsgPart = strings.Join(nonParts[:len(nonParts)-1], ".")
+					}
+					p_2 := nonMsgPart
+					p_1 := part[len(part)-1]
+					return fmt.Sprintf("%smsg.%s", p_2, p_1)
+				}
+				return strings.Join(part[len(part)-2:], ".")
 			}
 			if verbose {
 				log.Printf("! [simplefinder addressing name] found %s, but in diff package and I cant understand the splitting of the name, giving up[%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)
@@ -108,11 +116,6 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 
 func (s *SimpleFinder) FindMessageByName(protoPackage string, name string) *WasmMessage {
 	// sanity check
-	if !strings.HasPrefix(name, "."+protoPackage) && protoPackage != "" {
-		//debug.PrintStack()
-		//panic(fmt.Sprintf("can't understand message/type structure: [%s,%s]",
-		//	protoPackage, name))
-	}
 	if protoPackage != "google.protobuf" {
 		if verbose {
 			log.Printf("new search for (%s,%s)---------", protoPackage, name)

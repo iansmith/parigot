@@ -193,52 +193,7 @@ func (m *WasmMethod) OutputCodeNeeded() bool {
 		panic("should not have a simple type at top level of a proto definition")
 	}
 	cgt := m.CGOutput().GetCGType()
-	if cgt.IsCompositeNoFields() {
-		return false
-	}
-	//if m.PullOutput() {
-	//	field := cgt.CompositeType().GetField()
-	//	if len(field) > 1 {
-	//		log.Fatalf("Currently, it is not allowed to pull up an output with more than 1 field:%s",
-	//			cgt.CompositeType().GetName())
-	//	}
-	//	// we checked for zero before, so we know len(field)==1
-	//	only := cgt.CompositeType().GetField()[0]
-	//	cgt = NewCGTypeFromField(only, m, m.ProtoPackage())
-	//	// we ban the pull up to a composite, because that's just confusing
-	//	// should we recurse on that?
-	//	if !cgt.IsBasic() {
-	//		log.Fatalf("Pulling up an output to another composite result is ambiguous:",
-	//			cgt.CompositeType().GetName())
-	//	}
-	//	if cgt.Basic() == "TYPE_INT64" {
-	//		log.Fatalf("Due to a javascript limitation, you cannot return a single int64 from a function "+
-	//			" and your pull up of the output of type %s would result in that", m.CGOutput().GetTypeName())
-	//	}
-	//}
-	return true
-}
-
-func recurseCompositesToFindTypeSequence(t *CGType, m *WasmMethod, seq []string) []string {
-	if t.IsCompositeNoFields() {
-		return []string{}
-	}
-	if t.IsBasic() {
-		return m.Language().BasicTypeToWasm(t.Basic())
-	}
-	//it's a composite with 1 or more fields
-	comp := t.CompositeType()
-	field := comp.GetField()
-	result := seq
-	for _, f := range field {
-		cgt := NewCGTypeFromField(f, m, m.ProtoPackage())
-		if !cgt.IsBasic() {
-			result = append(result, recurseCompositesToFindTypeSequence(t, m, seq)...)
-		} else {
-			result = append(result, m.Language().BasicTypeToWasm(cgt.Basic())...)
-		}
-	}
-	return result
+	return !cgt.IsCompositeNoFields()
 }
 
 func (m *WasmMethod) FuncChoice() *FuncChooser {

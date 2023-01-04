@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 )
 
 const (
@@ -22,27 +22,27 @@ const (
 type KernelErrorCode uint16
 
 type AllIdPtr interface {
-	*protosupport.CallId |
-		*protosupport.DBConnId |
-		*protosupport.DBIOId |
-		*protosupport.FileId |
-		*protosupport.FileIOId |
-		*protosupport.MethodId |
-		*protosupport.ServiceId |
-		*protosupport.KernelErrorId |
-		*protosupport.BaseId
+	*protosupportmsg.CallId |
+		*protosupportmsg.DBConnId |
+		*protosupportmsg.DBIOId |
+		*protosupportmsg.FileId |
+		*protosupportmsg.FileIOId |
+		*protosupportmsg.MethodId |
+		*protosupportmsg.ServiceId |
+		*protosupportmsg.KernelErrorId |
+		*protosupportmsg.BaseId
 }
 
 type AllId interface {
-	protosupport.CallId |
-		protosupport.DBConnId |
-		protosupport.DBIOId |
-		protosupport.FileId |
-		protosupport.FileIOId |
-		protosupport.MethodId |
-		protosupport.ServiceId |
-		protosupport.KernelErrorId |
-		protosupport.BaseId
+	protosupportmsg.CallId |
+		protosupportmsg.DBConnId |
+		protosupportmsg.DBIOId |
+		protosupportmsg.FileId |
+		protosupportmsg.FileIOId |
+		protosupportmsg.MethodId |
+		protosupportmsg.ServiceId |
+		protosupportmsg.KernelErrorId |
+		protosupportmsg.BaseId
 }
 
 const (
@@ -143,17 +143,17 @@ func NewError[T AllIdPtr](err uint16) Id {
 }
 
 // NoKernelError is a wrapper to create a no error from the kernel and marshal it.
-func NoKernelError() *protosupport.KernelErrorId {
-	return NoErrorMarshaled[protosupport.KernelErrorId, *protosupport.KernelErrorId]()
+func NoKernelError() *protosupportmsg.KernelErrorId {
+	return NoErrorMarshaled[protosupportmsg.KernelErrorId, *protosupportmsg.KernelErrorId]()
 }
 
 // NewKernelError is just a convenience wrapper around NewError() that has the correct constant type
 // its parameter.  Note that this will accept "NoKer"
 func NewKernelError(code KernelErrorCode) Id {
 	if code == KernelNoError {
-		return NoError[*protosupport.KernelErrorId]()
+		return NoError[*protosupportmsg.KernelErrorId]()
 	}
-	return NewError[*protosupport.KernelErrorId](uint16(code))
+	return NewError[*protosupportmsg.KernelErrorId](uint16(code))
 }
 
 // newFromErrorCode is a convenience wrapper around creating an id which represents an error for
@@ -214,7 +214,7 @@ func idFromUint64Pair(high uint64, low uint64, letter byte) Id {
 }
 
 // Unmarshal onverts from the internal representation in memory (lib.Id) to the external, wire-format
-// compatible version in protosupport.  This works for all types of Ids.
+// compatible version in protosupportmsg.  This works for all types of Ids.
 func Unmarshal[T AllIdPtr](wrapper T) Id {
 	if wrapper == nil {
 		return nil
@@ -237,7 +237,7 @@ func Marshal[T AllId](id Id) *T {
 	highBytes := int64ToByteSlice(id.High())
 	highByte := highBytes[7]
 
-	inner := &protosupport.BaseId{
+	inner := &protosupportmsg.BaseId{
 		High:       id.High(),
 		Low:        id.Low(),
 		AsciiValue: uint32(highByte),
@@ -278,23 +278,23 @@ func LocalId[T AllIdPtr](v uint64) Id {
 
 // addInnerToType adds the given "inner" id (the real data) to an existing wrapper type that is
 // one of the ones visible to user code.
-func addInnerIdToType(i interface{}, inner *protosupport.BaseId) {
+func addInnerIdToType(i interface{}, inner *protosupportmsg.BaseId) {
 	switch v := i.(type) {
-	case *protosupport.CallId:
+	case *protosupportmsg.CallId:
 		v.Id = inner
-	case *protosupport.DBConnId:
+	case *protosupportmsg.DBConnId:
 		v.Id = inner
-	case *protosupport.DBIOId:
+	case *protosupportmsg.DBIOId:
 		v.Id = inner
-	case *protosupport.FileId:
+	case *protosupportmsg.FileId:
 		v.Id = inner
-	case *protosupport.FileIOId:
+	case *protosupportmsg.FileIOId:
 		v.Id = inner
-	case *protosupport.MethodId:
+	case *protosupportmsg.MethodId:
 		v.Id = inner
-	case *protosupport.ServiceId:
+	case *protosupportmsg.ServiceId:
 		v.Id = inner
-	case *protosupport.KernelErrorId:
+	case *protosupportmsg.KernelErrorId:
 		v.Id = inner
 	default:
 		panic("unknown id type")
@@ -303,23 +303,23 @@ func addInnerIdToType(i interface{}, inner *protosupport.BaseId) {
 
 // addInnerToType adds the given "inner" id (the real data) to an existing wrapper type that is
 // one of the ones visible to user code.
-func typeToInnerId(i interface{}) *protosupport.BaseId {
+func typeToInnerId(i interface{}) *protosupportmsg.BaseId {
 	switch v := i.(type) {
-	case *protosupport.CallId:
+	case *protosupportmsg.CallId:
 		return v.GetId()
-	case *protosupport.DBConnId:
+	case *protosupportmsg.DBConnId:
 		return v.GetId()
-	case *protosupport.DBIOId:
+	case *protosupportmsg.DBIOId:
 		return v.GetId()
-	case *protosupport.FileId:
+	case *protosupportmsg.FileId:
 		return v.GetId()
-	case *protosupport.FileIOId:
+	case *protosupportmsg.FileIOId:
 		return v.GetId()
-	case *protosupport.MethodId:
+	case *protosupportmsg.MethodId:
 		return v.GetId()
-	case *protosupport.ServiceId:
+	case *protosupportmsg.ServiceId:
 		return v.GetId()
-	case *protosupport.KernelErrorId:
+	case *protosupportmsg.KernelErrorId:
 		return v.GetId()
 	}
 	panic("unknown id type")
@@ -328,21 +328,21 @@ func typeToInnerId(i interface{}) *protosupport.BaseId {
 // typeToLetter returns the single ascii character (as a byte) that represents a given type of id.
 func typeToLetter(i interface{}) byte {
 	switch i.(type) {
-	case *protosupport.CallId:
+	case *protosupportmsg.CallId:
 		return callIdLetter
-	case *protosupport.DBConnId:
+	case *protosupportmsg.DBConnId:
 		return dbConnIdLetter
-	case *protosupport.DBIOId:
+	case *protosupportmsg.DBIOId:
 		return dbIOIdLetter
-	case *protosupport.FileId:
+	case *protosupportmsg.FileId:
 		return fileIdLetter
-	case *protosupport.FileIOId:
+	case *protosupportmsg.FileIOId:
 		return fileIOIdLetter
-	case *protosupport.MethodId:
+	case *protosupportmsg.MethodId:
 		return methodIdLetter
-	case *protosupport.ServiceId:
+	case *protosupportmsg.ServiceId:
 		return serviceIdLetter
-	case *protosupport.KernelErrorId:
+	case *protosupportmsg.KernelErrorId:
 		return kernelErrorIdLetter
 	}
 	panic("unknown id type")

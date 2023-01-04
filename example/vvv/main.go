@@ -4,16 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	"demo/vvv/proto/g/vvv"
-	"demo/vvv/proto/g/vvv/pb"
+	"example/vvv/g/example/vvv/v1"
 
-	"github.com/iansmith/parigot/api/proto/g/file"
 	"github.com/iansmith/parigot/api/proto/g/log"
 	pbfile "github.com/iansmith/parigot/api/proto/g/pb/file"
 	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
 	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
 	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
 	"github.com/iansmith/parigot/api/syscall"
+	"github.com/iansmith/parigot/g/file/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

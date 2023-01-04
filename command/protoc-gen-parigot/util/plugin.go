@@ -61,8 +61,7 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string, protocV
 		if err != nil {
 			log.Fatalf("%v", err)
 		}
-		protoGuess := req.GetProtoFile()[len(req.GetProtoFile())-1].GetName()
-		path := fmt.Sprintf("%s", protoGuess)
+		path := req.GetProtoFile()[len(req.GetProtoFile())-1].GetName()
 		out := filepath.Join(dir, path)
 		parentDir, _ := filepath.Split(out)
 		if err := os.MkdirAll(parentDir, 0700); err != nil {
@@ -78,7 +77,7 @@ func ReadStdinIntoBuffer(reader io.Reader, saveTemp bool, tmpDir string, protocV
 		}
 		if protocVerbose {
 			log.Printf("saved copy of input to %s (0x%0x bytes) from %s", out, count,
-				protoGuess)
+				path)
 		}
 		outfp.Close()
 	}

@@ -1,0 +1,65 @@
+syntax = "proto3";
+package msg.business.v1;
+option go_package = "example/vvv/g/msg/business/v1;businessmsg";
+
+message Item {
+    int64 id = 1;
+}
+
+enum MediaType {
+  MEDIA_TYPE_UNSPECIFIED = 0;
+  MEDIA_TYPE_VHS  =1;
+  MEDIA_TYPE_BETA  =2;
+  MEDIA_TYPE_LASERDISC  =4;
+  MEDIA_TYPE_DVD  =5;
+  MEDIA_TYPE_CD  =6;
+  MEDIA_TYPE_CD_SINGLE  =7;
+  MEDIA_TYPE_ATARI2600_CART = 8;
+  MEDIA_TYPE_INTELLIVISION_CART = 9;
+}
+
+enum ContentType {
+    CONTENT_TYPE_UNSPECIFIED = 0;
+    CONTENT_TYPE_MUSIC = 1;
+    CONTENT_TYPE_TV =2;
+    CONTENT_TYPE_MOVIE = 3;
+}
+
+message Boat {
+    string creator =1;
+    string title = 2;
+    int32 year = 3;
+    MediaType media = 4;
+    float price = 5;
+}
+message MediaTypesInStockRequest{
+}
+
+message MediaTypesInStockResponse{
+    repeated MediaType media = 1;
+}
+
+message BestOfAllTimeRequest{
+    ContentType content = 1;
+}
+
+message BestOfAllTimeResponse{
+    Boat boat = 1;
+}
+
+message RevenueRequest{
+    int32 day = 1;
+    int32 month = 2;
+    int32 year = 3;
+}
+
+message RevenueResponse{
+    float revenue  = 1;
+}
+
+message SoldItemRequest{
+    Item item = 1;
+}
+
+message SoldItemResponse{
+}

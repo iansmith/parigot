@@ -8,8 +8,6 @@ import (
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 )
 
-const protoSignal = "api/proto/g"
-
 // BasicGenerate is the primary code generation driver. Language-specific code
 // (in generator.Generate()) is called and that code typically does some setup and
 // then calls into this code, passing itself as the g.  This function expects the

@@ -4,15 +4,15 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/iansmith/parigot/api/fileimpl/go_"
-	"github.com/iansmith/parigot/api/proto/g/file"
-	"github.com/iansmith/parigot/api/proto/g/log"
-	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/api/splitutil"
-	"github.com/iansmith/parigot/api/syscall"
+	"github.com/iansmith/parigot/api_impl/file/go_"
+	"github.com/iansmith/parigot/api_impl/splitutil"
+	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/g/file/v1"
+	"github.com/iansmith/parigot/g/log/v1"
+	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -32,16 +32,16 @@ func main() {
 }
 
 type myFileServer struct {
-	logger log.Log
+	logger log.LogService
 }
 
 func (m *myFileServer) Ready() bool {
-	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
 	}
 	var err error
-	m.logger, err = log.LocateLog()
+	m.logger, err = log.LocateLogService()
 	if err != nil {
 		panic("unable to locate the log:" + err.Error())
 	}
@@ -52,9 +52,9 @@ func (m *myFileServer) Ready() bool {
 // This file contains the "setup" code that builds a payload that will be sent to the other part of
 // this service.  That other part is the one that runs natively on the host machine.  This code runs
 // in WASM.
-func (m *myFileServer) Open(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
+func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 
-	resp := pb.OpenResponse{}
+	resp := filemsg.OpenResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
 	if err != nil {
@@ -66,19 +66,19 @@ func (m *myFileServer) Open(pctx *protosupport.Pctx, inProto proto.Message) (pro
 	return &resp, nil
 }
 
-func (m *myFileServer) Close(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
-	_ = inProto.(*pb.CloseRequest)
+func (m *myFileServer) Close(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
+	_ = inProto.(*filemsg.CloseRequest)
 	panic("Close")
 }
-func (m *myFileServer) Create(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
-	_ = inProto.(*pb.CreateRequest)
+func (m *myFileServer) Create(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
+	_ = inProto.(*filemsg.CreateRequest)
 	panic("Create")
 }
-func (m *myFileServer) log(pctx *protosupport.Pctx, spec string, rest ...interface{}) {
+func (m *myFileServer) log(pctx *protosupportmsg.Pctx, spec string, rest ...interface{}) {
 	s := fmt.Sprintf(spec, rest...)
-	req := pblog.LogRequest{
+	req := logmsg.LogRequest{
 		Stamp:   pctx.GetNow(),
-		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 		Message: "myFileServer:" + s,
 	}
 	err := m.logger.Log(&req)
@@ -87,8 +87,8 @@ func (m *myFileServer) log(pctx *protosupport.Pctx, spec string, rest ...interfa
 	}
 }
 
-func (m *myFileServer) Load(pctx *protosupport.Pctx, inProto proto.Message) (proto.Message, error) {
-	resp := pb.LoadResponse{}
+func (m *myFileServer) LoadTest(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
+	resp := filemsg.LoadTestResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
 	if err != nil {

@@ -1,9 +1,9 @@
 package lib
 
 import (
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -15,22 +15,22 @@ import (
 //
 // Call has an analogue called SysCall that is the means by which the kernel receives these calls.
 type Call interface {
-	Exit(in *pbsys.ExitRequest)
-	Locate(in *pbsys.LocateRequest) (*pbsys.LocateResponse, error)
-	Dispatch(in *pbsys.DispatchRequest) (*pbsys.DispatchResponse, error)
-	BindMethodIn(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) error) (*pbsys.BindMethodResponse, error)
-	BindMethodOut(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx) (proto.Message, error)) (*pbsys.BindMethodResponse, error)
-	BindMethodBoth(in *pbsys.BindMethodRequest, _ func(*protosupport.Pctx, proto.Message) (proto.Message, error)) (*pbsys.BindMethodResponse, error)
-	Run(in *pbsys.RunRequest) (*pbsys.RunResponse, error)
-	Export(in *pbsys.ExportRequest) (*pbsys.ExportResponse, error)
-	Require(in *pbsys.RequireRequest) (*pbsys.RequireResponse, error)
-	BlockUntilCall(in *pbsys.BlockUntilCallRequest) (*pbsys.BlockUntilCallResponse, error)
-	ReturnValue(in *pbsys.ReturnValueRequest) (*pbsys.ReturnValueResponse, error)
-	Export1(pkg, name string) (*pbsys.ExportResponse, error)
-	Require1(pkg, name string) (*pbsys.RequireResponse, error)
+	Exit(in *syscallmsg.ExitRequest)
+	Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error)
+	Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, error)
+	BindMethodIn(in *syscallmsg.BindMethodRequest, _ func(*protosupportmsg.Pctx, proto.Message) error) (*syscallmsg.BindMethodResponse, error)
+	BindMethodOut(in *syscallmsg.BindMethodRequest, _ func(*protosupportmsg.Pctx) (proto.Message, error)) (*syscallmsg.BindMethodResponse, error)
+	BindMethodBoth(in *syscallmsg.BindMethodRequest, _ func(*protosupportmsg.Pctx, proto.Message) (proto.Message, error)) (*syscallmsg.BindMethodResponse, error)
+	Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error)
+	Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error)
+	Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error)
+	BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error)
+	ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error)
+	Export1(pkg, name string) (*syscallmsg.ExportResponse, error)
+	Require1(pkg, name string) (*syscallmsg.RequireResponse, error)
 
 	// Use of this function is discouraged. This function uses a backdoor to reach the logging service
 	// and does not go through the normal LocateLog() process that can allow better/different implementation
 	// of said service.  This is intended only for debugging when inside parigot's implementation.
-	BackdoorLog(in *pblog.LogRequest) (*pblog.LogResponse, error)
+	BackdoorLog(in *logmsg.LogRequest) (*logmsg.LogResponse, error)
 }

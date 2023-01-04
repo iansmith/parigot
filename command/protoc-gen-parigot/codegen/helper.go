@@ -1,15 +1,19 @@
 package codegen
 
 import (
+	"regexp"
 	"strings"
 	"text/template"
 )
+
+var versionExpr = regexp.MustCompile("v[0-9]+")
 
 // FuncMap is "default" function map for use with the templates. This contains generally
 // useful helper functions.
 var FuncMap = template.FuncMap{
 	"toCamelCase":           ToCamelCase,
 	"toCamelCaseFirstLower": ToCamelCaseFirstLower,
+	"toLowerNoService":      ToLowerNoService,
 	"LastSegmentOfPackage":  LastSegmentOfPackage,
 	"BasicTypeToString":     BasicTypeToString,
 }
@@ -18,6 +22,17 @@ func ToCamelCaseFirstLower(snake string) string {
 	c := ToCamelCase(snake)
 	if len(c) == 1 {
 		return strings.ToLower(c)
+	}
+	return strings.ToLower(c[0:1]) + c[1:]
+}
+func ToLowerNoService(snake string) string {
+	c := ToCamelCase(snake)
+	l := strings.ToLower(c)
+	if len(c) == 1 {
+		return strings.ToLower(c)
+	}
+	if strings.HasSuffix(l, "service") {
+		return strings.TrimSuffix(l, "service")
 	}
 	return strings.ToLower(c[0:1]) + c[1:]
 }
@@ -38,14 +53,31 @@ func ToCamelCase(snake string) string {
 	return snake
 }
 
-// LastSegmentOfPackage returns the string after the last dot of a fully spelled out package name.
-// If there are no dots or the last dot is the last character, it returns its input.
+// LastSegmentOfPackage normally returns the string after the last dot of a fully spelled out package name,
+// without any version number, if present.  If there are no dots or the last dot is the last character,
+// it returns its input.  As a special case, if the package name starts with "msg" and the output is a
+// normal case, it returns <output>msg.
 func LastSegmentOfPackage(pkg string) string {
+	part := strings.Split(pkg, ".")
+	if len(part) > 1 {
+		possibleVersion := part[len(part)-1]
+		if isVersion(possibleVersion) {
+			part = part[:len(part)-1]
+			pkg = strings.Join(part, ".")
+		}
+	}
+	suffix := ""
+	if strings.HasPrefix(pkg, ".msg.") {
+		suffix = "msg"
+	}
 	last := strings.LastIndex(pkg, ".")
 	if last == -1 || last == len(pkg)-1 {
-		return pkg
+		return pkg + suffix
 	}
-	return pkg[last+1:]
+	return pkg[last+1:] + suffix
+}
+func isVersion(possibleVersion string) bool {
+	return versionExpr.MatchString(possibleVersion)
 }
 
 func BasicTypeToString(l LanguageText, s string, panicOnFail bool) string {

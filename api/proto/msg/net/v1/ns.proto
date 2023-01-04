@@ -1,6 +1,6 @@
 syntax = "proto3";
 package msg.net.v1;
-option go_package="g/msg/net;net";
+option go_package="g/msg/net/v1;netmsg";
 import "msg/protosupport/v1/protosupport.proto";
 
 // This file is the (private) protocol between the remote syscall object in the address space

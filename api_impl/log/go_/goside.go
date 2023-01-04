@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/splitutil"
+	"github.com/iansmith/parigot/api_impl/splitutil"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	"github.com/iansmith/parigot/sys/jspatch"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -32,7 +32,7 @@ func init() {
 
 //go:noinline
 func (l *LogViewerImpl) LogRequestHandler(sp int32) {
-	req := pb.LogRequest{}
+	req := logmsg.LogRequest{}
 	// xxxfixme: StackPointerToRequest really should return (or provide access to) the buffer used
 	// xxxfixme: to read the request because we end up regenerating it when we send this to the
 	// xxxfixme: logviewer.
@@ -47,17 +47,17 @@ func (l *LogViewerImpl) LogRequestHandler(sp int32) {
 
 func intToLogLevel(i int) string {
 	switch {
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_UNSPECIFIED:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_UNSPECIFIED:
 		return "UNKNOWN"
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_DEBUG:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_DEBUG:
 		return "DEBUG"
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_INFO:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_INFO:
 		return "INFO "
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_WARNING:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_WARNING:
 		return "WARN "
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_ERROR:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_ERROR:
 		return "ERROR"
-	case pb.LogLevel(i) == pb.LogLevel_LOG_LEVEL_FATAL:
+	case logmsg.LogLevel(i) == logmsg.LogLevel_LOG_LEVEL_FATAL:
 		return "FATAL"
 	default:
 		return fmt.Sprintf("UNEXPECTED[%d]", i)
@@ -77,7 +77,7 @@ func (l *LogViewerImpl) SetWasmMem(ptr uintptr) {
 // machinery.
 type logTuple struct {
 	buffer    []byte
-	req       *pb.LogRequest
+	req       *logmsg.LogRequest
 	isKernel  bool
 	isBackend bool
 }
@@ -93,7 +93,7 @@ var logChannel = make(chan *logTuple, 32)
 // The isKernel and isBackend should be set to true only if this is called by some part of the kernel itself
 // or some "backend" implementation of a function, respectively.  If the caller does not have the already serialized
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
-func ProcessLogRequest(req *pb.LogRequest, isKernel, isBackend bool, buffer []byte) {
+func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, buffer []byte) {
 	tuple := &logTuple{buffer, req, isKernel, isBackend}
 	logChannel <- tuple
 }
@@ -139,11 +139,11 @@ func (l *logState) logSingleMessage(tuple *logTuple) {
 		return
 	}
 	if tuple.req == nil {
-		tmp := pb.LogRequest{}
+		tmp := logmsg.LogRequest{}
 		err := splitutil.DecodeSingleProto(tuple.buffer, &tmp)
 		if err != nil {
 			tmp.Stamp = timestamppb.New(time.Now())
-			tmp.Level = pb.LogLevel_LOG_LEVEL_ERROR
+			tmp.Level = logmsg.LogLevel_LOG_LEVEL_ERROR
 			tmp.Message = fmt.Sprintf("unable to extract LogRequest from data buffer: %v", err)
 			tuple.isKernel = false
 			tuple.isBackend = true

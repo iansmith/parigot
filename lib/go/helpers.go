@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -18,14 +17,14 @@ var helperVerbose = true || envVerbose != ""
 // there are number of cases and doing this in this library means the code generator
 // can be much simpler.  It just passes all the information into here, and this function
 // sorts it out.
-func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupport.Pctx) (*pbsys.ReturnValueResponse, error) {
+func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error, out proto.Message, pctx *protosupportmsg.Pctx) (*syscallmsg.ReturnValueResponse, error) {
 	var err error
 	var a anypb.Any
 	// xxxfixme we should be doing an examination of execError to see if it is a Perror
 	// xxxfixme and if it is, we should be pushing the user error back the other way
-	rv := &pbsys.ReturnValueRequest{}
-	rv.Call = Marshal[protosupport.CallId](cid)
-	rv.Method = Marshal[protosupport.MethodId](mid)
+	rv := &syscallmsg.ReturnValueRequest{}
+	rv.Call = Marshal[protosupportmsg.CallId](cid)
+	rv.Method = Marshal[protosupportmsg.MethodId](mid)
 	if marshalError != nil || execError != nil {
 		if marshalError != nil {
 			rv.MarshalError = marshalError.Error()
@@ -33,7 +32,7 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 			rv.ExecError = execError.Error()
 			perr, ok := execError.(Error)
 			if ok {
-				rv.ExecErrorId = Marshal[protosupport.BaseId](perr.Id())
+				rv.ExecErrorId = Marshal[protosupportmsg.BaseId](perr.Id())
 			}
 		}
 		goto encodeError

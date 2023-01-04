@@ -1,6 +1,6 @@
 syntax = "proto3";
 package msg.file.v1;
-option go_package="g/msg/file;file";
+option go_package="github.com/iansmith/parigot/g/msg/file/v1;filemsg";
 import "msg/protosupport/v1/protosupport.proto";
 
 
