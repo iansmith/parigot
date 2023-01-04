@@ -1,0 +1,9 @@
+syntax ="proto3";
+package methodcall.v1;
+option go_package="g/methodcall;methodcall";
+import "msg/methodcall/v1/bar.proto";
+
+service BarService {
+  // this calls the Foo service to test intra-service calls
+  rpc Accumulate(msg.methodcall.v1.AccumulateRequest) returns (msg.methodcall.v1.AccumulateResponse);
+}

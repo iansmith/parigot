@@ -1,0 +1,109 @@
+syntax = "proto3";
+package msg.syscall.v1;
+option go_package="g/msg/syscall;syscall";
+import "msg/protosupport/v1/protosupport.proto";
+import "google/protobuf/any.proto";
+
+// LocateRequest is a read from the kernel of the service id associated with a package, service pair.
+message LocateRequest {
+    string package_name = 1;
+    string service_name = 2;
+}
+
+// LocateResponse hands back the service Id of the package_name and service_name supplied in the request.
+message LocateResponse {
+    msg.protosupport.v1.ServiceId service_id = 1;
+}
+
+// DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
+message DispatchRequest {
+    msg.protosupport.v1.ServiceId service_id = 1; 
+    string method = 2;
+    string caller = 3;
+    msg.protosupport.v1.Pctx in_pctx = 4;
+    google.protobuf.Any  param = 5;  // inside is another Request object, but we don't know its type
+}
+
+// DispatchResponse sent by the server back to a client. It contains the return results generated
+// by the implementation of the method.  Note that errors are propagated elsewhere.
+message DispatchResponse {
+    msg.protosupport.v1.Pctx out_pctx = 1;
+    google.protobuf.Any result = 2; // again, there is a nested response object but we don't know its type
+    msg.protosupport.v1.CallId call_id = 3;
+    msg.protosupport.v1.MethodId method_id = 4;
+}
+
+message ReturnValueRequest{
+  msg.protosupport.v1.CallId call = 1;
+  msg.protosupport.v1.MethodId method = 2;
+  google.protobuf.Any result = 3;
+  msg.protosupport.v1.Pctx pctx = 4;
+  string marshal_error = 5;
+  string exec_error = 6;
+  msg.protosupport.v1.BaseId exec_error_id = 7; 
+}
+
+message ReturnValueResponse {
+}
+
+message BlockUntilCallRequest{
+}
+
+message BlockUntilCallResponse{
+  google.protobuf.Any param = 1;
+  msg.protosupport.v1.Pctx pctx = 2;
+  msg.protosupport.v1.MethodId method = 3;
+  msg.protosupport.v1.CallId call = 4;
+}
+
+enum MethodDirection {
+  METHOD_DIRECTION_UNSPECIFIED = 0;
+  METHOD_DIRECTION_IN = 1;
+  METHOD_DIRECTION_OUT = 2;
+  METHOD_DIRECTION_BOTH = 3;
+}
+
+message BindMethodRequest  {
+  string proto_package = 1;
+  string service = 2;
+  string method = 3;
+  MethodDirection direction = 4;
+}
+
+message BindMethodResponse {
+  msg.protosupport.v1.MethodId method_id = 1;
+}
+
+message FullyQualifiedService {
+  string package_path = 1;
+  string service = 2;
+}
+
+message ExportRequest {
+  repeated FullyQualifiedService service = 1;
+}
+
+message ExportResponse {
+}
+
+message RequireRequest {
+  repeated FullyQualifiedService service = 1;
+}
+
+message RequireResponse {
+}
+
+message RunRequest {
+  bool wait = 1;
+}
+
+message RunResponse {
+}
+
+message ExitRequest {
+  int32 code = 1;
+}
+
+message ExitResponse{
+  int32 code = 1;
+}

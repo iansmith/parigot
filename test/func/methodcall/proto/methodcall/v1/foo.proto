@@ -1,0 +1,10 @@
+syntax ="proto3";
+package methodcall.v1;
+option go_package="g/methodcall;methodcall";
+import "msg/methodcall/v1/foo.proto";
+
+service FooService {
+  rpc AddMultiply(msg.methodcall.v1.AddMultiplyRequest) returns (msg.methodcall.v1.AddMultiplyResponse);
+  rpc LucasSequence(msg.methodcall.v1.LucasSequenceRequest) returns (msg.methodcall.v1.LucasSequenceResponse);
+  rpc WritePi(msg.methodcall.v1.WritePiRequest) returns (msg.methodcall.v1.WritePiResponse);
+}

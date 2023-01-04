@@ -1,0 +1,28 @@
+syntax ="proto3";
+package file.v1;
+option go_package="g/file;file";
+import "msg/file/v1/file.proto";
+
+
+// This is the File service for parigot.  It is sandboxed such that caller to this service
+// has limited access to files. The caller can expect that "/app" is a directory in which new
+// files can be created and existing files can be found.  
+// 
+// Paths must be UTF-8 encoded with no control characters, without leading -, without . or ..
+// elements, and without carriage returns or newlines.
+//
+// This api provides no synchronous interface to reading or writing file content.  The caller will
+// be handed an Id upon successfully starting a read or write.  That Id can be used later to 
+// query the status of the read or write and it is expected that this will be driven by the *end user*,
+// such as a user on the internet with a web browser.
+
+
+service FileService {
+  rpc Open(msg.file.v1.OpenRequest) returns (msg.file.v1.OpenResponse);
+  rpc Create(msg.file.v1.CreateRequest) returns (msg.file.v1.CreateResponse);
+  rpc Close(msg.file.v1.CloseRequest) returns (msg.file.v1.CloseResponse);
+
+  // Load does NOT check that the file(s) referred to are reasonable in length, do not contain
+  // symlinks, are readable, etc.  Don't allow this call in prod.
+  rpc LoadTest(msg.file.v1.LoadTestRequest) returns (msg.file.v1.LoadTestResponse);
+}
