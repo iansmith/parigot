@@ -4,13 +4,12 @@ import (
 	"errors"
 	"os"
 
-	"github.com/iansmith/parigot/api/logimpl/go_"
-	"github.com/iansmith/parigot/api/proto/g/log"
-	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/api/splitutil"
-	"github.com/iansmith/parigot/api/syscall"
+	"github.com/iansmith/parigot/api_impl/splitutil"
+	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/g/log/v1"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -39,8 +38,8 @@ func (m *myLogServer) Ready() bool {
 // this service.  That other part is the one that runs natively on the host machine.
 // We discard the pb.LogResponse{} since there is no content inside it.
 
-func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error {
-	resp := pb.LogResponse{}
+func (m *myLogServer) Log(pctx *protosupportmsg.Pctx, inProto proto.Message) error {
+	resp := logmsg.LogResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.LogRequestHandler)
 	if err != nil {
@@ -50,11 +49,11 @@ func (m *myLogServer) Log(pctx *protosupport.Pctx, inProto proto.Message) error 
 		return errors.New("Log() failed:" + errId.Short())
 	}
 
-	req, ok := inProto.(*pb.LogRequest)
+	req, ok := inProto.(*logmsg.LogRequest)
 	if !ok {
 		return nil
 	}
-	if req.Level == pb.LogLevel_LOG_LEVEL_FATAL {
+	if req.Level == logmsg.LogLevel_LOG_LEVEL_FATAL {
 		os.Exit(7)
 	}
 	return nil

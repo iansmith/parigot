@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v4"
 )
 
 func readLibList(engine *wasmtime.Engine, modToPath map[*wasmtime.Module]string) ([]*wasmtime.Module, error) {

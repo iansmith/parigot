@@ -52,19 +52,11 @@ func main() {
 	importToPackageMap := make(map[string]string)
 	for _, f := range genReq.GetProtoFile() {
 		pkg := f.GetOptions().GetGoPackage()
-		//log.Printf("xxx main compare %s vs %s", pkg, "github.com/iansmith/parigot/api/proto/g/pb/test;test")
-		if pkg == "github.com/iansmith/parigot/api/proto/g/pb/test;test" { //this is only used to signal us, not a real decl
-			continue
-		}
 		if index := strings.LastIndex(pkg, ";"); index != -1 {
 			pkg = pkg[:index]
 		}
-		//rawPkg := f.GetOptions().GetGoPackage()
-		//	log.Printf("->main-> %s -> %s", f.GetName(), pkg)
 		importToPackageMap[f.GetName()] = pkg
 	}
-	//log.Print("--main done--")
-
 	resp := pluginpb.CodeGeneratorResponse{
 		Error:             nil,
 		SupportedFeatures: nil,

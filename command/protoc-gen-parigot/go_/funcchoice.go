@@ -56,14 +56,14 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 	}
 }
 
-func collectImports(m *codegen.WasmMethod) {
-	in := m.CGInput().CGType()
-	parts := strings.Split(in.CompositeType().GetFullName(), ".")
-	log.Printf("IN %s -> %s", in.ShortName(), parts[0:len(parts)-1])
-	out := m.CGInput().CGType()
-	parts = strings.Split(out.CompositeType().GetFullName(), ".")
-	log.Printf("OUT %s -> %s", in.ShortName(), parts[0:len(parts)-1])
-}
+// func collectImports(m *codegen.WasmMethod) {
+// 	in := m.CGInput().CGType()
+// 	parts := strings.Split(in.CompositeType().GetFullName(), ".")
+// 	log.Printf("IN %s -> %s", in.ShortName(), parts[0:len(parts)-1])
+// 	out := m.CGInput().CGType()
+// 	parts = strings.Split(out.CompositeType().GetFullName(), ".")
+// 	log.Printf("OUT %s -> %s", in.ShortName(), parts[0:len(parts)-1])
+// }
 
 // paramWalker is a utility function for creating a parameter decl list or a
 // parameter call list.  It takes a function that returns 1 or 2 argumest. If
@@ -119,7 +119,7 @@ func funcChoicesHasComplexParam(b1, b2, b3, b4 bool, m *codegen.WasmMethod) bool
 	}
 	decode := false
 	_ = paramWalker(b1, b2, b3, b4, m, func(p *codegen.CGParameter, lang codegen.LanguageText, protoPkg string) (string, string) {
-		if !p.GetCGType().IsBasic() && p.GetCGType().IsCompositeNoFields() == false {
+		if !p.GetCGType().IsBasic() && !p.GetCGType().IsCompositeNoFields() {
 			panic(fmt.Sprintf("abi types should not be using composite for parameters: %s", m.GetName()))
 		}
 		if basicTypeRequiresDecode(p.GetCGType().Basic()) {
@@ -168,18 +168,13 @@ func funcChoicesNoDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) boo
 // (protoc-gen-parigot).
 // We return true if both of these are true.
 
+const magicSuffix = "Test"
+
 func funcGenMethodPossibleTest(method *codegen.WasmMethod) bool {
-	if !method.IsTest() {
+	if !strings.HasSuffix(method.WasmMethodName(), magicSuffix) {
 		return true
 	}
-	if !method.Parent().IsTest() {
-		return false
-	}
-	if os.Getenv(GenTestEnvVar) == "" {
-		return false
-	}
-	return true
-
+	return os.Getenv(GenTestEnvVar) != ""
 }
 
 // methodToCGParameter returns an array of CGParameter objects corresponding to the

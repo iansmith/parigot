@@ -5,13 +5,13 @@ import (
 	"time"
 	_ "unsafe"
 
-	"demo/vvv/proto/g/vvv"
-	"demo/vvv/proto/g/vvv/pb"
+	"example/vvv/g/business/v1"
+	"example/vvv/g/msg/business/v1"
 
-	"github.com/iansmith/parigot/api/proto/g/log"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/api/syscall"
+	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/g/log/v1"
+	pblog "github.com/iansmith/parigot/g/msg/log/v1"
+	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

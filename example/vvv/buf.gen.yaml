@@ -1,11 +1,13 @@
 version: v1
+managed:
+  enabled: false
 plugins:
   - name: parigot
-    out: proto/g/vvv
+    out: g/
     opt: paths=source_relative
   - name: go
-    out: proto/g/vvv
+    out: g/
     opt: paths=source_relative
-  - name: connect-go
-    out: proto/g/vvv
-    opt: paths=source_relative
+  #- name: connect-go
+  #  out: proto/g/
+#    opt: paths=source_relative

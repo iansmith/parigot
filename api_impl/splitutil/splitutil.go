@@ -10,10 +10,10 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/iansmith/parigot/api/netconst"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/lib"
+	"github.com/iansmith/parigot/api_impl/netconst"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	"google.golang.org/protobuf/proto"
@@ -65,9 +65,9 @@ func log(funcName string, spec string, rest ...interface{}) {
 	if !strings.HasSuffix(p2, "\n") {
 		p2 += "\n"
 	}
-	req := pblog.LogRequest{
+	req := logmsg.LogRequest{
 		Stamp:   timestamppb.Now(), //xxx should be using the kernel version
-		Level:   pblog.LogLevel_LOG_LEVEL_DEBUG,
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 		Message: p1 + p2,
 	}
 	if runtime.GOARCH == "wasm" {
@@ -105,7 +105,7 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	fn(int32(u))
 	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-	errRtn := lib.NewFrom64BitPair[*protosupport.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+	errRtn := lib.NewFrom64BitPair[*protosupportmsg.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
 	if !errRtn.Equal(kerrNone) {
 		return errRtn, nil
 	}
@@ -278,8 +278,8 @@ func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
 
 func ErrorResponseId(mem *jspatch.WasmMem, sp int32, errId lib.Id) {
 	if !errId.IsErrorType() {
-		callImpl.BackdoorLog(&pblog.LogRequest{
-			Level:   pblog.LogLevel_LOG_LEVEL_WARNING,
+		callImpl.BackdoorLog(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_WARNING,
 			Message: "unable to understand error id that is not of error type:" + errId.Short(),
 			Stamp:   timestamppb.Now(), // xxx fix this with a kernel call
 		})

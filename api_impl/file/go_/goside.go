@@ -14,13 +14,14 @@ import (
 	"time"
 	"unicode"
 
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	pb "github.com/iansmith/parigot/api/proto/g/pb/file"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/api/splitutil"
-	"github.com/iansmith/parigot/lib"
+	ilog "github.com/iansmith/parigot/api_impl/log/go_"
+	"github.com/iansmith/parigot/api_impl/splitutil"
+	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
+
 	"github.com/psanford/memfs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -39,12 +40,12 @@ type FileSvcImpl struct {
 //
 //go:noinline
 func (l *FileSvcImpl) FileSvcOpen(sp int32) {
-	req := pb.OpenRequest{}
+	req := filemsg.OpenRequest{}
 	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
 		return
 	}
-	logger(pblog.LogLevel_LOG_LEVEL_INFO, "FileSvcOpen path to file %s", req.GetPath())
+	logger(logmsg.LogLevel_LOG_LEVEL_INFO, "FileSvcOpen path to file %s", req.GetPath())
 	newPath, err := ValidatePathForParigot(req.GetPath(), "open")
 	if err != nil {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelBadPath)
@@ -56,9 +57,9 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 		splitutil.ErrorResponse(l.mem, sp, lib.KernelNotFound)
 		return
 	}
-	fileId := lib.NewId[*protosupport.FileId]()
-	marshaledId := lib.Marshal[protosupport.FileId](fileId)
-	resp := pb.OpenResponse{Path: req.GetPath(), Id: marshaledId}
+	fileId := lib.NewId[*protosupportmsg.FileId]()
+	marshaledId := lib.Marshal[protosupportmsg.FileId](fileId)
+	resp := filemsg.OpenResponse{Path: req.GetPath(), Id: marshaledId}
 	if l.idToFilePointer == nil {
 		l.idToFilePointer = make(map[string]int64)
 		l.idToMemPath = make(map[string]string)
@@ -73,8 +74,8 @@ func (l *FileSvcImpl) SetWasmMem(ptr uintptr) {
 	l.mem = jspatch.NewWasmMem(ptr)
 }
 
-func logger(level pblog.LogLevel, spec string, rest ...interface{}) {
-	req := &pblog.LogRequest{
+func logger(level logmsg.LogLevel, spec string, rest ...interface{}) {
+	req := &logmsg.LogRequest{
 		Stamp:   timestamppb.New(time.Now()),
 		Level:   level,
 		Message: fmt.Sprintf(spec, rest...),
@@ -132,7 +133,7 @@ func ValidatePathForParigot(path string, op string) (string, error) {
 
 //go:noinline
 func (l *FileSvcImpl) FileSvcLoad(sp int32) {
-	req := pb.LoadRequest{}
+	req := filemsg.LoadTestRequest{}
 	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
 		return
@@ -149,7 +150,7 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	splitutil.RespondSingleProto(l.mem, sp, resp)
 }
 
-func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
+func (l *FileSvcImpl) loadLocal(req *filemsg.LoadTestRequest) (*filemsg.LoadTestResponse, error) {
 	stat, err := os.Stat(req.GetPath())
 	if err != nil {
 		return nil, err
@@ -213,7 +214,7 @@ func (l *FileSvcImpl) loadLocal(req *pb.LoadRequest) (*pb.LoadResponse, error) {
 		}
 	}
 
-	var resp pb.LoadResponse
+	var resp filemsg.LoadTestResponse
 	resp.ErrorPath = badpath
 	return &resp, nil
 }

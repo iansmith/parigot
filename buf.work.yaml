@@ -2,4 +2,4 @@ version: v1
 directories:
   - api/proto
   - test/func/methodcall/proto
-  - example/vvv/proto
+  #- example/vvv/proto
