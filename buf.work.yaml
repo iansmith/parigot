@@ -1,4 +1,5 @@
 version: v1
 directories:
-  - api/atlanta/proto
-  - fntest/methodcall/proto
+  - api/proto
+  - test/func/methodcall/proto
+  - example/vvv/proto

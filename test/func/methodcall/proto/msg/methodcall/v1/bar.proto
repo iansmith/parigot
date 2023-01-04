@@ -1,0 +1,15 @@
+syntax ="proto3";
+package msg.methodcall.v1;
+option go_package="g/msg/methodcall;methodcall";
+
+// definitions for the data structures (messages) for the bar service
+
+// AccumulateRequest repeatedly calls AddMultiply on foo and returns accumulated results
+message AccumulateRequest {
+    repeated int32 value = 1;
+}
+
+message AccumulateResponse {
+    int32 sum = 1;
+    int32 product = 2;
+}

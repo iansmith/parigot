@@ -1,0 +1,11 @@
+syntax = "proto3";
+package example.vvv.v1;
+option go_package = "g/example/vvv;vvv";
+import "msg/example/vvv/v1/business.proto";
+
+service StoreService {
+  rpc MediaTypesInStock(msg.example.vvv.v1.MediaTypesInStockRequest) returns (msg.example.vvv.v1.MediaTypesInStockResponse);
+  rpc BestOfAllTime(msg.example.vvv.v1.BestOfAllTimeRequest) returns(msg.example.vvv.v1.BestOfAllTimeResponse);
+  rpc Revenue(msg.example.vvv.v1.RevenueRequest) returns (msg.example.vvv.v1.RevenueResponse);
+  rpc SoldItem(msg.example.vvv.v1.SoldItemRequest) returns (msg.example.vvv.v1.SoldItemResponse);
+}

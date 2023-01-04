@@ -1,0 +1,15 @@
+syntax = "proto3";
+package log.v1;
+option go_package="g/log;log";
+import "msg/log/v1/log.proto";
+
+
+// This is the Log service for parigot. This has three intended environments
+// 1) development, 2) production and 3) external service (e.g. datadog).  The
+// objective is to make #1 maximally informative, #2 have high performance, and
+// #3 possible.
+
+
+service LogService {
+  rpc Log(msg.log.v1.LogRequest) returns (msg.log.v1.LogResponse);
+}

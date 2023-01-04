@@ -1,12 +1,12 @@
 go 1.19
 
-use lib/atlanta.base/go
+use lib/go
 
-use sys/atlanta.base
+use sys
 
-use api/atlanta
+use api_impl
 
-use command
+use test/func/
 
 // these are separated because we want them each to build separately and have diff paths
 use example/vvv

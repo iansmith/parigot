@@ -1,0 +1,61 @@
+syntax = "proto3";
+package msg.example.vvv.v1;
+option go_package = "g/msg/example/vvv;vvv";
+import "google/protobuf/timestamp.proto";
+
+message SoldItemRequest {
+  float amount = 1;
+  google.protobuf.Timestamp when = 2;
+}
+message SoldItemResponse {
+}
+enum ContentType {
+  CONTENT_TYPE_UNSPECIFIED = 0;
+  CONTENT_TYPE_MUSIC = 1;
+  CONTENT_TYPE_MOVIE = 2;
+  CONTENT_TYPE_TV = 3;
+  CONTENT_TYPE_VIDEOGAME = 4;
+}
+enum Media {
+  MEDIA_UNSPECIFIED = 0;
+  MEDIA_VINYL = 1;
+  MEDIA_CASSETTE = 2;
+  MEDIA_8TRACK = 3;
+  MEDIA_VHS = 4;
+  MEDIA_BETA = 5;
+  MEDIA_LASER_DISC = 6;
+  MEDIA_ATARI_CART = 7;
+  MEDIA_NINTENDO_CART = 8;
+  MEDIA_INTELLIVISION_CART = 9;
+}
+
+message Item {
+  string title = 1;
+  string creator = 2;
+  int32 year = 3;
+  Media media = 4;
+  ContentType ctype = 5;
+  float price = 6;
+}
+
+message BestOfAllTimeRequest {
+  ContentType ctype = 1;
+}
+
+message BestOfAllTimeResponse {
+  Item item = 1;
+}
+
+message RevenueRequest{
+  string date = 1;
+}
+message RevenueResponse{
+  float revenue = 1;
+}
+
+message MediaTypesInStockRequest {
+
+}
+message MediaTypesInStockResponse {
+  repeated Media in_stock = 1;
+}
