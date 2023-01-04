@@ -1,0 +1,18 @@
+syntax ="proto3";
+package methodcall;
+option go_package="proto/g/methodcall;methodcall";
+import "pb.test";
+import "pb/methodcall/foo.proto";
+
+service Foo {
+  option (pb.test.service_test) = true;
+  rpc AddMultiply(pb.methodcall.AddMultRequest) returns (pb.methodcall.AddMultResponse) {
+    option(pb.test.method_test) = true;
+  }
+  rpc LucasSequence(pb.methodcall.LucasSequenceRequest) returns (pb.methodcall.LucasSequenceResponse) {
+    option(pb.test.method_test) = true;
+  }
+  rpc Close(pb.methodcall.WritePiRequest) returns (pb.methodcall.WritePiResponse) {
+    option(pb.test.method_test) = true;
+  }
+}

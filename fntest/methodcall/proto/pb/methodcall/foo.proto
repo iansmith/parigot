@@ -1,0 +1,33 @@
+syntax ="proto3";
+package pb.methodcall;
+option go_package="proto/g/pb/methodcall;methodcall";
+import "pb/test/testoption.proto";
+
+// definitions for the data structures (messages) for the foo service
+
+// add or multiplication, has both request and response
+message AddMultRequest {
+    int32 value0 = 1;
+    int32 value1 = 2;
+    bool is_add = 3;
+}
+
+message AddMultResponse {
+    int32 result = 1;
+}
+
+// no input params
+message LucasSequenceRequest{ //request a chunk of the lucas sequence 
+}
+
+message LucasSequenceResponse {
+    repeated int32 sequence = 1;
+}
+
+//no output params
+message WritePiRequest { //print pi to terminal with log service
+    int32 terms = 1;
+}
+
+message WritePiResponse {
+}
