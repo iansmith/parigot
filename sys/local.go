@@ -1,8 +1,8 @@
 package sys
 
 import (
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -46,7 +46,7 @@ func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.KernelErrorCode) {
 	return ns.GetService(key, pkg, service)
 }
-func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
 	return ns.CallService(key, info)
 }
 
@@ -62,7 +62,7 @@ func (l *localSysCall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(l.nameServer, key, pkg, service)
 }
 
-func (l *localSysCall) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+func (l *localSysCall) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
 	return sharedCallService(l.nameServer, key, info)
 }
 func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {

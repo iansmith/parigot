@@ -1,8 +1,8 @@
 package sys
 
 import (
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -26,6 +26,6 @@ type SysCall interface {
 	GetInfoForCallId(cid lib.Id) *callContext
 	FindMethodByName(key dep.DepKey, sid lib.Id, method string) *callContext
 	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.KernelErrorCode)
-	CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest
+	CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest
 	BlockUntilCall(key dep.DepKey) *callContext
 }

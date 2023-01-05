@@ -7,12 +7,12 @@ import (
 	"time"
 	"unsafe"
 
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/api/splitutil"
-	"github.com/iansmith/parigot/lib"
+	ilog "github.com/iansmith/parigot/api_impl/log/go_"
+	"github.com/iansmith/parigot/api_impl/splitutil"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	"google.golang.org/protobuf/proto"
@@ -68,11 +68,11 @@ func NewSysCallRW() *syscallReadWrite {
 // doing panic to force the stack to unroll.... but that has to be done on the client (WASM)
 // side, not here.
 func (s *syscallReadWrite) Exit(sp int32) {
-	req := &pbsys.ExitRequest{}
-	resp := &pbsys.ExitResponse{}
+	req := &syscallmsg.ExitRequest{}
+	resp := &syscallmsg.ExitResponse{}
 	s.proc.exited = true
 	splitImplRetOne(s.mem, sp, req, resp,
-		func(req *pbsys.ExitRequest, resp *pbsys.ExitResponse) lib.KernelErrorCode {
+		func(req *syscallmsg.ExitRequest, resp *syscallmsg.ExitResponse) lib.KernelErrorCode {
 			resp.Code = req.GetCode()
 			return lib.KernelNoError
 		})
@@ -83,8 +83,8 @@ func (s *syscallReadWrite) Exit(sp int32) {
 // and creates an implementation of the proper interface to allow the caller to talk to that service no
 // matter if that service is across the network or in the same address space.
 func (s *syscallReadWrite) Locate(sp int32) {
-	resp := pbsys.LocateResponse{}
-	req := pbsys.LocateRequest{}
+	resp := syscallmsg.LocateResponse{}
+	req := syscallmsg.LocateRequest{}
 	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	if err != nil {
 		return // the error return code is already set
@@ -96,15 +96,15 @@ func (s *syscallReadWrite) Locate(sp int32) {
 		splitutil.ErrorResponse(s.mem, sp, kcode)
 		return
 	}
-	resp.ServiceId = lib.Marshal[protosupport.ServiceId](sid)
+	resp.ServiceId = lib.Marshal[protosupportmsg.ServiceId](sid)
 	splitutil.RespondSingleProto(s.mem, sp, &resp)
 }
 
 // Dispatch is the way that a client invokes and RPC to another service.  This code is on the kernel
 // side (go implementation of kernel).
 func (s *syscallReadWrite) Dispatch(sp int32) {
-	resp := pbsys.DispatchResponse{}
-	req := pbsys.DispatchRequest{}
+	resp := syscallmsg.DispatchResponse{}
+	req := syscallmsg.DispatchRequest{}
 	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	if err != nil {
 		return // the error return code is already set
@@ -129,13 +129,13 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		}
 	}
 	if retReq.MarshalError != "" {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "marshal error from other side of the call:%s",
+		sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "marshal error from other side of the call:%s",
 			retReq.MarshalError)
 		splitutil.ErrorResponse(s.mem, sp, lib.KernelMarshalFailed)
 		return
 	}
 	if retReq.ExecError != "" {
-		sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "exec error from other side of the call:%s",
+		sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "exec error from other side of the call:%s",
 			retReq.ExecError)
 		splitutil.ErrorResponse(s.mem, sp, lib.KernelExecError)
 		return
@@ -154,30 +154,30 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 // BindMethod is used to indicate the function that will handle a given method.  We don't
 // actually have a handle to the function pointer, we give out MethodIds instead.
 func (s *syscallReadWrite) BindMethod(sp int32) {
-	req := pbsys.BindMethodRequest{}
-	resp := pbsys.BindMethodResponse{}
+	req := syscallmsg.BindMethodRequest{}
+	resp := syscallmsg.BindMethodResponse{}
 	splitImplRetOne(s.mem, sp, &req, &resp,
-		func(req *pbsys.BindMethodRequest, resp *pbsys.BindMethodResponse) lib.KernelErrorCode {
+		func(req *syscallmsg.BindMethodRequest, resp *syscallmsg.BindMethodResponse) lib.KernelErrorCode {
 			mid, kerr := s.procToSysCall().Bind(s.proc, req.GetProtoPackage(), req.GetService(), req.GetMethod())
 			if kerr != nil {
 				return lib.KernelErrorCode(kerr.Low())
 			}
-			resp.MethodId = lib.Marshal[protosupport.MethodId](mid)
+			resp.MethodId = lib.Marshal[protosupportmsg.MethodId](mid)
 			return lib.KernelNoError
 		})
 }
 
 // BlockUntilCall is used by servers to block themselves until some other process sends them a message.
 func (s *syscallReadWrite) BlockUntilCall(sp int32) {
-	resp := pbsys.BlockUntilCallResponse{}
-	req := pbsys.BlockUntilCallRequest{}
+	resp := syscallmsg.BlockUntilCallResponse{}
+	req := syscallmsg.BlockUntilCallRequest{}
 	splitImplRetOne(s.mem, sp, &req, &resp,
-		func(req *pbsys.BlockUntilCallRequest, resp *pbsys.BlockUntilCallResponse) lib.KernelErrorCode {
+		func(req *syscallmsg.BlockUntilCallRequest, resp *syscallmsg.BlockUntilCallResponse) lib.KernelErrorCode {
 			call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
 			resp.Param = call.param
 			resp.Pctx = call.pctx
-			resp.Call = lib.Marshal[protosupport.CallId](call.cid)
-			resp.Method = lib.Marshal[protosupport.MethodId](call.mid)
+			resp.Call = lib.Marshal[protosupportmsg.CallId](call.cid)
+			resp.Method = lib.Marshal[protosupportmsg.MethodId](call.mid)
 			return lib.KernelNoError
 		})
 }
@@ -197,17 +197,17 @@ func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, f
 // Return value is used by server implementations to set the return value for a particular function
 // call on a method they implement.
 func (s *syscallReadWrite) ReturnValue(sp int32) {
-	req := pbsys.ReturnValueRequest{}
-	splitImplRetEmpty(s.mem, sp, &req, func(t *pbsys.ReturnValueRequest) lib.KernelErrorCode {
+	req := syscallmsg.ReturnValueRequest{}
+	splitImplRetEmpty(s.mem, sp, &req, func(t *syscallmsg.ReturnValueRequest) lib.KernelErrorCode {
 		cid := lib.Unmarshal(req.GetCall())
 		ctx := s.procToSysCall().GetInfoForCallId(cid)
 		if ctx == nil {
-			sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
+			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
 			return lib.KernelCallerUnavailable
 		}
 		callerProc := ctx.sender.(*DepKeyImpl).proc
 		if callerProc == nil {
-			sysPrint(pblog.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
+			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
 			return lib.KernelCallerUnavailable
 		}
 		ctx.respCh <- &req
@@ -234,8 +234,8 @@ func (s *syscallReadWrite) procToSysCall() SysCall {
 // he implements and that he has finished binding all the methods
 // of that service.q
 func (s *syscallReadWrite) Export(sp int32) {
-	req := &pbsys.ExportRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.ExportRequest) lib.KernelErrorCode {
+	req := &syscallmsg.ExportRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.ExportRequest) lib.KernelErrorCode {
 		service := req.GetService()
 		for _, svc := range service {
 			// xxx  fixme what should we do in the face of some succeeding some not?
@@ -251,8 +251,8 @@ func (s *syscallReadWrite) Export(sp int32) {
 // Require is used when client or server wishes to indicate that it consumes
 // a service.  This becomes part of the dependency graph.
 func (s *syscallReadWrite) Require(sp int32) {
-	req := &pbsys.RequireRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.RequireRequest) lib.KernelErrorCode {
+	req := &syscallmsg.RequireRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RequireRequest) lib.KernelErrorCode {
 		service := req.GetService()
 		for _, svc := range service {
 			// xxx  fixme what should we do in the face of some succeeding some not?
@@ -270,18 +270,18 @@ func (s *syscallReadWrite) Require(sp int32) {
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
 
-	req := &pbsys.RunRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *pbsys.RunRequest) lib.KernelErrorCode {
+	req := &syscallmsg.RunRequest{}
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) lib.KernelErrorCode {
 		key := NewDepKeyFromProcess(s.proc)
 		s.procToSysCall().RunNotify(key)
 		// block until we are told to proceed
 		ok, kerr := s.procToSysCall().RunBlock(key)
 		if kerr != nil && kerr.IsError() {
-			sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
 			return lib.KernelDependencyFailure
 		}
 		if !ok {
-			sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
 			return lib.KernelDependencyFailure
 		}
 		return lib.KernelNoError
@@ -289,7 +289,7 @@ func (s *syscallReadWrite) Run(sp int32) {
 
 }
 
-func sysPrint(level pblog.LogLevel, call, spec string, arg ...interface{}) {
+func sysPrint(level logmsg.LogLevel, call, spec string, arg ...interface{}) {
 	if syscallVerbose {
 		spec = "%s:" + spec
 		arg = append([]interface{}{call}, arg...)
@@ -297,7 +297,7 @@ func sysPrint(level pblog.LogLevel, call, spec string, arg ...interface{}) {
 		if !strings.HasSuffix(msg, "\n") {
 			msg += "\n"
 		}
-		req := &pblog.LogRequest{
+		req := &logmsg.LogRequest{
 			Stamp:   timestamppb.New(time.Now()),
 			Level:   level,
 			Message: msg,
@@ -309,7 +309,7 @@ func sysPrint(level pblog.LogLevel, call, spec string, arg ...interface{}) {
 
 // BackdoorLog is only for use by internal parigot debugging messages.
 func (s *syscallReadWrite) BackdoorLog(sp int32) {
-	req := &pblog.LogRequest{}
+	req := &logmsg.LogRequest{}
 	wasmPtr := s.mem.GetInt64(sp + 8)
 
 	buffer := splitutil.ReadSlice(s.mem, wasmPtr,

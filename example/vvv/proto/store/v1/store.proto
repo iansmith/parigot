@@ -1,0 +1,11 @@
+syntax = "proto3";
+package store.v1;
+option go_package = "example/vvv/g/store/v1;store";
+import "msg/store/v1/store.proto";
+
+service StoreService {
+  rpc MediaTypesInStock(msg.store.v1.MediaTypesInStockRequest) returns (msg.store.v1.MediaTypesInStockResponse);
+  rpc BestOfAllTime(msg.store.v1.BestOfAllTimeRequest) returns(msg.store.v1.BestOfAllTimeResponse);
+  rpc Revenue(msg.store.v1.RevenueRequest) returns (msg.store.v1.RevenueResponse);
+  rpc SoldItem(msg.store.v1.SoldItemRequest) returns (msg.store.v1.SoldItemResponse);
+}

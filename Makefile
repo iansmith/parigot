@@ -1,10 +1,13 @@
 API_VERSION=v1
 
-all: g/file/$(API_VERSION)/file.pb.go build/protoc-gen-parigot
+all: g/file/$(API_VERSION)/file.pb.go build/protoc-gen-parigot build/file.p.wasm build/log.p.wasm
+
+GO_CMD=GOOS=js GOARCH=wasm go
 
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 EXAMPLE_PROTO=$(shell find example -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
+
 ## we just use a single representative file for all the generated code
 g/file/$(API_VERSION)/file.pb.go: $(API_PROTO) $(EXAMPLE_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	rm -rf g/*
@@ -25,3 +28,19 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 	rm -f $@
 	go build -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
 
+RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
+build/runner: $(RUNNER_SRC) build/protoc-gen-parigot
+	rm -f $@
+	go build -o $@ github.com/iansmith/parigot/command/runner
+
+FILE_SERVICE=$(shell find api_impl/file -type f -regex ".*\.go")
+build/file.p.wasm: $(FILE_SERVICE) build/protoc-gen-parigot $(API_PROTO)
+	rm -f $@
+	echo $(FILE_SERVICE)
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/file
+
+LOG_SERVICE=$(shell find api_impl/log -type f -regex ".*\.go")
+build/log.p.wasm: $(LOG_SERVICE) build/protoc-gen-parigot $(API_PROTO)
+	rm -f $@
+	echo $(LOG_SERVICE)
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/log

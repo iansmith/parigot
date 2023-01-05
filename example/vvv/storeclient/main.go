@@ -5,8 +5,8 @@ import (
 	"time"
 	_ "unsafe"
 
-	"example/vvv/g/business/v1"
-	"example/vvv/g/msg/business/v1"
+	storemsg "example/vvv/g/msg/store/v1"
+	"example/vvv/g/store/v1"
 
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var logger log.Log
+var logger log.LogService
 var callImpl = syscall.NewCallImpl()
 
 //go:noinline
@@ -32,30 +32,36 @@ func main() {
 		panic("error starting client process:" + err.Error())
 	}
 	var err error
-	logger, err = log.LocateLog()
+	logger, err = log.LocateLogService()
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate log:%v", err)
 	}
-	vinnysStore, err := vvv.LocateStore(logger)
+	vinnysStore, err := store.LocateStoreService(logger)
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "failed to locate store:%v", err)
 	}
-	err = vinnysStore.SoldItem(&pb.SoldItemRequest{
-		Amount: 14.99,
-		When:   timestamppb.New(time.Now()),
+	err = vinnysStore.SoldItem(&storemsg.SoldItemRequest{
+		Item: &storemsg.Item{
+			Id: 7261991,
+		},
+		When: timestamppb.Now(), //xxx use kernel Now()
+		Amount: &storemsg.Amount{
+			Units:      19,
+			Hundredths: 99,
+		},
 	})
 	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("SoldItem returned ok?:  %v",
 		err == nil))
-	req := pb.BestOfAllTimeRequest{
-		Ctype: pb.ContentType_CONTENT_TYPE_MUSIC,
+	req := storemsg.BestOfAllTimeRequest{
+		Content: storemsg.ContentType_CONTENT_TYPE_MUSIC,
 	}
 	//best := &pb.BestOfAllTimeResponse{}
 	best, err := vinnysStore.BestOfAllTime(&req)
 	if err != nil {
 		Log(pblog.LogLevel_LOG_LEVEL_FATAL, "BestOfAllTime failure: %s", err.Error())
 	}
-	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Ctype.String(),
-		best.Item.Creator, best.Item.Title, best.Item.Year))
+	Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("vinny's BOAT for content %s is: %s, %s, %d", req.Content.String(),
+		best.Boat.Creator, best.Boat.Title, best.Boat.Year))
 
 	inStock, err := vinnysStore.MediaTypesInStock()
 	if err != nil {

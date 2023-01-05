@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"reflect"
-	"runtime"
-	"strings"
 	"unsafe"
 
 	"github.com/iansmith/parigot/api_impl/netconst"
@@ -38,9 +36,9 @@ type SinglePayload struct {
 
 var kerrNone = lib.Unmarshal(lib.NoKernelError())
 
-// DecodeError is returned when the result from the go language portion of the service cannot be
+// ErrDecode is returned when the result from the go language portion of the service cannot be
 // understood.
-var DecodeError = errors.New("decoding error")
+var ErrDecode = errors.New("decoding error")
 
 var callImpl lib.Call
 
@@ -58,28 +56,6 @@ func NewSinglePayload() *SinglePayload {
 		ErrPtr: [2]int64{int64(kerrNone.High()), int64(kerrNone.Low())},
 	}
 	return sp
-}
-func log(funcName string, spec string, rest ...interface{}) {
-	p1 := fmt.Sprintf("splitutil.%s ", funcName)
-	p2 := fmt.Sprintf(spec, rest...)
-	if !strings.HasSuffix(p2, "\n") {
-		p2 += "\n"
-	}
-	req := logmsg.LogRequest{
-		Stamp:   timestamppb.Now(), //xxx should be using the kernel version
-		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Message: p1 + p2,
-	}
-	if runtime.GOARCH == "wasm" {
-		if callImpl != nil {
-			_, err := callImpl.BackdoorLog(&req)
-			if err != nil {
-				print(fmt.Sprintf("backdoorLog failed:%s\n", err.Error()))
-			}
-		}
-	} else {
-		print("GO LOG:" + req.Message + "\n")
-	}
 }
 
 // This is the top level entry point for the WASM side.  It sends the proto given and fills in the resp
@@ -236,11 +212,11 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 	m := binary.LittleEndian.Uint64(buffer[0:8])
 	if m != netconst.MagicStringOfBytes {
-		return DecodeError
+		return ErrDecode
 	}
 	l := binary.LittleEndian.Uint32(buffer[8:12])
 	if l >= uint32(netconst.ReadBufferSize) {
-		return DecodeError
+		return ErrDecode
 	}
 	size := int(l)
 	if size == 0 {
@@ -249,12 +225,12 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 	}
 	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, obj); err != nil {
-		return DecodeError
+		return ErrDecode
 	}
 	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
 	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
 	if expected != result {
-		return DecodeError
+		return ErrDecode
 	}
 	return nil
 
@@ -291,7 +267,6 @@ func ErrorResponseId(mem *jspatch.WasmMem, sp int32, errId lib.Id) {
 		return
 	}
 	ErrorResponse(mem, sp, lib.KernelNoError)
-	return
 }
 
 // StackPointerToRequest assumes that this function was passed a pointer to the WASM stack and that

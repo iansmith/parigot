@@ -155,18 +155,20 @@ func funcChoicesNoDecodeRequired(b1, b2, b3, b4 bool, m *codegen.WasmMethod) boo
 	return !funcChoicesDecodeRequired(b1, b2, b3, b4, m)
 }
 
-// genMethod will return true in any situation where the method is not marked as a test method
-// or the method_test option is set to false.
+// funcGenMethodPossibleTest will return true if the generator should emit the method,
+// false to omit the method.
 //
-// A marked method looks like this:
-//  rpc Load(pb.file.LoadRequest) returns (pb.file.LoadResponse){
-//    option(pb.protosupport.method_test) = true;
-//  }
-// There are two cases where we will return false:
-// 1) If the service that contains this method is not marked as service_test or is marked but service_test=false.
-// 2) The user has not passed the environment variable PARIGOT_GEN_TEST with some value to our generator
+// A marked method has the suffix Test, and thus by implication its response and request have
+// "Test" in the middle of their types:
+//
+//  rpc LoadTest(msg.file.v1.LoadTestRequest) returns (msg.file.v1.LoadTestResponse)
+//
+// This function will return true if:
+// * the method name does not have the suffix Test OR
+// * the user has not passed the environment variable PARIGOT_GEN_TEST with some value (not "") to our generator
 // (protoc-gen-parigot).
-// We return true if both of these are true.
+//
+// We return false if the opposite of both conditions are true.
 
 const magicSuffix = "Test"
 
@@ -174,7 +176,7 @@ func funcGenMethodPossibleTest(method *codegen.WasmMethod) bool {
 	if !strings.HasSuffix(method.WasmMethodName(), magicSuffix) {
 		return true
 	}
-	return os.Getenv(GenTestEnvVar) != ""
+	return os.Getenv(GenTestEnvVar) == ""
 }
 
 // methodToCGParameter returns an array of CGParameter objects corresponding to the

@@ -1,9 +1,9 @@
 package sys
 
 import (
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -19,7 +19,7 @@ func newRemoteSysCall(ns *NSProxy) *remoteSyscall {
 }
 
 func (r *remoteSyscall) Bind(p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
-	sysPrint(pblog.LogLevel_LOG_LEVEL_INFO, "BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
+	sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
 	return sharedBind(r.nameServer.NSCore, p, packagePath, service, method)
 }
 
@@ -27,7 +27,7 @@ func (r *remoteSyscall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(r.nameServer, key, pkg, service)
 }
 
-func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
 	return sharedCallService(r.nameServer, key, info)
 }
 

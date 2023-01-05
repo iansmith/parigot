@@ -1,3 +1,7 @@
+### WARNING: This file's dependency knowlege does NOT include dependencies into parigot proper.
+### WARNING: This file assumes that parigot is built and unchanging.  If you make a change in
+### WARNING: in parigot, you will need to do `make clean` and `make` in this directory.
+
 GO_CMD=GOOS=js GOARCH=wasm go
 
 ## assumes buf is in path.   https://buf.build
@@ -7,7 +11,7 @@ BUF_CMD=buf
 # generated files are place so that correspond exactly to the protobuf "package" statement in
 # the .proto file.
 GENERATED=g
-all: $(GENERATED)/business/v1/businessservicedecl.p.go build/storeclient.p.wasm build/server.p.wasm
+all: $(GENERATED)/store/v1/storeservicedecl.p.go build/storeclient.p.wasm build/server.p.wasm
 
 build/server.p.wasm: main.go 
 	@echo
@@ -20,11 +24,11 @@ build/storeclient.p.wasm: storeclient/main.go
 	$(GO_CMD) build -a -o build/storeclient.p.wasm storeclient/main.go
 
 # we only need a single representative file to insure regeneration of all the generated code
-$(GENERATED)/business/v1/businessservicedecl.p.go: proto/business/v1/business.proto proto/msg/business/v1/business.proto
+$(GENERATED)/store/v1/storeservicedecl.p.go: proto/store/v1/store.proto proto/msg/store/v1/store.proto
 	@echo
 	@echo "\033[92mgenerating interfaces: vvv =========================================================================\033[0m"
 	$(BUF_CMD) lint
-	$(BUF_CMD) generate
+	PARIGOT_GEN_TEST=1 $(BUF_CMD) generate
 
 clean:
 	rm -rf g/*

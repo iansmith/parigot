@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	"github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/net"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	ilog "github.com/iansmith/parigot/api_impl/log/go_"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	netmsg "github.com/iansmith/parigot/g/msg/net/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/proto"
@@ -119,14 +119,14 @@ func (n *NSProxy) Export(key dep.DepKey, packagePath, service string) lib.Id {
 	if sData == nil {
 		sData = n.NSCore.create(key, packagePath, service)
 	}
-	expInfo := &net.ExportInfo{
+	expInfo := &netmsg.ExportInfo{
 		PackagePath: packagePath,
 		Service:     service,
 		Addr:        n.localAddr,
-		ServiceId:   lib.Marshal[protosupport.ServiceId](sData.serviceId),
+		ServiceId:   lib.Marshal[protosupportmsg.ServiceId](sData.serviceId),
 	}
-	expReq := &net.ExportRequest{
-		Export: []*net.ExportInfo{expInfo},
+	expReq := &netmsg.ExportRequest{
+		Export: []*netmsg.ExportInfo{expInfo},
 	}
 	var any anypb.Any
 	err := any.MarshalFrom(expReq)
@@ -138,7 +138,7 @@ func (n *NSProxy) Export(key dep.DepKey, packagePath, service string) lib.Id {
 		return lib.NewKernelError(lib.KernelNetworkFailed)
 	}
 	netnameserverPrint("EXPORT ", "remote 4, result is %s", result.TypeUrl)
-	expResp := net.ExportResponse{}
+	expResp := netmsg.ExportResponse{}
 	err = result.UnmarshalTo(&expResp)
 	if err != nil {
 		netnameserverPrint("EXPORT ", "export remote 4a:%v", err)
@@ -150,20 +150,20 @@ func (n *NSProxy) Export(key dep.DepKey, packagePath, service string) lib.Id {
 		return respOk
 	}
 	netnameserverPrint("EXPORT ", "result was %s", result.TypeUrl)
-	return lib.NoError[*protosupport.KernelErrorId]()
+	return lib.NoError[*protosupportmsg.KernelErrorId]()
 }
 
 // Require is where user code ends up when they call Require, albeit via
 // a system call into the kernel (this side).  This invokes Require on the
 // remote nameserver to do the startup sequence.
 func (n *NSProxy) Require(key dep.DepKey, packagePath, service string) lib.Id {
-	reqInfo := &net.RequireInfo{
+	reqInfo := &netmsg.RequireInfo{
 		PackagePath: packagePath,
 		Service:     service,
 		Addr:        n.localAddr,
 	}
-	reqReq := &net.RequireRequest{
-		Require: []*net.RequireInfo{reqInfo},
+	reqReq := &netmsg.RequireRequest{
+		Require: []*netmsg.RequireInfo{reqInfo},
 	}
 	var any anypb.Any
 	err := any.MarshalFrom(reqReq)
@@ -175,7 +175,7 @@ func (n *NSProxy) Require(key dep.DepKey, packagePath, service string) lib.Id {
 		return lib.NewKernelError(lib.KernelNetworkFailed)
 	}
 	netnameserverPrint("REQUIRE ", "reqResult is %s\n", reqResult.TypeUrl)
-	reqResp := net.RequireResponse{}
+	reqResp := netmsg.RequireResponse{}
 	err = reqResult.UnmarshalTo(&reqResp)
 	if err != nil {
 		netnameserverPrint("REQUIRE ", "remote call failed:%v", err)
@@ -187,14 +187,14 @@ func (n *NSProxy) Require(key dep.DepKey, packagePath, service string) lib.Id {
 		return respOk
 	}
 	netnameserverPrint("REQUIRE", "DONE!")
-	return lib.NoError[*protosupport.KernelErrorId]()
+	return lib.NoError[*protosupportmsg.KernelErrorId]()
 }
 
 // CloseService is where user code ends up when they call CloseService, albeit via
 // a system call into the kernel (this side).  This invokes CloseService on the
 // remote nameserver to indicate that a service has completing binding its names.
 func (n *NSProxy) CloseService(key dep.DepKey, packagePath, service string) lib.Id {
-	req := &net.CloseServiceRequest{Addr: key.String(),
+	req := &netmsg.CloseServiceRequest{Addr: key.String(),
 		PackagePath: packagePath,
 		Service:     service,
 	}
@@ -209,7 +209,7 @@ func (n *NSProxy) CloseService(key dep.DepKey, packagePath, service string) lib.
 		return lib.NewKernelError(lib.KernelNetworkFailed)
 	}
 	netnameserverPrint("CLOSESERVICE ", " 2 with result %v", result.TypeUrl)
-	resp := net.CloseServiceResponse{}
+	resp := netmsg.CloseServiceResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
 		return lib.NewKernelError(lib.KernelUnmarshalFailed)
@@ -220,7 +220,7 @@ func (n *NSProxy) CloseService(key dep.DepKey, packagePath, service string) lib.
 	}
 	netnameserverPrint("CLOSESERVICE ", "xxx export remote 3")
 	netnameserverPrint("CLOSESERVICE ", "result was %s", result.TypeUrl)
-	return lib.NoError[*protosupport.KernelErrorId]()
+	return lib.NoError[*protosupportmsg.KernelErrorId]()
 }
 
 // CloseService is where user code ends up when they call CloseService, albeit via
@@ -239,7 +239,7 @@ func (n *NSProxy) RunNotify(key dep.DepKey) {
 // the service id for that service.  The second return parameter is an error code (KernelErrorId)
 // if it is non-nil.
 func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
-	req := &net.GetServiceRequest{
+	req := &netmsg.GetServiceRequest{
 		PackagePath: pkgPath,
 		Service:     service,
 	}
@@ -253,7 +253,7 @@ func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib
 	if result == nil {
 		return nil, lib.KernelNetworkFailed
 	}
-	resp := &net.GetServiceResponse{}
+	resp := &netmsg.GetServiceResponse{}
 	err = result.UnmarshalTo(resp)
 	if err != nil {
 		return nil, lib.KernelUnmarshalFailed
@@ -291,14 +291,14 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 
 	// we are going to return the callContext we'll need for the RPC
 	callCtx := &callContext{
-		respCh: make(chan *pbsys.ReturnValueRequest),
+		respCh: make(chan *syscallmsg.ReturnValueRequest),
 		mid:    mid,
-		cid:    lib.NewId[*protosupport.CallId](),
+		cid:    lib.NewId[*protosupportmsg.CallId](),
 		method: method,
 		sid:    serviceId,
 		sender: key,
 		param:  &anypb.Any{},
-		pctx:   &protosupport.Pctx{},
+		pctx:   &protosupportmsg.Pctx{},
 	}
 	netnameserverPrint("FINDMETHODBYNAME", "done with call context %s", callCtx.cid.Short())
 	n.NSCore.addCallContextMapping(callCtx.cid, callCtx)
@@ -311,16 +311,16 @@ func (n *NSProxy) GetInfoForCallId(target lib.Id) *callContext {
 
 // CallService is the implementation (in the kernel) for when you have a remote (across
 // the network) nameserver that you need to make an RPC call to.
-func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnValueRequest {
+func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
 	//this req is only used when the CallService call wants to return an error
 	//or when have completed a network call successfully
-	req := &pbsys.ReturnValueRequest{
-		Call:        lib.Marshal[protosupport.CallId](info.cid),
-		Method:      lib.Marshal[protosupport.MethodId](info.mid),
+	req := &syscallmsg.ReturnValueRequest{
+		Call:        lib.Marshal[protosupportmsg.CallId](info.cid),
+		Method:      lib.Marshal[protosupportmsg.MethodId](info.mid),
 		Result:      nil,
 		Pctx:        nil,
 		ExecError:   "could not find the location of service " + info.sid.Short(),
-		ExecErrorId: lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNotFound)),
+		ExecErrorId: lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelNotFound)),
 	}
 
 	netnameserverPrint("CALLSERVICE", "key is %s", key)
@@ -328,7 +328,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 	addr, ok := n.serviceLoc[info.sid.String()]
 	if !ok {
 		req.ExecError = "could not find the location of service " + info.sid.Short()
-		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNotFound))
+		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelNotFound))
 		return req
 	}
 	// have we called it before?
@@ -341,10 +341,10 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 		n.rpcChan[addr] = ch
 	}
 	nr := NetResult{}
-	rpcReq := net.RPCRequest{
+	rpcReq := netmsg.RPCRequest{
 		Pctx:       info.pctx,
 		Param:      info.param,
-		ServiceId:  lib.Marshal[protosupport.ServiceId](info.sid),
+		ServiceId:  lib.Marshal[protosupportmsg.ServiceId](info.sid),
 		MethodId:   nil,
 		MethodName: info.method,
 		Sender:     n.localAddr,
@@ -353,7 +353,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 	err := a.MarshalFrom(&rpcReq)
 	if err != nil {
 		req.ExecError = "unable to marshal the return value request:" + err.Error()
-		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelMarshalFailed))
+		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelMarshalFailed))
 		return req
 	}
 	nr.SetData(&a)
@@ -365,14 +365,14 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 	if result == nil {
 		netnameserverPrint("CALLSERVICE", "failed in call to %s", info.sid.Short())
 		req.ExecError = "network failed"
-		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelNetworkFailed))
+		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelNetworkFailed))
 		return req
 	}
-	resp := net.RPCResponse{}
+	resp := netmsg.RPCResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
 		req.ExecError = "unable to unmarshal the return value response:" + err.Error()
-		req.ExecErrorId = lib.Marshal[protosupport.BaseId](lib.NewKernelError(lib.KernelUnmarshalFailed))
+		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelUnmarshalFailed))
 		return req
 	}
 	req.Result = resp.GetResult()
@@ -381,7 +381,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *pbsys.ReturnVa
 }
 
 func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
-	req := &net.RunBlockRequest{
+	req := &netmsg.RunBlockRequest{
 		Waiter: false,
 		Addr:   n.localAddr,
 	}
@@ -396,7 +396,7 @@ func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
 		netnameserverPrint("RUNBLOCK ", "call to NS for runblock failed ")
 		return false, lib.NewKernelError(lib.KernelNetworkFailed)
 	}
-	resp := net.RunBlockResponse{}
+	resp := netmsg.RunBlockResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
 		return false, lib.NewKernelError(lib.KernelUnmarshalFailed)
@@ -425,7 +425,7 @@ func (n *NSProxy) StartFailedInfo() string {
 func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 	netnameserverPrint("BLOCKUNTILCALL ", " key is %s and inCh is %p", key.String(), n.inCh)
 	a := <-n.inCh
-	req := net.RPCRequest{}
+	req := netmsg.RPCRequest{}
 	netnameserverPrint("BLOCKUNTILCALL ", " got a request through the channel %p, a==nil? %v", n.inCh, a == nil)
 	err := a.Data().UnmarshalTo(&req)
 	if err != nil {
@@ -436,7 +436,7 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 	// the call id will be nil because the caller doesn't know anything about what is
 	// going on in our address space.  the method id MIGHT be nil, if he hasn't cache the
 	// method id from some previous call.
-	cid := lib.NewId[*protosupport.CallId]()
+	cid := lib.NewId[*protosupportmsg.CallId]()
 	sid := lib.Unmarshal(req.GetServiceId())
 	var mid lib.Id // empty
 	if req.GetMethodId() != nil {
@@ -483,7 +483,7 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 		pctx:   req.GetPctx(),
 		method: req.GetMethodName(),
 		sid:    sid,
-		respCh: make(chan *pbsys.ReturnValueRequest), // xxx what should this be? a new channel? who listens to it?
+		respCh: make(chan *syscallmsg.ReturnValueRequest), // xxx what should this be? a new channel? who listens to it?
 		sender: NewDepKeyFromAddr(req.GetSender()),
 	}
 	n.NSCore.addCallContextMapping(info.cid, info)
@@ -496,12 +496,12 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got an error signal on the call %s", callId)
 			return
 		}
-		rpcResp := &net.RPCResponse{
+		rpcResp := &netmsg.RPCResponse{
 			Pctx:     retReq.Pctx,
-			CallId:   lib.Marshal[protosupport.CallId](callId),
+			CallId:   lib.Marshal[protosupportmsg.CallId](callId),
 			Result:   retReq.Result,
 			KerrId:   lib.NoKernelError(),
-			MethodId: lib.Marshal[protosupport.MethodId](mid),
+			MethodId: lib.Marshal[protosupportmsg.MethodId](mid),
 		}
 		netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got return result on call %s from %s: %d bytes of result, %d bytes of pctx",
 			callId, rinfo.sender, proto.Size(retReq.Result), proto.Size(retReq.Pctx))
@@ -521,8 +521,8 @@ func netnameserverPrint(method, spec string, arg ...interface{}) {
 	if netnameserverVerbose {
 		part1 := fmt.Sprintf("NetNameServer:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		ilog.ProcessLogRequest(&log.LogRequest{
-			Level:   log.LogLevel_LOG_LEVEL_DEBUG,
+		ilog.ProcessLogRequest(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 			Stamp:   timestamppb.Now(), //xxx fix me, should be getting from kernel
 			Message: part1 + part2,
 		}, true, false, nil)

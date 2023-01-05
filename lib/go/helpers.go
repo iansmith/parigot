@@ -1,17 +1,11 @@
 package lib
 
 import (
-	"fmt"
-	"os"
-
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-var envVerbose = os.Getenv("PARIGOT_VERBOSE")
-var helperVerbose = true || envVerbose != ""
 
 // ReturnValueEncode is a layer on top of ReturnValue.  This functions exists because
 // there are number of cases and doing this in this library means the code generator
@@ -57,12 +51,4 @@ encodeError:
 	rv.Pctx = nil
 	rv.Result = nil
 	return callImpl.ReturnValue(rv)
-}
-
-func helperprint(fnName string, spec string, arg ...interface{}) {
-	if helperVerbose {
-		part1 := fmt.Sprintf("HELPER:%s ", fnName)
-		part2 := fmt.Sprintf(spec, arg...)
-		print(part1, part2, "\n")
-	}
 }
