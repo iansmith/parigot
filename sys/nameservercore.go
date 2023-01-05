@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/lib"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -112,9 +112,9 @@ func NewServiceData(sid lib.Id) *ServiceData {
 func (n *NSCore) newServiceId() lib.Id {
 	if n.useLocalServiceId {
 		n.serviceCounter++
-		return lib.LocalId[*protosupport.ServiceId](uint64(n.serviceCounter))
+		return lib.LocalId[*protosupportmsg.ServiceId](uint64(n.serviceCounter))
 	}
-	return lib.NewId[*protosupport.ServiceId]()
+	return lib.NewId[*protosupportmsg.ServiceId]()
 }
 
 func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
@@ -364,7 +364,7 @@ func (n *NSCore) FindOrCreateMethodId(key dep.DepKey, packagePath, service, meth
 	mid, ok := sData.method[method]
 	if !ok {
 		nscorePrint("FINDORCREATEMID", "we need to create a method id for %s.%s.%s", packagePath, service, method)
-		mid = lib.NewId[*protosupport.MethodId]()
+		mid = lib.NewId[*protosupportmsg.MethodId]()
 		sData.method[method] = mid
 	}
 	return mid

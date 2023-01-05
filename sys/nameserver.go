@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	"github.com/iansmith/parigot/api/proto/g/pb/log"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	ilog "github.com/iansmith/parigot/api_impl/log/go_"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -41,20 +41,20 @@ type NameServer interface {
 	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode)
 	StartFailedInfo() string
 	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
-	CallService(dep.DepKey, *callContext) *pbsys.ReturnValueRequest
+	CallService(dep.DepKey, *callContext) *syscallmsg.ReturnValueRequest
 	GetInfoForCallId(target lib.Id) *callContext
 }
 
 type callContext struct {
-	mid    lib.Id                         // the method id this call is going to be made TO
-	method string                         // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
-	target dep.DepKey                     // the process/addr this call is going to be made TO
-	cid    lib.Id                         // call id that should be be used by the caller to match results
-	sender dep.DepKey                     // the process/addr this call is going to be made FROM
-	sid    lib.Id                         // service that is being called
-	respCh chan *pbsys.ReturnValueRequest // this is where to send the return results
-	param  *anypb.Any                     // where to put the param data
-	pctx   *protosupport.Pctx             // where to put the previous pctx
+	mid    lib.Id                              // the method id this call is going to be made TO
+	method string                              // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
+	target dep.DepKey                          // the process/addr this call is going to be made TO
+	cid    lib.Id                              // call id that should be be used by the caller to match results
+	sender dep.DepKey                          // the process/addr this call is going to be made FROM
+	sid    lib.Id                              // service that is being called
+	respCh chan *syscallmsg.ReturnValueRequest // this is where to send the return results
+	param  *anypb.Any                          // where to put the param data
+	pctx   *protosupportmsg.Pctx               // where to put the previous pctx
 }
 
 type LocalNameServer struct {
@@ -91,8 +91,8 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		method: name,
 		sid:    serviceId,
 		mid:    mid,
-		respCh: make(chan *pbsys.ReturnValueRequest),
-		cid:    lib.NewId[*protosupport.CallId](),
+		respCh: make(chan *syscallmsg.ReturnValueRequest),
+		cid:    lib.NewId[*protosupportmsg.CallId](),
 		sender: caller,
 		target: sData.key,
 	}
@@ -201,7 +201,7 @@ func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return b, nil
 }
 
-func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *pbsys.ReturnValueRequest {
+func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *syscallmsg.ReturnValueRequest {
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
 	result := <-ctx.respCh
@@ -250,8 +250,8 @@ func nameserverPrint(methodName string, format string, arg ...interface{}) {
 	if nameserverVerbose {
 		part1 := fmt.Sprintf("NAMESERVER:%s", methodName)
 		part2 := fmt.Sprintf(format, arg...)
-		req := log.LogRequest{
-			Level:   log.LogLevel_LOG_LEVEL_DEBUG,
+		req := logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 			Stamp:   timestamppb.Now(), //xxx fix me should be using the kernel for this
 			Message: part1 + part2,
 		}

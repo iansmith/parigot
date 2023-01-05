@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"

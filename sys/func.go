@@ -3,9 +3,12 @@ package sys
 import (
 	"runtime/debug"
 
+	// fileimpl "github.com/iansmith/parigot/api_impl/file"
+	// logimpl "github.com/iansmith/parigot/api_impl/log"
+	filego "github.com/iansmith/parigot/api_impl/file/go_"
+	loggo "github.com/iansmith/parigot/api_impl/log/go_"
+
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
-	fileimpl "github.com/iansmith/parigot/api/fileimpl/go_"
-	logimpl "github.com/iansmith/parigot/api/logimpl/go_"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
@@ -59,8 +62,8 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 
 func addSplitModeFunctions(store wasmtime.Storelike,
 	result map[string]*wasmtime.Func,
-	logViewer *logimpl.LogViewerImpl,
-	fileSvc *fileimpl.FileSvcImpl) {
+	logViewer *loggo.LogViewerImpl,
+	fileSvc *filego.FileSvcImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
 	result["go.logviewer.log_request_handler"] = wrapWithRecover(store, logViewer.LogRequestHandler)

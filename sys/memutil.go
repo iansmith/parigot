@@ -1,6 +1,6 @@
 package sys
 
-import "github.com/iansmith/parigot/lib"
+import lib "github.com/iansmith/parigot/lib/go"
 
 func (s *syscallReadWrite) ReadString(structPtr int64, dataOffset uintptr, lenOffset uintptr) string {
 	return s.mem.LoadStringWithLen(int32(structPtr)+int32(dataOffset), int32(structPtr)+int32(lenOffset))

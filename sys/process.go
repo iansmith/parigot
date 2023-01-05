@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
-	fileimpl "github.com/iansmith/parigot/api/fileimpl/go_"
-	ilog "github.com/iansmith/parigot/api/logimpl/go_"
-	logimpl "github.com/iansmith/parigot/api/logimpl/go_"
-	pblog "github.com/iansmith/parigot/api/proto/g/pb/log"
-	pbsys "github.com/iansmith/parigot/api/proto/g/pb/syscall"
-	"github.com/iansmith/parigot/lib"
+	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
+	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -199,7 +198,7 @@ func (p *Process) Start() {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			e, ok := r.(*pbsys.ExitRequest)
+			e, ok := r.(*syscallmsg.ExitRequest)
 			if ok {
 				p.exitCode = int(e.GetCode())
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
@@ -235,9 +234,9 @@ func procPrint(method string, spec string, arg ...interface{}) {
 	if processVerbose {
 		part1 := fmt.Sprintf("PROCESS:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		ilog.ProcessLogRequest(
-			&pblog.LogRequest{
-				Level:   pblog.LogLevel_LOG_LEVEL_INFO,
+		logimpl.ProcessLogRequest(
+			&logmsg.LogRequest{
+				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
 				Message: part1 + part2 + "\n",
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
 			}, true, false, nil)
