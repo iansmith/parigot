@@ -1,6 +1,7 @@
 package go_
 
 import (
+	"log"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
@@ -42,19 +43,12 @@ func (g *GoGen) FuncMap() template.FuncMap {
 }
 
 func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
+	log.Printf("xxxx PROCESSing only: %s", pr.GetName())
 	codegen.AddFileContentToFinder(g.finder, pr, g.lang)
 	return nil
 }
 
 func (g *GoGen) Generate(t *template.Template, info *codegen.GenInfo, impToPkg map[string]string) ([]*util.OutputFile, error) {
-	if len(info.Service()) == 0 {
-		return nil, nil
-	}
-	for _, svc := range info.Service() {
-		if svc.HasKernelOption() { // xxx dubious, we dump whole file because of one service
-			return nil, nil
-		}
-	}
 	return codegen.BasicGenerate(g, t, info, impToPkg)
 }
 

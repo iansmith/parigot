@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -16,6 +17,7 @@ type Finder interface {
 	AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage)
 	AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
+	GoPackageOption(service []*WasmService) (string, error)
 	Service() []*WasmService
 	Message() []*WasmMessage
 }
@@ -31,6 +33,26 @@ func NewSimpleFinder() *SimpleFinder {
 		message: make(map[*MessageRecord]*WasmMessage),
 	}
 }
+func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
+	pkg := ""
+	for _, svc := range service {
+		for sr, m := range s.service {
+			if m == svc {
+				if pkg != "" && pkg != sr.goPackage {
+					return "", errors.New(fmt.Sprintf("service %s:mismatched go packages in go_option: %s and %s",
+						svc.GetName(), pkg, sr.goPackage))
+				}
+				part := strings.Split(sr.goPackage, ";")
+				if len(part) != 2 {
+					return "", errors.New(fmt.Sprintf("service %s: cannot understand go package option '%s'",
+						svc.GetName(), sr.goPackage))
+				}
+				pkg = part[1]
+			}
+		}
+	}
+	return pkg, nil
+}
 
 func (s *SimpleFinder) AddMessageType(name, protoPackage, goPackage string, message *WasmMessage) {
 	rec := NewMessageRecord(name, protoPackage, goPackage)
@@ -38,7 +60,6 @@ func (s *SimpleFinder) AddMessageType(name, protoPackage, goPackage string, mess
 	if verbose {
 		if rec.protoPackage != "google.protobuf" && rec.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
 			log.Printf("adding message type %s [%d]", rec.String(), len(message.GetField()))
-
 		}
 	}
 	s.message[rec] = message
@@ -122,7 +143,7 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string) *Wasm
 		}
 	}
 
-	shortName := LastSegmentOfPackage(name)
+	shortName := nameToJustServiceOrMessage(name)
 	for candidate, m := range s.message {
 		if candidate.protoPackage == protoPackage {
 			if candidate.WasmName() == shortName {
@@ -165,25 +186,39 @@ func (s *SimpleFinder) FindMessageByName(protoPackage string, name string) *Wasm
 	return nil
 }
 
+func nameToJustServiceOrMessage(name string) string {
+	name = strings.TrimSuffix(name, ".proto")
+	part := strings.Split(name, ".")
+	if len(part) == 1 {
+		return name
+	}
+	return part[len(part)-1]
+}
 func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *WasmService {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) {
-		panic(fmt.Sprintf("can't understand service/type structure: [%s,%s]",
+		panic(fmt.Sprintf("can't understand service/type structure: [.%s,%s]",
 			protoPackage, name))
 	}
-	shortName := LastSegmentOfPackage(name)
+	shortName := nameToJustServiceOrMessage(name)
 	for candidate, svc := range s.service {
 		if candidate.protoPackage == protoPackage {
 			if candidate.wasmName == shortName {
-				log.Printf("! [simplefinder service] found %s", svc.GetWasmServiceName())
+				if verbose {
+					log.Printf("! [simplefinder service] found %s", svc.GetWasmServiceName())
+				}
 				return svc
 			} else {
-				log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s",
-					protoPackage, candidate.wasmName, shortName)
+				if verbose {
+					log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s",
+						protoPackage, candidate.wasmName, shortName)
+				}
 			}
 		} else {
-			log.Printf("  [simplefinder service] missed %s versus [%s,%s]",
-				candidate.String(), protoPackage, name)
+			if verbose {
+				log.Printf("  [simplefinder service] missed %s versus [%s,%s]",
+					candidate.String(), protoPackage, name)
+			}
 		}
 	}
 	return nil
@@ -198,6 +233,7 @@ func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto,
 	}
 	for _, s := range pr.GetService() {
 		svc := NewWasmService(pr, s, lang, f)
+		log.Printf("xxxx-->> adding %s,%s,%s => %s", s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc.GetWasmServiceName())
 		f.AddServiceType(s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
 	}
 }

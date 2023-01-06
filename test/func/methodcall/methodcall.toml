@@ -5,4 +5,3 @@ log = "api/atlanta/build/log.p.wasm"
 
 [test]
 methodcall = "build/methodcall_test.p.wasm"
-multimethodcall = "build/multimethodcall_test.p.wasm"

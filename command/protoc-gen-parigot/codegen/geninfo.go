@@ -2,16 +2,17 @@ package codegen
 
 import (
 	"fmt"
+
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
 type GenInfo struct {
-	request         *pluginpb.CodeGeneratorRequest
-	file            *descriptorpb.FileDescriptorProto
-	lang            LanguageText
-	finder          *SimpleFinder
-	kernelInterface string
+	request    *pluginpb.CodeGeneratorRequest
+	nameToFile map[string]*descriptorpb.FileDescriptorProto
+	nameToSvc  map[string][]*descriptorpb.ServiceDescriptorProto
+	nameToMsg  map[string][]*descriptorpb.DescriptorProto
+	finder     *SimpleFinder
 }
 
 func NewGenInfo() *GenInfo {
@@ -34,10 +35,9 @@ func (g *GenInfo) Message() []*WasmMessage {
 	return g.finder.Message()
 }
 
-// GetFile returns the file data structure that is associated with the currently
-// operating code generation.
-func (g *GenInfo) GetFile() *descriptorpb.FileDescriptorProto {
-	return g.file
+// GetService returns all the services we know about that will need to be generated.
+func (g *GenInfo) GetService(name string) []*descriptorpb.ServiceDescriptorProto {
+	return g.nameToSvc[name]
 }
 
 // GetRequest returns the original request data structure that was delivered via
@@ -184,10 +184,6 @@ func (m *MessageRecord) WasmName() string {
 	return m.msg
 }
 
-func (m *MessageRecord) flatten() string {
-	return m.msg + m.protoPackage + m.goPackage
-}
-
 func NewMessageRecord(name, protoPackage, goPackage string) *MessageRecord {
 	return &MessageRecord{
 		msg:          name,
@@ -217,10 +213,23 @@ func (g *GenInfo) RegisterService(w *WasmService) {
 func (g *GenInfo) RegisterMessage(w *WasmMessage) {
 	g.finder.AddMessageType(w.GetWasmMessageName(), w.GetProtoPackage(), w.GetGoPackage(), w)
 }
-
-func (g *GenInfo) FindServiceByName(protoPackage string, name string) *WasmService {
-	return g.finder.FindServiceByName(protoPackage, name)
+func (g *GenInfo) GetAllServiceByName(generatedFile string) []*descriptorpb.ServiceDescriptorProto {
+	return g.nameToSvc[generatedFile]
 }
+func (g *GenInfo) GetAllMessageByName(generatedFile string) []*descriptorpb.DescriptorProto {
+	return g.nameToMsg[generatedFile]
+}
+
+func (g *GenInfo) GoPackageOption(service []*WasmService) (string, error) {
+	return g.finder.GoPackageOption(service)
+}
+
+func (g *GenInfo) FindServiceByName(protoPackage, name string) *WasmService {
+	//xxx fixme this stinks
+	hackyName := fmt.Sprintf(".%s.%s", protoPackage, name)
+	return g.finder.FindServiceByName(protoPackage, hackyName)
+}
+
 func (g *GenInfo) FindMessageByName(protoPackage string, name string) *WasmMessage {
 	return g.finder.FindMessageByName(protoPackage, name)
 }
@@ -236,7 +245,30 @@ func (g *GenInfo) AddressingNameFromMessage(currentPkg string, message *WasmMess
 	return g.finder.AddressingNameFromMessage(currentPkg, message)
 }
 
-func (g *GenInfo) SetReqAndFile(request *pluginpb.CodeGeneratorRequest, proto *descriptorpb.FileDescriptorProto) {
+func (g *GenInfo) SetReqAndFileMappings(request *pluginpb.CodeGeneratorRequest,
+	n map[string]*descriptorpb.FileDescriptorProto,
+	s map[string][]*descriptorpb.ServiceDescriptorProto,
+	m map[string][]*descriptorpb.DescriptorProto) {
 	g.request = request
-	g.file = proto
+	g.nameToFile = n
+	g.nameToSvc = s
+	g.nameToMsg = m
+}
+
+// GetAllFileName returns the list of string (keys in the two maps) that are visible to this genInfo.
+func (g *GenInfo) GetAllFileName() []string {
+	result := []string{}
+	for k := range g.nameToFile {
+		result = append(result, k)
+	}
+	return result
+}
+
+func (g *GenInfo) GetFileByName(name string) *descriptorpb.FileDescriptorProto {
+	return g.nameToFile[name]
+}
+
+func (g *GenInfo) Contains(name string) bool {
+	_, ok := g.nameToFile[name]
+	return ok
 }
