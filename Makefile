@@ -1,7 +1,8 @@
 API_VERSION=v1
 
 all: g/file/$(API_VERSION)/file.pb.go build/protoc-gen-parigot \
-	build/file.p.wasm build/log.p.wasm build/methodcalltest.p.wasm
+	build/file.p.wasm build/log.p.wasm \
+	build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 
 GO_CMD=GOOS=js GOARCH=wasm go
 
@@ -44,7 +45,17 @@ build/log.p.wasm: $(LOG_SERVICE) g/file/$(API_VERSION)/file.pb.go
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/log
 
-METHODCALLTEST=$(shell find test/func/methodcall -type f -regex ".*\.go")
+METHODCALLTEST=test/func/methodcall/*.go
 build/methodcalltest.p.wasm: $(METHODCALLTEST) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall
+
+FOO_SERVICE=test/func/methodcall/impl/foo/*.go
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
+	rm -f $@
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
+
+BAR_SERVICE=test/func/methodcall/impl/bar/*.go
+build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
+	rm -f $@
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
