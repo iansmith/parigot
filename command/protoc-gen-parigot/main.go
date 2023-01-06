@@ -88,9 +88,9 @@ func main() {
 // in the genReq that are required to be generated.  If it is not required to be generated,
 // it is being included because it has type information for a dependency of some type
 // this is being generated.
-func isGenerate(desc *descriptorpb.FileDescriptorProto, genReq *pluginpb.CodeGeneratorRequest) bool {
+func isGenerate(fullName string, genReq *pluginpb.CodeGeneratorRequest) bool {
 	for _, gen := range genReq.GetFileToGenerate() {
-		if desc.GetName() == gen {
+		if fullName == gen {
 			return true
 		}
 	}
@@ -101,17 +101,53 @@ func isGenerate(desc *descriptorpb.FileDescriptorProto, genReq *pluginpb.CodeGen
 // about the languages being used.  those get set at the point we compute genMap
 func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
+
+	// compute the set of descriptors that will need to be generated... have to do this firest because
+	// there can be multiple protos in the same package
+	fileToSvc := make(map[string][]*descriptorpb.ServiceDescriptorProto)
+	fileToMsg := make(map[string][]*descriptorpb.DescriptorProto)
+	nameToFile := make(map[string]*descriptorpb.FileDescriptorProto)
+	for _, desc := range genReq.GetProtoFile() {
+		nameToFile[desc.GetName()] = desc
+		isGen := isGenerate(desc.GetName(), genReq)
+		var svc []*descriptorpb.ServiceDescriptorProto
+		var ok bool
+		if isGen {
+			for _, s := range desc.GetService() {
+				svc, ok = fileToSvc[desc.GetName()]
+				if ok {
+					svc = append(svc, s)
+				} else {
+					svc = []*descriptorpb.ServiceDescriptorProto{s}
+				}
+				fileToSvc[desc.GetName()] = svc
+			}
+		}
+	}
+	for _, desc := range genReq.GetProtoFile() {
+		msg := desc.GetMessageType()
+		for _, mt := range msg {
+			var ok bool
+			var allMsg []*descriptorpb.DescriptorProto
+			allMsg, ok = fileToMsg[desc.GetName()]
+			if ok {
+				allMsg = append(allMsg, mt)
+			} else {
+				allMsg = []*descriptorpb.DescriptorProto{mt}
+			}
+			fileToMsg[desc.GetName()] = allMsg
+		}
+	}
+	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg)
+
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
-		isGenerate := isGenerate(desc, genReq)
-		info.SetReqAndFile(genReq, desc) // set to what we are processing now
-		genMap := getGeneratorMap(desc)
-		// walk all languages, or just the abi if the input turns out to be the abi protos
-		for lang, generator := range genMap {
+		for lang, generator := range generatorMap {
 			codegen.Collect(info, generator.LanguageText())
-			if isGenerate {
+			if info.Contains(desc.GetName()) {
+				// inject this desc into the finder
 				// skip it? only if no services and no messages xxx will break enums
-				if len(info.Service()) == 0 && len(info.Message()) == 0 {
+				if len(info.GetAllServiceByName(desc.GetName())) == 0 {
 					continue
 				}
 				// load up templates
@@ -133,7 +169,7 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 				}
 			} else {
 				// process is called when you just might want to look at the types
-				// that are being imported
+				// that are being imported (this is also used when we will generate)
 				if err := generator.Process(desc); err != nil {
 					return nil, err
 				}
@@ -172,7 +208,7 @@ func loadTemplates(generator codegen.Generator) (*template.Template, error) {
 	return t, nil
 }
 
-func getGeneratorMap(desc *descriptorpb.FileDescriptorProto) map[string]codegen.Generator {
+func getGeneratorMap() map[string]codegen.Generator {
 	return generatorMap // normal map with one entry per languages
 
 }

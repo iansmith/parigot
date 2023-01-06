@@ -3,6 +3,8 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"log"
+	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
@@ -18,33 +20,60 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	// run the loop for the templates
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
-	for i, n := range g.TemplateName() {
-		if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
-			continue
-		}
-		//gather imports
-		imp := make(map[string]struct{})
-		for _, dep := range info.GetFile().GetDependency() {
-			if dep == "pb/test/testoption.proto" {
+	log.Printf("xxx size of file to generate: %d and templates %d", len(info.request.FileToGenerate), len(g.TemplateName()))
+	for _, toGen := range info.request.FileToGenerate {
+		for i, n := range g.TemplateName() {
+			// if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
+			// 	continue
+			// }
+			//gather imports
+			imp := make(map[string]struct{})
+			for _, dep := range info.GetFileByName(toGen).GetDependency() {
+				imp["\""+impToPkg[dep]+"\""] = struct{}{}
+			}
+			//path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
+			if !strings.HasSuffix(toGen, ".proto") {
+				panic(fmt.Sprintf("unable to understand protocol buffer file with name %s, does not end in .proto", toGen))
+			}
+			path2 := strings.TrimSuffix(toGen, ".proto") + resultName[i]
+			f := util.NewOutputFile(path2)
+			// pbsvc := matchService(toGen, info.request.GetProtoFile())
+			// log.Printf("xxx number of pb services for %s: %d", toGen, len(pbsvc))
+			// if len(pbsvc) == 1 {
+			// 	log.Printf("xxx--> found it in matchService, pbsvc result[0] == %s", pbsvc[0].GetName())
+			// }
+			wasmService := []*WasmService{}
+			for _, pb := range info.GetAllServiceByName(toGen) {
+				desc := info.GetFileByName(toGen)
+				w := info.FindServiceByName(desc.GetPackage(), pb.GetName())
+				if w == nil {
+					panic(fmt.Sprintf("can't find service %s", toGen))
+				}
+				wasmService = append(wasmService, w)
+			}
+			if len(wasmService) == 0 {
+				// we don't need to do anything, go plugin will do it
 				continue
 			}
-			//log.Printf("import map, adding %s [%s]", dep, n)
-			imp["\""+impToPkg[dep]+"\""] = struct{}{}
+			pkg, err := info.GoPackageOption(wasmService)
+			if err != nil {
+				return nil, err
+			}
+			data := map[string]interface{}{
+				"file":    toGen,
+				"req":     info.GetRequest(),
+				"info":    info,
+				"package": pkg,
+				"import":  imp,
+				"service": wasmService,
+			}
+			log.Printf("xxx f for output file is %s", path2)
+			err = executeTemplate(f, t, n, data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to process template %s: %v", n, err)
+			}
+			result = append(result, f)
 		}
-		path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
-		//log.Printf("-- done with import map %s", path)
-		f := util.NewOutputFile(path)
-		data := map[string]interface{}{
-			"file":   info.GetFile(),
-			"req":    info.GetRequest(),
-			"info":   info,
-			"import": imp,
-		}
-		err := executeTemplate(f, t, n, data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process template %s: %v", n, err)
-		}
-		result = append(result, f)
 	}
 	return result, nil
 
@@ -63,14 +92,29 @@ func executeTemplate(w io.Writer, t *template.Template, name string, data map[st
 // into the given GenInfo object.  It walks the full proto file as specified by
 // proto.
 func Collect(result *GenInfo, lang LanguageText) *GenInfo {
-	//we are going to generate the file in result so make sure everything is registered
-	for _, s := range result.file.GetService() {
-		w := NewWasmService(result.file, s, lang, result)
-		result.RegisterService(w)
+	file := result.GetAllFileName()
+	for _, f := range file {
+		allSvc := result.GetService(f)
+		for _, svc := range allSvc {
+			w := NewWasmService(result.GetFileByName(f), svc, lang, result)
+			result.RegisterService(w)
+		}
 	}
-	for _, m := range result.file.GetMessageType() {
-		w := NewWasmMessage(result.file, m, lang, result)
-		result.RegisterMessage(w)
+
+	// for _, f:=result.request.FileToGenerate {
+	// 	w:=NewWasmService(result.)
+	// }
+	//we are going to generate the file in result so make sure everything is registered
+	// for i, s := range result..GetService() {
+	// 	log.Printf("about to create an reg new wasm service [%d]: %s", i, s.GetName())
+	// 	w := NewWasmService(result.file, s, lang, result)
+	// 	result.RegisterService(w)
+	// }
+	for _, f := range file {
+		for _, m := range result.GetAllMessageByName(f) {
+			w := NewWasmMessage(result.GetFileByName(f), m, lang, result)
+			result.RegisterMessage(w)
+		}
 	}
 
 	//
@@ -92,3 +136,15 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 	}
 	return result
 }
+
+// func matchService(toGen string, fd []*descriptorpb.FileDescriptorProto) []*descriptorpb.ServiceDescriptorProto {
+// 	for _, protofile := range fd {
+// 		fdName := protofile.GetName()
+// 		svcs := protofile.GetService()
+// 		log.Printf("xxx match service considering match of %s to %s", toGen, fdName)
+// 		if toGen == fdName {
+// 			return svcs
+// 		}
+// 	}
+// 	return nil
+// }

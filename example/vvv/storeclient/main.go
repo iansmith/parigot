@@ -11,7 +11,7 @@ import (
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
-	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -28,7 +28,7 @@ func main() {
 	if _, err := callImpl.Require1("log", "Log"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
-	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
 	var err error
@@ -72,7 +72,7 @@ func main() {
 			Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
 	}
-	callImpl.Exit(&pbsys.ExitRequest{Code: 17})
+	callImpl.Exit(&syscallmsg.ExitRequest{Code: 17})
 }
 
 func Log(level pblog.LogLevel, spec string, arg ...interface{}) {

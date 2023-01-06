@@ -53,14 +53,13 @@ func ToCamelCase(snake string) string {
 	return snake
 }
 
-// LastSegmentOfPackage normally returns the string after the last dot of a fully spelled out package name,
-// without any version number, if present.  If there are no dots or the last dot is the last character,
-// it returns its input.  As a special case, if the package name starts with "msg" and the output is a
-// normal case, it returns <output>msg.
+// LastSegmentOfPackage takes a file to be generated file file/v1/file.proto and converts it to
+// v1.
 func LastSegmentOfPackage(pkg string) string {
-	part := strings.Split(pkg, ".")
+	pkg = strings.TrimSuffix(pkg, ".proto")
+	part := strings.Split(pkg, "/")
 	if len(part) > 1 {
-		possibleVersion := part[len(part)-1]
+		possibleVersion := part[len(part)-2]
 		if isVersion(possibleVersion) {
 			part = part[:len(part)-1]
 			pkg = strings.Join(part, ".")
