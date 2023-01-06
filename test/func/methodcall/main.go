@@ -8,8 +8,8 @@ import (
 	"github.com/iansmith/parigot/g/log/v1"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
-	"github.com/iansmith/parigot/g/msg/methodcall/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

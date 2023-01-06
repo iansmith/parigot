@@ -4,6 +4,7 @@
 package {{ .package }}
 
 {{$file:=.file}}
+{{$package:=.package}}
 
 import (
 	"fmt"
@@ -82,7 +83,7 @@ var {{$methCamelFL}}Method lib.Id
 var {{$svcCamelFL}}ServerVerbose = false
 var {{$svcCamelFL}}Call = syscall.NewCallImpl()
 
-func Run(impl {{$svcCamel}}Server) {
+func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 	// register all methods
 	method, err := {{$svcCamelFL}}Bind(impl)
 	if err != nil {
@@ -125,7 +126,7 @@ func Run(impl {{$svcCamel}}Server) {
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
 {{- if .InputCodeNeeded}}
-			req := &{{$svcLowerNoService}}msg.{{$methCamel}}Request{}
+			req := &{{$package}}msg.{{$methCamel}}Request{}
 			marshalError = resp.GetParam().UnmarshalTo(req)
 			if marshalError != nil {
 				break

@@ -28,7 +28,7 @@ func main() {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
 
-	file.Run(&myFileServer{})
+	file.RunFileService(&myFileServer{})
 }
 
 type myFileServer struct {
