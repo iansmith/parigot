@@ -217,16 +217,12 @@ func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 }
 
 // InitNameServers initializes the two nameservers with a shared channel that
-// is used to implement RunNotify.
+// is used to implement RunNotify for the local case.
 func InitNameServer(runNotifyChannel chan *KeyNSPair, local, remote bool) {
 	if local {
 		LocalNS = NewLocalNameServer(runNotifyChannel)
 	}
 	if remote {
-		// loc := LocalNS
-		// if !local {
-		// 	loc = NewLocalNameServer(runNotifyChannel)
-		// }
 		NetNS = NewNSProxy("parigot_ns:13330")
 	}
 }

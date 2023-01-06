@@ -1,7 +1,18 @@
-[process]
-foo = "build/methodcallfoo.p.wasm"
-bar = "build/methodcallbar.p.wasm"
-log = "build/log.p.wasm"
+## Note that because this is consumed from the parigot root dir, the paths provided
+## are relative to that dir, not this dir
 
-[test]
-methodcall = "build/methodcalltest.p.wasm"
+# the names here have no significance, they are just for humans
+
+server = [
+    { Name="foo", Path="build/methodcallfoo.p.wasm"},
+    { Name="bar", Path="build/methodcallbar.p.wasm"},
+    { Name="log", Path="build/log.p.wasm"},
+]
+
+test = [
+    #{Name="methodcall_test", Path= "build/methodcalltest.p.wasm"},
+]
+
+## flags
+testmode = true
+remote = false

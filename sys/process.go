@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"strings"
 
 	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
 	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,16 +18,6 @@ import (
 var processVerbose = true || envVerbose != ""
 
 var lastProcessId = 7
-
-// resultInfo is the response that the recipient of a call sends back to the originator.
-type resultInfo struct {
-	cid     lib.Id
-	mid     lib.Id
-	errorId lib.Id
-	result  []byte //can be nil
-	pctx    []byte // can be nil for optimization reasons
-
-}
 
 type Process struct {
 	id   int
@@ -46,12 +34,11 @@ type Process struct {
 	reachedRun bool
 	exited     bool
 	server     bool
+	remote     bool
 	local      *bool
 
-	callCh   chan *callContext
-	exitChan chan struct{}
-	resultCh chan *resultInfo
-	runCh    chan bool
+	callCh chan *callContext
+	runCh  chan bool
 
 	exitCode int
 }
@@ -61,9 +48,13 @@ type Process struct {
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl
 func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string,
-	rs *RemoteSpec) (*Process, error) {
+	isServer, isMain, isRemote bool) (*Process, error) {
 
-	rt := newRuntime(rs)
+	if isServer && isMain {
+		panic("unable to understand process that is both a server and a main:" + path)
+	}
+
+	rt := newRuntime()
 	// split mode
 	logViewer := &logimpl.LogViewerImpl{}
 	fileSvc := &fileimpl.FileSvcImpl{}
@@ -82,11 +73,11 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 		waiter:     false,
 		reachedRun: false,
 		exited:     false,
-		server:     false,
+		server:     isServer,
+		remote:     isRemote,
 
-		callCh:   make(chan *callContext),
-		resultCh: make(chan *resultInfo),
-		runCh:    make(chan bool),
+		callCh: make(chan *callContext),
+		runCh:  make(chan bool),
 	}
 
 	l, err := proc.checkLinkage(rt, logViewer, fileSvc)
@@ -113,10 +104,6 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	logViewer.SetWasmMem(memptr)
 	fileSvc.SetWasmMem(memptr)
 	rt.SetProcess(proc)
-
-	if rt.spec.IsRemote(proc) {
-		proc.server = true
-	}
 
 	return proc, nil
 }
@@ -171,16 +158,21 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 		if !ok {
 			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
-			if strings.HasPrefix(importName, "go.parigot") {
-				procPrint("CHECKLINKAGE ", "linked %s into module %s", importName, p.path)
-			}
+			// if strings.HasPrefix(importName, "go.parigot") {
+			// 	//procPrint("CHECKLINKAGE ", "linked %s into module %s", importName, p.path)
+			// }
 			linkage = append(linkage, ext)
 		}
 	}
 	return linkage, nil
 }
 
-// Run() is used to let a process go past its call to "start()" in the API.  This is
+func (p *Process) SetExitCode(code int) {
+	p.exitCode = code
+	p.exited = true
+}
+
+// Run() is used to let a process proceed with running.  This is
 // called when we discover all his requirements have been met.
 func (p *Process) Run() {
 	procPrint("RUN", "trying to tell %s to run, everything is ok", p)
@@ -188,46 +180,48 @@ func (p *Process) Run() {
 	procPrint("RUN", "process %s running", p)
 }
 
-func (p *Process) Start() {
+// Start invokes the wasm interp and returns an error code if this is a "main" process.
+func (p *Process) Start() (code int) {
 	procPrint("START ", "we have been loaded/started by the runner: %s", p)
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
-		p.exitCode = 255
-		return
+		p.SetExitCode(55)
+		return p.exitCode
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			e, ok := r.(*syscallmsg.ExitRequest)
 			if ok {
 				p.exitCode = int(e.GetCode())
+				code = p.exitCode
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
-				return
 			} else {
-				p.exitCode = 255
-				procPrint("Start/Exit", "trapped a panic: %v, exiting with code 255", r)
+				p.SetExitCode(254)
+				code = p.exitCode
+				procPrint("Start/Exit", "trapped a panic: %v, exiting with code 254", r)
 			}
 		}
-		return
 	}()
 	f := start.Func()
-	procPrint("START ", "calling the entry point (%+v,%T), for proc %s (parent %v)",
-		f, f, p, p.parent)
+	procPrint("START ", "calling the entry point for proc %s", p)
 	result, err := f.Call(p.parent, 0, 0)
-	//procPrint("END ", "process %s has completed: %v, %v", p, result, err)
-	p.exited = true
+	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
+
 	if err != nil {
-		p.exitCode = 254
-		procPrint("END ", "process %s trapped: %v", p, err)
-	} else {
-		if result == nil {
-			procPrint("END ", "process %s finished (exit code %d)", p, p.exitCode)
-		} else {
-			procPrint("END ", "process %s finished: %+v", p, result)
-		}
+		p.SetExitCode(253)
+		procPrint("END ", "process %s trapped: %v, exit code %d", p, err, p.exitCode)
+		return p.exitCode
 	}
-	// xxx fixme, we need to do process cleanup here
-	return
+	if result == nil {
+		procPrint("END ", "process %s finished (exit code %d)", p, p.exitCode)
+		p.exited = true
+		return p.exitCode
+
+	}
+	procPrint("END ", "process %s finished normally: %+v", p, result)
+	p.exitCode = 0
+	return p.exitCode
 }
 
 func procPrint(method string, spec string, arg ...interface{}) {
@@ -240,7 +234,7 @@ func procPrint(method string, spec string, arg ...interface{}) {
 				Message: part1 + part2 + "\n",
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
 			}, true, false, nil)
-		print(part1 + part2 + "\n")
+		//print(part1 + part2 + "\n")
 
 	}
 }
