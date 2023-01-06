@@ -1,6 +1,6 @@
 [process]
-foo = "build/foo.p.wasm"
-bar = "build/bar.p.wasm"
+foo = "build/methodcallfoo.p.wasm"
+bar = "build/methodcallbar.p.wasm"
 log = "build/log.p.wasm"
 
 [test]
