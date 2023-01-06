@@ -17,10 +17,6 @@ func sharedBind(core *NSCore, p *Process, packagePath, service, method string) (
 	return mid, nil
 }
 
-func sharedPanicForBackdoorLog() {
-	panic("cant call BackdoorLog on a nameserver")
-}
-
 // sharedFindMethodByName uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
 // pass the nested localNameServer inside the netNameServer
 func sharedFindMethodByName(ns *LocalNameServer, key dep.DepKey, sid lib.Id, method string) *callContext {
