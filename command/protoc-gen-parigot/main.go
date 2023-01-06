@@ -207,8 +207,3 @@ func loadTemplates(generator codegen.Generator) (*template.Template, error) {
 	}
 	return t, nil
 }
-
-func getGeneratorMap() map[string]codegen.Generator {
-	return generatorMap // normal map with one entry per languages
-
-}

@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"text/template"
 
@@ -20,7 +19,6 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	// run the loop for the templates
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
-	log.Printf("xxx size of file to generate: %d and templates %d", len(info.request.FileToGenerate), len(g.TemplateName()))
 	for _, toGen := range info.request.FileToGenerate {
 		for i, n := range g.TemplateName() {
 			// if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
@@ -67,7 +65,6 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				"import":  imp,
 				"service": wasmService,
 			}
-			log.Printf("xxx f for output file is %s", path2)
 			err = executeTemplate(f, t, n, data)
 			if err != nil {
 				return nil, fmt.Errorf("failed to process template %s: %v", n, err)

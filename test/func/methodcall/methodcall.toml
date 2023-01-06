@@ -1,7 +1,7 @@
 [process]
 foo = "build/foo.p.wasm"
 bar = "build/bar.p.wasm"
-log = "api/atlanta/build/log.p.wasm"
+log = "build/log.p.wasm"
 
 [test]
-methodcall = "build/methodcall_test.p.wasm"
+methodcall = "build/methodcalltest.p.wasm"

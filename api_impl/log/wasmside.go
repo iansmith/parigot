@@ -22,7 +22,7 @@ func main() {
 	if _, err := callImpl.Export1("log", "Log"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
-	log.Run(&myLogServer{})
+	log.RunLogService(&myLogServer{})
 }
 
 type myLogServer struct{}
