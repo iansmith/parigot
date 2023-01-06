@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/net"
-	"github.com/iansmith/parigot/api/proto/g/pb/protosupport"
-	"github.com/iansmith/parigot/lib"
+	netmsg "github.com/iansmith/parigot/g/msg/net/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys"
 	"github.com/iansmith/parigot/sys/dep"
 
@@ -90,19 +90,19 @@ func main() {
 		}
 
 		switch m := p.(type) {
-		case *net.CloseServiceRequest:
+		case *netmsg.CloseServiceRequest:
 			log.Printf("dispatching to close service")
 			err = closeService(m, nr.RespChan())
-		case *net.ExportRequest:
+		case *netmsg.ExportRequest:
 			log.Printf("dispatching to export")
 			err = export(m, nr.RespChan())
-		case *net.GetServiceRequest:
+		case *netmsg.GetServiceRequest:
 			log.Printf("dispatching to get service")
 			err = getService(m, nr.RespChan())
-		case *net.RequireRequest:
+		case *netmsg.RequireRequest:
 			log.Printf("dispatching to get require")
 			err = require(m, nr.RespChan())
-		case *net.RunBlockRequest:
+		case *netmsg.RunBlockRequest:
 			log.Printf("dispatching to run block")
 			err = runBlock(m, nr.RespChan(), newWaiterCh)
 		default:
@@ -116,7 +116,7 @@ func main() {
 	}
 }
 
-func closeService(m *net.CloseServiceRequest, respChan chan *anypb.Any) error {
+func closeService(m *netmsg.CloseServiceRequest, respChan chan *anypb.Any) error {
 	log.Printf("close service , making sure it exists in our graph")
 	key := sys.NewDepKeyFromAddr(m.GetAddr())
 	id := core.CloseService(key, m.GetPackagePath(), m.GetService())
@@ -128,7 +128,7 @@ func closeService(m *net.CloseServiceRequest, respChan chan *anypb.Any) error {
 	}
 
 	// at the moment, we really don't track this in the network case
-	resp := &net.CloseServiceResponse{
+	resp := &netmsg.CloseServiceResponse{
 		KernelErr: lib.NoKernelError(),
 	}
 	log.Printf("close service, computing response")
@@ -142,7 +142,7 @@ func closeService(m *net.CloseServiceRequest, respChan chan *anypb.Any) error {
 	return nil
 }
 
-func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
+func export(m *netmsg.ExportRequest, respChan chan *anypb.Any) error {
 	// we lock here ONLY because the map requireWaitingList is not safe to read when others
 	// are updating it
 	waitLock.Lock()
@@ -166,8 +166,8 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 		}
 	}
 	if failure != nil {
-		resp := &net.ExportResponse{
-			KernelErr: lib.Marshal[protosupport.KernelErrorId](failure),
+		resp := &netmsg.ExportResponse{
+			KernelErr: lib.Marshal[protosupportmsg.KernelErrorId](failure),
 		}
 		a := anypb.Any{}
 		if err := a.MarshalFrom(resp); err != nil {
@@ -176,7 +176,7 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 		respChan <- &a
 		return nil
 	}
-	resp := &net.ExportResponse{
+	resp := &netmsg.ExportResponse{
 		KernelErr: lib.NoKernelError(),
 	}
 	a := anypb.Any{}
@@ -188,7 +188,7 @@ func export(m *net.ExportRequest, respChan chan *anypb.Any) error {
 	return nil
 }
 
-func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
+func getService(m *netmsg.GetServiceRequest, respChan chan *anypb.Any) error {
 	pkg := m.GetPackagePath()
 	svc := m.GetService()
 
@@ -201,11 +201,11 @@ func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 			lib.NewKernelError(lib.KernelNotFound))
 	}
 
-	resp := &net.GetServiceResponse{
+	resp := &netmsg.GetServiceResponse{
 		KernelErr: lib.NoKernelError(),
 	}
 	resp.Addr = sdata.GetKey().String()
-	resp.Sid = lib.Marshal[protosupport.ServiceId](sdata.GetServiceId())
+	resp.Sid = lib.Marshal[protosupportmsg.ServiceId](sdata.GetServiceId())
 
 	log.Printf("found service requested (%s.%s)=>%s on %s", pkg, svc, sdata.GetServiceId(), sdata.GetKey().String())
 	a := anypb.Any{}
@@ -217,7 +217,7 @@ func getService(m *net.GetServiceRequest, respChan chan *anypb.Any) error {
 	return nil
 }
 
-func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan dep.DepKey) error {
+func runBlock(m *netmsg.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan dep.DepKey) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
@@ -250,7 +250,7 @@ func runBlock(m *net.RunBlockRequest, respChan chan *anypb.Any, newWaiter chan d
 	return nil
 }
 
-func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
+func require(m *netmsg.RequireRequest, respChan chan *anypb.Any) error {
 	waitLock.Lock()
 	defer waitLock.Unlock()
 
@@ -267,7 +267,7 @@ func require(m *net.RequireRequest, respChan chan *anypb.Any) error {
 	}
 
 	// tell them it's ok
-	resp := &net.RequireResponse{
+	resp := &netmsg.RequireResponse{
 		KernelErr: lib.NoKernelError(),
 	}
 	a := anypb.Any{}
