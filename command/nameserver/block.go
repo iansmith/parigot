@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/iansmith/parigot/api/proto/g/pb/net"
-	"github.com/iansmith/parigot/lib"
+	netmsg "github.com/iansmith/parigot/g/msg/net/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/dep"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -55,7 +55,7 @@ func checkForReadyWaiter(newCh chan dep.DepKey, notifyCh chan *waitInfo) {
 }
 
 func sendRunBlockResponse(info *waitInfo, success bool) {
-	resp := &net.RunBlockResponse{
+	resp := &netmsg.RunBlockResponse{
 		ErrId:    lib.NoKernelError(),
 		TimedOut: !success,
 	}

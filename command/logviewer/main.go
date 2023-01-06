@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iansmith/parigot/api/netconst"
-	pb "github.com/iansmith/parigot/api/proto/g/pb/log"
+	"github.com/iansmith/parigot/api_impl/netconst"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -103,7 +103,7 @@ func handler(conn net.Conn) {
 			internalMessage(fmt.Sprintf("[disconnected from %s", sockAddr))
 			return
 		}
-		var req pb.LogRequest
+		var req logmsg.LogRequest
 		err = proto.Unmarshal(objBuffer, &req)
 		if err != nil {
 			internalMessage(fmt.Sprintf("[unable to unmarshal data from socket: %v, closing %s]", err, sockAddr))
@@ -195,7 +195,7 @@ func internalMessage(s string) {
 	log.Printf("xxx internal message %s", s)
 }
 
-func logMessage(req *pb.LogRequest) {
+func logMessage(req *logmsg.LogRequest) {
 	s := fmt.Sprintf("%s:%d:%s", req.Stamp.AsTime().Format(time.RFC3339), req.Level, req.Message)
 	logCh <- s
 }
