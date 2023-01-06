@@ -13,11 +13,6 @@ disableSearch = true
 
 [[menu.shortcuts]]
 name = "<i class='fab fa-github'>Source</i>"
-url = "https://github.com/wedidntmake/thatmistake"
-weight = 10
-
-[[menu.shortcuts]]
-name = "<i class='fab'>Request Early Access</i>"
-url = "/access"
+url = "https://github.com/iansmith/parigot"
 weight = 10
 
