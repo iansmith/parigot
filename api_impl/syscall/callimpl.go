@@ -3,6 +3,7 @@ package syscall
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -122,7 +123,10 @@ func (l *callImpl) bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscal
 // requires and exports it has.  When Run() is called, the program calling
 func (l *callImpl) Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 	out := new(syscallmsg.RunResponse)
-	return splitImplementation[*syscallmsg.RunRequest, *syscallmsg.RunResponse](l, in, out, run)
+	log.Printf("in callimpl, before run")
+	r, e := splitImplementation[*syscallmsg.RunRequest, *syscallmsg.RunResponse](l, in, out, run)
+	log.Printf("in callimpl, run completed ")
+	return r, e
 }
 
 // Export is the way that a server can express that it is done binding methods

@@ -2,7 +2,6 @@ package jspatch
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 )
 
@@ -28,8 +27,11 @@ func (j *RuntimePatch) SetMemPtr(m uintptr) {
 }
 
 func (r *RuntimePatch) GetRandomData(sp int32) {
-	b := r.mem.LoadSlice(sp + 8)
-	_, _ = rand.Read(b) //docs say no returned error
+	print("xxx ignoring call to GetRandomData", "\n")
+	return
+	// b := r.mem.LoadSlice(sp + 8)
+	// print("xxxx GetRandomData", uint32(len(b)), "\n")
+	// _, _ = rand.Read(b) //docs say no returned error
 }
 func (r *RuntimePatch) WallTime(sp int32) {
 	secs := time.Now().Unix()

@@ -8,6 +8,9 @@ import (
 	"github.com/iansmith/parigot/sys"
 )
 
+var testMode *bool = flag.Bool("t", false, "turns testmode on, implies running services marked 'Test' in deploy config")
+var remote *bool = flag.Bool("r", false, "run all services in separate address spaces")
+
 func main() {
 	flag.Parse()
 	if flag.NArg() < 1 {
@@ -16,7 +19,11 @@ func main() {
 	if flag.NArg() > 1 {
 		log.Fatalf("unable to deploy application, too many deployment configuration files provided (%d)", flag.NArg())
 	}
-	config, err := runner.Parse(flag.Arg(0))
+	flg := &runner.DeployFlag{
+		TestMode: *testMode,
+		Remote:   *remote,
+	}
+	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 	}
@@ -29,7 +36,11 @@ func main() {
 		log.Fatalf("unable to create process: %v", err)
 	}
 
-	sys.InitNameServer(ctx.NotifyCh, !config.Remote, config.Remote)
+	//
+	// nameserver(s) and notify chan are setup by the context
+	//
+
+	sys.InitNameServer(ctx.NotifyCh, !config.Flag.Remote, config.Flag.Remote)
 	// This go routine's only purpose is to accept run requests from user programs running in a local
 	// configuration (all in one process); it's called the run reader.
 	//
@@ -55,7 +66,9 @@ func main() {
 		}
 	}()
 
-	if code := ctx.Start(); code != 0 {
+	code := ctx.Start()
+	log.Printf("code returned was %d", code)
+	if code != 0 {
 		log.Printf("main function returned error code %d", code)
 	}
 

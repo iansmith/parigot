@@ -2,6 +2,7 @@ package sys
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -73,7 +74,11 @@ func (s *syscallReadWrite) Exit(sp int32) {
 	s.proc.exited = true
 	splitImplRetOne(s.mem, sp, req, resp,
 		func(req *syscallmsg.ExitRequest, resp *syscallmsg.ExitResponse) lib.KernelErrorCode {
-			resp.Code = req.GetCode()
+			code := req.GetCode()
+			if code > 192 || code < 0 {
+				code = 192
+			}
+			resp.Code = code
 			return lib.KernelNoError
 		})
 
@@ -216,7 +221,7 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 }
 
 func (s *syscallReadWrite) procToSysCall() SysCall {
-	if *s.proc.local {
+	if s.proc.microservice.IsLocal() {
 		if s.localSysCall != nil {
 			return s.localSysCall
 		}
@@ -276,14 +281,18 @@ func (s *syscallReadWrite) Run(sp int32) {
 		s.procToSysCall().RunNotify(key)
 		// block until we are told to proceed
 		ok, kerr := s.procToSysCall().RunBlock(key)
+		log.Printf("xxx syscallRW about toreturn from runblock")
 		if kerr != nil && kerr.IsError() {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+			log.Printf("xxx syscallRW about toreturn from runblock yyyyyy")
 			return lib.KernelDependencyFailure
 		}
 		if !ok {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+			log.Printf("xxx syscallRW about toreturn from runblock zzzz")
 			return lib.KernelDependencyFailure
 		}
+		log.Printf("xxx syscallRW about toreturn from runblock aaa")
 		return lib.KernelNoError
 	})
 

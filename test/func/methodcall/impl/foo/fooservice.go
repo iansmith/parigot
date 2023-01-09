@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"time"
@@ -28,6 +29,8 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "FooService"); err != nil {
 		panic("unable to export methodcall.Foo: " + err.Error())
 	}
+	time.Sleep(10 * time.Second)
+	return
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
 	methodcall.RunFooService(&fooServer{})
 }
@@ -92,6 +95,9 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready() bool {
+	print("PRE PARSE______________\n")
+	flag.Parse()
+	print("______________POST PARSE\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -101,6 +107,7 @@ func (f *fooServer) Ready() bool {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
 		return false
 	}
+	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "foo params: %d,%s", flag.NArg(), flag.Arg(0))
 	f.logger = logger
 	return true
 

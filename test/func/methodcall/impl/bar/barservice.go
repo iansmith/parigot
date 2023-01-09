@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
+	// flag.Parse()
+	// time.Sleep(20 * time.Second)
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("unable to require log service: " + err.Error())
@@ -30,6 +33,8 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "BarService"); err != nil {
 		panic("unable to export methodcall.BarService: " + err.Error())
 	}
+	print("xxx main exiting,", flag.NArg(), ",flag 0 ", flag.Arg(1), ",", flag.Arg(2), "\n")
+	return
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
 	methodcall.RunBarService(&barServer{})
 }
@@ -113,6 +118,9 @@ func (b *barServer) Ready() bool {
 	}
 	b.logger = logger
 	b.foo = foo
+	for i := 0; i < flag.NArg(); i++ {
+		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "i=%d, arg is %s", i, flag.Arg(i))
+	}
 	return true
 
 }

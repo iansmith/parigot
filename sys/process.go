@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -9,9 +10,30 @@ import (
 	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"github.com/iansmith/parigot/sys/jspatch"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+type Service interface {
+	IsServer() bool
+	IsLocal() bool
+	IsRemote() bool
+	GetName() string
+	GetArg() []string
+	GetEnv() []string
+	GetPath() string
+}
+
+type ParigotExitCode int
+
+const (
+	ExitCodeArgsTooLarge  ParigotExitCode = 252
+	ExitCodeNoStartSymbol ParigotExitCode = 251
+	ExitCodePanic         ParigotExitCode = 254
+	ExitCodeTrapped       ParigotExitCode = 253
+	ExitCodeNoMain        ParigotExitCode = 255
 )
 
 // Flip this switch to see debug messages from the process.
@@ -23,19 +45,21 @@ type Process struct {
 	id   int
 	path string
 
-	module   *wasmtime.Module
-	linkage  []wasmtime.AsExtern
-	memPtr   uintptr
-	instance *wasmtime.Instance
-	parent   *wasmtime.Store
-	syscall  *syscallReadWrite
+	module       *wasmtime.Module
+	linkage      []wasmtime.AsExtern
+	memPtr       uintptr
+	instance     *wasmtime.Instance
+	parent       *wasmtime.Store
+	syscall      *syscallReadWrite
+	microservice Service
 
 	waiter     bool
 	reachedRun bool
 	exited     bool
-	server     bool
-	remote     bool
-	local      *bool
+
+	argv       int32 //ptr
+	argc       int32
+	argvBuffer *bytes.Buffer
 
 	callCh chan *callContext
 	runCh  chan bool
@@ -46,13 +70,9 @@ type Process struct {
 // NewProcessFromMod does not handle concurrent use. It assumes that each call to this
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
-// could have a repl
-func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path string,
-	isServer, isMain, isRemote bool) (*Process, error) {
-
-	if isServer && isMain {
-		panic("unable to understand process that is both a server and a main:" + path)
-	}
+// could have a repl??
+func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module,
+	m Service) (*Process, error) {
 
 	rt := newRuntime()
 	// split mode
@@ -62,19 +82,18 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
-		id:         id,
-		path:       path,
-		parent:     parentStore,
-		module:     mod,
-		linkage:    nil,
-		memPtr:     0,
-		instance:   nil,
-		syscall:    rt.syscall,
-		waiter:     false,
-		reachedRun: false,
-		exited:     false,
-		server:     isServer,
-		remote:     isRemote,
+		id:           id,
+		parent:       parentStore,
+		module:       mod,
+		linkage:      nil,
+		memPtr:       0,
+		instance:     nil,
+		syscall:      rt.syscall,
+		waiter:       false,
+		reachedRun:   false,
+		exited:       false,
+		microservice: m,
+		path:         m.GetPath(),
 
 		callCh: make(chan *callContext),
 		runCh:  make(chan bool),
@@ -110,7 +129,7 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module, path s
 
 func (p *Process) IsServer() bool {
 	// if we have a remote spec, then we are remote
-	return p.server
+	return p.microservice.IsServer()
 }
 
 func (p *Process) Exit() {
@@ -124,7 +143,7 @@ func (p *Process) String() string {
 		dir = "."
 	}
 
-	return fmt.Sprintf("[proc-%d:%s]", p.id, file)
+	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
 }
 
 func (p *Process) ReachedStart() bool {
@@ -183,10 +202,53 @@ func (p *Process) Run() {
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
 func (p *Process) Start() (code int) {
 	procPrint("START ", "we have been loaded/started by the runner: %s", p)
+
+	var err error
+	startOfArgs := wasmStartAddr + int32(4)
+	p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
+	if err != nil {
+		code = int(ExitCodeArgsTooLarge)
+		return
+	}
+	p.argc = int32(len(p.microservice.GetArg()))
+
+	//log.Printf("in Start 0x%x", p.memPtr)
+	wasmMem := jspatch.NewWasmMem(p.memPtr)
+	wasmMem.SetInt32(wasmStartAddr, p.argv)
+	wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
+
+	// value := wasmMem.GetInt32(p.argv)
+	// log.Printf("xxx value of p.argv %x, p.argv %x", value, p.argv)
+	// i := 0
+	// for {
+	// 	//argv is a **char
+	// 	ptr := wasmMem.GetInt32(p.argv + int32(8*i))
+	// 	log.Printf("got the pointer #%d and %x", i, ptr)
+	// 	// so ptr is a *char
+	// 	s := wasmMem.LoadCString(ptr)
+	// 	log.Printf("---> argv[%d]='%s'", i, s)
+	// 	i++
+	// 	if s == "" {
+	// 		break
+	// 	}
+	// }
+	// for {
+	// 	//envp is a **char
+	// 	ptr := wasmMem.GetInt32(p.argv + int32(8*i))
+	// 	// so ptr is a *char
+	// 	s := wasmMem.LoadCString(ptr)
+	// 	if s == "" {
+	// 		break
+	// 	}
+	// 	log.Printf("---> env var:'%s'", s)
+	// 	i++
+	// }
+
+	//start := p.instance.GetExport(p.parent, "run")
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
-		p.SetExitCode(55)
+		p.SetExitCode(int(ExitCodeNoStartSymbol))
 		return p.exitCode
 	}
 	defer func() {
@@ -197,15 +259,17 @@ func (p *Process) Start() (code int) {
 				code = p.exitCode
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
 			} else {
-				p.SetExitCode(254)
+				p.SetExitCode(int(ExitCodePanic))
 				code = p.exitCode
-				procPrint("Start/Exit", "trapped a panic: %v, exiting with code 254", r)
+				procPrint("Start/Exit", "trapped a panic: %v", r)
 			}
 		}
 	}()
 	f := start.Func()
-	procPrint("START ", "calling the entry point for proc %s", p)
-	result, err := f.Call(p.parent, 0, 0)
+	procPrint("START ", "calling the entry point for proc %s",
+		p)
+	log.Printf("xxx in process zzz %d,%x", p.argc, p.argv)
+	result, err := f.Call(p.parent, p.argc, p.argv)
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 
 	if err != nil {

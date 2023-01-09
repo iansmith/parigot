@@ -38,7 +38,7 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 	result["go.runtime.walltime"] = wrapWithRecover(store, rt.runtimeEnv.WallTime)
 	result["go.runtime.scheduleTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ScheduleTimeoutEvent)
 	result["go.runtime.clearTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ClearTimeoutEvent)
-	result["go.runtime.getRandomData"] = wrapWithRecover(store, rt.runtimeEnv.GetRandomData)
+	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, rt.runtimeEnv.GetRandomData)
 	//result["parigot.debugprint"] = wrapWithRecover(store, rt.syscall.DebugPrint)
 	result["go.debug"] = wrapWithRecover(store, rt.runtimeEnv.GoDebug)
 
