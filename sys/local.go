@@ -17,12 +17,6 @@ func sharedBind(core *NSCore, p *Process, packagePath, service, method string) (
 	return mid, nil
 }
 
-// sharedFindMethodByName uses localNameServer so the remote syscall cannot (in error) pass its netNameServer, it has to
-// pass the nested localNameServer inside the netNameServer
-func sharedFindMethodByName(ns *LocalNameServer, key dep.DepKey, sid lib.Id, method string) *callContext {
-	return ns.FindMethodByName(key, sid, method)
-}
-
 func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	if kerr := ns.CloseService(key, pkg, service); kerr != nil && kerr.IsError() {
 		return kerr

@@ -270,11 +270,13 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	if !alreadyExported {
 		for _, r := range node.Require() {
 			if r == name {
+				nscorePrint("REQUIRE ", "process %s ERROR RET", key.String())
 				return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
 			}
 		}
 		node.AddRequire(name)
 	}
+	nscorePrint("REQUIRE ", "process %s  NORMAL RET", key.String())
 	return nil
 }
 
@@ -323,7 +325,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 			nscorePrint("RUNIFREADY ", "%s is not ready to run, number of candidates left is %d", candidate.Key(), len(candidateList))
 		}
 	}
-	nscorePrint("RUN ", "blocking completed")
+	nscorePrint("RUN ", "blocking completed:"+key.String())
 }
 
 func (n *NSCore) StartFailedInfo() string {
@@ -342,7 +344,7 @@ func (n *NSCore) StartFailedInfo() string {
 			dead = strings.Replace(dead, ";", "\n", -1)
 			result += fmt.Sprintf("Dead processes are processes that cannot start because no other process exports what they require:\n%s\n", dead)
 		}
-		result += fmt.Sprintf("aborting due to export/require problems")
+		result += "aborting due to export/require problems"
 	}
 	return result
 }

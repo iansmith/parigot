@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"github.com/iansmith/parigot/sys"
+
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 )
 
 // A context represents a running state for an application--which is itself a collection of WASM
@@ -13,10 +14,9 @@ import (
 type Context struct {
 	config *DeployConfig
 	engine *wasmtime.Engine
-	// init the nameservers
+	// notify chan is used at startup in the single process case
 	NotifyCh chan *sys.KeyNSPair
-	//remoteSpec *sys.RemoteSpec
-	process map[string]*sys.Process
+	process  map[string]*sys.Process
 }
 
 // Flip this flag for more detailed output from the runner.
@@ -37,7 +37,7 @@ func NewContext(conf *DeployConfig) (*Context, error) {
 
 	// right now all the proc must be either remote or local, not a mix
 	notify := make(chan *sys.KeyNSPair)
-	sys.InitNameServer(notify, !conf.Remote, conf.Remote)
+	sys.InitNameServer(notify, !conf.Flag.Remote, conf.Flag.Remote)
 
 	//var rs *sys.RemoteSpec
 
@@ -62,11 +62,9 @@ func (c *Context) CreateProcess() error {
 		if mod == nil {
 			panic("unable to find (internal) module " + name)
 		}
-		f := c.config.wasmFile[name]
-		p, err := sys.NewProcessFromMod(store, mod,
-			f.Name, f.isServer, f.isMain, c.config.Remote)
+		p, err := sys.NewProcessFromMod(store, mod, c.config.Microservice[name])
 		if err != nil {
-			return fmt.Errorf("unable to create process from module (%s): %v", c.config.wasmFile[name].Path, err)
+			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
 		}
 		c.process[name] = p
 	}
@@ -77,26 +75,25 @@ func (c *Context) CreateProcess() error {
 // is printed.  If a main program exits, we return and we can terminate the whole deal.
 func (c *Context) Start() int {
 	mainList := []string{}
-	for _, f := range c.config.wasmFile {
-		name := f.Name
-		log.Printf("start: xxx %s,%v,%v,%s", f.Name, f.isMain, f.remote, f.Path)
-		if f.isMain {
-			mod := c.process[name]
+	for _, f := range c.config.Microservice {
+		log.Printf("start: xxx %s,%v,%v,%s", f.name, f.Main, f.remote, f.Path)
+		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
+			mod := c.process[f.name]
 			if mod == nil {
-				panic("unable to find (internal) process for name " + name)
+				panic("unable to find (internal) process for name " + f.name)
 			}
-			mainList = append(mainList, name)
+			mainList = append(mainList, f.name)
 		}
-		if f.isServer {
+		if f.Server {
 			go func(p *sys.Process, name string) {
 				runnerPrint("CreateProcess ", "starting goroutine for server process %s at Start()", name)
 				code := p.Start()
 				log.Printf("warning: server process %s exited with code %d", name, code)
-			}(c.process[name], name)
+			}(c.process[f.name], f.name)
 		}
 	}
 	if len(mainList) == 0 {
-		return 252
+		return 255
 	}
 
 	for _, main := range mainList {

@@ -19,9 +19,10 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
-	if _, err := callImpl.Export1("log", "Log"); err != nil {
+	if _, err := callImpl.Export1("log", "LogService"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
+	return
 	log.RunLogService(&myLogServer{})
 }
 

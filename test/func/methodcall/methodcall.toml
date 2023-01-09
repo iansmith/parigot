@@ -3,16 +3,21 @@
 
 # the names here have no significance, they are just for humans
 
-server = [
-    { Name="foo", Path="build/methodcallfoo.p.wasm"},
-    { Name="bar", Path="build/methodcallbar.p.wasm"},
-    { Name="log", Path="build/log.p.wasm"},
-]
+#[microservice.foo]
+#Path="build/methodcallfoo.p.wasm"
+#Arg=["fleazil","frik","frak"]
+#Env=["PARIGOT_GOOD=bad"]
 
-test = [
-    #{Name="methodcall_test", Path= "build/methodcalltest.p.wasm"},
-]
+#[microservice.bar]
+#Path="build/methodcallbar.p.wasm"
+#Arg=["quux","yech"]
+#Env=["PARIGOT_SOFT=hard"]
 
-## flags
-testmode = true
-remote = false
+#[microservice.log]
+#Path="build/log.p.wasm"
+
+[microservice.methodcall_test]
+Path="build/methodcalltest.p.wasm"
+Arg=["the queen is dead","louder than bombs"]
+Env=["PARIGOT_ENV=true"]
+Test=true

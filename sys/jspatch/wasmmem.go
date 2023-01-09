@@ -1,6 +1,7 @@
 package jspatch
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -11,7 +12,7 @@ import (
 // Flip this switch to get debug output from WasmMem.  It does the lowest level work
 // of grabbing or pushing memory in the other processes address space.  It works on
 // behalf of the kernel as part of every process.
-var wasmmemVerbose = false
+var wasmmemVerbose = true
 
 type WasmMem struct {
 	memPtr uintptr
@@ -96,7 +97,32 @@ func (w *WasmMem) LoadStringWithLen(dataAddr int32, lenAddr int32) string {
 	}
 	return string(buf)
 }
+
+func (w *WasmMem) LoadCString(ptr int32) string {
+	var buf bytes.Buffer
+	i := int32(0)
+	for {
+		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(ptr+i))))
+		buf.WriteByte(*str)
+		if *str == 0 {
+			break
+		}
+		i++
+	}
+	asBytes := buf.Bytes()
+	return string(asBytes[:len(asBytes)-1])
+}
+
+func (w *WasmMem) CopyToMemAddr(memAddr int32, content []byte) {
+	print("CopyToMemAddr: data addr ", fmt.Sprintf("%x", uintptr(memAddr)), " len of content ", len(content), " and mem ", fmt.Sprintf("%x", w.memPtr), "\n")
+	len_ := int32(len(content))
+	for i := int32(0); i < len_; i++ {
+		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(memAddr)+i)))
+		*str = content[i]
+	}
+}
 func (w *WasmMem) CopyToPtr(dataAddr int32, content []byte) {
+	print("CopyToPtr: data addr ", uintptr(dataAddr), " len of content ", len(content), "\n")
 	ptr := w.GetInt32(dataAddr)
 	len_ := int32(len(content))
 	for i := int32(0); i < len_; i++ {

@@ -2,6 +2,7 @@ package sys
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	ilog "github.com/iansmith/parigot/api_impl/log/go_"
@@ -197,7 +198,9 @@ func (l *LocalNameServer) RunNotify(key dep.DepKey) {
 // This is called by a proc that is local and this blocks until the nameserver
 // signals to us.
 func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
+	log.Printf("xxxx RunBlock for %s", key.String())
 	b := <-key.(*DepKeyImpl).proc.runCh
+	log.Printf("xxxx RunBlock completed %s", key.String())
 	return b, nil
 }
 

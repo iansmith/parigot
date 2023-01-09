@@ -68,14 +68,14 @@ build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
 build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
 #
 # TEST
 #
 .PHONY: test
-test: methodcalltest test/func/methodcall/methodcall.toml build/runner
-	build/runner test/func/methodcall/methodcall.toml 
+test: methodcalltest test/func/methodcall/methodcall.toml all
+	build/runner -t test/func/methodcall/methodcall.toml 
 #
 # CLEAN
 #

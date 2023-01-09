@@ -100,7 +100,10 @@ message RunRequest {
 message RunResponse {
 }
 
+// ExitRequest is how you can request for your wasm program to exit. In some cases, this will not terminate
+// the process because there may be other services running in the same process.
 message ExitRequest {
+  // valid values here are 0...192 and values>192 or <0 will be set to 192
   int32 code = 1;
 }
 
