@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"runtime/debug"
 	"unsafe"
 )
 
@@ -36,15 +37,27 @@ func (w *WasmMem) TrueAddr(addr int32) uintptr {
 	return w.memPtr + uintptr(addr)
 }
 
-func (w *WasmMem) LoadSliceOfValues(addr int32) jsObject {
+func (w *WasmMem) TestSliceIsZeroLen(addr int32) bool {
+	return w.GetInt64(addr+8) == 0
+}
+
+func (w *WasmMem) LoadSliceOfValues(addr int32) []jsObject {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
-	arr := make([]jsObj, l)
-	a := goToJS(arr)
-	for i := int64(0); i < l; i++ {
-		a.SetIndex(int(i), w.LoadValue(int32(array+i*8))) //xxx why?why give me a 64 bit ptr?
+	if l == 0 {
+		return nil
 	}
-	return a
+	slice := make([]jsObject, l)
+	for i := int64(0); i < l; i++ {
+		slice[int(i)] = w.LoadValue(int32(array + i*8))
+	}
+	return slice
+}
+
+func (w *WasmMem) SetFloat64(addr int32, value float64) {
+	floatBits := math.Float64bits(value)
+	print(fmt.Sprintf("xxx SetFloat64 called %x\n", floatBits))
+	w.SetInt64(addr, int64(floatBits))
 }
 
 func (w *WasmMem) SetInt64(addr int32, value int64) {
@@ -114,7 +127,6 @@ func (w *WasmMem) LoadCString(ptr int32) string {
 }
 
 func (w *WasmMem) CopyToMemAddr(memAddr int32, content []byte) {
-	print("CopyToMemAddr: data addr ", fmt.Sprintf("%x", uintptr(memAddr)), " len of content ", len(content), " and mem ", fmt.Sprintf("%x", w.memPtr), "\n")
 	len_ := int32(len(content))
 	for i := int32(0); i < len_; i++ {
 		str := (*byte)(unsafe.Pointer(w.memPtr + uintptr(int32(memAddr)+i)))
@@ -146,15 +158,13 @@ func (w *WasmMem) LoadString(addr int32) string {
 	ptr := w.GetInt64(addr + 0)
 	l := w.GetInt64(addr + 8)
 	if l > 4096 {
-		print("WasmMem.LoadString refusing to load string because length is too large: ", l, "\n")
+		print(fmt.Sprintf("WasmMem.LoadString refusing to load string because length is too large:%x\n", l))
 		// cannot use log here, because it creates an import loop
 		// ilog.ProcessLogRequest(&log.LogRequest{
 		// 	Level:   log.LogLevel_LOG_LEVEL_ERROR,
 		// 	Stamp:   timestamppb.Now(), //xxx fixme(iansmith) should be using kernel time
 		// 	Message: fmt.Sprintf("LOADSTRING: xxx!!!! wasmmem refusing to load string because length is too large: ", l),
 		// }, true, false, nil)
-		// debug.PrintStack()
-		// print("end of stack trace")
 		return ""
 	}
 	buf := make([]byte, l)
@@ -168,23 +178,38 @@ func (w *WasmMem) LoadString(addr int32) string {
 func (w *WasmMem) LoadSlice(addr int32) []byte {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
+	if l < 4096 {
+		print(fmt.Sprintf("LoadSlice called but len is %d\n", l))
+		debug.PrintStack()
+		print("END OF STACK\n")
+	}
 	return w.LoadSliceWithLenAddr(int32(array), int32(l))
 }
 
-func (w *WasmMem) LoadSliceWithLenAddr(addr, lenAddr int32) []byte {
-	l := w.GetInt64(lenAddr)
-	if l == 0 {
-		wasmmemPrint("LOADSLICEWITHLENADDR", "Ignoring to load slice %x,%x true=(%x,%x) because len is zero",
-			addr, lenAddr, w.TrueAddr(addr), w.TrueAddr(lenAddr))
-		return []byte{}
-	}
+func (w *WasmMem) LoadSliceWithKnownLength(addr int32, l int64) []byte {
 	array := w.GetInt64(addr)
-	result := make([]byte, l)
+	result := make([]byte, int(l))
 	for i := int64(0); i < l; i++ {
 		ptr := w.memPtr + uintptr(array) + uintptr(i)
 		result[i] = *((*byte)(unsafe.Pointer(ptr)))
 	}
 	return result
+}
+
+func (w *WasmMem) LoadSliceWithLenAddr(addr, lenAddr int32) []byte {
+	if lenAddr < 4096 {
+		wasmmemPrint("LoadSliceWithAddr", "Returning empty slice 0x%x,0x%x because len addr is too small (0x%d) \n",
+			addr, lenAddr, lenAddr)
+		return []byte{}
+
+	}
+	l := w.GetInt64(lenAddr)
+	if l == 0 {
+		wasmmemPrint("LoadSliceWithAddr ", "Returning empty slice %x,%x because len is zero\n",
+			addr, lenAddr)
+		return []byte{}
+	}
+	return w.LoadSliceWithKnownLength(addr, l)
 }
 
 func (w *WasmMem) GetFloat32(addr int32) float32 {
@@ -213,26 +238,33 @@ func (w *WasmMem) LoadValue(addr int32) jsObject {
 	// normal procedure
 	//t := (math.Float64bits(f) >> 32) & 7
 	id := w.GetInt32(addr)
-	return object.get(id)
+	if id < 0 || id > 100 {
+		print(fmt.Sprintf("bad id for value %x, 64 bit version %x\n", id, w.GetInt64(addr)))
+	}
+	return jsObjectMap.get(id)
 }
 
-// stupid 64 bit trick, save side... we are assuming v is a small int
+// stupid 64 bit trick, save side... we are assuming the id is a small int on obj
+// if this is not something that represents itself
 func (w *WasmMem) StoreValue(addr int32, obj jsObject) {
 	if !obj.isNumber() && obj.id() < 0 {
-		panic("attempt store a value that isn't in the global table: " + fmt.Sprint(obj.id()))
+		panic(fmt.Sprintf("attempt to store a value that isn't in the global table: %s\n", obj))
 	}
+	bits := obj.binaryRep()
+	// print(fmt.Sprintf("setting binary rep for number? %v, %x\n", obj.isNumber(), bits))
+	// this conversion to int from uint depends on the nanHead not having the first bit set!
+	w.SetInt64(addr, int64(bits))
 
-	highOrder, lowOrder := obj.binaryRep()
-	buf := []byte{}
-	header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	ptr := (w.memPtr + uintptr(addr+4))
-	header.Data = ptr
-	header.Len = 4
-	header.Cap = 4
-	binary.LittleEndian.PutUint32(buf, highOrder)
-	ptr -= 4
-	header.Data = ptr
-	binary.LittleEndian.PutUint32(buf, lowOrder)
+	// buf := []byte{}
+	// header := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	// ptr := (w.memPtr + uintptr(addr+4))
+	// header.Data = ptr
+	// header.Len = 4
+	// header.Cap = 4
+	// binary.LittleEndian.PutUint32(buf, highOrder)
+	// ptr -= 4
+	// header.Data = ptr
+	// binary.LittleEndian.PutUint32(buf, lowOrder)
 }
 
 func wasmmemPrint(method string, spec string, arg ...interface{}) {

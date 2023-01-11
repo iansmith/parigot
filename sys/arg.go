@@ -43,7 +43,6 @@ func GetBufferFromArgsAndEnv(m Service, startOfArgs int32) (*bytes.Buffer, int32
 	for _, a := range append([]string{m.GetName()}, m.GetArg()...) {
 		all[count].ptr = offset
 		all[count].val = a
-		//log.Printf("iteration %d: %x, (size is %x)", count, offset, buffer.Len())
 		offset += updateBuffer(buffer, a)
 		count++
 	}
@@ -52,7 +51,6 @@ func GetBufferFromArgsAndEnv(m Service, startOfArgs int32) (*bytes.Buffer, int32
 	for _, envvar := range m.GetEnv() {
 		all[count].ptr = offset
 		all[count].val = envvar
-		//log.Printf("iteration %d: %x, (size is %x)", count, offset, buffer.Len())
 		offset += updateBuffer(buffer, envvar)
 		count++
 	}
@@ -70,7 +68,7 @@ func GetBufferFromArgsAndEnv(m Service, startOfArgs int32) (*bytes.Buffer, int32
 		buffer.Write(buf)
 	}
 	log.Printf("final buffer len %d", buffer.Len())
-	if buffer.Len()+wasmStartAddr >= wasmMinDataAddr {
+	if int32(buffer.Len())+startOfArgs >= wasmMinDataAddr {
 		return nil, 0, fmt.Errorf("microservice %s has args+environment size of %d bytes, but max is %d",
 			m.GetName(), buffer.Len()-wasmStartAddr, wasmMinDataAddr-wasmStartAddr)
 	}

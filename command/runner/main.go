@@ -27,7 +27,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 	}
-	log.Printf("config is ok:%s", flag.Arg(0))
 	ctx, err := runner.NewContext(config)
 	if err != nil {
 		log.Fatalf("unable to create context: %v", err)
@@ -67,7 +66,7 @@ func main() {
 	}()
 
 	code := ctx.Start()
-	log.Printf("code returned was %d", code)
+	log.Printf("code returned from Start() was %d", code)
 	if code != 0 {
 		log.Printf("main function returned error code %d", code)
 	}
