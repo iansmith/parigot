@@ -2,7 +2,10 @@ package main
 
 import (
 	"errors"
+	"flag"
+	"fmt"
 	"os"
+	"time"
 
 	"github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
@@ -11,6 +14,7 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -18,11 +22,17 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
+	lib.FlagParseCreateEnv()
+	for i := 0; i < flag.NArg(); i++ {
+		print(fmt.Sprintf("xxx log %d=>%s\n", i, flag.Arg(i)))
+	}
+
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
 	if _, err := callImpl.Export1("log", "LogService"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
-	return
+	print(fmt.Sprintf("xx main of log about to head to rRun\n"))
+	time.Sleep(20 * time.Second)
 	log.RunLogService(&myLogServer{})
 }
 

@@ -1,14 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"flag"
 	"fmt"
-	"os"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
@@ -16,6 +12,7 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -33,101 +30,32 @@ var test = []testing.InternalTest{
 	},
 }
 
-func loadCString(rawAddr int32) string {
-	var buf bytes.Buffer
-	i := int32(0)
-	for {
-		str := (*byte)(unsafe.Pointer(uintptr(int32(rawAddr + i))))
-		buf.WriteByte(*str)
-		if *str == 0 {
-			break
-		}
-		i++
-	}
-	asBytes := buf.Bytes()
-	return string(asBytes[:len(asBytes)-1])
-
-}
-func loadArgvPointer(argv int32) int32 {
-	var buf [4]byte
-	for i := int32(0); i < 4; i++ {
-		str := (*byte)(unsafe.Pointer(uintptr(int32(argv + i))))
-		buf[i] = *str
-	}
-	return int32(binary.LittleEndian.Uint32(buf[:]))
-}
-
-func computeArgvEnvp() ([]string, []string) {
-	// xxx hacky: we put argv at a fixed memory location because we have no way to pass param to this function... except via argv!
-	argvAddr := loadArgvPointer(0x1000)
-	argv := []string{}
-	envp := []string{}
-	index := int32(0)
-	for {
-		ptr := loadArgvPointer(argvAddr + (8 * index))
-		index++
-		//print(fmt.Sprintf("xxx arg ptr is %x\n", ptr))
-		if ptr == 0 {
-			break
-		}
-		argv = append(argv, loadCString(ptr))
-	}
-	for {
-		ptr := loadArgvPointer(argvAddr + (8 * index))
-		index++
-		//print(fmt.Sprintf("xxx env ptr is %x\n", ptr))
-		if ptr == 0 {
-			break
-		}
-		envp = append(envp, loadCString(ptr))
-		index++
-	}
-	return argv, envp
-}
-
 func main() {
-	argv, _ := computeArgvEnvp()
-	//print(fmt.Sprintf("after building it ourselves: %v, %v\n", argv, envp))
-
-	os.Args = argv
-	flag.Parse()
-	for i, arg := range flag.Args() {
-		print(fmt.Sprintf("%d:%s\n", i, arg))
-	}
-	//print(fmt.Sprintf("parsed? %d and %s", flag.NArg(), flag.Arg(0)))
-	// //ptr64 := uint64(uintptr(unsafe.Pointer(ptr)))
-	// b := make([]byte, 8)
-	// binary.LittleEndian.PutUint64(b, uint64(uintptr(unsafe.Pointer(sh.Data))))
-	// // t := binary.LittleEndian.Uint32(b[4:])
-	// // out := fmt.Sprintf("xxx os arg data (orig 0x%x) raw %x with Len=0x%x and Cap=0x%x\n",
-	// // 	ptr, t, sh.Len, sh.Cap)
-	// sh.Len = 4
-	// sh.Cap = 4
-	// print(">>>>", os.Args[0], "--", len(os.Args), ",", os.Args[1], "<<<<", "\n")
-	// return
-}
-
-func xxxmain() {
-	//flag.Parse() <--- can't do this until we get startup args figured out
-
+	lib.FlagParseCreateEnv()
+	// print("xxx -- os.Getenv ", os.Getenv("PARIGOT_ENV"), "\n")
+	// print("xxx -- lib.Getenv ", lib.Getenv("PARIGOT_ENV"), "\n")
+	print("xxx -- arg(0) ", flag.Arg(0), "\n")
+	print("xxx -- arg(1) ", flag.Arg(1), "\n")
 	//testing.Init()
 
-	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
-		panic("unable to require foo service: " + err.Error())
-	}
-	if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
-		panic("unable to require bar service: " + err.Error())
-	}
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("unable to require log service: " + err.Error())
-	}
+	// if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
+	// 	panic("unable to require foo service: " + err.Error())
+	// }
+	// if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
+	// 	panic("unable to require bar service: " + err.Error())
+	// }
+	// if _, err := callImpl.Require1("log", "LogService"); err != nil {
+	// 	panic("unable to require log service: " + err.Error())
+	// }
+	// print(fmt.Sprintf("xx main of test about to head to callimpl.Run\n"))
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}
-
+	print("xxx -- got through run\n")
 	var err error
 	logger, err = log.LocateLogService()
 	if err != nil {
+		print("xxx -- expected panic, no logger\n")
 		panic(fmt.Sprintf("failed to locate LogService:%v", err))
 	}
 	foo, err = methodcall.LocateFooService(logger)

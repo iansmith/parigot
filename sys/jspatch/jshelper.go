@@ -104,12 +104,10 @@ func (j *JSPatch) FinalizeRef(sp int32) {
 func (j *JSPatch) ValueCall(sp int32) {
 	enter("ValueCall")
 	// can go switch the stack on us here?
-	recvr := j.mem.LoadValue(sp + 8)
+	inst := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
-	print("xxx valuecall -- ", prop, "?", recvr != nil, "\n")
 	args := j.mem.LoadSliceOfValues(sp + 32)
-	print("xxx valuecall 222 -- exists?", recvr != nil, "\n")
-	v := recvr.Call(prop, []jsObject{args})
+	v := inst.Call(prop, args)
 	j.mem.StoreValue(sp+56, v) //xxx should we be doing this without any conversion?
 	j.mem.SetUint8(sp+64, 1)
 }
@@ -142,10 +140,16 @@ func (j *JSPatch) ValueNew(sp int32) {
 	// can go switch the stack on us here?
 	enter("ValueNew")
 	v := j.mem.LoadValue(sp + 8)
-	args := j.mem.LoadSliceOfValues(sp + 16)
-	panic("don't know how to call constructor for ValueNew:" +
-		fmt.Sprintf("v=%v,args=%v", v, args))
-
+	if !v.IsClassObject() {
+		panic(fmt.Sprintf("attempt to call valueNew() on something that is not a class, %s", v))
+	}
+	var args []jsObject
+	if !j.mem.TestSliceIsZeroLen(sp + 16) {
+		args = j.mem.LoadSliceOfValues(sp + 16)
+	}
+	result := v.newInstance(args)
+	j.mem.StoreValue(sp+40, result)
+	j.mem.SetUint8(sp+48, 1) // should we be setting just 1 byte? on a stack?
 }
 func (j *JSPatch) ValueSet(sp int32) {
 	enter("ValueSet")
@@ -166,5 +170,23 @@ func (j *JSPatch) CopyBytesToGo(sp int32) {
 	panic("CopyBytesToGo not implemented")
 }
 func (j *JSPatch) CopyBytesToJS(sp int32) {
-	panic("CopyBytesToJS not implemented")
+	dst := j.mem.LoadValue(sp + 8)
+	var src []byte
+	l := j.mem.GetInt64(sp + 16)
+	if l != 0 {
+		src = j.mem.LoadSliceWithKnownLength(sp+16, l)
+	}
+	if !dst.InstanceOf(uint8ArrayObj) {
+		panic("CopyBytesToJS called, but dst is not a uint8ArrayObj")
+	}
+	trueDest := dst.this().(*uint8ArrayInstance)
+	shorter := len(trueDest.data)
+	if len(src) < shorter {
+		shorter = len(src)
+	}
+	for i := 0; i < shorter; i++ {
+		trueDest.data[i] = src[i]
+	}
+	j.mem.SetInt64(sp+40, int64(shorter))
+	j.mem.SetUint8(sp+48, 1)
 }

@@ -81,7 +81,6 @@ func wrapWithRecover(store wasmtime.Storelike, fn func(int32)) *wasmtime.Func {
 				debug.PrintStack()
 				print("END RECOVER+STACKTRACE\n")
 			}
-			return
 		}()
 		fn(sp)
 	})

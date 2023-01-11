@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"runtime/debug"
 
 	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
 	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
@@ -204,7 +205,7 @@ func (p *Process) Start() (code int) {
 	procPrint("START ", "we have been loaded/started by the runner: %s", p)
 
 	var err error
-	startOfArgs := wasmStartAddr + int32(4)
+	startOfArgs := wasmStartAddr + int32(0)
 	p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
 	if err != nil {
 		code = int(ExitCodeArgsTooLarge)
@@ -214,61 +215,43 @@ func (p *Process) Start() (code int) {
 
 	//log.Printf("in Start 0x%x", p.memPtr)
 	wasmMem := jspatch.NewWasmMem(p.memPtr)
-	wasmMem.SetInt32(wasmStartAddr, p.argv)
+	wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
 	wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
 
-	// value := wasmMem.GetInt32(p.argv)
-	// log.Printf("xxx value of p.argv %x, p.argv %x", value, p.argv)
-	// i := 0
-	// for {
-	// 	//argv is a **char
-	// 	ptr := wasmMem.GetInt32(p.argv + int32(8*i))
-	// 	log.Printf("got the pointer #%d and %x", i, ptr)
-	// 	// so ptr is a *char
-	// 	s := wasmMem.LoadCString(ptr)
-	// 	log.Printf("---> argv[%d]='%s'", i, s)
-	// 	i++
-	// 	if s == "" {
-	// 		break
-	// 	}
-	// }
-	// for {
-	// 	//envp is a **char
-	// 	ptr := wasmMem.GetInt32(p.argv + int32(8*i))
-	// 	// so ptr is a *char
-	// 	s := wasmMem.LoadCString(ptr)
-	// 	if s == "" {
-	// 		break
-	// 	}
-	// 	log.Printf("---> env var:'%s'", s)
-	// 	i++
-	// }
-
-	//start := p.instance.GetExport(p.parent, "run")
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		p.SetExitCode(int(ExitCodeNoStartSymbol))
 		return p.exitCode
 	}
-	defer func() {
+	defer func(proc *Process) {
+		print("defer1\n")
 		if r := recover(); r != nil {
+			print("defer2\n")
 			e, ok := r.(*syscallmsg.ExitRequest)
+			print(fmt.Sprintf("defer3 %v, and type %T\n", ok, r))
 			if ok {
+				print("defer4 ", ok, "\n")
 				p.exitCode = int(e.GetCode())
+				print("defer5 ", p.exitCode, "\n")
 				code = p.exitCode
+				print("defer6 ", p.exitCode, "\n")
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
 			} else {
+				print("defer7 not an exit req\n")
 				p.SetExitCode(int(ExitCodePanic))
+				print("defer8 \n")
 				code = p.exitCode
-				procPrint("Start/Exit", "trapped a panic: %v", r)
+				print("defer9 \n")
+				print(fmt.Sprintf("golang (not WASM) panic '%v'\n", r))
+				print("defer10 \n")
+				debug.PrintStack()
 			}
 		}
-	}()
+	}(p)
 	f := start.Func()
 	procPrint("START ", "calling the entry point for proc %s",
 		p)
-	log.Printf("xxx in process zzz %d,%x", p.argc, p.argv)
 	result, err := f.Call(p.parent, p.argc, p.argv)
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 

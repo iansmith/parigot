@@ -76,7 +76,6 @@ func (c *Context) CreateProcess() error {
 func (c *Context) Start() int {
 	mainList := []string{}
 	for _, f := range c.config.Microservice {
-		log.Printf("start: xxx %s,%v,%v,%s", f.name, f.Main, f.remote, f.Path)
 		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
 			mod := c.process[f.name]
 			if mod == nil {

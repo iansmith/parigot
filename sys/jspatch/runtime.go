@@ -22,13 +22,13 @@ func (r *RuntimePatch) Nanotime1(sp int32) {
 }
 
 func (j *RuntimePatch) SetMemPtr(m uintptr) {
-	print(fmt.Sprintf("set mem ptr: %x\n", m))
+	//print(fmt.Sprintf("set mem ptr: %x\n", m))
 	j.mem = NewWasmMem(m)
 }
 
 func (r *RuntimePatch) GetRandomData(sp int32) {
 	print("xxx ignoring call to GetRandomData", "\n")
-	return
+	//return
 	// b := r.mem.LoadSlice(sp + 8)
 	// print("xxxx GetRandomData", uint32(len(b)), "\n")
 	// _, _ = rand.Read(b) //docs say no returned error
@@ -42,6 +42,8 @@ func (r *RuntimePatch) WallTime(sp int32) {
 	//log.Printf("walltime executed %d,%d", secs, nanos)
 }
 func (r *RuntimePatch) ScheduleTimeoutEvent(sp int32) {
+	t := r.mem.GetInt64(sp + 8)
+	print(fmt.Sprintf("got a call to ScheduleTimeoutEvent but time is %x, %d\n", t, t/1000))
 	panic("got a scheduleTimeoutEvent call, aborting")
 }
 func (r *RuntimePatch) ClearTimeoutEvent(sp int32) {

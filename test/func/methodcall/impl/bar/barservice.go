@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
@@ -21,8 +22,11 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	// flag.Parse()
-	// time.Sleep(20 * time.Second)
+	lib.FlagParseCreateEnv()
+	for i := 0; i < flag.NArg(); i++ {
+		print(fmt.Sprintf("xxx bar %d=>%s\n", i, flag.Arg(i)))
+	}
+
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("unable to require log service: " + err.Error())
@@ -33,8 +37,7 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "BarService"); err != nil {
 		panic("unable to export methodcall.BarService: " + err.Error())
 	}
-	print("xxx main exiting,", flag.NArg(), ",flag 0 ", flag.Arg(1), ",", flag.Arg(2), "\n")
-	return
+	print(fmt.Sprintf("xx main of bar about to head to Run\n"))
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
 	methodcall.RunBarService(&barServer{})
 }
