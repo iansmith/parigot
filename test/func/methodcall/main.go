@@ -36,7 +36,8 @@ func main() {
 	// print("xxx -- lib.Getenv ", lib.Getenv("PARIGOT_ENV"), "\n")
 	print("xxx -- arg(0) ", flag.Arg(0), "\n")
 	print("xxx -- arg(1) ", flag.Arg(1), "\n")
-	//testing.Init()
+	testing.Init()
+	print("after init\n")
 
 	// if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
 	// 	panic("unable to require foo service: " + err.Error())
