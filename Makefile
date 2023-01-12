@@ -54,7 +54,8 @@ build/log.p.wasm: $(LOG_SERVICE) g/file/$(API_VERSION)/file.pb.go $(SPLIT_UTIL)
 
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
-build/methodcalltest.p.wasm: $(METHODCALLTEST) g/file/$(API_VERSION)/file.pb.go build/methodcallbar.p.wasm build/methodcallfoo.p.wasm build/runner
+SYSCALL_CLIENT_SIDE=api_impl/syscall/*.go
+build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/methodcallbar.p.wasm build/methodcallfoo.p.wasm build/runner
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall
 

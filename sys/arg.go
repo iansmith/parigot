@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
 )
 
 // The (golang+wasm) 	linker guarantees global data starts from at least wasmMinDataAddr.
@@ -67,7 +66,6 @@ func GetBufferFromArgsAndEnv(m Service, startOfArgs int32) (*bytes.Buffer, int32
 		//log.Printf("buffer bytes: %x", buf)
 		buffer.Write(buf)
 	}
-	log.Printf("final buffer len %d", buffer.Len())
 	if int32(buffer.Len())+startOfArgs >= wasmMinDataAddr {
 		return nil, 0, fmt.Errorf("microservice %s has args+environment size of %d bytes, but max is %d",
 			m.GetName(), buffer.Len()-wasmStartAddr, wasmMinDataAddr-wasmStartAddr)
