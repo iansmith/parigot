@@ -287,8 +287,9 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 
 	node, ok := n.dependencyGraph.GetEdge(key)
 	if !ok {
-		nscorePrint("RUNIFREADY ", "Ignoring request to check on key %s", key)
+		nscorePrint("RUNIFREADY ", "Ignoring request to check on key %s -- no edges assuming ready to run", key.String())
 		nscorePrint("RUNIFREADY ", "state of graph %#v", n.dependencyGraph.AllEdge())
+		fn(key)
 		return
 	}
 	candidateList := []*dep.EdgeHolder{node}

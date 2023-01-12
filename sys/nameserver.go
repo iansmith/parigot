@@ -157,6 +157,7 @@ func (n *LocalNameServer) RunIfReady(key dep.DepKey) {
 	defer n.lock.Unlock()
 
 	n.NSCore.RunIfReady(key, func(key dep.DepKey) {
+		log.Printf("xxx local nameserver-- got the success callback for %s", key.String())
 		key.(*DepKeyImpl).proc.Run()
 	})
 }

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
@@ -31,8 +30,7 @@ func main() {
 	if _, err := callImpl.Export1("log", "LogService"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
-	print(fmt.Sprintf("xx main of log about to head to rRun\n"))
-	time.Sleep(20 * time.Second)
+	print(fmt.Sprintf("xx main of log about to head to Run\n"))
 	log.RunLogService(&myLogServer{})
 }
 

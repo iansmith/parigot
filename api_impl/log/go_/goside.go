@@ -91,9 +91,11 @@ var logChannel = make(chan *logTuple, 32)
 // "normal" server side of a user program, but rather the _implementation_ of some system function that
 // is defined in go.  This function can be called by both paths simultaneously thus a channel is used to serialize.
 // The isKernel and isBackend should be set to true only if this is called by some part of the kernel itself
-// or some "backend" implementation of a function, respectively.  If the caller does not have the already serialized
+// or some "backend" implementation of a function, respectively.  When the isJS flag is set, it indicates
+// that the original caller was in wasm and did `log.Printf()` or some other use of log (which is discouraged
+// but we have to handle it due to existing go code in the library).  If the caller does not have the already serialized
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
-func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, buffer []byte) {
+func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, isJS bool, buffer []byte) {
 	tuple := &logTuple{buffer, req, isKernel, isBackend}
 	logChannel <- tuple
 }
