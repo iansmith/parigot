@@ -281,21 +281,20 @@ func (s *syscallReadWrite) Run(sp int32) {
 		s.procToSysCall().RunNotify(key)
 		// block until we are told to proceed
 		ok, kerr := s.procToSysCall().RunBlock(key)
-		log.Printf("xxx syscallRW about toreturn from runblock")
+		log.Printf("xxx syscallRW about to return from runblock")
 		if kerr != nil && kerr.IsError() {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
-			log.Printf("xxx syscallRW about toreturn from runblock yyyyyy")
+			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr)
 			return lib.KernelDependencyFailure
 		}
 		if !ok {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
-			log.Printf("xxx syscallRW about toreturn from runblock zzzz")
+			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure")
 			return lib.KernelDependencyFailure
 		}
-		log.Printf("xxx syscallRW about toreturn from runblock aaa")
+		log.Printf("xxx syscallRW about to return from runblock, no error")
 		return lib.KernelNoError
 	})
-
 }
 
 func sysPrint(level logmsg.LogLevel, call, spec string, arg ...interface{}) {

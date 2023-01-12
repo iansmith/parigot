@@ -1,10 +1,9 @@
 package sys
 
 import (
+	"fmt"
 	"runtime/debug"
 
-	// fileimpl "github.com/iansmith/parigot/api_impl/file"
-	// logimpl "github.com/iansmith/parigot/api_impl/log"
 	filego "github.com/iansmith/parigot/api_impl/file/go_"
 	loggo "github.com/iansmith/parigot/api_impl/log/go_"
 
@@ -77,7 +76,7 @@ func wrapWithRecover(store wasmtime.Storelike, fn func(int32)) *wasmtime.Func {
 	return wasmtime.WrapFunc(store, func(sp int32) {
 		defer func() {
 			if r := recover(); r != nil {
-				print("RECOVER FROM PANIC\n")
+				print(fmt.Sprintf("aborting due to panic: %v\n", r))
 				debug.PrintStack()
 				print("END RECOVER+STACKTRACE\n")
 			}

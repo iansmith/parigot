@@ -45,9 +45,9 @@ func main() {
 	// if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
 	// 	panic("unable to require bar service: " + err.Error())
 	// }
-	// if _, err := callImpl.Require1("log", "LogService"); err != nil {
-	// 	panic("unable to require log service: " + err.Error())
-	// }
+	if _, err := callImpl.Require1("log", "LogService"); err != nil {
+		panic("unable to require log service: " + err.Error())
+	}
 	// print(fmt.Sprintf("xx main of test about to head to callimpl.Run\n"))
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
@@ -56,28 +56,39 @@ func main() {
 	var err error
 	logger, err = log.LocateLogService()
 	if err != nil {
-		print("xxx -- expected panic, no logger\n")
 		panic(fmt.Sprintf("failed to locate LogService:%v", err))
 	}
-	foo, err = methodcall.LocateFooService(logger)
-	if err != nil {
-		panic(fmt.Sprintf("failed to locate FooService:%v", err))
-	}
-	bar, err = methodcall.LocateBarService(logger)
-	if err != nil {
-		panic(fmt.Sprintf("failed to locate BarService:%v", err))
-	}
+	// foo, err = methodcall.LocateFooService(logger)
+	// if err != nil {
+	// 	panic(fmt.Sprintf("failed to locate FooService:%v", err))
+	// }
+	// bar, err = methodcall.LocateBarService(logger)
+	// if err != nil {
+	// 	panic(fmt.Sprintf("failed to locate BarService:%v", err))
+	// }
 
-	// run tests
-	ok := testing.RunTests(func(pat, str string) (bool, error) { return true, nil }, test)
-	if ok {
-		testMessage("result of RunTests %v", ok)
+	if err := logger.Log(&logmsg.LogRequest{
+		Stamp:   timestamppb.Now(), // xxx use kernel now()
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		Message: "Success logging",
+	}); err != nil {
+		panic("error trying to log in methodcalltest")
 	}
+	matchFunc := func(pat, str string) (bool, error) {
+		print(fmt.Sprintf("match func called with %s and %s\n", pat, str))
+		return true, nil
+	}
+	// run tests
+	testing.Main(matchFunc, test, nil, nil)
 
 	// cleanup?
 	callImpl.Exit(&syscallmsg.ExitRequest{
 		Code: 0,
 	})
+}
+
+func TestMain(m *testing.M) {
+	print("in test main!!!!!!!!!!!!!\n")
 }
 
 func TestFoo(t *testing.T) {

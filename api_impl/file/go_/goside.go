@@ -80,7 +80,7 @@ func logger(level logmsg.LogLevel, spec string, rest ...interface{}) {
 		Level:   level,
 		Message: fmt.Sprintf(spec, rest...),
 	}
-	ilog.ProcessLogRequest(req, false, true, nil)
+	ilog.ProcessLogRequest(req, false, true, false, nil)
 }
 
 // ValidatePathForParigot checks for and avoids many of the common pitfalls in pathnames but is not

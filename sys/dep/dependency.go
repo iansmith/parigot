@@ -221,7 +221,7 @@ func (e *EdgeHolder) IsReady() bool {
 	return len(e.require) == 0
 }
 
-// RemoveRequired takes in a list of newly "dead" services and removes any of them
+// RemoveRequire takes in a list of newly "dead" services and removes any of them
 // that it finds in this edgeHolder's list of requirements.  This call is used when
 // we discover that some service is ready to run, then we take all of *its* exports
 // run them through all the processes edgeHolders, to see if any new processes become
@@ -229,8 +229,8 @@ func (e *EdgeHolder) IsReady() bool {
 func (e *EdgeHolder) RemoveRequire(deadList []string) bool {
 	result := []string{}
 	changed := false
-	depgraphPrint("REMOVEREQUIRE considering if node %s is now enabled to run", e.key.String())
-	depgraphPrint("REMOVEREQUIRE ", " exports to remove list size? %d values? %+v", len(deadList), deadList)
+	depgraphPrint("RemoveRequire ", "considering if node %s is now enabled to run", e.key.String())
+	depgraphPrint("RemoveRequire ", "exports to remove list size? %d values? %+v", len(deadList), deadList)
 	for _, req := range e.require {
 		found := false
 		for _, dead := range deadList {
@@ -239,16 +239,16 @@ func (e *EdgeHolder) RemoveRequire(deadList []string) bool {
 				break
 			}
 		}
-		depgraphPrint("REMOVEREQUIRE ", " req %s found on %s ?? %v", req, e.key.String(), found)
+		depgraphPrint("RemoveRequire ", " req %s found on %s ?? %v", req, e.key.String(), found)
 		if found {
 
 			changed = true
 		} else {
 			result = append(result, req)
-			depgraphPrint("REMOVEREQUIRE ", " not found, so what was the content? %#v", e.require)
+			depgraphPrint("RemoveRequire ", " not found, so what was the content? %#v", e.require)
 		}
 	}
-	depgraphPrint("REMOVEREQUIRE", "did %s change? %v (new result is %#v)", e.key.String(), changed, result)
+	depgraphPrint("REMOVEREQUIRE  ", "did %s change? %v (new result is %#v)", e.key.String(), changed, result)
 	e.require = result
 	return changed
 }

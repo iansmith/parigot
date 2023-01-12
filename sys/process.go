@@ -195,9 +195,9 @@ func (p *Process) SetExitCode(code int) {
 // Run() is used to let a process proceed with running.  This is
 // called when we discover all his requirements have been met.
 func (p *Process) Run() {
-	procPrint("RUN", "trying to tell %s to run, everything is ok", p)
+	procPrint("RUN ", "trying to tell %s to run, everything is ok", p)
 	p.runCh <- true
-	procPrint("RUN", "process %s running", p)
+	procPrint("RUN ", "process %s running", p)
 }
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
@@ -280,7 +280,7 @@ func procPrint(method string, spec string, arg ...interface{}) {
 				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
 				Message: part1 + part2 + "\n",
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
-			}, true, false, nil)
+			}, true, false, false, nil)
 		//print(part1 + part2 + "\n")
 
 	}

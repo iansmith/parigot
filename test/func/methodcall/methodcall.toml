@@ -13,9 +13,9 @@
 #Arg=["quux","yech"]
 #Env=["PARIGOT_SOFT=hard"]
 
-#[microservice.log]
-#Path="build/log.p.wasm"
-#Arg=["arg1","arg2","arg3"]
+[microservice.log]
+Path="build/log.p.wasm"
+Arg=["arg1","arg2","arg3"]
 
 [microservice.methodcall_test]
 Path="build/methodcalltest.p.wasm"

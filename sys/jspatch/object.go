@@ -8,6 +8,10 @@ import (
 	"runtime/debug"
 	"strings"
 	"unsafe"
+
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type jsKind int
@@ -30,6 +34,26 @@ const (
 	TypeFunction
 	TypeObject
 )
+
+//
+// InternalLogger and the logger object are a workaround for import cycles because of
+// the fact that we need some "extra" places to have the ability to send to the same
+// log endpoint that the "normal" logger does.
+//
+
+type InternalLogger interface {
+	ProccessLogRequest(*logmsg.LogRequest, bool, bool, bool, []byte)
+}
+
+var logger InternalLogger
+
+func SetInternalLogger(il InternalLogger) {
+	logger = il
+}
+
+//
+// End of logger crap.  xxxfixme this is probably not a good solution.
+//
 
 var undefined = &jsObj{typeFlag: TypeUndefined}
 
@@ -572,7 +596,7 @@ func makeFuncWrapper(_ []jsObject) jsObject {
 
 func fsWrite(arg []jsObject) jsObject {
 	if len(arg) < 6 {
-		print("JSCONSOLE: unable to unedrstand arguments to fsWrite (console) because number of parameters is too small\n")
+		print("JSCONSOLE: unable to understand arguments to fsWrite (console) because number of parameters is too small\n")
 		return jsObjectMap.get(predefinedZero)
 	}
 	output := 0
@@ -585,7 +609,7 @@ func fsWrite(arg []jsObject) jsObject {
 		var s string
 		if arg[i].IsInstance() && arg[i].InstanceOf(uint8ArrayObj) {
 			s = string(arg[i].this().(*uint8ArrayInstance).data)
-			print(s)
+			logJSConsoleMessage(s)
 			if strings.HasSuffix(s, "\n") {
 				needsHeader = true
 			}
@@ -609,6 +633,15 @@ func fsWrite(arg []jsObject) jsObject {
 		return jsObjectMap.get(predefinedZero)
 	}
 	return newJSObjNum(float64(output))
+}
+
+func logJSConsoleMessage(s string) {
+	req := &logmsg.LogRequest{
+		Stamp:   timestamppb.Now(), //xxx should use kernel now
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		Message: s,
+	}
+	logger.ProccessLogRequest(req, false, false, true, nil)
 }
 
 //
