@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
+
+	"github.com/iansmith/parigot/sys/jspatch/jsemul"
 )
 
 type JSPatch struct {
@@ -25,7 +27,6 @@ func (j *JSPatch) SetMemPtr(m uintptr) {
 }
 
 const jsEmulVerbose = true
-const nanHead = 0x7FF80000
 
 func enter(funcName string, rest ...string) {
 	if !jsEmulVerbose {
@@ -50,7 +51,7 @@ func (j *JSPatch) ValueIndex(sp int32) {
 	index := j.mem.GetInt64(sp + 16)
 	value := j.mem.LoadValue(sp + 8)
 	result := value.Index(int(index))
-	wrapped := goToJS(result)
+	wrapped := jsemul.GoToJS(result)
 	j.mem.StoreValue(sp+32, wrapped)
 }
 
@@ -115,7 +116,7 @@ func (j *JSPatch) ValueCall(sp int32) {
 func (j *JSPatch) StringVal(sp int32) {
 	enter("StringVal")
 	s := j.mem.LoadString(sp + 8)
-	obj := goToJS(s)
+	obj := jsemul.GoToJS(s)
 	j.mem.StoreValue(sp+24, obj)
 }
 
@@ -133,7 +134,7 @@ func (j *JSPatch) ValueInvoke(sp int32) {
 	callee := j.mem.LoadValue(sp + 8)
 	args := j.mem.LoadSliceOfValues(sp + 16)
 	result := callee.Invoke(args)
-	j.mem.StoreValue(sp+40, goToJS(result))
+	j.mem.StoreValue(sp+40, jsemul.GoToJS(result))
 	j.mem.SetUint8(sp+48, 1)
 }
 func (j *JSPatch) ValueNew(sp int32) {
@@ -143,11 +144,11 @@ func (j *JSPatch) ValueNew(sp int32) {
 	if !v.IsClassObject() {
 		panic(fmt.Sprintf("attempt to call valueNew() on something that is not a class, %s", v))
 	}
-	var args []jsObject
+	var args []jsemul.JsObject
 	if !j.mem.TestSliceIsZeroLen(sp + 16) {
 		args = j.mem.LoadSliceOfValues(sp + 16)
 	}
-	result := v.newInstance(args)
+	result := v.NewInstance(args)
 	j.mem.StoreValue(sp+40, result)
 	j.mem.SetUint8(sp+48, 1) // should we be setting just 1 byte? on a stack?
 }
@@ -176,17 +177,11 @@ func (j *JSPatch) CopyBytesToJS(sp int32) {
 	if l != 0 {
 		src = j.mem.LoadSliceWithKnownLength(sp+16, l)
 	}
-	if !dst.InstanceOf(uint8ArrayObj) {
+	if !dst.InstanceOf(jsemul.Uint8ArrayObj) {
 		panic("CopyBytesToJS called, but dst is not a uint8ArrayObj")
 	}
-	trueDest := dst.this().(*uint8ArrayInstance)
-	shorter := len(trueDest.data)
-	if len(src) < shorter {
-		shorter = len(src)
-	}
-	for i := 0; i < shorter; i++ {
-		trueDest.data[i] = src[i]
-	}
+	trueDest := dst.This().(*jsemul.Uint8ArrayInstance)
+	shorter := trueDest.CopyBytesToJS(src)
 	j.mem.SetInt64(sp+40, int64(shorter))
 	j.mem.SetUint8(sp+48, 1)
 }

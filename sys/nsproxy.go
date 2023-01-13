@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"hash/crc32"
 	"os"
+	"sync"
 	"time"
 
-	ilog "github.com/iansmith/parigot/api_impl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	netmsg "github.com/iansmith/parigot/g/msg/net/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/proto"
@@ -280,7 +281,7 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 		return nil
 	}
 	var mid lib.Id
-	sData := n.NSCore.GetSDataById(serviceId)
+	sData := n.NSCore.ServiceData(serviceId)
 	if sData != nil {
 		cachedMethodId, ok := sData.method[method]
 		if ok {
@@ -421,15 +422,25 @@ func (n *NSProxy) StartFailedInfo() string {
 	return n.NSCore.StartFailedInfo()
 }
 
+// LenSyncMap is a utility return the number of keys in a *sync.Map
+func LenSyncMap(m *sync.Map) int {
+	count := 0
+	m.Range(func(k, v any) bool {
+		count++
+		return true
+	})
+	return count
+}
+
 // BlockUntilCall handles _incoming_ RPC requests.
 func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
-	netnameserverPrint("BLOCKUNTILCALL ", " key is %s and inCh is %p", key.String(), n.inCh)
+	netnameserverPrint("BlockUntilCall ", " key is %s and inCh is %p", key.String(), n.inCh)
 	a := <-n.inCh
 	req := netmsg.RPCRequest{}
-	netnameserverPrint("BLOCKUNTILCALL ", " got a request through the channel %p, a==nil? %v", n.inCh, a == nil)
+	netnameserverPrint("BlockUntilCall ", " got a request through the channel %p, a==nil? %v", n.inCh, a == nil)
 	err := a.Data().UnmarshalTo(&req)
 	if err != nil {
-		netnameserverPrint("BLOCKUNTILCALL ", "error trying to unmarshal request: %v", err)
+		netnameserverPrint("BlockUntilCall ", "error trying to unmarshal request: %v", err)
 		a.RespChan() <- nil
 		return nil
 	}
@@ -442,30 +453,32 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 	if req.GetMethodId() != nil {
 		mid = lib.Unmarshal(req.GetMethodId())
 		// cross check,just in case
-		sData := n.NSCore.GetSDataById(sid)
+		sData := n.NSCore.ServiceData(sid)
 		if sData != nil {
 			if !mid.Equal(sData.method[req.GetMethodName()]) {
-				netnameserverPrint("BLOCKUNTILCALL ", "WARN: ignorning provided mid %s because doesn't match our method table for %s",
+				netnameserverPrint("BlockUntilCall ", "WARN: ignorning provided mid %s because doesn't match our method table for %s",
 					mid.Short(), req.GetMethodName())
 				mid = sData.method[req.GetMethodName()]
 			}
 		}
 	} else {
-		sData := n.NSCore.GetSDataById(sid)
+		sData := n.NSCore.ServiceData(sid)
 		if sData == nil {
-			netnameserverPrint("BLOCKUNTILCALL ",
+			netnameserverPrint("BlockUntilCall ",
 				"WARN: Unable to find sData for sid %s -- number of entries in package table %d",
-				sid.Short(), len(n.NSCore.packageRegistry))
-			for k, pData := range n.NSCore.packageRegistry {
-				netnameserverPrint("BLOCKUNTILCALL ", "key in pkgReg=%s", k)
-				for s, sd := range pData.service {
-					netnameserverPrint("BLOCKUNTILCALL ", "key in service table=%s, sid on sData %s", s, sd.GetServiceId().Short())
-				}
-			}
-			netnameserverPrint("BLOCKUNTILCALL ", "number of entries in the table id to sdata %d ", len(n.NSCore.serviceIdToServiceData))
-			for k, v := range n.NSCore.serviceIdToServiceData {
-				netnameserverPrint("BLOCKUNTILCALL ", "\t\tservice Id %v -> %v", k, v.serviceId)
-			}
+				sid.Short(), LenSyncMap(n.NSCore.packageRegistry))
+			n.NSCore.packageRegistry.Range(func(k, v any) bool {
+				key := k.(string)
+				netnameserverPrint("BlockUntilCall ", "key in pkgReg=%s", key)
+				sMap := v.(*sync.Map)
+				sMap.Range(func(serviceId, serviceData any) bool {
+					s := serviceId.(string)
+					sd := serviceData.(*ServiceData)
+					netnameserverPrint("BlockUntilCall ", "key in service table=%s, sid on sData %s", s, sd.GetServiceId().Short())
+					return true
+				})
+				return true
+			})
 		} else {
 			var ok bool
 			mid, ok = sData.method[req.GetMethodName()]
@@ -487,13 +500,13 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 		sender: NewDepKeyFromAddr(req.GetSender()),
 	}
 	n.NSCore.addCallContextMapping(info.cid, info)
-	netnameserverPrint("BLOCKUNTILCALL ", "finished creating info, callid=%s, method=%s and the key is %s", info.cid.Short(), info.method,
+	netnameserverPrint("BlockUntilCall ", "finished creating info, callid=%s, method=%s and the key is %s", info.cid.Short(), info.method,
 		key.String())
 
 	go func(callId lib.Id, rinfo *callContext, netr *NetResult) {
 		retReq := <-info.respCh
 		if retReq == nil {
-			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got an error signal on the call %s", callId)
+			netnameserverPrint("BlockUntilCall [goroutine] ", "got an error signal on the call %s", callId)
 			return
 		}
 		rpcResp := &netmsg.RPCResponse{
@@ -503,13 +516,13 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 			KerrId:   lib.NoKernelError(),
 			MethodId: lib.Marshal[protosupportmsg.MethodId](mid),
 		}
-		netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "got return result on call %s from %s: %d bytes of result, %d bytes of pctx",
+		netnameserverPrint("BlockUntilCall [goroutine] ", "got return result on call %s from %s: %d bytes of result, %d bytes of pctx",
 			callId, rinfo.sender, proto.Size(retReq.Result), proto.Size(retReq.Pctx))
 		aResp := &anypb.Any{}
 		err := aResp.MarshalFrom(rpcResp)
 		if err != nil {
 			a.respCh <- nil
-			netnameserverPrint("BLOCKUNTILCALL [goroutine] ", "failed to marshal response; %v", err)
+			netnameserverPrint("BlockUntilCall [goroutine] ", "failed to marshal response; %v", err)
 			return
 		}
 		netr.respCh <- aResp
@@ -521,10 +534,10 @@ func netnameserverPrint(method, spec string, arg ...interface{}) {
 	if netnameserverVerbose {
 		part1 := fmt.Sprintf("NetNameServer:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		ilog.ProcessLogRequest(&logmsg.LogRequest{
+		backdoor.Log(&logmsg.LogRequest{
 			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 			Stamp:   timestamppb.Now(), //xxx fix me, should be getting from kernel
 			Message: part1 + part2,
-		}, true, false, nil)
+		}, true, false, false, nil)
 	}
 }

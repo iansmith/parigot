@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
-	"runtime/debug"
 
 	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
 	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
@@ -195,9 +194,9 @@ func (p *Process) SetExitCode(code int) {
 // Run() is used to let a process proceed with running.  This is
 // called when we discover all his requirements have been met.
 func (p *Process) Run() {
-	procPrint("RUN ", "trying to tell %s to run, everything is ok", p)
+	procPrint("RUN ", "starting to run %s, all requirements met...sending message to unblock on runCh", p)
 	p.runCh <- true
-	procPrint("RUN ", "process %s running", p)
+	procPrint("RUN ", "process %s unblocked", p)
 }
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
@@ -225,27 +224,17 @@ func (p *Process) Start() (code int) {
 		return p.exitCode
 	}
 	defer func(proc *Process) {
-		print("defer1\n")
 		if r := recover(); r != nil {
-			print("defer2\n")
 			e, ok := r.(*syscallmsg.ExitRequest)
 			print(fmt.Sprintf("defer3 %v, and type %T\n", ok, r))
 			if ok {
-				print("defer4 ", ok, "\n")
 				p.exitCode = int(e.GetCode())
-				print("defer5 ", p.exitCode, "\n")
 				code = p.exitCode
-				print("defer6 ", p.exitCode, "\n")
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
 			} else {
-				print("defer7 not an exit req\n")
 				p.SetExitCode(int(ExitCodePanic))
-				print("defer8 \n")
 				code = p.exitCode
-				print("defer9 \n")
 				print(fmt.Sprintf("golang (not WASM) panic '%v'\n", r))
-				print("defer10 \n")
-				debug.PrintStack()
 			}
 		}
 	}(p)

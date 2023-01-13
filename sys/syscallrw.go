@@ -8,12 +8,12 @@ import (
 	"time"
 	"unsafe"
 
-	ilog "github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	"google.golang.org/protobuf/proto"
@@ -274,14 +274,12 @@ func (s *syscallReadWrite) Require(sp int32) {
 // fail and return an error if there are problems getting all the require and export
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
-
 	req := &syscallmsg.RunRequest{}
 	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) lib.KernelErrorCode {
 		key := NewDepKeyFromProcess(s.proc)
 		s.procToSysCall().RunNotify(key)
 		// block until we are told to proceed
 		ok, kerr := s.procToSysCall().RunBlock(key)
-		log.Printf("xxx syscallRW about to return from runblock")
 		if kerr != nil && kerr.IsError() {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
 			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr)
@@ -292,7 +290,6 @@ func (s *syscallReadWrite) Run(sp int32) {
 			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure")
 			return lib.KernelDependencyFailure
 		}
-		log.Printf("xxx syscallRW about to return from runblock, no error")
 		return lib.KernelNoError
 	})
 }
@@ -310,7 +307,7 @@ func sysPrint(level logmsg.LogLevel, call, spec string, arg ...interface{}) {
 			Level:   level,
 			Message: msg,
 		}
-		ilog.ProcessLogRequest(req, true, false, nil)
+		backdoor.Log(req, true, false, false, nil)
 
 	}
 }
@@ -332,7 +329,7 @@ func (s *syscallReadWrite) BackdoorLog(sp int32) {
 			int32(kerr.Low()))
 		return
 	}
-	ilog.ProcessLogRequest(req, true, false, nil)
+	backdoor.Log(req, true, false, false, nil)
 	s.mem.SetInt32(int32(wasmPtr)+int32(unsafe.Offsetof(splitutil.SinglePayload{}.OutPtr)), 0)
 	s.mem.SetInt32(int32(wasmPtr)+int32(unsafe.Offsetof(splitutil.SinglePayload{}.OutLen)), 0)
 

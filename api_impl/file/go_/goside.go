@@ -14,12 +14,12 @@ import (
 	"time"
 	"unicode"
 
-	ilog "github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
 	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	"github.com/psanford/memfs"
@@ -80,7 +80,7 @@ func logger(level logmsg.LogLevel, spec string, rest ...interface{}) {
 		Level:   level,
 		Message: fmt.Sprintf(spec, rest...),
 	}
-	ilog.ProcessLogRequest(req, false, true, false, nil)
+	backdoor.Log(req, false, true, false, nil)
 }
 
 // ValidatePathForParigot checks for and avoids many of the common pitfalls in pathnames but is not

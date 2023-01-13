@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/iansmith/parigot/sys"
 
@@ -20,7 +21,7 @@ type Context struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = false
+var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewContext returns a new, initialized runner.Context object or an error.  The initialized Context
 // can be used to create processes and start the processes running.
@@ -84,8 +85,8 @@ func (c *Context) Start() int {
 			mainList = append(mainList, f.name)
 		}
 		if f.Server {
+			log.Printf("StartProcess creating goroutine for server process %s at Start()", f.name)
 			go func(p *sys.Process, name string) {
-				runnerPrint("CreateProcess ", "starting goroutine for server process %s at Start()", name)
 				code := p.Start()
 				log.Printf("warning: server process %s exited with code %d", name, code)
 			}(c.process[f.name], f.name)

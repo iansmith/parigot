@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"time"
@@ -24,9 +23,9 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-	for i := 0; i < flag.NArg(); i++ {
-		print(fmt.Sprintf("xxx foo %d=>%s\n", i, flag.Arg(i)))
-	}
+	// for i := 0; i < flag.NArg(); i++ {
+	// 	print(fmt.Sprintf("xxx foo %d=>%s\n", i, flag.Arg(i)))
+	// }
 
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
@@ -51,7 +50,7 @@ type fooServer struct {
 
 func (f *fooServer) AddMultiply(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
 	req := in.(*methodcallmsg.AddMultiplyRequest)
-	f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.AddMultiply")
+	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.AddMultiply")
 	resp := &methodcallmsg.AddMultiplyResponse{}
 	if req.IsAdd {
 		resp.Result = req.Value0 + req.Value1
@@ -99,9 +98,6 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready() bool {
-	print("PRE PARSE______________\n")
-	flag.Parse()
-	print("______________POST PARSE\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -111,10 +107,9 @@ func (f *fooServer) Ready() bool {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
 		return false
 	}
-	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "foo params: %d,%s", flag.NArg(), flag.Arg(0))
 	f.logger = logger
+	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "bar service: about to return from ready")
 	return true
-
 }
 
 func (f *fooServer) log(pctx *protosupportmsg.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
