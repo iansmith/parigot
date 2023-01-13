@@ -2,14 +2,13 @@ package sys
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
-	ilog "github.com/iansmith/parigot/api_impl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -21,6 +20,8 @@ import (
 var nameserverVerbose = false || envVerbose != ""
 
 const MaxService = 127
+
+const parigotNameserverRemoteAddress = "parigot_ns:13330"
 
 // These are the two nameservers.  They share a runNotifyChannel and created
 // by a call to InitNameServer()
@@ -64,6 +65,8 @@ type LocalNameServer struct {
 	runNotifyCh chan *KeyNSPair
 }
 
+// NewLocalNameServer creates a new name service implementation for the local or
+// "all in one process" case.
 func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 	return &LocalNameServer{
 		lock:        new(sync.RWMutex),
@@ -73,15 +76,14 @@ func NewLocalNameServer(runNotifyChannel chan *KeyNSPair) *LocalNameServer {
 }
 
 // FindMethodByName is called by the client side when doing a dispatch.  This is where the client
-// exchanges a service.id,name pair for the appropriate call context.  The call context is used
+// exchanges a (service id,name) pair for the appropriate call context.  The call context is used
 // by the calling client to 1) know where to send the message and 2) how to block waiting on
-// the result.
+// the result.  Note that the callContext is created by this function and registered
+// with the in flight list.
 func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) *callContext {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
-	sData, ok := n.serviceIdToServiceData[serviceId.String()]
-	if !ok {
+	// we are NOT holding the lock here
+	sData := n.ServiceData(serviceId)
+	if sData == nil {
 		return nil
 	}
 	mid, ok := sData.method[name]
@@ -104,9 +106,6 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
 func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
 	return n.NSCore.GetService(pkgPath, service)
 }
 
@@ -114,9 +113,6 @@ func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib
 // walks the in-flight calls and if it finds the target cid it returns
 // it and removes it from the in-flight list.
 func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
 	return n.NSCore.getContextForCallId(target)
 }
 
@@ -127,9 +123,6 @@ func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
 // the appropriate kernel error to the caller wrapped in a
 // lib.Error.
 func (n *LocalNameServer) CloseService(key dep.DepKey, pkgPath, service string) lib.Id {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
 	return n.NSCore.CloseService(key, pkgPath, service)
 }
 
@@ -138,73 +131,69 @@ func (n *LocalNameServer) CloseService(key dep.DepKey, pkgPath, service string) 
 // if the service cannot be found or has already been exported
 // by another server.
 func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
 	return n.NSCore.Export(key, pkgPath, service, nil)
 }
 
 // Require is used to inform the nameserver that a particular process
 // requires the given service.
 func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	n.lock.Lock()
-	defer n.lock.Unlock()
 	return n.NSCore.Require(key, pkgPath, service)
 }
 
+// RunIfReady blocks until it receives a callback that the given key, representing
+// a process, has all its requirements satisfied.
 func (n *LocalNameServer) RunIfReady(key dep.DepKey) {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-
 	n.NSCore.RunIfReady(key, func(key dep.DepKey) {
-		log.Printf("xxx local nameserver-- got the success callback for %s", key.String())
+		nscorePrint("RunIfReadyCallback ", "notifying run reader %s is ready", key.String())
 		key.(*DepKeyImpl).proc.Run()
 	})
-}
-
-func (n *LocalNameServer) WaitingToRun() int {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
-	return n.NSCore.WaitingToRun()
-}
-
-func (l *LocalNameServer) StartFailedInfo() string {
-	if l.NSCore.WaitingToRun() > 0 {
-		l.sendAbortMessage()
-	}
-	return l.NSCore.StartFailedInfo()
 }
 
 // SendAbortMessage is used to tell processes that are waiting to run that their
 // dependencies could not be fulfilled.  This can only be done when using this
 // nameserver.
+//
+// Because the processes are blocked on their run channel, we can send a false
+// through the run channel to tell them to give up.  We have to use Walk()
+// here to walk through all the dependencies and leave the graph unchanged.
 func (n *LocalNameServer) sendAbortMessage() {
-	for _, v := range n.dependencyGraph.AllEdge() {
-		p := v.Key().(*DepKeyImpl).proc
+	n.dependencyGraph.Walk(func(key string, value *dep.EdgeHolder) bool {
+		p := value.Key().(*DepKeyImpl).proc
 		if p.reachedRun {
 			if !p.exited {
 				p.runCh <- false
 			}
 		}
-	}
+		return true
+	})
 }
 
-// This is called by a proc that is local to shove itself and this nameserver
-// to the run reader.
+// RunNotify is called by a proc that is local to shove itself and this nameserver
+// to the run reader.  The run reader is a separate goroutine that listens for
+// these notifications and then looks for any ready to run processes.
 func (l *LocalNameServer) RunNotify(key dep.DepKey) {
 	l.runNotifyCh <- NewKeyNSPair(key, l)
 }
 
-// This is called by a proc that is local and this blocks until the nameserver
-// signals to us.
+// RunBlock is called by a proc that is local and this blocks until the nameserver
+// signals to us that our dependencies have been met.  Note that call is running
+// on a different goroutine (the goroutine of the service who is blocked) than
+// the RunIfReady() call than unblocks it.
 func (l *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
-	log.Printf("xxxx RunBlock for %s", key.String())
+	nameserverPrint("RunBlock ", "localnameserver about to block on runCh for %s\n", key.String())
 	b := <-key.(*DepKeyImpl).proc.runCh
-	log.Printf("xxxx RunBlock completed %s", key.String())
+	nameserverPrint("RunBlock", "localnameserver, block done for %s\n", key.String())
 	return b, nil
 }
 
+// CallService is used by a process A to signal another process B.  Process A
+// has created the callContext and pushes it through the callCh that B is blocked on.
+// Included in the callContext is another channel that B can use to send the result,
+// in the form a returnValueRequest to A.
+//
+// We use the returnValueRequest so this path is the same as it would be in the case
+// of a remote call.  In this the local case, we *could* just pass the result back
+// from B to A.
 func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *syscallmsg.ReturnValueRequest {
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
@@ -213,8 +202,9 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *syscall
 }
 
 // BlockUntilCall implements the stopping of a program until a method is
-// called.  Because this all implemented locally in this case, it's just
-// matter of getting or putting the right things from each channel.
+// called.  Because this all implemented locally in this case, we just
+// block on our callCh and wait for another process to use CallService to
+// signal us that they need one of our methods.
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
 	v := <-key.(*DepKeyImpl).proc.callCh
 	return v
@@ -227,7 +217,7 @@ func InitNameServer(runNotifyChannel chan *KeyNSPair, local, remote bool) {
 		LocalNS = NewLocalNameServer(runNotifyChannel)
 	}
 	if remote {
-		NetNS = NewNSProxy("parigot_ns:13330")
+		NetNS = NewNSProxy(parigotNameserverRemoteAddress)
 	}
 }
 
@@ -255,6 +245,6 @@ func nameserverPrint(methodName string, format string, arg ...interface{}) {
 			Stamp:   timestamppb.Now(), //xxx fix me should be using the kernel for this
 			Message: part1 + part2,
 		}
-		ilog.ProcessLogRequest(&req, true, false, nil)
+		backdoor.Log(&req, true, false, false, nil)
 	}
 }

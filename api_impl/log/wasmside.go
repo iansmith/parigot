@@ -2,8 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
-	"fmt"
 	"os"
 
 	"github.com/iansmith/parigot/api_impl/log/go_"
@@ -22,15 +20,11 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-	for i := 0; i < flag.NArg(); i++ {
-		print(fmt.Sprintf("xxx log %d=>%s\n", i, flag.Arg(i)))
-	}
 
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
 	if _, err := callImpl.Export1("log", "LogService"); err != nil {
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
-	print(fmt.Sprintf("xx main of log about to head to Run\n"))
 	log.RunLogService(&myLogServer{})
 }
 

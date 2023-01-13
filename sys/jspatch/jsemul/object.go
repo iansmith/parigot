@@ -1,15 +1,16 @@
-package jspatch
+package jsemul
 
 import (
 	"fmt"
 	"math"
 	"reflect"
-	"runtime"
 	"runtime/debug"
 	"strings"
 	"unsafe"
 
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	"github.com/iansmith/parigot/sys/backdoor"
+	"github.com/iansmith/parigot/sys/jspatch/jsgo"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -35,63 +36,43 @@ const (
 	TypeObject
 )
 
-//
-// InternalLogger and the logger object are a workaround for import cycles because of
-// the fact that we need some "extra" places to have the ability to send to the same
-// log endpoint that the "normal" logger does.
-//
+var Undefined = &jsObj{typeFlag: TypeUndefined}
 
-type InternalLogger interface {
-	ProccessLogRequest(*logmsg.LogRequest, bool, bool, bool, []byte)
-}
-
-var logger InternalLogger
-
-func SetInternalLogger(il InternalLogger) {
-	logger = il
-}
-
-//
-// End of logger crap.  xxxfixme this is probably not a good solution.
-//
-
-var undefined = &jsObj{typeFlag: TypeUndefined}
-
-func floatValue(f float64) jsObject {
+func FloatValue(f float64) JsObject {
 	if f == 0 {
-		return jsObjectMap.get(predefinedZero)
+		return JsObjectMap.Get(predefinedZero)
 	}
 	if f != f {
-		return jsObjectMap.get(predefinedNan)
+		return JsObjectMap.Get(predefinedNan)
 	}
 	return newJSObjNum(f)
 }
 
-type jsObject interface {
-	id() int32
-	Index(int) jsObject
-	SetIndex(int, jsObject)
+type JsObject interface {
+	Id() int32
+	Index(int) JsObject
+	SetIndex(int, JsObject)
 	String() string
 	Length() int
-	InstanceOf(jsObject) bool
-	Call(string /*name*/, []jsObject) jsObject
-	Get(string) jsObject
-	Invoke([]jsObject) jsObject
-	Set(string, jsObject) jsObject /* returns self for chaining*/
+	InstanceOf(JsObject) bool
+	Call(string /*name*/, []JsObject) JsObject
+	Get(string) JsObject
+	Invoke([]JsObject) JsObject
+	Set(string, JsObject) JsObject /* returns self for chaining*/
 	Delete(string)
 	IsFunc() bool
 	IsClassObject() bool
 	IsInstance() bool
+	IsNumber() bool
 	AsNumber() float64
+	BinaryRep() uint64
 	// from a class, create an instance
-	newInstance([]jsObject) jsObject
-	// for our internal use
-	binaryRep() uint64
-	isNumber() bool
-	this() interface{}
+	NewInstance([]JsObject) JsObject
+	// returns the underlying object from an instance (only!) of a class
+	This() interface{}
 }
 
-var jsObjectMap = newObjMap()
+var JsObjectMap = newObjMap()
 
 const (
 	predefinedNan    = 0
@@ -104,43 +85,43 @@ const (
 )
 
 type class interface {
-	NewInstance([]jsObject) jsObject
+	NewInstance([]JsObject) JsObject
 	Name() string
 }
 
-var badWrappedFunc jsObject
+var badWrappedFunc JsObject
 
 func init() {
 	// this is caused because this code runs on linux but works on behalf of WASM
 	// and so it ends up being loaded (and init called) twice, once for the runner
 	// in linux and once for the module loaded into the WASM side
-	print("xxx init called on object.go ... ", runtime.GOOS, "\n")
+	//print("xxx init called on object.go ... ", runtime.GOOS, "\n")
 	// order here is carefully constructed
-	jsObjectMap.predefined(newJSObjNum(math.NaN()), predefinedNan)
+	JsObjectMap.predefined(newJSObjNum(math.NaN()), predefinedNan)
 
 	obj := newJSObjGeneric(typeFlagNone, TypeObject, "ZERO")
 	obj.zero = true
 	obj.typeFlag = jsKind(typeFlagNone)
-	jsObjectMap.predefined(obj, predefinedZero)
+	JsObjectMap.predefined(obj, predefinedZero)
 
 	obj = newJSObjGeneric(typeFlagNone, TypeNull, "NULL")
 	obj.null = true
-	jsObjectMap.predefined(obj, predefinedNull)
+	JsObjectMap.predefined(obj, predefinedNull)
 
 	obj = newJSObjBool(true)
-	jsObjectMap.predefined(obj, predefinedTrue)
+	JsObjectMap.predefined(obj, predefinedTrue)
 
 	obj = newJSObjBool(false)
-	jsObjectMap.predefined(obj, predefinedFalse)
+	JsObjectMap.predefined(obj, predefinedFalse)
 
 	glob := newJSObjObject(true, "WINDOW")
-	jsObjectMap.predefined(glob, predefinedWindow)
+	JsObjectMap.predefined(glob, predefinedWindow)
 
 	goObj := newJSObjObject(false, "GO")
-	jsObjectMap.predefined(goObj, predefinedGo)
+	JsObjectMap.predefined(goObj, predefinedGo)
 
 	obj = newJSObjFunc(makeFuncWrapper, "_makeFuncWrapper")
-	jsObjectMap.put(obj)
+	JsObjectMap.Put(obj)
 	goObj.Set("_makeFuncWrapper", obj)
 
 	// obj = newJSObjFunc(makeArray, "makeArray")
@@ -149,20 +130,20 @@ func init() {
 
 	dateObj = newJSObjClass(&dateClass{offsetFromUTCInMins: 0}, "class(Date)")
 	glob.Set("Date", dateObj)
-	jsObjectMap.put(dateObj)
+	JsObjectMap.Put(dateObj)
 
 	fs := newJSObjGeneric(typeFlagObject, TypeObject, "fs")
 	glob.Set("fs", fs)
-	jsObjectMap.put(fs)
+	JsObjectMap.Put(fs)
 	writeFn := newJSObjFunc(fsWrite, "fs.Write")
-	jsObjectMap.put(writeFn)
+	JsObjectMap.Put(writeFn)
 	fs.Set("write", writeFn)
 
 	obj = newJSObjGeneric(typeFlagObject, TypeObject, "process")
 	glob.Set("process", obj)
-	jsObjectMap.put(obj)
+	JsObjectMap.Put(obj)
 
-	constants := jsObjectMap.put(newJSObjGeneric(typeFlagObject, TypeObject, "constants"))
+	constants := JsObjectMap.Put(newJSObjGeneric(typeFlagObject, TypeObject, "constants"))
 	minus1 := newJSObjNum(-1)
 
 	//{ O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused	constants.Set()
@@ -172,91 +153,91 @@ func init() {
 
 	glob.Set("fs", fs)
 
-	uint8ArrayObj = newJSObjClass(&uint8ArrayClass{}, "class(Uint8Array)")
-	jsObjectMap.put(uint8ArrayObj)
-	glob.Set("Uint8Array", uint8ArrayObj)
+	Uint8ArrayObj = newJSObjClass(&uint8ArrayClass{}, "class(Uint8Array)")
+	JsObjectMap.Put(Uint8ArrayObj)
+	glob.Set("Uint8Array", Uint8ArrayObj)
 
 	objectObj = newJSObjClass(&objectClass{}, "class(Object)")
-	jsObjectMap.put(objectObj)
+	JsObjectMap.Put(objectObj)
 	glob.Set("Object", objectObj)
 
-	badWrappedFunc = newJSObjFunc(func(_ []jsObject) jsObject {
+	badWrappedFunc = newJSObjFunc(func(_ []JsObject) JsObject {
 		print("calling wrapped go functions from javascript makes no sense when there is no javascript")
-		return jsObjectMap.get(predefinedNull)
+		return JsObjectMap.Get(predefinedNull)
 	}, "bad function call")
-	jsObjectMap.put(badWrappedFunc)
+	JsObjectMap.Put(badWrappedFunc)
 }
 
-func goToJS(x any) jsObject {
+func GoToJS(x any) JsObject {
 	switch x := x.(type) {
-	case jsObject:
+	case JsObject:
 		return x
 	case func(interface{}):
 		print("got to func case in goToJS\n")
 		return nil
 	//	return x.Value
 	case nil:
-		return jsObjectMap.get(predefinedNull)
+		return JsObjectMap.Get(predefinedNull)
 	case bool:
 		if x {
-			return jsObjectMap.get(predefinedTrue)
+			return JsObjectMap.Get(predefinedTrue)
 		} else {
-			return jsObjectMap.get(predefinedFalse)
+			return JsObjectMap.Get(predefinedFalse)
 		}
 	case int:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).int_ = x
 		return obj
 	case int8:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).i8 = x
 		return obj
 	case int16:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).i16 = x
 		return obj
 	case int32:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).i32 = x
 		return obj
 	case int64:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).i64 = x
 		return obj
 	case uint:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).uint_ = x
 		return obj
 	case uint8:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).u8 = x
 		return obj
 	case uint16:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).u16 = x
 		return obj
 	case uint32:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).u32 = x
 		return obj
 	case uint64:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).u64 = x
 		return obj
 	case uintptr:
-		obj := floatValue(float64(x))
+		obj := FloatValue(float64(x))
 		obj.(*jsObj).uptr = x
 		return obj
 	case unsafe.Pointer:
-		obj := floatValue(float64(uintptr(x)))
+		obj := FloatValue(float64(uintptr(x)))
 		obj.(*jsObj).uptr = uintptr(x)
 		return obj
 	case float32:
-		return floatValue(float64(x))
+		return FloatValue(float64(x))
 	case float64:
-		return floatValue(x)
+		return FloatValue(x)
 	case string:
-		return jsObjectMap.put(newJSObjString(x))
+		return JsObjectMap.Put(newJSObjString(x))
 	case []any:
 		panic("don't know how to convert an array")
 		//a := arrayConstructor.New(len(x))
@@ -267,9 +248,9 @@ func goToJS(x any) jsObject {
 	case map[string]any:
 		val := newJSObjGeneric(typeFlagNone, TypeObject, "converted props")
 		for k, v := range x {
-			val.Set(k, goToJS(v))
+			val.Set(k, GoToJS(v))
 		}
-		return jsObjectMap.put(val)
+		return JsObjectMap.Put(val)
 	default:
 		print("--------------DUMP FROM JS LAND--------------\n")
 		debug.PrintStack()
@@ -295,7 +276,7 @@ func goToJS(x any) jsObject {
 func newJSObjNum(f float64) *jsObj {
 	return &jsObj{
 		n:         -1001,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  TypeNumber,
 		f64:       f,
 		debugName: fmt.Sprint(f),
@@ -306,7 +287,7 @@ func newJSObjNum(f float64) *jsObj {
 func newJSObjClass(class class, debugName string) *jsObj {
 	return &jsObj{
 		n:         -7007,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  TypeObject,
 		class:     class,
 		binFlag:   typeFlagNone,
@@ -318,7 +299,7 @@ func newJSObjClass(class class, debugName string) *jsObj {
 func newJSObjObject(isGlobal bool, debugName string) *jsObj {
 	return &jsObj{
 		n:         -5005,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  TypeObject,
 		global:    isGlobal,
 		binFlag:   typeFlagNone,
@@ -327,10 +308,10 @@ func newJSObjObject(isGlobal bool, debugName string) *jsObj {
 }
 
 // func
-func newJSObjFunc(fn func([]jsObject) jsObject, debugName string) *jsObj {
+func newJSObjFunc(fn func([]JsObject) JsObject, debugName string) *jsObj {
 	return &jsObj{
 		n:         -4004,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  TypeFunction,
 		fn:        fn,
 		binFlag:   typeFlagFunction,
@@ -342,7 +323,7 @@ func newJSObjFunc(fn func([]jsObject) jsObject, debugName string) *jsObj {
 func newJSObjBool(b bool) *jsObj {
 	return &jsObj{
 		n:         -3003,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  TypeBoolean,
 		b:         b,
 		binFlag:   typeFlagNone,
@@ -354,7 +335,7 @@ func newJSObjBool(b bool) *jsObj {
 func newJSObjGeneric(b binKind, t jsKind, debugName string) *jsObj {
 	return &jsObj{
 		n:         -2002,
-		prop:      make(map[string]jsObject),
+		prop:      make(map[string]JsObject),
 		typeFlag:  t,
 		binFlag:   b,
 		debugName: debugName,
@@ -363,7 +344,7 @@ func newJSObjGeneric(b binKind, t jsKind, debugName string) *jsObj {
 func newJSObjString(s string) *jsObj {
 	return &jsObj{
 		n:        -6006,
-		prop:     make(map[string]jsObject),
+		prop:     make(map[string]JsObject),
 		typeFlag: TypeString,
 		s:        s,
 		binFlag:  typeFlagString,
@@ -372,16 +353,16 @@ func newJSObjString(s string) *jsObj {
 func newJSObjArr(size int) *jsObj {
 	o := &jsObj{
 		n:        -8008,
-		prop:     make(map[string]jsObject),
+		prop:     make(map[string]JsObject),
 		typeFlag: TypeObject,
 	}
-	o.arr = make([]jsObject, size)
+	o.arr = make([]JsObject, size)
 	return o
 }
 
 type jsObj struct {
 	n         int32
-	prop      map[string]jsObject
+	prop      map[string]JsObject
 	typeFlag  jsKind
 	binFlag   binKind
 	b         bool
@@ -403,13 +384,13 @@ type jsObj struct {
 	global    bool
 	s         string
 	debugName string
-	arr       []jsObject
-	fn        func([]jsObject) jsObject
+	arr       []JsObject
+	fn        func([]JsObject) JsObject
 	_this     interface{} // only INSTANCES have this
 	class     class       //for classes
 }
 
-func (j *jsObj) id() int32 {
+func (j *jsObj) Id() int32 {
 	return j.n
 }
 
@@ -448,17 +429,17 @@ func (j *jsObj) typeInfo() string {
 	return fmt.Sprintf("%s/%s", part1, part2)
 }
 func (j *jsObj) String() string {
-	return fmt.Sprintf("[%s:%s:%d:0x%x,%d props]", j.debugName, j.typeInfo(), j.n, j.binaryRep(), len(j.prop))
+	return fmt.Sprintf("[%s:%s:%d:0x%x,%d props]", j.debugName, j.typeInfo(), j.n, j.BinaryRep(), len(j.prop))
 }
 
 func (j *jsObj) IsFunc() bool {
 	return j.fn != nil
 }
 
-func (j *jsObj) Index(int) jsObject {
+func (j *jsObj) Index(int) JsObject {
 	panic("Index")
 }
-func (j *jsObj) SetIndex(index int, obj jsObject) {
+func (j *jsObj) SetIndex(index int, obj JsObject) {
 	print(fmt.Sprintf("xxx set index on %s: index is %d, param is %s\n", j, index, obj))
 	j.arr[index] = obj
 	//panic("SetIndex")
@@ -471,7 +452,7 @@ func (j *jsObj) IsClassObject() bool {
 	return j.class != nil
 }
 
-func (j *jsObj) InstanceOf(class jsObject) bool {
+func (j *jsObj) InstanceOf(class JsObject) bool {
 	if !j.IsInstance() {
 		panic(fmt.Sprintf("attempt to call IsClass() on %s but not an instance", j))
 	}
@@ -483,42 +464,42 @@ func (j *jsObj) InstanceOf(class jsObject) bool {
 	return class.(*jsObj).class == j.class //pointer equality, because class objects are singletons
 }
 
-func (j *jsObj) this() interface{} {
+func (j *jsObj) This() interface{} {
 	return j._this
 }
 
 // Call is used to make METHOD calls, not function calls. We convert this to a method
 // call by stuffing the j here in as the first param.
-func (j *jsObj) Call(name string, param []jsObject) jsObject {
+func (j *jsObj) Call(name string, param []JsObject) JsObject {
 	fn, ok := j.prop[name]
 	if !ok {
 		panic(fmt.Sprintf("unable to find prop %s on object %s", name, j))
 	}
 	if !fn.IsFunc() {
-		panic(fmt.Sprintf("%s is not a function on object %d", name, j.id()))
+		panic(fmt.Sprintf("%s is not a function on object %d", name, j.Id()))
 	}
-	result := fn.Invoke(append([]jsObject{j}, param...))
+	result := fn.Invoke(append([]JsObject{j}, param...))
 	return result
 }
 
-func (j *jsObj) Get(propName string) jsObject {
+func (j *jsObj) Get(propName string) JsObject {
 	v, ok := j.prop[propName]
 	if ok {
 		return v
 	}
-	return undefined
+	return Undefined
 }
 
 // Invoke is used to make FUNCTION calls.  If the call is a method, then Call()
 // will have transformed the args appropriately.
-func (j *jsObj) Invoke(arg []jsObject) jsObject {
+func (j *jsObj) Invoke(arg []JsObject) JsObject {
 	if !j.IsFunc() {
-		panic(fmt.Sprintf("unable to make function invocation on object %d (not a func or methodh)", j.id()))
+		panic(fmt.Sprintf("unable to make function invocation on object %d (not a func or methodh)", j.Id()))
 	}
 	return j.fn(arg)
 }
 
-func (j *jsObj) Set(propName string, obj jsObject) jsObject {
+func (j *jsObj) Set(propName string, obj JsObject) JsObject {
 	j.prop[propName] = obj
 	return j
 }
@@ -526,8 +507,8 @@ func (j *jsObj) Delete(propName string) {
 	delete(j.prop, propName)
 }
 
-func (j *jsObj) isNumber() bool {
-	switch j.id() {
+func (j *jsObj) IsNumber() bool {
+	switch j.Id() {
 	case predefinedNan, predefinedZero, -1001:
 		return true
 	default:
@@ -535,10 +516,10 @@ func (j *jsObj) isNumber() bool {
 	}
 }
 
-func (j *jsObj) binaryRep() uint64 {
+func (j *jsObj) BinaryRep() uint64 {
 	// normal case is the silly encoding business with NaN...
 	//note that this depends on NanHead not having the low bits set!
-	if j.isNumber() {
+	if j.IsNumber() {
 		var f float64
 		switch {
 		case j.f32 != 0:
@@ -558,68 +539,63 @@ func (j *jsObj) binaryRep() uint64 {
 		case j.uint_ != 0:
 			f = float64(j.uint_)
 		default:
-			if j.id() != predefinedNan && j.id() != predefinedZero {
-				panic("can't understand number type of id " + fmt.Sprint(j.id()))
+			if j.Id() != predefinedNan && j.Id() != predefinedZero && j != Undefined {
+				panic("can't understand number type of id " + fmt.Sprint(j.Id()))
 			}
 		}
-		if f == 0 || j.id() == predefinedZero {
-			return (uint64(nanHead) << 32) | predefinedZero
+		if j == Undefined { // that is how the js interface defines it
+			return 0
 		}
-		if math.IsNaN(f) || j.id() == predefinedNan {
-			return (uint64(nanHead) << 32) | predefinedNan
+		if f == 0 || j.Id() == predefinedZero {
+			return (uint64(jsgo.NanHead) << 32) | predefinedZero
+		}
+		if math.IsNaN(f) || j.Id() == predefinedNan {
+			return (uint64(jsgo.NanHead) << 32) | predefinedNan
 		}
 		return math.Float64bits(f)
 	}
-	high := uint64(nanHead|j.binFlag) << 32
-	low := uint64(j.id())
+	high := uint64(jsgo.NanHead|j.binFlag) << 32
+	low := uint64(j.Id())
 	result := high | low
 
 	return result
 }
 func (js *jsObj) AsNumber() float64 {
-	return math.Float64frombits(js.binaryRep())
+	return math.Float64frombits(js.BinaryRep())
 }
-func (j *jsObj) newInstance(arg []jsObject) jsObject {
+func (j *jsObj) NewInstance(arg []JsObject) JsObject {
 	if j.class == nil {
-		panic(fmt.Sprintf("attempt to call newInstance() on %s but not a class", j))
+		panic(fmt.Sprintf("attempt to call NewInstance() on %s but not a class", j))
 	}
 	return j.class.NewInstance(arg)
 }
 
 func (j *jsObj) IsInstance() bool {
-	return j.this() != nil
+	return j.This() != nil
 }
 
-func makeFuncWrapper(_ []jsObject) jsObject {
+func makeFuncWrapper(_ []JsObject) JsObject {
 	return badWrappedFunc
 }
 
-func fsWrite(arg []jsObject) jsObject {
+func fsWrite(arg []JsObject) JsObject {
 	if len(arg) < 6 {
 		print("JSCONSOLE: unable to understand arguments to fsWrite (console) because number of parameters is too small\n")
-		return jsObjectMap.get(predefinedZero)
+		return JsObjectMap.Get(predefinedZero)
 	}
 	output := 0
-	needsHeader := true
-	for i := 2; arg[i].id() != predefinedNull; i += 3 {
-		if needsHeader {
-			print("JSCONSOLE:")
-			needsHeader = false
-		}
+	for i := 2; arg[i].Id() != predefinedNull; i += 3 {
 		var s string
-		if arg[i].IsInstance() && arg[i].InstanceOf(uint8ArrayObj) {
-			s = string(arg[i].this().(*uint8ArrayInstance).data)
+		if arg[i].IsInstance() && arg[i].InstanceOf(Uint8ArrayObj) {
+			s = string(arg[i].This().(*Uint8ArrayInstance).data)
 			logJSConsoleMessage(s)
-			if strings.HasSuffix(s, "\n") {
-				needsHeader = true
-			}
 		} else {
 			print(fmt.Sprintf("unable to understand parameter %d: %s", i, arg[i]))
 		}
-		if arg[i+1].id() != predefinedZero {
+		if arg[i+1].Id() != predefinedZero {
 			print(fmt.Sprintf("unable to understand parameter %d: expected 0 but got %s", i+1, arg[i+1]))
 		}
-		if !arg[i+2].isNumber() {
+		if !arg[i+2].IsNumber() {
 			print(fmt.Sprintf("unable to understand parameter %d: expected a number for length but got %s", i+2, arg[i+2]))
 		} else {
 			if int(arg[i+2].AsNumber()) != len(s) {
@@ -630,18 +606,21 @@ func fsWrite(arg []jsObject) jsObject {
 		}
 	}
 	if output == 0 {
-		return jsObjectMap.get(predefinedZero)
+		return JsObjectMap.Get(predefinedZero)
 	}
 	return newJSObjNum(float64(output))
 }
 
 func logJSConsoleMessage(s string) {
+	if !strings.HasSuffix(s, "\n") {
+		s += "\n"
+	}
 	req := &logmsg.LogRequest{
 		Stamp:   timestamppb.Now(), //xxx should use kernel now
 		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 		Message: s,
 	}
-	logger.ProccessLogRequest(req, false, false, true, nil)
+	backdoor.Log(req, false, false, true, nil)
 }
 
 //
@@ -650,20 +629,20 @@ func logJSConsoleMessage(s string) {
 
 type objMap struct {
 	next int32
-	data map[int32]jsObject
+	data map[int32]JsObject
 }
 
 func newObjMap() *objMap {
 	return &objMap{
 		next: 0,
-		data: make(map[int32]jsObject),
+		data: make(map[int32]JsObject),
 	}
 }
 
-// returns the object it just put in the map
-func (o *objMap) put(obj jsObject) jsObject {
-	if obj.id() >= 0 {
-		panic("attempt to put object in map second time " + fmt.Sprint(obj.id()))
+// returns the object it just Put in the map
+func (o *objMap) Put(obj JsObject) JsObject {
+	if obj.Id() >= 0 {
+		panic("attempt to put object in map second time " + fmt.Sprint(obj.Id()))
 	}
 	t := obj.(*jsObj).typeFlag
 	if t == TypeNumber || t == TypeUndefined {
@@ -671,11 +650,11 @@ func (o *objMap) put(obj jsObject) jsObject {
 	}
 	obj.(*jsObj).n = o.next
 	o.next++
-	o.data[obj.id()] = obj
+	o.data[obj.Id()] = obj
 	return obj
 }
 
-func (o *objMap) predefined(obj jsObject, expected int32) jsObject {
+func (o *objMap) predefined(obj JsObject, expected int32) JsObject {
 	obj.(*jsObj).n = expected
 	o.data[expected] = obj
 	if expected >= o.next {
@@ -684,7 +663,7 @@ func (o *objMap) predefined(obj jsObject, expected int32) jsObject {
 	return obj
 }
 
-func (o *objMap) get(id int32) jsObject {
+func (o *objMap) Get(id int32) JsObject {
 	if id < 0 {
 		panic("attempt to get object from map that was never entered " + fmt.Sprint(id))
 	}

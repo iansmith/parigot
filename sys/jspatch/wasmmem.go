@@ -8,6 +8,12 @@ import (
 	"reflect"
 	"runtime/debug"
 	"unsafe"
+
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	"github.com/iansmith/parigot/sys/backdoor"
+	"github.com/iansmith/parigot/sys/jspatch/jsemul"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Flip this switch to get debug output from WasmMem.  It does the lowest level work
@@ -41,13 +47,13 @@ func (w *WasmMem) TestSliceIsZeroLen(addr int32) bool {
 	return w.GetInt64(addr+8) == 0
 }
 
-func (w *WasmMem) LoadSliceOfValues(addr int32) []jsObject {
+func (w *WasmMem) LoadSliceOfValues(addr int32) []jsemul.JsObject {
 	array := w.GetInt64(addr)
 	l := w.GetInt64(addr + 8)
 	if l == 0 {
 		return nil
 	}
-	slice := make([]jsObject, l)
+	slice := make([]jsemul.JsObject, l)
 	for i := int64(0); i < l; i++ {
 		slice[int(i)] = w.LoadValue(int32(array + i*8))
 	}
@@ -134,7 +140,7 @@ func (w *WasmMem) CopyToMemAddr(memAddr int32, content []byte) {
 	}
 }
 func (w *WasmMem) CopyToPtr(dataAddr int32, content []byte) {
-	print("CopyToPtr: data addr ", uintptr(dataAddr), " len of content ", len(content), "\n")
+	//print("CopyToPtr: data addr ", uintptr(dataAddr), " len of content ", len(content), "\n")
 	ptr := w.GetInt32(dataAddr)
 	len_ := int32(len(content))
 	for i := int32(0); i < len_; i++ {
@@ -158,13 +164,11 @@ func (w *WasmMem) LoadString(addr int32) string {
 	ptr := w.GetInt64(addr + 0)
 	l := w.GetInt64(addr + 8)
 	if l > 4096 {
-		print(fmt.Sprintf("WasmMem.LoadString refusing to load string because length is too large:%x\n", l))
-		// cannot use log here, because it creates an import loop
-		// ilog.ProcessLogRequest(&log.LogRequest{
-		// 	Level:   log.LogLevel_LOG_LEVEL_ERROR,
-		// 	Stamp:   timestamppb.Now(), //xxx fixme(iansmith) should be using kernel time
-		// 	Message: fmt.Sprintf("LOADSTRING: xxx!!!! wasmmem refusing to load string because length is too large: ", l),
-		// }, true, false, nil)
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
+			Stamp:   timestamppb.Now(), //xxx fixme(iansmith) should be using kernel time
+			Message: fmt.Sprintf("LOADSTRING: xxx!!!! wasmmem refusing to load string because length is too large: 0x%x ", l),
+		}, true, false, false, nil)
 		return ""
 	}
 	buf := make([]byte, l)
@@ -222,18 +226,19 @@ func (w *WasmMem) GetFloat64(addr int32) float64 {
 	return math.Float64frombits(*ptr)
 }
 
-// stupid 64 bit trick load side
-func (w *WasmMem) LoadValue(addr int32) jsObject {
+// stupid 64 bit trick load side.  It's not as clean as it should be because it
+// has to use a lot from jsemul.
+func (w *WasmMem) LoadValue(addr int32) jsemul.JsObject {
 	f := w.GetFloat64(addr)
 	if !math.IsNaN(f) { // is all zeros a valid float?
 		if math.Float64bits(f) == 0 {
-			return undefined
+			return jsemul.Undefined
 		}
-		return floatValue(f)
+		return jsemul.FloatValue(f)
 	}
 	// maybe it's not a valid float...
 	if math.Float64bits(f) == 0 {
-		return undefined
+		return jsemul.Undefined
 	}
 	// normal procedure
 	//t := (math.Float64bits(f) >> 32) & 7
@@ -241,16 +246,17 @@ func (w *WasmMem) LoadValue(addr int32) jsObject {
 	if id < 0 || id > 100 {
 		print(fmt.Sprintf("bad id for value %x, 64 bit version %x\n", id, w.GetInt64(addr)))
 	}
-	return jsObjectMap.get(id)
+	return jsemul.JsObjectMap.Get(id)
 }
 
 // stupid 64 bit trick, save side... we are assuming the id is a small int on obj
-// if this is not something that represents itself
-func (w *WasmMem) StoreValue(addr int32, obj jsObject) {
-	if !obj.isNumber() && obj.id() < 0 {
+// if this is not something that represents itself.  This should not be so
+// dependent on the jsemul package.
+func (w *WasmMem) StoreValue(addr int32, obj jsemul.JsObject) {
+	if !obj.IsNumber() && obj.Id() < 0 {
 		panic(fmt.Sprintf("attempt to store a value that isn't in the global table: %s\n", obj))
 	}
-	bits := obj.binaryRep()
+	bits := obj.BinaryRep()
 	// print(fmt.Sprintf("setting binary rep for number? %v, %x\n", obj.isNumber(), bits))
 	// this conversion to int from uint depends on the nanHead not having the first bit set!
 	w.SetInt64(addr, int64(bits))

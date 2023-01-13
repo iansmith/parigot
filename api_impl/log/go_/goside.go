@@ -12,7 +12,9 @@ import (
 
 	"github.com/iansmith/parigot/api_impl/splitutil"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	b "github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/jspatch"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -25,6 +27,14 @@ const dialPathToLogViewer = "host.docker.internal:4004"
 
 func init() {
 	go channelProcessor(dialPathToLogViewer)
+	b.SetInternalLogger(&backdoor{})
+}
+
+type backdoor struct {
+}
+
+func (b *backdoor) ProcessLogRequest(req *logmsg.LogRequest, isKerenl, isBackend, isJS bool, buffer []byte) {
+	ProcessLogRequest(req, isKerenl, isBackend, isJS, buffer)
 }
 
 // This is the native code side of the logviewer.  It reads the payload from the WASM world and either
@@ -40,9 +50,8 @@ func (l *LogViewerImpl) LogRequestHandler(sp int32) {
 	if err != nil {
 		return // already set the error code
 	}
-	ProcessLogRequest(&req, false, false, nil)
+	ProcessLogRequest(&req, false, false, false, nil)
 	splitutil.RespondEmpty(l.mem, sp)
-	return
 }
 
 func intToLogLevel(i int) string {
@@ -80,6 +89,7 @@ type logTuple struct {
 	req       *logmsg.LogRequest
 	isKernel  bool
 	isBackend bool
+	isJS      bool
 }
 
 // logChannel is here to allow the LogRequests to be processed serially and without locks.
@@ -89,14 +99,16 @@ var logChannel = make(chan *logTuple, 32)
 // through the "trap" style interface and is handled by LogRequestHandler who calls this function.  2) The
 // other path is from some other part of the *go* infrastructure.  Note that this is not referring to the
 // "normal" server side of a user program, but rather the _implementation_ of some system function that
-// is defined in go.  This function can be called by both paths simultaneously thus a channel is used to serialize.
+// is defined in go.  Most callers on path number 2 will do so through the sys/backdoor.Log() method.
+
+// This function can be called by both paths simultaneously thus a channel is used to serialize.
 // The isKernel and isBackend should be set to true only if this is called by some part of the kernel itself
 // or some "backend" implementation of a function, respectively.  When the isJS flag is set, it indicates
 // that the original caller was in wasm and did `log.Printf()` or some other use of log (which is discouraged
 // but we have to handle it due to existing go code in the library).  If the caller does not have the already serialized
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
 func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, isJS bool, buffer []byte) {
-	tuple := &logTuple{buffer, req, isKernel, isBackend}
+	tuple := &logTuple{buffer, req, isKernel, isBackend, isJS}
 	logChannel <- tuple
 }
 
@@ -163,10 +175,13 @@ func (l *logState) logSingleMessage(tuple *logTuple) {
 		}
 		prefix := ""
 		if tuple.isBackend {
-			prefix = ">>"
+			prefix = ">> "
 		}
 		if tuple.isKernel {
-			prefix = "**"
+			prefix = "** "
+		}
+		if tuple.isJS {
+			prefix = "JS "
 		}
 		fmt.Printf("%s%s:%s:%s%s",
 			prefix,

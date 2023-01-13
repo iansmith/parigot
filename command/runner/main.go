@@ -59,8 +59,9 @@ func main() {
 	// will just stop, which is what you'd expect.
 	go func() {
 		for {
+			log.Printf("run reader about to block on notify chan")
 			pair := <-ctx.NotifyCh
-			log.Printf("calling nameserver.Run on %s", pair.Key)
+			log.Printf("received %s,%T on notify chan... hitting RunIfReady", pair.Key.String(), pair.NameServer)
 			pair.NameServer.RunIfReady(pair.Key)
 		}
 	}()

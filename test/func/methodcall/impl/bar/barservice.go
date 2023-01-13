@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"time"
 
@@ -23,9 +22,9 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-	for i := 0; i < flag.NArg(); i++ {
-		print(fmt.Sprintf("xxx bar %d=>%s\n", i, flag.Arg(i)))
-	}
+	// for i := 0; i < flag.NArg(); i++ {
+	// 	print(fmt.Sprintf("xxx bar %d=>%s\n", i, flag.Arg(i)))
+	// }
 
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
@@ -37,7 +36,6 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "BarService"); err != nil {
 		panic("unable to export methodcall.BarService: " + err.Error())
 	}
-	print(fmt.Sprintf("xx main of bar about to head to Run\n"))
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
 	methodcall.RunBarService(&barServer{})
 }
@@ -53,10 +51,15 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (f *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
+func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
 	req := in.(*methodcallmsg.AccumulateRequest)
-	f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for barServer.AccumulateMultiply")
+	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for barServer.AccumulateMultiply")
 	resp := &methodcallmsg.AccumulateResponse{}
+	if len(req.Value) == 0 {
+		resp.Product = 0
+		resp.Sum = 0
+		return resp, nil
+	}
 
 	reqAdd := &methodcallmsg.AddMultiplyRequest{
 		IsAdd: true,
@@ -77,28 +80,31 @@ func (f *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 	for i := 1; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = addTerm[0]
 		reqAdd.Value1 = addTerm[1]
-		resp, err := f.foo.AddMultiply(reqAdd)
+		resp, err := b.foo.AddMultiply(reqAdd)
 		if err != nil {
 			return nil, err
 		}
 		accSum += resp.Result
+		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD %d,%d iteration %d, sum %d, prod %d", i,
+			addTerm[0], addTerm[1], accSum, accProduct)
 		addTerm[0] = addTerm[1]
 		addTerm[1] = resp.Result
 
 		reqMul.Value0 = mulTerm[0]
 		reqMul.Value1 = mulTerm[1]
-		resp, err = f.foo.AddMultiply(reqMul)
+		resp, err = b.foo.AddMultiply(reqMul)
 		if err != nil {
 			return nil, err
 		}
 		accProduct += resp.Result
+		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "iteration %d, (%d,%d) sum %d, prod %d", i,
+			mulTerm[0], mulTerm[1], accSum, accProduct)
 		mulTerm[0] = mulTerm[1]
 		mulTerm[1] = resp.Result
 	}
 	resp.Product = accProduct
 	resp.Sum = accSum
 	return resp, nil
-
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
@@ -121,11 +127,7 @@ func (b *barServer) Ready() bool {
 	}
 	b.logger = logger
 	b.foo = foo
-	for i := 0; i < flag.NArg(); i++ {
-		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "i=%d, arg is %s", i, flag.Arg(i))
-	}
 	return true
-
 }
 
 func (b *barServer) log(pctx *protosupportmsg.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
