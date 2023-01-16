@@ -1,7 +1,6 @@
 package lib
 
 import (
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
@@ -28,9 +27,4 @@ type Call interface {
 	ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error)
 	Export1(pkg, name string) (*syscallmsg.ExportResponse, error)
 	Require1(pkg, name string) (*syscallmsg.RequireResponse, error)
-
-	// Use of this function is discouraged. This function uses a backdoor to reach the logging service
-	// and does not go through the normal LocateLog() process that can allow better/different implementation
-	// of said service.  This is intended only for debugging when inside parigot's implementation.
-	BackdoorLog(in *logmsg.LogRequest) (*logmsg.LogResponse, error)
 }

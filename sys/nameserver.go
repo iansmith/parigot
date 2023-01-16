@@ -86,14 +86,14 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 	if sData == nil {
 		return nil
 	}
-	mid, ok := sData.method[name]
+	mid, ok := sData.method.Load(name)
 	if !ok {
 		return nil
 	}
 	cc := &callContext{
 		method: name,
 		sid:    serviceId,
-		mid:    mid,
+		mid:    mid.(lib.Id),
 		respCh: make(chan *syscallmsg.ReturnValueRequest),
 		cid:    lib.NewId[*protosupportmsg.CallId](),
 		sender: caller,
@@ -143,10 +143,11 @@ func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.I
 // RunIfReady blocks until it receives a callback that the given key, representing
 // a process, has all its requirements satisfied.
 func (n *LocalNameServer) RunIfReady(key dep.DepKey) {
-	n.NSCore.RunIfReady(key, func(key dep.DepKey) {
-		nscorePrint("RunIfReadyCallback ", "notifying run reader %s is ready", key.String())
+	ready := n.NSCore.RunIfReady(key)
+	for _, key := range ready {
+		nscorePrint("Nameserver RunIfReady ", "about to run %s", key.String())
 		key.(*DepKeyImpl).proc.Run()
-	})
+	}
 }
 
 // SendAbortMessage is used to tell processes that are waiting to run that their
@@ -157,7 +158,7 @@ func (n *LocalNameServer) RunIfReady(key dep.DepKey) {
 // through the run channel to tell them to give up.  We have to use Walk()
 // here to walk through all the dependencies and leave the graph unchanged.
 func (n *LocalNameServer) sendAbortMessage() {
-	n.dependencyGraph.Walk(func(key string, value *dep.EdgeHolder) bool {
+	n.walkDependencyGraph(func(key string, value *dep.EdgeHolder) bool {
 		p := value.Key().(*DepKeyImpl).proc
 		if p.reachedRun {
 			if !p.exited {
@@ -172,7 +173,9 @@ func (n *LocalNameServer) sendAbortMessage() {
 // to the run reader.  The run reader is a separate goroutine that listens for
 // these notifications and then looks for any ready to run processes.
 func (l *LocalNameServer) RunNotify(key dep.DepKey) {
+	print(fmt.Sprintf("zzz about to tell the run reader about %s RunNotify\n", key))
 	l.runNotifyCh <- NewKeyNSPair(key, l)
+	print(fmt.Sprintf("zzz told run reader about %s RunNotify\n", key))
 }
 
 // RunBlock is called by a proc that is local and this blocks until the nameserver

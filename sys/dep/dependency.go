@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"sync"
 )
 
 var depgraphVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
@@ -23,38 +22,35 @@ type DepKey interface {
 // here because the sync.Map data structure is not optimized for this case of
 // many changes to existing members of the map.
 type DepGraph struct {
-	lock  *sync.Mutex
 	edges map[string]*EdgeHolder
 }
 
 func NewDepGraph() *DepGraph {
 	return &DepGraph{
-		lock:  &sync.Mutex{},
 		edges: make(map[string]*EdgeHolder),
 	}
 }
+
+// GetEdge does no locking so callers need to figure out the exclusive access.
 func (d *DepGraph) GetEdge(key DepKey) (*EdgeHolder, bool) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 
 	eh, ok := d.edges[key.String()]
 	return eh, ok
 }
+
+// PutEdge does no locking so callers need to figure out the exclusive access.
 func (d *DepGraph) PutEdge(key DepKey, eh *EdgeHolder) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 
 	d.edges[key.String()] = eh
 }
-func (d *DepGraph) Len() int {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 
+// Len does no locking so callers need to figure out the exclusive access.
+func (d *DepGraph) Len() int {
 	return len(d.edges)
 }
+
+// Del does no locking so callers need to figure out the exclusive access.
 func (d *DepGraph) Del(key DepKey) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 
 	delete(d.edges, key.String())
 }
@@ -63,9 +59,8 @@ func (d *DepGraph) Del(key DepKey) {
 // This function makes a copy of the depgraph so it really shouldn't be
 // used to manipulate the depgraph it is called on.  If you want to mutate
 // the depgraph, try Walk().
+// AllEdge does not lock, so the caller must assure exclusive acess.
 func (d *DepGraph) AllEdge() map[string]*EdgeHolder {
-	d.lock.Lock()
-	defer d.lock.Unlock()
 	result := make(map[string]*EdgeHolder)
 	for key, value := range d.edges {
 		result[key] = value
@@ -77,10 +72,10 @@ func (d *DepGraph) AllEdge() map[string]*EdgeHolder {
 // the edges present via fn.  The function should not add or delete entire
 // edge holders during the walk.  If the function returns false, the Walk will
 // stop at that point.
+//
+// Walk allows mutation of the edgeholders during the walk, but the function
+// does not lock.  The caller is responsible for insuring exclusive access.
 func (d *DepGraph) Walk(fn func(key string, e *EdgeHolder) bool) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-
 	for k, e := range d.edges {
 		if !fn(k, e) {
 			break
@@ -160,6 +155,12 @@ func (g *DepGraph) findCandidateProcessesByExport(pair *depInfo) []*depInfo {
 	return candidateList
 }
 
+// GetLoopContent returns a string (for humans) that explains the loop it has found
+// in the dependency graph.  The function returns "" if there is no loop and panics
+// if you try to call it on a depgraph that has all the processes running (so it could
+// not possibly have a loop).  This function does not lock because it is intended
+// to be called once you have already decided that the application is hosed and
+// thus nobody else should be changing the depgraph.
 func (g *DepGraph) GetLoopContent() string {
 	if len(g.edges) == 0 {
 		panic("should not be sending scanning for loop when every process is running!")
@@ -185,7 +186,11 @@ func (g *DepGraph) GetLoopContent() string {
 	return ""
 }
 
-// getDeadNodeContent returns a list of the nodes that cannot possibly be fulfilled.
+// GetDeadNodeContent returns a list of the nodes that cannot possibly be fulfilled.
+// A dead node is one that imports "foo.bar" when nothing in the deployment exports
+// "foo.bar".  This function does not lock because it assumes that you are calling
+// because your deployment is hosed and stuck, so nobody else would be changing
+// the DepGraph anyway.
 func (g *DepGraph) GetDeadNodeContent() string {
 	candidateList := []*depInfo{}
 	// we want to try all combos
@@ -224,9 +229,11 @@ outer:
 // EdgeHolder holds the in and out edges of the dependency graph for a single node.
 // The key field is because when you have a value in the graph (this object)
 // you may want the REAL key, not the string rep of the key, which is what the map
-// records.
+// records.  None of the operations on an edge holder lock, so callers are required
+// to insure exclusive access.  This is also true of the DepGraph that is made up
+// of these, so probably a single lock at the level *above* DepGraph is the easiest
+// way to implement this.
 type EdgeHolder struct {
-	lock    *sync.Mutex
 	key     DepKey
 	export  []string
 	require []string
@@ -234,62 +241,53 @@ type EdgeHolder struct {
 
 // NewEdgeHolder returns a newEdgeHolder with empty require and export lists.
 func NewEdgeHolder(key DepKey) *EdgeHolder {
-	return &EdgeHolder{key: key, lock: &sync.Mutex{}}
+	return &EdgeHolder{key: key}
 }
 
 // AddExport adds an element to the export list of this holder.
 func (e *EdgeHolder) AddExport(s string) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
 
 	e.export = append(e.export, s)
 }
 
 // AddRequire adds an element to the require list of this holder.
 func (e *EdgeHolder) AddRequire(s string) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
 	e.require = append(e.require, s)
 }
 
-// Require returns the list of requirements and this list may be nil.
-func (e *EdgeHolder) Require() []string {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.require
+// WalkRequire passes the function fn all the values in the require list and
+// checks to if fn returns false. If fn returns false, the walk stops.
+// This function does not lock.
+func (e *EdgeHolder) WalkRequire(fn func(s string) bool) {
+	for _, s := range e.require {
+		if !fn(s) {
+			return
+		}
+	}
 }
 
 // Export returns the list of exports for this holder and this list may be nil.
+// The returned list is a COPY of the actual list, which can only be accessed
+// behind a lock.
 func (e *EdgeHolder) Export() []string {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	return e.export
+	result := make([]string, len(e.export))
+	copy(result, e.export)
+	return result
 }
 
 // RequireLen returnns the current number of items in the require list.
 func (e *EdgeHolder) RequireLen() int {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
 	return len(e.require)
 }
 
 // ExportLen returns the number of exports currently in the export list.
 func (e *EdgeHolder) ExportLen() int {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
 	return len(e.export)
 }
 
 // Key returns the key that this edge holder represents the edges for.  This key
 // could represent a local process or a remote service.
 func (e *EdgeHolder) Key() DepKey {
-	e.lock.Lock()
-	defer e.lock.Unlock()
 	return e.key
 }
 
@@ -311,9 +309,6 @@ func (e *EdgeHolder) IsReady() bool {
 // That is the responsibility of Walk() on the dependency graph which is how this should
 // be called.
 func (e *EdgeHolder) RemoveRequire(exportedList []string) bool {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
 	result := []string{}
 	changed := false
 	depgraphPrint("RemoveRequire ", "start--------considering if node %s is now enabled to run", e.key.String())

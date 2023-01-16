@@ -98,6 +98,7 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready() bool {
+	print("zzz in foo server about to  run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -108,7 +109,7 @@ func (f *fooServer) Ready() bool {
 		return false
 	}
 	f.logger = logger
-	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "bar service: about to return from ready")
+	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "foo service: about to return from ready")
 	return true
 }
 

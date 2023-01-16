@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/iansmith/parigot/command/runner/runner"
@@ -59,7 +60,7 @@ func main() {
 	// will just stop, which is what you'd expect.
 	go func() {
 		for {
-			log.Printf("run reader about to block on notify chan")
+			print(fmt.Sprintf("zzz run reader about to block on notify chan %x\n", sys.GetGID()))
 			pair := <-ctx.NotifyCh
 			log.Printf("received %s,%T on notify chan... hitting RunIfReady", pair.Key.String(), pair.NameServer)
 			pair.NameServer.RunIfReady(pair.Key)

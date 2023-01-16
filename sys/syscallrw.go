@@ -2,7 +2,6 @@ package sys
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -23,7 +22,7 @@ import (
 // Flip this switch for debug output.
 var envVerbose = os.Getenv("PARIGOT_VERBOSE")
 
-var syscallVerbose = true || envVerbose != ""
+var syscallVerbose = false || envVerbose != ""
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
@@ -276,18 +275,28 @@ func (s *syscallReadWrite) Require(sp int32) {
 func (s *syscallReadWrite) Run(sp int32) {
 	req := &syscallmsg.RunRequest{}
 	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) lib.KernelErrorCode {
+		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+			print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunNotify() %v, %s\n", req, s.proc))
+		}
 		key := NewDepKeyFromProcess(s.proc)
 		s.procToSysCall().RunNotify(key)
 		// block until we are told to proceed
+		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+			print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunBlock() %s [%s]\n", key.String(), s.proc))
+		}
 		ok, kerr := s.procToSysCall().RunBlock(key)
 		if kerr != nil && kerr.IsError() {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
-			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr)
+			if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+				print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr))
+			}
 			return lib.KernelDependencyFailure
 		}
 		if !ok {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
-			log.Printf("xxx syscallRW about to return from runblock kernelDependencyFailure")
+			if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+				print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure\n"))
+			}
 			return lib.KernelDependencyFailure
 		}
 		return lib.KernelNoError

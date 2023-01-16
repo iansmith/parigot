@@ -283,9 +283,9 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 	var mid lib.Id
 	sData := n.NSCore.ServiceData(serviceId)
 	if sData != nil {
-		cachedMethodId, ok := sData.method[method]
+		cachedMethodId, ok := sData.method.Load(method)
 		if ok {
-			mid = cachedMethodId
+			mid = cachedMethodId.(lib.Id)
 		}
 	}
 	netnameserverPrint("FINDMETHODBYNAME", "xxx the key is %s", key.String())
@@ -333,11 +333,11 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.Ret
 		return req
 	}
 	// have we called it before?
-	caller, ok := n.rpcCaller[addr]
+	//caller, ok := n.rpcCaller[addr]
 	ch := n.rpcChan[addr]
 	if !ok {
 		ch = make(chan *NetResult)
-		caller = newQuicCaller(addr, ParigotProtoRPC, ch)
+		caller := newQuicCaller(addr, ParigotProtoRPC, ch)
 		n.rpcCaller[addr] = caller
 		n.rpcChan[addr] = ch
 	}
@@ -455,10 +455,12 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 		// cross check,just in case
 		sData := n.NSCore.ServiceData(sid)
 		if sData != nil {
-			if !mid.Equal(sData.method[req.GetMethodName()]) {
+			otherIdAny, _ := sData.method.Load(req.GetMethodName())
+			otherId := otherIdAny.(lib.Id)
+			if !mid.Equal(otherId) {
 				netnameserverPrint("BlockUntilCall ", "WARN: ignorning provided mid %s because doesn't match our method table for %s",
 					mid.Short(), req.GetMethodName())
-				mid = sData.method[req.GetMethodName()]
+				mid = otherId
 			}
 		}
 	} else {
@@ -481,7 +483,8 @@ func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
 			})
 		} else {
 			var ok bool
-			mid, ok = sData.method[req.GetMethodName()]
+			midAny, ok := sData.method.Load(req.GetMethodName())
+			mid = midAny.(lib.Id)
 			if !ok {
 				netnameserverPrint("WARN: Unable to find method id for name %s", req.GetMethodName())
 				mid = nil

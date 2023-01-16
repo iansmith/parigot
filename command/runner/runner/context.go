@@ -98,7 +98,7 @@ func (c *Context) Start() int {
 
 	for _, main := range mainList {
 		proc := c.process[main]
-		runnerPrint("CreateProcess ", "starting goroutine for main process %s at Start()", main)
+		runnerPrint("CreateProcess ", "starting goroutine for main process %v at Start() %s", main, proc)
 		code := proc.Start()
 		if code != 0 {
 			return code
