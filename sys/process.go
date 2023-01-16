@@ -37,7 +37,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true || envVerbose != ""
+var processVerbose = false || envVerbose != ""
 
 var lastProcessId = 7
 

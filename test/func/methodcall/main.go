@@ -38,15 +38,16 @@ func main() {
 	// print("xxx -- lib.Getenv ", lib.Getenv("PARIGOT_ENV"), "\n")
 	testing.Init()
 
-	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
-		panic("unable to require foo service: " + err.Error())
-	}
 	if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
 		panic("unable to require bar service: " + err.Error())
 	}
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
+	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
+		panic("unable to require foo service: " + err.Error())
+	}
+	print("zzz  in methodcall test, about to run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}

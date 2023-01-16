@@ -1,9 +1,12 @@
 package sys
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -15,11 +18,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var nscoreVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var nscoreVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NScore is used by both the local and remote (net) name server implementations
 // to manage all the dependencies and handle require, export, and runWait.
-// NSCore does not have a lock; it expects the higher level to handle that.
+// NSCore has a lock.  This lock is only used for fields that are not using
+// sync.Map.
 //
 // All of the maps here are using sync.Map because it is optimized for the case
 // where data is written once and read many times.  This is true for all three
@@ -33,22 +37,24 @@ type NSCore struct {
 	// key: string rep of the service id, value: *serviceData
 	serviceRegistry *sync.Map
 	// key: string rep of a call id, value: *callContext
-	inFlight          *sync.Map
-	serviceCounter    int
-	dependencyGraph   *dep.DepGraph
-	alreadyExported   []string
-	useLocalServiceId bool
+	inFlight           *sync.Map
+	serviceCounter_    int
+	dependencyGraph_   *dep.DepGraph
+	alreadyExported_   []string
+	useLocalServiceId_ bool
+	lock               *sync.Mutex
 }
 
 func NewNSCore(useLocalServiceId bool) *NSCore {
 	return &NSCore{
-		packageRegistry:   &sync.Map{},
-		serviceRegistry:   &sync.Map{},
-		dependencyGraph:   dep.NewDepGraph(),
-		serviceCounter:    7, //first 8 are reserved
-		alreadyExported:   []string{},
-		useLocalServiceId: useLocalServiceId,
-		inFlight:          &sync.Map{},
+		packageRegistry:    &sync.Map{},
+		serviceRegistry:    &sync.Map{},
+		dependencyGraph_:   dep.NewDepGraph(),
+		serviceCounter_:    7, //first 8 are reserved
+		alreadyExported_:   []string{},
+		useLocalServiceId_: useLocalServiceId,
+		inFlight:           &sync.Map{},
+		lock:               &sync.Mutex{},
 	}
 }
 
@@ -59,6 +65,34 @@ func NewNSCore(useLocalServiceId bool) *NSCore {
 type DepKeyImpl struct {
 	proc *Process
 	addr string
+}
+
+func (n *NSCore) nextServiceCounter() int {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	next := n.serviceCounter_ + 1
+	n.serviceCounter_++
+	return next
+}
+
+func (n *NSCore) addAlreadyExported(export ...string) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	n.alreadyExported_ = append(n.alreadyExported_, export...)
+}
+
+func (n *NSCore) useLocalServiceId() bool {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	return n.useLocalServiceId_
+}
+
+func (n *NSCore) copyAlreadyExported() []string {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+	result := make([]string, len(n.alreadyExported_))
+	copy(result, n.alreadyExported_)
+	return result
 }
 
 func (d *DepKeyImpl) Name() string {
@@ -85,8 +119,11 @@ func NewDepKeyFromAddr(a string) *DepKeyImpl {
 	return &DepKeyImpl{addr: a}
 }
 
-func (n *NSCore) DependencyGraph() *dep.DepGraph {
-	return n.dependencyGraph
+// walkDependencyGraph should be used to obtain the correct lock and then
+// change the edge holders.  This function does not allow you to add or
+// remove entire nodes.
+func (n *NSCore) walkDependencyGraph(fn func(key string, eh *dep.EdgeHolder) bool) {
+	n.dependencyGraph_.Walk(fn)
 }
 
 type KeyNSPair struct {
@@ -102,7 +139,8 @@ type ServiceData struct {
 	serviceId lib.Id
 	closed    bool
 	exported  bool
-	method    map[string]lib.Id
+	method    *sync.Map
+	//map[string]lib.Id
 	//methodIdToImpl map[string]dep.DepKey
 	key dep.DepKey
 }
@@ -118,19 +156,19 @@ func (s *ServiceData) GetKey() dep.DepKey {
 func NewServiceData(sid lib.Id) *ServiceData {
 	return &ServiceData{
 		serviceId: sid,
-		method:    make(map[string]lib.Id),
-		//methodIdToImpl: make(map[string]dep.DepKey),
-		key: nil,
+		method:    &sync.Map{},
+		key:       nil,
 	}
 }
 
 // newServiceId is called to create a new service id.  If n.useLocalServiceId
 // then the service id's content is not random but small (increasing) int.
 func (n *NSCore) newServiceId() lib.Id {
-	if n.useLocalServiceId {
-		n.serviceCounter++
-		return lib.LocalId[*protosupportmsg.ServiceId](uint64(n.serviceCounter))
+	if n.useLocalServiceId() {
+		latest := n.nextServiceCounter()
+		return lib.LocalId[*protosupportmsg.ServiceId](uint64(latest))
 	}
+	_ = n.nextServiceCounter()
 	return lib.NewId[*protosupportmsg.ServiceId]()
 }
 
@@ -226,6 +264,7 @@ func (n *NSCore) DEBUG_DumpSIDTables() {
 // new service being created.
 func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.Id) *ServiceData {
 	var pData *sync.Map
+	nscorePrint("create with sid", "1 gid=%x", GetGID())
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
 		pData = &sync.Map{}
@@ -233,127 +272,188 @@ func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.
 	} else {
 		pData = pDataAny.(*sync.Map)
 	}
+	nscorePrint("create with sid", "2 gid=%x", GetGID())
 	var sData *ServiceData
 	sDataAny, ok := pData.Load(service)
+	nscorePrint("create with sid", "3 gid=%x", GetGID())
 	if !ok {
 		sData = NewServiceData(sid)
 		pData.Store(service, sData)
 		n.serviceRegistry.Store(sData.serviceId.String(), sData)
-		nscorePrint("CREATE", "created new service record: %s==%s",
-			sid.Short(), sData.serviceId.Short())
+		nscorePrint("CREATE ", "created new service record: %s for %s.%s",
+			sid.Short(), pkgPath, service)
 		sData.key = key
 	} else {
 		sData = sDataAny.(*ServiceData)
 	}
+	nscorePrint("create with sid", "4 gid=%x", GetGID())
+
 	return sData
 }
 
 // Export tells the core that the given key is associated with the implementation
 // of the given pkgPath.Service.  The service must exist or a KernelNotFound error
-// wil result.
+// wil result.  This function locks because it needs to be sure the dependency
+// graph is not changed out from under it.
 func (n *NSCore) Export(key dep.DepKey, pkgPath, service string, newSid lib.Id) lib.Id {
+
 	nscorePrint("EXPORT ", "process %s exports %s.%s",
 		key.String(), pkgPath, service)
-	sData, err := n.validatePkgAndService(pkgPath, service)
-	if err != nil {
-		return err
+
+	// this region needs to lock because of the changes to sData which is returned
+	// above, but without the lock... so this is
+	lockRegion := func() lib.Id {
+		n.lock.Lock()
+		defer n.lock.Unlock()
+
+		sData, err := n.validatePkgAndService(pkgPath, service)
+		if err != nil {
+			return err
+		}
+		// should we throw an error if this is not closed yet?
+
+		if sData.exported {
+			return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
+		}
+		if newSid != nil {
+			nscorePrint("EXPORT ", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
+			oldSid := sData.serviceId
+			sData.serviceId = newSid
+			n.serviceRegistry.Delete(oldSid.String())
+			n.serviceRegistry.Store(newSid.String(), sData)
+		}
+		//mark exported
+		sData.exported = true
+		sData.key = key
+		node, ok := n.dependencyGraph_.GetEdge(key)
+		if !ok {
+			node = dep.NewEdgeHolder(key)
+			n.dependencyGraph_.PutEdge(key, node)
+		}
+		node.AddExport(fmt.Sprintf("%s.%s", pkgPath, service))
+		return nil
 	}
-	// if !sData.closed {
-	// 	// xxxfix me, should this be an error to export before the service is closed?
-	// }
-	// its an error to export what is already exported
-	if sData.exported {
-		return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
-	}
-	if newSid != nil {
-		nscorePrint("EXPORT ", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
-		oldSid := sData.serviceId
-		sData.serviceId = newSid
-		n.serviceRegistry.Delete(oldSid.String())
-		n.serviceRegistry.Store(newSid.String(), sData)
-	}
-	//mark exported
-	sData.exported = true
-	sData.key = key
-	node, ok := n.dependencyGraph.GetEdge(key)
-	if !ok {
-		node = dep.NewEdgeHolder(key)
-		n.dependencyGraph.PutEdge(key, node)
-	}
-	node.AddExport(fmt.Sprintf("%s.%s", pkgPath, service))
-	return nil
+	return lockRegion()
+}
+
+func GetGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
 }
 
 // Require indicates a required package that must be up (key) before the given
-// service (pkgPath.service) can start running.
+// service (pkgPath.service) can start running.  This function locks because it
+// needs exclusive access to the dep graph.
 func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
+	nscorePrint("Require", "entered part1  + gid=%x", GetGID())
 	alreadyExported := false
 	nscorePrint("Require ", "process %s requires %s.%s",
 		key.String(), pkgPath, service)
 
 	name := fmt.Sprintf("%s.%s", pkgPath, service)
-
+	nscorePrint("Require", "entered part2 %x", GetGID())
 	// this check always fails in the remote case, but n.alreadyExported==nil so it doesn't really hurt
-	for _, s := range n.alreadyExported {
+	// n.copyAlreadyExported asserts the lock on NSCore so we can't lock before this
+	// XXXYYY alreadyExported is not locked?
+	for _, s := range n.alreadyExported_ {
+		print(fmt.Sprintf("part2a %s\n", s))
 		if s == name {
 			nscorePrint("Require ", "process %s required %s.%s but it is already exported",
 				key.String(), pkgPath, service)
 			alreadyExported = true
 		}
 	}
-	// we create the namespaces if they are not there yet because the exporter
-	// may not have registered yet
-	n.create(key, pkgPath, service)
+	nscorePrint("Require ", "entered part3 gid= %x", GetGID())
+	g := GetGID()
+	nscorePrint("Require", "xxx about to lock region %x\n", g)
+	lockRegion := func() lib.Id {
+		n.lock.Lock()
+		defer n.lock.Unlock()
+		nscorePrint("require.lockRegion", "part 1 on gid %x", g)
 
-	node, ok := n.dependencyGraph.GetEdge(key)
-	if !ok {
-		node = dep.NewEdgeHolder(key)
-		n.dependencyGraph.PutEdge(key, node)
-	}
-	if !alreadyExported {
-		for _, r := range node.Require() {
-			if r == name {
-				nscorePrint("Require ", "process %s ERROR RET", key.String())
-				nscorePrint("xxx require 4: %s vs %s", key.String(), name)
-			}
-			return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
+		// we create the namespaces if they are not there yet because the exporter
+		// may not have registered yet
+		n.create(key, pkgPath, service)
+		nscorePrint("require.lockRegion", "part 1a on gid %x", g)
+
+		node, ok := n.dependencyGraph_.GetEdge(key)
+		if !ok {
+			nscorePrint("require.lockRegion", "part 1b on gid %x", g)
+			node = dep.NewEdgeHolder(key)
+			nscorePrint("require.lockRegion", "part 1c on gid %x", g)
+			n.dependencyGraph_.PutEdge(key, node)
+			nscorePrint("require.lockRegion", "part 1d on gid %x", g)
 		}
-		node.AddRequire(name)
+		nscorePrint("Require", "process %s did a require for %s.%s and already exported? %v (gid %x)",
+			key.String(), pkgPath, service, alreadyExported, g)
+		if !alreadyExported {
+			found := false
+			nscorePrint("lockRegion", "gid %x about to hit the walk", g)
+			node.WalkRequire(func(s string) bool {
+				if s == name {
+					found = true
+					return false
+				}
+				return true
+			})
+			if found {
+				nscorePrint("Require ", "process %s ERROR RET (%x)", key.String(), g)
+				nscorePrint("xxx require 4: %s vs %s", key.String(), name)
+				print(fmt.Sprintf("xxx about to leave ERR lockRegion %x\n", g))
+				return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
+			}
+			nscorePrint("Require ", "about to add require %x, %s", g, name)
+			node.AddRequire(name)
+		}
+		nscorePrint("Require ", "process %s  NORMAL RET %x", key.String(), GetGID())
+		print(fmt.Sprintf("xxx about to leave lockRegion %x\n", g))
+		return nil
 	}
-	nscorePrint("Require ", "process %s  NORMAL RET", key.String())
-	return nil
+	return lockRegion()
 }
 
 // RunIfReady checks the dependencies of the given service (key) and if the service
-// is ready to run--all the dependencies of the service are met--then it calls
-// back to the function fn.  This call has no effect if the service given by
+// is ready to run--all the dependencies of the service are met--then it returns the
+// key of the newly ready service.  This call has no effect if the service given by
 // key is not yet ready to run.
 //
 // Because this process of determining if a given service is ready to run may
-// involve _other_ services being declared ready to run (and the function fn
-// being called for them), we have to be careful to insure deterministic ordering
-// of the calls back to fn.  This function checks on each iteration to see if any
+// involve _other_ services being declared ready to run (and thus returned from
+// this function) we have to be careful to insure deterministic ordering
+// of the results.  This function checks on each iteration to see if any
 // new services are ready to run.  The newly ready services are sorted alphabetically
 // by the name of the service used in the deployment file.  This ensures that in the case
 // where multiple services are "made ready" by the same iteration of this process
-// the order of calls of fn is known.
-func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
+// the order of results is known.
+//
+// RunIfReady locks to make sure that the depnedency graph isn't changed out from
+// under it.
+func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	result := []dep.DepKey{}
+
 	nscorePrint("RunIfReady ", "-----> called for key=%s  <------", key)
 	// the only time things can change is when a new process calls run
 	// so we only to make sure here that we find all the eligible processes to run
-
-	node, ok := n.dependencyGraph.GetEdge(key)
+	print(fmt.Sprintf("zzzz starting runIfReady in core for %s\n", key))
+	node, ok := n.dependencyGraph_.GetEdge(key)
 	if !ok {
 		nscorePrint("RunIfReady ", "Ignoring request to check on key %s -- no edges assuming ready to run", key.String())
-		nscorePrint("RunIfReady ", "state of graph %#v", n.dependencyGraph.AllEdge())
-		fn(key)
-		return
+		nscorePrint("RunIfReady ", "state of graph %#v", n.dependencyGraph_.AllEdge())
+		return []dep.DepKey{key}
 	}
 	candidateList := []*dep.EdgeHolder{node}
 
 	nscorePrint("RunIfReady ", "node %s (%d req,%d exp) and dep-graph has %d total entries",
-		key, node.RequireLen(), node.ExportLen(), n.dependencyGraph.Len())
+		key, node.RequireLen(), node.ExportLen(), n.dependencyGraph_.Len())
 	for len(candidateList) > 0 {
+		print(fmt.Sprintf("zzz runIfReady %s has %d candidates in list\n", key, len(candidateList)))
 		newCandidates := []*dep.EdgeHolder{}
 		readyList := []string{}
 		readyMap := make(map[string]*dep.EdgeHolder)
@@ -368,35 +468,47 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 		if candidate.IsReady() {
 			nscorePrint("RunIfReady ", "candidate %s is ready to run", candidate.Key())
 			key := candidate.Key()
-			n.dependencyGraph.Del(key)
+			n.dependencyGraph_.Del(key)
 			// we are ready, so lets process his exports through the list of waiting processes
-			n.dependencyGraph.Walk(func(key string, other *dep.EdgeHolder) bool {
-				changed := other.RemoveRequire(candidate.Export())
+			exports := candidate.Export()
+			print(fmt.Sprintf("zzz about to walk graph for exports %s: %+v\n", key, exports))
+			n.dependencyGraph_.Walk(func(key string, other *dep.EdgeHolder) bool {
+				print(fmt.Sprintf("zzz WALK %s.RemoveRequire(%+v)\n", other.Key(), exports))
+				changed := other.RemoveRequire(exports)
 				if changed {
 					newCandidates = append(newCandidates, other)
 					nscorePrint("RunIfReady ", "candidate list changed")
 				}
 				return true
 			})
-			n.alreadyExported = append(n.alreadyExported, candidate.Export()...)
-			nscorePrint("RunIfReady ", "already exported updated: %+v", n.alreadyExported)
+			print(fmt.Sprintf("zzz done with walk for exports %s: %+v\n", key, newCandidates))
+			print(fmt.Sprintf("zzz about to call addAlreadyExported for %s: %+v\n", key, candidate.Export()))
+			n.addAlreadyExported(candidate.Export()...)
+			nscorePrint("RunIfReady ", "already exported updated: %+v", n.copyAlreadyExported())
 
 			nscorePrint("RunIfReady ", "%s is on ready list", candidate.Key())
+			print(fmt.Sprintf("zzz about to add %s to ready list to ready list %+v\n", candidate.Key().Name(), readyList))
 			readyList = append(readyList, candidate.Key().Name())
+			print(fmt.Sprintf("zzz about to add %s ready map %+v\n", candidate.Key().Name(), readyMap))
 			readyMap[candidate.Key().Name()] = candidate
+			print(fmt.Sprintf("zzz ready map for %s has %d entries, list is %+v\n", key, len(readyMap), readyList))
 		} else {
 			nscorePrint("RunIfReady ", "%s is not ready to run, number of candidates left is %d", candidate.Key(), len(candidateList))
 		}
 		//update datastructures and start in alpha order
 		sort.Strings(readyList)
 		for _, readyName := range readyList {
-			nscorePrint("RunIfReady ", "sending callback to %s", readyName)
-			fn(readyMap[readyName].Key())
+			nscorePrint("RunIfReady ", "adding %s to result list", readyName)
+			result = append(result, readyMap[readyName].Key())
+			print(fmt.Sprintf("zzz added %s and new result list has %d entries\n", readyMap[readyName].Key(), len(result)))
 		}
 		candidateList = append(candidateList, newCandidates...)
+		print(fmt.Sprintf("zzz updated candidate list for %s is %+v\n", key, candidateList))
 	}
+	print(fmt.Sprintf("zzzz returning from runIfReady in core for %s\n", key))
 
 	nscorePrint("RunIfReady ", "returning:"+key.String())
+	return result
 }
 
 // Started failed info computes a string that is intended to be shown to the
@@ -404,14 +516,19 @@ func (n *NSCore) RunIfReady(key dep.DepKey, fn func(dep.DepKey)) {
 // that have been found in the deployment file.  A dead process is one who
 // has one or more dependencies that are not present at all in the set of
 // services to be deployed.
+// We lock in this function because we need to traverse the depnedency graph
+// and it must be stable.
 func (n *NSCore) StartFailedInfo() string {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	result := ""
 	if n.WaitingToRun() > 0 {
 		nscorePrint("StartFailed ", "waiting to run %d", n.WaitingToRun())
 
 		nscorePrint("StartFailed", "was not able to get all processes started due to export/require problems")
-		loop := n.dependencyGraph.GetLoopContent()
-		dead := n.dependencyGraph.GetDeadNodeContent()
+		loop := n.dependencyGraph_.GetLoopContent()
+		dead := n.dependencyGraph_.GetDeadNodeContent()
 		if loop != "" {
 			loop = strings.Replace(loop, ";", "\n", -1)
 			result += fmt.Sprintf("Loop discovered in the dependencies\n%s\n", loop)
@@ -426,8 +543,12 @@ func (n *NSCore) StartFailedInfo() string {
 }
 
 // WaitingToRun returns the number of processes that are not yet started.
+// We lock in this function for exclusive access to the dep graph.
 func (n *NSCore) WaitingToRun() int {
-	return n.dependencyGraph.Len()
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.dependencyGraph_.Len()
 }
 
 // FindOrCreateMethodId takes a given service by name (packagePath.service) and
@@ -443,11 +564,15 @@ func (n *NSCore) FindOrCreateMethodId(key dep.DepKey, packagePath, service, meth
 		}
 		sData = n.create(key, packagePath, service)
 	}
-	mid, ok := sData.method[method]
+	var mid lib.Id
+	methodAny, ok := sData.method.Load(method)
 	if !ok {
 		nscorePrint("FindOrCreateMethodId ", "we need to create a method id for %s.%s.%s", packagePath, service, method)
 		mid = lib.NewId[*protosupportmsg.MethodId]()
-		sData.method[method] = mid
+		sData.method.Store(method, mid)
+		nscorePrint("FindOrCreateMethodId ", "added method %s to sdata", mid.Short())
+	} else {
+		mid = methodAny.(lib.Id)
 	}
 	return mid
 

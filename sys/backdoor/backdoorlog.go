@@ -37,5 +37,9 @@ func SetInternalLogger(il InternalLogger) {
 // of the log output be more clear.  If the caller does not have the already serialized
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
 func Log(req *logmsg.LogRequest, isKernel, isBackend bool, isJS bool, buffer []byte) {
+	if logger == nil {
+		print("logger not ready: ", req.Message, "\n")
+		return
+	}
 	logger.ProcessLogRequest(req, isKernel, isBackend, isJS, buffer)
 }

@@ -36,7 +36,7 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "BarService"); err != nil {
 		panic("unable to export methodcall.BarService: " + err.Error())
 	}
-	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
+	// one cannot initialize the fields of barServer{} here, must wait until Ready() is called
 	methodcall.RunBarService(&barServer{})
 }
 
@@ -111,6 +111,7 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (b *barServer) Ready() bool {
+	print("zz in bar server about to run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false

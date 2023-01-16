@@ -1,7 +1,6 @@
 package syscall
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
 	"reflect"
@@ -122,6 +121,7 @@ func (l *callImpl) bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscal
 // requires and exports it has.  When Run() is called, the program calling
 func (l *callImpl) Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 	out := new(syscallmsg.RunResponse)
+	print("zzz in callImpl, Run() about to call split implementation\n")
 	r, e := splitImplementation[*syscallmsg.RunRequest, *syscallmsg.RunResponse](l, in, out, run)
 	return r, e
 }
@@ -153,34 +153,34 @@ func (l *callImpl) Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireRe
 	return splitImplementation[*syscallmsg.RequireRequest, *syscallmsg.RequireResponse](l, in, &resp, require)
 }
 
-// Use of this function is discouraged.  This is intended only for debugging the parigot implementation
-// itself. User code should use the normal LocateLog() and the Log service.
-func (l *callImpl) BackdoorLog(in *logmsg.LogRequest) (*logmsg.LogResponse, error) {
-	// this implementation is unique to this call because it will cause an infinite recursion
-	// if we end using any function that call this logging facility.
-	out := &logmsg.LogResponse{}
-	sp := splitutil.NewSinglePayload()
-	buff, err := proto.Marshal(in)
-	if err != nil {
-		return nil, err
-	}
-	sp.InPtr, sp.InLen = sliceToTwoInt64s(buff)
-	backdoorLog(int32(uintptr(unsafe.Pointer(sp))))
+// // Use of this function is discouraged.  This is intended only for debugging the parigot implementation
+// // itself. User code should use the normal LocateLog() and the Log service.
+// func (l *callImpl) BackdoorLog(in *logmsg.LogRequest) (*logmsg.LogResponse, error) {
+// 	// this implementation is unique to this call because it will cause an infinite recursion
+// 	// if we end using any function that call this logging facility.
+// 	out := &logmsg.LogResponse{}
+// 	sp := splitutil.NewSinglePayload()
+// 	buff, err := proto.Marshal(in)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	sp.InPtr, sp.InLen = sliceToTwoInt64s(buff)
+// 	backdoorLog(int32(uintptr(unsafe.Pointer(sp))))
 
-	var high [8]byte
-	binary.LittleEndian.PutUint64(high[:], uint64(sp.ErrPtr[0]))
-	var errId lib.Id
-	if high[6]&1 == 1 && sp.ErrPtr[1] != 0 {
-		if high[7] != 107 {
-			panic("returned error was not a kernel error")
-		}
-		errId = lib.NewKernelError(lib.KernelErrorCode(sp.ErrPtr[1]))
-	}
-	if checkIdForError(errId) {
-		return nil, idErrorToPerror(errId, "backdoor log failed")
-	}
-	return out, nil
-}
+// 	var high [8]byte
+// 	binary.LittleEndian.PutUint64(high[:], uint64(sp.ErrPtr[0]))
+// 	var errId lib.Id
+// 	if high[6]&1 == 1 && sp.ErrPtr[1] != 0 {
+// 		if high[7] != 107 {
+// 			panic("returned error was not a kernel error")
+// 		}
+// 		errId = lib.NewKernelError(lib.KernelErrorCode(sp.ErrPtr[1]))
+// 	}
+// 	if checkIdForError(errId) {
+// 		return nil, idErrorToPerror(errId, "backdoor log failed")
+// 	}
+// 	return out, nil
+// }
 
 // log is used to by the callImpl code to get debug messages on the terminal.
 func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
@@ -194,10 +194,11 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
 		Message: p1 + p2,
 	}
-	_, err := l.BackdoorLog(&req)
-	if err != nil {
-		panic("backdoorLog failed:" + err.Error())
-	}
+	print("xxx call impl on client side: %s\n", req.Message)
+	// _, err := l.BackdoorLog(&req)
+	// if err != nil {
+	// 	panic("backdoorLog failed:" + err.Error())
+	// }
 }
 
 // splitImplementation is the implementation for any client side program that calls callImpl.  This
@@ -208,9 +209,15 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 // errors.
 func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
+	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		print(fmt.Sprintf("zzz split implementation, sendreceive %T\n", req))
+	}
 	id, err := splitutil.SendReceiveSingleProto(l, req, resp, fn)
 	if err != nil {
 		return zeroValForU, err
+	}
+	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		print(fmt.Sprintf("zzz split implementation, checking for error %T\n", req))
 	}
 	if checkIdForError(id) {
 		return zeroValForU, idErrorToPerror(id, "returnValue failed")
