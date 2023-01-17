@@ -93,6 +93,7 @@ func main() {
 
 // TestAddMulitply is a test of a function that has both input and output.
 func TestAddMultiply(t *testing.T) {
+	callImpl.Exit(&syscallmsg.ExitRequest{Code: 0})
 	fn := func(t *testing.T, value0, value1, sum, product int32) {
 		req := &methodcallmsg.AddMultiplyRequest{
 			Value0: value0,
@@ -173,7 +174,7 @@ func TestLucas(t *testing.T) {
 	if err != nil {
 		t.Logf("outside func f1\n")
 		t.Errorf("received error from call to LucasSequence: %v", err)
-		t.FailNow()
+		t.Fail()
 	}
 	member := result.GetSequence()[const_.LucasSize]
 	t.Logf("member inside lucas test %d\n", member)

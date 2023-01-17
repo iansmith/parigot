@@ -70,19 +70,22 @@ func NewSysCallRW(ns NameServer) *syscallReadWrite {
 // doing panic to force the stack to unroll.... but that has to be done on the client (WASM)
 // side, not here.
 func (s *syscallReadWrite) Exit(sp int32) {
-	req := &syscallmsg.ExitRequest{}
-	resp := &syscallmsg.ExitResponse{}
-	s.proc.exited = true
-	splitImplRetOne(s.mem, sp, req, resp,
-		func(req *syscallmsg.ExitRequest, resp *syscallmsg.ExitResponse) lib.KernelErrorCode {
-			code := req.GetCode()
-			if code > 192 || code < 0 {
-				code = 192
-			}
-			resp.Code = code
-			return lib.KernelNoError
-		})
-
+	panic("HERE")
+	// req := &syscallmsg.ExitRequest{}
+	// resp := &syscallmsg.ExitResponse{}
+	// s.proc.exited = true
+	// splitImplRetOne(s.mem, sp, req, resp,
+	// 	func(req *syscallmsg.ExitRequest, resp *syscallmsg.ExitResponse) lib.KernelErrorCode {
+	// 		code := req.GetCode()
+	// 		if code > 192 || code < 0 {
+	// 			code = 192
+	// 		}
+	// 		resp.Code = code
+	// 		if s.ns.ExitWhenInFlightEmpty() { // tell the infra to exit after the current
+	// 			return lib.KernelExitRequest
+	// 		}
+	// 		return lib.KernelNoError
+	// 	})
 }
 
 // Locate is the syste call thet finds the service requested (or returns an error if it cannot be found )
@@ -204,7 +207,8 @@ func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, f
 // call on a method they implement.
 func (s *syscallReadWrite) ReturnValue(sp int32) {
 	req := syscallmsg.ReturnValueRequest{}
-	splitImplRetEmpty(s.mem, sp, &req, func(t *syscallmsg.ReturnValueRequest) lib.KernelErrorCode {
+	resp := syscallmsg.ReturnValueResponse{}
+	splitImplRetOne(s.mem, sp, &req, &resp, func(t *syscallmsg.ReturnValueRequest, u *syscallmsg.ReturnValueResponse) lib.KernelErrorCode {
 		cid := lib.Unmarshal(req.GetCall())
 		ctx := s.procToSysCall().GetInfoForCallId(cid)
 		if ctx == nil {
@@ -217,6 +221,7 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 			return lib.KernelCallerUnavailable
 		}
 		ctx.respCh <- &req
+
 		return lib.KernelNoError
 	})
 }

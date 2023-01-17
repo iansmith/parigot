@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	"github.com/iansmith/parigot/sys/backdoor"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var depgraphVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
@@ -362,6 +366,12 @@ func depgraphPrint(method, spec string, arg ...interface{}) {
 	if depgraphVerbose {
 		part1 := fmt.Sprintf("depGraph:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		print(part1, part2, "\n")
+		msg := fmt.Sprintf("%s%s", part1, part2)
+		req := &logmsg.LogRequest{
+			Message: msg,
+			Stamp:   timestamppb.Now(),
+			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		}
+		backdoor.Log(req, true, false, false, nil)
 	}
 }

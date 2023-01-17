@@ -42,6 +42,7 @@ type NSCore struct {
 	dependencyGraph_   *dep.DepGraph
 	alreadyExported_   []string
 	useLocalServiceId_ bool
+	exitAfterUse       bool
 	lock               *sync.Mutex
 }
 
@@ -53,6 +54,7 @@ func NewNSCore(useLocalServiceId bool) *NSCore {
 		serviceCounter_:    7, //first 8 are reserved
 		alreadyExported_:   []string{},
 		useLocalServiceId_: useLocalServiceId,
+		exitAfterUse:       false,
 		inFlight:           &sync.Map{},
 		lock:               &sync.Mutex{},
 	}
@@ -87,6 +89,24 @@ func (n *NSCore) copyAlreadyExported() []string {
 	result := make([]string, len(n.alreadyExported_))
 	copy(result, n.alreadyExported_)
 	return result
+}
+
+// ExitWhenInFlightEmpty flips a switch that tells the NSCore that it should signal callers
+// via callContext that there has been a request to stop when all the in flight
+// calls have completed.  It returns true if the queue is currently empty.
+//
+// xxxfixme(iansmith) possible race condition that this called with a non-empty queue
+// but by the time we actually get to returning a value everything in the queue is
+// gone.  This would cause starvation in the sense that we would never signal the
+// any caller to exit until another request is handed to us.
+func (n *NSCore) ExitWhenInFlightEmpty() bool {
+	n.lock.Lock()
+	// just to be safe we unlock
+	n.exitAfterUse = true
+	n.lock.Unlock()
+	empty := true
+	n.inFlight.Range(func(k, v any) bool { empty = false; return false })
+	return empty
 }
 
 func (n *NSCore) useLocalServiceId() bool {
@@ -606,7 +626,18 @@ func (n *NSCore) getContextForCallId(cid lib.Id) *callContext {
 	if !ok {
 		return nil // ugh, serious problem
 	}
+
+	exitAfterUse := false
+	if n.exitAfterUse {
+		empty := true
+		n.inFlight.Range(func(k, v any) bool { empty = false; return false })
+		if empty {
+			exitAfterUse = true
+		}
+	}
+
 	result := resultAny.(*callContext)
+	result.exitAfterUse = exitAfterUse
 	return result
 }
 

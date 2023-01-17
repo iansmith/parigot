@@ -4,6 +4,8 @@
 
 GO_CMD=GOOS=js GOARCH=wasm go
 
+PARIGOT_SRC=../..
+
 ## assumes buf is in path.   https://buf.build
 BUF_CMD=buf
 
@@ -28,11 +30,11 @@ $(GENERATED)/store/v1/storeservicedecl.p.go: proto/store/v1/store.proto proto/ms
 	@echo
 	@echo "\033[92mgenerating interfaces: vvv =========================================================================\033[0m"
 	$(BUF_CMD) lint
-	PARIGOT_GEN_TEST=1 $(BUF_CMD) generate
+	$(BUF_CMD) generate
 
 clean:
 	rm -rf g/*
 	rm -rf build/*
 
-#### Do not remove this line or edit below it.  The rest of this file is computed by jdepp.
-### jdepp computed dependencies for binary: build/vv
+run:
+	$(PARIGOT_SRC)/build/runner vvv.toml
