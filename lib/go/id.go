@@ -31,6 +31,9 @@ type Id interface {
 	IsError() bool
 	// IsErrorType returns true if this represents some type of error code.
 	IsErrorType() bool
+	// ErrorCode returns the error code contained in the lower half of this id.
+	// If this is not an error type, it panics.
+	ErrorCode() uint16
 	// Equal returns true if the two ids are of the same type and have the same number.
 	Equal(Id) bool
 	// High returns the high order uint64 of this id. Please don't use this unless you
@@ -45,18 +48,18 @@ type IdBase struct {
 	h, l uint64
 }
 
-func newIdBaseFromKnown(high uint64, low uint64, isError bool, letter byte) {
-	base := &IdBase{
-		h: high,
-		l: low,
-	}
-	highBytes := int64ToByteSlice(base.h)
-	highBytes[7] = letter
-	highBytes[6] = 0
-	if isError {
-		highBytes[6] = 1
-	}
-}
+// func newIdBaseFromKnown(high uint64, low uint64, isError bool, letter byte) {
+// 	base := &IdBase{
+// 		h: high,
+// 		l: low,
+// 	}
+// 	highBytes := int64ToByteSlice(base.h)
+// 	highBytes[7] = letter
+// 	highBytes[6] = 0
+// 	if isError {
+// 		highBytes[6] = 1
+// 	}
+// }
 
 func int64ToByteSlice(i uint64) []byte {
 	x := (uintptr)(unsafe.Pointer(&i))
@@ -81,6 +84,15 @@ func (i *IdBase) Short() string {
 	}
 	lowBytes := int64ToByteSlice(i.l)
 	return fmt.Sprintf("[%c-%02x%02x%02x]", key, lowBytes[2], lowBytes[1], lowBytes[0])
+}
+
+// ErrorCode returns the error code contained in the lowest 2 bytes of the
+// lower half of this id.  It panics if the id is not an error type.
+func (i *IdBase) ErrorCode() uint16 {
+	if !i.IsErrorType() {
+		panic("called ErrorCode() on a non error type:" + i.Short())
+	}
+	return uint16(i.l & 0xffff)
 }
 
 func (i *IdBase) IsErrorType() bool {

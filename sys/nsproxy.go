@@ -231,11 +231,6 @@ func (n *NSProxy) HandleMethod(p *Process, packagePath, service, method string) 
 	panic("HandleMethod")
 }
 
-// RunNotify cannot and should not be called on a remote nameserver.
-func (n *NSProxy) RunNotify(key dep.DepKey) {
-	panic("shouldn't be calling run notify on a net nameserver")
-}
-
 // GetService looks up the service that is given as a parameter (pkgPath.service) and returns
 // the service id for that service.  The second return parameter is an error code (KernelErrorId)
 // if it is non-nil.
@@ -411,8 +406,8 @@ func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return !resp.GetTimedOut(), nil
 }
 
-func (n *NSProxy) RunIfReady(key dep.DepKey) {
-	panic("we need to talk to the network to do this")
+func (n *NSProxy) RunIfReady(key dep.DepKey) []dep.DepKey {
+	panic("we need to talk to the network to do RunIfReady")
 }
 
 // StartFailedInfo is supposed to return details about why the

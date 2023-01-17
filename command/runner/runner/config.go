@@ -17,7 +17,6 @@ import (
 type DeployConfig struct {
 	Microservice map[string]*Microservice
 	Flag         *DeployFlag
-	module       map[string]*wasmtime.Module
 }
 
 // DeployFlag is a structure that comes from the command line passed to the runner itself.  These
@@ -46,6 +45,15 @@ type Microservice struct {
 	// stuff we add
 	name   string
 	remote bool
+	module *wasmtime.Module
+}
+
+func (m *Microservice) Name() string {
+	return m.name
+}
+
+func (m *Microservice) Module() *wasmtime.Module {
+	return m.module
 }
 
 const maxServer = 32
@@ -150,13 +158,12 @@ func (c *DeployConfig) loadSingleModule(engine *wasmtime.Engine, m *Microservice
 }
 
 func (c *DeployConfig) LoadAllModules(engine *wasmtime.Engine) error {
-	c.module = make(map[string]*wasmtime.Module)
 	for _, m := range c.Microservice {
 		mod, err := c.loadSingleModule(engine, m)
 		if err != nil {
 			return err
 		}
-		c.module[m.name] = mod
+		m.module = mod
 	}
 	return nil
 }
@@ -167,6 +174,14 @@ func (c *DeployConfig) AllName() []string {
 		result = append(result, n)
 	}
 	return result
+}
+
+func (c *DeployConfig) Module(name string) *wasmtime.Module {
+	m, ok := c.Microservice[name]
+	if !ok {
+		return nil
+	}
+	return m.module
 }
 
 func (m *Microservice) IsServer() bool {
@@ -191,4 +206,7 @@ func (m *Microservice) GetArg() []string {
 }
 func (m *Microservice) GetPath() string {
 	return m.Path
+}
+func (m *Microservice) GetModule() *wasmtime.Module {
+	return m.module
 }

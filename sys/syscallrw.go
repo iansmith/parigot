@@ -29,10 +29,12 @@ var syscallVerbose = false || envVerbose != ""
 // the system call.
 type syscallReadWrite struct {
 	mem  *jspatch.WasmMem
-	proc *Process // this is OUR PROCESS
+	proc *Process // this is our process
 
 	localSysCall  *localSysCall
 	remoteSysCall *remoteSyscall
+
+	ns NameServer
 }
 
 func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U, fn func(t T, u U) lib.KernelErrorCode) {
@@ -60,8 +62,8 @@ func (s *syscallReadWrite) SetProcess(p *Process) {
 	s.proc = p
 }
 
-func NewSysCallRW() *syscallReadWrite {
-	return &syscallReadWrite{}
+func NewSysCallRW(ns NameServer) *syscallReadWrite {
+	return &syscallReadWrite{ns: ns}
 }
 
 // Exit causes the WASM program to exit.  This is done by marking the process as dead and then
@@ -275,31 +277,40 @@ func (s *syscallReadWrite) Require(sp int32) {
 func (s *syscallReadWrite) Run(sp int32) {
 	req := &syscallmsg.RunRequest{}
 	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) lib.KernelErrorCode {
-		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-			print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunNotify() %v, %s\n", req, s.proc))
-		}
-		key := NewDepKeyFromProcess(s.proc)
-		s.procToSysCall().RunNotify(key)
-		// block until we are told to proceed
-		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-			print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunBlock() %s [%s]\n", key.String(), s.proc))
-		}
-		ok, kerr := s.procToSysCall().RunBlock(key)
-		if kerr != nil && kerr.IsError() {
-			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
-			if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-				print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr))
-			}
-			return lib.KernelDependencyFailure
+		sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "Run", "about to call new implementation of run inside nameserver")
+		ok, err := s.ns.RunBlock(s.proc.key)
+		if err != nil && err.IsErrorType() && err.IsError() {
+			return lib.KernelErrorCode(err.ErrorCode())
 		}
 		if !ok {
-			sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
-			if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-				print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure\n"))
-			}
-			return lib.KernelDependencyFailure
+			return lib.KernelAbortRequest
 		}
 		return lib.KernelNoError
+		// if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		// 	print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunNotify() %v, %s\n", req, s.proc))
+		// }
+		// key := NewDepKeyFromProcess(s.proc)
+		// s.procToSysCall().RunNotify(key)
+		// // block until we are told to proceed
+		// if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		// 	print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunBlock() %s [%s]\n", key.String(), s.proc))
+		// }
+		// ok, kerr := s.procToSysCall().RunBlock(key)
+		// if kerr != nil && kerr.IsError() {
+		// 	sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
+		// 	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		// 		print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr))
+		// 	}
+		// 	return lib.KernelDependencyFailure
+		// }
+		// if !ok {
+		// 	sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
+		// 	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
+		// 		print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure\n"))
+		// 	}
+		// 	return lib.KernelDependencyFailure
+		// }
+		//return lib.KernelNoError
 	})
 }
 

@@ -11,6 +11,7 @@ import (
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -30,7 +31,12 @@ var test = []testing.InternalTest{
 		Name: "TestAccumulate",
 		F:    TestAccumulate,
 	},
+	{
+		Name: "TestLucas",
+		F:    TestLucas,
+	},
 }
+var exitCode = int32(0)
 
 func main() {
 	lib.FlagParseCreateEnv()
@@ -68,7 +74,7 @@ func main() {
 	if err := logger.Log(&logmsg.LogRequest{
 		Stamp:   timestamppb.Now(), // xxx use kernel now()
 		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Message: "Testing logger isfunctioning ok.",
+		Message: "Testing logger is functioning ok.",
 	}); err != nil {
 		panic("error trying to log in methodcalltest")
 	}
@@ -77,11 +83,12 @@ func main() {
 		return true, nil
 	}
 	// run tests
+	testing.Verbose()
+	testing.Init()
 	testing.Main(matchFunc, test, nil, nil)
-
 	// cleanup?
 	callImpl.Exit(&syscallmsg.ExitRequest{
-		Code: 0,
+		Code: exitCode,
 	})
 }
 
@@ -154,4 +161,35 @@ func TestAccumulate(t *testing.T) {
 	t.Run("accumulate3", func(t *testing.T) {
 		fn(t, 0, 0)
 	})
+	// accumulate starts with identity values
+	t.Run("accumulate4", func(t *testing.T) {
+		fn(t, 44, 44, 44)
+	})
+}
+
+// TestLucas returns the members for some unspecified number of iterations.
+func TestLucas(t *testing.T) {
+	t.Logf("outside func early\n")
+	result, err := foo.LucasSequence()
+	if err != nil {
+		t.Logf("outside func f1\n")
+		t.Errorf("received error from call to LucasSequence: %v", err)
+		t.FailNow()
+	}
+	member := result.GetSequence()[const_.LucasSize]
+	t.Logf("member inside lucas test %d\n", member)
+	logger.Log(&logmsg.LogRequest{Stamp: timestamppb.Now(),
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		Message: fmt.Sprintf("lucas sequence: %+v (%d)", result.GetSequence(), member),
+	})
+	if member != 141422324 {
+		t.Logf("outside func f2\n")
+		t.Logf("unexpected value in lucas sequence (index %d): got %d but expected %d\n",
+			const_.LucasSize-1, member, 141422324)
+	}
+	logger.Log(&logmsg.LogRequest{Stamp: timestamppb.Now(),
+		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		Message: fmt.Sprintf("lucas sequence: %+v (%d)", result.GetSequence(), member),
+	})
+	t.Logf("outside func\n")
 }

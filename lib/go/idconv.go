@@ -120,6 +120,11 @@ const (
 	// KernelDependencyFailure means that the dependency infrastructure has failed.  This is different
 	// than when a user creates bad set of depedencies (KernelDependencyCycle).
 	KernelDependencyFailure KernelErrorCode = 19
+	// KernelAbortRequest indicates that the program that receives this error
+	// should exit because the nameserver has asked it to do so.  This usually
+	// means that some _other_ program has failed to start correctly, so this
+	// deployment cannot succeed.
+	KernelAbortRequest KernelErrorCode = 20
 )
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.

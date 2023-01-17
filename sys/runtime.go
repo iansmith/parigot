@@ -43,12 +43,12 @@ type Runtime struct {
 // 	return &RemoteSpec{local: local, remote: remote}
 // }
 
-func newRuntime() *Runtime {
+func newRuntime(ctx *DeployContext) *Runtime {
 	return &Runtime{
 		jsEnv:      jspatch.NewJSPatch(),
 		wasiEnv:    jspatch.NewWasiPatch(),
 		runtimeEnv: jspatch.NewRuntimePatch(),
-		syscall:    NewSysCallRW(),
+		syscall:    NewSysCallRW(ctx.nameserver),
 		//spec:       spec,
 	}
 }

@@ -70,5 +70,6 @@ func GetBufferFromArgsAndEnv(m Service, startOfArgs int32) (*bytes.Buffer, int32
 		return nil, 0, fmt.Errorf("microservice %s has args+environment size of %d bytes, but max is %d",
 			m.GetName(), buffer.Len()-wasmStartAddr, wasmMinDataAddr-wasmStartAddr)
 	}
+
 	return buffer, argv, nil
 }
