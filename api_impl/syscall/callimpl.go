@@ -121,7 +121,6 @@ func (l *callImpl) bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscal
 // requires and exports it has.  When Run() is called, the program calling
 func (l *callImpl) Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 	out := new(syscallmsg.RunResponse)
-	print("zzz in callImpl, Run() about to call split implementation\n")
 	r, e := splitImplementation[*syscallmsg.RunRequest, *syscallmsg.RunResponse](l, in, out, run)
 	return r, e
 }
@@ -209,15 +208,9 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 // errors.
 func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz split implementation, sendreceive %T\n", req))
-	}
 	id, err := splitutil.SendReceiveSingleProto(l, req, resp, fn)
 	if err != nil {
 		return zeroValForU, err
-	}
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz split implementation, checking for error %T\n", req))
 	}
 	if checkIdForError(id) {
 		return zeroValForU, idErrorToPerror(id, "returnValue failed")
@@ -233,7 +226,6 @@ func (l *callImpl) Export1(packagePath, service string) (*syscallmsg.ExportRespo
 		PackagePath: packagePath, Service: service}
 	req := &syscallmsg.ExportRequest{}
 	req.Service = []*syscallmsg.FullyQualifiedService{fqSvc}
-	print("AAAAAAAAAAA _______ export 1 ", fqSvc.PackagePath, " and ", fqSvc.Service, "\n")
 	return l.Export(req)
 }
 

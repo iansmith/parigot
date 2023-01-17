@@ -120,7 +120,6 @@ func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
 // the appropriate kernel error to the caller wrapped in a
 // lib.Error.
 func (n *LocalNameServer) CloseService(key dep.DepKey, pkgPath, service string) lib.Id {
-	print("xxx local name server has nil NSCore ", n.NSCore == nil, "\n")
 	return n.NSCore.CloseService(key, pkgPath, service)
 }
 
@@ -158,9 +157,7 @@ func (n *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 		panic("unable to find the notification channel for " + myName)
 	}
 	ch := chAny.(chan bool)
-	print(fmt.Sprintf("zzz about to block on notify chan %s\n", myName))
 	fromChan := <-ch
-	print(fmt.Sprintf("zzz done blocking on notify chan %s, got %v\n", myName, fromChan))
 
 	return fromChan, nil
 }
@@ -173,7 +170,11 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 		readyProc := ready.(*DepKeyImpl).proc
 		readyName := readyProc.microservice.GetName()
 		if readyProc.running {
-			print(fmt.Sprintf("zzz about to skip ready list entry %s\n", readyName))
+			backdoor.Log(&logmsg.LogRequest{
+				Message: fmt.Sprintf("about to skip ready list entry %s\n", readyName),
+				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+				Stamp:   timestamppb.Now(), // xxx fixme(iansmith) use kernel now
+			}, true, false, false, nil)
 			continue // nothing to do
 		}
 		chAny, ok := n.notify.Load(readyName)
@@ -182,10 +183,7 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 		}
 		ch := chAny.(chan bool)
 		readyProc.running = true
-		print(fmt.Sprintf("zzz about to unblock %s by notify ch\n",
-			readyProc.microservice.GetName()))
 		ch <- true
-		print(fmt.Sprintf("zzz finished unblocking %s\n", readyProc.microservice.GetName()))
 	}
 }
 

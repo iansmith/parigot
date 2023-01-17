@@ -104,7 +104,6 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (b *barServer) Ready() bool {
-	print("zz in bar server about to run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false

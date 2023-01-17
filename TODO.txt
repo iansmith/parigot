@@ -4,11 +4,7 @@ date: 2022-10-01T04:42:48-04:00
 draft: false
 ---
 
-## smallish
-
 ### WASM
-* Do a check of the WASM spec to make sure I have all the opcodes and instruction formats
-covered in the parser, `command/Wasm.g4`
   * Need to figure out if we want to support particular version (2.0?)
   and possibly particular feature sets
 
@@ -23,25 +19,49 @@ coordinated with client side service
 * rip out all of the "Get<Blah>" methods and make them more goish.
 * walk through the basic usages of protoc-gen-parigot and make it not produce any files that are not used
 * make the replacement operation able to use imports
+* Fix compiler generating servicedecl and server twice
 
 ### logging
-* Need to have a debug "blob" for services that captures everything together
 * service calls with parameters, log messages
 
 ### transform
 * rip out all of the "Get<Blah>" methods and make them more goish.
 
-### link-time
-* investigate unlinking for languages that end up with runtimes in the wasm
-
-### surgery
+### surgery (postponed)
 * change the way we implement replacement functions to be a replacement import
     * add the "normal" replacement, if that works correctly
 
-### ids
-* change to either 128 or 192 bit ids, packed into a struct
-* add an extra byte that is reserved for future use (net of 112, 176 bits)
-* if 192, add a crc
+## uncategorized
+* Add appname?
+
+### processes
+* process states like started, waiting, running needs a check
+    * check that the processes 
+* Rename run() to runblock() (including in client side)
+    * Rename "start" and "run" methods of a process as stage1 and stage2 or similar
+    * check Run, RunNotify, and RunBlock usages
+
+### require/export
+* Add support for "RequireAllAndExport1()" in main
+    * Some type of "SimpleReady()"?
+* Switch names to be parigot.log + Log, etc
+
+### nameserver
+* get rid of local/remote syscall
+    * Fix the hack of the global var LocalNS-- 
+    * remove process link to it's own "syscall"
+* Make exit request wait for in process call
+
+### kernel 
+* Add kernel.Now() plus debugging "freeze time"
+
+### testing
+* Make a simple protocol for doing testing
+
+### startup/shutdown
+* Bad state of services, make sure errors are ok
+    * Test different run BAD configurations to make sure errors are ok
+    * Test different BAD exit conditions to make sure errors are ok
 
 ## Web Coord Language
 - define css rules of interest

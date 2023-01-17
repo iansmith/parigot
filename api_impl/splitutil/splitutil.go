@@ -71,53 +71,19 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	if callImpl == nil {
 		callImpl = c
 	}
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz sendrecv single proto %T, about to send\n", req))
-	}
-	// backdoor.Log(&logmsg.LogRequest{
-	// 	Message: fmt.Sprintf("SendReceiveSingleProto: sending single %v", req),
-	// 	Stamp:   timestamppb.Now(), // xxx should be use kernel version of Now()
-	// 	Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-	// }, false, true, false, nil)
 	u, err := SendSingleProto(req)
 	if err != nil {
 		return nil, err
 	}
-
-	// backdoor.Log(&logmsg.LogRequest{
-	// 	Message: fmt.Sprintf("SendReceiveSingleProto: calling function with %v", req),
-	// 	Stamp:   timestamppb.Now(), // xxx should be use kernel version of Now()
-	// 	Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-	// }, false, true, false, nil)
-
-	// u is a pointer to the SinglePayload, send payload through fn
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz sendrecv single proto %T, about to call fn\n", req))
-	}
 	fn(int32(u))
 	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-
-	// backdoor.Log(&logmsg.LogRequest{
-	// 	Message: fmt.Sprintf("SendReceiveSingleProto: called function with %v and resp %x,%x", req, ptr.ErrPtr[0], ptr.ErrPtr[1]),
-	// 	Stamp:   timestamppb.Now(), // xxx should be use kernel version of Now()
-	// 	Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-	// }, false, true, false, nil)
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz sendrecv singe proto %T, about to check return\n", req))
-	}
 	errRtn := lib.NewFrom64BitPair[*protosupportmsg.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
 	if !errRtn.Equal(kerrNone) {
-		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-			print(fmt.Sprintf("zzz sendrecv single proto %T, error return\n", req))
-		}
 		return errRtn, nil
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
-		if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-			print(fmt.Sprintf("zzz sendrecv single proto %T, zero size\n", req))
-		}
 		return nil, nil
 	}
 	var byteBuffer []byte
@@ -125,9 +91,6 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
-	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		print(fmt.Sprintf("zzz sendrecv single proto %T, decode proto for result\n", req))
-	}
 	err = DecodeSingleProto(byteBuffer, resp)
 	if err != nil {
 		return nil, err

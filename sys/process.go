@@ -3,7 +3,6 @@ package sys
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"path/filepath"
 
 	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
@@ -39,7 +38,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true || envVerbose != ""
+var processVerbose = false || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -185,9 +184,6 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 		if !ok {
 			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
-			// if strings.HasPrefix(importName, "go.parigot") {
-			// 	//procPrint("CHECKLINKAGE ", "linked %s into module %s", importName, p.path)
-			// }
 			linkage = append(linkage, ext)
 		}
 	}
@@ -206,15 +202,12 @@ func (p *Process) ExitCode() int {
 // Run() is used to let a process proceed with running.  This is
 // called when we discover all his requirements have been met.
 func (p *Process) Run() {
-	procPrint("RUN ", "starting to run %s, all requirements met...sending message to unblock on runCh", p)
 	p.runCh <- true
-	procPrint("RUN ", "process %s unblocked", p)
 }
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
 func (p *Process) Start() (code int) {
 	procPrint("START ", "we have been loaded/started by the runner: %s", p)
-
 	var err error
 	startOfArgs := wasmStartAddr + int32(0)
 	if p == nil {
@@ -227,21 +220,19 @@ func (p *Process) Start() (code int) {
 	}
 	p.argc = int32(len(p.microservice.GetArg()))
 
-	//log.Printf("in Start 0x%x", p.memPtr)
 	wasmMem := jspatch.NewWasmMem(p.memPtr)
 	wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
 	wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
 
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
-		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		p.SetExitCode(int(ExitCodeNoStartSymbol))
 		return p.ExitCode()
 	}
+
 	defer func(proc *Process) {
 		if r := recover(); r != nil {
 			e, ok := r.(*syscallmsg.ExitRequest)
-			print(fmt.Sprintf("defer3 %v, and type %T\n", ok, r))
 			if ok {
 				code = int(e.GetCode())
 				proc.SetExitCode(code)
@@ -254,8 +245,6 @@ func (p *Process) Start() (code int) {
 		}
 	}(p)
 	f := start.Func()
-	procPrint("START ", "calling the entry point for proc %s",
-		p)
 	result, err := f.Call(p.parent, p.argc, p.argv)
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 
@@ -284,11 +273,6 @@ func procPrint(method string, spec string, arg ...interface{}) {
 				Message: part1 + part2 + "\n",
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
 			}, true, false, false, nil)
-		//print(part1 + part2 + "\n")
 
 	}
-}
-
-func (p *Process) RunBlock() {
-	// key:=
 }

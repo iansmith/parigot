@@ -363,7 +363,6 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	// XXXYYY alreadyExported is not locked?
 	for _, s := range n.copyAlreadyExported() {
 		if s == name {
-			print(fmt.Sprintf("zzz %s required %s but was already exported\n", key, s))
 			nscorePrint("Require ", "process %s required %s.%s but it is already exported",
 				key.String(), pkgPath, service)
 			alreadyExported = true
@@ -439,10 +438,8 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 
 	result := []dep.DepKey{}
 
-	print(fmt.Sprintf("zzz ****** called for key=%s  *****\n", key.String()))
 	// the only time things can change is when a new process calls run
 	// so we only to make sure here that we find all the eligible processes to run
-	print(fmt.Sprintf("zzzz starting runIfReady in NScore for %s... checking already exported\n", key))
 
 	node, ok := n.dependencyGraph_.GetEdge(key)
 	if !ok {
@@ -453,13 +450,8 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 
 	already := n.copyAlreadyExported()
 	for i := 0; i < len(already); i++ {
-		print(fmt.Sprintf("zzzz checking already exported %s versus %d requirements",
-			already[i], node.RequireLen()))
-		changed := node.RemoveRequireSimple(already[i])
-		if changed {
-			print(fmt.Sprintf("zzz removed already exported require %s from %s\n",
-				already[i], key.String()))
-		}
+		// RemoveRequireSimple is no-op if already[i] is not required by the node
+		node.RemoveRequireSimple(already[i])
 	}
 
 	candidateList := []*dep.EdgeHolder{node}
@@ -467,11 +459,6 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 	nscorePrint("RunIfReady ", "node %s (%d req,%d exp) and dep-graph has %d total entries",
 		key, node.RequireLen(), node.ExportLen(), n.dependencyGraph_.Len())
 	for len(candidateList) > 0 {
-		if len(candidateList) > 1 {
-			print(fmt.Sprintf("zzz runIfReady %s has %d candidates in list (first is %s)\n", key, len(candidateList), candidateList[0].Key().String()))
-		} else {
-
-		}
 		newCandidates := []*dep.EdgeHolder{}
 		readyList := []string{}
 		readyMap := make(map[string]*dep.EdgeHolder)
@@ -489,9 +476,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 			n.dependencyGraph_.Del(key)
 			// we are ready, so lets process his exports through the list of waiting processes
 			exports := candidate.Export()
-			print(fmt.Sprintf("zzz about to walk graph for exports %s: %+v\n", key, exports))
 			n.dependencyGraph_.Walk(func(key string, other *dep.EdgeHolder) bool {
-				print(fmt.Sprintf("zzz WALK %s.RemoveRequire(%+v)\n", other.Key(), exports))
 				changed := other.RemoveRequire(exports)
 				if changed {
 					newCandidates = append(newCandidates, other)
@@ -499,17 +484,12 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 				}
 				return true
 			})
-			print(fmt.Sprintf("zzz done with walk for exports %s: number of candidates %d\n", key, len(newCandidates)))
-			print(fmt.Sprintf("zzz about to call addAlreadyExported for %s: %+v\n", key, candidate.Export()))
 			// NB: call to addAlreadyExported is ok because it does not lock
 			n.addAlreadyExported(candidate.Export()...)
 
 			nscorePrint("RunIfReady ", "%s is on ready list", candidate.Key())
-			print(fmt.Sprintf("zzz about to add %s to ready list  %+v\n", candidate.Key().Name(), readyList))
 			readyList = append(readyList, candidate.Key().Name())
-			print(fmt.Sprintf("zzz about to add %s ready map %+v\n", candidate.Key().Name(), readyMap))
 			readyMap[candidate.Key().Name()] = candidate
-			print(fmt.Sprintf("zzz ready map for %s has %d entries, list is %+v\n", key, len(readyMap), readyList))
 		} else {
 			nscorePrint("RunIfReady ", "%s is not ready to run, number of candidates left is %d", candidate.Key(), len(candidateList))
 		}
@@ -519,7 +499,6 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 			nscorePrint("RunIfReady ", "adding %s to result list", readyName)
 			readyMap[readyName].Key().(*DepKeyImpl).proc.requirementsMet = true
 			result = append(result, readyMap[readyName].Key())
-			print(fmt.Sprintf("zzz added %s and new result list has %d entries\n", readyMap[readyName].Key(), len(result)))
 		}
 	outer:
 		for _, newCand := range newCandidates {
@@ -533,11 +512,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 			// no matches, add it
 			candidateList = append(candidateList, newCand)
 		}
-		print(fmt.Sprintf("zzz updated candidate list for %s is %+v\n", key, candidateList))
 	}
-	print(fmt.Sprintf("zzzz returning from runIfReady in core for %s\n", key))
-
-	print(fmt.Sprintf("**** input was %s, and result is %+v\n", key.String(), result))
 	return result
 }
 
