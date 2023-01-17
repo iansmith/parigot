@@ -67,43 +67,36 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 	reqMul := &methodcallmsg.AddMultiplyRequest{
 		IsAdd: false,
 	}
-	addTerm := make([]int32, 2)
-	mulTerm := make([]int32, 2)
-	addTerm[0] = req.GetValue()[0]
-	addTerm[1] = req.GetValue()[1]
-	mulTerm[0] = req.GetValue()[0]
-	mulTerm[1] = req.GetValue()[1]
 
-	accSum := addTerm[0] + addTerm[1]
-	accProduct := mulTerm[0] * mulTerm[1]
+	reqAdd.Value1 = 0 //identity to start
+	reqMul.Value1 = 1 // identity to start
 
-	for i := 1; i < len(req.GetValue()); i++ {
-		reqAdd.Value0 = addTerm[0]
-		reqAdd.Value1 = addTerm[1]
-		resp, err := b.foo.AddMultiply(reqAdd)
+	var respAdd, respMul *methodcallmsg.AddMultiplyResponse
+	var err error
+	for i := 0; i < len(req.GetValue()); i++ {
+		reqAdd.Value0 = req.GetValue()[i]
+		respAdd, err = b.foo.AddMultiply(reqAdd)
 		if err != nil {
 			return nil, err
 		}
-		accSum += resp.Result
-		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD %d,%d iteration %d, sum %d, prod %d", i,
-			addTerm[0], addTerm[1], accSum, accProduct)
-		addTerm[0] = addTerm[1]
-		addTerm[1] = resp.Result
+		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD (%d,%d) iteration #%d, result add %d",
+		// 	reqAdd.GetValue0(), reqAdd.GetValue1(), i, respAdd.Result)
+		reqAdd.Value1 = respAdd.GetResult()
 
-		reqMul.Value0 = mulTerm[0]
-		reqMul.Value1 = mulTerm[1]
-		resp, err = b.foo.AddMultiply(reqMul)
+		/// multiply
+		reqMul.Value0 = req.GetValue()[i]
+		respMul, err = b.foo.AddMultiply(reqMul)
 		if err != nil {
 			return nil, err
 		}
-		accProduct += resp.Result
-		b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "iteration %d, (%d,%d) sum %d, prod %d", i,
-			mulTerm[0], mulTerm[1], accSum, accProduct)
-		mulTerm[0] = mulTerm[1]
-		mulTerm[1] = resp.Result
+		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "MUL (%d,%d) iteration #%d, result mul %d",
+		// 	reqMul.GetValue0(), reqMul.GetValue1(), i, respMul.Result)
+		reqMul.Value1 = respMul.GetResult()
 	}
-	resp.Product = accProduct
-	resp.Sum = accSum
+	resp.Product = respMul.GetResult()
+	resp.Sum = respAdd.GetResult()
+	//b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "final tally--- sum=%d prod=%d",
+	//	resp.GetProduct(), resp.GetSum())
 	return resp, nil
 }
 

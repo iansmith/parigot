@@ -321,8 +321,7 @@ func (e *EdgeHolder) RemoveRequire(exportedList []string) bool {
 				break
 			}
 		}
-		depgraphPrint("RemoveRequire ", " exportedList is %+v", exportedList)
-		depgraphPrint("RemoveRequire ", " req %s FOUND on %s ?? FOUND=%v", req, e.key.String(), found)
+		depgraphPrint("RemoveRequire ", "considering %s on %s ?? FOUND=%v", req, e.key.String(), found)
 		if found {
 			changed = true
 		} else {
@@ -330,12 +329,35 @@ func (e *EdgeHolder) RemoveRequire(exportedList []string) bool {
 			depgraphPrint("RemoveRequire ", " %s not found, so what was the content? %#v", req, e.require)
 		}
 	}
-	depgraphPrint("RemoveRequire  ", "did %s change? CHANGE=%v (new result is %#v)", e.key.String(), changed, result)
+	depgraphPrint("RemoveRequire  ", "did %s change? CHANGE=%v (new result of function is %#v)", e.key.String(), changed, result)
 	e.require = result
-	depgraphPrint("RemoveRequire ", "exiting---- e.require=%+v and final result is %v", e.require, changed)
+	depgraphPrint("RemoveRequire ", "exiting---- remaining_requires=%+v and final result is %v", e.require, changed)
 	return changed
 }
 
+// RemoveRequireSimpleRemoves the given candidate from the list of requirements,
+// and does nothing if the candidate is not in the require list.  It returns true
+// if the require was actually removed, false if it took no action.
+//
+// This is the more dangerous version of RemoveRequire() because it should only
+// be used when the caller can be sure that the *other* nodes that have the same
+// require have already been processed correctly, typically via RemoveRequire().
+// This is used primarily so that *new* nodes introduced that have requires that have
+// already been successfully exported can be filtered properly.  There is no reason
+// to add a new node with a requirement foo if foo is already exported.
+func (e *EdgeHolder) RemoveRequireSimple(candidate string) bool {
+	result := []string{}
+	changed := false
+	for i := 0; i < len(e.require); i++ {
+		if candidate == e.require[i] {
+			changed = true
+			continue
+		}
+		result = append(result, e.require[i])
+	}
+	e.require = result
+	return changed
+}
 func depgraphPrint(method, spec string, arg ...interface{}) {
 	if depgraphVerbose {
 		part1 := fmt.Sprintf("depGraph:%s", method)

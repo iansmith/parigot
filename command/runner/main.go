@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
 	"github.com/iansmith/parigot/sys"
@@ -28,130 +31,51 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 	}
-	ctx, err := runner.NewContext(config)
+
+	// the deploy context creation also creates any needed nameservers
+	ctx, err := sys.NewDeployContext(config)
 	if err != nil {
-		log.Fatalf("unable to create context: %v", err)
+		log.Fatalf("unable to create deploy context: %v", err)
 	}
-	if err := ctx.CreateProcess(); err != nil {
+	if err := ctx.CreateAllProcess(); err != nil {
 		log.Fatalf("unable to create process: %v", err)
 	}
 
-	//
-	// nameserver(s) and notify chan are setup by the context
-	//
-
-	sys.InitNameServer(ctx.NotifyCh, !config.Flag.Remote, config.Flag.Remote)
-	// This go routine's only purpose is to accept run requests from user programs running in a local
-	// configuration (all in one process); it's called the run reader.
-	//
-	// Every process calls Run(). The run impl inside the kernel then hits RunNotify() which is
-	// a noop if we are in the network case.  In the local case, the RunNotify() of the localNameserver
-	// shoves it's information (sys.KeyNSPair) through the channel (notifyCh) and returns.
-	//
-	// This code then which is waiting on the notification of ANY process notifying it that
-	// it has reached Run() and is now blocked (via RunBlock()) calls RunIfReady on whoever
-	// sent it the notice via the notifyCh.
-	//
-	// RunIfReady() checks to see if any processes are ready to run (given their requires and
-	// and exports) and if there are one or more ready, the name server ultimately will end up
-	// calling Process.Run().  Process.Run() uses the runCh to "let go" of a process that had
-	// previously called RunBlock().  Note that the process receiving the "let go" message can't
-	// be also the sender.  The implication is that a single server running with any Require()
-	// will just stop, which is what you'd expect.
+	main, code := ctx.StartServer()
+	if main == nil {
+		if code != 0 {
+			log.Printf("server startup returned error code %d", code)
+			os.Exit(code)
+		}
+	}
 	go func() {
+		var buf bytes.Buffer
 		for {
-			print(fmt.Sprintf("zzz run reader about to block on notify chan %x\n", sys.GetGID()))
-			pair := <-ctx.NotifyCh
-			log.Printf("received %s,%T on notify chan... hitting RunIfReady", pair.Key.String(), pair.NameServer)
-			pair.NameServer.RunIfReady(pair.Key)
+			buf.Reset()
+			time.Sleep(15 * time.Second)
+			ctx.Process().Range(func(keyAny, valueAny any) bool {
+				key := keyAny.(string)
+				proc := valueAny.(*sys.Process)
+				buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v\n",
+					key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet()))
+				return true
+			})
+			print("periodic check:-----------\n", buf.String(), "\n")
 		}
 	}()
-
-	code := ctx.Start()
-	log.Printf("code returned from Start() was %d", code)
-	if code != 0 {
-		log.Printf("main function returned error code %d", code)
+	for _, mainProg := range main {
+		code, err := ctx.StartMain(mainProg)
+		if err != nil {
+			log.Fatalf("could not start main program:%v", err)
+		}
+		if code != 0 {
+			log.Fatalf("main program '%s' exited with code %d", mainProg, code)
+		}
 	}
-
-	log.Printf("DONE")
+	if len(main) > 1 {
+		log.Printf("all main programs completed successfully")
+	} else {
+		log.Printf("main program completed successfully")
+	}
+	os.Exit(0)
 }
-
-// create processes and check linkage for each user program
-// for _, lib := range libs {
-// 	store := wasmtime.NewStore(engine)
-// 	p, err := sys.NewProcessFromMod(store, lib, modToPath[lib], rs)
-// 	if err != nil {
-// 		log.Fatalf("unable to create process from module (%s): %v", modToPath[lib], err)
-// 	}
-// 	maxModules++
-// 	runnerPrint("MAIN ", "starting goroutine for process %s", p)
-// 	go func(p *sys.Process) {
-// 		p.Start()
-// 		return
-// 	}(p)
-// 	proc = append(proc, p)
-// }
-
-// // we are the periodic check for things getting up ok
-// everbodyStarted := false
-// iter := 0
-// for iter < secondsBeforeStartupFailed {
-// 	startedCount := 0
-// 	for _, p := range proc {
-// 		if p.ReachedStart() {
-// 			startedCount++
-// 		}
-// 	}
-// 	if startedCount == len(proc) {
-// 		everbodyStarted = true
-// 		break
-// 	}
-// 	runnerPrint("MAIN ", "startedCount %d, len %d", startedCount, len(proc))
-// 	time.Sleep(100 * time.Millisecond)
-// 	iter++
-// }
-// if !everbodyStarted {
-// 	log.Printf("we waited %d seconds, but some processes failed to start...", iter)
-// 	for _, p := range proc {
-// 		if !p.ReachedStart() {
-// 			log.Printf("\t%s", p)
-// 		}
-// 	}
-// 	log.Fatalf("aborting because processes failed to start")
-// } else {
-// 	everybodyExited := true
-// 	for _, p := range proc {
-// 		if p.IsWaiter() && !p.Exited() {
-// 			everybodyExited = false
-// 			break
-// 		}
-// 	}
-// 	if !everybodyExited {
-// 		localInfo, netInfo := sys.StartFailedInfo()
-// 		if localInfo != "" || netInfo != "" {
-// 			if localInfo != "" {
-// 				log.Printf("dependency problem:\n%s", localInfo)
-// 			}
-// 			if netInfo != "" {
-// 				log.Printf("dependency problem:\n%s", netInfo)
-// 			}
-// 			log.Fatalf("aborting due to dependency issues")
-// 		}
-// 	}
-// }
-// for {
-// 	allDead := true
-// 	for _, p := range proc {
-// 		//print(fmt.Sprintf("proc %s: waiter? %v exited? %v server? %v\n", p, p.IsWaiter(), p.Exited(), p.IsServer()))
-// 		if (p.IsWaiter() && !p.Exited()) || p.IsServer() {
-// 			allDead = false
-// 			break
-// 		}
-// 	}
-// 	if allDead {
-// 		log.Printf("all processes have exited, finished")
-// 		os.Exit(0)
-// 	}
-// 	time.Sleep(250 * time.Millisecond)
-// }
-//}

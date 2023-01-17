@@ -233,6 +233,7 @@ func (l *callImpl) Export1(packagePath, service string) (*syscallmsg.ExportRespo
 		PackagePath: packagePath, Service: service}
 	req := &syscallmsg.ExportRequest{}
 	req.Service = []*syscallmsg.FullyQualifiedService{fqSvc}
+	print("AAAAAAAAAAA _______ export 1 ", fqSvc.PackagePath, " and ", fqSvc.Service, "\n")
 	return l.Export(req)
 }
 

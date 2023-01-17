@@ -31,10 +31,6 @@ func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *syscallm
 	return sharedCallService(r.nameServer, key, info)
 }
 
-func (r *remoteSyscall) RunNotify(key dep.DepKey) {
-	//nothing to do we don't use the runreader
-}
-
 // func (r *remoteSyscall) HandleMethod(key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
 // 	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
 // }

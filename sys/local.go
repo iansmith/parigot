@@ -61,9 +61,6 @@ func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	return sharedRequire(l.nameServer, key, pkgPath, service)
 }
-func (l *localSysCall) RunNotify(key dep.DepKey) {
-	l.nameServer.RunNotify(key)
-}
 func (l *localSysCall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return l.nameServer.RunBlock(key)
 }

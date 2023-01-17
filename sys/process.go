@@ -10,6 +10,7 @@ import (
 	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"github.com/iansmith/parigot/sys/dep"
 	"github.com/iansmith/parigot/sys/jspatch"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
@@ -24,6 +25,7 @@ type Service interface {
 	GetArg() []string
 	GetEnv() []string
 	GetPath() string
+	GetModule() *wasmtime.Module
 }
 
 type ParigotExitCode int
@@ -37,7 +39,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false || envVerbose != ""
+var processVerbose = true || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -52,10 +54,13 @@ type Process struct {
 	parent       *wasmtime.Store
 	syscall      *syscallReadWrite
 	microservice Service
+	key          dep.DepKey
 
-	waiter     bool
-	reachedRun bool
-	exited     bool
+	requirementsMet bool
+	reachedRunBlock bool
+	running         bool
+	exited          bool
+	exitCode_       int //really only 0-192
 
 	argv       int32 //ptr
 	argc       int32
@@ -63,18 +68,15 @@ type Process struct {
 
 	callCh chan *callContext
 	runCh  chan bool
-
-	exitCode int
 }
 
-// NewProcessFromMod does not handle concurrent use. It assumes that each call to this
+// NewProcessFromMicroservice does not handle concurrent use. It assumes that each call to this
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl??
-func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module,
-	m Service) (*Process, error) {
+func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *DeployContext) (*Process, error) {
 
-	rt := newRuntime()
+	rt := newRuntime(ctx)
 	// split mode
 	logViewer := &logimpl.LogViewerImpl{}
 	fileSvc := &fileimpl.FileSvcImpl{}
@@ -82,22 +84,23 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module,
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
-		id:           id,
-		parent:       parentStore,
-		module:       mod,
-		linkage:      nil,
-		memPtr:       0,
-		instance:     nil,
-		syscall:      rt.syscall,
-		waiter:       false,
-		reachedRun:   false,
-		exited:       false,
-		microservice: m,
-		path:         m.GetPath(),
+		id:              id,
+		parent:          parentStore,
+		module:          m.GetModule(),
+		linkage:         nil,
+		memPtr:          0,
+		instance:        nil,
+		syscall:         rt.syscall,
+		running:         false,
+		reachedRunBlock: false,
+		exited:          false,
+		microservice:    m,
+		path:            m.GetPath(),
 
 		callCh: make(chan *callContext),
-		runCh:  make(chan bool),
+		//runCh:  make(chan bool),
 	}
+	proc.key = NewDepKeyFromProcess(proc)
 
 	l, err := proc.checkLinkage(rt, logViewer, fileSvc)
 	if err != nil {
@@ -105,7 +108,8 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module,
 	}
 	proc.linkage = l
 
-	instance, err := wasmtime.NewInstance(parentStore, mod, l)
+	instance, err :=
+		wasmtime.NewInstance(parentStore, proc.module, l)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +131,9 @@ func NewProcessFromMod(parentStore *wasmtime.Store, mod *wasmtime.Module,
 	return proc, nil
 }
 
+func (p *Process) RequirementsMet() bool {
+	return p.requirementsMet
+}
 func (p *Process) IsServer() bool {
 	// if we have a remote spec, then we are remote
 	return p.microservice.IsServer()
@@ -146,14 +153,15 @@ func (p *Process) String() string {
 	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
 }
 
-func (p *Process) ReachedStart() bool {
-	return p.reachedRun
+func (p *Process) ReachedRunBlock() bool {
+	return p.reachedRunBlock
 }
+func (p *Process) Running() bool {
+	return p.running
+}
+
 func (p *Process) Exited() bool {
 	return p.exited
-}
-func (p *Process) IsWaiter() bool {
-	return p.waiter
 }
 
 func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl) ([]wasmtime.AsExtern, error) {
@@ -187,8 +195,12 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 }
 
 func (p *Process) SetExitCode(code int) {
-	p.exitCode = code
+	p.exitCode_ = code
 	p.exited = true
+}
+
+func (p *Process) ExitCode() int {
+	return p.exitCode_
 }
 
 // Run() is used to let a process proceed with running.  This is
@@ -205,6 +217,9 @@ func (p *Process) Start() (code int) {
 
 	var err error
 	startOfArgs := wasmStartAddr + int32(0)
+	if p == nil {
+		panic("process is nil!")
+	}
 	p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
 	if err != nil {
 		code = int(ExitCodeArgsTooLarge)
@@ -221,19 +236,19 @@ func (p *Process) Start() (code int) {
 	if start == nil {
 		log.Printf("unable to start process based on %s, can't fid start symbol", p.path)
 		p.SetExitCode(int(ExitCodeNoStartSymbol))
-		return p.exitCode
+		return p.ExitCode()
 	}
 	defer func(proc *Process) {
 		if r := recover(); r != nil {
 			e, ok := r.(*syscallmsg.ExitRequest)
 			print(fmt.Sprintf("defer3 %v, and type %T\n", ok, r))
 			if ok {
-				p.exitCode = int(e.GetCode())
-				code = p.exitCode
+				code = int(e.GetCode())
+				proc.SetExitCode(code)
 				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
 			} else {
 				p.SetExitCode(int(ExitCodePanic))
-				code = p.exitCode
+				code = int(ExitCodePanic)
 				print(fmt.Sprintf("golang (not WASM) panic '%v'\n", r))
 			}
 		}
@@ -245,19 +260,18 @@ func (p *Process) Start() (code int) {
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 
 	if err != nil {
-		p.SetExitCode(253)
-		procPrint("END ", "process %s trapped: %v, exit code %d", p, err, p.exitCode)
-		return p.exitCode
+		p.SetExitCode(int(ExitCodeTrapped))
+		procPrint("END ", "process %s trapped: %v, exit code %d", p, err, p.ExitCode())
+		return int(ExitCodeTrapped)
 	}
 	if result == nil {
-		procPrint("END ", "process %s finished (exit code %d)", p, p.exitCode)
+		procPrint("END ", "process %s finished (exit code %d)", p, p.ExitCode())
 		p.exited = true
-		return p.exitCode
+		return p.ExitCode()
 
 	}
 	procPrint("END ", "process %s finished normally: %+v", p, result)
-	p.exitCode = 0
-	return p.exitCode
+	return p.ExitCode()
 }
 
 func procPrint(method string, spec string, arg ...interface{}) {
@@ -273,4 +287,8 @@ func procPrint(method string, spec string, arg ...interface{}) {
 		//print(part1 + part2 + "\n")
 
 	}
+}
+
+func (p *Process) RunBlock() {
+	// key:=
 }

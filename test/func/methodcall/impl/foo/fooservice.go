@@ -14,6 +14,7 @@ import (
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -60,17 +61,13 @@ func (f *fooServer) AddMultiply(pctx *protosupportmsg.Pctx, in protoreflect.Prot
 	return resp, nil
 }
 
-// we don't provide a size to LucasSequence (via LucasSequenceRequest) becaues we are testing response
-// with no input request
-const lucasSize = 50
-
 func (f *fooServer) LucasSequence(pctx *protosupportmsg.Pctx) (protoreflect.ProtoMessage, error) {
 	f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.LucasSequence")
 	resp := &methodcallmsg.LucasSequenceResponse{}
-	seq := make([]int32, lucasSize)
+	seq := make([]int32, const_.LucasSize) // -2 because first two are given
 	seq[0] = 2
 	seq[1] = 1
-	for i := 2; i < lucasSize-2; i++ {
+	for i := 2; i < const_.LucasSize; i++ {
 		seq[i] = seq[i-1] + seq[i-2]
 	}
 	resp.Sequence = seq
@@ -98,7 +95,6 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready() bool {
-	print("zzz in foo server about to  run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -109,7 +105,6 @@ func (f *fooServer) Ready() bool {
 		return false
 	}
 	f.logger = logger
-	f.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "foo service: about to return from ready")
 	return true
 }
 
