@@ -31,7 +31,6 @@ func main() {
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	print("zzz in log server, about to run\n")
 	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}

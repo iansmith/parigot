@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var netnameserverVerbose = true || envVerbose != ""
+var netnameserverVerbose = false || envVerbose != ""
 
 // servicePort is the port that a service listens on for incoming requests.
 // This port is fixed because each service has its own container, thus its

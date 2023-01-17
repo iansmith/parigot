@@ -53,7 +53,6 @@ func main() {
 	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
 		panic("unable to require foo service: " + err.Error())
 	}
-	print("zzz  in methodcall test, about to run()\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("error starting client process:" + err.Error())
 	}

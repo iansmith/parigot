@@ -8,6 +8,7 @@ import (
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 	"github.com/iansmith/parigot/command/runner/runner"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
 
 // A DeployContext represents a deployment during the process of starting it up.
@@ -72,7 +73,7 @@ func (c *DeployContext) CreateAllProcess() error {
 	// create processes and check linkage for each user program
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
-		log.Printf("create process %s", name)
+		procPrint("CreateAlllProcess", "create process %s", name)
 		store := wasmtime.NewStore(c.engine)
 		mod := c.config.Module(name)
 		if mod == nil {
@@ -98,7 +99,6 @@ func (c *DeployContext) CreateAllProcess() error {
 // returns the exit code to be used when exiting.
 func (c *DeployContext) StartServer() ([]string, int) {
 	mainList := []string{}
-	print(fmt.Sprintf("about to start servers %#v\n", c.config.Microservice))
 	for _, f := range c.config.Microservice {
 		procAny, ok := c.process.Load(f.Name())
 		if !ok {
@@ -109,11 +109,11 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			log.Printf("StartProcess creating goroutine for server process %s at Start()", name)
+			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process %s at Start()", name)
 			go func(p *Process, serverProcessName string) {
 				code := p.Start()
 				p.SetExitCode(code)
-				runnerPrint("WARNING: server process %s exited with code %d", serverProcessName, code)
+				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process %s exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)
 		}
 	}
@@ -141,7 +141,7 @@ func (d *DeployContext) NotifyMap() *sync.Map {
 	return d.notify
 }
 
-func runnerPrint(method, spec string, arg ...interface{}) {
+func contextPrint(level logmsg.LogLevel, method, spec string, arg ...interface{}) {
 	if runnerVerbose {
 		part1 := fmt.Sprintf("RUNNER:%s ", method)
 		part2 := fmt.Sprintf(spec, arg...)

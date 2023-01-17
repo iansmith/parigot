@@ -3,6 +3,10 @@ package jspatch
 import (
 	"fmt"
 	"time"
+
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	"github.com/iansmith/parigot/sys/backdoor"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type RuntimePatch struct {
@@ -27,7 +31,11 @@ func (j *RuntimePatch) SetMemPtr(m uintptr) {
 }
 
 func (r *RuntimePatch) GetRandomData(sp int32) {
-	print("xxx ignoring call to GetRandomData", "\n")
+	backdoor.Log(&logmsg.LogRequest{
+		Message: "ignoring call to GetRandomData()",
+		Stamp:   timestamppb.Now(),
+		Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+	}, true, false, false, nil)
 	//return
 	// b := r.mem.LoadSlice(sp + 8)
 	// print("xxxx GetRandomData", uint32(len(b)), "\n")

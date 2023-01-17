@@ -68,3 +68,7 @@ export P=github.com/iansmith/parigot
 ### where the default programs can read from (the sandbox dir or dirs)
 export PARIGOT_FS_ROOT=/Users/iansmith/parigot/example
 
+
+### useful
+# find all the files that have an uppercase letter in their name
+# find . ! -name . -prune -name '*[[:upper:]]*'

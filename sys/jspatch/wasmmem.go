@@ -19,7 +19,7 @@ import (
 // Flip this switch to get debug output from WasmMem.  It does the lowest level work
 // of grabbing or pushing memory in the other processes address space.  It works on
 // behalf of the kernel as part of every process.
-var wasmmemVerbose = true
+var wasmmemVerbose = false
 
 type WasmMem struct {
 	memPtr uintptr

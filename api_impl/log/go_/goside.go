@@ -183,9 +183,9 @@ func (l *logState) logSingleMessage(tuple *logTuple) {
 		if tuple.isJS {
 			prefix = "JS "
 		}
-		fmt.Printf("%s%s:%s:%s%s",
+		fmt.Printf("%s%s :%s:%s%s",
 			prefix,
-			tuple.req.Stamp.AsTime().Format(time.RFC3339),
+			"UTC "+tuple.req.Stamp.AsTime().Format(time.Stamp),
 			intToLogLevel(int(tuple.req.Level)),
 			tuple.req.Message,
 			suffix)

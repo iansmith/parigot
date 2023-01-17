@@ -54,20 +54,22 @@ build/log.p.wasm: $(LOG_SERVICE) g/file/$(API_VERSION)/file.pb.go $(SPLIT_UTIL)
 
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
+METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
 SYSCALL_CLIENT_SIDE=api_impl/syscall/*.go
-build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/methodcallbar.p.wasm build/methodcallfoo.p.wasm build/runner
+
+build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/runner $(METHODCALL_TEST_SVC) $(api_impl)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 # methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(api_impl)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 # methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
-build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
+build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(api_impl)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 

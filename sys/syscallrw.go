@@ -286,31 +286,6 @@ func (s *syscallReadWrite) Run(sp int32) {
 			return lib.KernelAbortRequest
 		}
 		return lib.KernelNoError
-		// if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		// 	print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunNotify() %v, %s\n", req, s.proc))
-		// }
-		// key := NewDepKeyFromProcess(s.proc)
-		// s.procToSysCall().RunNotify(key)
-		// // block until we are told to proceed
-		// if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		// 	print(fmt.Sprintf("zzz syscallRW about to return from run request (zero size), about to hit RunBlock() %s [%s]\n", key.String(), s.proc))
-		// }
-		// ok, kerr := s.procToSysCall().RunBlock(key)
-		// if kerr != nil && kerr.IsError() {
-		// 	sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "%s cannot run, error %s and ok %v, aborting...", s.proc, kerr, ok)
-		// 	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		// 		print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure (%s)", kerr))
-		// 	}
-		// 	return lib.KernelDependencyFailure
-		// }
-		// if !ok {
-		// 	sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "RUN", "we are now ready to run, but have been told to abort by nameserver, %s", s.proc)
-		// 	if fmt.Sprintf("%T", req) == "*syscallmsg.RunRequest" {
-		// 		print(fmt.Sprintf("zzz syscallRW about to return from runblock kernelDependencyFailure\n"))
-		// 	}
-		// 	return lib.KernelDependencyFailure
-		// }
-		//return lib.KernelNoError
 	})
 }
 

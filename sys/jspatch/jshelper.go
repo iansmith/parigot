@@ -26,7 +26,7 @@ func (j *JSPatch) SetMemPtr(m uintptr) {
 	j.mem = NewWasmMem(m)
 }
 
-const jsEmulVerbose = true
+const jsEmulVerbose = false
 
 func enter(funcName string, rest ...string) {
 	if !jsEmulVerbose {
