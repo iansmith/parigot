@@ -14,7 +14,7 @@ import(
 
 )
 //
-// StoreService
+// StoreService (from store/v1/store.proto)
 //
 type StoreService interface { 
     MediaTypesInStock()(*storemsg.MediaTypesInStockResponse, error)

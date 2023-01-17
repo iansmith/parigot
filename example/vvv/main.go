@@ -5,7 +5,6 @@ import (
 	"time"
 
 	storemsg "example/vvv/g/msg/store/v1"
-	"example/vvv/g/store/v1"
 
 	"github.com/iansmith/parigot/api_impl/syscall"
 	"github.com/iansmith/parigot/g/file/v1"
@@ -31,7 +30,6 @@ func main() {
 	if _, err := callImpl.Export1("demo.vvv", "Store"); err != nil {
 		panic("unable to export demo.vvv: " + err.Error())
 	}
-	store.Run(&myServer{})
 }
 
 // this type better implement vvv.StoreServer

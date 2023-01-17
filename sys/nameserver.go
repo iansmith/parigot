@@ -42,18 +42,20 @@ type NameServer interface {
 	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
 	CallService(dep.DepKey, *callContext) *syscallmsg.ReturnValueRequest
 	GetInfoForCallId(target lib.Id) *callContext
+	ExitWhenInFlightEmpty() bool
 }
 
 type callContext struct {
-	mid    lib.Id                              // the method id this call is going to be made TO
-	method string                              // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
-	target dep.DepKey                          // the process/addr this call is going to be made TO
-	cid    lib.Id                              // call id that should be be used by the caller to match results
-	sender dep.DepKey                          // the process/addr this call is going to be made FROM
-	sid    lib.Id                              // service that is being called
-	respCh chan *syscallmsg.ReturnValueRequest // this is where to send the return results
-	param  *anypb.Any                          // where to put the param data
-	pctx   *protosupportmsg.Pctx               // where to put the previous pctx
+	mid          lib.Id                              // the method id this call is going to be made TO
+	method       string                              // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
+	target       dep.DepKey                          // the process/addr this call is going to be made TO
+	cid          lib.Id                              // call id that should be be used by the caller to match results
+	sender       dep.DepKey                          // the process/addr this call is going to be made FROM
+	sid          lib.Id                              // service that is being called
+	respCh       chan *syscallmsg.ReturnValueRequest // this is where to send the return results
+	param        *anypb.Any                          // where to put the param data
+	pctx         *protosupportmsg.Pctx               // where to put the previous pctx
+	exitAfterUse bool                                // this is set to true ONLY when the nscore has requested it AND the inflight queue is empty
 }
 
 type LocalNameServer struct {
@@ -197,6 +199,24 @@ func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.I
 // dependencies are satisfied.  If there are ready processes, they are returned.
 func (n *LocalNameServer) RunIfReady(key dep.DepKey) []dep.DepKey {
 	return n.NSCore.RunIfReady(key)
+}
+
+// ExitWhenInFlightEmpty is a switch that says only the calls currently in progress
+// should be allowed to complete and the the caller of the last in flight request should
+// be told to exit.  This returns true if the in flight queue is empty now.
+//
+// xxx fixme(iansmith)
+// Racey? Could the in flight queue have an entry now but by the time we get
+// to the "next" call being processed for a return value we could have an empty
+// queue so we never signal a caller to exit.
+//
+// Tricky: If there are _new_ requests that start after this is called but before the
+// "final" request has been processed, then this flag remains on and calls keep getting
+// processed until the in flight list is actually empty.  This is usually what you
+// want but it could be a problem in a client that has some repetitive task that
+// actually "starve" the attempt to ExitWhenInFlightEmpty().
+func (n *LocalNameServer) ExitWhenInFlightEmpty() bool {
+	return n.NSCore.ExitWhenInFlightEmpty()
 }
 
 // SendAbortMessage is used to tell processes that are waiting to run that their

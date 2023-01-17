@@ -12,6 +12,7 @@ import (
 	"github.com/iansmith/parigot/g/log/v1"
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -20,7 +21,9 @@ var callImpl = syscall.NewCallImpl()
 
 //go:noinline
 func main() {
-	//flag.Parse() <--- can't do this until we get startup args figured out
+	print("xxx0\n")
+
+	lib.FlagParseCreateEnv()
 
 	if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
 		panic("unable to require my service: " + err.Error())
@@ -72,7 +75,9 @@ func main() {
 			Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
 	}
+	print("xxx1\n")
 	callImpl.Exit(&syscallmsg.ExitRequest{Code: 17})
+	print("xxx2\n")
 }
 
 func Log(level pblog.LogLevel, spec string, arg ...interface{}) {

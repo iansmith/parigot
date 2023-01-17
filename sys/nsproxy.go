@@ -154,6 +154,11 @@ func (n *NSProxy) Export(key dep.DepKey, packagePath, service string) lib.Id {
 	return lib.NoError[*protosupportmsg.KernelErrorId]()
 }
 
+// ExitWhenInFlightEmpty not implemented yet.
+func (n *NSProxy) ExitWhenInFlightEmpty() bool {
+	panic("ExitWhenInFlightEmpty not implemented yet")
+}
+
 // Require is where user code ends up when they call Require, albeit via
 // a system call into the kernel (this side).  This invokes Require on the
 // remote nameserver to do the startup sequence.

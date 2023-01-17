@@ -12,6 +12,7 @@ import (
 	{{$j -}}
 {{- end}} {{/* imports */}}
 
+	os "os"
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
@@ -155,7 +156,13 @@ you would have a method with no input or output, which is checked elsewhere */}}
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
 		//
-		lib.ReturnValueEncode({{$svcCamelFL}}Call, cid, mid, marshalError, execError, out, resp.GetPctx())
+		retresp, e:=lib.ReturnValueEncode({{$svcCamelFL}}Call, cid, mid, marshalError, execError, out, resp.GetPctx())
+		if e!=nil {
+			panic("server failed to return value: "+e.Error())
+		}
+		if retresp.ExitAfterUse {
+			os.Exit(0)
+		}
 		// about to loop again
 	}
 	// wont reach here

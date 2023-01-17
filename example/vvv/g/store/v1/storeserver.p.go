@@ -3,10 +3,14 @@
 
 package store
 
+
+
+
 import (
 	"fmt"
 "example/vvv/g/msg/store/v1" 
 
+	os "os"
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
@@ -18,7 +22,7 @@ import (
 )
 
 //
-// StoreServiceServer
+// StoreServiceServer (from store/v1/store.proto)
 //
 
 type StoreServiceServer interface {
@@ -42,7 +46,7 @@ var soldItemMethod lib.Id
 var storeServiceServerVerbose = false
 var storeServiceCall = syscall.NewCallImpl()
 
-func Run(impl StoreServiceServer) {
+func RunStoreService(impl StoreServiceServer) {
 	// register all methods
 	method, err := storeServiceBind(impl)
 	if err != nil {
@@ -114,7 +118,13 @@ func Run(impl StoreServiceServer) {
 		//
 		// could be error, could be everything is cool, send to lib to figure it out
 		//
-		lib.ReturnValueEncode(storeServiceCall, cid, mid, marshalError, execError, out, resp.GetPctx())
+		retresp, e:=lib.ReturnValueEncode(storeServiceCall, cid, mid, marshalError, execError, out, resp.GetPctx())
+		if e!=nil {
+			panic("server failed to return value: "+e.Error())
+		}
+		if retresp.ExitAfterUse {
+			os.Exit(0)
+		}
 		// about to loop again
 	}
 	// wont reach here

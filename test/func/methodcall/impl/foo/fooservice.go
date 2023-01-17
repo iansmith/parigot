@@ -82,7 +82,7 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 	if req.GetTerms() < 1 {
 		return fmt.Errorf("number of terms in WritePi must be a positive integer")
 	}
-	runningTotal := 3.0
+	runningTotal := 3.0 // k==0 term
 
 	for k := 1; k <= int(req.GetTerms()); k++ {
 		runningTotal = runningTotal - math.Tan(runningTotal)

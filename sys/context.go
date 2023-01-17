@@ -145,6 +145,6 @@ func contextPrint(level logmsg.LogLevel, method, spec string, arg ...interface{}
 	if runnerVerbose {
 		part1 := fmt.Sprintf("RUNNER:%s ", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		log.Printf(part1, part2)
+		log.Printf("%s%s", part1, part2)
 	}
 }
