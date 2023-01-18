@@ -47,13 +47,15 @@ message StartResponse {
 // Comparison result describes a single comparison that was done during
 // a test.  This result is generally optional inside a ExecResult.  The
 // name field is not the package, service, or function name, it is a name
-// that can used to narrow down to a single comparison. It is optional 
-// because it is sometimes overkill to name each comparison.  It is 
-// frequently useful to only create comparison results for failing results.
+// that can used to narrow down to a single comparison. name can be "",
+// as can error_message.  The error_id can be nil. These can be zero
+// value because they are not crucial to the display of the results, although
+// it is highly recommended that if the success == false, then one of
+// error_message or error_id is set.
 message ComparisonResult {
-  optional string name = 1;
-  optional string error_message = 2;
-  optional msg.protosupport.v1.KernelErrorId error_id = 3;
+  string name = 1;
+  string error_message = 2;
+  msg.protosupport.v1.KernelErrorId error_id = 3;
   bool success = 4;
 }
 

@@ -3,11 +3,15 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 )
+
+// var msgRegex = regexp.MustCompile(`(.*\/g\/msg\/)([[:alpha][[:alphanum]]*)(\/v[[:digit]]+)`)
+var msgRegex = regexp.MustCompile(`(.*g/msg/)([[:alpha:]][[:alnum:]]*)(/v[0-9]+)$`)
 
 // BasicGenerate is the primary code generation driver. Language-specific code
 // (in generator.Generate()) is called and that code typically does some setup and
@@ -27,19 +31,21 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 			//gather imports
 			imp := make(map[string]struct{})
 			for _, dep := range info.GetFileByName(toGen).GetDependency() {
-				imp["\""+impToPkg[dep]+"\""] = struct{}{}
+				importPrefix := ""
+				if msgRegex.MatchString(impToPkg[dep]) {
+					match := msgRegex.FindStringSubmatch(impToPkg[dep])
+					if len(match) != 4 {
+						panic(fmt.Sprintf("unable to understand import match result: %+v", match))
+					}
+					importPrefix = match[2] + "msg " // convention
+				}
+				imp[importPrefix+"\""+impToPkg[dep]+"\""] = struct{}{}
 			}
-			//path := util.GenerateOutputFilenameBase(info.GetFile()) + resultName[i]
 			if !strings.HasSuffix(toGen, ".proto") {
 				panic(fmt.Sprintf("unable to understand protocol buffer file with name %s, does not end in .proto", toGen))
 			}
 			path2 := strings.TrimSuffix(toGen, ".proto") + resultName[i]
 			f := util.NewOutputFile(path2)
-			// pbsvc := matchService(toGen, info.request.GetProtoFile())
-			// log.Printf("xxx number of pb services for %s: %d", toGen, len(pbsvc))
-			// if len(pbsvc) == 1 {
-			// 	log.Printf("xxx--> found it in matchService, pbsvc result[0] == %s", pbsvc[0].GetName())
-			// }
 			wasmService := []*WasmService{}
 			for _, pb := range info.GetAllServiceByName(toGen) {
 				desc := info.GetFileByName(toGen)

@@ -92,7 +92,7 @@ func (c *CGType) IsCompositeNoFields() bool {
 }
 
 func (c *CGType) IsEmpty() bool {
-	if c.hasValue == true {
+	if c.hasValue {
 		comp := c.composite
 		basic := c.basic
 		if comp == nil && basic == "" {
