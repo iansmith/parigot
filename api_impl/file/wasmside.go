@@ -52,7 +52,6 @@ func (m *myFileServer) Ready() bool {
 // this service.  That other part is the one that runs natively on the host machine.  This code runs
 // in WASM.
 func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
-
 	resp := filemsg.OpenResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)

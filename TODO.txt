@@ -11,18 +11,23 @@ draft: false
 ### compiler (protoc-gen-parigot)
 * make locator template something that can be selected from the command line
 * walk through the code paths and get return values to always be parigot.Error
-* flow the errors through the compiler so we can report them back to the protoc level
+* flow the errors through the compiler generated code so we can report them back to the protoc level
 * enums, especially for the errors coming back from dispatch -- and that should be
 coordinated with client side service
-* repeated objects in a messages ??
-* pull up of params and outputs
-* rip out all of the "Get<Blah>" methods and make them more goish.
+    * requires new templates
+* rip out all of the "Get<Blah>" methods in our code and make them more goish.
+    * GetBlah() is ok in protoc generated code
 * walk through the basic usages of protoc-gen-parigot and make it not produce any files that are not used
-* make the replacement operation able to use imports
 * Fix compiler generating servicedecl and server twice
 
 ### logging
 * service calls with parameters, log messages
+
+### docs
+* generate .md files from the .proto files
+    * https://github.com/pseudomuto/protoc-gen-doc
+* use godoc to generate detailed doc  
+    * https://github.com/robertkrimen/godocdown
 
 ### transform
 * rip out all of the "Get<Blah>" methods and make them more goish.
@@ -30,9 +35,6 @@ coordinated with client side service
 ### surgery (postponed)
 * change the way we implement replacement functions to be a replacement import
     * add the "normal" replacement, if that works correctly
-
-## uncategorized
-* Add appname?
 
 ## file service
 * Make it work right with the new splitutil stuff
@@ -66,6 +68,12 @@ coordinated with client side service
     * Test different run BAD configurations to make sure errors are ok
     * Test different BAD exit conditions to make sure errors are ok
     * Be sure to test situation where a required service wasnot in the deploy
+    
+### uncategorized
+* Add appname?
+
+
+
 ## Web Coord Language
 - define css rules of interest
 - laconic style html dev
@@ -73,3 +81,4 @@ coordinated with client side service
 - css can also be attached to html dev
 - events attached to html
 - functions provided in assemblyscript? typescript? go?
+
