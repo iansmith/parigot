@@ -34,6 +34,9 @@ coordinated with client side service
 ## uncategorized
 * Add appname?
 
+## file service
+* Make it work right with the new splitutil stuff
+
 ### processes
 * process states like started, waiting, running needs a check
     * check that the processes 
@@ -62,7 +65,7 @@ coordinated with client side service
 * Bad state of services, make sure errors are ok
     * Test different run BAD configurations to make sure errors are ok
     * Test different BAD exit conditions to make sure errors are ok
-
+    * Be sure to test situation where a required service wasnot in the deploy
 ## Web Coord Language
 - define css rules of interest
 - laconic style html dev

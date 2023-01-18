@@ -21,10 +21,10 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
-	if _, err := callImpl.Export1("file", "File"); err != nil {
+	if _, err := callImpl.Export1("file", "FileService"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
-	if _, err := callImpl.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
 
@@ -46,7 +46,6 @@ func (m *myFileServer) Ready() bool {
 		panic("unable to locate the log:" + err.Error())
 	}
 	return true
-
 }
 
 // This file contains the "setup" code that builds a payload that will be sent to the other part of
@@ -91,14 +90,13 @@ func (m *myFileServer) LoadTest(pctx *protosupportmsg.Pctx, inProto proto.Messag
 	resp := filemsg.LoadTestResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
+	in := inProto.(*filemsg.LoadTestRequest)
 	if err != nil {
-		print("xxx in WASM fileserver.Load() 1, ", err.Error(), "\n")
-		m.log(nil, "xxx in WASM fileserver.Load() 1, %v", err)
+		m.log(nil, "in WASM fileserver.Load('%s'), error trying to return: %v", in.Path, err)
 		return nil, err
 	}
 	if errId != nil {
-		print("xxx in WASM fileserver.Load() 2, ", errId.Short(), "\n")
-		m.log(nil, "xxx in WASM fileserver.Load() 2, %s")
+		m.log(nil, "in WASM fileserver.Load('%s') error found: %s", in.Path, errId.Short())
 		return nil, errors.New("internal error:" + errId.Short())
 	}
 	return &resp, nil

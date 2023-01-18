@@ -21,14 +21,12 @@ var callImpl = syscall.NewCallImpl()
 
 //go:noinline
 func main() {
-	print("xxx0\n")
-
 	lib.FlagParseCreateEnv()
 
-	if _, err := callImpl.Require1("demo.vvv", "Store"); err != nil {
+	if _, err := callImpl.Require1("demo.vvv", "StoreService"); err != nil {
 		panic("unable to require my service: " + err.Error())
 	}
-	if _, err := callImpl.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("unable to require log service: " + err.Error())
 	}
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
@@ -75,9 +73,7 @@ func main() {
 			Log(pblog.LogLevel_LOG_LEVEL_INFO, fmt.Sprintf("%d -> %s", m.Number(), m.String()))
 		}
 	}
-	print("xxx1\n")
 	callImpl.Exit(&syscallmsg.ExitRequest{Code: 17})
-	print("xxx2\n")
 }
 
 func Log(level pblog.LogLevel, spec string, arg ...interface{}) {

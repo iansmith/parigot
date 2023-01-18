@@ -9,7 +9,11 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
+	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	"github.com/iansmith/parigot/sys"
+	"github.com/iansmith/parigot/sys/backdoor"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var testMode *bool = flag.Bool("t", false, "turns testmode on, implies running services marked 'Test' in deploy config")
@@ -45,7 +49,7 @@ func main() {
 	if main == nil {
 		if code != 0 {
 			log.Printf("server startup returned error code %d", code)
-			os.Exit(code)
+			panic("os.Exit() with code " + fmt.Sprint(code))
 		}
 	}
 	go func() {
@@ -56,8 +60,8 @@ func main() {
 			ctx.Process().Range(func(keyAny, valueAny any) bool {
 				key := keyAny.(string)
 				proc := valueAny.(*sys.Process)
-				buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v\n",
-					key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet()))
+				buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
+					key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
 				return true
 			})
 			print("periodic check:-----------\n", buf.String(), "\n")
@@ -73,9 +77,17 @@ func main() {
 		}
 	}
 	if len(main) > 1 {
-		log.Printf("all main programs completed successfully")
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+			Stamp:   timestamppb.Now(),
+			Message: "all main programs completed successfully",
+		}, false, true, false, nil)
 	} else {
-		log.Printf("main program completed successfully")
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+			Stamp:   timestamppb.Now(),
+			Message: "main program completed successfully",
+		}, false, true, false, nil)
 	}
 	os.Exit(0)
 }

@@ -109,11 +109,11 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process %s at Start()", name)
+			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process '%s' at Start()", name)
 			go func(p *Process, serverProcessName string) {
 				code := p.Start()
 				p.SetExitCode(code)
-				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process %s exited with code %d", serverProcessName, code)
+				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)
 		}
 	}

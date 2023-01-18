@@ -36,5 +36,5 @@ clean:
 	rm -rf g/*
 	rm -rf build/*
 
-run:
+run: build/server.p.wasm build/storeclient.p.wasm $(GENERATED)/store/v1/storeservicedecl.p.go
 	$(PARIGOT_SRC)/build/runner vvv.toml

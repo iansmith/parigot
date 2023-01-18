@@ -67,7 +67,6 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	l.idToFilePointer[fileId.String()] = 0
 	l.idToMemPath[fileId.String()] = newPath
 	splitutil.RespondSingleProto(l.mem, sp, &resp)
-	return
 }
 
 func (l *FileSvcImpl) SetWasmMem(ptr uintptr) {
@@ -134,6 +133,7 @@ func ValidatePathForParigot(path string, op string) (string, error) {
 //go:noinline
 func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	req := filemsg.LoadTestRequest{}
+
 	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
 		return
@@ -153,6 +153,11 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 func (l *FileSvcImpl) loadLocal(req *filemsg.LoadTestRequest) (*filemsg.LoadTestResponse, error) {
 	stat, err := os.Stat(req.GetPath())
 	if err != nil {
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
+			Stamp:   timestamppb.Now(),
+			Message: "load local file (" + req.Path + ") failed:" + err.Error(),
+		}, false, true, false, nil)
 		return nil, err
 	}
 	if !stat.IsDir() {
@@ -164,11 +169,19 @@ func (l *FileSvcImpl) loadLocal(req *filemsg.LoadTestRequest) (*filemsg.LoadTest
 	}
 	memoryPrefix := "app" //no first slash for any call that uses io.fs.ValidPath()
 	// start the import
-	p := filepath.Join(memoryPrefix, req.GetPath())
+	p := filepath.Join(memoryPrefix, req.GetMountLocation())
+
 	err = l.fs.MkdirAll(p, 0777)
+	backdoor.Log(&logmsg.LogRequest{
+		Level: logmsg.LogLevel_LOG_LEVEL_DEBUG,
+		Stamp: timestamppb.Now(),
+		Message: fmt.Sprintf("loadLocal: considering file %s (GetMountPoint %s)",
+			p, req.GetMountLocation()),
+	}, false, true, false, nil)
 	if err != nil {
 		if !req.ReturnOnFail {
-			panic("tried to mkdir all of " + p + ": " + err.Error())
+			panic(fmt.Sprintf("tried to mkdir all %s (from %s): %s ",
+				p, req.GetMountLocation(), err.Error()))
 		}
 		return nil, err
 	}
@@ -183,17 +196,42 @@ func (l *FileSvcImpl) loadLocal(req *filemsg.LoadTestRequest) (*filemsg.LoadTest
 	}
 	// walk child list
 	for _, child := range children {
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+			Stamp:   timestamppb.Now(),
+			Message: fmt.Sprintf("loadLocal: considering file %s", child),
+		}, false, true, false, nil)
+
 		//check for dir, we need to create those, not copy
 		stat, err := os.Stat(child)
 		if err != nil {
+			backdoor.Log(&logmsg.LogRequest{
+				Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
+				Stamp:   timestamppb.Now(),
+				Message: fmt.Sprintf("loadLocal: error with file %s: %v", child, err.Error()),
+			}, false, true, false, nil)
 			return nil, err
 		}
 		if stat.IsDir() {
-			l.fs.MkdirAll(filepath.Join(memoryPrefix, child), 0777)
+			err := l.fs.MkdirAll(filepath.Join(memoryPrefix, req.MountLocation, child), 0777)
+			if err != nil {
+				backdoor.Log(&logmsg.LogRequest{
+					Level: logmsg.LogLevel_LOG_LEVEL_ERROR,
+					Stamp: timestamppb.Now(),
+					Message: fmt.Sprintf("loadLocal: error with file %s trying to stat %s: %v",
+						child, filepath.Join(memoryPrefix, req.MountLocation, child), err.Error()),
+				}, false, true, false, nil)
+			}
 			continue
 		}
 		// make sure in memory FS has the directory(ies) we need
-		memPath := filepath.Join(memoryPrefix, child)
+		memPath := filepath.Join(memoryPrefix, req.MountLocation, child)
+		backdoor.Log(&logmsg.LogRequest{
+			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
+			Stamp:   timestamppb.Now(),
+			Message: fmt.Sprintf("loadLocal: memPath %s => %s", child, memPath),
+		}, false, true, false, nil)
+
 		fp, err := os.Open(child)
 		if err != nil {
 			return nil, err
