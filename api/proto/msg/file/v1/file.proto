@@ -42,9 +42,14 @@ message CloseResponse {
 message LoadTestRequest {
     // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
     string path = 1;
+    // where this new file will exist in the in-memory filesystem... this path
+    // will be cleaned lexically and then joined to /app.  Note that it is possible
+    // create paths with this parameter that cannot be opened because of
+    // restrictions on the path in open.
+    string mount_location = 2;
     // returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error.
     // If this value is set to true, the paths that cause an error on import are return in the TestDataResponse.
-    bool return_on_fail = 2;
+    bool return_on_fail = 3;
 }
 
 // LoadTestResponse contains a list of paths that caused an error during loading. This value is only

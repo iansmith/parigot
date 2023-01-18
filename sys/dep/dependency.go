@@ -320,6 +320,7 @@ func (e *EdgeHolder) RemoveRequire(exportedList []string) bool {
 	for _, req := range e.require {
 		found := false
 		for _, exported := range exportedList {
+			depgraphPrint("RemoveRequire ", "considering %s vs %s, for %s", req, exported, e.key.String())
 			if exported == req {
 				found = true
 				break

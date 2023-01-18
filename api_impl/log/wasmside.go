@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 
 	"github.com/iansmith/parigot/api_impl/log/go_"
 	"github.com/iansmith/parigot/api_impl/splitutil"
@@ -10,7 +9,7 @@ import (
 	"github.com/iansmith/parigot/g/log/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
@@ -31,7 +30,7 @@ func main() {
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
+	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
 	return true
@@ -58,7 +57,7 @@ func (m *myLogServer) Log(pctx *protosupportmsg.Pctx, inProto proto.Message) err
 		return nil
 	}
 	if req.Level == logmsg.LogLevel_LOG_LEVEL_FATAL {
-		os.Exit(7)
+		callImpl.Exit(&syscallmsg.ExitRequest{Code: 7})
 	}
 	return nil
 }

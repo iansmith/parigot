@@ -107,6 +107,7 @@ func (n *NSCore) ExitWhenInFlightEmpty() bool {
 	n.lock.Unlock()
 	empty := true
 	n.inFlight.Range(func(k, v any) bool { empty = false; return false })
+	nscorePrint("ExitWhenInFlightEmpty", "called with current state %v, on gid %x", empty, GetGID())
 	return empty
 }
 
@@ -287,7 +288,7 @@ func (n *NSCore) DEBUG_DumpSIDTables() {
 // the NSCore lock.
 func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.Id) *ServiceData {
 	var pData *sync.Map
-	nscorePrint("CreateWithSid() ", "part 1 gid=%x", GetGID())
+	nscorePrint("CreateWithSid() ", "%s on gid=%x", key.String(), GetGID())
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
 		pData = &sync.Map{}
@@ -295,10 +296,10 @@ func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.
 	} else {
 		pData = pDataAny.(*sync.Map)
 	}
-	nscorePrint("CreateWithSid() ", "part 2 gid=%x", GetGID())
 	var sData *ServiceData
 	sDataAny, ok := pData.Load(service)
-	nscorePrint("CreateWithSid() ", "part 3 gid=%x", GetGID())
+	nscorePrint("CreateWithSid() ", "%s loaded Sdata for %s (%v) on gid=%x",
+		key.String(), service, ok, GetGID())
 	if !ok {
 		sData = NewServiceData(sid)
 		pData.Store(service, sData)
@@ -309,7 +310,7 @@ func (n *NSCore) CreateWithSid(key dep.DepKey, pkgPath, service string, sid lib.
 	} else {
 		sData = sDataAny.(*ServiceData)
 	}
-	nscorePrint("CreateWithSid() ", "part4 gid=%x", GetGID())
+	nscorePrint("CreateWithSid() ", "leaving on gid=%x", GetGID())
 
 	return sData
 }
@@ -372,13 +373,11 @@ func GetGID() uint64 {
 // service (key) can start running.  This function locks the NSCore at one
 // point because it needs exclusive access to the dep graph.
 func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	nscorePrint("Require ", "entered part1  + gid=%x", GetGID())
 	alreadyExported := false
 	nscorePrint("Require ", "process %s requires %s.%s",
 		key.String(), pkgPath, service)
 
 	name := fmt.Sprintf("%s.%s", pkgPath, service)
-	nscorePrint("Require ", "entered part2 %x", GetGID())
 	// this check always fails in the remote case, but n.alreadyExported==nil so it doesn't really hurt
 	// n.copyAlreadyExported asserts the lock on NSCore so we can't lock before this
 	// XXXYYY alreadyExported is not locked?
@@ -389,34 +388,30 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 			alreadyExported = true
 		}
 	}
-	nscorePrint("Require ", "entered part3 gid= %x", GetGID())
 	g := GetGID()
 	serviceId := n.newServiceId()
-	nscorePrint("Require ", "xxx about to lock region %x\n", g)
+	nscorePrint("Require ", "about to enter lock region %x", g)
 	lockRegion := func(sid lib.Id) lib.Id {
 		n.lock.Lock()
 		defer n.lock.Unlock()
-		nscorePrint("require.lockRegion ", "part 1 on gid %x", g)
 
 		// we create the namespaces if they are not there yet because the exporter
 		// may not have registered yet
 		n.CreateWithSid(key, pkgPath, service, sid)
 		//n.create(key, pkgPath, service)
-		nscorePrint("require.lockRegion ", "part 1a on gid %x", g)
+		nscorePrint("require.lockRegion ", "%s.%s for %s, on gid %x", pkgPath, service, key.String(), g)
 
 		node, ok := n.dependencyGraph_.GetEdge(key)
 		if !ok {
-			nscorePrint("require.lockRegion ", "part 1b on gid %x", g)
 			node = dep.NewEdgeHolder(key)
-			nscorePrint("require.lockRegion ", "part 1c on gid %x", g)
 			n.dependencyGraph_.PutEdge(key, node)
-			nscorePrint("require.lockRegion ", "part 1d on gid %x", g)
+			nscorePrint("require.lockRegion ", "added edge holder for %s on gid %x", key.String(), g)
 		}
 		nscorePrint("Require", "process %s did a require for %s.%s and already exported? %v (gid %x)",
 			key.String(), pkgPath, service, alreadyExported, g)
 		if !alreadyExported {
 			found := false
-			nscorePrint("lockRegion ", "gid %x about to hit the walk", g)
+			nscorePrint("lockRegion ", "about to hit the search for already exported on require list, on gid %x", g)
 			node.WalkRequire(func(s string) bool {
 				if s == name {
 					found = true
@@ -425,10 +420,10 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 				return true
 			})
 			if found {
-				nscorePrint("Require ", "xxx require 4: %s vs %s", key.String(), name)
+				nscorePrint("Require ", "%s already required the service %s, error RET", key.String(), name)
 				return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
 			}
-			nscorePrint("Require ", "about to add require %x, %s", g, name)
+			nscorePrint("Require ", "%s about to add require %s", key.String(), name)
 			node.AddRequire(name)
 		}
 		nscorePrint("Require ", "process %s  NORMAL RET %x", key.String(), GetGID())
@@ -507,7 +502,6 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 			})
 			// NB: call to addAlreadyExported is ok because it does not lock
 			n.addAlreadyExported(candidate.Export()...)
-
 			nscorePrint("RunIfReady ", "%s is on ready list", candidate.Key())
 			readyList = append(readyList, candidate.Key().Name())
 			readyMap[candidate.Key().Name()] = candidate
@@ -516,6 +510,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 		}
 		//update datastructures and start in alpha order
 		sort.Strings(readyList)
+		nscorePrint("RunIfReady", "sorted ready List: %+v", readyList)
 		for _, readyName := range readyList {
 			nscorePrint("RunIfReady ", "adding %s to result list", readyName)
 			readyMap[readyName].Key().(*DepKeyImpl).proc.requirementsMet = true

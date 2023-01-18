@@ -24,3 +24,8 @@ Env=[]
 Path="../../build/log.p.wasm"
 Arg=["log.p.wasm"]
 Env=[]
+
+[microservice.file]
+Path="../../build/file.p.wasm"
+Arg=["file.p.wasm"]
+Env=[]
