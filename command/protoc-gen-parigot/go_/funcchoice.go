@@ -422,12 +422,30 @@ func funcChoicesNeedsFillOut(b1, b2, b3, b4 bool) bool {
 func funcChoicesNeedsRet(_, b2, _, _ bool) bool {
 	return b2
 }
-func funcChoicesInputParam(b1, _, _, _ bool, m *codegen.WasmMethod) string {
+
+//var versionRegexp = regexp.MustCompile(`^(v[0-9]+)(\..*$)`)
+
+func funcChoicesInputParam(b1, _, _, wantDecl bool, m *codegen.WasmMethod) string {
 	if !b1 {
 		return ""
 	}
+	//from := m.Parent().ProtoPackage()
 	t := m.CGInput().CGType()
-	return m.Language().ToTypeName(t.String(m.ProtoPackage()), true, m)
+	//protoPkg := m.ProtoPackage()
+	typeName := t.String(m.ProtoPackage())
+	// if strings.HasPrefix(typeName, "v1") {
+	// 	log.Printf("typename=%s, protoPkg=%s", typeName, m.ProtoPackage())
+	// }
+	// log.Printf("funcChoicesInputParam: from=%s,protopkg=%s,typename=%s",
+	// 	from, protoPkg, typeName)
+
+	// if versionRegexp.MatchString(typeName) {
+	// 	//typeName = t.String(versionRegexp.FindStringSubmatch(protoPkg)[1])
+	// 	typeName = t.String(versionRegexp.FindStringSubmatch(typeName)[1])
+	// 	log.Printf("--- new TypeName: %s, parts: %+v", typeName,
+	// 		versionRegexp.FindStringSubmatch(typeName))
+	// }
+	return m.Language().ToTypeName(typeName, !wantDecl, m)
 }
 
 func funcChoicesOutputParam(_, b2, _, _ bool, m *codegen.WasmMethod) string {

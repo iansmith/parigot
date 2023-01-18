@@ -1,9 +1,9 @@
 package codegen
 
 import (
-	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -39,13 +39,13 @@ func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
 		for sr, m := range s.service {
 			if m == svc {
 				if pkg != "" && pkg != sr.goPackage {
-					return "", errors.New(fmt.Sprintf("service %s:mismatched go packages in go_option: %s and %s",
-						svc.GetName(), pkg, sr.goPackage))
+					return "", fmt.Errorf("service %s:mismatched go packages in go_option: %s and %s",
+						svc.GetName(), pkg, sr.goPackage)
 				}
 				part := strings.Split(sr.goPackage, ";")
 				if len(part) != 2 {
-					return "", errors.New(fmt.Sprintf("service %s: cannot understand go package option '%s'",
-						svc.GetName(), sr.goPackage))
+					return "", fmt.Errorf("service %s: cannot understand go package option '%s'",
+						svc.GetName(), sr.goPackage)
 				}
 				pkg = part[1]
 			}
@@ -92,6 +92,9 @@ func (s *SimpleFinder) Service() []*WasmService {
 	}
 	return result
 }
+
+var versionRegexp = regexp.MustCompile(`^(v[0-9]+)(\..*$)`)
+
 func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *WasmMessage) string {
 	for candidate, m := range s.message {
 		if m.GetFullName() == message.GetFullName() {
@@ -116,7 +119,14 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 					p_1 := part[len(part)-1]
 					return fmt.Sprintf("%smsg.%s", p_2, p_1)
 				}
-				return strings.Join(part[len(part)-2:], ".")
+				result := strings.Join(part[len(part)-2:], ".")
+				if versionRegexp.MatchString(result) {
+					// move back one
+					pick := append([]string{part[len(part)-3] + "msg"}, part[len(part)-1:]...)
+					result = strings.Join(pick, ".")
+				}
+				//return strings.Join(part[len(part)-2:], ".")
+				return result
 			}
 			if verbose {
 				log.Printf("! [simplefinder addressing name] found %s, but in diff package and I cant understand the splitting of the name, giving up[%d] (current pkg was %s)", m.GetFullName(), len(m.GetField()), currentPkg)

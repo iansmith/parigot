@@ -116,6 +116,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 		var out proto.Message
 		switch {
 {{- range .GetWasmMethod}}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false true .}}
 
 {{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
 {{- if eq false $genTest }} 
@@ -127,7 +128,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
 {{- if .InputCodeNeeded}}
-			req := &{{$package}}msg.{{$methCamel}}Request{}
+			req := &{{$inParam}}{}
 			marshalError = resp.GetParam().UnmarshalTo(req)
 			if marshalError != nil {
 				break
