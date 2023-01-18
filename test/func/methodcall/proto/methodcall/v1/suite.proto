@@ -1,0 +1,9 @@
+syntax = "proto3";
+package methodcall.v1;
+option go_package="github.com/iansmith/parigot/g/methodcall/v1;methodcall";
+import "msg/test/v1/test.proto";
+
+service MethodCallSuiteService {
+    rpc Exec(msg.test.v1.ExecRequest) returns (msg.test.v1.ExecResponse);
+    rpc SuiteReport(msg.test.v1.SuiteReportRequest) returns (msg.test.v1.SuiteReportResponse);
+}
