@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var nscoreVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
+var nscoreVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NScore is used by both the local and remote (net) name server implementations
 // to manage all the dependencies and handle require, export, and runWait.
@@ -209,6 +209,11 @@ func (n *NSCore) ServiceData(serviceId lib.Id) *ServiceData {
 // It's better to use the serviceId if possible as that lookup (like serviceFromServiceId)
 // is faster.
 func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+	nscorePrint("GetService", "xxx looking for %s.%s", pkgPath, service)
+	n.packageRegistry.Range(func(k, v any) bool {
+		nscorePrint("GetService", "xxx inside range for pkgRegistry k=%v,v=%v", k, v)
+		return true
+	})
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
 		return nil, lib.KernelNotFound

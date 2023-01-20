@@ -27,6 +27,7 @@ const dialPathToLogViewer = "host.docker.internal:4004"
 
 func init() {
 	go channelProcessor(dialPathToLogViewer)
+	print("xxx logger goside doing init() function\n")
 	b.SetInternalLogger(&backdoor{})
 }
 
@@ -43,9 +44,6 @@ func (b *backdoor) ProcessLogRequest(req *logmsg.LogRequest, isKerenl, isBackend
 //go:noinline
 func (l *LogViewerImpl) LogRequestHandler(sp int32) {
 	req := logmsg.LogRequest{}
-	// xxxfixme: StackPointerToRequest really should return (or provide access to) the buffer used
-	// xxxfixme: to read the request because we end up regenerating it when we send this to the
-	// xxxfixme: logviewer.
 	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
 	if err != nil {
 		return // already set the error code
