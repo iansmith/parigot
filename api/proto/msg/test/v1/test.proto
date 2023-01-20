@@ -15,7 +15,7 @@ message SuiteInfo {
 }
 
 // AddTestSuiteRequest adds one or more test suites to the list of available 
-// suites for the TestService.
+// suites for the TestService. 
 message AddTestSuiteRequest {
   repeated SuiteInfo suite = 1;
 }
@@ -39,9 +39,12 @@ message StartRequest {
 }
 
 // StartResponse returns the number of tests that will be run, given
-// the filters provided in StartRequest.
+// the filters provided in StartRequest.  If regex_failed means that one
+// of the regex fields (filter_suite or filter_name) was not a valid
+// golang regex.
 message StartResponse {
-  int32 num_test = 1;
+  bool regex_failed = 1; // so common we don't even call it an error
+  int32 num_test = 2;
 }
 
 // Comparison result describes a single comparison that was done during

@@ -7,20 +7,20 @@ all: allprotos \
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-apiimpl: build/file.p.wasm build/log.p.wasm
+apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
 
 
 GO_CMD=GOOS=js GOARCH=wasm go
 
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
-EXAMPLE_PROTO=$(shell find example -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 SPLIT_UTIL=$(shell find api_impl/splitutil -type f -regex ".*\.go")
 
 ## we just use a single representative file for all the generated code
-g/file/$(API_VERSION)/file.pb.go: $(API_PROTO) $(EXAMPLE_PROTO) $(TEST_PROTO) build/protoc-gen-parigot 
+REP=g/file/$(API_VERSION)/file.pb.go
+$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot 
 	rm -rf g/*
 	buf lint
 	buf generate
@@ -36,19 +36,25 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 # launch a deployment based on a config file with runner
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) g/file/$(API_VERSION)/file.pb.go $(SYS_SRC) $(SPLIT_UTIL)
+build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SPLIT_UTIL)
 	rm -f $@
 	go build -o $@ github.com/iansmith/parigot/command/runner
 
 # implementation of the file service
 FILE_SERVICE=$(shell find api_impl/file -type f -regex ".*\.go")
-build/file.p.wasm: $(FILE_SERVICE) g/file/$(API_VERSION)/file.pb.go $(SPLIT_UTIL)
+build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SPLIT_UTIL)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/file
 
+# implementation of the test service
+TEST_SERVICE=$(shell find api_impl/test -type f -regex ".*\.go")
+build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SPLIT_UTIL)
+	rm -f $@
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/test
+
 # implementation of the log service
 LOG_SERVICE=$(shell find api_impl/log -type f -regex ".*\.go")
-build/log.p.wasm: $(LOG_SERVICE) g/file/$(API_VERSION)/file.pb.go $(SPLIT_UTIL)
+build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SPLIT_UTIL)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/log
 
