@@ -74,6 +74,18 @@ func NewLocalNameServer(notify *sync.Map) *LocalNameServer {
 	}
 }
 
+func mapToContent(sm *sync.Map) (int, []string) {
+	count := 0
+	result := []string{}
+	sm.Range(func(key, val any) bool {
+		count++
+		s := fmt.Sprintf("%s:%T:%v", key, val, val)
+		result = append(result, s)
+		return true
+	})
+	return count, result
+}
+
 // FindMethodByName is called by the client side when doing a dispatch.  This is where the client
 // exchanges a (service id,name) pair for the appropriate call context.  The call context is used
 // by the calling client to 1) know where to send the message and 2) how to block waiting on

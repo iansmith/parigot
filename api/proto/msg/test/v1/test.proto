@@ -11,13 +11,15 @@ import "msg/protosupport/v1/protosupport.proto";
 message SuiteInfo {
   string package_path =1;
   string service =2 ;
-  map<string,string> name_to_func = 3;
+  repeated string function_name = 3;
 }
 
 // AddTestSuiteRequest adds one or more test suites to the list of available 
 // suites for the TestService. 
 message AddTestSuiteRequest {
   repeated SuiteInfo suite = 1;
+  string exec_package = 2;
+  string exec_service = 3;
 }
 
 // AddTestSuiteResponse contains a map that takes a tuple, written as 

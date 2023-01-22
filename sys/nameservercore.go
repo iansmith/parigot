@@ -209,11 +209,6 @@ func (n *NSCore) ServiceData(serviceId lib.Id) *ServiceData {
 // It's better to use the serviceId if possible as that lookup (like serviceFromServiceId)
 // is faster.
 func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
-	nscorePrint("GetService", "xxx looking for %s.%s", pkgPath, service)
-	n.packageRegistry.Range(func(k, v any) bool {
-		nscorePrint("GetService", "xxx inside range for pkgRegistry k=%v,v=%v", k, v)
-		return true
-	})
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
 		return nil, lib.KernelNotFound
@@ -593,6 +588,8 @@ func (n *NSCore) FindOrCreateMethodId(key dep.DepKey, packagePath, service, meth
 	var mid lib.Id
 	methodAny, ok := sData.method.Load(method)
 	if !ok {
+		ct, l := mapToContent(sData.method)
+		nscorePrint("FindOrCreateMethodId", "failed on method %s, %d, %+v", method, ct, l)
 		nscorePrint("FindOrCreateMethodId ", "we need to create a method id for %s.%s.%s", packagePath, service, method)
 		mid = lib.NewId[*protosupportmsg.MethodId]()
 		sData.method.Store(method, mid)
