@@ -121,6 +121,9 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
 	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
+	if ctx == nil {
+		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "\n")
+	}
 	ctx.param = req.Param
 
 	// this call is the machinery for making a call to another service

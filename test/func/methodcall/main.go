@@ -39,7 +39,7 @@ func main() {
 	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
 		panic("unable to require foo service: " + err.Error())
 	}
-	if _, err := callImpl.Export1("methodcall", "Main"); err != nil {
+	if _, err := callImpl.Export1("test.v1", "UnderTestService"); err != nil {
 		panic("unable to require foo service: " + err.Error())
 	}
 	test.RunUnderTestService(underTestServer)
@@ -211,13 +211,13 @@ func (m *myUnderTestServer) setupTests() error {
 	addReq := &testmsg.AddTestSuiteRequest{
 		Suite: []*testmsg.SuiteInfo{
 			{
-				PackagePath: "methodcall",
-				Service:     "Main",
-				NameToFunc: map[string]string{
-					"TestAddMultiply": "Exec",
-				},
+				PackagePath:  "methodcall",
+				Service:      "Main",
+				FunctionName: []string{"TestAddMultiply"},
 			},
 		},
+		ExecPackage: "test.v1",
+		ExecService: "UnderTest",
 	}
 	resp, err := m.testSvc.AddTestSuite(addReq)
 	if err != nil {

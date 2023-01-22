@@ -33,14 +33,16 @@ func main() {
 
 type myTestServer struct {
 	// within a test server, the requests are handled sequentially
-	suite   map[string]*suiteInfo
-	test    map[string]string
+	suite     map[string]*suiteInfo
+	suiteExec map[string]string
+	test      map[string]string
+
 	started bool
 }
 
 type suiteInfo struct {
 	pkg, service string
-	nameToFunc   map[string]string
+	funcName     []string
 }
 
 func newSuiteInfo(req *testmsg.AddTestSuiteRequest) ([]*suiteInfo, error) {
@@ -51,9 +53,9 @@ func newSuiteInfo(req *testmsg.AddTestSuiteRequest) ([]*suiteInfo, error) {
 			pkg:     suite.GetPackagePath(),
 			service: suite.GetService(),
 		}
-		result.nameToFunc = make(map[string]string)
-		for name, fn := range suite.GetNameToFunc() {
-			result.nameToFunc[name] = fn
+		result.funcName = make([]string, len(suite.GetFunctionName()))
+		for i := 0; i < len(suite.GetFunctionName()); i++ {
+			result.funcName[i] = suite.GetFunctionName()[i]
 		}
 		infoList = append(infoList, result)
 	}
@@ -62,11 +64,14 @@ func newSuiteInfo(req *testmsg.AddTestSuiteRequest) ([]*suiteInfo, error) {
 
 func (s *suiteInfo) String() string {
 	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("%s.%s{", s.pkg, s.service))
-	for k, v := range s.nameToFunc {
-		fmt.Sprintf("[%s=%s]", k, v)
+	buf.WriteString(fmt.Sprintf("%s.%s[", s.pkg, s.service))
+	for i, f := range s.funcName {
+		buf.WriteString(fmt.Sprintf("%s", f))
+		if i != len(s.funcName)-1 {
+			buf.WriteString(",")
+		}
 	}
-	buf.WriteString("}")
+	buf.WriteString("]")
 	return buf.String()
 }
 
@@ -74,6 +79,7 @@ func (m *myTestServer) Ready() bool {
 	// initialization needs to be done here, not in main
 	m.suite = make(map[string]*suiteInfo)
 	m.test = make(map[string]string)
+	m.suiteExec = make(map[string]string)
 
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("myTestServer: ready: error in attempt to signal Run: " + err.Error())
@@ -101,11 +107,11 @@ func (m *myTestServer) AddTestSuite(_ *protosupportmsg.Pctx, in proto.Message) (
 		} else {
 			m.suite[suiteName] = suite
 		}
-		for testName, fn := range suite.nameToFunc {
-			print(fmt.Sprintf("xxx in testName loop %s fn=%s", testName, fn))
+		m.suiteExec[suiteName] = fmt.Sprintf("%s.%s", req.GetExecPackage(), req.GetExecService())
+		for _, testName := range suite.funcName {
 			test := fmt.Sprintf("%s.%s", suiteName, testName)
 			if seenSuiteBefore {
-				if _, seenTest := oldSuite.nameToFunc[testName]; seenTest {
+				if contains(oldSuite.funcName, testName) {
 					success[test] = false
 					continue
 				}
@@ -121,6 +127,15 @@ func (m *myTestServer) AddTestSuite(_ *protosupportmsg.Pctx, in proto.Message) (
 	logDebug(fmt.Sprintf("addSuiteResp.Succeeded:%#v", resp.Succeeded))
 
 	return resp, nil
+}
+
+func contains(list []string, cand string) bool {
+	for _, member := range list {
+		if member == cand {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.Message, error) {
@@ -159,7 +174,7 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 			name := suiteInfoToSuiteName(suiteInfo)
 			match := suiteRegex.MatchString(name)
 			if match {
-				count += len(suiteInfo.nameToFunc)
+				count += len(suiteInfo.funcName)
 				m.addAllTests(suiteInfo)
 			}
 		}
@@ -167,19 +182,19 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 	if haveName {
 		for _, suiteInfo := range m.suite {
 			suiteName := suiteInfoToSuiteName(suiteInfo)
-			for name, fn := range suiteInfo.nameToFunc {
+			for _, name := range suiteInfo.funcName {
 				testName := fmt.Sprintf("%s.%s", suiteName, name)
 				match := nameRegex.MatchString(testName)
 				if match {
 					count++
-					m.test[name] = fn
+					m.test[name] = m.suiteExec[suiteName]
 				}
 			}
 		}
 	}
 	if !haveSuite && !haveName {
 		for _, suite := range m.suite {
-			count += len(suite.nameToFunc)
+			count += len(suite.funcName)
 			m.addAllTests(suite)
 		}
 	}
@@ -194,11 +209,16 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 
 func (m *myTestServer) addAllTests(info *suiteInfo) {
 	base := suiteInfoToSuiteName(info)
-	for name, fn := range info.nameToFunc {
+	for _, name := range info.funcName {
 		testName := fmt.Sprintf("%s.%s", base, name)
-		m.test[testName] = fn
+		m.test[testName] = m.suiteExec[base]
 	}
 }
+
+func suiteAndTestToTestName(info *suiteInfo, fn string) string {
+	return fmt.Sprintf("%s.%s", suiteAndTestToTestName(info, fn))
+}
+
 func suiteInfoToSuiteName(info *suiteInfo) string {
 	return fmt.Sprintf("%s.%s", info.pkg, info.service)
 }
@@ -226,27 +246,26 @@ func (m *myTestServer) runTests() {
 
 	locate := make(map[string]*test.UnderTestServiceClient)
 	var client *test.UnderTestServiceClient
-	for svcPart, testPart := range m.test {
-		part := strings.Split(svcPart, ".")
-		print(fmt.Sprintf("xxx test part svcPart='%s' testPart='%s' %+v\n", svcPart, testPart, part))
+	for fullTestName, execPackageSvc := range m.test {
+		part := strings.Split(fullTestName, ".")
 
-		pkg := strings.Join(part[:len(part)-2], ".")
-		svc := part[len(part)-2]
+		pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
 		//name := part[len(part)-1]
-		loc, ok := locate[svcPart]
+		loc, ok := locate[execPackageSvc]
 		if ok && loc == badLocate {
 			continue
 		}
 		if !ok {
-			client = m.locateClient(pkg, svc, call)
-			locate[svcPart] = client
+			execPkg, execSvc := splitPkgAndService(execPackageSvc)
+			client = m.locateClient(execPkg, execSvc, call)
+			locate[execPackageSvc] = client
 		} else {
-			client = locate[svcPart]
+			client = loc
 		}
 		if client == badLocate {
 			continue
 		}
-		resp, err := client.Exec(&testmsg.ExecRequest{Package: pkg, Service: svc, Name: testPart})
+		resp, err := client.Exec(&testmsg.ExecRequest{Package: pkg, Service: svc, Name: part[len(part)-1]})
 		if err != nil {
 			print(fmt.Sprintf("xxx run tests %v\n", err.Error()))
 			continue
@@ -254,6 +273,14 @@ func (m *myTestServer) runTests() {
 		print("xxx run tests %s.%s.%s (skipped? %v, success? %v)",
 			resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
 	}
+}
+func splitPkgAndService(s string) (string, string) {
+	part := strings.Split(s, ".")
+
+	pkg := strings.Join(part[:len(part)-1], ".")
+	svc := part[len(part)-1]
+	return pkg, svc
+
 }
 
 func (m *myTestServer) locateClient(pkg, svc string, call lib.Call) *test.UnderTestServiceClient {
