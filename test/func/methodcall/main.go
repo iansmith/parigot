@@ -217,7 +217,7 @@ func (m *myUnderTestServer) setupTests() error {
 			},
 		},
 		ExecPackage: "test.v1",
-		ExecService: "UnderTest",
+		ExecService: "UnderTestService",
 	}
 	resp, err := m.testSvc.AddTestSuite(addReq)
 	if err != nil {

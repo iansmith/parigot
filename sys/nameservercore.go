@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var nscoreVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var nscoreVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NScore is used by both the local and remote (net) name server implementations
 // to manage all the dependencies and handle require, export, and runWait.
