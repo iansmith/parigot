@@ -123,6 +123,8 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
 	if ctx == nil {
 		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "\n")
+		splitutil.ErrorResponse(s.mem, sp, lib.KernelNotFound)
+		return
 	}
 	ctx.param = req.Param
 

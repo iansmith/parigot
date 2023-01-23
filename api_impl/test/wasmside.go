@@ -203,7 +203,10 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 		NumTest:     int32(count),
 	}
 	logDebug(fmt.Sprintf("all tests to run:%#v", m.test))
-	m.runTests()
+	// tricky: we launch a new routine to actually make the callbacks to the clients
+	// we have to let this function return because the caller is single threaded  and
+	// will be blocked waiting on this
+	go m.runTests()
 	return resp, nil
 }
 
@@ -243,18 +246,22 @@ var badLocate = &test.UnderTestServiceClient{}
 
 func (m *myTestServer) runTests() {
 	call := syscall.NewCallImpl()
-
+	print(fmt.Sprintf("run tests0\n"))
 	locate := make(map[string]*test.UnderTestServiceClient)
 	var client *test.UnderTestServiceClient
+	print(fmt.Sprintf("run tests1 %+v\n", m.test))
 	for fullTestName, execPackageSvc := range m.test {
 		part := strings.Split(fullTestName, ".")
 
 		pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
 		//name := part[len(part)-1]
+		print(fmt.Sprintf("run tests2 %s,%s\n", fullTestName, execPackageSvc))
 		loc, ok := locate[execPackageSvc]
 		if ok && loc == badLocate {
+			print(fmt.Sprintf("run tests3a, not able to locate\n"))
 			continue
 		}
+		print(fmt.Sprintf("run tests3, able to locate\n"))
 		if !ok {
 			execPkg, execSvc := splitPkgAndService(execPackageSvc)
 			client = m.locateClient(execPkg, execSvc, call)
@@ -262,6 +269,7 @@ func (m *myTestServer) runTests() {
 		} else {
 			client = loc
 		}
+		print(fmt.Sprintf("run tests4, got a client\n"))
 		if client == badLocate {
 			continue
 		}
@@ -272,6 +280,7 @@ func (m *myTestServer) runTests() {
 		}
 		print("xxx run tests %s.%s.%s (skipped? %v, success? %v)",
 			resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
+
 	}
 }
 func splitPkgAndService(s string) (string, string) {
@@ -289,18 +298,22 @@ func (m *myTestServer) locateClient(pkg, svc string, call lib.Call) *test.UnderT
 		PackageName: pkg,
 		ServiceName: svc,
 	}
+	print(fmt.Sprintf("xxx locate client 1\n"))
 	resp, err := call.Locate(req)
 	if err != nil {
 		print("error caught in the locate code:" + err.Error() + "\n")
 		return badLocate
 	}
+	print(fmt.Sprintf("xxx locate client 2\n"))
 	if resp.GetServiceId() == nil {
 		print("locate failed for " + pkg + "." + svc + "\n")
 		return badLocate
 	}
+	print(fmt.Sprintf("xxx locate client 3\n"))
 	service := lib.Unmarshal(resp.GetServiceId())
 	cs := lib.NewClientSideService(service, "testService", nil, callImpl)
 
+	print(fmt.Sprintf("xxx locate client 4\n"))
 	return &test.UnderTestServiceClient{
 		ClientSideService: cs,
 		Call:              syscall.NewCallImpl(),
