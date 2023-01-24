@@ -3,6 +3,7 @@ package sys
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
@@ -55,6 +56,7 @@ type callContext struct {
 	respCh       chan *syscallmsg.ReturnValueRequest // this is where to send the return results
 	param        *anypb.Any                          // where to put the param data
 	pctx         *protosupportmsg.Pctx               // where to put the previous pctx
+	timedOut     bool                                // set to true when we waited on a call for a while and didn't get anything
 	exitAfterUse bool                                // this is set to true ONLY when the nscore has requested it AND the inflight queue is empty
 }
 
@@ -267,9 +269,21 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *syscall
 // called.  Because this all implemented locally in this case, we just
 // block on our callCh and wait for another process to use CallService to
 // signal us that they need one of our methods.
-func (l *LocalNameServer) BlockUntilCall(key dep.DepKey) *callContext {
-	v := <-key.(*DepKeyImpl).proc.callCh
-	return v
+func (l *LocalNameServer) BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext {
+	if canTimeout { //simple case
+		v := <-key.(*DepKeyImpl).proc.callCh
+		return v
+	}
+	// complex case
+	select {
+	case v := <-key.(*DepKeyImpl).proc.callCh:
+		v.timedOut = false
+		return v
+	case <-time.After(1 * time.Second):
+		v := &callContext{}
+		v.timedOut = true
+		return v
+	}
 }
 
 func nameserverPrint(methodName string, format string, arg ...interface{}) {

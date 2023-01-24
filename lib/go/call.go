@@ -23,7 +23,7 @@ type Call interface {
 	Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error)
 	Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error)
 	Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error)
-	BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error)
+	BlockUntilCall(in *syscallmsg.BlockUntilCallRequest, canTimeout bool) (*syscallmsg.BlockUntilCallResponse, error)
 	ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error)
 	Export1(pkg, name string) (*syscallmsg.ExportResponse, error)
 	Require1(pkg, name string) (*syscallmsg.RequireResponse, error)

@@ -17,6 +17,7 @@ import (
 	"github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/api_impl/background"
 	lib "github.com/iansmith/parigot/lib/go"
 	
 	"google.golang.org/protobuf/proto"
@@ -81,8 +82,9 @@ var {{$methCamelFL}}Method lib.Id
 {{- end }} {{/* range over methods */}}
 
 
-var {{$svcCamelFL}}ServerVerbose = false
+var {{$svcCamelFL}}ServerVerbose = true
 var {{$svcCamelFL}}Call = syscall.NewCallImpl()
+var {{$svcCamelFL}}Background background.Background
 
 func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 	// register all methods
@@ -95,10 +97,17 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 		//
 		// wait for notification
 		//
-		resp, err := {{$svcCamelFL}}BlockUntilCall()
+		resp, err := {{$svcCamelFL}}BlockUntilCall({{$svcCamelFL}}Background!=nil)
 		if err != nil {
 			// error is likely local to this process
 			{{$svcCamelFL}}Print("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
+			continue
+		}
+		if resp.TimedOut{
+			if {{$svcCamelFL}}Background==nil {
+				continue
+			}
+			{{$svcCamelFL}}Background.Background()
 			continue
 		}
 		{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
@@ -195,16 +204,26 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	if !impl.Ready(){
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")
 	}
+	var ok bool
+	{{$svcCamelFL}}Background, ok = impl.(background.Background)
+	if !ok {
+		print("{{$svcCamel}}Server not background\n")
+	}
 	return "",nil
 }
 
-func {{$svcCamelFL}}BlockUntilCall() (*syscallmsg.BlockUntilCallResponse, error) {
 
+func {{$svcCamelFL}}TimedOut()  {
+	print("{{$svcCamelFL}}TimedOut()\n")
+}
+
+func {{$svcCamelFL}}BlockUntilCall(canTimeout bool) (*syscallmsg.BlockUntilCallResponse, error) {
 	req := &syscallmsg.BlockUntilCallRequest{}
-	resp, err := {{$svcCamelFL}}Call.BlockUntilCall(req)
+	resp, err := {{$svcCamelFL}}Call.BlockUntilCall(req, canTimeout)
 	if err != nil {
 		return nil, err
 	}
+	
 	return resp, nil
 }
 

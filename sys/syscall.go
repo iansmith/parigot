@@ -26,5 +26,5 @@ type SysCall interface {
 	FindMethodByName(key dep.DepKey, sid lib.Id, method string) *callContext
 	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.KernelErrorCode)
 	CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest
-	BlockUntilCall(key dep.DepKey) *callContext
+	BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext
 }

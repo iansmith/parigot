@@ -187,7 +187,12 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	req := syscallmsg.BlockUntilCallRequest{}
 	splitImplRetOne(s.mem, sp, &req, &resp,
 		func(req *syscallmsg.BlockUntilCallRequest, resp *syscallmsg.BlockUntilCallResponse) lib.KernelErrorCode {
-			call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc))
+			call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc), req.CanTimeout)
+			if call.timedOut {
+				resp.TimedOut = true
+				return lib.KernelNoError
+			}
+			resp.TimedOut = false
 			resp.Param = call.param
 			resp.Pctx = call.pctx
 			resp.Call = lib.Marshal[protosupportmsg.CallId](call.cid)
