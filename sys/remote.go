@@ -51,11 +51,11 @@ func (r *remoteSyscall) Require(key dep.DepKey, pkgPath, service string) lib.Id 
 func (r *remoteSyscall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return r.nameServer.RunBlock(key)
 }
-func (l *remoteSyscall) BlockUntilCall(key dep.DepKey) *callContext {
-	info := l.nameServer.BlockUntilCall(key)
+func (l *remoteSyscall) BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext {
+	info := l.nameServer.BlockUntilCall(key, canTimeout)
 	// this loop is because we get the "error" case as a nil
 	for info == nil {
-		info = l.nameServer.BlockUntilCall(key)
+		info = l.nameServer.BlockUntilCall(key, canTimeout)
 	}
 	return info
 }

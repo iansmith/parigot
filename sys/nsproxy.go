@@ -433,7 +433,7 @@ func LenSyncMap(m *sync.Map) int {
 }
 
 // BlockUntilCall handles _incoming_ RPC requests.
-func (n *NSProxy) BlockUntilCall(key dep.DepKey) *callContext {
+func (n *NSProxy) BlockUntilCall(key dep.DepKey, _ bool) *callContext {
 	netnameserverPrint("BlockUntilCall ", " key is %s and inCh is %p", key.String(), n.inCh)
 	a := <-n.inCh
 	req := netmsg.RPCRequest{}

@@ -203,13 +203,11 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 		NumTest:     int32(count),
 	}
 	logDebug(fmt.Sprintf("all tests to run:%#v", m.test))
-	// tricky: we launch a new routine to actually make the callbacks to the clients
-	// we have to let this function return because the caller is single threaded  and
-	// will be blocked waiting on this
-	go m.runTests()
 	return resp, nil
 }
-
+func (m *myTestServer) Background() {
+	print("background() called on test server\n")
+}
 func (m *myTestServer) addAllTests(info *suiteInfo) {
 	base := suiteInfoToSuiteName(info)
 	for _, name := range info.funcName {
@@ -219,7 +217,7 @@ func (m *myTestServer) addAllTests(info *suiteInfo) {
 }
 
 func suiteAndTestToTestName(info *suiteInfo, fn string) string {
-	return fmt.Sprintf("%s.%s", suiteAndTestToTestName(info, fn))
+	return fmt.Sprintf("%s.%s", suiteInfoToSuiteName(info), fn)
 }
 
 func suiteInfoToSuiteName(info *suiteInfo) string {

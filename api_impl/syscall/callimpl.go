@@ -67,7 +67,7 @@ func (l *callImpl) Dispatch(req *syscallmsg.DispatchRequest) (*syscallmsg.Dispat
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
 // all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
-func (l *callImpl) BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error) {
+func (l *callImpl) BlockUntilCall(in *syscallmsg.BlockUntilCallRequest, canTimeout bool) (*syscallmsg.BlockUntilCallResponse, error) {
 	resp := &syscallmsg.BlockUntilCallResponse{}
 	return splitImplementation[*syscallmsg.BlockUntilCallRequest, *syscallmsg.BlockUntilCallResponse](l, in, resp, blockUntilCall)
 }

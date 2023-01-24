@@ -234,7 +234,7 @@ func (m *myUnderTestServer) setupTests() error {
 		m.logError("RegexpFailed in filter", err)
 		return fmt.Errorf("RegexpFailed in filter")
 	}
-	m.logInfo(fmt.Sprintf("Start() success: %v tests", startResp.GetNumTest()))
+	m.logInfo(fmt.Sprintf("Start() success: started %v tests", startResp.GetNumTest()))
 	return nil
 }
 

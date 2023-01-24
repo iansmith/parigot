@@ -71,11 +71,11 @@ func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, met
 func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {
 	return l.nameServer.GetInfoForCallId(cid)
 }
-func (l *localSysCall) BlockUntilCall(key dep.DepKey) *callContext {
-	info := l.nameServer.BlockUntilCall(key)
+func (l *localSysCall) BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext {
+	info := l.nameServer.BlockUntilCall(key, canTimeout)
 	// this loop is because we get the "error" case as a nil
 	for info == nil {
-		info = l.nameServer.BlockUntilCall(key)
+		info = l.nameServer.BlockUntilCall(key, canTimeout)
 	}
 	return info
 }
