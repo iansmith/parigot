@@ -10,16 +10,22 @@ import (
 
 const (
 	kernelErrorIdLetter = 'k'
-	serviceIdLetter     = 's'
-	methodIdLetter      = 'm'
-	callIdLetter        = 'c'
-	dbConnIdLetter      = 'D'
-	dbIOIdLetter        = 'I'
-	fileIdLetter        = 'f'
-	fileIOIdLetter      = 'i'
+
+	queueErrorIdLetter = 'Q'
+	queueIdLetter      = 'q'
+	queueMsgLetter     = 'w'
+
+	serviceIdLetter = 's'
+	methodIdLetter  = 'm'
+	callIdLetter    = 'c'
+	dbConnIdLetter  = 'D'
+	dbIOIdLetter    = 'I'
+	fileIdLetter    = 'f'
+	fileIOIdLetter  = 'i'
 )
 
 type KernelErrorCode uint16
+type QueueErrorCode uint16
 
 type AllIdPtr interface {
 	*protosupportmsg.CallId |
@@ -28,6 +34,9 @@ type AllIdPtr interface {
 		*protosupportmsg.FileId |
 		*protosupportmsg.FileIOId |
 		*protosupportmsg.MethodId |
+		*protosupportmsg.QueueErrorId |
+		*protosupportmsg.QueueId |
+		*protosupportmsg.QueueMsgId |
 		*protosupportmsg.ServiceId |
 		*protosupportmsg.KernelErrorId |
 		*protosupportmsg.BaseId
@@ -40,6 +49,9 @@ type AllId interface {
 		protosupportmsg.FileId |
 		protosupportmsg.FileIOId |
 		protosupportmsg.MethodId |
+		protosupportmsg.QueueErrorId |
+		protosupportmsg.QueueId |
+		protosupportmsg.QueueMsgId |
 		protosupportmsg.ServiceId |
 		protosupportmsg.KernelErrorId |
 		protosupportmsg.BaseId
@@ -71,12 +83,27 @@ func NoKernelError() *protosupportmsg.KernelErrorId {
 }
 
 // NewKernelError is just a convenience wrapper around NewError() that has the correct constant type
-// its parameter.  Note that this will accept "NoKer"
+// its parameter.  Note that this will accept "NoKernelError and behavie correctly".
 func NewKernelError(code KernelErrorCode) Id {
 	if code == KernelNoError {
 		return NoError[*protosupportmsg.KernelErrorId]()
 	}
 	return NewError[*protosupportmsg.KernelErrorId](uint16(code))
+}
+
+// NewQueueError is just a convenience wrapper around NewError() that has the
+// correct constant type on its parameter.  Note that this will
+// accept "NoKer"
+func NewQueueError(code QueueErrorCode) Id {
+	if code == QueueNoError {
+		return NoError[*protosupportmsg.QueueErrorId]()
+	}
+	return NewError[*protosupportmsg.QueueErrorId](uint16(code))
+}
+
+// NewQueueId returns a queue id, initialized for use.
+func NewQueueId() Id {
+	return newIdRand(queueIdLetter)
 }
 
 // newFromErrorCode is a convenience wrapper around creating an id which represents an error for
@@ -136,8 +163,7 @@ func idFromUint64Pair(high uint64, low uint64, letter byte) Id {
 	return &IdBase{h: binary.LittleEndian.Uint64(buf), l: low}
 }
 
-// Unmarshal onverts from the internal representation in memory (lib.Id) to the external, wire-format
-// compatible version in protosupportmsg.  This works for all types of Ids.
+// Unmarshal converts protosupportmsg.*Id -> lib.id
 func Unmarshal[T AllIdPtr](wrapper T) Id {
 	if wrapper == nil {
 		return nil
@@ -151,8 +177,7 @@ func Unmarshal[T AllIdPtr](wrapper T) Id {
 	return idFromUint64Pair(inner.GetHigh(), inner.GetLow(), byte(inner.GetAsciiValue()))
 }
 
-// Marshal converts from the wire-format of protobufs to the in-memory format that is two 64 bit
-// integers, in lib.Id.
+// Marshal converts lib.id -> protosupportmsg.*Id
 func Marshal[T AllId](id Id) *T {
 	if id == nil {
 		return nil
@@ -219,6 +244,12 @@ func addInnerIdToType(i interface{}, inner *protosupportmsg.BaseId) {
 		v.Id = inner
 	case *protosupportmsg.KernelErrorId:
 		v.Id = inner
+	case *protosupportmsg.QueueErrorId:
+		v.Id = inner
+	case *protosupportmsg.QueueId:
+		v.Id = inner
+	case *protosupportmsg.QueueMsgId:
+		v.Id = inner
 	default:
 		panic("unknown id type")
 	}
@@ -267,6 +298,12 @@ func typeToLetter(i interface{}) byte {
 		return serviceIdLetter
 	case *protosupportmsg.KernelErrorId:
 		return kernelErrorIdLetter
+	case *protosupportmsg.QueueErrorId:
+		return queueErrorIdLetter
+	case *protosupportmsg.QueueId:
+		return queueIdLetter
+	case *protosupportmsg.QueueMsgId:
+		return queueMsgLetter
 	}
 	panic("unknown id type")
 }

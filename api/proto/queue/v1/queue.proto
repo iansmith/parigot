@@ -1,0 +1,38 @@
+syntax ="proto3";
+package queue.v1;
+option go_package="github.com/iansmith/parigot/g/queue/v1;queue";
+import "msg/queue/v1/queue.proto";
+
+// QueueService supports a reliable source of messages.  Messages
+// may be delivered out of order or delivered multiple times.
+service QueueService {
+    // CreateQueue creates a new named queue.   This is useful primarily in preparing
+    // for a deployment, not during normal execution.  See LocateQueue to find an already
+    // existing queue.
+    rpc CreateQueue(msg.queue.v1.CreateQueueRequest) returns (msg.queue.v1.CreateQueueResponse);
+
+    // Locate finds the named queue and returns the id.
+    rpc Locate(msg.queue.v1.LocateRequest) returns (msg.queue.v1.LocateResponse);
+
+    // DeleteQueue deletes a named queue.  This request will return a specific error code
+    // if the queue does not exist.
+    rpc DeleteQueue(msg.queue.v1.DeleteQueueRequest) returns (msg.queue.v1.DeleteQueueResponse);
+
+    // Receive a queued message.  Just receiving a message does not imply
+    // that it is fully processed.  You need to call delete or the message will
+    // be redelivered at a future point.  Messages are not guaranteed
+    // to be received in the order sent.
+    rpc Receive(msg.queue.v1.ReceiveRequest) returns (msg.queue.v1.ReceiveResponse);
+
+    // Mark a message as done and delete.  This should only be done _after_
+    // the processing is completed.  If you are worried about idempotentency
+    // in your processing,you will need to keep a record of which 
+    // message Ids you have processed.
+    rpc MarkDone(msg.queue.v1.MarkDoneRequest) returns (msg.queue.v1.MarkDoneResponse);
+
+    // Length returns the approximate number of items in the queue.
+    rpc Length(msg.queue.v1.LengthRequest) returns (msg.queue.v1.LengthResponse);
+
+    // Send a message for later delivery.
+    rpc Send(msg.queue.v1.SendRequest) returns (msg.queue.v1.SendResponse);
+}

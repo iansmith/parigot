@@ -25,11 +25,13 @@ import (
 // kernel is aware of the amount of space available for the result.  The ErrId will be filled in by
 // parigot so the caller is notified of errors.
 type SinglePayload struct {
-	InPtr  int64
-	InLen  int64
-	OutPtr int64
-	OutLen int64
-	ErrPtr [2]int64
+	InPtr        int64
+	InLen        int64
+	OutPtr       int64
+	OutLen       int64
+	ErrPtr       [2]int64
+	ErrDetailLen int64
+	ErrDetail    []byte
 }
 
 var kerrNone = lib.Unmarshal(lib.NoKernelError())
@@ -179,14 +181,16 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 
 	// can't fit the response?
 	if fullSize >= available {
-		ErrorResponse(mem, wasmPtr, lib.KernelDataTooLarge)
+		ErrorResponse(mem, wasmPtr, lib.NewKernelError(lib.KernelDataTooLarge),
+			fmt.Sprintf("unable to fit data of size %d in buffer of size %d", fullSize, available))
 		return
 	}
 	// encode the proto into a buffer... this resulting pointer to the buffer could be 32 or 64 bits
 	buffer, err := encodeSingleProto(resp, size)
 	if err != nil {
 		// this can only happen on some type of protobuf encoding issue
-		ErrorResponse(mem, wasmPtr, lib.KernelMarshalFailed)
+		ErrorResponse(mem, wasmPtr, lib.NewKernelError(lib.KernelMarshalFailed),
+			fmt.Sprintf("unable to encode proto of type %T and size %s", resp, size))
 		return
 	}
 
@@ -236,34 +240,17 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) error {
 // ErrorResponse takes the pointer to the stack (in the WASM address space) and sets
 // the error contained in it to the code provided.  This is called by the GO side.  This should be
 // use to signal errors back to the WASM code.
-func ErrorResponse(mem *jspatch.WasmMem, sp int32, code lib.KernelErrorCode) {
+func ErrorResponse(mem *jspatch.WasmMem, sp int32, id lib.Id, errorDetail string) {
 	wasmPtr := mem.GetInt64(sp + 8)
-	kerr := lib.NewKernelError(code)
+	errId := id
 	// the [0] value is the high 8 bytes, the [1] the low 8 bytes
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)),
-		int64(kerr.High()))
+		int64(errId.High()))
 	// high is 8 bytes higher
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)+8),
-		int64(kerr.Low()))
+		int64(errId.Low()))
 	highBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(highBytes, kerr.High())
-}
-
-func ErrorResponseId(mem *jspatch.WasmMem, sp int32, errId lib.Id) {
-	if !errId.IsErrorType() {
-		// callImpl.BackdoorLog(&logmsg.LogRequest{
-		// 	Level:   logmsg.LogLevel_LOG_LEVEL_WARNING,
-		// 	Message: "unable to understand error id that is not of error type:" + errId.Short(),
-		// 	Stamp:   timestamppb.Now(), // xxx fix this with a kernel call
-		// })
-		ErrorResponse(mem, sp, lib.KernelBadId)
-		return
-	}
-	if errId.IsError() {
-		ErrorResponse(mem, sp, lib.KernelErrorCode(errId.Low()))
-		return
-	}
-	ErrorResponse(mem, sp, lib.KernelNoError)
+	binary.LittleEndian.PutUint64(highBytes, errId.High())
 }
 
 // StackPointerToRequest assumes that this function was passed a pointer to the WASM stack and that
@@ -281,7 +268,8 @@ func StackPointerToRequest(mem *jspatch.WasmMem, sp int32, req proto.Message) er
 
 	err := DecodeSingleProto(buffer, req)
 	if err != nil {
-		ErrorResponse(mem, int32(wasmPtr), lib.KernelUnmarshalFailed)
+		ErrorResponse(mem, int32(wasmPtr), lib.NewKernelError(lib.KernelUnmarshalFailed),
+			fmt.Sprintf("unable to understand request, decode failed %v", err))
 		return err
 	}
 	return nil

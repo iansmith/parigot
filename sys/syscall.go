@@ -23,8 +23,19 @@ type SysCall interface {
 	Require(key dep.DepKey, packagePath, service string) lib.Id
 	RunBlock(key dep.DepKey) (bool, lib.Id)
 	GetInfoForCallId(cid lib.Id) *callContext
-	FindMethodByName(key dep.DepKey, sid lib.Id, method string) *callContext
-	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.KernelErrorCode)
-	CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest
+	// FindMethodByName searches for a method name with a known service.  If the method
+	// name is found, a call context for that method will be returned plus a nil, "" pair
+	// indicating no error.  If there was an error, the first return value will be
+	// nil and the remaining two will give the error info.
+	FindMethodByName(key dep.DepKey, sid lib.Id, method string) (*callContext, lib.Id, string)
+	// GetService looks up the given service (packagePath.service) and returns either
+	// the service id in the first parameter or an error pair of an error id and an
+	// error detail.
+	GetService(key dep.DepKey, packagePath, service string) (lib.Id, lib.Id, string)
+	// CallService, in the success case, returns a return value request and nil, "" for the
+	// error values.  The ReturnValueRequest is ready to be use in a call
+	// to ReturnValue().  If there was an error, the return value is nil and the
+	// last two error values will be filled in.
+	CallService(key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string)
 	BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext
 }

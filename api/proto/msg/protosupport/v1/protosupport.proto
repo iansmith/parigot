@@ -19,10 +19,26 @@ message BaseId {
 
 // KernelErrorId is used to signal errors that occured inside the operating environment 
 // itself.  When one of these errors is returned, typically the processing along that
-// path of control should terminate.  Note that this is called KernelErrorId because it 
-// always represents an error, but most of the other types of id can represent _either_ success or
-// failure (an error).
+// path of control should terminate. 
 message KernelErrorId {
+  BaseId id = 1;
+}
+
+// QueueErrorId is used to signal errors that occured when using the Queue api.
+message QueueErrorId {
+  BaseId id = 1;
+}
+
+// QueueId is used to identify a particular queue when doing operations
+// such as create and delete.  Operations on the messages in the 
+// queue will use this id and a queue message id.
+message QueueId {
+  BaseId id = 1;
+}
+
+// QueueMsgId is used to identify a particular message in a queue for a receive
+// or delete operations.
+message QueueMsgId {
   BaseId id = 1;
 }
 

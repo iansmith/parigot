@@ -37,13 +37,15 @@ type syscallReadWrite struct {
 	ns NameServer
 }
 
-func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U, fn func(t T, u U) lib.KernelErrorCode) {
+func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U,
+	fn func(t T, u U) (lib.Id, string)) {
 	err := splitutil.StackPointerToRequest(mem, sp, req)
 	if err != nil {
 		return // the error return code is already set
 	}
-	if id := fn(req, resp); id != lib.KernelNoError {
-		splitutil.ErrorResponse(mem, sp, id)
+	id, errDetail := fn(req, resp)
+	if id != nil {
+		splitutil.ErrorResponse(mem, sp, id, errDetail)
 		return
 	}
 	splitutil.RespondSingleProto(mem, sp, resp)
@@ -98,11 +100,11 @@ func (s *syscallReadWrite) Locate(sp int32) {
 	if err != nil {
 		return // the error return code is already set
 	}
-	sid, kcode := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
+	sid, id, errDetail := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
 		req.GetPackageName(), req.GetServiceName())
 
-	if kcode != lib.KernelNoError {
-		splitutil.ErrorResponse(s.mem, sp, kcode)
+	if id != nil {
+		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
 		return
 	}
 	resp.ServiceId = lib.Marshal[protosupportmsg.ServiceId](sid)
@@ -120,38 +122,18 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 	}
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
-	ctx := s.procToSysCall().FindMethodByName(key, sid, req.Method)
-	if ctx == nil {
+	ctx, id, errDetail := s.procToSysCall().FindMethodByName(key, sid, req.Method)
+	if id != nil {
 		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "\n")
-		splitutil.ErrorResponse(s.mem, sp, lib.KernelNotFound)
+		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
 		return
 	}
 	ctx.param = req.Param
 
 	// this call is the machinery for making a call to another service
-	retReq := s.procToSysCall().CallService(ctx.target, ctx)
-	if retReq.ExecErrorId != nil {
-		errid := lib.Unmarshal(retReq.ExecErrorId)
-		if errid != nil {
-			if errid.IsErrorType() && errid.IsError() {
-				kernErr := lib.KernelErrorCode(errid.Low())
-				splitutil.ErrorResponse(s.mem, sp, kernErr)
-				return
-			} else {
-				panic("dispatch is unable to understand result error of type:" + fmt.Sprintf("%T", errid))
-			}
-		}
-	}
-	if retReq.MarshalError != "" {
-		sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "marshal error from other side of the call:%s",
-			retReq.MarshalError)
-		splitutil.ErrorResponse(s.mem, sp, lib.KernelMarshalFailed)
-		return
-	}
-	if retReq.ExecError != "" {
-		sysPrint(logmsg.LogLevel_LOG_LEVEL_INFO, "Dispatch ", "exec error from other side of the call:%s",
-			retReq.ExecError)
-		splitutil.ErrorResponse(s.mem, sp, lib.KernelExecError)
+	retReq, id, errDetail := s.procToSysCall().CallService(ctx.target, ctx)
+	if id != nil {
+		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
 		return
 	}
 	resp.OutPctx = retReq.Pctx
@@ -171,13 +153,13 @@ func (s *syscallReadWrite) BindMethod(sp int32) {
 	req := syscallmsg.BindMethodRequest{}
 	resp := syscallmsg.BindMethodResponse{}
 	splitImplRetOne(s.mem, sp, &req, &resp,
-		func(req *syscallmsg.BindMethodRequest, resp *syscallmsg.BindMethodResponse) lib.KernelErrorCode {
+		func(req *syscallmsg.BindMethodRequest, resp *syscallmsg.BindMethodResponse) (lib.Id, string) {
 			mid, kerr := s.procToSysCall().Bind(s.proc, req.GetProtoPackage(), req.GetService(), req.GetMethod())
 			if kerr != nil {
-				return lib.KernelErrorCode(kerr.Low())
+				return kerr, fmt.Sprintf("unable to bind %s with method %s", req.GetProtoPackage(), req.GetMethod())
 			}
 			resp.MethodId = lib.Marshal[protosupportmsg.MethodId](mid)
-			return lib.KernelNoError
+			return nil, ""
 		})
 }
 
@@ -186,28 +168,29 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 	resp := syscallmsg.BlockUntilCallResponse{}
 	req := syscallmsg.BlockUntilCallRequest{}
 	splitImplRetOne(s.mem, sp, &req, &resp,
-		func(req *syscallmsg.BlockUntilCallRequest, resp *syscallmsg.BlockUntilCallResponse) lib.KernelErrorCode {
+		func(req *syscallmsg.BlockUntilCallRequest, resp *syscallmsg.BlockUntilCallResponse) (lib.Id, string) {
 			call := s.procToSysCall().BlockUntilCall(NewDepKeyFromProcess(s.proc), req.CanTimeout)
 			if call.timedOut {
 				resp.TimedOut = true
-				return lib.KernelNoError
+				return nil, ""
 			}
 			resp.TimedOut = false
 			resp.Param = call.param
 			resp.Pctx = call.pctx
 			resp.Call = lib.Marshal[protosupportmsg.CallId](call.cid)
 			resp.Method = lib.Marshal[protosupportmsg.MethodId](call.mid)
-			return lib.KernelNoError
+			return nil, ""
 		})
 }
 
-func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, fn func(t T) lib.KernelErrorCode) {
+func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, fn func(t T) (lib.Id, string)) {
 	err := splitutil.StackPointerToRequest(mem, sp, req)
 	if err != nil {
 		return // the error return code is already set
 	}
-	if id := fn(req); id != lib.KernelNoError {
-		splitutil.ErrorResponse(mem, sp, id)
+	id, errDetail := fn(req)
+	if id != nil {
+		splitutil.ErrorResponse(mem, sp, id, errDetail)
 		return
 	}
 	splitutil.RespondEmpty(mem, sp)
@@ -218,21 +201,23 @@ func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, f
 func (s *syscallReadWrite) ReturnValue(sp int32) {
 	req := syscallmsg.ReturnValueRequest{}
 	resp := syscallmsg.ReturnValueResponse{}
-	splitImplRetOne(s.mem, sp, &req, &resp, func(t *syscallmsg.ReturnValueRequest, u *syscallmsg.ReturnValueResponse) lib.KernelErrorCode {
+	splitImplRetOne(s.mem, sp, &req, &resp, func(t *syscallmsg.ReturnValueRequest, u *syscallmsg.ReturnValueResponse) (lib.Id, string) {
 		cid := lib.Unmarshal(req.GetCall())
 		ctx := s.procToSysCall().GetInfoForCallId(cid)
 		if ctx == nil {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
-			return lib.KernelCallerUnavailable
+			return lib.NewKernelError(lib.KernelCallerUnavailable),
+				fmt.Sprintf("no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
 		}
 		callerProc := ctx.sender.(*DepKeyImpl).proc
 		if callerProc == nil {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
-			return lib.KernelCallerUnavailable
+			return lib.NewKernelError(lib.KernelCallerUnavailable),
+				fmt.Sprintf("no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
 		}
 		ctx.respCh <- &req
 
-		return lib.KernelNoError
+		return nil, ""
 	})
 }
 
@@ -256,16 +241,16 @@ func (s *syscallReadWrite) procToSysCall() SysCall {
 // of that service.q
 func (s *syscallReadWrite) Export(sp int32) {
 	req := &syscallmsg.ExportRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.ExportRequest) lib.KernelErrorCode {
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.ExportRequest) (lib.Id, string) {
 		service := req.GetService()
 		for _, svc := range service {
 			// xxx  fixme what should we do in the face of some succeeding some not?
 			kerr := s.procToSysCall().Export(NewDepKeyFromProcess(s.proc), svc.GetPackagePath(), svc.GetService())
 			if kerr != nil {
-				return lib.KernelErrorCode(kerr.Low())
+				return kerr, fmt.Sprintf("unable to export %s.%s", svc.PackagePath, svc.Service)
 			}
 		}
-		return lib.KernelNoError
+		return nil, ""
 	})
 }
 
@@ -273,16 +258,16 @@ func (s *syscallReadWrite) Export(sp int32) {
 // a service.  This becomes part of the dependency graph.
 func (s *syscallReadWrite) Require(sp int32) {
 	req := &syscallmsg.RequireRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RequireRequest) lib.KernelErrorCode {
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RequireRequest) (lib.Id, string) {
 		service := req.GetService()
 		for _, svc := range service {
 			// xxx  fixme what should we do in the face of some succeeding some not?
 			kerr := s.procToSysCall().Require(NewDepKeyFromProcess(s.proc), svc.GetPackagePath(), svc.GetService())
 			if kerr != nil {
-				return lib.KernelErrorCode(kerr.Low())
+				return kerr, fmt.Sprintf("failed to require %+v", req.GetService())
 			}
 		}
-		return lib.KernelNoError
+		return nil, ""
 	})
 }
 
@@ -291,16 +276,16 @@ func (s *syscallReadWrite) Require(sp int32) {
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
 	req := &syscallmsg.RunRequest{}
-	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) lib.KernelErrorCode {
+	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) (lib.Id, string) {
 		sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "Run", "about to call new implementation of run inside nameserver")
 		ok, err := s.ns.RunBlock(s.proc.key)
 		if err != nil && err.IsErrorType() && err.IsError() {
-			return lib.KernelErrorCode(err.ErrorCode())
+			return err, "failed when doing RunBlock " + s.proc.key.String()
 		}
 		if !ok {
-			return lib.KernelAbortRequest
+			return lib.NewKernelError(lib.KernelAbortRequest), "received abort request"
 		}
-		return lib.KernelNoError
+		return nil, ""
 	})
 }
 

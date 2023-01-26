@@ -7,7 +7,7 @@ all: allprotos \
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm
+apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
 
 
@@ -58,6 +58,12 @@ build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SPLIT_UTIL)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/log
 
+# queue service impl
+QUEUE_SERVICE=$(shell find api_impl/queue -type f -regex ".*\.go")
+build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SPLIT_UTIL) api_impl/queue/go_/db.go 
+	rm -f $@
+	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/api_impl/queue
+
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
@@ -78,6 +84,12 @@ BAR_SERVICE=test/func/methodcall/impl/bar/*.go
 build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(api_impl)
 	rm -f $@
 	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
+
+# sqlc for queue
+QUEUE_SQL=$(shell find api_impl/queue/go_/ -type f -regex ".*\.sql")
+api_impl/queue/go_/db.go: $(QUEUE_SQL)
+	# sql.yaml has some relative paths in it, must be in correct dir
+	cd api_impl/queue/go_/sqlc && sqlc generate
 
 #
 # TEST
