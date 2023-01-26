@@ -55,7 +55,7 @@ message GetServiceRequest {
 message GetServiceResponse {
   string addr = 1;
   msg.protosupport.v1.ServiceId sid = 2;
-  msg.protosupport.v1.KernelErrorId kernel_err=3;
+  msg.protosupport.v1.BaseId err=3;
 }
 
 message RunBlockRequest {

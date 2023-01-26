@@ -39,6 +39,10 @@ coordinated with client side service
 ## file service
 * Make it work right with the new splitutil stuff
 
+## deploy validations
+* Deployment file should be able to check that the world is in a sane state
+    * Check DB exists, Check queue exists, etc
+
 ### processes
 * process states like started, waiting, running needs a check
     * check that the processes 
@@ -61,7 +65,10 @@ coordinated with client side service
 * Add kernel.Now() plus debugging "freeze time"
 
 ### testing
-* Make a simple protocol for doing testing
+* add a generated section such that PARIGOT_TEST controls whether or not 
+    a particular function gets BOUND ... anything starting with Test or test should
+    get this check added in the binding code
+    
 
 ### startup/shutdown
 * Bad state of services, make sure errors are ok

@@ -38,10 +38,10 @@ type NameServer interface {
 	CloseService(key dep.DepKey, pkgPath, service string) lib.Id
 	RunBlock(key dep.DepKey) (bool, lib.Id)
 	RunIfReady(key dep.DepKey) []dep.DepKey
-	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode)
+	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string)
 	StartFailedInfo() string
-	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext
-	CallService(dep.DepKey, *callContext) *syscallmsg.ReturnValueRequest
+	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string)
+	CallService(dep.DepKey, *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string)
 	GetInfoForCallId(target lib.Id) *callContext
 	ExitWhenInFlightEmpty() bool
 }
@@ -92,16 +92,20 @@ func mapToContent(sm *sync.Map) (int, []string) {
 // exchanges a (service id,name) pair for the appropriate call context.  The call context is used
 // by the calling client to 1) know where to send the message and 2) how to block waiting on
 // the result.  Note that the callContext is created by this function and registered
-// with the in flight list.
-func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) *callContext {
+// with the in flight list.  If there was an error the last two return values will
+// indicate the error.  If there was no error, the last two return values will
+// nil,"".
+func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) (*callContext, lib.Id, string) {
 	// we are NOT holding the lock here
 	sData := n.ServiceData(serviceId)
 	if sData == nil {
-		return nil
+		return nil, lib.NewKernelError(lib.KernelNotFound),
+			fmt.Sprintf("could not find service for %s", serviceId.String())
 	}
 	mid, ok := sData.method.Load(name)
 	if !ok {
-		return nil
+		return nil, lib.NewKernelError(lib.KernelNotFound),
+			fmt.Sprintf("could not find method %s on service %s", name, serviceId.String())
 	}
 	cc := &callContext{
 		method: name,
@@ -113,12 +117,12 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 		target: sData.key,
 	}
 	n.NSCore.addCallContextMapping(cc.cid, cc)
-	return cc
+	return cc, nil, ""
 }
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
-func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
 	return n.NSCore.GetService(pkgPath, service)
 }
 
@@ -258,11 +262,11 @@ func (n *LocalNameServer) sendAbortMessage() {
 // We use the returnValueRequest so this path is the same as it would be in the case
 // of a remote call.  In this the local case, we *could* just pass the result back
 // from B to A.
-func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) *syscallmsg.ReturnValueRequest {
+func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
 	result := <-ctx.respCh
-	return result
+	return result, nil, ""
 }
 
 // BlockUntilCall implements the stopping of a program until a method is

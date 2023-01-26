@@ -205,21 +205,23 @@ func (n *NSCore) ServiceData(serviceId lib.Id) *ServiceData {
 }
 
 // GetService is used when you know the package (full name) and the service within
-// that package you want to find.  If it was found, you'll get back the serviceId.
-// It's better to use the serviceId if possible as that lookup (like serviceFromServiceId)
-// is faster.
-func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+// that package you want to find.  If it was found, you'll get back the serviceId
+// in the first return value and nil, "" for the other two.  If there was an error
+// you will get nil in the first parameter and an error code an an error detail.
+func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id, string) {
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
-		return nil, lib.KernelNotFound
+		return nil, lib.NewKernelError(lib.KernelNotFound),
+			fmt.Sprintf("%s package could not be found", pkgPath)
 	}
 	pData := pDataAny.(*sync.Map)
 	sDataAny, ok := pData.Load(service)
 	if !ok {
-		return nil, lib.KernelNotFound
+		return nil, lib.NewKernelError(lib.KernelNotFound),
+			fmt.Sprintf("could not find service %s in package %s", service, pkgPath)
 	}
 	sData := sDataAny.(*ServiceData)
-	return sData.serviceId, lib.KernelNoError
+	return sData.serviceId, nil, ""
 }
 
 // CloseService is used to indicate that 1) the given service will not have

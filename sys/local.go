@@ -33,10 +33,10 @@ func sharedExport(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 func sharedRequire(ns NameServer, key dep.DepKey, pkg, service string) lib.Id {
 	return ns.Require(key, pkg, service)
 }
-func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.KernelErrorCode) {
+func sharedGetService(ns NameServer, key dep.DepKey, pkg, service string) (lib.Id, lib.Id, string) {
 	return ns.GetService(key, pkg, service)
 }
-func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
+func sharedCallService(ns NameServer, key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	return ns.CallService(key, info)
 }
 
@@ -52,10 +52,10 @@ func (l *localSysCall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(l.nameServer, key, pkg, service)
 }
 
-func (l *localSysCall) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
+func (l *localSysCall) CallService(key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	return sharedCallService(l.nameServer, key, info)
 }
-func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+func (l *localSysCall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
 	return sharedGetService(l.nameServer, key, pkgPath, service)
 }
 func (l *localSysCall) Require(key dep.DepKey, pkgPath, service string) lib.Id {
@@ -65,7 +65,7 @@ func (l *localSysCall) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	return l.nameServer.RunBlock(key)
 }
 
-func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, method string) *callContext {
+func (l *localSysCall) FindMethodByName(caller dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string) {
 	return l.nameServer.FindMethodByName(caller, serviceId, method)
 }
 func (l *localSysCall) GetInfoForCallId(cid lib.Id) *callContext {

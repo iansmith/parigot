@@ -27,7 +27,7 @@ func (r *remoteSyscall) Export(key dep.DepKey, pkg, service string) lib.Id {
 	return sharedExport(r.nameServer, key, pkg, service)
 }
 
-func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
+func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	return sharedCallService(r.nameServer, key, info)
 }
 
@@ -35,14 +35,14 @@ func (r *remoteSyscall) CallService(key dep.DepKey, info *callContext) *syscallm
 // 	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
 // }
 
-func (r *remoteSyscall) FindMethodByName(caller dep.DepKey, sid lib.Id, method string) *callContext {
+func (r *remoteSyscall) FindMethodByName(caller dep.DepKey, sid lib.Id, method string) (*callContext, lib.Id, string) {
 	return r.nameServer.FindMethodByName(caller, sid, method)
 }
 
 func (r *remoteSyscall) GetInfoForCallId(cid lib.Id) *callContext {
 	return r.nameServer.GetInfoForCallId(cid)
 }
-func (r *remoteSyscall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+func (r *remoteSyscall) GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
 	return sharedGetService(r.nameServer, key, pkgPath, service)
 }
 func (r *remoteSyscall) Require(key dep.DepKey, pkgPath, service string) lib.Id {

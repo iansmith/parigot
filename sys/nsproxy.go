@@ -237,9 +237,9 @@ func (n *NSProxy) HandleMethod(p *Process, packagePath, service, method string) 
 }
 
 // GetService looks up the service that is given as a parameter (pkgPath.service) and returns
-// the service id for that service.  The second return parameter is an error code (KernelErrorId)
-// if it is non-nil.
-func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.KernelErrorCode) {
+// the service id for that service.  The last two parameters will be nil, "" if
+// there was no error, otherwise will contain the error details.
+func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
 	req := &netmsg.GetServiceRequest{
 		PackagePath: pkgPath,
 		Service:     service,
@@ -247,38 +247,37 @@ func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib
 	a := &anypb.Any{}
 	err := a.MarshalFrom(req)
 	if err != nil {
-		return nil, lib.KernelMarshalFailed
+		return nil, lib.NewKernelError(lib.KernelMarshalFailed),
+			fmt.Sprintf("failed trying to marshal request: %v", err)
 	}
 
 	result := n.makeRequest(a)
 	if result == nil {
-		return nil, lib.KernelNetworkFailed
+		return nil, lib.NewKernelError(lib.KernelNetworkFailed), "network failed sending request"
 	}
 	resp := &netmsg.GetServiceResponse{}
 	err = result.UnmarshalTo(resp)
 	if err != nil {
-		return nil, lib.KernelUnmarshalFailed
-	}
-	kerr := lib.Unmarshal(resp.GetKernelErr())
-	if kerr.IsError() {
-		return nil, lib.KernelErrorCode(kerr.Low())
+		return nil, lib.NewKernelError(lib.KernelUnmarshalFailed),
+			fmt.Sprintf("failed to unmarshal response: %v", err)
 	}
 	addr := resp.GetAddr()
 	sidPtr := resp.GetSid()
 	sid := lib.Unmarshal(sidPtr)
 	netnameserverPrint("GETSERVICE ", "addr is %s and sid is %s", addr, sid.Short())
 	n.serviceLoc[sid.String()] = addr
-	return sid, lib.KernelNoError
+	return sid, nil, ""
 }
 
-func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) *callContext {
+func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string) {
 	netnameserverPrint("FINDMETHBYNAME", "key is %s, service id %s, method %s (n.serviceLoc is nil? %v)",
 		key.String(), serviceId.Short(), method, n.serviceLoc == nil)
 	// we need to make sure we have the sid mapping
 	_, ok := n.serviceLoc[serviceId.String()]
 	if !ok {
 		netnameserverPrint("FINDMETHODBYNAME", "failed to get network addr for %s", serviceId.Short())
-		return nil
+		return nil, lib.NewKernelError(lib.KernelNotFound),
+			fmt.Sprintf("unable to find service %s", serviceId.String())
 	}
 	var mid lib.Id
 	sData := n.NSCore.ServiceData(serviceId)
@@ -303,7 +302,7 @@ func (n *NSProxy) FindMethodByName(key dep.DepKey, serviceId lib.Id, method stri
 	}
 	netnameserverPrint("FINDMETHODBYNAME", "done with call context %s", callCtx.cid.Short())
 	n.NSCore.addCallContextMapping(callCtx.cid, callCtx)
-	return callCtx
+	return callCtx, nil, ""
 }
 
 func (n *NSProxy) GetInfoForCallId(target lib.Id) *callContext {
@@ -312,7 +311,7 @@ func (n *NSProxy) GetInfoForCallId(target lib.Id) *callContext {
 
 // CallService is the implementation (in the kernel) for when you have a remote (across
 // the network) nameserver that you need to make an RPC call to.
-func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.ReturnValueRequest {
+func (n *NSProxy) CallService(key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	//this req is only used when the CallService call wants to return an error
 	//or when have completed a network call successfully
 	req := &syscallmsg.ReturnValueRequest{
@@ -328,9 +327,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.Ret
 	// do we know where the service is?
 	addr, ok := n.serviceLoc[info.sid.String()]
 	if !ok {
-		req.ExecError = "could not find the location of service " + info.sid.Short()
-		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelNotFound))
-		return req
+		return nil, lib.NewKernelError(lib.KernelNotFound), "could not find the location of service " + info.sid.Short()
 	}
 	// have we called it before?
 	//caller, ok := n.rpcCaller[addr]
@@ -353,9 +350,7 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.Ret
 	a := anypb.Any{}
 	err := a.MarshalFrom(&rpcReq)
 	if err != nil {
-		req.ExecError = "unable to marshal the return value request:" + err.Error()
-		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelMarshalFailed))
-		return req
+		return nil, lib.NewKernelError(lib.KernelMarshalFailed), "unable to marshal the return value request:" + err.Error()
 	}
 	nr.SetData(&a)
 	nr.SetKey(key) //????
@@ -365,20 +360,16 @@ func (n *NSProxy) CallService(key dep.DepKey, info *callContext) *syscallmsg.Ret
 	result := <-respCh
 	if result == nil {
 		netnameserverPrint("CALLSERVICE", "failed in call to %s", info.sid.Short())
-		req.ExecError = "network failed"
-		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelNetworkFailed))
-		return req
+		return nil, lib.NewKernelError(lib.KernelNetworkFailed), "network failed"
 	}
 	resp := netmsg.RPCResponse{}
 	err = result.UnmarshalTo(&resp)
 	if err != nil {
-		req.ExecError = "unable to unmarshal the return value response:" + err.Error()
-		req.ExecErrorId = lib.Marshal[protosupportmsg.BaseId](lib.NewKernelError(lib.KernelUnmarshalFailed))
-		return req
+		return nil, lib.NewKernelError(lib.KernelUnmarshalFailed), "unable to unmarshal the return value response:" + err.Error()
 	}
 	req.Result = resp.GetResult()
 	req.Pctx = resp.GetPctx()
-	return req
+	return req, nil, ""
 }
 
 func (n *NSProxy) RunBlock(key dep.DepKey) (bool, lib.Id) {
