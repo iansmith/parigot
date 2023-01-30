@@ -3,13 +3,14 @@ API_VERSION=v1
 all: allprotos \
 	commands \
 	apiimpl \
-	methodcalltest
+	methodcalltest \
+	sqlc
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
-
+sqlc: api_impl/queue/go_/db.go
 
 GO_CMD=GOOS=js GOARCH=wasm go
 
@@ -94,8 +95,8 @@ api_impl/queue/go_/db.go: $(QUEUE_SQL)
 #
 # TEST
 #
-.PHONY: test
 test: methodcalltest test/func/methodcall/methodcall.toml all
+	go test github.com/iansmith/parigot/api_impl/queue/go_
 	build/runner -t test/func/methodcall/methodcall.toml 
 #
 # CLEAN
@@ -103,6 +104,7 @@ test: methodcalltest test/func/methodcall/methodcall.toml all
 .PHONY: protoclean
 protoclean: 
 	rm -rf g/*
+	rm api_impl/queue/go_/db.go api_impl/queue/go_/models.go api_impl/queue/go_/query.sql.go
 
 .PHONY: clean
 clean: protoclean

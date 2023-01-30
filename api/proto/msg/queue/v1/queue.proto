@@ -1,6 +1,6 @@
 syntax = "proto3";
 package msg.queue.v1;
-option go_package="g/msg/queue/v1;queuemsg";
+option go_package="github.com/iansmith/parigot/g/msg/queue/v1;queuemsg";
 import "msg/protosupport/v1/protosupport.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
@@ -38,7 +38,7 @@ message DeleteQueueRequest {
 // DeleteQueueResponse returns the (now invalid) queue id of what
 // was just deleted.
 message DeleteQueueResponse {
-    msg.protosupport.v1.BaseId id = 1;
+    msg.protosupport.v1.QueueId id = 1;
 }
 
 // Receive pulls the available messages from the queue and returns
@@ -67,8 +67,8 @@ message QueueMsg {
     // ReceiveTime is an approximation to the first time the message was received.
     // If the message has never been received before, this will be the zero value.
     google.protobuf.Timestamp  received = 4;
-    // sender may be any id type (or nil) at the discretion of sender.
-    msg.protosupport.v1.BaseId sender = 5;
+    // sender may be any type (or nil) at the discretion of sender
+    google.protobuf.Any sender = 5;
     // when the message was sent
     google.protobuf.Timestamp  sent = 6;
     // payload must be a serialized protobuf object
@@ -115,10 +115,6 @@ message SendRequest {
 // return the value.  Note that the message id you provide here will
 // changed once we send you the success notification using your id.
 message SendResponse {
-    msg.protosupport.v1.BaseId id = 1;
-    msg.protosupport.v1.QueueMsgId msg_id = 3;
-    string error_detail = 2;
-    string error_detail_msg = 4;
-    repeated msg.protosupport.v1.QueueMsgId succeed = 5;
-    repeated msg.protosupport.v1.QueueMsgId fail = 6;
+    repeated msg.protosupport.v1.QueueMsgId succeed = 1;
+    repeated QueueMsg fail = 2;
 }

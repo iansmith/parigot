@@ -12,4 +12,7 @@ const (
 	// Queue internal error means that the queue's implementation (not the values)
 	// passed to it) is the problem.  This is roughly a 500 not a 401.
 	QueueInternalError = 2
+	// QueueNoPayload is an error that means that an attempt was made to create
+	// a message a nil payload.  Payloads are mandatory and senders are optional.
+	QueueNoPayload = 3
 )

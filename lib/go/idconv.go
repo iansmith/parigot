@@ -18,19 +18,23 @@ const (
 	serviceIdLetter = 's'
 	methodIdLetter  = 'm'
 	callIdLetter    = 'c'
-	dbConnIdLetter  = 'D'
-	dbIOIdLetter    = 'I'
-	fileIdLetter    = 'f'
-	fileIOIdLetter  = 'i'
+	dbConnIdLetter  = 'd'
+	dbIOIdLetter    = 'e'
+
+	fileIdLetter      = 'f'
+	fileErrorIdLetter = 'F'
+	fileIOIdLetter    = 'i'
 )
 
 type KernelErrorCode uint16
 type QueueErrorCode uint16
+type FileErrorCode uint16
 
 type AllIdPtr interface {
 	*protosupportmsg.CallId |
 		*protosupportmsg.DBConnId |
 		*protosupportmsg.DBIOId |
+		*protosupportmsg.FileErrorId |
 		*protosupportmsg.FileId |
 		*protosupportmsg.FileIOId |
 		*protosupportmsg.MethodId |
@@ -46,6 +50,7 @@ type AllId interface {
 	protosupportmsg.CallId |
 		protosupportmsg.DBConnId |
 		protosupportmsg.DBIOId |
+		protosupportmsg.FileErrorId |
 		protosupportmsg.FileId |
 		protosupportmsg.FileIOId |
 		protosupportmsg.MethodId |
@@ -83,7 +88,7 @@ func NoKernelError() *protosupportmsg.KernelErrorId {
 }
 
 // NewKernelError is just a convenience wrapper around NewError() that has the correct constant type
-// its parameter.  Note that this will accept "NoKernelError and behavie correctly".
+// its parameter.  Note that this will accept "NoKernelError" and behave correctly.
 func NewKernelError(code KernelErrorCode) Id {
 	if code == KernelNoError {
 		return NoError[*protosupportmsg.KernelErrorId]()
@@ -91,9 +96,18 @@ func NewKernelError(code KernelErrorCode) Id {
 	return NewError[*protosupportmsg.KernelErrorId](uint16(code))
 }
 
+// NewFileError is just a convenience wrapper around NewError() that has the correct constant type
+// its parameter.  Note that this will accept "NoFileError" and behave correctly.
+func NewFileError(code FileErrorCode) Id {
+	if code == FileNoError {
+		return NoError[*protosupportmsg.FileErrorId]()
+	}
+	return NewError[*protosupportmsg.FileErrorId](uint16(code))
+}
+
 // NewQueueError is just a convenience wrapper around NewError() that has the
 // correct constant type on its parameter.  Note that this will
-// accept "NoKer"
+// accept "NoQueueError" as its parameter.
 func NewQueueError(code QueueErrorCode) Id {
 	if code == QueueNoError {
 		return NoError[*protosupportmsg.QueueErrorId]()
@@ -275,6 +289,14 @@ func typeToInnerId(i interface{}) *protosupportmsg.BaseId {
 		return v.GetId()
 	case *protosupportmsg.KernelErrorId:
 		return v.GetId()
+	case *protosupportmsg.QueueErrorId:
+		return v.GetId()
+	case *protosupportmsg.QueueId:
+		return v.GetId()
+	case *protosupportmsg.QueueMsgId:
+		return v.GetId()
+	case *protosupportmsg.FileErrorId:
+		return v.GetId()
 	}
 	panic("unknown id type")
 }
@@ -290,6 +312,8 @@ func typeToLetter(i interface{}) byte {
 		return dbIOIdLetter
 	case *protosupportmsg.FileId:
 		return fileIdLetter
+	case *protosupportmsg.FileErrorId:
+		return fileErrorIdLetter
 	case *protosupportmsg.FileIOId:
 		return fileIOIdLetter
 	case *protosupportmsg.MethodId:
@@ -305,5 +329,5 @@ func typeToLetter(i interface{}) byte {
 	case *protosupportmsg.QueueMsgId:
 		return queueMsgLetter
 	}
-	panic("unknown id type")
+	panic("unknown id type:" + fmt.Sprintf("%T", i))
 }

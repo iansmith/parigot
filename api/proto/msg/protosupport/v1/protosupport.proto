@@ -83,6 +83,11 @@ message FileId {
   BaseId id =1;
 }
 
+// FileErrorId represents error that is specific to the file service.
+message FileErrorId {
+  BaseId id =1;
+}
+
 // DbConnId represents a connection to a database.  As with FileIds, these Ids are not guaranteeed to survive
 // for long periods (minutes), so callers using a DbConnId must be prepared for "id not found" or similar errors.
 // DBConnIds can also be used to signal an error in connecting to the database.

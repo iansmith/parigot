@@ -2,7 +2,6 @@ package splitutil
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"reflect"
@@ -31,14 +30,10 @@ type SinglePayload struct {
 	OutLen       int64
 	ErrPtr       [2]int64
 	ErrDetailLen int64
-	ErrDetail    []byte
+	ErrDetail    int64
 }
 
 var kerrNone = lib.Unmarshal(lib.NoKernelError())
-
-// ErrDecode is returned when the result from the go language portion of the service cannot be
-// understood.
-var ErrDecode = errors.New("decoding error")
 
 var callImpl lib.Call
 
@@ -58,82 +53,84 @@ func NewSinglePayload() *SinglePayload {
 	return sp
 }
 
+func IsErrorInSinglePayload(ptr *SinglePayload) bool {
+	errRtn := lib.NewFrom64BitPair[*protosupportmsg.BaseId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+	return errRtn.IsError()
+}
+
 // This is the top level entry point for the WASM side.  It sends the proto given and fills in the resp
-// provided.  It will return a lib.Id that is a KernelErrorId, an error or two nils.  If it is a
-// lib.Id (1st) that error has been returned from the "other side" and the resp has not been filled in
-// due to the error. If the error (2nd) is returned, then there was a problem sending the req so
-// nothing has been sent at this point, or there was a problem unpacking the returned value.   In the
-// latter case, the returned error will be DecodeError and the Go side responded without error but
-// sent a bogus buffer of values.  Put another way, the error (2nd return value) cases are about
-// problems that occurred while running wasm code and the first return value is about problems that
-// occurred running go code. If this function returns two nils, everything went through the happy path
-// and resp has been filled in with the object sent from the go side.  If the go side has nothing
-// to return, the resp object is left unchanged.
-func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32)) (lib.Id, error) {
+// provided.  It uses the c parameter to get access to the system calls
+// and the fn to implemented the desired functionality after decoding
+// req and before encoding resp.  It returns two logical entities, a boolean indicating
+// if the error has already been sent and an error pair describing the error.  If
+// the boolean is true, then the error pair is really just informational because
+// the error is ALREADY recorded in the return object.  It returns false,nil,""
+// if everything is ok.  If the bool is true, it means that the implementation of
+// the function fn actually went ahead and set the error code during its execution.
+func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32)) (bool, lib.Id, string) {
 	if callImpl == nil {
 		callImpl = c
 	}
-	u, err := SendSingleProto(req)
-	if err != nil {
-		return nil, err
+	u, id, detail := SendSingleProto(req)
+	if id != nil {
+		return false, id, detail
 	}
 	fn(int32(u))
-	// check to see if this is an returned error
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-	errRtn := lib.NewFrom64BitPair[*protosupportmsg.KernelErrorId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
-	if !errRtn.Equal(kerrNone) {
-		return errRtn, nil
+	// check to see if this is an returned error
+	if IsErrorInSinglePayload(ptr) {
+		errRtn := lib.NewFrom64BitPair[*protosupportmsg.BaseId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+		return true, errRtn, ""
 	}
 	// if they returned nothing, we are done
 	if ptr.OutLen == 0 {
-		return nil, nil
+		return false, nil, ""
 	}
 	var byteBuffer []byte
 	wasmSideSlice := (*reflect.SliceHeader)(unsafe.Pointer(&byteBuffer))
 	wasmSideSlice.Data = uintptr(ptr.OutPtr)
 	wasmSideSlice.Len = int(ptr.OutLen)
 	wasmSideSlice.Cap = int(ptr.OutLen)
-	err = DecodeSingleProto(byteBuffer, resp)
-	if err != nil {
-		return nil, err
+	id, detail = DecodeSingleProto(byteBuffer, resp)
+	if id != nil {
+		return false, id, detail
 	}
-	return nil, nil
+	return false, nil, ""
 }
 
 // SendSingleProto is a utility function creating an initializng the InPtr and InLen fields based on a
 // single protobuf object.  This code is run in WASM.  This function uses encodeSingleProto for converting
 // the proto->bytes. It returns either a pointer to the 32bit addr of the resulting payload structure or
-// an error.
-func SendSingleProto(req proto.Message) (uintptr, error) {
+// an error pair.
+func SendSingleProto(req proto.Message) (uintptr, lib.Id, string) {
 	size := proto.Size(req)
 	if size > 0 {
 		if size+netconst.TrailerSize+netconst.FrontMatterSize >= netconst.ReadBufferSize {
-			return 0, errors.New("request too large to fit in receive buffer:" + fmt.Sprint(size))
+			return 0, lib.NewKernelError(lib.KernelDataTooLarge),
+				fmt.Sprintf("request too large to fit in receive buffer: %d bytes", size)
 		}
 	}
 	payload := NewSinglePayload()
 
 	u := uintptr(unsafe.Pointer(payload))
 
-	var err error
-	var buffer []byte
 	// when calling encodeSingleProto from the WASM side here, we are initializing the SinglePayload so
 	// we just copy the returned values into that structure.
-	buffer, err = encodeSingleProto(req, size)
-	if err != nil {
-		return 0, err
+	buffer, id, detail := encodeSingleProto(req, size)
+	if id != nil {
+		return 0, id, detail
 	}
 	payload.InPtr, payload.InLen = SliceToTwoInt64s(buffer)
-	return u, nil
+	return u, nil, ""
 }
 
 // encodeSingleProto takes a given req and encodes it with all the trimmings include the preceding magic
 // bytes and the 32 bit crc at the end.  This probably is overkill for things being transferred from a client
 // program in the same address space, as inadvertent errors are highly unlikely. It returns the content of
-// the encoded value or an error.
+// the encoded value or an error pair.
 //
 // This code is called BOTH from the go side and the wasm side.
-func encodeSingleProto(req proto.Message, size int) ([]byte, error) {
+func encodeSingleProto(req proto.Message, size int) ([]byte, lib.Id, string) {
 	//frontmatter
 	buffer := make([]byte, netconst.FrontMatterSize)
 	binary.LittleEndian.PutUint64(buffer[:8], netconst.MagicStringOfBytes)
@@ -141,7 +138,8 @@ func encodeSingleProto(req proto.Message, size int) ([]byte, error) {
 	// append network form
 	buffer, err := proto.MarshalOptions{}.MarshalAppend(buffer, req)
 	if err != nil {
-		return nil, err
+		return nil, lib.NewKernelError(lib.KernelMarshalFailed),
+			fmt.Sprintf("unable to marshal request:%v", err)
 	}
 	// compute checksum
 	result := crc32.Checksum(buffer[netconst.FrontMatterSize:netconst.FrontMatterSize+size], netconst.KoopmanTable)
@@ -149,7 +147,7 @@ func encodeSingleProto(req proto.Message, size int) ([]byte, error) {
 	// put checksum in buffer
 	binary.LittleEndian.PutUint32(buffer[netconst.FrontMatterSize+size:], uint32(result))
 
-	return buffer, nil
+	return buffer, nil, ""
 }
 
 // RespondEmpty is a way of signaling that you have no data to return, given a SinglePayload.
@@ -186,11 +184,10 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 		return
 	}
 	// encode the proto into a buffer... this resulting pointer to the buffer could be 32 or 64 bits
-	buffer, err := encodeSingleProto(resp, size)
-	if err != nil {
+	buffer, id, detail := encodeSingleProto(resp, size)
+	if id != nil {
 		// this can only happen on some type of protobuf encoding issue
-		ErrorResponse(mem, wasmPtr, lib.NewKernelError(lib.KernelMarshalFailed),
-			fmt.Sprintf("unable to encode proto of type %T and size %s", resp, size))
+		ErrorResponse(mem, wasmPtr, id, detail)
 		return
 	}
 
@@ -210,30 +207,31 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 // and whistles like a CRC and a magic number.
 //
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
-func DecodeSingleProto(buffer []byte, obj proto.Message) error {
+func DecodeSingleProto(buffer []byte, obj proto.Message) (lib.Id, string) {
 	m := binary.LittleEndian.Uint64(buffer[0:8])
 	if m != netconst.MagicStringOfBytes {
-		return ErrDecode
+		return lib.NewKernelError(lib.KernelDecodeError), "Unable to find magic byte sequence"
 	}
 	l := binary.LittleEndian.Uint32(buffer[8:12])
 	if l >= uint32(netconst.ReadBufferSize) {
-		return ErrDecode
+		return lib.NewKernelError(lib.KernelDecodeError),
+			fmt.Sprintf("Size of buffer to decode (%d) is too large (max is %d)", l, netconst.ReadBufferSize)
 	}
 	size := int(l)
 	if size == 0 {
 		buffer = nil
-		return nil
+		return nil, ""
 	}
 	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, obj); err != nil {
-		return ErrDecode
+		return lib.NewKernelError(lib.KernelUnmarshalFailed), fmt.Sprintf("unable to unmarshal encoded object: %v", err)
 	}
 	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
 	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
 	if expected != result {
-		return ErrDecode
+		return lib.NewKernelError(lib.KernelDecodeError), "Unable to find magic byte sequence"
 	}
-	return nil
+	return nil, ""
 
 }
 
@@ -259,20 +257,19 @@ func ErrorResponse(mem *jspatch.WasmMem, sp int32, id lib.Id, errorDetail string
 // fills in the proto with the data sent from the WASM side or it returns an error.  An error here
 // means we could not decode the package sent from the WASM side.  If an error is returned, the
 // caller can simply return, as the payload has been modified to tell the other side about the error.
-func StackPointerToRequest(mem *jspatch.WasmMem, sp int32, req proto.Message) error {
+func StackPointerToRequest(mem *jspatch.WasmMem, sp int32, req proto.Message) (lib.Id, string) {
 	wasmPtr := mem.GetInt64(sp + 8)
 
 	buffer := ReadSlice(mem, wasmPtr,
 		unsafe.Offsetof(SinglePayload{}.InPtr),
 		unsafe.Offsetof(SinglePayload{}.InLen))
 
-	err := DecodeSingleProto(buffer, req)
-	if err != nil {
-		ErrorResponse(mem, int32(wasmPtr), lib.NewKernelError(lib.KernelUnmarshalFailed),
-			fmt.Sprintf("unable to understand request, decode failed %v", err))
-		return err
+	id, detail := DecodeSingleProto(buffer, req)
+	if id != nil {
+		ErrorResponse(mem, int32(wasmPtr), id, detail)
+		return id, detail
 	}
-	return nil
+	return nil, ""
 }
 
 //
