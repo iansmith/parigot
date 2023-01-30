@@ -44,8 +44,8 @@ func (b *backdoor) ProcessLogRequest(req *logmsg.LogRequest, isKerenl, isBackend
 //go:noinline
 func (l *LogViewerImpl) LogRequestHandler(sp int32) {
 	req := logmsg.LogRequest{}
-	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
-	if err != nil {
+	errId, _ := splitutil.StackPointerToRequest(l.mem, sp, &req)
+	if errId != nil {
 		return // already set the error code
 	}
 	ProcessLogRequest(&req, false, false, false, nil)
@@ -152,11 +152,11 @@ func (l *logState) logSingleMessage(tuple *logTuple) {
 	}
 	if tuple.req == nil {
 		tmp := logmsg.LogRequest{}
-		err := splitutil.DecodeSingleProto(tuple.buffer, &tmp)
-		if err != nil {
+		errId, errDetail := splitutil.DecodeSingleProto(tuple.buffer, &tmp)
+		if errId != nil {
 			tmp.Stamp = timestamppb.New(time.Now())
 			tmp.Level = logmsg.LogLevel_LOG_LEVEL_ERROR
-			tmp.Message = fmt.Sprintf("unable to extract LogRequest from data buffer: %v", err)
+			tmp.Message = errDetail
 			tuple.isKernel = false
 			tuple.isBackend = true
 		}

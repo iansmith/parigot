@@ -1,10 +1,14 @@
 package go_
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // WARNING: This type of unit test can ONLY be written against the
@@ -14,29 +18,122 @@ import (
 
 func TestCreateDelete(t *testing.T) {
 	// we can only call the methods that don't take sp, but use req/resp
-	impl, id, err := NewQueueSvc(nil)
-	if id != nil {
-		t.Logf("error creating queue service:%v, %s", id.Short(), err)
-		t.FailNow()
-	}
 
-	var detail string
-	id, detail = impl.QueueSvcCreateQueueImpl(&queuemsg.CreateQueueRequest{
+	impl := createQueueService(t)
+
+	// expect failure with no name
+	id, detail := impl.QueueSvcCreateQueueImpl(&queuemsg.CreateQueueRequest{
 		QueueName: "",
 	}, &queuemsg.CreateQueueResponse{})
 	if !id.IsError() || id.ErrorCode() != lib.QueueInvalidName {
 		t.Errorf("expected error with Invalid name, but got: %s,%s", id.Short(), detail)
 	}
 
+	qid := createQueueSuccess(t, impl, "abc123")
+
+	checkIdExistence(t, impl, qid, true)
+
+	respDel := &queuemsg.DeleteQueueResponse{}
+	errId, errDetail := impl.QueueSvcDeleteQueueImpl(&queuemsg.DeleteQueueRequest{
+		Id: lib.Marshal[protosupportmsg.QueueId](qid),
+	}, respDel)
+	candidate := lib.Unmarshal(respDel.GetId())
+	if !qid.Equal(candidate) {
+		t.Errorf("error id returned : %v, %s", errId, errDetail)
+	}
+	checkIdExistence(t, impl, qid, false)
+}
+
+func TestSendAndReceive(t *testing.T) {
+	impl := createQueueService(t)
+	qid := createQueueSuccess(t, impl, "sendAndRecv")
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+
+	// these kernel ids are just for use as content in the messages
+	kidSender := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelNamespaceExhausted))
+	kidContent1 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDependencyCycle))
+	kidContent2 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDataTooLarge))
+	content1, content2, contentSender := anypb.Any{}, anypb.Any{}, anypb.Any{}
+	err1 := content1.MarshalFrom(kidContent1)
+	err2 := content2.MarshalFrom(kidContent2)
+	errSender := contentSender.MarshalFrom(kidSender)
+	if err1 != nil || err2 != nil || errSender != nil {
+		t.Errorf("unable to marshal content")
+		t.FailNow()
+	}
+
+	message := &queuemsg.QueueMsg{Id: qidM, Sender: &contentSender, Payload: &content1}
+	resp := &queuemsg.SendResponse{}
+	errId, detail := impl.QueueSvcSendImpl(
+		&queuemsg.SendRequest{
+			Id:  lib.Marshal[protosupportmsg.QueueId](qid),
+			Msg: []*queuemsg.QueueMsg{message},
+		}, resp)
+	if errId != nil {
+		t.Errorf("unable to send message 1: %s: %s", errId.Short(), detail)
+		t.FailNow()
+	}
+	if len(resp.Fail) != 0 {
+		t.Errorf("send failed, %d message listed as failed", len(resp.Fail))
+	}
+	if len(resp.Succeed) != 1 {
+		t.Errorf("send failed, %d message listed as succeeded", len(resp.Fail))
+	}
+	u := lib.Unmarshal(resp.Succeed[0])
+	t.Logf("%d,%d,%s", len(resp.Fail), len(resp.Succeed), u)
+}
+
+//
+// HELPERS
+//
+
+// createQueueService creates a new service and returns it.  If anything goes
+// wrong, it uses FailNow().
+func createQueueService(t *testing.T) *QueueSvcImpl {
+	impl, id, err := NewQueueSvc(nil)
+	if id != nil {
+		t.Logf("error creating queue service:%v, %s", id.Short(), err)
+		t.FailNow()
+	}
+	impl.queries.testDestroyAll(context.Background())
+	return impl
+}
+
+// createQueueSuccess creates a queue and returns its id. If anything goes
+// wrong, it uses FailNow().
+func createQueueSuccess(t *testing.T, impl *QueueSvcImpl, name string) lib.Id {
+	t.Helper()
 	resp := &queuemsg.CreateQueueResponse{}
-	id, detail = impl.QueueSvcCreateQueueImpl(&queuemsg.CreateQueueRequest{
-		QueueName: "abc123",
+	id, detail := impl.QueueSvcCreateQueueImpl(&queuemsg.CreateQueueRequest{
+		QueueName: name,
 	}, resp)
 	if id != nil {
 		t.Errorf("unexpected error from createQueue: %s,%s", id.Short(), detail)
+		t.FailNow()
 	}
 	if resp.GetId() == nil {
 		t.Errorf("id not found in createQueue response")
+		t.FailNow()
 	}
-	t.Logf("id of queue: %s, %s", id.Short(), id.String())
+
+	qid := lib.Unmarshal(resp.Id)
+	return qid
+}
+
+func checkIdExistence(t *testing.T, impl *QueueSvcImpl, id lib.Id, exists bool) {
+	t.Helper()
+	idToKey, err := impl.queries.getKeyFromQueueId(context.Background(),
+		getKeyFromQueueIdParams{
+			IDLow:  sql.NullInt64{Int64: int64(id.Low()), Valid: true},
+			IDHigh: sql.NullInt64{Int64: int64(id.High()), Valid: true},
+		})
+	if exists {
+		if err != nil {
+			t.Errorf("unable to find expected rowid for id %v", err)
+		}
+	} else {
+		if err == nil {
+			t.Errorf("did not expect to find row for id %s: %+v", id.Short(), idToKey)
+		}
+	}
 }

@@ -6,17 +6,12 @@ disableReadmoreNav = true
 toc = false
 +++
 
-{{< panel title="Access" style="info" >}} 
-
 We are currently only allowing private access to a few key operatives.  These are our dogs, their dog friends, our moms, and some left-handed barrista who 
-    used to be in the french foreign legion.
+used to be in the french foreign legion.
 
-{{< /panel >}}
 
-{{< lead >}} 
 If you are interested in being a beta tester in our next round of crazy, please fill out the form below.  We do promise to look at the results. We don't 
 promise that we know how to read.
-{{< /lead >}}
 
 <form name="earlyaccess" method="POST" data-netlify="true" class="" action="/thanks" method="post">
   <input type="hidden" name="subject" 

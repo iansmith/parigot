@@ -6,7 +6,7 @@ draft: false
 I guess I made an important decision this morning. I decided on the _tagline_ for parigot. I suppose shouldn't say this is permanent as all the decisions I make
 related to pargot seem to change, but I think I'm going to use this:
 
-{{< lead >}}  parigot: the operating environment for microservices. {{< /lead >}}
+parigot: the operating environment for microservices. 
 
 I'm going to use that capitalization too, if possible.  parigot is not capitalized, even if the first word of a sentence.  
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/iansmith/parigot/api_impl/file/go_"
@@ -13,6 +12,7 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -50,16 +50,14 @@ func (m *myFileServer) Ready() bool {
 
 // This file contains the "setup" code that builds a payload that will be sent to the other part of
 // this service.  That other part is the one that runs natively on the host machine.  This code runs
-// in WASM.
+// in WASM.  Note that this code returns a "normal" go error; the code generator is
+// go specific and the code generator determines the signature here.
 func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := filemsg.OpenResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
-	if err != nil {
-		return nil, err
-	}
+	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
 	if errId != nil {
-		return nil, errors.New("internal error:" + errId.Short())
+		return nil, lib.NewPerrorFromId(errDetail, errId)
 	}
 	return &resp, nil
 }
@@ -68,10 +66,13 @@ func (m *myFileServer) Close(pctx *protosupportmsg.Pctx, inProto proto.Message) 
 	_ = inProto.(*filemsg.CloseRequest)
 	panic("Close")
 }
+
 func (m *myFileServer) Create(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	_ = inProto.(*filemsg.CreateRequest)
 	panic("Create")
 }
+
+// log is a utility for sending messages to the logging service.
 func (m *myFileServer) log(pctx *protosupportmsg.Pctx, spec string, rest ...interface{}) {
 	s := fmt.Sprintf(spec, rest...)
 	req := logmsg.LogRequest{
@@ -85,18 +86,18 @@ func (m *myFileServer) log(pctx *protosupportmsg.Pctx, spec string, rest ...inte
 	}
 }
 
+// LoadTest is a method that will read a directory _on the host machine_ and load
+// it into an in-memory filesystem.  This is used only for testing.  Once the
+// LoadTest has completed successfully the in memory filesystem can be used with other
+// file-related calls.
 func (m *myFileServer) LoadTest(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := filemsg.LoadTestResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	errId, err := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
+	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
 	in := inProto.(*filemsg.LoadTestRequest)
-	if err != nil {
-		m.log(nil, "in WASM fileserver.Load('%s'), error trying to return: %v", in.Path, err)
-		return nil, err
-	}
 	if errId != nil {
-		m.log(nil, "in WASM fileserver.Load('%s') error found: %s", in.Path, errId.Short())
-		return nil, errors.New("internal error:" + errId.Short())
+		m.log(nil, "in WASM fileserver.Load('%s'), error trying to return: %s (%s)", in.Path, errId.Short(), errDetail)
+		return nil, lib.NewPerrorFromId(errDetail, errId)
 	}
 	return &resp, nil
 }

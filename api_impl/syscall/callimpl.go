@@ -208,12 +208,9 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 // errors.
 func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
-	id, err := splitutil.SendReceiveSingleProto(l, req, resp, fn)
-	if err != nil {
-		return zeroValForU, err
-	}
-	if checkIdForError(id) {
-		return zeroValForU, idErrorToPerror(id, "returnValue failed")
+	_, errId, errDetail := splitutil.SendReceiveSingleProto(l, req, resp, fn)
+	if errId != nil {
+		return zeroValForU, lib.NewPerrorFromId(errDetail, errId)
 	}
 	return resp, nil
 

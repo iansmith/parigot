@@ -41,21 +41,21 @@ type FileSvcImpl struct {
 //go:noinline
 func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	req := filemsg.OpenRequest{}
-	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
-	if err != nil {
-		return
+	errId, errDetail := splitutil.StackPointerToRequest(l.mem, sp, &req)
+	if errId != nil {
+		splitutil.ErrorResponse(l.mem, sp, errId, errDetail)
 	}
 	logger(logmsg.LogLevel_LOG_LEVEL_INFO, "FileSvcOpen path to file %s", req.GetPath())
 	newPath, err := ValidatePathForParigot(req.GetPath(), "open")
 	if err != nil {
-		splitutil.ErrorResponse(l.mem, sp, lib.NewKernelError(lib.KernelBadPath),
+		splitutil.ErrorResponse(l.mem, sp, lib.NewFileError(lib.FileBadPath),
 			"invalid path:"+req.GetPath())
 		return
 	}
 	// newpath can be quite different if there is something like /app/foo/bar/../baz as the parameter
 	_, err = fs.ReadFile(l.fs, newPath)
 	if err != nil {
-		splitutil.ErrorResponse(l.mem, sp, lib.NewKernelError(lib.KernelNotFound),
+		splitutil.ErrorResponse(l.mem, sp, lib.NewFileError(lib.FileBadPath),
 			fmt.Sprintf("read file failed on %s: %v", req.GetPath(), err))
 		return
 	}
@@ -136,8 +136,9 @@ func ValidatePathForParigot(path string, op string) (string, error) {
 func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	req := filemsg.LoadTestRequest{}
 
-	err := splitutil.StackPointerToRequest(l.mem, sp, &req)
-	if err != nil {
+	errId, errDetail := splitutil.StackPointerToRequest(l.mem, sp, &req)
+	if errId != nil {
+		splitutil.ErrorResponse(l.mem, sp, errId, errDetail)
 		return
 	}
 	l.fs = memfs.New()
@@ -146,7 +147,7 @@ func (l *FileSvcImpl) FileSvcLoad(sp int32) {
 	resp, err := l.loadLocal(&req)
 	if err != nil {
 		splitutil.ErrorResponse(l.mem, sp,
-			lib.NewKernelError(lib.KernelNotFound), /* xxxfixme, this error code is poor*/
+			lib.NewFileError(lib.FileNotFound),
 			fmt.Sprintf("reading in-memory file %s:%v", req.GetPath(),
 				err))
 		return

@@ -39,13 +39,13 @@ type syscallReadWrite struct {
 
 func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U,
 	fn func(t T, u U) (lib.Id, string)) {
-	err := splitutil.StackPointerToRequest(mem, sp, req)
-	if err != nil {
-		return // the error return code is already set
+	errId, errDetail := splitutil.StackPointerToRequest(mem, sp, req)
+	if errId != nil {
+		return // error already set
 	}
-	id, errDetail := fn(req, resp)
-	if id != nil {
-		splitutil.ErrorResponse(mem, sp, id, errDetail)
+	errId, errDetail = fn(req, resp)
+	if errId != nil {
+		splitutil.ErrorResponse(mem, sp, errId, errDetail)
 		return
 	}
 	splitutil.RespondSingleProto(mem, sp, resp)
@@ -96,15 +96,15 @@ func (s *syscallReadWrite) Exit(sp int32) {
 func (s *syscallReadWrite) Locate(sp int32) {
 	resp := syscallmsg.LocateResponse{}
 	req := syscallmsg.LocateRequest{}
-	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
-	if err != nil {
+	errId, errDetail := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	if errId != nil {
 		return // the error return code is already set
 	}
-	sid, id, errDetail := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
+	sid, errId, errDetail := s.procToSysCall().GetService(NewDepKeyFromProcess(s.proc),
 		req.GetPackageName(), req.GetServiceName())
 
-	if id != nil {
-		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
+	if errId != nil {
+		splitutil.ErrorResponse(s.mem, sp, errId, errDetail)
 		return
 	}
 	resp.ServiceId = lib.Marshal[protosupportmsg.ServiceId](sid)
@@ -116,16 +116,16 @@ func (s *syscallReadWrite) Locate(sp int32) {
 func (s *syscallReadWrite) Dispatch(sp int32) {
 	resp := syscallmsg.DispatchResponse{}
 	req := syscallmsg.DispatchRequest{}
-	err := splitutil.StackPointerToRequest(s.mem, sp, &req)
-	if err != nil {
+	errId, errDetail := splitutil.StackPointerToRequest(s.mem, sp, &req)
+	if errId != nil {
 		return // the error return code is already set
 	}
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
-	ctx, id, errDetail := s.procToSysCall().FindMethodByName(key, sid, req.Method)
-	if id != nil {
+	ctx, errId, errDetail := s.procToSysCall().FindMethodByName(key, sid, req.Method)
+	if errId != nil {
 		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "\n")
-		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
+		splitutil.ErrorResponse(s.mem, sp, errId, errDetail)
 		return
 	}
 	ctx.param = req.Param
@@ -184,13 +184,13 @@ func (s *syscallReadWrite) BlockUntilCall(sp int32) {
 }
 
 func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, fn func(t T) (lib.Id, string)) {
-	err := splitutil.StackPointerToRequest(mem, sp, req)
-	if err != nil {
+	errId, _ := splitutil.StackPointerToRequest(mem, sp, req)
+	if errId != nil {
 		return // the error return code is already set
 	}
-	id, errDetail := fn(req)
-	if id != nil {
-		splitutil.ErrorResponse(mem, sp, id, errDetail)
+	errId, deet := fn(req)
+	if errId != nil {
+		splitutil.ErrorResponse(mem, sp, errId, deet)
 		return
 	}
 	splitutil.RespondEmpty(mem, sp)

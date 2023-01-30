@@ -62,10 +62,10 @@ const (
 	// KernelNSRetryFailed means that we tried twice to reach the nameserver with
 	// the given request, but both times could not do so.
 	KernelNSRetryFailed KernelErrorCode = 15
-	// KernelBadPath means that the path cannot correspond to any Parigot file. This does not mean
-	// we tried and succeeded or failed to read the file, it means only that we could determine by
-	// looking at the path that this cannot succeed.
-	KernelBadPath KernelErrorCode = 16
+	// KernelDecodeError indicates that an attempt to extract a protobuf object
+	// from an encoded set of bytes has failed.  Typically, this means that
+	// the encoder was not called.
+	KernelDecodeError KernelErrorCode = 16
 	// KernelExecError means that we received a response from the implenter of a particular
 	// service's function and the execution of that function failed.
 	KernelExecError KernelErrorCode = 17
