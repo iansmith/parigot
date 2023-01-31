@@ -47,15 +47,15 @@ message DeleteQueueResponse {
 // times.
 message ReceiveRequest {
     msg.protosupport.v1.QueueId id = 1;
-    int32 message_limit = 2; // use 0 for all available
+    // it is expected that you can process all received messages inside the time limit
+    int32 message_limit = 2; // 1 is usually the right choice here
 }
 
 // Receive response hands the caller a list of messages to 
 // process. If you need to return an error, do so out of band.
 message ReceiveResponse {
     msg.protosupport.v1.QueueId id = 1;
-    repeated msg.protosupport.v1.QueueMsgId msgid = 2;
-    int32 message_limit = 3; // use 0 for default, there is a hard limit on this value and it is small (like 10)
+    repeated QueueMsg message = 2;
 }
 
 // QueueMsg represents an object returned by a call to Receive.
