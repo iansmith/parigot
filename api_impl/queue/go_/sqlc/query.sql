@@ -37,3 +37,13 @@ INSERT INTO parigot_test_message (
 )
 RETURNING *;
 
+-- name: RetrieveMessage :many
+SELECT * FROM parigot_test_message 
+WHERE queue_key = ? 
+ORDER BY original_sent
+LIMIT 10;
+
+-- name: UpdateMessageRetrieved :exec
+UPDATE parigot_test_message 
+SET last_received=now(), received_count=last_received+1
+WHERE queue_key=? AND id_low=? AND id_high=?;

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/iansmith/parigot/api_impl/splitutil"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
@@ -12,6 +13,8 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_ "embed"
 
@@ -120,9 +123,8 @@ func (q *QueueSvcImpl) QueueSvcDeleteQueueImpl(req *queuemsg.DeleteQueueRequest,
 	resp.Id = req.GetId()
 	return nil, ""
 }
-func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuemsg.SendResponse) (lib.Id, string) {
-
-	u := lib.Unmarshal[*protosupportmsg.QueueId](req.GetId())
+func (q *QueueSvcImpl) getRowidForId(id *protosupportmsg.QueueId) (int64, lib.Id, string) {
+	u := lib.Unmarshal[*protosupportmsg.QueueId](id)
 
 	p := getKeyFromQueueIdParams{
 		IDLow:  sql.NullInt64{Int64: int64(u.Low()), Valid: true},
@@ -130,7 +132,15 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 	}
 	result, err := q.queries.getKeyFromQueueId(context.Background(), p)
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to find internal key from id (%s): %v", u.Short(), err)
+		return 44, lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to find internal key from id (%s): %v", u.Short(), err)
+	}
+	return result.QueueKey.Int64, nil, ""
+
+}
+func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuemsg.SendResponse) (lib.Id, string) {
+	queueKey, id, detail := q.getRowidForId(req.GetId())
+	if id != nil {
+		return id, detail
 	}
 	succeed := []*protosupportmsg.QueueMsgId{}
 	fail := []*queuemsg.QueueMsg{}
@@ -166,7 +176,7 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 		params := CreateMessageParams{
 			IDLow:    sql.NullInt64{Int64: int64(mid.Low()), Valid: true},
 			IDHigh:   sql.NullInt64{Int64: int64(mid.High()), Valid: true},
-			QueueKey: result.QueueKey,
+			QueueKey: sql.NullInt64{Int64: queueKey, Valid: true},
 			Sender:   senderBytes,
 			Payload:  payloadBytes,
 		}
@@ -189,35 +199,96 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 	return nil, ""
 }
 
-// QueueSvcCreateQueue is the wrapper around the true implementation that
-// knows how to pull requests and return results/errors to the WASM side.
-func (q *QueueSvcImpl) QueueSvcCreateQueue(sp int32) {
-	req := queuemsg.CreateQueueRequest{}
-	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, &req)
+const longForm = "2006-01-02 15:04:05"
+
+func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) (lib.Id, string) {
+	queueKey, id, detail := q.getRowidForId(req.GetId())
+	if id != nil {
+		return id, detail
+	}
+	resultMsg, err := q.queries.RetrieveMessage(context.Background(), sql.NullInt64{Int64: queueKey, Valid: true})
+	if err != nil {
+		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed retreiving messages from queue: %v", err)
+	}
+	max := int(req.GetMessageLimit())
+	if max < 1 {
+		max = 1
+	}
+	if max > 3 {
+		max = 3
+	}
+	resultList := make([]*queuemsg.QueueMsg, max)
+
+	for i := 0; i < max; i++ {
+		result := resultMsg[i]
+		var recv time.Time
+		if result.LastReceived.String != "" {
+			recv, err = time.Parse(longForm, result.LastReceived.String)
+			if err != nil {
+				return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed to understand lastReceived time: %v", err)
+			}
+		}
+		sent, err := time.Parse(longForm, result.OriginalSent.String)
+		if err != nil {
+			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed to understand lastReceived time: %v", err)
+		}
+		m := queuemsg.QueueMsg{
+			Id:           req.GetId(),
+			MsgId:        lib.Marshal[protosupportmsg.QueueMsgId](lib.NewFrom64BitPair[*protosupportmsg.QueueMsgId](uint64(result.IDHigh.Int64), uint64(result.IDLow.Int64))),
+			ReceiveCount: int32(result.ReceivedCount.Int64),
+			Received:     timestamppb.New(recv),
+			Sent:         timestamppb.New(sent),
+		}
+		resultList[i] = &m
+	}
+	resp.Id = req.GetId()
+	resp.Message = resultList
+	return nil, ""
+}
+
+type allReq interface {
+	*queuemsg.CreateQueueRequest |
+		*queuemsg.DeleteQueueRequest |
+		*queuemsg.LengthRequest |
+		*queuemsg.LocateRequest |
+		*queuemsg.MarkDoneRequest |
+		*queuemsg.SendRequest |
+		*queuemsg.ReceiveRequest
+}
+type allResp interface {
+	*queuemsg.CreateQueueResponse |
+		*queuemsg.DeleteQueueResponse |
+		*queuemsg.LengthResponse |
+		*queuemsg.LocateResponse |
+		*queuemsg.MarkDoneResponse |
+		*queuemsg.SendResponse |
+		*queuemsg.ReceiveResponse
+}
+
+// generic
+func queueOp[T allReq, U allResp](q *QueueSvcImpl, sp int32, op func(T, U) (lib.Id, string)) {
+	var req T
+	var resp U
+	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, protoreflect.ProtoMessage(req))
 	if errId != nil {
 		splitutil.ErrorResponse(q.mem, sp, errId, errDetail)
 		return
 	}
-	resp := queuemsg.CreateQueueResponse{}
-	id, errDetail := q.QueueSvcCreateQueueImpl(&req, &resp)
+	id, errDetail := op(req, resp)
 	if id != nil {
 		splitutil.ErrorResponse(q.mem, sp, id, errDetail)
 		return
 	}
-	splitutil.RespondSingleProto(q.mem, sp, &resp)
+	splitutil.RespondSingleProto(q.mem, sp, protoreflect.ProtoMessage(resp))
+
 }
 
+// WRAPPERS
+func (q *QueueSvcImpl) QueueSvcCreateQueue(sp int32) {
+	queueOp(q, sp, q.QueueSvcCreateQueueImpl)
+}
 func (q *QueueSvcImpl) QueueSvcDeleteQueue(sp int32) {
-	req := queuemsg.DeleteQueueRequest{}
-	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, &req)
-	if errId != nil {
-		splitutil.ErrorResponse(q.mem, sp, errId, errDetail)
-		return
-	}
-	resp := queuemsg.DeleteQueueResponse{}
-
-	splitutil.RespondSingleProto(q.mem, sp, &resp)
-
+	queueOp(q, sp, q.QueueSvcDeleteQueueImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLength(sp int32) {
 }
@@ -226,14 +297,9 @@ func (q *QueueSvcImpl) QueueSvcLocate(sp int32) {
 func (q *QueueSvcImpl) QueueSvcMarkDone(sp int32) {
 }
 func (q *QueueSvcImpl) QueueSvcSend(sp int32) {
-	req := queuemsg.SendRequest{}
-	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, &req)
-	if errId != nil {
-		splitutil.ErrorResponse(q.mem, sp, errId, errDetail)
-		return
-	}
-	resp := queuemsg.SendResponse{}
-	splitutil.RespondSingleProto(q.mem, sp, &resp)
+	queueOp(q, sp, q.QueueSvcSendImpl)
 }
+
 func (q *QueueSvcImpl) QueueSvcReceive(sp int32) {
+	queueOp(q, sp, q.QueueSvcReceiveImpl)
 }

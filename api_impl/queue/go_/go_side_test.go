@@ -64,28 +64,50 @@ func TestSendAndReceive(t *testing.T) {
 
 	message := &queuemsg.QueueMsg{Id: qidM, Sender: &contentSender, Payload: &content1}
 	resp := &queuemsg.SendResponse{}
-	errId, detail := impl.QueueSvcSendImpl(
-		&queuemsg.SendRequest{
-			Id:  lib.Marshal[protosupportmsg.QueueId](qid),
-			Msg: []*queuemsg.QueueMsg{message},
-		}, resp)
-	if errId != nil {
-		t.Errorf("unable to send message 1: %s: %s", errId.Short(), detail)
+	sendMessageTestResult(t, impl, qid, []*queuemsg.QueueMsg{message}, resp, 0, 1)
+
+	message = &queuemsg.QueueMsg{Id: qidM, Sender: &contentSender, Payload: &content2}
+	resp = &queuemsg.SendResponse{}
+	sendMessageTestResult(t, impl, qid, []*queuemsg.QueueMsg{message}, resp, 0, 1)
+
+	receiveReq := &queuemsg.ReceiveRequest{
+		Id:           qidM,
+		MessageLimit: 2,
+	}
+	receiveResp := &queuemsg.ReceiveResponse{}
+	id, detail := impl.QueueSvcReceiveImpl(receiveReq, receiveResp)
+	if id != nil {
+		t.Errorf("failed to receive: %s, %s", id.Short(), detail)
 		t.FailNow()
 	}
-	if len(resp.Fail) != 0 {
-		t.Errorf("send failed, %d message listed as failed", len(resp.Fail))
+	if len(receiveResp.GetMessage()) != 2 {
+		t.Errorf("failed to receive, expected 2 messages but got %d", len(receiveResp.GetMessage()))
 	}
-	if len(resp.Succeed) != 1 {
-		t.Errorf("send failed, %d message listed as succeeded", len(resp.Fail))
-	}
-	u := lib.Unmarshal(resp.Succeed[0])
-	t.Logf("%d,%d,%s", len(resp.Fail), len(resp.Succeed), u)
 }
 
 //
 // HELPERS
 //
+
+func sendMessageTestResult(t *testing.T, q *QueueSvcImpl, qid lib.Id, msg []*queuemsg.QueueMsg, resp *queuemsg.SendResponse, numFail, numSucc int) {
+	t.Helper()
+
+	req := &queuemsg.SendRequest{
+		Id:  lib.Marshal[protosupportmsg.QueueId](qid),
+		Msg: msg,
+	}
+	errId, detail := q.QueueSvcSendImpl(req, resp)
+	if errId != nil {
+		t.Errorf("unable to send messages: %s: %s", errId.Short(), detail)
+		t.FailNow()
+	}
+	if len(resp.Fail) != numFail {
+		t.Errorf("send failed, %d message listed as failed", len(resp.Fail))
+	}
+	if len(resp.Succeed) != numSucc {
+		t.Errorf("send failed, %d message listed as succeeded", len(resp.Succeed))
+	}
+}
 
 // createQueueService creates a new service and returns it.  If anything goes
 // wrong, it uses FailNow().
