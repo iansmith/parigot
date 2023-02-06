@@ -15,4 +15,6 @@ const (
 	// QueueNoPayload is an error that means that an attempt was made to create
 	// a message a nil payload.  Payloads are mandatory and senders are optional.
 	QueueNoPayload = 3
+	// QueueNotFound means that the Queue name requested could not be found.
+	QueueNotFound = 4
 )

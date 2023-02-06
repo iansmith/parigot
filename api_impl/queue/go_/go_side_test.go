@@ -154,6 +154,28 @@ func TestLenAndMarkdone(t *testing.T) {
 	}
 
 }
+func TestLocate(t *testing.T) {
+	name := "locate_test_queue"
+	impl := createQueueService(t)
+	qid := createQueueSuccess(t, impl, name)
+	notFound := lib.NewQueueError(lib.QueueNotFound)
+	req := queuemsg.LocateRequest{}
+	resp := queuemsg.LocateResponse{}
+	req.QueueName = "bleah"
+	id, err := impl.QueueSvcLocateImpl(&req, &resp)
+	if !id.Equal(notFound) {
+		t.Errorf("locate produced something other than notFound for bleah: %s: %s", id.Short(), err)
+	}
+	req.QueueName = name
+	id, err = impl.QueueSvcLocateImpl(&req, &resp)
+	if id != nil {
+		t.Errorf("locate failed: %s: %s", id.Short(), err)
+	}
+	candidate := lib.Unmarshal(resp.GetId())
+	if !qid.Equal(candidate) {
+		t.Errorf("locate failed, wrong id returned: expected %s but got %s", candidate.Short(), id.Short())
+	}
+}
 
 //
 // HELPERS

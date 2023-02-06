@@ -28,14 +28,16 @@ var ddl string
 
 var inMemDSN = "file:test.db?cache=shared&mode=memory"
 
+const longForm = "2006-01-02 15:04:05"
+
+var internalErr = lib.NewQueueError(lib.QueueInternalError)
+
 // This impl is part of the GO side, it is not visible in WASM.
 type QueueSvcImpl struct {
 	mem     *jspatch.WasmMem //not used when this is being tested
 	db      *sql.DB
 	queries *Queries
 }
-
-var noErr = lib.NewQueueError(lib.QueueNoError)
 
 // NewQueueSvc returns an initialized Queue service and two nils or
 // a nil service and two bits of error information.  When running unit
@@ -80,7 +82,7 @@ func (q *QueueSvcImpl) QueueSvcCreateQueueImpl(req *queuemsg.CreateQueueRequest,
 	}
 	mod, err := q.queries.CreateQueue(context.Background(), req.GetQueueName())
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("error: %v", err)
+		return internalErr, fmt.Sprintf("error: %v", err)
 	}
 
 	qid := lib.NewQueueId()
@@ -91,7 +93,7 @@ func (q *QueueSvcImpl) QueueSvcCreateQueueImpl(req *queuemsg.CreateQueueRequest,
 	}
 	_, err = q.queries.CreateIdToKeyMapping(context.Background(), param)
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("insert error: %v", err)
+		return internalErr, fmt.Sprintf("insert error: %v", err)
 	}
 	resp.Id = lib.Marshal[protosupportmsg.QueueId](qid)
 	return nil, ""
@@ -111,13 +113,13 @@ func (q *QueueSvcImpl) QueueSvcDeleteQueueImpl(req *queuemsg.DeleteQueueRequest,
 			IDHigh: sql.NullInt64{Int64: int64(qid.High()), Valid: true},
 		})
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError),
+		return internalErr,
 			fmt.Sprintf("unable to find db key for %s: %v",
 				lib.Unmarshal(req.GetId()), err)
 	}
 	err = q.queries.DeleteQueue(context.Background(), r.QueueKey.Int64)
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError),
+		return internalErr,
 			fmt.Sprintf("unable to delete row for key %d: %v",
 				r.QueueKey.Int64, err)
 	}
@@ -126,7 +128,7 @@ func (q *QueueSvcImpl) QueueSvcDeleteQueueImpl(req *queuemsg.DeleteQueueRequest,
 	return nil, ""
 }
 func (q *QueueSvcImpl) getRowidForId(id *protosupportmsg.QueueId) (int64, lib.Id, string) {
-	u := lib.Unmarshal[*protosupportmsg.QueueId](id)
+	u := lib.Unmarshal(id)
 
 	p := getKeyFromQueueIdParams{
 		IDLow:  sql.NullInt64{Int64: int64(u.Low()), Valid: true},
@@ -134,7 +136,7 @@ func (q *QueueSvcImpl) getRowidForId(id *protosupportmsg.QueueId) (int64, lib.Id
 	}
 	result, err := q.queries.getKeyFromQueueId(context.Background(), p)
 	if err != nil {
-		return 44, lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to find internal key from id (%s): %v", u.Short(), err)
+		return 44, internalErr, fmt.Sprintf("unable to find internal key from id (%s): %v", u.Short(), err)
 	}
 	return result.QueueKey.Int64, nil, ""
 
@@ -163,7 +165,7 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 		if current.GetSender() != nil {
 			senderBytes, err = proto.Marshal(current.GetSender())
 			if err != nil {
-				failedId = lib.NewQueueError(lib.QueueInternalError)
+				failedId = internalErr
 				failedDetail = fmt.Sprintf("unable to flatten sender: %v", err)
 				alreadyFailed = true
 				fail = append(fail, current)
@@ -173,7 +175,7 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 		// flatten payload
 		payloadBytes, err := proto.Marshal(current.GetPayload())
 		if err != nil {
-			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to flatten payload: %v", err)
+			return internalErr, fmt.Sprintf("unable to flatten payload: %v", err)
 		}
 		params := CreateMessageParams{
 			IDLow:    sql.NullInt64{Int64: int64(mid.Low()), Valid: true},
@@ -187,7 +189,7 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 		if err != nil {
 			alreadyFailed = true
 			fail = append(fail, current)
-			failedId = lib.NewQueueError(lib.QueueInternalError)
+			failedId = internalErr
 			failedDetail = fmt.Sprintf("could not create message: %v", err)
 			continue
 		}
@@ -210,7 +212,7 @@ func (q *QueueSvcImpl) QueueSvcLengthImpl(req *queuemsg.LengthRequest, resp *que
 
 	count, err := q.queries.Length(context.Background(), sql.NullInt64{Int64: queueKey, Valid: true})
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError), err.Error()
+		return internalErr, err.Error()
 	}
 	resp.Id = req.Id
 	resp.Length = count
@@ -233,13 +235,23 @@ func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp 
 		}
 		err := q.queries.MarkDone(context.Background(), p)
 		if err != nil {
-			return lib.NewQueueError(lib.QueueInternalError), err.Error()
+			return internalErr, err.Error()
 		}
 	}
 	return nil, ""
 }
-
-const longForm = "2006-01-02 15:04:05"
+func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *queuemsg.LocateResponse) (lib.Id, string) {
+	row, err := q.queries.Locate(context.Background(), req.QueueName)
+	if err != nil {
+		return lib.NewQueueError(lib.QueueNotFound), err.Error()
+	}
+	h := uint64(row.IDHigh.Int64)
+	l := uint64(row.IDLow.Int64)
+	// type here is just for validation of the char
+	qid := lib.NewFrom64BitPair[*protosupportmsg.QueueId](h, l)
+	resp.Id = lib.Marshal[protosupportmsg.QueueId](qid)
+	return nil, ""
+}
 
 func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) (lib.Id, string) {
 	queueKey, id, detail := q.getRowidForId(req.GetId())
@@ -248,7 +260,7 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 	}
 	resultMsg, err := q.queries.RetrieveMessage(context.Background(), sql.NullInt64{Int64: queueKey, Valid: true})
 	if err != nil {
-		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed retreiving messages from queue: %v", err)
+		return internalErr, fmt.Sprintf("failed retreiving messages from queue: %v", err)
 	}
 	if len(resultMsg) == 0 {
 		resp.Id = req.GetId()
@@ -276,21 +288,21 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 		if result.LastReceived.String != "" {
 			recv, err = time.Parse(longForm, result.LastReceived.String)
 			if err != nil {
-				return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed to understand lastReceived time: %v", err)
+				return internalErr, fmt.Sprintf("failed to understand lastReceived time: %v", err)
 			}
 		}
 		sent, err := time.Parse(longForm, result.OriginalSent.String)
 		if err != nil {
-			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed to understand lastReceived time: %v", err)
+			return internalErr, fmt.Sprintf("failed to understand lastReceived time: %v", err)
 		}
 		var senderAny, payloadAny anypb.Any
 		err = proto.Unmarshal(resultMsg[i].Sender, &senderAny)
 		if err != nil {
-			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to create sender proto: %v", err)
+			return internalErr, fmt.Sprintf("unable to create sender proto: %v", err)
 		}
 		err = proto.Unmarshal(resultMsg[i].Payload, &payloadAny)
 		if err != nil {
-			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to create payload proto: %v", err)
+			return internalErr, fmt.Sprintf("unable to create payload proto: %v", err)
 		}
 
 		m := queuemsg.QueueMsg{
@@ -309,6 +321,10 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 	resp.Message = resultList
 	return nil, ""
 }
+
+//
+// Generics
+//
 
 type allReq interface {
 	*queuemsg.CreateQueueRequest |
@@ -358,6 +374,7 @@ func (q *QueueSvcImpl) QueueSvcLength(sp int32) {
 	queueOp(q, sp, q.QueueSvcLengthImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLocate(sp int32) {
+	queueOp(q, sp, q.QueueSvcLocateImpl)
 }
 func (q *QueueSvcImpl) QueueSvcMarkDone(sp int32) {
 	queueOp(q, sp, q.QueueSvcMarkDoneImpl)

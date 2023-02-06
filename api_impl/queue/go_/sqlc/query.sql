@@ -25,6 +25,11 @@ RETURNING *;
 SELECT count(*) FROM parigot_test_message 
 WHERE queue_key = ? AND marked_done IS NULL;
 
+-- name: Locate :one
+SELECT parigot_test_queue_id_to_key.id_high, parigot_test_queue_id_to_key.id_low 
+FROM parigot_test_queue INNER JOIN parigot_test_queue_id_to_key on  parigot_test_queue.id = parigot_test_queue_id_to_key.queue_key
+WHERE parigot_test_queue.name = ? ;
+
 -- name: allMessages :many
 SELECT queue_key,id_low, id_high, marked_done, original_sent, last_received FROM parigot_test_message
 WHERE queue_key = ?  AND marked_done IS NULL;
