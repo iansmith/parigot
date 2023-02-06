@@ -127,6 +127,10 @@ func (q *QueueSvcImpl) QueueSvcDeleteQueueImpl(req *queuemsg.DeleteQueueRequest,
 	resp.Id = req.GetId()
 	return nil, ""
 }
+
+// getRowidForId is an internal function to convert a queue id (in marshaled form)
+// into a row id that can be used as a key in other queries.  If anything went wrong
+// it will return non-nil and a detail string.
 func (q *QueueSvcImpl) getRowidForId(id *protosupportmsg.QueueId) (int64, lib.Id, string) {
 	u := lib.Unmarshal(id)
 
@@ -141,6 +145,13 @@ func (q *QueueSvcImpl) getRowidForId(id *protosupportmsg.QueueId) (int64, lib.Id
 	return result.QueueKey.Int64, nil, ""
 
 }
+
+// QueueSvcSendImpl is separate from the "real" call of
+// QueueSvcSend so it is easy to test.  The return values
+// will be nil, "" if there was no error.  If there was an error
+// it returns the successfully sent and failed messages. If you are
+// trying to send many messages, be sure to look at these two lists
+// because partial failure is possible.
 func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuemsg.SendResponse) (lib.Id, string) {
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
@@ -204,6 +215,11 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 	return nil, ""
 }
 
+// QueueSvcLengthImpl is separate from the "real" call of
+// QueueSvcLength so it is easy to test.  The return values
+// will be nil, "" if there was no error.  If there was an error you'll
+// get the error code and detail.  If there was no error, the response
+// object will have the apporimate length of the queue requested.
 func (q *QueueSvcImpl) QueueSvcLengthImpl(req *queuemsg.LengthRequest, resp *queuemsg.LengthResponse) (lib.Id, string) {
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
@@ -218,6 +234,18 @@ func (q *QueueSvcImpl) QueueSvcLengthImpl(req *queuemsg.LengthRequest, resp *que
 	resp.Length = count
 	return nil, ""
 }
+
+// QueueSvcMarkeDoneImpl is separate from the "real" call of
+// QueueSvcMarkDone so it is easy to test.  The return values
+// will be nil, "" if there was no error.  If there was an error you'll
+// get the error code and detail.  This method is used for marking
+// messages as having been processed successfully. Note that if you do not
+// mark a message as "done" you can receive the message additional times
+// on future calls to Receive().  This implies that it is best to fully
+// process a message in a single function call and mark it done when completed
+// even if that implies an error was generated.  If you must process a
+// message for more time than a single call, you'll need to hold state in
+// a database or similar so you can resume processing at the right point.
 func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp *queuemsg.MarkDoneResponse) (lib.Id, string) {
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
@@ -240,7 +268,17 @@ func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp 
 	}
 	return nil, ""
 }
+
+// QueueSvcLocateImpl is separate from the "real" call of
+// QueueSvcLocate so it is easy to test.  The return values
+// will be nil, "" if there was no error.  If there was an error you'll
+// get the error code and detail, typically QueueErrNotFound.  If things
+// are ok, this returns the queue id for a given name in the response.
 func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *queuemsg.LocateResponse) (lib.Id, string) {
+	if !q.validateName(req.GetQueueName()) {
+		return lib.NewQueueError(lib.QueueInvalidName),
+			fmt.Sprintf("%s is not a valid name, should be a sequenc of only alphanumeric and '_','-','.'", req.GetQueueName())
+	}
 	row, err := q.queries.Locate(context.Background(), req.QueueName)
 	if err != nil {
 		return lib.NewQueueError(lib.QueueNotFound), err.Error()
@@ -253,6 +291,17 @@ func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *que
 	return nil, ""
 }
 
+// QueueSvcReceiveImpl is separate from the "real" call of
+// QueueSvcReceive so it is easy to test.  The return values
+// will be nil, "" if there was no error.  If there was an error you'll
+// get the error code and detail.  This code will return some number of messages
+// from zero to the requested maximum.  If the requested maximum is out of bounds
+// it will be clipped to the range [1,4).  1 is the recommended value, and since
+// the max is an integer type with a default of 0, it will be clipped to 1.
+// It returns the content of the messages that are pending, in approximately the
+// order sent, although this is not guaranteed.  Just retreiving messages is not
+// enough to fully process them, you need to use QueueSvcMarkDone() to indicate that the
+// item can be removed from the queue.
 func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) (lib.Id, string) {
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
