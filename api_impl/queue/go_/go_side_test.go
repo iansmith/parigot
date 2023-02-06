@@ -44,31 +44,22 @@ func TestCreateDelete(t *testing.T) {
 	checkIdExistence(t, impl, qid, false)
 }
 
+const sender = "sender"
+const payload = "payload"
+
 func TestSendAndReceive(t *testing.T) {
 	impl := createQueueService(t)
 	qid := createQueueSuccess(t, impl, "sendAndRecv")
 	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
 
-	// these kernel ids are just for use as content in the messages
-	kidSender := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelNamespaceExhausted))
-	kidContent1 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDependencyCycle))
-	kidContent2 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDataTooLarge))
-	content1, content2, contentSender := anypb.Any{}, anypb.Any{}, anypb.Any{}
-	err1 := content1.MarshalFrom(kidContent1)
-	err2 := content2.MarshalFrom(kidContent2)
-	errSender := contentSender.MarshalFrom(kidSender)
-	if err1 != nil || err2 != nil || errSender != nil {
-		t.Errorf("unable to marshal content")
-		t.FailNow()
-	}
-
-	message := &queuemsg.QueueMsg{Id: qidM, Sender: &contentSender, Payload: &content1}
-	resp := &queuemsg.SendResponse{}
-	sendMessageTestResult(t, impl, qid, []*queuemsg.QueueMsg{message}, resp, 0, 1)
-
-	message = &queuemsg.QueueMsg{Id: qidM, Sender: &contentSender, Payload: &content2}
-	resp = &queuemsg.SendResponse{}
-	sendMessageTestResult(t, impl, qid, []*queuemsg.QueueMsg{message}, resp, 0, 1)
+	// these kernel ids are just for use as content in the messages (the sender and payload)
+	var senderK *protosupportmsg.KernelErrorId
+	var payloadK [2]*protosupportmsg.KernelErrorId
+	var payloadId [2]lib.Id
+	senderK, payloadK[0], payloadK[1] = sendTwoMessagesForContent(t, impl, qid)
+	senderId := lib.Unmarshal(senderK)
+	payloadId[0] = lib.Unmarshal(payloadK[0])
+	payloadId[1] = lib.Unmarshal(payloadK[1])
 
 	receiveReq := &queuemsg.ReceiveRequest{
 		Id:           qidM,
@@ -83,11 +74,132 @@ func TestSendAndReceive(t *testing.T) {
 	if len(receiveResp.GetMessage()) != 2 {
 		t.Errorf("failed to receive, expected 2 messages but got %d", len(receiveResp.GetMessage()))
 	}
+
+	iterationName := []string{sender, payload}
+
+	for i := range []int{0, 1} {
+		// the sender is real?
+		if receiveResp.Message == nil || receiveResp.Message[i].GetSender() == nil {
+			t.Errorf("no sender found on received message: %d", i)
+			t.FailNow()
+		}
+		// really have payload?
+		if receiveResp.Message[i].GetPayload() == nil {
+			t.Errorf("no payload found on received message: %d", i)
+			t.FailNow()
+		}
+		// check sender and payload
+		for j, a := range []*anypb.Any{receiveResp.Message[i].GetSender(), receiveResp.Message[i].GetPayload()} {
+			iterName := iterationName[j]
+			candidateContent := protosupportmsg.KernelErrorId{}
+			err := a.UnmarshalTo(&candidateContent)
+			if err != nil {
+				t.Errorf("unable to unmarshal ith %s (%d): %v", iterName, i, err)
+			}
+			candidateId := lib.Unmarshal(&candidateContent)
+			if iterName == sender {
+				if !candidateId.Equal(senderId) {
+					t.Errorf("mismached sender on ith message (%d): %s vs %s", i, senderId.Short(), candidateId.Short())
+				}
+			} else {
+				// deal with the lack of ordering by checking both
+				if !candidateId.Equal(payloadId[0]) && !candidateId.Equal(payloadId[1]) {
+					t.Errorf("unable to match payload on ith message (%d): %s", i, candidateId.Short())
+				}
+			}
+		}
+	}
+}
+
+func TestLenAndMarkdone(t *testing.T) {
+	impl := createQueueService(t)
+	qid := createQueueSuccess(t, impl, "lenAndMarkdone")
+
+	// queue starts empty
+	testLen(t, impl, qid, 0)
+
+	//send two messages and test len
+	sendTwoMessagesForContent(t, impl, qid)
+	testLen(t, impl, qid, 2)
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+
+	rcvResp := queuemsg.ReceiveResponse{}
+	rcvReq := queuemsg.ReceiveRequest{
+		Id:           qidM,
+		MessageLimit: 2,
+	}
+	errId, errDetail := impl.QueueSvcReceiveImpl(&rcvReq, &rcvResp)
+	if errId != nil {
+		t.Errorf("unable to receive messages: %s: %s", errId.Short(), errDetail)
+		t.FailNow()
+	}
+
+	if len(rcvResp.Message) != 2 {
+		t.Errorf("expected to find 2 messages in queue, but found %d", len(rcvResp.Message))
+	}
+	// receive doesn't change the queue length
+	testLen(t, impl, qid, 2)
+
+	doneReq := queuemsg.MarkDoneRequest{}
+	doneReq.Id = qidM
+	doneResp := queuemsg.MarkDoneResponse{}
+	doneReq.Msg = make([]*protosupportmsg.QueueMsgId, len(rcvResp.Message))
+	for i := 0; i < len(doneReq.Msg); i++ {
+		doneReq.Msg[i] = rcvResp.Message[i].GetMsgId()
+	}
+	errId, errDetail = impl.QueueSvcMarkDoneImpl(&doneReq, &doneResp)
+	if errId != nil {
+		t.Errorf("unable to mark messages as done: %s: %s", errId.Short(), errDetail)
+		t.FailNow()
+	}
+
 }
 
 //
 // HELPERS
 //
+
+func testLen(t *testing.T, impl *QueueSvcImpl, qid lib.Id, expected int) {
+	//t.Helper()
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+	lReq := queuemsg.LengthRequest{Id: qidM}
+	lResp := queuemsg.LengthResponse{}
+	id, deets := impl.QueueSvcLengthImpl(&lReq, &lResp)
+	if id != nil {
+		t.Errorf("unable check length of queue: %s: %s", id.Short(), deets)
+		t.FailNow()
+	}
+	respQid := lib.Unmarshal(lResp.Id)
+	if !respQid.Equal(qid) {
+		t.Errorf("mismatched queue ids, expected %s but got %s", qid.Short(), respQid.Short())
+	}
+}
+
+func sendTwoMessagesForContent(t *testing.T, impl *QueueSvcImpl, qid lib.Id) (*protosupportmsg.KernelErrorId, *protosupportmsg.KernelErrorId, *protosupportmsg.KernelErrorId) {
+	t.Helper()
+
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+
+	var p0, p1, s anypb.Any
+	kidSender := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelNamespaceExhausted))
+	kidContent1 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDependencyCycle))
+	kidContent2 := lib.Marshal[protosupportmsg.KernelErrorId](lib.NewKernelError(lib.KernelDataTooLarge))
+	err1 := p0.MarshalFrom(kidContent1)
+	err2 := p1.MarshalFrom(kidContent2)
+	errSender := s.MarshalFrom(kidSender)
+	if err1 != nil || err2 != nil || errSender != nil {
+		t.Errorf("unable to marshal content")
+		t.FailNow()
+	}
+
+	message0 := &queuemsg.QueueMsg{Id: qidM, Sender: &s, Payload: &p0}
+	message1 := &queuemsg.QueueMsg{Id: qidM, Sender: &s, Payload: &p1}
+	resp := &queuemsg.SendResponse{}
+	sendMessageTestResult(t, impl, qid, []*queuemsg.QueueMsg{message0, message1}, resp, 0, 2)
+
+	return kidSender, kidContent1, kidContent2
+
+}
 
 func sendMessageTestResult(t *testing.T, q *QueueSvcImpl, qid lib.Id, msg []*queuemsg.QueueMsg, resp *queuemsg.SendResponse, numFail, numSucc int) {
 	t.Helper()
@@ -107,6 +219,7 @@ func sendMessageTestResult(t *testing.T, q *QueueSvcImpl, qid lib.Id, msg []*que
 	if len(resp.Succeed) != numSucc {
 		t.Errorf("send failed, %d message listed as succeeded", len(resp.Succeed))
 	}
+
 }
 
 // createQueueService creates a new service and returns it.  If anything goes
