@@ -51,10 +51,11 @@ INSERT INTO parigot_test_message (
 RETURNING *;
 
 -- name: RetrieveMessage :many
-SELECT * FROM parigot_test_message 
-WHERE queue_key = ? AND marked_done IS NULL
-ORDER BY original_sent
-LIMIT 10;
+SELECT parigot_test_message.*
+FROM parigot_test_queue, parigot_test_message
+INNER JOIN parigot_test_queue_id_to_key on  parigot_test_queue_id_to_key.id_high=? AND parigot_test_queue_id_to_key.id_low = ? AND parigot_test_message.queue_key = parigot_test_queue_id_to_key.queue_key
+ORDER BY parigot_test_message.original_sent
+LIMIT 3;
 
 -- name: MarkDone :exec
 UPDATE parigot_test_message 
