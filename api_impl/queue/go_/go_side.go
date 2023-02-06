@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"regexp"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/iansmith/parigot/sys/jspatch"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	_ "embed"
@@ -180,6 +182,7 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 			Sender:   senderBytes,
 			Payload:  payloadBytes,
 		}
+
 		_, err = q.queries.CreateMessage(context.Background(), params)
 		if err != nil {
 			alreadyFailed = true
@@ -199,6 +202,43 @@ func (q *QueueSvcImpl) QueueSvcSendImpl(req *queuemsg.SendRequest, resp *queuems
 	return nil, ""
 }
 
+func (q *QueueSvcImpl) QueueSvcLengthImpl(req *queuemsg.LengthRequest, resp *queuemsg.LengthResponse) (lib.Id, string) {
+	queueKey, id, detail := q.getRowidForId(req.GetId())
+	if id != nil {
+		return id, detail
+	}
+
+	count, err := q.queries.Length(context.Background(), sql.NullInt64{Int64: queueKey, Valid: true})
+	if err != nil {
+		return lib.NewQueueError(lib.QueueInternalError), err.Error()
+	}
+	resp.Id = req.Id
+	resp.Length = count
+	return nil, ""
+}
+func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp *queuemsg.MarkDoneResponse) (lib.Id, string) {
+	queueKey, id, detail := q.getRowidForId(req.GetId())
+	if id != nil {
+		return id, detail
+	}
+	// should be inside a transaction: xxx fixme(iansmith)
+	for _, m := range req.Msg {
+		mid := lib.Unmarshal(m)
+		low := mid.Low()
+		high := mid.High()
+		p := MarkDoneParams{
+			QueueKey: sql.NullInt64{Int64: queueKey, Valid: true},
+			IDLow:    sql.NullInt64{Int64: int64(low), Valid: true},
+			IDHigh:   sql.NullInt64{Int64: int64(high), Valid: true},
+		}
+		err := q.queries.MarkDone(context.Background(), p)
+		if err != nil {
+			return lib.NewQueueError(lib.QueueInternalError), err.Error()
+		}
+	}
+	return nil, ""
+}
+
 const longForm = "2006-01-02 15:04:05"
 
 func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) (lib.Id, string) {
@@ -210,6 +250,11 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 	if err != nil {
 		return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed retreiving messages from queue: %v", err)
 	}
+	if len(resultMsg) == 0 {
+		resp.Id = req.GetId()
+		resp.Message = nil
+		return nil, ""
+	}
 	max := int(req.GetMessageLimit())
 	if max < 1 {
 		max = 1
@@ -217,9 +262,15 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 	if max > 3 {
 		max = 3
 	}
+	if len(resultMsg) < max {
+		max = len(resultMsg)
+	}
 	resultList := make([]*queuemsg.QueueMsg, max)
-
-	for i := 0; i < max; i++ {
+	n := max
+	if len(resultMsg) < max {
+		n = len(resultMsg)
+	}
+	for i := 0; i < n; i++ {
 		result := resultMsg[i]
 		var recv time.Time
 		if result.LastReceived.String != "" {
@@ -232,12 +283,25 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 		if err != nil {
 			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("failed to understand lastReceived time: %v", err)
 		}
+		var senderAny, payloadAny anypb.Any
+		err = proto.Unmarshal(resultMsg[i].Sender, &senderAny)
+		if err != nil {
+			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to create sender proto: %v", err)
+		}
+		err = proto.Unmarshal(resultMsg[i].Payload, &payloadAny)
+		if err != nil {
+			return lib.NewQueueError(lib.QueueInternalError), fmt.Sprintf("unable to create payload proto: %v", err)
+		}
+
 		m := queuemsg.QueueMsg{
-			Id:           req.GetId(),
-			MsgId:        lib.Marshal[protosupportmsg.QueueMsgId](lib.NewFrom64BitPair[*protosupportmsg.QueueMsgId](uint64(result.IDHigh.Int64), uint64(result.IDLow.Int64))),
+			Id: req.GetId(),
+			MsgId: lib.Marshal[protosupportmsg.QueueMsgId](lib.NewFrom64BitPair[*protosupportmsg.QueueMsgId](
+				uint64(result.IDHigh.Int64), uint64(result.IDLow.Int64))),
 			ReceiveCount: int32(result.ReceivedCount.Int64),
 			Received:     timestamppb.New(recv),
 			Sent:         timestamppb.New(sent),
+			Sender:       &senderAny,
+			Payload:      &payloadAny,
 		}
 		resultList[i] = &m
 	}
@@ -291,10 +355,12 @@ func (q *QueueSvcImpl) QueueSvcDeleteQueue(sp int32) {
 	queueOp(q, sp, q.QueueSvcDeleteQueueImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLength(sp int32) {
+	queueOp(q, sp, q.QueueSvcLengthImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLocate(sp int32) {
 }
 func (q *QueueSvcImpl) QueueSvcMarkDone(sp int32) {
+	queueOp(q, sp, q.QueueSvcMarkDoneImpl)
 }
 func (q *QueueSvcImpl) QueueSvcSend(sp int32) {
 	queueOp(q, sp, q.QueueSvcSendImpl)
@@ -302,4 +368,30 @@ func (q *QueueSvcImpl) QueueSvcSend(sp int32) {
 
 func (q *QueueSvcImpl) QueueSvcReceive(sp int32) {
 	queueOp(q, sp, q.QueueSvcReceiveImpl)
+}
+
+// dumpAll is only for debugging the sqlite3 queries, should not
+// be used in any real code.
+func dumpAll(impl *QueueSvcImpl, queue_key int64) {
+	log.Printf("xxx----------------start")
+	result, err := impl.queries.allMessages(context.Background(),
+		sql.NullInt64{Int64: queue_key, Valid: true})
+	if err != nil {
+		panic("error trying to dumpAll")
+	}
+	for i := 0; i < len(result); i++ {
+		r := result[i]
+		done := "N/A"
+		if r.MarkedDone.Valid {
+			done = r.MarkedDone.String
+		}
+		rcvd := "N/A"
+		if r.LastReceived.Valid {
+			done = r.LastReceived.String
+		}
+
+		log.Printf("xxx %d: %x %x %x %s %s %s", i, r.QueueKey.Int64,
+			r.IDHigh.Int64, r.IDLow.Int64, r.OriginalSent.String, done, rcvd)
+	}
+	log.Printf("xxx----------------end")
 }

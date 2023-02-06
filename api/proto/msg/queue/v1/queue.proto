@@ -96,13 +96,11 @@ message LengthRequest {
     msg.protosupport.v1.QueueId id = 1;
 }
 
-// LengthResponse returns either a queue id identifying the queue we 
-// computed the length for an error.
-// creating the new queue or a queue error id 
+// LengthResponse returns the queue id identifying the queue we 
+// computed the length for.
 message LengthResponse {
-    msg.protosupport.v1.BaseId id = 1;
-    string error_detail = 2;
-    int32 length =3;
+    msg.protosupport.v1.QueueId id = 1;
+    int64 length = 2;
 }
 
 // Send requests enqueues the queue messages provided.

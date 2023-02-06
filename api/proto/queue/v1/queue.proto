@@ -21,7 +21,8 @@ service QueueService {
     // Receive a queued message.  Just receiving a message does not imply
     // that it is fully processed.  You need to call delete or the message will
     // be redelivered at a future point.  Messages are not guaranteed
-    // to be received in the order sent.
+    // to be received in the order sent.  If there are no messages ready,
+    // the response will be returned with a nil message.
     rpc Receive(msg.queue.v1.ReceiveRequest) returns (msg.queue.v1.ReceiveResponse);
 
     // Mark a message as done and delete.  This should only be done _after_
