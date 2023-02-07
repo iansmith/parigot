@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
@@ -114,25 +115,26 @@ func TestSendAndReceive(t *testing.T) {
 func TestLenAndMarkdone(t *testing.T) {
 	impl := createQueueService(t)
 	qid := createQueueSuccess(t, impl, "lenAndMarkdone")
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
 
 	// queue starts empty
 	testLen(t, impl, qid, 0)
 
-	//send two messages and test len
-	sendTwoMessagesForContent(t, impl, qid)
-	testLen(t, impl, qid, 2)
-	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
-
 	rcvResp := queuemsg.ReceiveResponse{}
-	rcvReq := queuemsg.ReceiveRequest{
-		Id:           qidM,
-		MessageLimit: 2,
-	}
-	errId, errDetail := impl.QueueSvcReceiveImpl(&rcvReq, &rcvResp)
-	if errId != nil {
-		t.Errorf("unable to receive messages: %s: %s", errId.Short(), errDetail)
-		t.FailNow()
-	}
+	//send two messages and test len
+	sendAndReceiveMessages(t, impl, qid, &rcvResp, 2)
+	// sendTwoMessagesForContent(t, impl, qid)
+	// testLen(t, impl, qid, 2)
+
+	// rcvReq := queuemsg.ReceiveRequest{
+	// 	Id:           qidM,
+	// 	MessageLimit: 2,
+	// }
+	// errId, errDetail := impl.QueueSvcReceiveImpl(&rcvReq, &rcvResp)
+	// if errId != nil {
+	// 	t.Errorf("unable to receive messages: %s: %s", errId.Short(), errDetail)
+	// 	t.FailNow()
+	// }
 
 	if len(rcvResp.Message) != 2 {
 		t.Errorf("expected to find 2 messages in queue, but found %d", len(rcvResp.Message))
@@ -147,13 +149,54 @@ func TestLenAndMarkdone(t *testing.T) {
 	for i := 0; i < len(doneReq.Msg); i++ {
 		doneReq.Msg[i] = rcvResp.Message[i].GetMsgId()
 	}
-	errId, errDetail = impl.QueueSvcMarkDoneImpl(&doneReq, &doneResp)
+	errId, errDetail := impl.QueueSvcMarkDoneImpl(&doneReq, &doneResp)
 	if errId != nil {
 		t.Errorf("unable to mark messages as done: %s: %s", errId.Short(), errDetail)
 		t.FailNow()
 	}
+	// markDone does change the queue length
+	testLen(t, impl, qid, 0)
 
 }
+
+func TestReceivedTimeAndCount(t *testing.T) {
+	name := "receive_and_count"
+	impl := createQueueService(t)
+	qid := createQueueSuccess(t, impl, name)
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+
+	rcvResp := queuemsg.ReceiveResponse{}
+	//send two messages and test len
+	sendAndReceiveMessages(t, impl, qid, &rcvResp, 2)
+	//neither of these messages has been received before
+	t1, t2, c1, c2 := twoReceivedMessagesToReceiveTimeAndCount(&rcvResp)
+	if !t1.IsZero() || !t2.IsZero() {
+		t.Errorf("unexpected Received value for a message: %#v", rcvResp.Message[0].GetReceived().AsTime())
+	}
+	if c1 != 0 || c2 != 0 {
+		t.Errorf("unexpected ReceiveCount value for a message")
+	}
+	// read them again and check values since this is 2nd time of reading
+
+	rcvReq := queuemsg.ReceiveRequest{
+		Id:           qidM,
+		MessageLimit: 2,
+	}
+	//receive again and testResult
+	errId, errDetail := impl.QueueSvcReceiveImpl(&rcvReq, &rcvResp)
+	if errId != nil {
+		t.Errorf("unable to receive messages: %s: %s", errId.Short(), errDetail)
+		t.FailNow()
+	}
+	t1, t2, c1, c2 = twoReceivedMessagesToReceiveTimeAndCount(&rcvResp)
+	if t1.IsZero() || t2.IsZero() {
+		t.Errorf("unexpected zero time value for message delivered before")
+	}
+	if c1 != 1 || c2 != 1 {
+		t.Errorf("unexpected receive count for message delivered before")
+	}
+}
+
 func TestLocate(t *testing.T) {
 	name := "locate_test_queue"
 	impl := createQueueService(t)
@@ -293,4 +336,32 @@ func checkIdExistence(t *testing.T, impl *QueueSvcImpl, id lib.Id, exists bool) 
 			t.Errorf("did not expect to find row for id %s: %+v", id.Short(), idToKey)
 		}
 	}
+}
+func sendAndReceiveMessages(t *testing.T, impl *QueueSvcImpl, qid lib.Id, rcvResp *queuemsg.ReceiveResponse, expectedCount int) {
+	t.Helper()
+
+	//send two messages and test len
+	sendTwoMessagesForContent(t, impl, qid)
+	testLen(t, impl, qid, expectedCount)
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+
+	rcvReq := queuemsg.ReceiveRequest{
+		Id:           qidM,
+		MessageLimit: int32(expectedCount),
+	}
+	//receive and testResult
+	errId, errDetail := impl.QueueSvcReceiveImpl(&rcvReq, rcvResp)
+	if errId != nil {
+		t.Errorf("unable to receive messages: %s: %s", errId.Short(), errDetail)
+		t.FailNow()
+	}
+
+}
+
+func twoReceivedMessagesToReceiveTimeAndCount(rcvResp *queuemsg.ReceiveResponse) (time.Time, time.Time, int32, int32) {
+	t1 := rcvResp.Message[0].GetReceived().AsTime()
+	t2 := rcvResp.Message[1].GetReceived().AsTime()
+	c1 := rcvResp.Message[0].GetReceiveCount()
+	c2 := rcvResp.Message[1].GetReceiveCount()
+	return t1, t2, c1, c2
 }

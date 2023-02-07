@@ -62,7 +62,8 @@ message ReceiveResponse {
 message QueueMsg {
     msg.protosupport.v1.QueueId id = 1;
     msg.protosupport.v1.QueueMsgId msg_id = 2;
-    // ReceiveCount is an approximation
+    // ReceiveCount is an approximation of the number of times
+    // this messages has been delivered before this delivery.
     int32 receive_count = 3;
     // ReceiveTime is an approximation to the first time the message was received.
     // If the message has never been received before, this will be the zero value.

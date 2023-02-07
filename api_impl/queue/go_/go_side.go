@@ -247,6 +247,9 @@ func (q *QueueSvcImpl) QueueSvcLengthImpl(req *queuemsg.LengthRequest, resp *que
 // message for more time than a single call, you'll need to hold state in
 // a database or similar so you can resume processing at the right point.
 func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp *queuemsg.MarkDoneResponse) (lib.Id, string) {
+	// xxx fixme(iansmith) sqlc doesn't seem to understand UPDATE FROM so I have
+	// xxx to do this in two steps.  It's not really dangerous because the
+	// xxx queue keys are written once and left until deleted
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
 		return id, detail
@@ -303,11 +306,18 @@ func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *que
 // enough to fully process them, you need to use QueueSvcMarkDone() to indicate that the
 // item can be removed from the queue.
 func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) (lib.Id, string) {
+	qid := lib.Unmarshal(req.GetId())
+	// we have to do this because we can't do UPDATE FROM in the sql queries with sqlc
 	queueKey, id, detail := q.getRowidForId(req.GetId())
 	if id != nil {
 		return id, detail
 	}
-	resultMsg, err := q.queries.RetrieveMessage(context.Background(), sql.NullInt64{Int64: queueKey, Valid: true})
+
+	p := RetrieveMessageParams{
+		IDHigh: sql.NullInt64{Int64: int64(qid.High()), Valid: true},
+		IDLow:  sql.NullInt64{Int64: int64(qid.Low()), Valid: true},
+	}
+	resultMsg, err := q.queries.RetrieveMessage(context.Background(), p)
 	if err != nil {
 		return internalErr, fmt.Sprintf("failed retreiving messages from queue: %v", err)
 	}
@@ -331,6 +341,7 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 	if len(resultMsg) < max {
 		n = len(resultMsg)
 	}
+	// xxx fixme(iansmith): this should be in a transaction
 	for i := 0; i < n; i++ {
 		result := resultMsg[i]
 		var recv time.Time
@@ -365,6 +376,15 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 			Payload:      &payloadAny,
 		}
 		resultList[i] = &m
+		up := UpdateMessageRetrievedParams{
+			QueueKey: sql.NullInt64{Int64: queueKey, Valid: true},
+			IDLow:    result.IDLow,
+			IDHigh:   result.IDHigh,
+		}
+		err = q.queries.UpdateMessageRetrieved(context.Background(), up)
+		if err != nil {
+			return internalErr, err.Error()
+		}
 	}
 	resp.Id = req.GetId()
 	resp.Message = resultList
