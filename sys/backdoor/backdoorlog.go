@@ -11,8 +11,6 @@
 package backdoor
 
 import (
-	"fmt"
-
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
 
@@ -27,7 +25,6 @@ var logger InternalLogger
 
 // SetInternalLogger is called  by the init() function over in the logging package.
 func SetInternalLogger(il InternalLogger) {
-	print(fmt.Sprintf("xxxx setting internal logger %T\n", il))
 	logger = il
 }
 

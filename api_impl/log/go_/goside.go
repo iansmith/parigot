@@ -27,7 +27,6 @@ const dialPathToLogViewer = "host.docker.internal:4004"
 
 func init() {
 	go channelProcessor(dialPathToLogViewer)
-	print("xxx logger goside doing init() function\n")
 	b.SetInternalLogger(&backdoor{})
 }
 

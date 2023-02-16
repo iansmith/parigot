@@ -140,7 +140,7 @@ func (l *callImpl) Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportRespo
 // CallService) also have to send control *back* to WASM from their go implementation.
 func (l *callImpl) ReturnValue(req *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error) {
 	resp := syscallmsg.ReturnValueResponse{}
-	return splitImplementation[*syscallmsg.ReturnValueRequest, *syscallmsg.ReturnValueResponse](l, req, &resp, returnValue)
+	return splitImplementation(l, req, &resp, returnValue)
 }
 
 // Require is the way that a client or server can express that uses a particular
@@ -149,7 +149,7 @@ func (l *callImpl) ReturnValue(req *syscallmsg.ReturnValueRequest) (*syscallmsg.
 // and return the error at the first failure.
 func (l *callImpl) Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error) {
 	resp := syscallmsg.RequireResponse{}
-	return splitImplementation[*syscallmsg.RequireRequest, *syscallmsg.RequireResponse](l, in, &resp, require)
+	return splitImplementation(l, in, &resp, require)
 }
 
 // // Use of this function is discouraged.  This is intended only for debugging the parigot implementation
@@ -213,7 +213,6 @@ func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, r
 		return zeroValForU, lib.NewPerrorFromId(errDetail, errId)
 	}
 	return resp, nil
-
 }
 
 // Export1 is a wrapper around Export which makes it easy to say you export a single
