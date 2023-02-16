@@ -38,7 +38,7 @@ func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
 	for _, svc := range service {
 		for sr, m := range s.service {
 			if m == svc {
-				print(fmt.Sprintf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr))
+				//print(fmt.Sprintf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr))
 				// if pkg != "" && pkg != sr.goPackage {
 				// 	return "", fmt.Errorf("service '%s':mismatched go packages in go_option: '%s' and '%s'",
 				// 		svc.GetName(), pkg, sr.goPackage)

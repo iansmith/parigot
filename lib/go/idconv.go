@@ -24,11 +24,14 @@ const (
 	fileIdLetter      = 'f'
 	fileErrorIdLetter = 'F'
 	fileIOIdLetter    = 'i'
+
+	testErrorIdLetter = 'u'
 )
 
 type KernelErrorCode uint16
 type QueueErrorCode uint16
 type FileErrorCode uint16
+type TestErrorCode uint16
 
 type AllIdPtr interface {
 	*protosupportmsg.CallId |
@@ -43,7 +46,8 @@ type AllIdPtr interface {
 		*protosupportmsg.QueueMsgId |
 		*protosupportmsg.ServiceId |
 		*protosupportmsg.KernelErrorId |
-		*protosupportmsg.BaseId
+		*protosupportmsg.BaseId |
+		*protosupportmsg.TestErrorId
 }
 
 type AllId interface {
@@ -59,7 +63,8 @@ type AllId interface {
 		protosupportmsg.QueueMsgId |
 		protosupportmsg.ServiceId |
 		protosupportmsg.KernelErrorId |
-		protosupportmsg.BaseId
+		protosupportmsg.BaseId |
+		protosupportmsg.TestErrorId
 }
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.
@@ -111,6 +116,16 @@ func NewFileError(code FileErrorCode) Id {
 func NewQueueError(code QueueErrorCode) Id {
 	if code == QueueNoError {
 		return NoError[*protosupportmsg.QueueErrorId]()
+	}
+	return NewError[*protosupportmsg.QueueErrorId](uint16(code))
+}
+
+// NewTestError is just a convenience wrapper around NewError() that has the
+// correct constant type on its parameter.  Note that this will
+// accept "NoTestError" as its parameter.
+func NewTestError(code TestErrorCode) Id {
+	if code == TestNoError {
+		return NoError[*protosupportmsg.TestErrorId]()
 	}
 	return NewError[*protosupportmsg.QueueErrorId](uint16(code))
 }
@@ -297,6 +312,8 @@ func typeToInnerId(i interface{}) *protosupportmsg.BaseId {
 		return v.GetId()
 	case *protosupportmsg.FileErrorId:
 		return v.GetId()
+	case *protosupportmsg.TestErrorId:
+		return v.GetId()
 	}
 	panic("unknown id type")
 }
@@ -328,6 +345,8 @@ func typeToLetter(i interface{}) byte {
 		return queueIdLetter
 	case *protosupportmsg.QueueMsgId:
 		return queueMsgLetter
+	case *protosupportmsg.TestErrorId:
+		return testErrorIdLetter
 	}
 	panic("unknown id type:" + fmt.Sprintf("%T", i))
 }

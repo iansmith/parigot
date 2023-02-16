@@ -7,37 +7,59 @@ import (
 	"strings"
 
 	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/g/log/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
+
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
+	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/backdoor"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var callImpl = syscall.NewCallImpl()
 
+const testQueueName = "test_queue"
+
 func main() {
 	lib.FlagParseCreateEnv()
 
+	// The queue we will use
+	if _, err := callImpl.Require1("queue", "QueueService"); err != nil {
+		panic("myLogServer:ready: error in attempt to require queue.QueueService: " + err.Error())
+	}
+	// The logger we will use
+	if _, err := callImpl.Require1("log", "Log"); err != nil {
+		panic("myLogServer:ready: error in attempt to require log.Log: " + err.Error())
+	}
+
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
 	if _, err := callImpl.Export1("test", "TestService"); err != nil {
-		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
+		panic("myLogServer:ready: error in attempt to export test.TestService: " + err.Error())
 	}
 	test.RunTestService(&myTestServer{})
 }
 
 type myTestServer struct {
-	// within a test server, the requests are handled sequentially
 	suite     map[string]*suiteInfo
 	suiteExec map[string]string
-	test      map[string]string
+	testQid   lib.Id
 
-	started bool
+	queueSvc queue.QueueService
+	logger   log.LogService
+
+	started    bool
+	haveName   bool
+	haveSuite  bool
+	suiteRegex *regexp.Regexp
+	nameRegex  *regexp.Regexp
 }
 
 type suiteInfo struct {
@@ -78,13 +100,52 @@ func (s *suiteInfo) String() string {
 func (m *myTestServer) Ready() bool {
 	// initialization needs to be done here, not in main
 	m.suite = make(map[string]*suiteInfo)
-	m.test = make(map[string]string)
 	m.suiteExec = make(map[string]string)
 
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
+	var err error
+
+	if _, err = callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("myTestServer: ready: error in attempt to signal Run: " + err.Error())
 	}
+	m.logger, err = log.LocateLogService()
+	if err != nil {
+		panic("myTestServer: ready: error in attempt to get logger: " + err.Error())
+	}
+	m.queueSvc, err = queue.LocateQueueService(m.logger)
+	if err != nil {
+		panic("myTestServer: ready: error in attempt to get queue service: " + err.Error())
+	}
+	qid, deets := m.findOrCreateQueue(testQueueName)
+	if qid.IsErrorType() {
+		panic("myTestServer: unable to create the test queue: " + deets)
+	}
+
 	return true
+}
+
+func (m *myTestServer) findOrCreateQueue(name string) (lib.Id, string) {
+	req := queuemsg.LocateRequest{}
+	req.QueueName = testQueueName
+	resp, err := m.queueSvc.Locate(&req)
+	if err != nil {
+		panic("myTestServer: ready: error in attempt to get queue service: " + err.Error())
+	}
+	qid := lib.Unmarshal(resp.Id)
+	if qid.IsErrorType() && qid.ErrorCode() != lib.QueueNotFound {
+		return qid, err.Error()
+	}
+	if !qid.IsErrorType() {
+		return qid, ""
+	}
+	// it's a not found, so create it
+	createReq := queuemsg.CreateQueueRequest{}
+	createReq.QueueName = name
+	createResp, err := m.queueSvc.CreateQueue(&createReq)
+	if err != nil {
+		return lib.NewQueueError(lib.QueueInternalError), err.Error()
+	}
+	qid = lib.Unmarshal(createResp.GetId())
+	return qid, ""
 }
 
 func (m *myTestServer) AddTestSuite(_ *protosupportmsg.Pctx, in proto.Message) (proto.Message, error) {
@@ -140,79 +201,124 @@ func contains(list []string, cand string) bool {
 
 func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.Message, error) {
 	req := in.(*testmsg.StartRequest)
-	suiteRegexpString, nameRegexpString := "", ""
-	haveSuite, haveName := false, false
 	var err error
-	var suiteRegex, nameRegex *regexp.Regexp
 	var regexpFail bool
+	var suiteString, nameString string
 
 	if req.GetFilterSuite() != "" {
-		suiteRegexpString = req.GetFilterSuite()
-		haveSuite = true
+		suiteString = req.GetFilterSuite()
+		m.haveSuite = true
 	}
-	if haveSuite {
-		suiteRegex, err = regexp.Compile(suiteRegexpString)
+	if m.haveSuite {
+		m.suiteRegex, err = regexp.Compile(suiteString)
 		if err != nil {
 			regexpFail = true
 		}
 	} else {
 		if req.GetFilterSuite() != "" {
-			nameRegexpString = req.GetFilterName()
-			haveName = true
+			nameString = req.GetFilterName()
+			m.haveName = true
 		}
-		if haveName {
-			nameRegex, err = regexp.Compile(nameRegexpString)
+		if m.haveName {
+			m.nameRegex, err = regexp.Compile(nameString)
 			if err != nil {
 				regexpFail = true
 			}
 		}
 	}
+	if regexpFail {
+		return &testmsg.StartResponse{
+			RegexFailed: regexpFail,
+		}, err
+	}
 	count := 0
 	m.started = true // lets go
-	if haveSuite {
+	if m.haveSuite {
 		for _, suiteInfo := range m.suite {
 			name := suiteInfoToSuiteName(suiteInfo)
-			match := suiteRegex.MatchString(name)
+			match := m.suiteRegex.MatchString(name)
 			if match {
 				count += len(suiteInfo.funcName)
 				m.addAllTests(suiteInfo)
 			}
 		}
 	}
-	if haveName {
+	if m.haveName {
 		for _, suiteInfo := range m.suite {
 			suiteName := suiteInfoToSuiteName(suiteInfo)
 			for _, name := range suiteInfo.funcName {
 				testName := fmt.Sprintf("%s.%s", suiteName, name)
-				match := nameRegex.MatchString(testName)
+				match := m.nameRegex.MatchString(testName)
 				if match {
 					count++
-					m.test[name] = m.suiteExec[suiteName]
+					sReq, err := makeSendRequest(m.testQid, name, m.suiteExec[suiteName])
+					if err != nil {
+						return nil, err
+					}
+					resp, err := m.queueSvc.Send(sReq)
+					if err != nil {
+						return nil, err
+					}
+					if len(resp.Succeed) != 1 {
+						return nil, fmt.Errorf("unable to send correct number of messages: %d", len(resp.Succeed))
+					}
 				}
 			}
 		}
 	}
-	if !haveSuite && !haveName {
+	if !m.haveSuite && !m.haveName {
 		for _, suite := range m.suite {
 			count += len(suite.funcName)
 			m.addAllTests(suite)
 		}
 	}
 	resp := &testmsg.StartResponse{
-		RegexFailed: regexpFail,
-		NumTest:     int32(count),
+		NumTest: int32(count),
 	}
-	logDebug(fmt.Sprintf("all tests to run:%#v", m.test))
 	return resp, nil
 }
 func (m *myTestServer) Background() {
-	print("background() called on test server\n")
+	if !m.started {
+		return
+	}
+	req := queuemsg.ReceiveRequest{
+		Id:           lib.Marshal[protosupportmsg.QueueId](m.testQid),
+		MessageLimit: 1,
+	}
+	resp, err := m.queueSvc.Receive(&req)
+	if err != nil {
+		m.logger.Log(&logmsg.LogRequest{
+			Stamp:   timestamppb.Now(),
+			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
+			Message: fmt.Sprintf("unable to pull test message from queue:%v", err),
+		})
+		return
+	}
+	msg := resp.Message[0]
+	aload := msg.GetPayload()
+	payload := testmsg.QueuePayload{}
+	err = aload.UnmarshalTo(&payload)
+	if err != nil {
+		m.logger.Log(&logmsg.LogRequest{
+			Stamp:   timestamppb.Now(),
+			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
+			Message: fmt.Sprintf("unable to unmarshal test message from queue:%v", err),
+		})
+		return
+	}
+	m.logger.Log(&logmsg.LogRequest{
+		Stamp:   timestamppb.Now(),
+		Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+		Message: fmt.Sprintf("got test from queue: %s,%s", payload.Name, payload.FuncName),
+	})
+
 }
+
 func (m *myTestServer) addAllTests(info *suiteInfo) {
 	base := suiteInfoToSuiteName(info)
 	for _, name := range info.funcName {
 		testName := fmt.Sprintf("%s.%s", base, name)
-		m.test[testName] = m.suiteExec[base]
+		makeSendRequest(m.testQid, base, testName)
 	}
 }
 
@@ -242,44 +348,40 @@ func logError(msg string, err error) {
 
 var badLocate = &test.UnderTestServiceClient{}
 
-func (m *myTestServer) runTests() {
+func (m *myTestServer) runTests(fullTestName, execPackageSvc string) (lib.Id, string) {
 	call := syscall.NewCallImpl()
 	print(fmt.Sprintf("run tests0\n"))
 	locate := make(map[string]*test.UnderTestServiceClient)
 	var client *test.UnderTestServiceClient
-	print(fmt.Sprintf("run tests1 %+v\n", m.test))
-	for fullTestName, execPackageSvc := range m.test {
-		part := strings.Split(fullTestName, ".")
+	part := strings.Split(fullTestName, ".")
 
-		pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
-		//name := part[len(part)-1]
-		print(fmt.Sprintf("run tests2 %s,%s\n", fullTestName, execPackageSvc))
-		loc, ok := locate[execPackageSvc]
-		if ok && loc == badLocate {
-			print(fmt.Sprintf("run tests3a, not able to locate\n"))
-			continue
-		}
-		print(fmt.Sprintf("run tests3, able to locate\n"))
-		if !ok {
-			execPkg, execSvc := splitPkgAndService(execPackageSvc)
-			client = m.locateClient(execPkg, execSvc, call)
-			locate[execPackageSvc] = client
-		} else {
-			client = loc
-		}
-		print(fmt.Sprintf("run tests4, got a client\n"))
-		if client == badLocate {
-			continue
-		}
-		resp, err := client.Exec(&testmsg.ExecRequest{Package: pkg, Service: svc, Name: part[len(part)-1]})
-		if err != nil {
-			print(fmt.Sprintf("xxx run tests %v\n", err.Error()))
-			continue
-		}
-		print("xxx run tests %s.%s.%s (skipped? %v, success? %v)",
-			resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
-
+	pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
+	//name := part[len(part)-1]
+	print(fmt.Sprintf("run tests2 %s,%s\n", fullTestName, execPackageSvc))
+	loc, ok := locate[execPackageSvc]
+	if ok && loc == badLocate {
+		print(fmt.Sprintf("run tests3a, not able to locate\n"))
+		return lib.NewTestError(lib.TestErrorServiceNotFound), "unable to locate " + execPackageSvc
 	}
+	if !ok {
+		execPkg, execSvc := splitPkgAndService(execPackageSvc)
+		client = m.locateClient(execPkg, execSvc, call)
+		locate[execPackageSvc] = client
+	} else {
+		client = loc
+	}
+	print(fmt.Sprintf("run tests4, got a client\n"))
+	if client == badLocate {
+		return lib.NewTestError(lib.TestErrorServiceNotFound), "unable to locate " + execPackageSvc
+	}
+	resp, err := client.Exec(&testmsg.ExecRequest{Package: pkg, Service: svc, Name: part[len(part)-1]})
+	if err != nil {
+		print(fmt.Sprintf("xxx run tests %v\n", err.Error()))
+		return lib.NewTestError(lib.TestErrorServiceNotFound), err.Error()
+	}
+	print("xxx run tests %s.%s.%s (skipped? %v, success? %v)",
+		resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
+	return nil, ""
 }
 func splitPkgAndService(s string) (string, string) {
 	part := strings.Split(s, ".")
@@ -316,4 +418,27 @@ func (m *myTestServer) locateClient(pkg, svc string, call lib.Call) *test.UnderT
 		ClientSideService: cs,
 		Call:              syscall.NewCallImpl(),
 	}
+}
+
+// makeSendRequest creates a SendRequest and all the internal objects required
+// make it work correctly in the test queue.
+func makeSendRequest(qid lib.Id, name, funcName string) (*queuemsg.SendRequest, error) {
+	qidM := lib.Marshal[protosupportmsg.QueueId](qid)
+	payload := testmsg.QueuePayload{
+		Name:     name,
+		FuncName: funcName,
+	}
+	a := anypb.Any{}
+	if err := a.MarshalFrom(&payload); err != nil {
+		return nil, fmt.Errorf("unable to marshal test payload: %v", err)
+	}
+	msg := queuemsg.QueueMsg{
+		Payload: &a,
+		Id:      qidM,
+	}
+	req := queuemsg.SendRequest{
+		Id:  qidM,
+		Msg: []*queuemsg.QueueMsg{&msg},
+	}
+	return &req, nil
 }

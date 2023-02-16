@@ -29,6 +29,11 @@ message QueueErrorId {
   BaseId id = 1;
 }
 
+// TestErrorId is used to signal errors that occured when using the Test api.
+message TestErrorId {
+  BaseId id = 1;
+}
+
 // QueueId is used to identify a particular queue when doing operations
 // such as create and delete.  Operations on the messages in the 
 // queue will use this id and a queue message id.

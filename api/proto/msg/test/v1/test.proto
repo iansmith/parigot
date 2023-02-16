@@ -106,4 +106,10 @@ message SuiteReportRequest {
 // can be sent from the suite to the TestService.
 message SuiteReportResponse {}
 
-
+// QueuePayload is the payload that is sent to the TestService via sending
+// and receiving items from the queue.  Note that the TestSends these messages
+// during setup and retreives them in the background once the tests have started.
+message QueuePayload {
+  string name = 1;
+  string func_name  = 2;
+}
