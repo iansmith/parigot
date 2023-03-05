@@ -12,14 +12,14 @@ deps=$home/deps-parigot
 ### pointer to the binary dir inside a go1.19 distribution.  Used for
 ### compiling parts of parigot itself.
 # get source here --> https://go.dev/dl/go1.19.1.src.tar.gz
-gopath=$parigot/tools/go1.19.1/bin
-export GOROOT=$parigot/tools/go1.19.1
+gopath=$parigot/tools/go1.19.6/bin
+export GOROOT=$parigot/tools/go1.19.6
 
 ### pointer to the binary bin inside a tinygo distribution. Used for compiling
 ### the client code that are services, e.g. example.
 # get it here for macos -> https://tinygo.org/getting-started/install/macos/#alternative-installation
-tinygopath=$parigot/tools/tinygo0.26.0/bin
-export TINYGOROOT=$parigot/tools/tinygo0.26
+#tinygopath=$parigot/tools/tinygo0.26.0/bin
+#export TINYGOROOT=$parigot/tools/tinygo0.26
 
 ### pointer to the binary directory inside the place where you have installed the wabt
 ### (web assembly binary toolkit) toolkit
