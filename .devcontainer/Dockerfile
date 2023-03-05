@@ -1,7 +1,7 @@
-FROM ubuntu:jammy-20221003
+FROM arm64v8/ubuntu:jammy
 RUN apt-get update
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
-    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg
+    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -14,8 +14,9 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # install go1.19
-ENV GOLANG_VERSION="1.19.4"
-RUN wget -q https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz
+ENV GOLANG_VERSION="1.19.6"
+ENV PROC_ARCH=arm64
+RUN wget -q https://go.dev/dl/go${GOLANG_VERSION}.linux-${PROC_ARCH}.tar.gz
 RUN tar xzf go*linux*tar.gz
 RUN rm go*linux*.tar.gz 
 RUN mv go go${GOLANG_VERSION}
@@ -66,7 +67,7 @@ RUN ln -s /home/parigot/deps/wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION} /home/parigot/tools
 
 # antlr 4.9 is a platform-neutral lib (java)
-# ENV ANTLR_VERSION=4.9.3
+# ENV ANTLR_VERSION=4.11.1
 # RUN mkdir -p /home/parigot/tools/lib
 # WORKDIR /home/parigot/tools/lib
 # RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
