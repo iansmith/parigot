@@ -1,0 +1,56 @@
+syntax ="proto3";
+package msg.dom.v1;
+option go_package="github.com/iansmith/parigot-ui/g/msg/dom/v1;dommsg";
+
+// message TextBlob {
+//     string content = 1;   
+// }
+
+message Tag {
+    string Name  = 1;
+    string Id  =2;
+    repeated string CssClass =3;
+}
+
+// Element is actually the final type that is passed to
+// the DOM service. Normally, you want to convert your
+// tree of Sexprs into 
+message Element {
+    Tag tag = 1;
+    string text = 2;   
+    repeated Element child = 3;
+}
+
+// ElementById returns the element associated with the id given.  Note
+// that a document that has more than one element with the same id is
+// invalid.  This is the request to the service.
+message ElementByIdRequest {
+    string id = 1;
+}
+
+// ElementById returns the element associated with the id given and this is 
+// the return value from that call.
+message ElementByIdResponse {
+    Element elem = 1;
+}
+
+// SetChild sets the child of the element named by the id to the children
+// provided.  Any children that existed prior to this call are discarded.
+message SetChildRequest {
+    string id = 1;
+    repeated Element child = 2;
+}
+
+// SetChildResponse informs the caller of what happened with their set
+// SetChild call.  If the id provided in the SetChildRequest does not match
+// an element an error is returned, not a SetChildResponse.  The number
+// replacements is the number of children the element had _before_ the
+// SetChild() updated it.
+message SetChildResponse {
+    int32 replacements = 1;
+}
+
+// Document is the representation of the HTML DOM element of the same name.enum
+message Document {
+    
+}

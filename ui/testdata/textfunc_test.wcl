@@ -1,0 +1,27 @@
+@wcl 0.7.0
+
+//
+// TestCase for the basic parts of a text functions
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+import (
+    "os"
+    "fmt"
+)
+var verbose = true
+}
+
+///////////////// TEXT /////////////////
+@text
+foo(chinese string)
+    `Hello, 世界 ${chinese}`
+bar `test1`
+howdy(baz string, firstName string, lastName string) 
+@pre{
+    if !verbose {
+        return ""
+    }
+}
+    ` Greetings ${salutation} ${firstName} ${lastName}`

@@ -1,0 +1,40 @@
+@wcl 0.7.0
+//
+// Test for the basics of events
+//
+
+/////////////////// CSS /////////////////
+// path is relative to this file
+@css 
+    +"../static/css/bootstrap.css"
+    +"../static/css/bootstrap-grid.css"
+
+
+
+/////////////////// PREAMBLE /////////////////
+@preamble {
+}
+///////////////// TEXT /////////////////
+
+// checkUTF8
+@text
+napoleon(baubles string)
+`It is by such ${baubles} that men are lead.`
+
+
+///////////////// DOC /////////////////
+@doc 
+    example
+    (<div> (
+        <div .col-6> (
+            <span> napoleon("trinkets")
+            <button .btn .btn-primary> "Agree"
+            <button .btn .btn-secondary> "Disagree"
+        )
+    )
+)
+
+///////////////// EVENT /////////////////
+@event
+    #foo click  >> bar(baz)
+    .quux click >> frik(frak)

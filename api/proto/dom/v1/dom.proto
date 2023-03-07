@@ -1,0 +1,9 @@
+syntax ="proto3";
+package dom.v1;
+option go_package="github.com/iansmith/parigot-ui/g/dom/v1;dom";
+import "msg/dom/v1/dom.proto";
+
+service DOMService {
+    rpc ElementById(msg.dom.v1.ElementByIdRequest) returns (msg.dom.v1.ElementByIdResponse); 
+    rpc SetChild(msg.dom.v1.SetChildRequest) returns (msg.dom.v1.SetChildResponse);
+}

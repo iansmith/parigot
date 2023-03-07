@@ -1,0 +1,27 @@
+@wcl 0.7.0
+
+//
+// Fail if unknown variable
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+}
+	
+///////////////// Extern /////////////////
+@extern(foo,bar,baz)
+
+///////////////// GLOBAL /////////////////
+@global(x int, y int)	
+
+
+///////////////// TEXT /////////////////
+@doc
+	example(a string, b string)
+	@local(c9 string)
+	@pre{
+		 c9=${checking}
+	}
+	
+	
+	

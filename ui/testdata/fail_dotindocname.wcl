@@ -1,0 +1,18 @@
+@wcl 0.7.0
+
+//
+// Fail if text func name repeated
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+}
+
+///////////////// TEXT /////////////////
+@text
+foo`Hello`
+bar`Hello`
+
+@doc
+bar.foo <p>
+baz <hr>

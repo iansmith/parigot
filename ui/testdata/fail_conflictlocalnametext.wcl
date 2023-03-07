@@ -1,0 +1,26 @@
+@wcl 0.7.0
+
+//
+// Fail if there is a param and local with same name
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+}
+	
+///////////////// Extern /////////////////
+@extern(foo,bar,baz)
+
+///////////////// GLOBAL /////////////////
+@global(x int, y int)	
+
+
+///////////////// TEXT /////////////////
+@text
+foo ` red herring `
+
+example(a string, b string)
+	@local(c string, d string, example string)
+	` can't make a local the same name as function `
+	
+	
