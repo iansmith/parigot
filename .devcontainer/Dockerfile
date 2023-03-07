@@ -1,5 +1,6 @@
 FROM arm64v8/ubuntu:jammy
-RUN apt-get update
+RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
+RUN apt-get update --fix-missing
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
     hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file
 

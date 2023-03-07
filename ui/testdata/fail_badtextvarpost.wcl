@@ -1,0 +1,31 @@
+@wcl 0.7.0
+
+//
+// Fail if unknown variable (check pre code)
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+}
+	
+///////////////// Extern /////////////////
+@extern(foo,bar,baz)
+
+///////////////// GLOBAL /////////////////
+@global(x int, y int)	
+
+
+///////////////// TEXT /////////////////
+@text
+
+redherring(fleazil string) 
+	`no relation to the other ${fleazil}`
+
+example(a string, b string)
+	@local(c string, d string, e string)
+	` this is a test of bad var in the pre code `
+	@post{
+		${result}=${fleazil}
+	}
+	
+	

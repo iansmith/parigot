@@ -1,0 +1,14 @@
+@wcl 0.7.0
+
+//
+// Fail if param name repeated
+//
+
+///////////////// PREAMBLE /////////////////
+@preamble {
+}
+
+///////////////// TEXT /////////////////
+@text
+@local(x int, x string)
+foo(baz string,bar string)`Hello`
