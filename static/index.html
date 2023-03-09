@@ -1,0 +1,23 @@
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <script src="/js/wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("t1.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+        });
+    </script>
+    <link rel="stylesheet" href="/css/simple.css">
+    <link rel="icon" href="/image/favicon.png">
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+</head>
+
+<body>
+    <h1>Example App With Protobuf</h1>
+    <p id="paraLoc"></p>
+
+</body>
+
+</html>
