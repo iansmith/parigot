@@ -116,6 +116,11 @@ message FileIOId {
   BaseId id =1;
 }
 
+// ElementId represents a handle to an element in the DOM.  These are not transferable between doms.
+message ElementId {
+  BaseId id =1;
+}
+
 // Lower is the lower level of the two level structure that makes up a Pctx entry.
 message Lower {
   map<string,string> entry_lower = 1;

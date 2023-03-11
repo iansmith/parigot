@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/apiimpl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"

@@ -1,24 +1,23 @@
 syntax ="proto3";
 package msg.dom.v1;
-option go_package="github.com/iansmith/parigot-ui/g/msg/dom/v1;dommsg";
-
-// message TextBlob {
-//     string content = 1;   
-// }
+option go_package="github.com/iansmith/parigot/g/msg/dom/v1;dommsg";
+import "msg/protosupport/v1/protosupport.proto";
 
 message Tag {
-    string Name  = 1;
-    string Id  =2;
-    repeated string CssClass =3;
+    string name  = 1;
+    string id  =2;
+    repeated string css_class =3;
 }
 
 // Element is actually the final type that is passed to
-// the DOM service. Normally, you want to convert your
-// tree of Sexprs into 
+// the DOM service. When these are returned the children
+// in the child list do NOT have their children filled in.
 message Element {
-    Tag tag = 1;
-    string text = 2;   
-    repeated Element child = 3;
+    msg.protosupport.v1.ElementId parigot_id = 1;
+    Tag tag = 2;
+    // text is the innerText property of an HTMLElement, not the lower level DOM element
+    string text = 3;   
+    repeated Element child = 4;
 }
 
 // ElementById returns the element associated with the id given.  Note
@@ -28,17 +27,33 @@ message ElementByIdRequest {
     string id = 1;
 }
 
+// ElementByParigotId returns the element associated with the parigot id given.  Note
+// that a document that has more than one element with the same id is
+// invalid.  This is the request to the service.
+message ElementByParigotIdRequest {
+    msg.protosupport.v1.ElementId parigot_id = 1;
+}
+
 // ElementById returns the element associated with the id given and this is 
 // the return value from that call.
 message ElementByIdResponse {
     Element elem = 1;
 }
 
+
+// ElementByParigotId returns the element associated with the id given and this is 
+// the return value from that call.
+message ElementByParigotIdResponse {
+    Element elem = 1;
+}
+
 // SetChild sets the child of the element named by the id to the children
 // provided.  Any children that existed prior to this call are discarded.
+// You must supply one of id and parigot_id but not both.
 message SetChildRequest {
     string id = 1;
-    repeated Element child = 2;
+    msg.protosupport.v1.ElementId parigot_id = 2;
+    repeated Element child = 3;
 }
 
 // SetChildResponse informs the caller of what happened with their set
@@ -50,7 +65,19 @@ message SetChildResponse {
     int32 replacements = 1;
 }
 
-// Document is the representation of the HTML DOM element of the same name.enum
-message Document {
-    
+// CreateElementRequest is the data to create a new element in the dom.
+// Do not supply a parigot id here, this is where those are generated.
+// The text, id, cssClass, and children are optional.  If you do not
+// supply a parent, then these elements will be "created" but they
+// will need to be added to a parent later.  
+message CreateElementRequest {
+    Element root = 1;
+    Element parent = 2;
+}
+
+// CreateElementResponse will contain the same element (and children)
+// as supplied to this function, but the returned copy has the ParigotId
+// fields filled in.
+message CreateElementResponse {
+    Element root = 1;
 }

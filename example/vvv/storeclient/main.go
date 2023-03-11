@@ -8,7 +8,7 @@ import (
 	storemsg "example/vvv/g/msg/store/v1"
 	"example/vvv/g/store/v1"
 
-	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/apiimpl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"

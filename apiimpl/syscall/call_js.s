@@ -1,3 +1,5 @@
+//go:build js && !browser
+
 #include "textflag.h"
 
 TEXT parigot·locate_(SB), NOSPLIT, $0

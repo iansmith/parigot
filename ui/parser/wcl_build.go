@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/iansmith/parigot-ui/css"
+	"github.com/iansmith/parigot/ui/css"
 )
 
 const anonPrefix = "_anon"

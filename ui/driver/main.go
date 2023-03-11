@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/iansmith/parigot-ui/parser"
+	"github.com/iansmith/parigot/ui/parser"
 )
 
 var langToTempl = map[string]string{

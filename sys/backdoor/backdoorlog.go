@@ -7,7 +7,7 @@
 // or services to have a way to import and use this interface without needing
 // to worry about import loops.  The implementation of this interface is
 // passed into this packages SetInternalLogger() by an init() function of
-// the logging package (github.com/iansmith/parigot/api_impl/log/go_).
+// the logging package (github.com/iansmith/parigot/apiimpl/log/go_).
 package backdoor
 
 import (

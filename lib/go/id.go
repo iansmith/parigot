@@ -25,6 +25,9 @@ type Id interface {
 	// five characters of string.  If the number is a small integer, the leading
 	// zeros are omitted.
 	String() string
+	// StringRaw returns the same thing as string, but without the enclosing
+	// square brackets. String() is intended for humans, StringRaw() is not.
+	StringRaw() string
 	// IsError returns true if this is an error type id and there is an error.  It returns
 	// false if this is an error type id and there is no error (0 value).  If
 	// this is not an error type id, it panics.
@@ -103,7 +106,7 @@ func (i *IdBase) IsErrorType() bool {
 	return highBytes[6]&1 == 1
 }
 
-func (i *IdBase) String() string {
+func (i *IdBase) StringRaw() string {
 	copy := i.h
 	highByte := int64ToByteSlice(copy)
 	key := highByte[7]
@@ -119,8 +122,12 @@ func (i *IdBase) String() string {
 	lowPart[1] = (i.l >> 24) & 0xffff
 	lowPart[0] = (i.l >> 28) & 0xffff
 
-	return fmt.Sprintf("[%c-%04x-%08x:%04x-%04x-%04x-%04x]", key, two, four,
+	return fmt.Sprintf("%c-%04x-%08x:%04x-%04x-%04x-%04x", key, two, four,
 		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
+}
+
+func (i *IdBase) String() string {
+	return fmt.Sprintf("[%s]", i.StringRaw())
 }
 
 func (i *IdBase) IsError() bool {

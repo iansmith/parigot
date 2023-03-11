@@ -9,7 +9,7 @@ import(
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  // id manipulation
     "github.com/iansmith/parigot/g/msg/syscall/v1"  
-    "github.com/iansmith/parigot/api_impl/syscall"  // to get a callImpl
+    "github.com/iansmith/parigot/apiimpl/syscall"  // to get a callImpl
 
 
 )
