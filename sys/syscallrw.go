@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/iansmith/parigot/api_impl/splitutil"
+	"github.com/iansmith/parigot/apiimpl/splitutil"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"

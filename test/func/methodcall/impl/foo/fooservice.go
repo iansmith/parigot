@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
-	"github.com/iansmith/parigot/api_impl/syscall"
+	"github.com/iansmith/parigot/apiimpl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"

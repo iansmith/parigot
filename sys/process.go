@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	fileimpl "github.com/iansmith/parigot/api_impl/file/go_"
-	logimpl "github.com/iansmith/parigot/api_impl/log/go_"
+	fileimpl "github.com/iansmith/parigot/apiimpl/file/go_"
+	logimpl "github.com/iansmith/parigot/apiimpl/log/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"

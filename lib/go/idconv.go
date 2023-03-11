@@ -25,6 +25,8 @@ const (
 	fileErrorIdLetter = 'F'
 	fileIOIdLetter    = 'i'
 
+	elementIdLetter = 'E'
+
 	testErrorIdLetter = 'u'
 )
 
@@ -47,7 +49,8 @@ type AllIdPtr interface {
 		*protosupportmsg.ServiceId |
 		*protosupportmsg.KernelErrorId |
 		*protosupportmsg.BaseId |
-		*protosupportmsg.TestErrorId
+		*protosupportmsg.TestErrorId |
+		*protosupportmsg.ElementId
 }
 
 type AllId interface {
@@ -64,7 +67,8 @@ type AllId interface {
 		protosupportmsg.ServiceId |
 		protosupportmsg.KernelErrorId |
 		protosupportmsg.BaseId |
-		protosupportmsg.TestErrorId
+		protosupportmsg.TestErrorId |
+		protosupportmsg.ElementId
 }
 
 // NoError() creates an id of the given type with the "error type" but with no error as the value.
@@ -133,6 +137,11 @@ func NewTestError(code TestErrorCode) Id {
 // NewQueueId returns a queue id, initialized for use.
 func NewQueueId() Id {
 	return newIdRand(queueIdLetter)
+}
+
+// NewElementId returns a element id, initialized for use.
+func NewElementId() Id {
+	return newIdRand(elementIdLetter)
 }
 
 // newFromErrorCode is a convenience wrapper around creating an id which represents an error for
@@ -220,14 +229,10 @@ func Marshal[T AllId](id Id) *T {
 		AsciiValue: uint32(highByte),
 	}
 	result := new(T)
-	var asAny interface{}
-	asAny = result
+	asAny := interface{}(result)
 	letter := typeToLetter(asAny)
 	if highByte != letter {
 		panic("mismatched letters in id, type letter does not match the letter found")
-	}
-	if asAny == nil {
-		panic("attemp to add put id on an nil wrapper")
 	}
 	addInnerIdToType(asAny, inner)
 	return result
@@ -279,6 +284,8 @@ func addInnerIdToType(i interface{}, inner *protosupportmsg.BaseId) {
 		v.Id = inner
 	case *protosupportmsg.QueueMsgId:
 		v.Id = inner
+	case *protosupportmsg.ElementId:
+		v.Id = inner
 	default:
 		panic("unknown id type")
 	}
@@ -314,6 +321,8 @@ func typeToInnerId(i interface{}) *protosupportmsg.BaseId {
 		return v.GetId()
 	case *protosupportmsg.TestErrorId:
 		return v.GetId()
+	case *protosupportmsg.ElementId:
+		return v.GetId()
 	}
 	panic("unknown id type")
 }
@@ -347,6 +356,8 @@ func typeToLetter(i interface{}) byte {
 		return queueMsgLetter
 	case *protosupportmsg.TestErrorId:
 		return testErrorIdLetter
+	case *protosupportmsg.ElementId:
+		return elementIdLetter
 	}
 	panic("unknown id type:" + fmt.Sprintf("%T", i))
 }

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iansmith/parigot/api_impl/netconst"
+	"github.com/iansmith/parigot/apiimpl/netconst"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 
 	"fyne.io/fyne/v2"

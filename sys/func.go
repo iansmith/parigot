@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	filego "github.com/iansmith/parigot/api_impl/file/go_"
-	loggo "github.com/iansmith/parigot/api_impl/log/go_"
+	filego "github.com/iansmith/parigot/apiimpl/file/go_"
+	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
 )

@@ -5,7 +5,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/iansmith/parigot-ui/parser"
+	"github.com/iansmith/parigot/ui/parser"
 )
 
 const golang = "template/go.tmpl"

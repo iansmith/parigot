@@ -1,9 +1,21 @@
 syntax ="proto3";
 package dom.v1;
-option go_package="github.com/iansmith/parigot-ui/g/dom/v1;dom";
+option go_package="github.com/iansmith/parigot/g/dom/v1;dom";
 import "msg/dom/v1/dom.proto";
 
 service DOMService {
+    // ElementById returns the DOMElement that has the has the (DOM) id
+    // given or it returns an error, DOMNotFound.
     rpc ElementById(msg.dom.v1.ElementByIdRequest) returns (msg.dom.v1.ElementByIdResponse); 
+    // ElementById returns the DOMElement that has the has the Parigot id
+    // given or it returns an error, DOMNotFound.
+    rpc ElementByParigotId(msg.dom.v1.ElementByParigotIdRequest) returns (msg.dom.v1.ElementByParigotIdResponse); 
+    // SetChild is used when you created an element or elements with CreateElement
+    // but did not provide a parent.  This call will add the element or elements
+    // given to parent given.
     rpc SetChild(msg.dom.v1.SetChildRequest) returns (msg.dom.v1.SetChildResponse);
+    // CreateElement creates new element or elements and attaches them
+    // to the dom to the parent given, or simply returns them if no parent
+    // was given.
+    rpc CreateElement(msg.dom.v1.CreateElementRequest) returns (msg.dom.v1.CreateElementResponse);
 }
