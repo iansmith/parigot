@@ -98,6 +98,8 @@ func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 	if c.Text_func_local() != nil {
 		c.GetF().Local = c.Text_func_local().GetFormal()
 	}
+	c.GetF().Item_ = c.Text_top().GetItem()
+
 	// add to list of funcs
 	l.TextSection.Func = append(l.TextSection.Func, c.GetF())
 	if c.Pre_code() != nil && c.Pre_code().GetItem() != nil {
@@ -385,6 +387,16 @@ func (s *WclBuildListener) ExitHaveList(ctx *HaveListContext) {
 	elem.Tag = nil
 	ctx.SetElem(elem)
 
+}
+
+func (s *WclBuildListener) EnterFunc_invoc(ctx *Func_invocContext) {
+}
+
+func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
+	actual := ctx.Func_actual_seq().GetActual()
+	name := ctx.Id().GetText()
+	invoc := NewFuncInvoc(&DocIdOrVar{Name: name, IsVar: false}, actual)
+	ctx.SetInvoc(invoc)
 }
 
 func (s *WclBuildListener) EnterFunc_actual(ctx *Func_actualContext) {

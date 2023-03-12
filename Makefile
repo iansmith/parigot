@@ -96,7 +96,7 @@ build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/templa
 	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go \
 	ui/css/css3_lexer.go ui/css/css3_parser.go 
 	rm -f $@
-	$(GO_LOCAL) build -a -o $@ github.com/iansmith/parigot/ui/driver
+	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/wcl
 
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
@@ -126,8 +126,9 @@ apiimpl/queue/go_/db.go: $(QUEUE_SQL)
 	cd apiimpl/queue/go_/sqlc && sqlc generate
 
 # build a wasm binary for the test program
-static/t1.wasm: command/t1/*.go 
-	GOOS=js GOARCH=wasm go build -tags browser -o static/t1.wasm command/t1/main.go
+static/t1.wasm: command/t1/*.go apiimpl/dom/*.go ui/testdata/event_test.wcl build/wcl
+	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
+	GOOS=js GOARCH=wasm go build -tags browser -o static/t1.wasm command/t1/*.go
 #
 # TEST
 #
