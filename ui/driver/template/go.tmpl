@@ -69,6 +69,7 @@ package {{.package}}
 {{if .needBytes }}
 import (
     "bytes"  // required by wcl text functions
+    "fmt" // required by wcl text functions
 )
 {{end}}
 {{if .needElement }}
@@ -97,7 +98,7 @@ import (
 {{- if .Var -}}
     {{- .Var -}}
 {{- else }}
-        &dommsg.Element{ {{template "Tag" .Tag}}
+        &dommsg.Element{ {{template "Tag" .Tag}} 
 {{if .TextContent}}
         Text:{{ template "FuncInvoc" .TextContent}},
 {{else}}
@@ -140,20 +141,23 @@ import (
 
 
 {{/* TEXT SECTION */}}
-
+//
+// Text Section
+//
 {{if .text }}
 {{range .text.Func}}
 func {{.Name -}}({{- template "ParamFormal" .Param -}}) string {
     {{- template "DeclareLocal" .Local}}
     var result bytes.Buffer
     {{- template "TextInline" .PreCode }}
+
 {{ range .Item -}}
 {{- $subtemplate := .SubTemplate -}}
 {{- if eq $subtemplate "TextConstant" -}}
 result.WriteString(`{{- template "TextConstant" . -}}`)
 {{ end }}{{/*TextConstant*/ -}}
 {{- if eq $subtemplate "TextVar" -}}
-buf.WriteString({{ template "TextVar" . }})
+result.WriteString({{ template "TextVar" . }})
 {{ end }} {{/*TextVar*/}}
 {{- if eq $subtemplate "TextInline" -}}
 {{ template "TextInline" .TextItem_ }}
@@ -167,7 +171,9 @@ buf.WriteString({{ template "TextVar" . }})
 {{end}}{{/*end of if for is .text nil */}}
 
 {{/* DOC SECTION */}}
-
+//
+// Doc Section
+//
 {{if .doc }}
 {{range .doc.DocFunc}}
 func {{.Name -}}({{- template "ParamFormal" .Param -}}) *dommsg.Element{

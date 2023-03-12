@@ -204,11 +204,18 @@ func (d *DOMServer) CreateElement(in *dommsg.CreateElementRequest) (*dommsg.Crea
 			return nil, DOMNotFound
 		}
 	}
-	e, val, err := d.createElementWithValue(in, in.Parent != nil)
-	if in.Parent != nil {
-		parent.Call("appendChild", val)
+	resp, root, err := d.createElementWithValue(in, in.Parent != nil)
+	if resp == nil {
+		panic("failed to create response to create element:" + err.Error())
 	}
-	return e, err
+	if err != nil {
+		return nil, err
+	}
+	if in.Parent != nil {
+		parent.Call("appendChild", root)
+	}
+
+	return resp, err
 }
 
 func (d *DOMServer) findById(parigotId, id string) js.Value {
@@ -229,25 +236,23 @@ func (d *DOMServer) findById(parigotId, id string) js.Value {
 	return js.Null()
 }
 
-// createElementWithValue will build a tree of elements, as described by the request.  The return values are only
-// the root and first level children's parigot ids, now that they have been created.
+// createElementWithValue will build a tree of elements, as described by the request.
 func (d *DOMServer) createElementWithValue(in *dommsg.CreateElementRequest, createDOMElem bool) (*dommsg.CreateElementResponse, js.Value, error) {
+	resp := &dommsg.CreateElementResponse{}
 	_, v, err := d.createSingleElement(in.Root, createDOMElem)
 	if err != nil {
-		return nil, js.Null(), err
+		return resp, js.Null(), err
 	}
-	resp := &dommsg.CreateElementResponse{}
 	resp.Root = in.Root
 	if len(in.Root.Child) > 0 {
-		obj := make([]js.Value, len(in.Root.Child))
 		for i := 0; i < len(in.Root.Child); i++ {
-			_, obj[i], err = d.createSingleElement(in.Root.Child[i], createDOMElem)
-			resp.Root.Child[i] = in.Root.Child[i]
+			recurseResp, c, err := d.createElementWithValue(&dommsg.CreateElementRequest{Root: in.Root.Child[i], Parent: in.Root}, createDOMElem)
 			if err != nil {
 				return nil, js.Null(), err
 			}
-			if !obj[i].Truthy() {
-				return nil, js.Null(), DOMInternalError
+			resp.Root.Child[i] = recurseResp.Root
+			if createDOMElem {
+				v.Call("appendChild", c)
 			}
 		}
 	}
@@ -261,11 +266,13 @@ func (d *DOMServer) createSingleElement(element *dommsg.Element, createDOM bool)
 	pidStr := pid.String()
 	d.strId[pidStr] = pid
 	element.ParigotId = lib.Marshal[protosupportmsg.ElementId](pid)
-	if !createDOM {
-		return pid, js.Null(), nil
+	if element.Tag == nil {
+		element.Tag = &dommsg.Tag{Name: "span"}
+		//fmt.Printf("created fake SPAN node, it has %d child\n", len(element.Child))
 	}
 	result := d.doc.Call("createElement", element.Tag.Name)
 	if !result.Truthy() {
+		//fmt.Printf("createSingleElement: result.Truthy?? %v,%v\n", result.Truthy(), result)
 		return nil, js.Null(), DOMInternalError
 	}
 	if element.Tag.Id != "" {
@@ -280,6 +287,7 @@ func (d *DOMServer) createSingleElement(element *dommsg.Element, createDOM bool)
 		result.Set("cssClass", s)
 	}
 	result.Call("setAttribute", ParigotIdAttribute, pidStr)
+	result.Set("textContent", element.Text)
 	return pid, result, nil
 }
 

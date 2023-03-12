@@ -185,14 +185,14 @@ doc_elem
 
 doc_elem_content
 	returns [*DocElement element]:
-	doc_elem_text 
+	doc_elem_text
 	| doc_elem_child 
 	;
 
 doc_elem_text
 	returns [*FuncInvoc invoc]:
 	func_invoc       #doc_elem_text_func_call
-	| text_top       #doc_elem_text_anon
+	| text_top       #doc_elem_text_anon 
 	;
 
 doc_elem_child
@@ -202,7 +202,7 @@ doc_elem_child
 
 func_invoc
 	returns [*FuncInvoc invoc]:
-	Id LParen func_actual_seq RParen
+	Id LParen func_actual_seq RParen 
 	;
 
 func_actual_seq

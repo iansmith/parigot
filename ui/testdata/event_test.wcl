@@ -6,8 +6,8 @@
 /////////////////// CSS /////////////////
 // path is relative to this file
 @css 
-    +"../static/css/bootstrap.css"
-    +"../static/css/bootstrap-grid.css"
+    +"../../static/css/bootstrap.css"
+    +"../../static/css/bootstrap-grid.css"
 
 
 
@@ -28,8 +28,9 @@ napoleon(baubles string)
     (<div> (
         <div .col-6> (
             <span> napoleon("trinkets")
-            <button .btn .btn-primary> "Agree"
-            <button .btn .btn-secondary> "Disagree"
+            <button .btn .btn-primary> `Agree`
+            <span> `    `
+            <button .btn .btn-secondary> `Disagree`
         )
     )
 )

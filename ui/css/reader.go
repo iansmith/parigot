@@ -19,7 +19,6 @@ func ReadCSS(sourceCode, path string) (map[string]struct{}, error) {
 func readInput(sourceCode, path string) (css3Listener, *css3Parser) {
 	build := NewCSSBuild(sourceCode)
 	rel := build.RelativePath(path)
-	log.Printf("key paths: %s, %s, %s", sourceCode, rel, path)
 
 	fp, err := os.Open(rel)
 	if err != nil {
