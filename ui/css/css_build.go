@@ -12,6 +12,8 @@ type CSSBuild struct {
 	SourceFile string
 }
 
+var KnownClasses = make(map[string]struct{})
+
 var _ css3Listener = &CSSBuild{}
 
 func NewCSSBuild(source string) *CSSBuild {
@@ -48,4 +50,5 @@ func (b *CSSBuild) ExitSelector(ctx *SelectorContext) {
 	}
 	s := strings.TrimSpace(buf.String())
 	b.ClassName[s] = struct{}{}
+	KnownClasses[s] = struct{}{}
 }

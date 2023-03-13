@@ -1,8 +1,9 @@
 package parser
 
 type FuncInvoc struct {
-	Name   *DocIdOrVar
-	Actual []*FuncActual
+	Name    *DocIdOrVar
+	Actual  []*FuncActual
+	Builtin bool
 }
 
 func NewFuncInvoc(n *DocIdOrVar, actual []*FuncActual) *FuncInvoc {

@@ -26,6 +26,8 @@ type DOMServer struct {
 	doc js.Value
 	// go from a string rep of a parigot id to the actual id
 	strId map[string]lib.Id
+
+	startList []func()
 }
 
 func LocateDOMServer() (dom.DOMService, error) {
@@ -34,8 +36,9 @@ func LocateDOMServer() (dom.DOMService, error) {
 		return nil, DOMInternalError
 	}
 	return &DOMServer{
-		doc:   doc,
-		strId: make(map[string]lib.Id),
+		doc:       doc,
+		strId:     make(map[string]lib.Id),
+		startList: []func(){},
 	}, nil
 }
 
@@ -291,6 +294,10 @@ func (d *DOMServer) createSingleElement(element *dommsg.Element, createDOM bool)
 	return pid, result, nil
 }
 
+func (d *DOMServer) AddStartHandler(fn func()) {
+	d.startList = append(d.startList, fn)
+}
+
 // toHtml converts an element and all its children to html text.
 func toHtml(e *dommsg.Element) string {
 	t := ""
@@ -327,4 +334,15 @@ func elementParigotIdToString(elem *dommsg.Element) string {
 	}
 	pid := lib.Unmarshal(elem.ParigotId)
 	return pid.StringRaw()
+}
+
+func (d *DOMServer) AddEvent(selectorString string, eventName string, fn func(this js.Value, arg []js.Value) any) {
+	if selectorString[0:1] == "#" {
+		elem := d.doc.Call("querySelector", selectorString)
+		if !elem.Truthy() {
+			fmt.Printf("WARNING: selector '%s' did not match any elements", selectorString)
+		}
+		elem.Call("addEventListener", eventName, js.FuncOf(fn))
+	}
+	fmt.Printf("--- selector %s\n", selectorString[0:1])
 }

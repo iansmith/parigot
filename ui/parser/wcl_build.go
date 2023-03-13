@@ -7,6 +7,7 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/iansmith/parigot/ui/css"
+	"github.com/iansmith/parigot/ui/parser/builtin"
 )
 
 const anonPrefix = "_anon"
@@ -60,6 +61,11 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 		c.GetP().DocSection = c.Doc_section().GetSection()
 		c.GetP().DocSection.Program = c.GetP()
 	}
+	if c.Event_section() != nil && c.Event_section().GetSection() != nil {
+		c.GetP().EventSection = c.Event_section().GetSection()
+		c.GetP().EventSection.Program = c.GetP()
+	}
+
 	if c.Extern() != nil && c.Extern().GetE() != nil {
 		c.GetP().Extern = c.Extern().GetE()
 	}
@@ -114,6 +120,7 @@ func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 func (l *WclBuildListener) EnterText_top(c *Text_topContext) {
 	//nothing to do
 }
+
 func (l *WclBuildListener) ExitText_top(c *Text_topContext) {
 	if c.Text_content() != nil {
 		c.SetItem(c.Text_content().GetItem())
@@ -123,6 +130,7 @@ func (l *WclBuildListener) ExitText_top(c *Text_topContext) {
 // Text_content
 func (l *WclBuildListener) EnterText_content(c *Text_contentContext) {
 }
+
 func (l *WclBuildListener) ExitText_content(c *Text_contentContext) {
 	result := []TextItem{}
 	for _, t := range c.AllText_content_inner() {
@@ -551,4 +559,86 @@ func (s *WclBuildListener) ExitCss_filespec(ctx *Css_filespecContext) {
 	for k := range className {
 		s.ClassName[k] = struct{}{}
 	}
+}
+
+func (s *WclBuildListener) EnterSelector(ctx *SelectorContext) {
+}
+
+func (s *WclBuildListener) ExitSelector(ctx *SelectorContext) {
+	id := ""
+	clazz := ""
+	if ctx.GetIdValue() != nil {
+		id = ctx.GetIdValue().GetText()
+	}
+	if ctx.GetClass() != nil {
+		clazz = ctx.GetClass().GetText()
+	}
+	if clazz != "" && !strings.HasPrefix(clazz, ".") {
+		notifyError(fmt.Sprintf("class name '%s' does not start with a dot", clazz),
+			ctx.BaseParserRuleContext, ctx.Id().GetText(), ctx.GetParser())
+		return
+	}
+	if id != "" {
+		ctx.SetSel(&Selector{Id: id})
+	} else {
+		ctx.SetSel(&Selector{Class: clazz})
+	}
+
+}
+
+func (s *WclBuildListener) EnterEvent_call(ctx *Event_callContext) {
+}
+
+func (s *WclBuildListener) ExitEvent_call(ctx *Event_callContext) {
+	b := ctx.AllGreaterThan() != nil
+	f := ctx.Func_invoc().GetInvoc()
+	name := f.Name.Name
+	f.Builtin = b
+	if b {
+		checkSingleParamIsCSSClass(ctx, name, f)
+	}
+	ctx.SetInvoc(f)
+}
+
+func checkSingleParamIsCSSClass(ctx *Event_callContext, name string, f *FuncInvoc) {
+	chk, err := builtin.GetBuiltinChecker(name)
+	if err != nil {
+		notifyError(err.Error(),
+			ctx.BaseParserRuleContext, name, ctx.GetParser())
+		return
+	}
+	if len(f.Actual) != 1 {
+		notifyError(fmt.Sprintf("number of parameters expected for '%s' is 1", name),
+			ctx.BaseParserRuleContext, name, ctx.GetParser())
+		return
+	}
+	ok, errText := chk(f.Actual[0].Literal[1 : len(f.Actual[0].Literal)-1])
+	if !ok {
+		notifyError(errText,
+			ctx.BaseParserRuleContext, name, ctx.GetParser())
+		return
+	}
+}
+
+func (s *WclBuildListener) EnterEvent_spec(ctx *Event_specContext) {
+}
+
+func (s *WclBuildListener) ExitEvent_spec(ctx *Event_specContext) {
+	ctx.SetSpec(&EventSpec{
+		Selector:  ctx.Selector().GetSel(),
+		EventName: ctx.Id().GetText(),
+		Function:  ctx.Event_call().GetInvoc(),
+	})
+}
+
+func (s *WclBuildListener) EnterEvent_section(ctx *Event_sectionContext) {
+}
+
+func (s *WclBuildListener) ExitEvent_section(ctx *Event_sectionContext) {
+	raw := ctx.AllEvent_spec()
+	e := make([]*EventSpec, len(raw))
+	for i, s := range raw {
+		e[i] = s.GetSpec()
+	}
+	ctx.SetSection(&EventSectionNode{Spec: e})
 }

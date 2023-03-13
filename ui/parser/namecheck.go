@@ -45,6 +45,9 @@ func (n *NameCheck) VisitProgram(ctx *ProgramContext) interface{} {
 	if ctx.GetP().DocSection != nil && len(ctx.GetP().DocSection.DocFunc) > 0 {
 		ctx.p.NeedElement = true
 	}
+	if ctx.GetP().EventSection != nil && len(ctx.GetP().EventSection.Spec) > 0 {
+		ctx.p.NeedEvent = true
+	}
 	n.Program = ctx.GetP()
 	return n.VisitChildren(ctx)
 }

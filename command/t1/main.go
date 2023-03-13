@@ -7,12 +7,15 @@ import (
 
 const parentId = "paraLoc"
 
+var exitChan = make(chan bool)
+
 func main() {
 
 	svc, err := dom.LocateDOMServer()
 	if err != nil {
 		panic("unable to get DOMService: " + err.Error())
 	}
+
 	elem, err := svc.ElementById(&dommsg.ElementByIdRequest{Id: parentId})
 	if err != nil {
 		panic("unable to get element by id:" + err.Error())
@@ -26,6 +29,9 @@ func main() {
 	if err != nil {
 		panic("failed to create element: " + err.Error())
 	}
+
+	AddGlobalEvent(svc)
+	_ = <-exitChan
 
 	// setReq := &dommsg.SetChildRequest{
 	// 	Id:    parentId,
