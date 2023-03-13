@@ -3,6 +3,7 @@ home=/Users/iansmith
 
 ### where you cloned parigot
 parigot=$home/parigot
+parigot_src=$home/parigot/parigot
 
 ### where you put all your deps.  This is the installed dependencies for things that are "bigger
 ### than one command.  If you install things in this dir, and with the correct naming convention
@@ -68,6 +69,10 @@ export P=github.com/iansmith/parigot
 ### where the default programs can read from (the sandbox dir or dirs)
 export PARIGOT_FS_ROOT=/Users/iansmith/parigot/example
 
+### where to look for .proto files (this is probably going to end in proto)
+### this can/should be a colon separated list
+// Protocol Buffers - Google's data interchange format
+export PARIGOT_IMPORT_PATH=$parigot_src/api/proto:/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2
 
 ### useful
 # find all the files that have an uppercase letter in their name

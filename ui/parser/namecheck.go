@@ -73,9 +73,9 @@ func (n *NameCheck) VisitDoc_func(ctx *Doc_funcContext) interface{} {
 		log.Printf("%s\n", msg)
 		n.Passed = false
 	}
-	if !checkFuncForCollisions(dfunc.Name, dfunc.Param, dfunc.Local, false) {
-		n.Passed = false
-	}
+	// if !checkFuncForCollisions(dfunc.Name, dfunc.Param, dfunc.Local, false) {
+	// 	n.Passed = false
+	// }
 	return nil
 }
 

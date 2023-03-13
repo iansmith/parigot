@@ -10,7 +10,7 @@ all: allprotos \
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm build/dom.p.wasm build/dom.p.wasm
-commands: 	build/protoc-gen-parigot build/runner build/wcl
+commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
 sqlc: apiimpl/queue/go_/db.go
 
 GO_CMD=GOOS=js GOARCH=wasm go
@@ -28,6 +28,10 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	buf lint
 	buf generate
 
+## running the ANTLR code for the protobuf3 code
+pbmodel/pb3_parser.go: pbmodel/protobuf3.g4 
+	cd pbmodel;./generate.sh
+
 ## running the ANTLR code for the WCL parsers/lexers
 ui/parser/wcl_parser.go: ui/parser/wcl.g4 
 	cd ui/parser;./generate.sh
@@ -35,11 +39,12 @@ ui/parser/wcl_parser.go: ui/parser/wcl.g4
 ui/parser/wcllex_lexer.go: ui/parser/wcllex.g4 
 	cd ui/parser;./generate.sh
 
+## running the ANTLR code for the css3
 ui/css/css3_lexer.go: ui/css/css3.g4
 	cd ui/css;./generate.sh
 
-ui/css/css3_parser.go: ui/css/css3.g4
-	cd css;./generate.sh
+#ui/css/css3_parser.go: ui/css/css3.g4
+#	cd css;./generate.sh
 
 
 # protoc plugin
@@ -92,11 +97,15 @@ WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
 CSS_COMPILER=$(shell find ui/css -type f -regex ".*\.go")
 WCL_DRIVER=$(shell find ui/driver -type f -regex ".*\.go")
 
-build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/template/*.tmpl \
+build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/template/*.tmpl helper/antlr.go\
 	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go \
-	ui/css/css3_lexer.go ui/css/css3_parser.go 
+	ui/css/css3_lexer.go ui/css/css3_parser.go helper/*.go
 	rm -f $@
 	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/wcl
+
+## model compiler
+build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go helper/*.go
+	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/pbmodel
 
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
