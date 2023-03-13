@@ -77,6 +77,14 @@ import (
     dommsg "github.com/iansmith/parigot/g/msg/dom/v1" //required by doc functions
 )
 {{end}}
+{{if .needEvent }}
+import (
+    apidom  "github.com/iansmith/parigot/apiimpl/dom" //required by event handlers
+     "github.com/iansmith/parigot/g/dom/v1" //required by event handlers
+    "github.com/iansmith/parigot/ui/parser/builtin" //required by event handlers
+)
+{{end}}
+
 
 {{end}}
 {{/* ----------------------------------------------------- */}}
@@ -186,4 +194,15 @@ return result
 }
 
 {{end}} {{/*end of doc funcs*/}}
+
+{{if .event}}
+//
+// Event Section
+//
+func AddGlobalEvent(dom dom.DOMService) {
+{{- range .event.Spec}}
+dom.(*apidom.DOMServer).AddEvent({{.Selector.String}},"{{.EventName}}",builtin.{{.Function.Name.Name}})
+{{- end}} {{/* end of ranging over event specs */}}
+}
+{{end}} {{/* end of event section*/}}
 {{end}} {{/*end of if */}}

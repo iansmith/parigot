@@ -216,18 +216,22 @@ func_actual
 	| StringLit
 	;
 
-event_section: 
+event_section
+	returns [*EventSectionNode section]:
 	Event (event_spec)*;
 
-event_spec:
+event_spec
+	returns [*EventSpec spec]:
 	selector Id event_call
 	;
 
-event_call:
+event_call
+	returns [*FuncInvoc invoc]:
 	(GreaterThan GreaterThan)? func_invoc 
 	;
 
-selector: 
-	Hash Id
-	| Id // must start with a dot
+selector
+	returns [*Selector sel]:
+	Hash IdValue=Id
+	| class=Id // must start with a dot
 	;

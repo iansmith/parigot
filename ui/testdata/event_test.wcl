@@ -37,5 +37,5 @@ napoleon(baubles string)
 
 ///////////////// EVENT /////////////////
 @event
-    #foo click  >> bar(baz)
-    .quux click >> frik(frak)
+    #paraLoc click  >> ToggleSingle(".text-primary")
+    .quux click >> ToggleSingle(".text-secondary")

@@ -1,13 +1,14 @@
 package parser
 
 type ProgramNode struct {
-	ImportSection          *ImportSectionNode
-	CSSSection             *CSSSectionNode
-	TextSection            *TextSectionNode
-	DocSection             *DocSectionNode
-	Extern                 []string
-	Global                 []*PFormal
-	NeedBytes, NeedElement bool
+	ImportSection                     *ImportSectionNode
+	CSSSection                        *CSSSectionNode
+	TextSection                       *TextSectionNode
+	DocSection                        *DocSectionNode
+	EventSection                      *EventSectionNode
+	Extern                            []string
+	Global                            []*PFormal
+	NeedBytes, NeedElement, NeedEvent bool
 }
 
 func (p *ProgramNode) checkGlobalAndExtern(n string) bool {

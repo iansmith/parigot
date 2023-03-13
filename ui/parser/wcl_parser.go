@@ -6942,13 +6942,20 @@ type IEvent_sectionContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// GetSection returns the section attribute.
+	GetSection() *EventSectionNode
+
+	// SetSection sets the section attribute.
+	SetSection(*EventSectionNode)
+
 	// IsEvent_sectionContext differentiates from other interfaces.
 	IsEvent_sectionContext()
 }
 
 type Event_sectionContext struct {
 	*antlr.BaseParserRuleContext
-	parser antlr.Parser
+	parser  antlr.Parser
+	section *EventSectionNode
 }
 
 func NewEmptyEvent_sectionContext() *Event_sectionContext {
@@ -6972,6 +6979,10 @@ func NewEvent_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContext
 }
 
 func (s *Event_sectionContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Event_sectionContext) GetSection() *EventSectionNode { return s.section }
+
+func (s *Event_sectionContext) SetSection(v *EventSectionNode) { s.section = v }
 
 func (s *Event_sectionContext) Event() antlr.TerminalNode {
 	return s.GetToken(wclEvent, 0)
@@ -7102,6 +7113,12 @@ type IEvent_specContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// GetSpec returns the spec attribute.
+	GetSpec() *EventSpec
+
+	// SetSpec sets the spec attribute.
+	SetSpec(*EventSpec)
+
 	// IsEvent_specContext differentiates from other interfaces.
 	IsEvent_specContext()
 }
@@ -7109,6 +7126,7 @@ type IEvent_specContext interface {
 type Event_specContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
+	spec   *EventSpec
 }
 
 func NewEmptyEvent_specContext() *Event_specContext {
@@ -7132,6 +7150,10 @@ func NewEvent_specContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 }
 
 func (s *Event_specContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Event_specContext) GetSpec() *EventSpec { return s.spec }
+
+func (s *Event_specContext) SetSpec(v *EventSpec) { s.spec = v }
 
 func (s *Event_specContext) Selector() ISelectorContext {
 	var t antlr.RuleContext
@@ -7246,6 +7268,12 @@ type IEvent_callContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// GetInvoc returns the invoc attribute.
+	GetInvoc() *FuncInvoc
+
+	// SetInvoc sets the invoc attribute.
+	SetInvoc(*FuncInvoc)
+
 	// IsEvent_callContext differentiates from other interfaces.
 	IsEvent_callContext()
 }
@@ -7253,6 +7281,7 @@ type IEvent_callContext interface {
 type Event_callContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
+	invoc  *FuncInvoc
 }
 
 func NewEmptyEvent_callContext() *Event_callContext {
@@ -7276,6 +7305,10 @@ func NewEvent_callContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 }
 
 func (s *Event_callContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Event_callContext) GetInvoc() *FuncInvoc { return s.invoc }
+
+func (s *Event_callContext) SetInvoc(v *FuncInvoc) { s.invoc = v }
 
 func (s *Event_callContext) Func_invoc() IFunc_invocContext {
 	var t antlr.RuleContext
@@ -7386,13 +7419,34 @@ type ISelectorContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// GetIdValue returns the IdValue token.
+	GetIdValue() antlr.Token
+
+	// GetClass returns the class token.
+	GetClass() antlr.Token
+
+	// SetIdValue sets the IdValue token.
+	SetIdValue(antlr.Token)
+
+	// SetClass sets the class token.
+	SetClass(antlr.Token)
+
+	// GetSel returns the sel attribute.
+	GetSel() *Selector
+
+	// SetSel sets the sel attribute.
+	SetSel(*Selector)
+
 	// IsSelectorContext differentiates from other interfaces.
 	IsSelectorContext()
 }
 
 type SelectorContext struct {
 	*antlr.BaseParserRuleContext
-	parser antlr.Parser
+	parser  antlr.Parser
+	sel     *Selector
+	IdValue antlr.Token
+	class   antlr.Token
 }
 
 func NewEmptySelectorContext() *SelectorContext {
@@ -7416,6 +7470,18 @@ func NewSelectorContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 }
 
 func (s *SelectorContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *SelectorContext) GetIdValue() antlr.Token { return s.IdValue }
+
+func (s *SelectorContext) GetClass() antlr.Token { return s.class }
+
+func (s *SelectorContext) SetIdValue(v antlr.Token) { s.IdValue = v }
+
+func (s *SelectorContext) SetClass(v antlr.Token) { s.class = v }
+
+func (s *SelectorContext) GetSel() *Selector { return s.sel }
+
+func (s *SelectorContext) SetSel(v *Selector) { s.sel = v }
 
 func (s *SelectorContext) Hash() antlr.TerminalNode {
 	return s.GetToken(wclHash, 0)
@@ -7490,14 +7556,20 @@ func (p *wcl) Selector() (localctx ISelectorContext) {
 		}
 		{
 			p.SetState(341)
-			p.Match(wclId)
+
+			var _m = p.Match(wclId)
+
+			localctx.(*SelectorContext).IdValue = _m
 		}
 
 	case wclId:
 		p.EnterOuterAlt(localctx, 2)
 		{
 			p.SetState(342)
-			p.Match(wclId)
+
+			var _m = p.Match(wclId)
+
+			localctx.(*SelectorContext).class = _m
 		}
 
 	default:
