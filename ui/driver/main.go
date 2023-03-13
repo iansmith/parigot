@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/iansmith/parigot/helper"
 	"github.com/iansmith/parigot/ui/parser"
 )
 
@@ -40,13 +41,24 @@ func Main() {
 		exitOk = 1
 		exitError = 0
 	}
-	builder, p := readInput(flag.Arg(0))
+	inFile := flag.Arg(0)
+
+	// primary objects
+	l := parser.Newwcllex(nil)
+	p := parser.Newwcl(nil)
+	b := parser.NewWclBuildListener(inFile)
+
+	// antlr setup machinery
+	el := helper.AntlrSetupLexParse(inFile, l.BaseLexer, p.BaseParser)
+
+	// start parsing
 	prog := p.Program()
-	antlr.ParseTreeWalkerDefault.Walk(builder, prog)
-	if !buildSuccess {
+	p.AddParseListener(b)
+	antlr.ParseTreeWalkerDefault.Walk(b, prog)
+	if el.Failed() {
 		wclFatalf("failed due to syntax errors")
 	}
-	if !parser.NameCheckVisit(prog, builder.ClassName) {
+	if !parser.NameCheckVisit(prog, b.ClassName) {
 		wclFatalf("failed due to name check")
 	}
 	execTemplate(prog, *language)
@@ -118,32 +130,4 @@ func execTemplate(prog parser.IProgramContext, lang string) {
 	if err != nil {
 		wclFatalf("failed to run gofmt: %v, %v", err, outFp)
 	}
-}
-
-func readInput(path string) (*parser.WclBuildListener, *parser.WCLParser) {
-	fp, err := os.Open(path)
-	if err != nil {
-		wd, _ := os.Getwd()
-		wclFatalf("%v (wd is %s), %v", flag.Arg(0), wd, err)
-	}
-	buffer, err := io.ReadAll(fp)
-	if err != nil {
-		wclFatalf("reading %s: %v", flag.Arg(0), err)
-	}
-	fp.Close()
-	el := errorListener{0}
-	input := antlr.NewInputStream(string(buffer))
-	lexer := parser.Newwcllex(input)
-	lexer.RemoveErrorListeners()
-	lexer.AddErrorListener(&el)
-	stream := antlr.NewCommonTokenStream(lexer, 0)
-	p := parser.Newwcl(stream)
-	p.RemoveErrorListeners()
-	// the diagnostic listener is good for debugging (displays good error msgs)
-	p.AddErrorListener(&antlr.DiagnosticErrorListener{
-		DefaultErrorListener: &antlr.DefaultErrorListener{},
-	})
-	p.AddErrorListener(&el)
-	return parser.NewWclBuildListener(flag.Arg(0)), parser.WCLParserFromWcl(p)
-
 }

@@ -72,6 +72,7 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 	if c.Global() != nil && c.Global().GetG() != nil {
 		c.GetP().Global = c.Global().GetG()
 	}
+
 }
 
 // Import_section

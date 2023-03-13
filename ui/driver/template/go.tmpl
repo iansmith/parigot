@@ -65,7 +65,7 @@ var {{ .Name }} {{ .Type -}}
 {{end}}{{/* end of template */}}
 {{/* ----------------------------------------------------- */}}
 {{- define "Package" -}}
-package {{.package}}
+package {{.package}} // {{.needBytes}}
 {{if .needBytes }}
 import (
     "bytes"  // required by wcl text functions

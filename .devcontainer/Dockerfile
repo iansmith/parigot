@@ -123,6 +123,7 @@ ENV TOOLS=/home/parigot/tools
 ENV GOTOOLS=/home/parigot/tools/go${GOLANG_VERSION}
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV PARIGOT_TOOLS=/home/parigot/tools
+ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 
 ENTRYPOINT ["bash"]
