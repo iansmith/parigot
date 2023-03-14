@@ -16,7 +16,7 @@
 @mvc
 
 // queue
-@model QueueModel "../../api/proto/msg/queue/v1/queue.proto"
+@model QueueModel "../../api/proto/queue/v1/queue.proto"
 
 
 ///////////////// TEXT /////////////////

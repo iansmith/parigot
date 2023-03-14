@@ -131,9 +131,6 @@ func (n *NameCheck) VisitDoc_section(ctx *Doc_sectionContext) interface{} {
 }
 
 func (n *NameCheck) VisitModel_section(ctx *Model_sectionContext) interface{} {
-	for _, m := range ctx.GetSection().ModelDef {
-		log.Printf("model def %s -> %+v", m.Name, m.Path)
-	}
 	sect := ctx.GetSection()
 	bad, ok := antlr.ParseModelSection(n.CurrentFile, n.CurrentPkg, sect)
 	if !ok {

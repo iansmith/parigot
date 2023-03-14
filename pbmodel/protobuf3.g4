@@ -52,11 +52,13 @@ returns [string pkg]
 // Option
 
 optionStatement
+  returns [*tree.OptionTriple triple]
   : OPTION optionName EQ constant SEMI
   ;
 
 optionName
-  : fullIdent
+  returns [*tree.FullIdent name]
+  : simple=fullIdent
   | LP fullIdent RP ( DOT fullIdent )?
   ;
 
@@ -265,7 +267,8 @@ emptyStatement_: SEMI;
 // Lexical elements
 
 ident: IDENTIFIER | keywords;
-fullIdent: ident ( DOT ident )*;
+fullIdent
+  returns [*tree.FullIdent fullId]: ident ( DOT ident )*;
 messageName: ident;
 enumName: ident;
 fieldName: ident;
