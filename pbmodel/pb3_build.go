@@ -10,22 +10,27 @@ import (
 
 type Pb3Builder struct {
 	*Baseprotobuf3Listener
-	currentFile      string
+	CurrentFile      string
+	CurrentPkgPrefix string
 	OutgoingImport   []string
 	failure          bool
-	currentPkgPrefix string
 	Proto2Ignored    []string
+	CurrentGoPackage string
+	FQNameToPath     map[string]string
+	CurrentPackage   string
 }
 
 var _ protobuf3Listener = &Pb3Builder{}
 
 func NewPb3Builder() *Pb3Builder {
-	return &Pb3Builder{}
+	return &Pb3Builder{
+		FQNameToPath: make(map[string]string),
+	}
 }
 
 func (p *Pb3Builder) Reset(path string) {
-	p.currentFile = path
-	p.currentPkgPrefix = ""
+	p.CurrentFile = path
+	p.CurrentPkgPrefix = ""
 	p.failure = false //shouldn't be needed
 	p.OutgoingImport = nil
 
@@ -42,11 +47,14 @@ func (p *Pb3Builder) ExitImportStatement(ctx *ImportStatementContext) {
 		return
 	}
 	p.OutgoingImport = append(p.OutgoingImport, import_)
-	pb3Import.AddEdge(p.currentFile, import_)
+	p.FQNameToPath[import_] = p.CurrentFile
+	pb3Import.AddEdge(p.CurrentFile, import_)
 }
 
 func (p *Pb3Builder) ExitPackageStatement(ctx *PackageStatementContext) {
-	p.currentPkgPrefix = p.StripEnds(ctx.FullIdent().GetText(), p.currentFile)
+	pkg := ctx.FullIdent().GetText()
+	p.CurrentPackage = pkg
+	p.CurrentPkgPrefix = p.StripEnds(pkg, p.CurrentFile)
 }
 func (b *Pb3Builder) Failed() bool {
 	return b.failure
@@ -73,4 +81,11 @@ func (b *Pb3Builder) StripEnds(pkg, path string) string {
 		panic(fmt.Sprintf("had package parts left: %s", filepath.Join(pkgPart...)))
 	}
 	return filepath.Join(elem...)
+}
+
+func (p *Pb3Builder) ExitOptionStatement(ctx *OptionStatementContext) {
+	name, value := ctx.OptionName().GetText(), ctx.Constant().GetText()
+	if name == "go_package" {
+		p.CurrentGoPackage = value
+	}
 }

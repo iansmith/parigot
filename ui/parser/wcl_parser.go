@@ -9,6 +9,8 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
+import "github.com/iansmith/parigot/ui/parser/tree"
+
 // Suppress unused import errors
 var _ = fmt.Printf
 var _ = strconv.Itoa
@@ -33,18 +35,18 @@ func wclParserInit() {
 	staticData := &wclParserStaticData
 	staticData.literalNames = []string{
 		"", "'@text'", "'@css'", "'@preamble'", "'@doc'", "'@local'", "'@global'",
-		"'@extern'", "'@pre'", "'@post'", "'@wcl'", "'@event'", "", "", "",
-		"", "'('", "')'", "", "','", "'<'", "'>'", "'.'", "'#'", "'-'", "';'",
-		"'+'",
+		"'@extern'", "'@mvc'", "'@pre'", "'@post'", "'@wcl'", "'@event'", "'@model'",
+		"'@view'", "'@collection'", "'@controller'", "", "", "", "", "'('",
+		"')'", "", "','", "'<'", "'>'", "'.'", "'#'", "'-'", "';'", "'+'",
 	}
 	staticData.symbolicNames = []string{
-		"", "Text", "CSS", "Import", "Doc", "Local", "Global", "Extern", "Pre",
-		"Post", "Wcl", "Event", "Id", "Version", "LCurly", "RCurly", "LParen",
-		"RParen", "Dollar", "Comma", "LessThan", "GreaterThan", "Dot", "Hash",
-		"Dash", "Semi", "Plus", "BackTick", "StringLit", "DoubleSlashComment",
-		"Whitespace", "ContentRawText", "ContentDollar", "ContentBackTick",
-		"UninterpRawText", "UninterpDollar", "UninterpLCurly", "UninterpRCurly",
-		"VarRCurly", "VarId",
+		"", "Text", "CSS", "Import", "Doc", "Local", "Global", "Extern", "Mvc",
+		"Pre", "Post", "Wcl", "Event", "Model", "View", "ViewCollection", "Controller",
+		"Id", "Version", "LCurly", "RCurly", "LParen", "RParen", "Dollar", "Comma",
+		"LessThan", "GreaterThan", "Dot", "Hash", "Dash", "Semi", "Plus", "BackTick",
+		"StringLit", "DoubleSlashComment", "Whitespace", "ContentRawText", "ContentDollar",
+		"ContentBackTick", "UninterpRawText", "UninterpDollar", "UninterpLCurly",
+		"UninterpRCurly", "VarRCurly", "VarId",
 	}
 	staticData.ruleNames = []string{
 		"program", "global", "extern", "wcl_section", "import_section", "css_section",
@@ -55,157 +57,170 @@ func wclParserInit() {
 		"doc_tag", "id_or_var_ref", "var_ref", "doc_id", "doc_class", "doc_elem",
 		"doc_elem_content", "doc_elem_text", "doc_elem_child", "func_invoc",
 		"func_actual_seq", "func_actual", "event_section", "event_spec", "event_call",
-		"selector",
+		"selector", "model_section", "model_def", "filename_seq",
 	}
 	staticData.predictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
-		4, 1, 39, 346, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 1, 44, 374, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
 		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15,
 		2, 16, 7, 16, 2, 17, 7, 17, 2, 18, 7, 18, 2, 19, 7, 19, 2, 20, 7, 20, 2,
 		21, 7, 21, 2, 22, 7, 22, 2, 23, 7, 23, 2, 24, 7, 24, 2, 25, 7, 25, 2, 26,
 		7, 26, 2, 27, 7, 27, 2, 28, 7, 28, 2, 29, 7, 29, 2, 30, 7, 30, 2, 31, 7,
 		31, 2, 32, 7, 32, 2, 33, 7, 33, 2, 34, 7, 34, 2, 35, 7, 35, 2, 36, 7, 36,
-		2, 37, 7, 37, 2, 38, 7, 38, 2, 39, 7, 39, 2, 40, 7, 40, 2, 41, 7, 41, 1,
-		0, 1, 0, 3, 0, 87, 8, 0, 1, 0, 3, 0, 90, 8, 0, 1, 0, 3, 0, 93, 8, 0, 1,
-		0, 3, 0, 96, 8, 0, 1, 0, 3, 0, 99, 8, 0, 1, 0, 3, 0, 102, 8, 0, 1, 0, 3,
-		0, 105, 8, 0, 1, 0, 3, 0, 108, 8, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 2,
-		1, 2, 1, 2, 5, 2, 118, 8, 2, 10, 2, 12, 2, 121, 9, 2, 1, 2, 1, 2, 1, 3,
-		1, 3, 1, 3, 1, 4, 1, 4, 1, 4, 1, 4, 1, 5, 1, 5, 5, 5, 134, 8, 5, 10, 5,
-		12, 5, 137, 9, 5, 1, 6, 1, 6, 1, 6, 1, 7, 1, 7, 5, 7, 144, 8, 7, 10, 7,
-		12, 7, 147, 9, 7, 1, 8, 1, 8, 3, 8, 151, 8, 8, 1, 8, 3, 8, 154, 8, 8, 1,
-		8, 3, 8, 157, 8, 8, 1, 8, 1, 8, 3, 8, 161, 8, 8, 1, 9, 1, 9, 1, 9, 1, 9,
-		1, 10, 1, 10, 1, 10, 1, 10, 1, 11, 1, 11, 1, 11, 1, 12, 1, 12, 1, 12, 3,
-		12, 177, 8, 12, 1, 12, 1, 12, 1, 13, 5, 13, 182, 8, 13, 10, 13, 12, 13,
-		185, 9, 13, 1, 14, 1, 14, 3, 14, 189, 8, 14, 1, 15, 1, 15, 1, 15, 1, 16,
-		1, 16, 1, 16, 1, 17, 4, 17, 198, 8, 17, 11, 17, 12, 17, 199, 1, 17, 1,
-		17, 1, 18, 1, 18, 1, 18, 1, 18, 3, 18, 208, 8, 18, 1, 19, 1, 19, 1, 19,
-		1, 19, 1, 20, 1, 20, 5, 20, 216, 8, 20, 10, 20, 12, 20, 219, 9, 20, 1,
-		20, 1, 20, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 3, 21, 228, 8, 21, 1, 22,
-		1, 22, 5, 22, 232, 8, 22, 10, 22, 12, 22, 235, 9, 22, 1, 23, 1, 23, 1,
-		23, 3, 23, 240, 8, 23, 1, 23, 3, 23, 243, 8, 23, 1, 23, 1, 23, 3, 23, 247,
-		8, 23, 1, 24, 1, 24, 1, 24, 1, 25, 1, 25, 3, 25, 254, 8, 25, 1, 26, 1,
-		26, 1, 26, 3, 26, 259, 8, 26, 1, 26, 3, 26, 262, 8, 26, 1, 26, 1, 26, 1,
-		27, 1, 27, 3, 27, 268, 8, 27, 1, 28, 1, 28, 1, 28, 1, 28, 1, 29, 1, 29,
-		1, 29, 1, 30, 4, 30, 278, 8, 30, 11, 30, 12, 30, 279, 1, 31, 1, 31, 1,
-		31, 3, 31, 285, 8, 31, 1, 31, 3, 31, 288, 8, 31, 1, 32, 1, 32, 3, 32, 292,
-		8, 32, 1, 33, 1, 33, 3, 33, 296, 8, 33, 1, 34, 1, 34, 5, 34, 300, 8, 34,
-		10, 34, 12, 34, 303, 9, 34, 1, 34, 1, 34, 1, 35, 1, 35, 1, 35, 1, 35, 1,
-		35, 1, 36, 1, 36, 1, 36, 5, 36, 315, 8, 36, 10, 36, 12, 36, 318, 9, 36,
-		3, 36, 320, 8, 36, 1, 37, 1, 37, 1, 38, 1, 38, 5, 38, 326, 8, 38, 10, 38,
-		12, 38, 329, 9, 38, 1, 39, 1, 39, 1, 39, 1, 39, 1, 40, 1, 40, 3, 40, 337,
-		8, 40, 1, 40, 1, 40, 1, 41, 1, 41, 1, 41, 3, 41, 344, 8, 41, 1, 41, 0,
-		0, 42, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34,
-		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70,
-		72, 74, 76, 78, 80, 82, 0, 1, 2, 0, 12, 12, 28, 28, 346, 0, 84, 1, 0, 0,
-		0, 2, 111, 1, 0, 0, 0, 4, 114, 1, 0, 0, 0, 6, 124, 1, 0, 0, 0, 8, 127,
-		1, 0, 0, 0, 10, 131, 1, 0, 0, 0, 12, 138, 1, 0, 0, 0, 14, 141, 1, 0, 0,
-		0, 16, 148, 1, 0, 0, 0, 18, 162, 1, 0, 0, 0, 20, 166, 1, 0, 0, 0, 22, 170,
-		1, 0, 0, 0, 24, 173, 1, 0, 0, 0, 26, 183, 1, 0, 0, 0, 28, 188, 1, 0, 0,
-		0, 30, 190, 1, 0, 0, 0, 32, 193, 1, 0, 0, 0, 34, 197, 1, 0, 0, 0, 36, 207,
-		1, 0, 0, 0, 38, 209, 1, 0, 0, 0, 40, 213, 1, 0, 0, 0, 42, 227, 1, 0, 0,
-		0, 44, 229, 1, 0, 0, 0, 46, 236, 1, 0, 0, 0, 48, 248, 1, 0, 0, 0, 50, 253,
-		1, 0, 0, 0, 52, 255, 1, 0, 0, 0, 54, 267, 1, 0, 0, 0, 56, 269, 1, 0, 0,
-		0, 58, 273, 1, 0, 0, 0, 60, 277, 1, 0, 0, 0, 62, 287, 1, 0, 0, 0, 64, 291,
-		1, 0, 0, 0, 66, 295, 1, 0, 0, 0, 68, 297, 1, 0, 0, 0, 70, 306, 1, 0, 0,
-		0, 72, 319, 1, 0, 0, 0, 74, 321, 1, 0, 0, 0, 76, 323, 1, 0, 0, 0, 78, 330,
-		1, 0, 0, 0, 80, 336, 1, 0, 0, 0, 82, 343, 1, 0, 0, 0, 84, 86, 3, 6, 3,
-		0, 85, 87, 3, 10, 5, 0, 86, 85, 1, 0, 0, 0, 86, 87, 1, 0, 0, 0, 87, 89,
-		1, 0, 0, 0, 88, 90, 3, 8, 4, 0, 89, 88, 1, 0, 0, 0, 89, 90, 1, 0, 0, 0,
-		90, 92, 1, 0, 0, 0, 91, 93, 3, 4, 2, 0, 92, 91, 1, 0, 0, 0, 92, 93, 1,
-		0, 0, 0, 93, 95, 1, 0, 0, 0, 94, 96, 3, 2, 1, 0, 95, 94, 1, 0, 0, 0, 95,
-		96, 1, 0, 0, 0, 96, 98, 1, 0, 0, 0, 97, 99, 3, 14, 7, 0, 98, 97, 1, 0,
-		0, 0, 98, 99, 1, 0, 0, 0, 99, 101, 1, 0, 0, 0, 100, 102, 3, 10, 5, 0, 101,
-		100, 1, 0, 0, 0, 101, 102, 1, 0, 0, 0, 102, 104, 1, 0, 0, 0, 103, 105,
-		3, 44, 22, 0, 104, 103, 1, 0, 0, 0, 104, 105, 1, 0, 0, 0, 105, 107, 1,
-		0, 0, 0, 106, 108, 3, 76, 38, 0, 107, 106, 1, 0, 0, 0, 107, 108, 1, 0,
-		0, 0, 108, 109, 1, 0, 0, 0, 109, 110, 5, 0, 0, 1, 110, 1, 1, 0, 0, 0, 111,
-		112, 5, 6, 0, 0, 112, 113, 3, 40, 20, 0, 113, 3, 1, 0, 0, 0, 114, 115,
-		5, 7, 0, 0, 115, 119, 5, 16, 0, 0, 116, 118, 5, 12, 0, 0, 117, 116, 1,
-		0, 0, 0, 118, 121, 1, 0, 0, 0, 119, 117, 1, 0, 0, 0, 119, 120, 1, 0, 0,
-		0, 120, 122, 1, 0, 0, 0, 121, 119, 1, 0, 0, 0, 122, 123, 5, 17, 0, 0, 123,
-		5, 1, 0, 0, 0, 124, 125, 5, 10, 0, 0, 125, 126, 5, 13, 0, 0, 126, 7, 1,
-		0, 0, 0, 127, 128, 5, 3, 0, 0, 128, 129, 5, 14, 0, 0, 129, 130, 3, 34,
-		17, 0, 130, 9, 1, 0, 0, 0, 131, 135, 5, 2, 0, 0, 132, 134, 3, 12, 6, 0,
-		133, 132, 1, 0, 0, 0, 134, 137, 1, 0, 0, 0, 135, 133, 1, 0, 0, 0, 135,
-		136, 1, 0, 0, 0, 136, 11, 1, 0, 0, 0, 137, 135, 1, 0, 0, 0, 138, 139, 5,
-		26, 0, 0, 139, 140, 5, 28, 0, 0, 140, 13, 1, 0, 0, 0, 141, 145, 5, 1, 0,
-		0, 142, 144, 3, 16, 8, 0, 143, 142, 1, 0, 0, 0, 144, 147, 1, 0, 0, 0, 145,
-		143, 1, 0, 0, 0, 145, 146, 1, 0, 0, 0, 146, 15, 1, 0, 0, 0, 147, 145, 1,
-		0, 0, 0, 148, 150, 5, 12, 0, 0, 149, 151, 3, 40, 20, 0, 150, 149, 1, 0,
-		0, 0, 150, 151, 1, 0, 0, 0, 151, 153, 1, 0, 0, 0, 152, 154, 3, 22, 11,
-		0, 153, 152, 1, 0, 0, 0, 153, 154, 1, 0, 0, 0, 154, 156, 1, 0, 0, 0, 155,
-		157, 3, 18, 9, 0, 156, 155, 1, 0, 0, 0, 156, 157, 1, 0, 0, 0, 157, 158,
-		1, 0, 0, 0, 158, 160, 3, 24, 12, 0, 159, 161, 3, 20, 10, 0, 160, 159, 1,
-		0, 0, 0, 160, 161, 1, 0, 0, 0, 161, 17, 1, 0, 0, 0, 162, 163, 5, 8, 0,
-		0, 163, 164, 5, 14, 0, 0, 164, 165, 3, 34, 17, 0, 165, 19, 1, 0, 0, 0,
-		166, 167, 5, 9, 0, 0, 167, 168, 5, 14, 0, 0, 168, 169, 3, 34, 17, 0, 169,
-		21, 1, 0, 0, 0, 170, 171, 5, 5, 0, 0, 171, 172, 3, 40, 20, 0, 172, 23,
-		1, 0, 0, 0, 173, 176, 5, 27, 0, 0, 174, 177, 3, 26, 13, 0, 175, 177, 1,
-		0, 0, 0, 176, 174, 1, 0, 0, 0, 176, 175, 1, 0, 0, 0, 177, 178, 1, 0, 0,
-		0, 178, 179, 5, 33, 0, 0, 179, 25, 1, 0, 0, 0, 180, 182, 3, 28, 14, 0,
-		181, 180, 1, 0, 0, 0, 182, 185, 1, 0, 0, 0, 183, 181, 1, 0, 0, 0, 183,
-		184, 1, 0, 0, 0, 184, 27, 1, 0, 0, 0, 185, 183, 1, 0, 0, 0, 186, 189, 5,
-		31, 0, 0, 187, 189, 3, 30, 15, 0, 188, 186, 1, 0, 0, 0, 188, 187, 1, 0,
-		0, 0, 189, 29, 1, 0, 0, 0, 190, 191, 5, 32, 0, 0, 191, 192, 3, 32, 16,
-		0, 192, 31, 1, 0, 0, 0, 193, 194, 5, 39, 0, 0, 194, 195, 5, 38, 0, 0, 195,
-		33, 1, 0, 0, 0, 196, 198, 3, 36, 18, 0, 197, 196, 1, 0, 0, 0, 198, 199,
-		1, 0, 0, 0, 199, 197, 1, 0, 0, 0, 199, 200, 1, 0, 0, 0, 200, 201, 1, 0,
-		0, 0, 201, 202, 5, 37, 0, 0, 202, 35, 1, 0, 0, 0, 203, 208, 5, 34, 0, 0,
-		204, 205, 5, 36, 0, 0, 205, 208, 3, 34, 17, 0, 206, 208, 3, 38, 19, 0,
-		207, 203, 1, 0, 0, 0, 207, 204, 1, 0, 0, 0, 207, 206, 1, 0, 0, 0, 208,
-		37, 1, 0, 0, 0, 209, 210, 5, 35, 0, 0, 210, 211, 5, 39, 0, 0, 211, 212,
-		5, 38, 0, 0, 212, 39, 1, 0, 0, 0, 213, 217, 5, 16, 0, 0, 214, 216, 3, 42,
-		21, 0, 215, 214, 1, 0, 0, 0, 216, 219, 1, 0, 0, 0, 217, 215, 1, 0, 0, 0,
-		217, 218, 1, 0, 0, 0, 218, 220, 1, 0, 0, 0, 219, 217, 1, 0, 0, 0, 220,
-		221, 5, 17, 0, 0, 221, 41, 1, 0, 0, 0, 222, 223, 5, 12, 0, 0, 223, 224,
-		5, 12, 0, 0, 224, 228, 5, 19, 0, 0, 225, 226, 5, 12, 0, 0, 226, 228, 5,
-		12, 0, 0, 227, 222, 1, 0, 0, 0, 227, 225, 1, 0, 0, 0, 228, 43, 1, 0, 0,
-		0, 229, 233, 5, 4, 0, 0, 230, 232, 3, 46, 23, 0, 231, 230, 1, 0, 0, 0,
-		232, 235, 1, 0, 0, 0, 233, 231, 1, 0, 0, 0, 233, 234, 1, 0, 0, 0, 234,
-		45, 1, 0, 0, 0, 235, 233, 1, 0, 0, 0, 236, 237, 5, 12, 0, 0, 237, 239,
-		3, 50, 25, 0, 238, 240, 3, 48, 24, 0, 239, 238, 1, 0, 0, 0, 239, 240, 1,
-		0, 0, 0, 240, 242, 1, 0, 0, 0, 241, 243, 3, 18, 9, 0, 242, 241, 1, 0, 0,
-		0, 242, 243, 1, 0, 0, 0, 243, 244, 1, 0, 0, 0, 244, 246, 3, 62, 31, 0,
-		245, 247, 3, 20, 10, 0, 246, 245, 1, 0, 0, 0, 246, 247, 1, 0, 0, 0, 247,
-		47, 1, 0, 0, 0, 248, 249, 5, 5, 0, 0, 249, 250, 3, 40, 20, 0, 250, 49,
-		1, 0, 0, 0, 251, 254, 3, 40, 20, 0, 252, 254, 1, 0, 0, 0, 253, 251, 1,
-		0, 0, 0, 253, 252, 1, 0, 0, 0, 254, 51, 1, 0, 0, 0, 255, 256, 5, 20, 0,
-		0, 256, 258, 3, 54, 27, 0, 257, 259, 3, 58, 29, 0, 258, 257, 1, 0, 0, 0,
-		258, 259, 1, 0, 0, 0, 259, 261, 1, 0, 0, 0, 260, 262, 3, 60, 30, 0, 261,
-		260, 1, 0, 0, 0, 261, 262, 1, 0, 0, 0, 262, 263, 1, 0, 0, 0, 263, 264,
-		5, 21, 0, 0, 264, 53, 1, 0, 0, 0, 265, 268, 5, 12, 0, 0, 266, 268, 3, 56,
-		28, 0, 267, 265, 1, 0, 0, 0, 267, 266, 1, 0, 0, 0, 268, 55, 1, 0, 0, 0,
-		269, 270, 5, 18, 0, 0, 270, 271, 5, 39, 0, 0, 271, 272, 5, 38, 0, 0, 272,
-		57, 1, 0, 0, 0, 273, 274, 5, 23, 0, 0, 274, 275, 5, 12, 0, 0, 275, 59,
-		1, 0, 0, 0, 276, 278, 5, 12, 0, 0, 277, 276, 1, 0, 0, 0, 278, 279, 1, 0,
-		0, 0, 279, 277, 1, 0, 0, 0, 279, 280, 1, 0, 0, 0, 280, 61, 1, 0, 0, 0,
-		281, 288, 3, 56, 28, 0, 282, 284, 3, 52, 26, 0, 283, 285, 3, 64, 32, 0,
-		284, 283, 1, 0, 0, 0, 284, 285, 1, 0, 0, 0, 285, 288, 1, 0, 0, 0, 286,
-		288, 3, 68, 34, 0, 287, 281, 1, 0, 0, 0, 287, 282, 1, 0, 0, 0, 287, 286,
-		1, 0, 0, 0, 288, 63, 1, 0, 0, 0, 289, 292, 3, 66, 33, 0, 290, 292, 3, 68,
-		34, 0, 291, 289, 1, 0, 0, 0, 291, 290, 1, 0, 0, 0, 292, 65, 1, 0, 0, 0,
-		293, 296, 3, 70, 35, 0, 294, 296, 3, 24, 12, 0, 295, 293, 1, 0, 0, 0, 295,
-		294, 1, 0, 0, 0, 296, 67, 1, 0, 0, 0, 297, 301, 5, 16, 0, 0, 298, 300,
-		3, 62, 31, 0, 299, 298, 1, 0, 0, 0, 300, 303, 1, 0, 0, 0, 301, 299, 1,
-		0, 0, 0, 301, 302, 1, 0, 0, 0, 302, 304, 1, 0, 0, 0, 303, 301, 1, 0, 0,
-		0, 304, 305, 5, 17, 0, 0, 305, 69, 1, 0, 0, 0, 306, 307, 5, 12, 0, 0, 307,
-		308, 5, 16, 0, 0, 308, 309, 3, 72, 36, 0, 309, 310, 5, 17, 0, 0, 310, 71,
-		1, 0, 0, 0, 311, 316, 3, 74, 37, 0, 312, 313, 5, 19, 0, 0, 313, 315, 3,
-		74, 37, 0, 314, 312, 1, 0, 0, 0, 315, 318, 1, 0, 0, 0, 316, 314, 1, 0,
-		0, 0, 316, 317, 1, 0, 0, 0, 317, 320, 1, 0, 0, 0, 318, 316, 1, 0, 0, 0,
-		319, 311, 1, 0, 0, 0, 319, 320, 1, 0, 0, 0, 320, 73, 1, 0, 0, 0, 321, 322,
-		7, 0, 0, 0, 322, 75, 1, 0, 0, 0, 323, 327, 5, 11, 0, 0, 324, 326, 3, 78,
-		39, 0, 325, 324, 1, 0, 0, 0, 326, 329, 1, 0, 0, 0, 327, 325, 1, 0, 0, 0,
-		327, 328, 1, 0, 0, 0, 328, 77, 1, 0, 0, 0, 329, 327, 1, 0, 0, 0, 330, 331,
-		3, 82, 41, 0, 331, 332, 5, 12, 0, 0, 332, 333, 3, 80, 40, 0, 333, 79, 1,
-		0, 0, 0, 334, 335, 5, 21, 0, 0, 335, 337, 5, 21, 0, 0, 336, 334, 1, 0,
-		0, 0, 336, 337, 1, 0, 0, 0, 337, 338, 1, 0, 0, 0, 338, 339, 3, 70, 35,
-		0, 339, 81, 1, 0, 0, 0, 340, 341, 5, 23, 0, 0, 341, 344, 5, 12, 0, 0, 342,
-		344, 5, 12, 0, 0, 343, 340, 1, 0, 0, 0, 343, 342, 1, 0, 0, 0, 344, 83,
-		1, 0, 0, 0, 41, 86, 89, 92, 95, 98, 101, 104, 107, 119, 135, 145, 150,
-		153, 156, 160, 176, 183, 188, 199, 207, 217, 227, 233, 239, 242, 246, 253,
-		258, 261, 267, 279, 284, 287, 291, 295, 301, 316, 319, 327, 336, 343,
+		2, 37, 7, 37, 2, 38, 7, 38, 2, 39, 7, 39, 2, 40, 7, 40, 2, 41, 7, 41, 2,
+		42, 7, 42, 2, 43, 7, 43, 2, 44, 7, 44, 1, 0, 1, 0, 3, 0, 93, 8, 0, 1, 0,
+		3, 0, 96, 8, 0, 1, 0, 3, 0, 99, 8, 0, 1, 0, 3, 0, 102, 8, 0, 1, 0, 3, 0,
+		105, 8, 0, 1, 0, 3, 0, 108, 8, 0, 1, 0, 3, 0, 111, 8, 0, 1, 0, 3, 0, 114,
+		8, 0, 1, 0, 3, 0, 117, 8, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2,
+		1, 2, 5, 2, 127, 8, 2, 10, 2, 12, 2, 130, 9, 2, 1, 2, 1, 2, 1, 3, 1, 3,
+		1, 3, 1, 4, 1, 4, 1, 4, 1, 4, 1, 5, 1, 5, 5, 5, 143, 8, 5, 10, 5, 12, 5,
+		146, 9, 5, 1, 6, 1, 6, 1, 6, 1, 7, 1, 7, 5, 7, 153, 8, 7, 10, 7, 12, 7,
+		156, 9, 7, 1, 8, 1, 8, 3, 8, 160, 8, 8, 1, 8, 3, 8, 163, 8, 8, 1, 8, 3,
+		8, 166, 8, 8, 1, 8, 1, 8, 3, 8, 170, 8, 8, 1, 9, 1, 9, 1, 9, 1, 9, 1, 10,
+		1, 10, 1, 10, 1, 10, 1, 11, 1, 11, 1, 11, 1, 12, 1, 12, 1, 12, 3, 12, 186,
+		8, 12, 1, 12, 1, 12, 1, 13, 5, 13, 191, 8, 13, 10, 13, 12, 13, 194, 9,
+		13, 1, 14, 1, 14, 3, 14, 198, 8, 14, 1, 15, 1, 15, 1, 15, 1, 16, 1, 16,
+		1, 16, 1, 17, 4, 17, 207, 8, 17, 11, 17, 12, 17, 208, 1, 17, 1, 17, 1,
+		18, 1, 18, 1, 18, 1, 18, 3, 18, 217, 8, 18, 1, 19, 1, 19, 1, 19, 1, 19,
+		1, 20, 1, 20, 5, 20, 225, 8, 20, 10, 20, 12, 20, 228, 9, 20, 1, 20, 1,
+		20, 1, 21, 1, 21, 1, 21, 1, 21, 1, 21, 3, 21, 237, 8, 21, 1, 22, 1, 22,
+		5, 22, 241, 8, 22, 10, 22, 12, 22, 244, 9, 22, 1, 23, 1, 23, 1, 23, 3,
+		23, 249, 8, 23, 1, 23, 3, 23, 252, 8, 23, 1, 23, 1, 23, 3, 23, 256, 8,
+		23, 1, 24, 1, 24, 1, 24, 1, 25, 1, 25, 3, 25, 263, 8, 25, 1, 26, 1, 26,
+		1, 26, 3, 26, 268, 8, 26, 1, 26, 3, 26, 271, 8, 26, 1, 26, 1, 26, 1, 27,
+		1, 27, 3, 27, 277, 8, 27, 1, 28, 1, 28, 1, 28, 1, 28, 1, 29, 1, 29, 1,
+		29, 1, 30, 4, 30, 287, 8, 30, 11, 30, 12, 30, 288, 1, 31, 1, 31, 1, 31,
+		3, 31, 294, 8, 31, 1, 31, 3, 31, 297, 8, 31, 1, 32, 1, 32, 3, 32, 301,
+		8, 32, 1, 33, 1, 33, 3, 33, 305, 8, 33, 1, 34, 1, 34, 5, 34, 309, 8, 34,
+		10, 34, 12, 34, 312, 9, 34, 1, 34, 1, 34, 1, 35, 1, 35, 1, 35, 1, 35, 1,
+		35, 1, 36, 1, 36, 1, 36, 5, 36, 324, 8, 36, 10, 36, 12, 36, 327, 9, 36,
+		3, 36, 329, 8, 36, 1, 37, 1, 37, 1, 38, 1, 38, 5, 38, 335, 8, 38, 10, 38,
+		12, 38, 338, 9, 38, 1, 39, 1, 39, 1, 39, 1, 39, 1, 40, 1, 40, 3, 40, 346,
+		8, 40, 1, 40, 1, 40, 1, 41, 1, 41, 1, 41, 3, 41, 353, 8, 41, 1, 42, 1,
+		42, 5, 42, 357, 8, 42, 10, 42, 12, 42, 360, 9, 42, 1, 43, 1, 43, 1, 43,
+		1, 43, 1, 44, 1, 44, 1, 44, 5, 44, 369, 8, 44, 10, 44, 12, 44, 372, 9,
+		44, 1, 44, 0, 0, 45, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
+		28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62,
+		64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 0, 1, 2, 0, 17, 17,
+		33, 33, 374, 0, 90, 1, 0, 0, 0, 2, 120, 1, 0, 0, 0, 4, 123, 1, 0, 0, 0,
+		6, 133, 1, 0, 0, 0, 8, 136, 1, 0, 0, 0, 10, 140, 1, 0, 0, 0, 12, 147, 1,
+		0, 0, 0, 14, 150, 1, 0, 0, 0, 16, 157, 1, 0, 0, 0, 18, 171, 1, 0, 0, 0,
+		20, 175, 1, 0, 0, 0, 22, 179, 1, 0, 0, 0, 24, 182, 1, 0, 0, 0, 26, 192,
+		1, 0, 0, 0, 28, 197, 1, 0, 0, 0, 30, 199, 1, 0, 0, 0, 32, 202, 1, 0, 0,
+		0, 34, 206, 1, 0, 0, 0, 36, 216, 1, 0, 0, 0, 38, 218, 1, 0, 0, 0, 40, 222,
+		1, 0, 0, 0, 42, 236, 1, 0, 0, 0, 44, 238, 1, 0, 0, 0, 46, 245, 1, 0, 0,
+		0, 48, 257, 1, 0, 0, 0, 50, 262, 1, 0, 0, 0, 52, 264, 1, 0, 0, 0, 54, 276,
+		1, 0, 0, 0, 56, 278, 1, 0, 0, 0, 58, 282, 1, 0, 0, 0, 60, 286, 1, 0, 0,
+		0, 62, 296, 1, 0, 0, 0, 64, 300, 1, 0, 0, 0, 66, 304, 1, 0, 0, 0, 68, 306,
+		1, 0, 0, 0, 70, 315, 1, 0, 0, 0, 72, 328, 1, 0, 0, 0, 74, 330, 1, 0, 0,
+		0, 76, 332, 1, 0, 0, 0, 78, 339, 1, 0, 0, 0, 80, 345, 1, 0, 0, 0, 82, 352,
+		1, 0, 0, 0, 84, 354, 1, 0, 0, 0, 86, 361, 1, 0, 0, 0, 88, 365, 1, 0, 0,
+		0, 90, 92, 3, 6, 3, 0, 91, 93, 3, 10, 5, 0, 92, 91, 1, 0, 0, 0, 92, 93,
+		1, 0, 0, 0, 93, 95, 1, 0, 0, 0, 94, 96, 3, 8, 4, 0, 95, 94, 1, 0, 0, 0,
+		95, 96, 1, 0, 0, 0, 96, 98, 1, 0, 0, 0, 97, 99, 3, 4, 2, 0, 98, 97, 1,
+		0, 0, 0, 98, 99, 1, 0, 0, 0, 99, 101, 1, 0, 0, 0, 100, 102, 3, 2, 1, 0,
+		101, 100, 1, 0, 0, 0, 101, 102, 1, 0, 0, 0, 102, 104, 1, 0, 0, 0, 103,
+		105, 3, 84, 42, 0, 104, 103, 1, 0, 0, 0, 104, 105, 1, 0, 0, 0, 105, 107,
+		1, 0, 0, 0, 106, 108, 3, 14, 7, 0, 107, 106, 1, 0, 0, 0, 107, 108, 1, 0,
+		0, 0, 108, 110, 1, 0, 0, 0, 109, 111, 3, 10, 5, 0, 110, 109, 1, 0, 0, 0,
+		110, 111, 1, 0, 0, 0, 111, 113, 1, 0, 0, 0, 112, 114, 3, 44, 22, 0, 113,
+		112, 1, 0, 0, 0, 113, 114, 1, 0, 0, 0, 114, 116, 1, 0, 0, 0, 115, 117,
+		3, 76, 38, 0, 116, 115, 1, 0, 0, 0, 116, 117, 1, 0, 0, 0, 117, 118, 1,
+		0, 0, 0, 118, 119, 5, 0, 0, 1, 119, 1, 1, 0, 0, 0, 120, 121, 5, 6, 0, 0,
+		121, 122, 3, 40, 20, 0, 122, 3, 1, 0, 0, 0, 123, 124, 5, 7, 0, 0, 124,
+		128, 5, 21, 0, 0, 125, 127, 5, 17, 0, 0, 126, 125, 1, 0, 0, 0, 127, 130,
+		1, 0, 0, 0, 128, 126, 1, 0, 0, 0, 128, 129, 1, 0, 0, 0, 129, 131, 1, 0,
+		0, 0, 130, 128, 1, 0, 0, 0, 131, 132, 5, 22, 0, 0, 132, 5, 1, 0, 0, 0,
+		133, 134, 5, 11, 0, 0, 134, 135, 5, 18, 0, 0, 135, 7, 1, 0, 0, 0, 136,
+		137, 5, 3, 0, 0, 137, 138, 5, 19, 0, 0, 138, 139, 3, 34, 17, 0, 139, 9,
+		1, 0, 0, 0, 140, 144, 5, 2, 0, 0, 141, 143, 3, 12, 6, 0, 142, 141, 1, 0,
+		0, 0, 143, 146, 1, 0, 0, 0, 144, 142, 1, 0, 0, 0, 144, 145, 1, 0, 0, 0,
+		145, 11, 1, 0, 0, 0, 146, 144, 1, 0, 0, 0, 147, 148, 5, 31, 0, 0, 148,
+		149, 5, 33, 0, 0, 149, 13, 1, 0, 0, 0, 150, 154, 5, 1, 0, 0, 151, 153,
+		3, 16, 8, 0, 152, 151, 1, 0, 0, 0, 153, 156, 1, 0, 0, 0, 154, 152, 1, 0,
+		0, 0, 154, 155, 1, 0, 0, 0, 155, 15, 1, 0, 0, 0, 156, 154, 1, 0, 0, 0,
+		157, 159, 5, 17, 0, 0, 158, 160, 3, 40, 20, 0, 159, 158, 1, 0, 0, 0, 159,
+		160, 1, 0, 0, 0, 160, 162, 1, 0, 0, 0, 161, 163, 3, 22, 11, 0, 162, 161,
+		1, 0, 0, 0, 162, 163, 1, 0, 0, 0, 163, 165, 1, 0, 0, 0, 164, 166, 3, 18,
+		9, 0, 165, 164, 1, 0, 0, 0, 165, 166, 1, 0, 0, 0, 166, 167, 1, 0, 0, 0,
+		167, 169, 3, 24, 12, 0, 168, 170, 3, 20, 10, 0, 169, 168, 1, 0, 0, 0, 169,
+		170, 1, 0, 0, 0, 170, 17, 1, 0, 0, 0, 171, 172, 5, 9, 0, 0, 172, 173, 5,
+		19, 0, 0, 173, 174, 3, 34, 17, 0, 174, 19, 1, 0, 0, 0, 175, 176, 5, 10,
+		0, 0, 176, 177, 5, 19, 0, 0, 177, 178, 3, 34, 17, 0, 178, 21, 1, 0, 0,
+		0, 179, 180, 5, 5, 0, 0, 180, 181, 3, 40, 20, 0, 181, 23, 1, 0, 0, 0, 182,
+		185, 5, 32, 0, 0, 183, 186, 3, 26, 13, 0, 184, 186, 1, 0, 0, 0, 185, 183,
+		1, 0, 0, 0, 185, 184, 1, 0, 0, 0, 186, 187, 1, 0, 0, 0, 187, 188, 5, 38,
+		0, 0, 188, 25, 1, 0, 0, 0, 189, 191, 3, 28, 14, 0, 190, 189, 1, 0, 0, 0,
+		191, 194, 1, 0, 0, 0, 192, 190, 1, 0, 0, 0, 192, 193, 1, 0, 0, 0, 193,
+		27, 1, 0, 0, 0, 194, 192, 1, 0, 0, 0, 195, 198, 5, 36, 0, 0, 196, 198,
+		3, 30, 15, 0, 197, 195, 1, 0, 0, 0, 197, 196, 1, 0, 0, 0, 198, 29, 1, 0,
+		0, 0, 199, 200, 5, 37, 0, 0, 200, 201, 3, 32, 16, 0, 201, 31, 1, 0, 0,
+		0, 202, 203, 5, 44, 0, 0, 203, 204, 5, 43, 0, 0, 204, 33, 1, 0, 0, 0, 205,
+		207, 3, 36, 18, 0, 206, 205, 1, 0, 0, 0, 207, 208, 1, 0, 0, 0, 208, 206,
+		1, 0, 0, 0, 208, 209, 1, 0, 0, 0, 209, 210, 1, 0, 0, 0, 210, 211, 5, 42,
+		0, 0, 211, 35, 1, 0, 0, 0, 212, 217, 5, 39, 0, 0, 213, 214, 5, 41, 0, 0,
+		214, 217, 3, 34, 17, 0, 215, 217, 3, 38, 19, 0, 216, 212, 1, 0, 0, 0, 216,
+		213, 1, 0, 0, 0, 216, 215, 1, 0, 0, 0, 217, 37, 1, 0, 0, 0, 218, 219, 5,
+		40, 0, 0, 219, 220, 5, 44, 0, 0, 220, 221, 5, 43, 0, 0, 221, 39, 1, 0,
+		0, 0, 222, 226, 5, 21, 0, 0, 223, 225, 3, 42, 21, 0, 224, 223, 1, 0, 0,
+		0, 225, 228, 1, 0, 0, 0, 226, 224, 1, 0, 0, 0, 226, 227, 1, 0, 0, 0, 227,
+		229, 1, 0, 0, 0, 228, 226, 1, 0, 0, 0, 229, 230, 5, 22, 0, 0, 230, 41,
+		1, 0, 0, 0, 231, 232, 5, 17, 0, 0, 232, 233, 5, 17, 0, 0, 233, 237, 5,
+		24, 0, 0, 234, 235, 5, 17, 0, 0, 235, 237, 5, 17, 0, 0, 236, 231, 1, 0,
+		0, 0, 236, 234, 1, 0, 0, 0, 237, 43, 1, 0, 0, 0, 238, 242, 5, 4, 0, 0,
+		239, 241, 3, 46, 23, 0, 240, 239, 1, 0, 0, 0, 241, 244, 1, 0, 0, 0, 242,
+		240, 1, 0, 0, 0, 242, 243, 1, 0, 0, 0, 243, 45, 1, 0, 0, 0, 244, 242, 1,
+		0, 0, 0, 245, 246, 5, 17, 0, 0, 246, 248, 3, 50, 25, 0, 247, 249, 3, 48,
+		24, 0, 248, 247, 1, 0, 0, 0, 248, 249, 1, 0, 0, 0, 249, 251, 1, 0, 0, 0,
+		250, 252, 3, 18, 9, 0, 251, 250, 1, 0, 0, 0, 251, 252, 1, 0, 0, 0, 252,
+		253, 1, 0, 0, 0, 253, 255, 3, 62, 31, 0, 254, 256, 3, 20, 10, 0, 255, 254,
+		1, 0, 0, 0, 255, 256, 1, 0, 0, 0, 256, 47, 1, 0, 0, 0, 257, 258, 5, 5,
+		0, 0, 258, 259, 3, 40, 20, 0, 259, 49, 1, 0, 0, 0, 260, 263, 3, 40, 20,
+		0, 261, 263, 1, 0, 0, 0, 262, 260, 1, 0, 0, 0, 262, 261, 1, 0, 0, 0, 263,
+		51, 1, 0, 0, 0, 264, 265, 5, 25, 0, 0, 265, 267, 3, 54, 27, 0, 266, 268,
+		3, 58, 29, 0, 267, 266, 1, 0, 0, 0, 267, 268, 1, 0, 0, 0, 268, 270, 1,
+		0, 0, 0, 269, 271, 3, 60, 30, 0, 270, 269, 1, 0, 0, 0, 270, 271, 1, 0,
+		0, 0, 271, 272, 1, 0, 0, 0, 272, 273, 5, 26, 0, 0, 273, 53, 1, 0, 0, 0,
+		274, 277, 5, 17, 0, 0, 275, 277, 3, 56, 28, 0, 276, 274, 1, 0, 0, 0, 276,
+		275, 1, 0, 0, 0, 277, 55, 1, 0, 0, 0, 278, 279, 5, 23, 0, 0, 279, 280,
+		5, 44, 0, 0, 280, 281, 5, 43, 0, 0, 281, 57, 1, 0, 0, 0, 282, 283, 5, 28,
+		0, 0, 283, 284, 5, 17, 0, 0, 284, 59, 1, 0, 0, 0, 285, 287, 5, 17, 0, 0,
+		286, 285, 1, 0, 0, 0, 287, 288, 1, 0, 0, 0, 288, 286, 1, 0, 0, 0, 288,
+		289, 1, 0, 0, 0, 289, 61, 1, 0, 0, 0, 290, 297, 3, 56, 28, 0, 291, 293,
+		3, 52, 26, 0, 292, 294, 3, 64, 32, 0, 293, 292, 1, 0, 0, 0, 293, 294, 1,
+		0, 0, 0, 294, 297, 1, 0, 0, 0, 295, 297, 3, 68, 34, 0, 296, 290, 1, 0,
+		0, 0, 296, 291, 1, 0, 0, 0, 296, 295, 1, 0, 0, 0, 297, 63, 1, 0, 0, 0,
+		298, 301, 3, 66, 33, 0, 299, 301, 3, 68, 34, 0, 300, 298, 1, 0, 0, 0, 300,
+		299, 1, 0, 0, 0, 301, 65, 1, 0, 0, 0, 302, 305, 3, 70, 35, 0, 303, 305,
+		3, 24, 12, 0, 304, 302, 1, 0, 0, 0, 304, 303, 1, 0, 0, 0, 305, 67, 1, 0,
+		0, 0, 306, 310, 5, 21, 0, 0, 307, 309, 3, 62, 31, 0, 308, 307, 1, 0, 0,
+		0, 309, 312, 1, 0, 0, 0, 310, 308, 1, 0, 0, 0, 310, 311, 1, 0, 0, 0, 311,
+		313, 1, 0, 0, 0, 312, 310, 1, 0, 0, 0, 313, 314, 5, 22, 0, 0, 314, 69,
+		1, 0, 0, 0, 315, 316, 5, 17, 0, 0, 316, 317, 5, 21, 0, 0, 317, 318, 3,
+		72, 36, 0, 318, 319, 5, 22, 0, 0, 319, 71, 1, 0, 0, 0, 320, 325, 3, 74,
+		37, 0, 321, 322, 5, 24, 0, 0, 322, 324, 3, 74, 37, 0, 323, 321, 1, 0, 0,
+		0, 324, 327, 1, 0, 0, 0, 325, 323, 1, 0, 0, 0, 325, 326, 1, 0, 0, 0, 326,
+		329, 1, 0, 0, 0, 327, 325, 1, 0, 0, 0, 328, 320, 1, 0, 0, 0, 328, 329,
+		1, 0, 0, 0, 329, 73, 1, 0, 0, 0, 330, 331, 7, 0, 0, 0, 331, 75, 1, 0, 0,
+		0, 332, 336, 5, 12, 0, 0, 333, 335, 3, 78, 39, 0, 334, 333, 1, 0, 0, 0,
+		335, 338, 1, 0, 0, 0, 336, 334, 1, 0, 0, 0, 336, 337, 1, 0, 0, 0, 337,
+		77, 1, 0, 0, 0, 338, 336, 1, 0, 0, 0, 339, 340, 3, 82, 41, 0, 340, 341,
+		5, 17, 0, 0, 341, 342, 3, 80, 40, 0, 342, 79, 1, 0, 0, 0, 343, 344, 5,
+		26, 0, 0, 344, 346, 5, 26, 0, 0, 345, 343, 1, 0, 0, 0, 345, 346, 1, 0,
+		0, 0, 346, 347, 1, 0, 0, 0, 347, 348, 3, 70, 35, 0, 348, 81, 1, 0, 0, 0,
+		349, 350, 5, 28, 0, 0, 350, 353, 5, 17, 0, 0, 351, 353, 5, 17, 0, 0, 352,
+		349, 1, 0, 0, 0, 352, 351, 1, 0, 0, 0, 353, 83, 1, 0, 0, 0, 354, 358, 5,
+		8, 0, 0, 355, 357, 3, 86, 43, 0, 356, 355, 1, 0, 0, 0, 357, 360, 1, 0,
+		0, 0, 358, 356, 1, 0, 0, 0, 358, 359, 1, 0, 0, 0, 359, 85, 1, 0, 0, 0,
+		360, 358, 1, 0, 0, 0, 361, 362, 5, 13, 0, 0, 362, 363, 5, 17, 0, 0, 363,
+		364, 3, 88, 44, 0, 364, 87, 1, 0, 0, 0, 365, 370, 5, 33, 0, 0, 366, 367,
+		5, 24, 0, 0, 367, 369, 5, 33, 0, 0, 368, 366, 1, 0, 0, 0, 369, 372, 1,
+		0, 0, 0, 370, 368, 1, 0, 0, 0, 370, 371, 1, 0, 0, 0, 371, 89, 1, 0, 0,
+		0, 372, 370, 1, 0, 0, 0, 44, 92, 95, 98, 101, 104, 107, 110, 113, 116,
+		128, 144, 154, 159, 162, 165, 169, 185, 192, 197, 208, 216, 226, 236, 242,
+		248, 251, 255, 262, 267, 270, 276, 288, 293, 296, 300, 304, 310, 325, 328,
+		336, 345, 352, 358, 370,
 	}
 	deserializer := antlr.NewATNDeserializer(nil)
 	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
@@ -251,38 +266,43 @@ const (
 	wclLocal              = 5
 	wclGlobal             = 6
 	wclExtern             = 7
-	wclPre                = 8
-	wclPost               = 9
-	wclWcl                = 10
-	wclEvent              = 11
-	wclId                 = 12
-	wclVersion            = 13
-	wclLCurly             = 14
-	wclRCurly             = 15
-	wclLParen             = 16
-	wclRParen             = 17
-	wclDollar             = 18
-	wclComma              = 19
-	wclLessThan           = 20
-	wclGreaterThan        = 21
-	wclDot                = 22
-	wclHash               = 23
-	wclDash               = 24
-	wclSemi               = 25
-	wclPlus               = 26
-	wclBackTick           = 27
-	wclStringLit          = 28
-	wclDoubleSlashComment = 29
-	wclWhitespace         = 30
-	wclContentRawText     = 31
-	wclContentDollar      = 32
-	wclContentBackTick    = 33
-	wclUninterpRawText    = 34
-	wclUninterpDollar     = 35
-	wclUninterpLCurly     = 36
-	wclUninterpRCurly     = 37
-	wclVarRCurly          = 38
-	wclVarId              = 39
+	wclMvc                = 8
+	wclPre                = 9
+	wclPost               = 10
+	wclWcl                = 11
+	wclEvent              = 12
+	wclModel              = 13
+	wclView               = 14
+	wclViewCollection     = 15
+	wclController         = 16
+	wclId                 = 17
+	wclVersion            = 18
+	wclLCurly             = 19
+	wclRCurly             = 20
+	wclLParen             = 21
+	wclRParen             = 22
+	wclDollar             = 23
+	wclComma              = 24
+	wclLessThan           = 25
+	wclGreaterThan        = 26
+	wclDot                = 27
+	wclHash               = 28
+	wclDash               = 29
+	wclSemi               = 30
+	wclPlus               = 31
+	wclBackTick           = 32
+	wclStringLit          = 33
+	wclDoubleSlashComment = 34
+	wclWhitespace         = 35
+	wclContentRawText     = 36
+	wclContentDollar      = 37
+	wclContentBackTick    = 38
+	wclUninterpRawText    = 39
+	wclUninterpDollar     = 40
+	wclUninterpLCurly     = 41
+	wclUninterpRCurly     = 42
+	wclVarRCurly          = 43
+	wclVarId              = 44
 )
 
 // wcl rules.
@@ -329,6 +349,9 @@ const (
 	wclRULE_event_spec         = 39
 	wclRULE_event_call         = 40
 	wclRULE_selector           = 41
+	wclRULE_model_section      = 42
+	wclRULE_model_def          = 43
+	wclRULE_filename_seq       = 44
 )
 
 // IProgramContext is an interface to support dynamic dispatch.
@@ -339,10 +362,10 @@ type IProgramContext interface {
 	GetParser() antlr.Parser
 
 	// GetP returns the p attribute.
-	GetP() *ProgramNode
+	GetP() *tree.ProgramNode
 
 	// SetP sets the p attribute.
-	SetP(*ProgramNode)
+	SetP(*tree.ProgramNode)
 
 	// IsProgramContext differentiates from other interfaces.
 	IsProgramContext()
@@ -351,7 +374,7 @@ type IProgramContext interface {
 type ProgramContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	p      *ProgramNode
+	p      *tree.ProgramNode
 }
 
 func NewEmptyProgramContext() *ProgramContext {
@@ -376,9 +399,9 @@ func NewProgramContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 
 func (s *ProgramContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *ProgramContext) GetP() *ProgramNode { return s.p }
+func (s *ProgramContext) GetP() *tree.ProgramNode { return s.p }
 
-func (s *ProgramContext) SetP(v *ProgramNode) { s.p = v }
+func (s *ProgramContext) SetP(v *tree.ProgramNode) { s.p = v }
 
 func (s *ProgramContext) Wcl_section() IWcl_sectionContext {
 	var t antlr.RuleContext
@@ -489,6 +512,22 @@ func (s *ProgramContext) Global() IGlobalContext {
 	return t.(IGlobalContext)
 }
 
+func (s *ProgramContext) Model_section() IModel_sectionContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IModel_sectionContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IModel_sectionContext)
+}
+
 func (s *ProgramContext) Text_section() IText_sectionContext {
 	var t antlr.RuleContext
 	for _, ctx := range s.GetChildren() {
@@ -593,38 +632,16 @@ func (p *wcl) Program() (localctx IProgramContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(84)
+		p.SetState(90)
 		p.Wcl_section()
 	}
-	p.SetState(86)
+	p.SetState(92)
 	p.GetErrorHandler().Sync(p)
 
 	if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 0, p.GetParserRuleContext()) == 1 {
 		{
-			p.SetState(85)
-			p.Css_section()
-		}
-
-	}
-	p.SetState(89)
-	p.GetErrorHandler().Sync(p)
-	_la = p.GetTokenStream().LA(1)
-
-	if _la == wclImport {
-		{
-			p.SetState(88)
-			p.Import_section()
-		}
-
-	}
-	p.SetState(92)
-	p.GetErrorHandler().Sync(p)
-	_la = p.GetTokenStream().LA(1)
-
-	if _la == wclExtern {
-		{
 			p.SetState(91)
-			p.Extern()
+			p.Css_section()
 		}
 
 	}
@@ -632,10 +649,10 @@ func (p *wcl) Program() (localctx IProgramContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == wclGlobal {
+	if _la == wclImport {
 		{
 			p.SetState(94)
-			p.Global()
+			p.Import_section()
 		}
 
 	}
@@ -643,10 +660,10 @@ func (p *wcl) Program() (localctx IProgramContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == wclText {
+	if _la == wclExtern {
 		{
 			p.SetState(97)
-			p.Text_section()
+			p.Extern()
 		}
 
 	}
@@ -654,10 +671,10 @@ func (p *wcl) Program() (localctx IProgramContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == wclCSS {
+	if _la == wclGlobal {
 		{
 			p.SetState(100)
-			p.Css_section()
+			p.Global()
 		}
 
 	}
@@ -665,10 +682,10 @@ func (p *wcl) Program() (localctx IProgramContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == wclDoc {
+	if _la == wclMvc {
 		{
 			p.SetState(103)
-			p.Doc_section()
+			p.Model_section()
 		}
 
 	}
@@ -676,15 +693,48 @@ func (p *wcl) Program() (localctx IProgramContext) {
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	if _la == wclEvent {
+	if _la == wclText {
 		{
 			p.SetState(106)
+			p.Text_section()
+		}
+
+	}
+	p.SetState(110)
+	p.GetErrorHandler().Sync(p)
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == wclCSS {
+		{
+			p.SetState(109)
+			p.Css_section()
+		}
+
+	}
+	p.SetState(113)
+	p.GetErrorHandler().Sync(p)
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == wclDoc {
+		{
+			p.SetState(112)
+			p.Doc_section()
+		}
+
+	}
+	p.SetState(116)
+	p.GetErrorHandler().Sync(p)
+	_la = p.GetTokenStream().LA(1)
+
+	if _la == wclEvent {
+		{
+			p.SetState(115)
 			p.Event_section()
 		}
 
 	}
 	{
-		p.SetState(109)
+		p.SetState(118)
 		p.Match(wclEOF)
 	}
 
@@ -699,10 +749,10 @@ type IGlobalContext interface {
 	GetParser() antlr.Parser
 
 	// GetG returns the g attribute.
-	GetG() []*PFormal
+	GetG() []*tree.PFormal
 
 	// SetG sets the g attribute.
-	SetG([]*PFormal)
+	SetG([]*tree.PFormal)
 
 	// IsGlobalContext differentiates from other interfaces.
 	IsGlobalContext()
@@ -711,7 +761,7 @@ type IGlobalContext interface {
 type GlobalContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	g      []*PFormal
+	g      []*tree.PFormal
 }
 
 func NewEmptyGlobalContext() *GlobalContext {
@@ -736,9 +786,9 @@ func NewGlobalContext(parser antlr.Parser, parent antlr.ParserRuleContext, invok
 
 func (s *GlobalContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *GlobalContext) GetG() []*PFormal { return s.g }
+func (s *GlobalContext) GetG() []*tree.PFormal { return s.g }
 
-func (s *GlobalContext) SetG(v []*PFormal) { s.g = v }
+func (s *GlobalContext) SetG(v []*tree.PFormal) { s.g = v }
 
 func (s *GlobalContext) Global() antlr.TerminalNode {
 	return s.GetToken(wclGlobal, 0)
@@ -815,11 +865,11 @@ func (p *wcl) Global() (localctx IGlobalContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(111)
+		p.SetState(120)
 		p.Match(wclGlobal)
 	}
 	{
-		p.SetState(112)
+		p.SetState(121)
 		p.Param_spec()
 	}
 
@@ -951,29 +1001,29 @@ func (p *wcl) Extern() (localctx IExternContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(114)
+		p.SetState(123)
 		p.Match(wclExtern)
 	}
 	{
-		p.SetState(115)
+		p.SetState(124)
 		p.Match(wclLParen)
 	}
-	p.SetState(119)
+	p.SetState(128)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclId {
 		{
-			p.SetState(116)
+			p.SetState(125)
 			p.Match(wclId)
 		}
 
-		p.SetState(121)
+		p.SetState(130)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(122)
+		p.SetState(131)
 		p.Match(wclRParen)
 	}
 
@@ -1081,11 +1131,11 @@ func (p *wcl) Wcl_section() (localctx IWcl_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(124)
+		p.SetState(133)
 		p.Match(wclWcl)
 	}
 	{
-		p.SetState(125)
+		p.SetState(134)
 		p.Match(wclVersion)
 	}
 
@@ -1100,10 +1150,10 @@ type IImport_sectionContext interface {
 	GetParser() antlr.Parser
 
 	// GetSection returns the section attribute.
-	GetSection() *ImportSectionNode
+	GetSection() *tree.ImportSectionNode
 
 	// SetSection sets the section attribute.
-	SetSection(*ImportSectionNode)
+	SetSection(*tree.ImportSectionNode)
 
 	// IsImport_sectionContext differentiates from other interfaces.
 	IsImport_sectionContext()
@@ -1112,7 +1162,7 @@ type IImport_sectionContext interface {
 type Import_sectionContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	section *ImportSectionNode
+	section *tree.ImportSectionNode
 }
 
 func NewEmptyImport_sectionContext() *Import_sectionContext {
@@ -1137,9 +1187,9 @@ func NewImport_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContex
 
 func (s *Import_sectionContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Import_sectionContext) GetSection() *ImportSectionNode { return s.section }
+func (s *Import_sectionContext) GetSection() *tree.ImportSectionNode { return s.section }
 
-func (s *Import_sectionContext) SetSection(v *ImportSectionNode) { s.section = v }
+func (s *Import_sectionContext) SetSection(v *tree.ImportSectionNode) { s.section = v }
 
 func (s *Import_sectionContext) Import() antlr.TerminalNode {
 	return s.GetToken(wclImport, 0)
@@ -1220,15 +1270,15 @@ func (p *wcl) Import_section() (localctx IImport_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(127)
+		p.SetState(136)
 		p.Match(wclImport)
 	}
 	{
-		p.SetState(128)
+		p.SetState(137)
 		p.Match(wclLCurly)
 	}
 	{
-		p.SetState(129)
+		p.SetState(138)
 		p.Uninterp()
 	}
 
@@ -1374,20 +1424,20 @@ func (p *wcl) Css_section() (localctx ICss_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(131)
+		p.SetState(140)
 		p.Match(wclCSS)
 	}
-	p.SetState(135)
+	p.SetState(144)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclPlus {
 		{
-			p.SetState(132)
+			p.SetState(141)
 			p.Css_filespec()
 		}
 
-		p.SetState(137)
+		p.SetState(146)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -1496,11 +1546,11 @@ func (p *wcl) Css_filespec() (localctx ICss_filespecContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(138)
+		p.SetState(147)
 		p.Match(wclPlus)
 	}
 	{
-		p.SetState(139)
+		p.SetState(148)
 		p.Match(wclStringLit)
 	}
 
@@ -1515,10 +1565,10 @@ type IText_sectionContext interface {
 	GetParser() antlr.Parser
 
 	// GetSection returns the section attribute.
-	GetSection() *TextSectionNode
+	GetSection() *tree.TextSectionNode
 
 	// SetSection sets the section attribute.
-	SetSection(*TextSectionNode)
+	SetSection(*tree.TextSectionNode)
 
 	// IsText_sectionContext differentiates from other interfaces.
 	IsText_sectionContext()
@@ -1527,7 +1577,7 @@ type IText_sectionContext interface {
 type Text_sectionContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	section *TextSectionNode
+	section *tree.TextSectionNode
 }
 
 func NewEmptyText_sectionContext() *Text_sectionContext {
@@ -1552,9 +1602,9 @@ func NewText_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 
 func (s *Text_sectionContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Text_sectionContext) GetSection() *TextSectionNode { return s.section }
+func (s *Text_sectionContext) GetSection() *tree.TextSectionNode { return s.section }
 
-func (s *Text_sectionContext) SetSection(v *TextSectionNode) { s.section = v }
+func (s *Text_sectionContext) SetSection(v *tree.TextSectionNode) { s.section = v }
 
 func (s *Text_sectionContext) Text() antlr.TerminalNode {
 	return s.GetToken(wclText, 0)
@@ -1657,20 +1707,20 @@ func (p *wcl) Text_section() (localctx IText_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(141)
+		p.SetState(150)
 		p.Match(wclText)
 	}
-	p.SetState(145)
+	p.SetState(154)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclId {
 		{
-			p.SetState(142)
+			p.SetState(151)
 			p.Text_func()
 		}
 
-		p.SetState(147)
+		p.SetState(156)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -1692,10 +1742,10 @@ type IText_funcContext interface {
 	SetI(antlr.Token)
 
 	// GetF returns the f attribute.
-	GetF() *TextFuncNode
+	GetF() *tree.TextFuncNode
 
 	// SetF sets the f attribute.
-	SetF(*TextFuncNode)
+	SetF(*tree.TextFuncNode)
 
 	// IsText_funcContext differentiates from other interfaces.
 	IsText_funcContext()
@@ -1704,7 +1754,7 @@ type IText_funcContext interface {
 type Text_funcContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	f      *TextFuncNode
+	f      *tree.TextFuncNode
 	i      antlr.Token
 }
 
@@ -1734,9 +1784,9 @@ func (s *Text_funcContext) GetI() antlr.Token { return s.i }
 
 func (s *Text_funcContext) SetI(v antlr.Token) { s.i = v }
 
-func (s *Text_funcContext) GetF() *TextFuncNode { return s.f }
+func (s *Text_funcContext) GetF() *tree.TextFuncNode { return s.f }
 
-func (s *Text_funcContext) SetF(v *TextFuncNode) { s.f = v }
+func (s *Text_funcContext) SetF(v *tree.TextFuncNode) { s.f = v }
 
 func (s *Text_funcContext) Text_top() IText_topContext {
 	var t antlr.RuleContext
@@ -1878,56 +1928,56 @@ func (p *wcl) Text_func() (localctx IText_funcContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(148)
+		p.SetState(157)
 
 		var _m = p.Match(wclId)
 
 		localctx.(*Text_funcContext).i = _m
 	}
-	p.SetState(150)
+	p.SetState(159)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclLParen {
 		{
-			p.SetState(149)
+			p.SetState(158)
 			p.Param_spec()
 		}
 
 	}
-	p.SetState(153)
+	p.SetState(162)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclLocal {
 		{
-			p.SetState(152)
+			p.SetState(161)
 			p.Text_func_local()
 		}
 
 	}
-	p.SetState(156)
+	p.SetState(165)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclPre {
 		{
-			p.SetState(155)
+			p.SetState(164)
 			p.Pre_code()
 		}
 
 	}
 	{
-		p.SetState(158)
+		p.SetState(167)
 		p.Text_top()
 	}
-	p.SetState(160)
+	p.SetState(169)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclPost {
 		{
-			p.SetState(159)
+			p.SetState(168)
 			p.Post_code()
 		}
 
@@ -1944,10 +1994,10 @@ type IPre_codeContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsPre_codeContext differentiates from other interfaces.
 	IsPre_codeContext()
@@ -1956,7 +2006,7 @@ type IPre_codeContext interface {
 type Pre_codeContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyPre_codeContext() *Pre_codeContext {
@@ -1981,9 +2031,9 @@ func NewPre_codeContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *Pre_codeContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Pre_codeContext) GetItem() []TextItem { return s.item }
+func (s *Pre_codeContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Pre_codeContext) SetItem(v []TextItem) { s.item = v }
+func (s *Pre_codeContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Pre_codeContext) Pre() antlr.TerminalNode {
 	return s.GetToken(wclPre, 0)
@@ -2064,15 +2114,15 @@ func (p *wcl) Pre_code() (localctx IPre_codeContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(162)
+		p.SetState(171)
 		p.Match(wclPre)
 	}
 	{
-		p.SetState(163)
+		p.SetState(172)
 		p.Match(wclLCurly)
 	}
 	{
-		p.SetState(164)
+		p.SetState(173)
 		p.Uninterp()
 	}
 
@@ -2087,10 +2137,10 @@ type IPost_codeContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsPost_codeContext differentiates from other interfaces.
 	IsPost_codeContext()
@@ -2099,7 +2149,7 @@ type IPost_codeContext interface {
 type Post_codeContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyPost_codeContext() *Post_codeContext {
@@ -2124,9 +2174,9 @@ func NewPost_codeContext(parser antlr.Parser, parent antlr.ParserRuleContext, in
 
 func (s *Post_codeContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Post_codeContext) GetItem() []TextItem { return s.item }
+func (s *Post_codeContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Post_codeContext) SetItem(v []TextItem) { s.item = v }
+func (s *Post_codeContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Post_codeContext) Post() antlr.TerminalNode {
 	return s.GetToken(wclPost, 0)
@@ -2207,15 +2257,15 @@ func (p *wcl) Post_code() (localctx IPost_codeContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(166)
+		p.SetState(175)
 		p.Match(wclPost)
 	}
 	{
-		p.SetState(167)
+		p.SetState(176)
 		p.Match(wclLCurly)
 	}
 	{
-		p.SetState(168)
+		p.SetState(177)
 		p.Uninterp()
 	}
 
@@ -2230,10 +2280,10 @@ type IText_func_localContext interface {
 	GetParser() antlr.Parser
 
 	// GetFormal returns the formal attribute.
-	GetFormal() []*PFormal
+	GetFormal() []*tree.PFormal
 
 	// SetFormal sets the formal attribute.
-	SetFormal([]*PFormal)
+	SetFormal([]*tree.PFormal)
 
 	// IsText_func_localContext differentiates from other interfaces.
 	IsText_func_localContext()
@@ -2242,7 +2292,7 @@ type IText_func_localContext interface {
 type Text_func_localContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	formal []*PFormal
+	formal []*tree.PFormal
 }
 
 func NewEmptyText_func_localContext() *Text_func_localContext {
@@ -2267,9 +2317,9 @@ func NewText_func_localContext(parser antlr.Parser, parent antlr.ParserRuleConte
 
 func (s *Text_func_localContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Text_func_localContext) GetFormal() []*PFormal { return s.formal }
+func (s *Text_func_localContext) GetFormal() []*tree.PFormal { return s.formal }
 
-func (s *Text_func_localContext) SetFormal(v []*PFormal) { s.formal = v }
+func (s *Text_func_localContext) SetFormal(v []*tree.PFormal) { s.formal = v }
 
 func (s *Text_func_localContext) Local() antlr.TerminalNode {
 	return s.GetToken(wclLocal, 0)
@@ -2346,11 +2396,11 @@ func (p *wcl) Text_func_local() (localctx IText_func_localContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(170)
+		p.SetState(179)
 		p.Match(wclLocal)
 	}
 	{
-		p.SetState(171)
+		p.SetState(180)
 		p.Param_spec()
 	}
 
@@ -2365,10 +2415,10 @@ type IText_topContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsText_topContext differentiates from other interfaces.
 	IsText_topContext()
@@ -2377,7 +2427,7 @@ type IText_topContext interface {
 type Text_topContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyText_topContext() *Text_topContext {
@@ -2402,9 +2452,9 @@ func NewText_topContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *Text_topContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Text_topContext) GetItem() []TextItem { return s.item }
+func (s *Text_topContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Text_topContext) SetItem(v []TextItem) { s.item = v }
+func (s *Text_topContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Text_topContext) BackTick() antlr.TerminalNode {
 	return s.GetToken(wclBackTick, 0)
@@ -2485,15 +2535,15 @@ func (p *wcl) Text_top() (localctx IText_topContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(173)
+		p.SetState(182)
 		p.Match(wclBackTick)
 	}
-	p.SetState(176)
+	p.SetState(185)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 15, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 16, p.GetParserRuleContext()) {
 	case 1:
 		{
-			p.SetState(174)
+			p.SetState(183)
 			p.Text_content()
 		}
 
@@ -2501,7 +2551,7 @@ func (p *wcl) Text_top() (localctx IText_topContext) {
 
 	}
 	{
-		p.SetState(178)
+		p.SetState(187)
 		p.Match(wclContentBackTick)
 	}
 
@@ -2516,10 +2566,10 @@ type IText_contentContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsText_contentContext differentiates from other interfaces.
 	IsText_contentContext()
@@ -2528,7 +2578,7 @@ type IText_contentContext interface {
 type Text_contentContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyText_contentContext() *Text_contentContext {
@@ -2553,9 +2603,9 @@ func NewText_contentContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 
 func (s *Text_contentContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Text_contentContext) GetItem() []TextItem { return s.item }
+func (s *Text_contentContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Text_contentContext) SetItem(v []TextItem) { s.item = v }
+func (s *Text_contentContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Text_contentContext) AllText_content_inner() []IText_content_innerContext {
 	children := s.GetChildren()
@@ -2653,17 +2703,17 @@ func (p *wcl) Text_content() (localctx IText_contentContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(183)
+	p.SetState(192)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclContentRawText || _la == wclContentDollar {
 		{
-			p.SetState(180)
+			p.SetState(189)
 			p.Text_content_inner()
 		}
 
-		p.SetState(185)
+		p.SetState(194)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -2679,10 +2729,10 @@ type IText_content_innerContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsText_content_innerContext differentiates from other interfaces.
 	IsText_content_innerContext()
@@ -2691,7 +2741,7 @@ type IText_content_innerContext interface {
 type Text_content_innerContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyText_content_innerContext() *Text_content_innerContext {
@@ -2716,9 +2766,9 @@ func NewText_content_innerContext(parser antlr.Parser, parent antlr.ParserRuleCo
 
 func (s *Text_content_innerContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Text_content_innerContext) GetItem() []TextItem { return s.item }
+func (s *Text_content_innerContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Text_content_innerContext) SetItem(v []TextItem) { s.item = v }
+func (s *Text_content_innerContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Text_content_innerContext) CopyFrom(ctx *Text_content_innerContext) {
 	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
@@ -2856,7 +2906,7 @@ func (p *wcl) Text_content_inner() (localctx IText_content_innerContext) {
 		}
 	}()
 
-	p.SetState(188)
+	p.SetState(197)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
@@ -2864,7 +2914,7 @@ func (p *wcl) Text_content_inner() (localctx IText_content_innerContext) {
 		localctx = NewRawTextContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(186)
+			p.SetState(195)
 			p.Match(wclContentRawText)
 		}
 
@@ -2872,7 +2922,7 @@ func (p *wcl) Text_content_inner() (localctx IText_content_innerContext) {
 		localctx = NewVarSubContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(187)
+			p.SetState(196)
 			p.Var_subs()
 		}
 
@@ -2891,10 +2941,10 @@ type IVar_subsContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsVar_subsContext differentiates from other interfaces.
 	IsVar_subsContext()
@@ -2903,7 +2953,7 @@ type IVar_subsContext interface {
 type Var_subsContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyVar_subsContext() *Var_subsContext {
@@ -2928,9 +2978,9 @@ func NewVar_subsContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *Var_subsContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Var_subsContext) GetItem() []TextItem { return s.item }
+func (s *Var_subsContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Var_subsContext) SetItem(v []TextItem) { s.item = v }
+func (s *Var_subsContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Var_subsContext) ContentDollar() antlr.TerminalNode {
 	return s.GetToken(wclContentDollar, 0)
@@ -3007,11 +3057,11 @@ func (p *wcl) Var_subs() (localctx IVar_subsContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(190)
+		p.SetState(199)
 		p.Match(wclContentDollar)
 	}
 	{
-		p.SetState(191)
+		p.SetState(200)
 		p.Sub()
 	}
 
@@ -3026,10 +3076,10 @@ type ISubContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() TextItem
+	GetItem() tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem(TextItem)
+	SetItem(tree.TextItem)
 
 	// IsSubContext differentiates from other interfaces.
 	IsSubContext()
@@ -3038,7 +3088,7 @@ type ISubContext interface {
 type SubContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   TextItem
+	item   tree.TextItem
 }
 
 func NewEmptySubContext() *SubContext {
@@ -3063,9 +3113,9 @@ func NewSubContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoking
 
 func (s *SubContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *SubContext) GetItem() TextItem { return s.item }
+func (s *SubContext) GetItem() tree.TextItem { return s.item }
 
-func (s *SubContext) SetItem(v TextItem) { s.item = v }
+func (s *SubContext) SetItem(v tree.TextItem) { s.item = v }
 
 func (s *SubContext) VarId() antlr.TerminalNode {
 	return s.GetToken(wclVarId, 0)
@@ -3130,11 +3180,11 @@ func (p *wcl) Sub() (localctx ISubContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(193)
+		p.SetState(202)
 		p.Match(wclVarId)
 	}
 	{
-		p.SetState(194)
+		p.SetState(203)
 		p.Match(wclVarRCurly)
 	}
 
@@ -3149,10 +3199,10 @@ type IUninterpContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsUninterpContext differentiates from other interfaces.
 	IsUninterpContext()
@@ -3161,7 +3211,7 @@ type IUninterpContext interface {
 type UninterpContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyUninterpContext() *UninterpContext {
@@ -3186,9 +3236,9 @@ func NewUninterpContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *UninterpContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *UninterpContext) GetItem() []TextItem { return s.item }
+func (s *UninterpContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *UninterpContext) SetItem(v []TextItem) { s.item = v }
+func (s *UninterpContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *UninterpContext) UninterpRCurly() antlr.TerminalNode {
 	return s.GetToken(wclUninterpRCurly, 0)
@@ -3290,22 +3340,22 @@ func (p *wcl) Uninterp() (localctx IUninterpContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(197)
+	p.SetState(206)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	for ok := true; ok; ok = (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&120259084288) != 0 {
+	for ok := true; ok; ok = (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&3848290697216) != 0 {
 		{
-			p.SetState(196)
+			p.SetState(205)
 			p.Uninterp_inner()
 		}
 
-		p.SetState(199)
+		p.SetState(208)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(201)
+		p.SetState(210)
 		p.Match(wclUninterpRCurly)
 	}
 
@@ -3320,10 +3370,10 @@ type IUninterp_innerContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the Item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the Item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsUninterp_innerContext differentiates from other interfaces.
 	IsUninterp_innerContext()
@@ -3332,7 +3382,7 @@ type IUninterp_innerContext interface {
 type Uninterp_innerContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	Item   []TextItem
+	Item   []tree.TextItem
 }
 
 func NewEmptyUninterp_innerContext() *Uninterp_innerContext {
@@ -3357,9 +3407,9 @@ func NewUninterp_innerContext(parser antlr.Parser, parent antlr.ParserRuleContex
 
 func (s *Uninterp_innerContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Uninterp_innerContext) GetItem() []TextItem { return s.Item }
+func (s *Uninterp_innerContext) GetItem() []tree.TextItem { return s.Item }
 
-func (s *Uninterp_innerContext) SetItem(v []TextItem) { s.Item = v }
+func (s *Uninterp_innerContext) SetItem(v []tree.TextItem) { s.Item = v }
 
 func (s *Uninterp_innerContext) CopyFrom(ctx *Uninterp_innerContext) {
 	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
@@ -3557,7 +3607,7 @@ func (p *wcl) Uninterp_inner() (localctx IUninterp_innerContext) {
 		}
 	}()
 
-	p.SetState(207)
+	p.SetState(216)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
@@ -3565,7 +3615,7 @@ func (p *wcl) Uninterp_inner() (localctx IUninterp_innerContext) {
 		localctx = NewUninterpRawTextContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(203)
+			p.SetState(212)
 			p.Match(wclUninterpRawText)
 		}
 
@@ -3573,11 +3623,11 @@ func (p *wcl) Uninterp_inner() (localctx IUninterp_innerContext) {
 		localctx = NewUninterpNestedContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(204)
+			p.SetState(213)
 			p.Match(wclUninterpLCurly)
 		}
 		{
-			p.SetState(205)
+			p.SetState(214)
 			p.Uninterp()
 		}
 
@@ -3585,7 +3635,7 @@ func (p *wcl) Uninterp_inner() (localctx IUninterp_innerContext) {
 		localctx = NewUninterpVarContext(p, localctx)
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(206)
+			p.SetState(215)
 			p.Uninterp_var()
 		}
 
@@ -3604,10 +3654,10 @@ type IUninterp_varContext interface {
 	GetParser() antlr.Parser
 
 	// GetItem returns the item attribute.
-	GetItem() []TextItem
+	GetItem() []tree.TextItem
 
 	// SetItem sets the item attribute.
-	SetItem([]TextItem)
+	SetItem([]tree.TextItem)
 
 	// IsUninterp_varContext differentiates from other interfaces.
 	IsUninterp_varContext()
@@ -3616,7 +3666,7 @@ type IUninterp_varContext interface {
 type Uninterp_varContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	item   []TextItem
+	item   []tree.TextItem
 }
 
 func NewEmptyUninterp_varContext() *Uninterp_varContext {
@@ -3641,9 +3691,9 @@ func NewUninterp_varContext(parser antlr.Parser, parent antlr.ParserRuleContext,
 
 func (s *Uninterp_varContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Uninterp_varContext) GetItem() []TextItem { return s.item }
+func (s *Uninterp_varContext) GetItem() []tree.TextItem { return s.item }
 
-func (s *Uninterp_varContext) SetItem(v []TextItem) { s.item = v }
+func (s *Uninterp_varContext) SetItem(v []tree.TextItem) { s.item = v }
 
 func (s *Uninterp_varContext) UninterpDollar() antlr.TerminalNode {
 	return s.GetToken(wclUninterpDollar, 0)
@@ -3712,15 +3762,15 @@ func (p *wcl) Uninterp_var() (localctx IUninterp_varContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(209)
+		p.SetState(218)
 		p.Match(wclUninterpDollar)
 	}
 	{
-		p.SetState(210)
+		p.SetState(219)
 		p.Match(wclVarId)
 	}
 	{
-		p.SetState(211)
+		p.SetState(220)
 		p.Match(wclVarRCurly)
 	}
 
@@ -3735,10 +3785,10 @@ type IParam_specContext interface {
 	GetParser() antlr.Parser
 
 	// GetFormal returns the formal attribute.
-	GetFormal() []*PFormal
+	GetFormal() []*tree.PFormal
 
 	// SetFormal sets the formal attribute.
-	SetFormal([]*PFormal)
+	SetFormal([]*tree.PFormal)
 
 	// IsParam_specContext differentiates from other interfaces.
 	IsParam_specContext()
@@ -3747,7 +3797,7 @@ type IParam_specContext interface {
 type Param_specContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	formal []*PFormal
+	formal []*tree.PFormal
 }
 
 func NewEmptyParam_specContext() *Param_specContext {
@@ -3772,9 +3822,9 @@ func NewParam_specContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *Param_specContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Param_specContext) GetFormal() []*PFormal { return s.formal }
+func (s *Param_specContext) GetFormal() []*tree.PFormal { return s.formal }
 
-func (s *Param_specContext) SetFormal(v []*PFormal) { s.formal = v }
+func (s *Param_specContext) SetFormal(v []*tree.PFormal) { s.formal = v }
 
 func (s *Param_specContext) LParen() antlr.TerminalNode {
 	return s.GetToken(wclLParen, 0)
@@ -3881,25 +3931,25 @@ func (p *wcl) Param_spec() (localctx IParam_specContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(213)
+		p.SetState(222)
 		p.Match(wclLParen)
 	}
-	p.SetState(217)
+	p.SetState(226)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclId {
 		{
-			p.SetState(214)
+			p.SetState(223)
 			p.Param_pair()
 		}
 
-		p.SetState(219)
+		p.SetState(228)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(220)
+		p.SetState(229)
 		p.Match(wclRParen)
 	}
 
@@ -3914,10 +3964,10 @@ type IParam_pairContext interface {
 	GetParser() antlr.Parser
 
 	// GetFormal returns the formal attribute.
-	GetFormal() []*PFormal
+	GetFormal() []*tree.PFormal
 
 	// SetFormal sets the formal attribute.
-	SetFormal([]*PFormal)
+	SetFormal([]*tree.PFormal)
 
 	// IsParam_pairContext differentiates from other interfaces.
 	IsParam_pairContext()
@@ -3926,7 +3976,7 @@ type IParam_pairContext interface {
 type Param_pairContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	formal []*PFormal
+	formal []*tree.PFormal
 }
 
 func NewEmptyParam_pairContext() *Param_pairContext {
@@ -3951,9 +4001,9 @@ func NewParam_pairContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *Param_pairContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Param_pairContext) GetFormal() []*PFormal { return s.formal }
+func (s *Param_pairContext) GetFormal() []*tree.PFormal { return s.formal }
 
-func (s *Param_pairContext) SetFormal(v []*PFormal) { s.formal = v }
+func (s *Param_pairContext) SetFormal(v []*tree.PFormal) { s.formal = v }
 
 func (s *Param_pairContext) CopyFrom(ctx *Param_pairContext) {
 	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
@@ -4111,28 +4161,28 @@ func (p *wcl) Param_pair() (localctx IParam_pairContext) {
 		}
 	}()
 
-	p.SetState(227)
+	p.SetState(236)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 21, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 22, p.GetParserRuleContext()) {
 	case 1:
 		localctx = NewPairContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(222)
+			p.SetState(231)
 
 			var _m = p.Match(wclId)
 
 			localctx.(*PairContext).n = _m
 		}
 		{
-			p.SetState(223)
+			p.SetState(232)
 
 			var _m = p.Match(wclId)
 
 			localctx.(*PairContext).t = _m
 		}
 		{
-			p.SetState(224)
+			p.SetState(233)
 			p.Match(wclComma)
 		}
 
@@ -4140,14 +4190,14 @@ func (p *wcl) Param_pair() (localctx IParam_pairContext) {
 		localctx = NewLastContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(225)
+			p.SetState(234)
 
 			var _m = p.Match(wclId)
 
 			localctx.(*LastContext).n = _m
 		}
 		{
-			p.SetState(226)
+			p.SetState(235)
 
 			var _m = p.Match(wclId)
 
@@ -4167,10 +4217,10 @@ type IDoc_sectionContext interface {
 	GetParser() antlr.Parser
 
 	// GetSection returns the section attribute.
-	GetSection() *DocSectionNode
+	GetSection() *tree.DocSectionNode
 
 	// SetSection sets the section attribute.
-	SetSection(*DocSectionNode)
+	SetSection(*tree.DocSectionNode)
 
 	// IsDoc_sectionContext differentiates from other interfaces.
 	IsDoc_sectionContext()
@@ -4179,7 +4229,7 @@ type IDoc_sectionContext interface {
 type Doc_sectionContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	section *DocSectionNode
+	section *tree.DocSectionNode
 }
 
 func NewEmptyDoc_sectionContext() *Doc_sectionContext {
@@ -4204,9 +4254,9 @@ func NewDoc_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 
 func (s *Doc_sectionContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_sectionContext) GetSection() *DocSectionNode { return s.section }
+func (s *Doc_sectionContext) GetSection() *tree.DocSectionNode { return s.section }
 
-func (s *Doc_sectionContext) SetSection(v *DocSectionNode) { s.section = v }
+func (s *Doc_sectionContext) SetSection(v *tree.DocSectionNode) { s.section = v }
 
 func (s *Doc_sectionContext) Doc() antlr.TerminalNode {
 	return s.GetToken(wclDoc, 0)
@@ -4309,20 +4359,20 @@ func (p *wcl) Doc_section() (localctx IDoc_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(229)
+		p.SetState(238)
 		p.Match(wclDoc)
 	}
-	p.SetState(233)
+	p.SetState(242)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclId {
 		{
-			p.SetState(230)
+			p.SetState(239)
 			p.Doc_func()
 		}
 
-		p.SetState(235)
+		p.SetState(244)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -4338,10 +4388,10 @@ type IDoc_funcContext interface {
 	GetParser() antlr.Parser
 
 	// GetFn returns the fn attribute.
-	GetFn() *DocFuncNode
+	GetFn() *tree.DocFuncNode
 
 	// SetFn sets the fn attribute.
-	SetFn(*DocFuncNode)
+	SetFn(*tree.DocFuncNode)
 
 	// IsDoc_funcContext differentiates from other interfaces.
 	IsDoc_funcContext()
@@ -4350,7 +4400,7 @@ type IDoc_funcContext interface {
 type Doc_funcContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	fn     *DocFuncNode
+	fn     *tree.DocFuncNode
 }
 
 func NewEmptyDoc_funcContext() *Doc_funcContext {
@@ -4375,9 +4425,9 @@ func NewDoc_funcContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *Doc_funcContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_funcContext) GetFn() *DocFuncNode { return s.fn }
+func (s *Doc_funcContext) GetFn() *tree.DocFuncNode { return s.fn }
 
-func (s *Doc_funcContext) SetFn(v *DocFuncNode) { s.fn = v }
+func (s *Doc_funcContext) SetFn(v *tree.DocFuncNode) { s.fn = v }
 
 func (s *Doc_funcContext) Id() antlr.TerminalNode {
 	return s.GetToken(wclId, 0)
@@ -4519,46 +4569,46 @@ func (p *wcl) Doc_func() (localctx IDoc_funcContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(236)
+		p.SetState(245)
 		p.Match(wclId)
 	}
 	{
-		p.SetState(237)
+		p.SetState(246)
 		p.Doc_func_formal()
 	}
-	p.SetState(239)
+	p.SetState(248)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclLocal {
 		{
-			p.SetState(238)
+			p.SetState(247)
 			p.Doc_func_local()
 		}
 
 	}
-	p.SetState(242)
+	p.SetState(251)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclPre {
 		{
-			p.SetState(241)
+			p.SetState(250)
 			p.Pre_code()
 		}
 
 	}
 	{
-		p.SetState(244)
+		p.SetState(253)
 		p.Doc_elem()
 	}
-	p.SetState(246)
+	p.SetState(255)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclPost {
 		{
-			p.SetState(245)
+			p.SetState(254)
 			p.Post_code()
 		}
 
@@ -4575,10 +4625,10 @@ type IDoc_func_localContext interface {
 	GetParser() antlr.Parser
 
 	// GetFormal returns the formal attribute.
-	GetFormal() []*PFormal
+	GetFormal() []*tree.PFormal
 
 	// SetFormal sets the formal attribute.
-	SetFormal([]*PFormal)
+	SetFormal([]*tree.PFormal)
 
 	// IsDoc_func_localContext differentiates from other interfaces.
 	IsDoc_func_localContext()
@@ -4587,7 +4637,7 @@ type IDoc_func_localContext interface {
 type Doc_func_localContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	formal []*PFormal
+	formal []*tree.PFormal
 }
 
 func NewEmptyDoc_func_localContext() *Doc_func_localContext {
@@ -4612,9 +4662,9 @@ func NewDoc_func_localContext(parser antlr.Parser, parent antlr.ParserRuleContex
 
 func (s *Doc_func_localContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_func_localContext) GetFormal() []*PFormal { return s.formal }
+func (s *Doc_func_localContext) GetFormal() []*tree.PFormal { return s.formal }
 
-func (s *Doc_func_localContext) SetFormal(v []*PFormal) { s.formal = v }
+func (s *Doc_func_localContext) SetFormal(v []*tree.PFormal) { s.formal = v }
 
 func (s *Doc_func_localContext) Local() antlr.TerminalNode {
 	return s.GetToken(wclLocal, 0)
@@ -4691,11 +4741,11 @@ func (p *wcl) Doc_func_local() (localctx IDoc_func_localContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(248)
+		p.SetState(257)
 		p.Match(wclLocal)
 	}
 	{
-		p.SetState(249)
+		p.SetState(258)
 		p.Param_spec()
 	}
 
@@ -4710,10 +4760,10 @@ type IDoc_func_formalContext interface {
 	GetParser() antlr.Parser
 
 	// GetFormal returns the formal attribute.
-	GetFormal() []*PFormal
+	GetFormal() []*tree.PFormal
 
 	// SetFormal sets the formal attribute.
-	SetFormal([]*PFormal)
+	SetFormal([]*tree.PFormal)
 
 	// IsDoc_func_formalContext differentiates from other interfaces.
 	IsDoc_func_formalContext()
@@ -4722,7 +4772,7 @@ type IDoc_func_formalContext interface {
 type Doc_func_formalContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	formal []*PFormal
+	formal []*tree.PFormal
 }
 
 func NewEmptyDoc_func_formalContext() *Doc_func_formalContext {
@@ -4747,9 +4797,9 @@ func NewDoc_func_formalContext(parser antlr.Parser, parent antlr.ParserRuleConte
 
 func (s *Doc_func_formalContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_func_formalContext) GetFormal() []*PFormal { return s.formal }
+func (s *Doc_func_formalContext) GetFormal() []*tree.PFormal { return s.formal }
 
-func (s *Doc_func_formalContext) SetFormal(v []*PFormal) { s.formal = v }
+func (s *Doc_func_formalContext) SetFormal(v []*tree.PFormal) { s.formal = v }
 
 func (s *Doc_func_formalContext) Param_spec() IParam_specContext {
 	var t antlr.RuleContext
@@ -4820,13 +4870,13 @@ func (p *wcl) Doc_func_formal() (localctx IDoc_func_formalContext) {
 		}
 	}()
 
-	p.SetState(253)
+	p.SetState(262)
 	p.GetErrorHandler().Sync(p)
-	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 26, p.GetParserRuleContext()) {
+	switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 27, p.GetParserRuleContext()) {
 	case 1:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(251)
+			p.SetState(260)
 			p.Param_spec()
 		}
 
@@ -4846,10 +4896,10 @@ type IDoc_tagContext interface {
 	GetParser() antlr.Parser
 
 	// GetTag returns the tag attribute.
-	GetTag() *DocTag
+	GetTag() *tree.DocTag
 
 	// SetTag sets the tag attribute.
-	SetTag(*DocTag)
+	SetTag(*tree.DocTag)
 
 	// IsDoc_tagContext differentiates from other interfaces.
 	IsDoc_tagContext()
@@ -4858,7 +4908,7 @@ type IDoc_tagContext interface {
 type Doc_tagContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	tag    *DocTag
+	tag    *tree.DocTag
 }
 
 func NewEmptyDoc_tagContext() *Doc_tagContext {
@@ -4883,9 +4933,9 @@ func NewDoc_tagContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 
 func (s *Doc_tagContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_tagContext) GetTag() *DocTag { return s.tag }
+func (s *Doc_tagContext) GetTag() *tree.DocTag { return s.tag }
 
-func (s *Doc_tagContext) SetTag(v *DocTag) { s.tag = v }
+func (s *Doc_tagContext) SetTag(v *tree.DocTag) { s.tag = v }
 
 func (s *Doc_tagContext) LessThan() antlr.TerminalNode {
 	return s.GetToken(wclLessThan, 0)
@@ -4999,37 +5049,37 @@ func (p *wcl) Doc_tag() (localctx IDoc_tagContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(255)
+		p.SetState(264)
 		p.Match(wclLessThan)
 	}
 	{
-		p.SetState(256)
+		p.SetState(265)
 		p.Id_or_var_ref()
 	}
-	p.SetState(258)
+	p.SetState(267)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclHash {
 		{
-			p.SetState(257)
+			p.SetState(266)
 			p.Doc_id()
 		}
 
 	}
-	p.SetState(261)
+	p.SetState(270)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclId {
 		{
-			p.SetState(260)
+			p.SetState(269)
 			p.Doc_class()
 		}
 
 	}
 	{
-		p.SetState(263)
+		p.SetState(272)
 		p.Match(wclGreaterThan)
 	}
 
@@ -5044,10 +5094,10 @@ type IId_or_var_refContext interface {
 	GetParser() antlr.Parser
 
 	// GetIdVar returns the idVar attribute.
-	GetIdVar() *DocIdOrVar
+	GetIdVar() *tree.DocIdOrVar
 
 	// SetIdVar sets the idVar attribute.
-	SetIdVar(*DocIdOrVar)
+	SetIdVar(*tree.DocIdOrVar)
 
 	// IsId_or_var_refContext differentiates from other interfaces.
 	IsId_or_var_refContext()
@@ -5056,7 +5106,7 @@ type IId_or_var_refContext interface {
 type Id_or_var_refContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	idVar  *DocIdOrVar
+	idVar  *tree.DocIdOrVar
 }
 
 func NewEmptyId_or_var_refContext() *Id_or_var_refContext {
@@ -5081,9 +5131,9 @@ func NewId_or_var_refContext(parser antlr.Parser, parent antlr.ParserRuleContext
 
 func (s *Id_or_var_refContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Id_or_var_refContext) GetIdVar() *DocIdOrVar { return s.idVar }
+func (s *Id_or_var_refContext) GetIdVar() *tree.DocIdOrVar { return s.idVar }
 
-func (s *Id_or_var_refContext) SetIdVar(v *DocIdOrVar) { s.idVar = v }
+func (s *Id_or_var_refContext) SetIdVar(v *tree.DocIdOrVar) { s.idVar = v }
 
 func (s *Id_or_var_refContext) Id() antlr.TerminalNode {
 	return s.GetToken(wclId, 0)
@@ -5158,21 +5208,21 @@ func (p *wcl) Id_or_var_ref() (localctx IId_or_var_refContext) {
 		}
 	}()
 
-	p.SetState(267)
+	p.SetState(276)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case wclId:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(265)
+			p.SetState(274)
 			p.Match(wclId)
 		}
 
 	case wclDollar:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(266)
+			p.SetState(275)
 			p.Var_ref()
 		}
 
@@ -5191,10 +5241,10 @@ type IVar_refContext interface {
 	GetParser() antlr.Parser
 
 	// GetV returns the v attribute.
-	GetV() *DocIdOrVar
+	GetV() *tree.DocIdOrVar
 
 	// SetV sets the v attribute.
-	SetV(*DocIdOrVar)
+	SetV(*tree.DocIdOrVar)
 
 	// IsVar_refContext differentiates from other interfaces.
 	IsVar_refContext()
@@ -5203,7 +5253,7 @@ type IVar_refContext interface {
 type Var_refContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	v      *DocIdOrVar
+	v      *tree.DocIdOrVar
 }
 
 func NewEmptyVar_refContext() *Var_refContext {
@@ -5228,9 +5278,9 @@ func NewVar_refContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 
 func (s *Var_refContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Var_refContext) GetV() *DocIdOrVar { return s.v }
+func (s *Var_refContext) GetV() *tree.DocIdOrVar { return s.v }
 
-func (s *Var_refContext) SetV(v *DocIdOrVar) { s.v = v }
+func (s *Var_refContext) SetV(v *tree.DocIdOrVar) { s.v = v }
 
 func (s *Var_refContext) Dollar() antlr.TerminalNode {
 	return s.GetToken(wclDollar, 0)
@@ -5299,15 +5349,15 @@ func (p *wcl) Var_ref() (localctx IVar_refContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(269)
+		p.SetState(278)
 		p.Match(wclDollar)
 	}
 	{
-		p.SetState(270)
+		p.SetState(279)
 		p.Match(wclVarId)
 	}
 	{
-		p.SetState(271)
+		p.SetState(280)
 		p.Match(wclVarRCurly)
 	}
 
@@ -5426,11 +5476,11 @@ func (p *wcl) Doc_id() (localctx IDoc_idContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(273)
+		p.SetState(282)
 		p.Match(wclHash)
 	}
 	{
-		p.SetState(274)
+		p.SetState(283)
 		p.Match(wclId)
 	}
 
@@ -5549,17 +5599,17 @@ func (p *wcl) Doc_class() (localctx IDoc_classContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(277)
+	p.SetState(286)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for ok := true; ok; ok = _la == wclId {
 		{
-			p.SetState(276)
+			p.SetState(285)
 			p.Match(wclId)
 		}
 
-		p.SetState(279)
+		p.SetState(288)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -5575,10 +5625,10 @@ type IDoc_elemContext interface {
 	GetParser() antlr.Parser
 
 	// GetElem returns the elem attribute.
-	GetElem() *DocElement
+	GetElem() *tree.DocElement
 
 	// SetElem sets the elem attribute.
-	SetElem(*DocElement)
+	SetElem(*tree.DocElement)
 
 	// IsDoc_elemContext differentiates from other interfaces.
 	IsDoc_elemContext()
@@ -5587,7 +5637,7 @@ type IDoc_elemContext interface {
 type Doc_elemContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	elem   *DocElement
+	elem   *tree.DocElement
 }
 
 func NewEmptyDoc_elemContext() *Doc_elemContext {
@@ -5612,9 +5662,9 @@ func NewDoc_elemContext(parser antlr.Parser, parent antlr.ParserRuleContext, inv
 
 func (s *Doc_elemContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_elemContext) GetElem() *DocElement { return s.elem }
+func (s *Doc_elemContext) GetElem() *tree.DocElement { return s.elem }
 
-func (s *Doc_elemContext) SetElem(v *DocElement) { s.elem = v }
+func (s *Doc_elemContext) SetElem(v *tree.DocElement) { s.elem = v }
 
 func (s *Doc_elemContext) CopyFrom(ctx *Doc_elemContext) {
 	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
@@ -5836,7 +5886,7 @@ func (p *wcl) Doc_elem() (localctx IDoc_elemContext) {
 		}
 	}()
 
-	p.SetState(287)
+	p.SetState(296)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
@@ -5844,7 +5894,7 @@ func (p *wcl) Doc_elem() (localctx IDoc_elemContext) {
 		localctx = NewHaveVarContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(281)
+			p.SetState(290)
 			p.Var_ref()
 		}
 
@@ -5852,15 +5902,15 @@ func (p *wcl) Doc_elem() (localctx IDoc_elemContext) {
 		localctx = NewHaveTagContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(282)
+			p.SetState(291)
 			p.Doc_tag()
 		}
-		p.SetState(284)
+		p.SetState(293)
 		p.GetErrorHandler().Sync(p)
 
-		if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 31, p.GetParserRuleContext()) == 1 {
+		if p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 32, p.GetParserRuleContext()) == 1 {
 			{
-				p.SetState(283)
+				p.SetState(292)
 				p.Doc_elem_content()
 			}
 
@@ -5870,7 +5920,7 @@ func (p *wcl) Doc_elem() (localctx IDoc_elemContext) {
 		localctx = NewHaveListContext(p, localctx)
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(286)
+			p.SetState(295)
 			p.Doc_elem_child()
 		}
 
@@ -5889,10 +5939,10 @@ type IDoc_elem_contentContext interface {
 	GetParser() antlr.Parser
 
 	// GetElement returns the element attribute.
-	GetElement() *DocElement
+	GetElement() *tree.DocElement
 
 	// SetElement sets the element attribute.
-	SetElement(*DocElement)
+	SetElement(*tree.DocElement)
 
 	// IsDoc_elem_contentContext differentiates from other interfaces.
 	IsDoc_elem_contentContext()
@@ -5901,7 +5951,7 @@ type IDoc_elem_contentContext interface {
 type Doc_elem_contentContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	element *DocElement
+	element *tree.DocElement
 }
 
 func NewEmptyDoc_elem_contentContext() *Doc_elem_contentContext {
@@ -5926,9 +5976,9 @@ func NewDoc_elem_contentContext(parser antlr.Parser, parent antlr.ParserRuleCont
 
 func (s *Doc_elem_contentContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_elem_contentContext) GetElement() *DocElement { return s.element }
+func (s *Doc_elem_contentContext) GetElement() *tree.DocElement { return s.element }
 
-func (s *Doc_elem_contentContext) SetElement(v *DocElement) { s.element = v }
+func (s *Doc_elem_contentContext) SetElement(v *tree.DocElement) { s.element = v }
 
 func (s *Doc_elem_contentContext) Doc_elem_text() IDoc_elem_textContext {
 	var t antlr.RuleContext
@@ -6015,21 +6065,21 @@ func (p *wcl) Doc_elem_content() (localctx IDoc_elem_contentContext) {
 		}
 	}()
 
-	p.SetState(291)
+	p.SetState(300)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case wclId, wclBackTick:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(289)
+			p.SetState(298)
 			p.Doc_elem_text()
 		}
 
 	case wclLParen:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(290)
+			p.SetState(299)
 			p.Doc_elem_child()
 		}
 
@@ -6048,10 +6098,10 @@ type IDoc_elem_textContext interface {
 	GetParser() antlr.Parser
 
 	// GetInvoc returns the invoc attribute.
-	GetInvoc() *FuncInvoc
+	GetInvoc() *tree.FuncInvoc
 
 	// SetInvoc sets the invoc attribute.
-	SetInvoc(*FuncInvoc)
+	SetInvoc(*tree.FuncInvoc)
 
 	// IsDoc_elem_textContext differentiates from other interfaces.
 	IsDoc_elem_textContext()
@@ -6060,7 +6110,7 @@ type IDoc_elem_textContext interface {
 type Doc_elem_textContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	invoc  *FuncInvoc
+	invoc  *tree.FuncInvoc
 }
 
 func NewEmptyDoc_elem_textContext() *Doc_elem_textContext {
@@ -6085,9 +6135,9 @@ func NewDoc_elem_textContext(parser antlr.Parser, parent antlr.ParserRuleContext
 
 func (s *Doc_elem_textContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_elem_textContext) GetInvoc() *FuncInvoc { return s.invoc }
+func (s *Doc_elem_textContext) GetInvoc() *tree.FuncInvoc { return s.invoc }
 
-func (s *Doc_elem_textContext) SetInvoc(v *FuncInvoc) { s.invoc = v }
+func (s *Doc_elem_textContext) SetInvoc(v *tree.FuncInvoc) { s.invoc = v }
 
 func (s *Doc_elem_textContext) CopyFrom(ctx *Doc_elem_textContext) {
 	s.BaseParserRuleContext.CopyFrom(ctx.BaseParserRuleContext)
@@ -6237,7 +6287,7 @@ func (p *wcl) Doc_elem_text() (localctx IDoc_elem_textContext) {
 		}
 	}()
 
-	p.SetState(295)
+	p.SetState(304)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
@@ -6245,7 +6295,7 @@ func (p *wcl) Doc_elem_text() (localctx IDoc_elem_textContext) {
 		localctx = NewDoc_elem_text_func_callContext(p, localctx)
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(293)
+			p.SetState(302)
 			p.Func_invoc()
 		}
 
@@ -6253,7 +6303,7 @@ func (p *wcl) Doc_elem_text() (localctx IDoc_elem_textContext) {
 		localctx = NewDoc_elem_text_anonContext(p, localctx)
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(294)
+			p.SetState(303)
 			p.Text_top()
 		}
 
@@ -6272,10 +6322,10 @@ type IDoc_elem_childContext interface {
 	GetParser() antlr.Parser
 
 	// GetElem returns the elem attribute.
-	GetElem() *DocElement
+	GetElem() *tree.DocElement
 
 	// SetElem sets the elem attribute.
-	SetElem(*DocElement)
+	SetElem(*tree.DocElement)
 
 	// IsDoc_elem_childContext differentiates from other interfaces.
 	IsDoc_elem_childContext()
@@ -6284,7 +6334,7 @@ type IDoc_elem_childContext interface {
 type Doc_elem_childContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	elem   *DocElement
+	elem   *tree.DocElement
 }
 
 func NewEmptyDoc_elem_childContext() *Doc_elem_childContext {
@@ -6309,9 +6359,9 @@ func NewDoc_elem_childContext(parser antlr.Parser, parent antlr.ParserRuleContex
 
 func (s *Doc_elem_childContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Doc_elem_childContext) GetElem() *DocElement { return s.elem }
+func (s *Doc_elem_childContext) GetElem() *tree.DocElement { return s.elem }
 
-func (s *Doc_elem_childContext) SetElem(v *DocElement) { s.elem = v }
+func (s *Doc_elem_childContext) SetElem(v *tree.DocElement) { s.elem = v }
 
 func (s *Doc_elem_childContext) LParen() antlr.TerminalNode {
 	return s.GetToken(wclLParen, 0)
@@ -6418,25 +6468,25 @@ func (p *wcl) Doc_elem_child() (localctx IDoc_elem_childContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(297)
+		p.SetState(306)
 		p.Match(wclLParen)
 	}
-	p.SetState(301)
+	p.SetState(310)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
-	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&1376256) != 0 {
+	for (int64(_la) & ^0x3f) == 0 && ((int64(1)<<_la)&44040192) != 0 {
 		{
-			p.SetState(298)
+			p.SetState(307)
 			p.Doc_elem()
 		}
 
-		p.SetState(303)
+		p.SetState(312)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
-		p.SetState(304)
+		p.SetState(313)
 		p.Match(wclRParen)
 	}
 
@@ -6451,10 +6501,10 @@ type IFunc_invocContext interface {
 	GetParser() antlr.Parser
 
 	// GetInvoc returns the invoc attribute.
-	GetInvoc() *FuncInvoc
+	GetInvoc() *tree.FuncInvoc
 
 	// SetInvoc sets the invoc attribute.
-	SetInvoc(*FuncInvoc)
+	SetInvoc(*tree.FuncInvoc)
 
 	// IsFunc_invocContext differentiates from other interfaces.
 	IsFunc_invocContext()
@@ -6463,7 +6513,7 @@ type IFunc_invocContext interface {
 type Func_invocContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	invoc  *FuncInvoc
+	invoc  *tree.FuncInvoc
 }
 
 func NewEmptyFunc_invocContext() *Func_invocContext {
@@ -6488,9 +6538,9 @@ func NewFunc_invocContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *Func_invocContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Func_invocContext) GetInvoc() *FuncInvoc { return s.invoc }
+func (s *Func_invocContext) GetInvoc() *tree.FuncInvoc { return s.invoc }
 
-func (s *Func_invocContext) SetInvoc(v *FuncInvoc) { s.invoc = v }
+func (s *Func_invocContext) SetInvoc(v *tree.FuncInvoc) { s.invoc = v }
 
 func (s *Func_invocContext) Id() antlr.TerminalNode {
 	return s.GetToken(wclId, 0)
@@ -6575,19 +6625,19 @@ func (p *wcl) Func_invoc() (localctx IFunc_invocContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(306)
+		p.SetState(315)
 		p.Match(wclId)
 	}
 	{
-		p.SetState(307)
+		p.SetState(316)
 		p.Match(wclLParen)
 	}
 	{
-		p.SetState(308)
+		p.SetState(317)
 		p.Func_actual_seq()
 	}
 	{
-		p.SetState(309)
+		p.SetState(318)
 		p.Match(wclRParen)
 	}
 
@@ -6614,10 +6664,10 @@ type IFunc_actual_seqContext interface {
 	SetB(IFunc_actualContext)
 
 	// GetActual returns the actual attribute.
-	GetActual() []*FuncActual
+	GetActual() []*tree.FuncActual
 
 	// SetActual sets the actual attribute.
-	SetActual([]*FuncActual)
+	SetActual([]*tree.FuncActual)
 
 	// IsFunc_actual_seqContext differentiates from other interfaces.
 	IsFunc_actual_seqContext()
@@ -6626,7 +6676,7 @@ type IFunc_actual_seqContext interface {
 type Func_actual_seqContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	actual []*FuncActual
+	actual []*tree.FuncActual
 	a      IFunc_actualContext
 	b      IFunc_actualContext
 }
@@ -6661,9 +6711,9 @@ func (s *Func_actual_seqContext) SetA(v IFunc_actualContext) { s.a = v }
 
 func (s *Func_actual_seqContext) SetB(v IFunc_actualContext) { s.b = v }
 
-func (s *Func_actual_seqContext) GetActual() []*FuncActual { return s.actual }
+func (s *Func_actual_seqContext) GetActual() []*tree.FuncActual { return s.actual }
 
-func (s *Func_actual_seqContext) SetActual(v []*FuncActual) { s.actual = v }
+func (s *Func_actual_seqContext) SetActual(v []*tree.FuncActual) { s.actual = v }
 
 func (s *Func_actual_seqContext) AllFunc_actual() []IFunc_actualContext {
 	children := s.GetChildren()
@@ -6769,36 +6819,36 @@ func (p *wcl) Func_actual_seq() (localctx IFunc_actual_seqContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(319)
+	p.SetState(328)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclId || _la == wclStringLit {
 		{
-			p.SetState(311)
+			p.SetState(320)
 
 			var _x = p.Func_actual()
 
 			localctx.(*Func_actual_seqContext).a = _x
 		}
-		p.SetState(316)
+		p.SetState(325)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 
 		for _la == wclComma {
 			{
-				p.SetState(312)
+				p.SetState(321)
 				p.Match(wclComma)
 			}
 			{
-				p.SetState(313)
+				p.SetState(322)
 
 				var _x = p.Func_actual()
 
 				localctx.(*Func_actual_seqContext).b = _x
 			}
 
-			p.SetState(318)
+			p.SetState(327)
 			p.GetErrorHandler().Sync(p)
 			_la = p.GetTokenStream().LA(1)
 		}
@@ -6816,10 +6866,10 @@ type IFunc_actualContext interface {
 	GetParser() antlr.Parser
 
 	// GetActual returns the actual attribute.
-	GetActual() *FuncActual
+	GetActual() *tree.FuncActual
 
 	// SetActual sets the actual attribute.
-	SetActual(*FuncActual)
+	SetActual(*tree.FuncActual)
 
 	// IsFunc_actualContext differentiates from other interfaces.
 	IsFunc_actualContext()
@@ -6828,7 +6878,7 @@ type IFunc_actualContext interface {
 type Func_actualContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	actual *FuncActual
+	actual *tree.FuncActual
 }
 
 func NewEmptyFunc_actualContext() *Func_actualContext {
@@ -6853,9 +6903,9 @@ func NewFunc_actualContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 
 func (s *Func_actualContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Func_actualContext) GetActual() *FuncActual { return s.actual }
+func (s *Func_actualContext) GetActual() *tree.FuncActual { return s.actual }
 
-func (s *Func_actualContext) SetActual(v *FuncActual) { s.actual = v }
+func (s *Func_actualContext) SetActual(v *tree.FuncActual) { s.actual = v }
 
 func (s *Func_actualContext) Id() antlr.TerminalNode {
 	return s.GetToken(wclId, 0)
@@ -6921,7 +6971,7 @@ func (p *wcl) Func_actual() (localctx IFunc_actualContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(321)
+		p.SetState(330)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == wclId || _la == wclStringLit) {
@@ -6943,10 +6993,10 @@ type IEvent_sectionContext interface {
 	GetParser() antlr.Parser
 
 	// GetSection returns the section attribute.
-	GetSection() *EventSectionNode
+	GetSection() *tree.EventSectionNode
 
 	// SetSection sets the section attribute.
-	SetSection(*EventSectionNode)
+	SetSection(*tree.EventSectionNode)
 
 	// IsEvent_sectionContext differentiates from other interfaces.
 	IsEvent_sectionContext()
@@ -6955,7 +7005,7 @@ type IEvent_sectionContext interface {
 type Event_sectionContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	section *EventSectionNode
+	section *tree.EventSectionNode
 }
 
 func NewEmptyEvent_sectionContext() *Event_sectionContext {
@@ -6980,9 +7030,9 @@ func NewEvent_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContext
 
 func (s *Event_sectionContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Event_sectionContext) GetSection() *EventSectionNode { return s.section }
+func (s *Event_sectionContext) GetSection() *tree.EventSectionNode { return s.section }
 
-func (s *Event_sectionContext) SetSection(v *EventSectionNode) { s.section = v }
+func (s *Event_sectionContext) SetSection(v *tree.EventSectionNode) { s.section = v }
 
 func (s *Event_sectionContext) Event() antlr.TerminalNode {
 	return s.GetToken(wclEvent, 0)
@@ -7085,20 +7135,20 @@ func (p *wcl) Event_section() (localctx IEvent_sectionContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(323)
+		p.SetState(332)
 		p.Match(wclEvent)
 	}
-	p.SetState(327)
+	p.SetState(336)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == wclId || _la == wclHash {
 		{
-			p.SetState(324)
+			p.SetState(333)
 			p.Event_spec()
 		}
 
-		p.SetState(329)
+		p.SetState(338)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 	}
@@ -7114,10 +7164,10 @@ type IEvent_specContext interface {
 	GetParser() antlr.Parser
 
 	// GetSpec returns the spec attribute.
-	GetSpec() *EventSpec
+	GetSpec() *tree.EventSpec
 
 	// SetSpec sets the spec attribute.
-	SetSpec(*EventSpec)
+	SetSpec(*tree.EventSpec)
 
 	// IsEvent_specContext differentiates from other interfaces.
 	IsEvent_specContext()
@@ -7126,7 +7176,7 @@ type IEvent_specContext interface {
 type Event_specContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	spec   *EventSpec
+	spec   *tree.EventSpec
 }
 
 func NewEmptyEvent_specContext() *Event_specContext {
@@ -7151,9 +7201,9 @@ func NewEvent_specContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *Event_specContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Event_specContext) GetSpec() *EventSpec { return s.spec }
+func (s *Event_specContext) GetSpec() *tree.EventSpec { return s.spec }
 
-func (s *Event_specContext) SetSpec(v *EventSpec) { s.spec = v }
+func (s *Event_specContext) SetSpec(v *tree.EventSpec) { s.spec = v }
 
 func (s *Event_specContext) Selector() ISelectorContext {
 	var t antlr.RuleContext
@@ -7246,15 +7296,15 @@ func (p *wcl) Event_spec() (localctx IEvent_specContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(330)
+		p.SetState(339)
 		p.Selector()
 	}
 	{
-		p.SetState(331)
+		p.SetState(340)
 		p.Match(wclId)
 	}
 	{
-		p.SetState(332)
+		p.SetState(341)
 		p.Event_call()
 	}
 
@@ -7269,10 +7319,10 @@ type IEvent_callContext interface {
 	GetParser() antlr.Parser
 
 	// GetInvoc returns the invoc attribute.
-	GetInvoc() *FuncInvoc
+	GetInvoc() *tree.FuncInvoc
 
 	// SetInvoc sets the invoc attribute.
-	SetInvoc(*FuncInvoc)
+	SetInvoc(*tree.FuncInvoc)
 
 	// IsEvent_callContext differentiates from other interfaces.
 	IsEvent_callContext()
@@ -7281,7 +7331,7 @@ type IEvent_callContext interface {
 type Event_callContext struct {
 	*antlr.BaseParserRuleContext
 	parser antlr.Parser
-	invoc  *FuncInvoc
+	invoc  *tree.FuncInvoc
 }
 
 func NewEmptyEvent_callContext() *Event_callContext {
@@ -7306,9 +7356,9 @@ func NewEvent_callContext(parser antlr.Parser, parent antlr.ParserRuleContext, i
 
 func (s *Event_callContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *Event_callContext) GetInvoc() *FuncInvoc { return s.invoc }
+func (s *Event_callContext) GetInvoc() *tree.FuncInvoc { return s.invoc }
 
-func (s *Event_callContext) SetInvoc(v *FuncInvoc) { s.invoc = v }
+func (s *Event_callContext) SetInvoc(v *tree.FuncInvoc) { s.invoc = v }
 
 func (s *Event_callContext) Func_invoc() IFunc_invocContext {
 	var t antlr.RuleContext
@@ -7389,23 +7439,23 @@ func (p *wcl) Event_call() (localctx IEvent_callContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(336)
+	p.SetState(345)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == wclGreaterThan {
 		{
-			p.SetState(334)
+			p.SetState(343)
 			p.Match(wclGreaterThan)
 		}
 		{
-			p.SetState(335)
+			p.SetState(344)
 			p.Match(wclGreaterThan)
 		}
 
 	}
 	{
-		p.SetState(338)
+		p.SetState(347)
 		p.Func_invoc()
 	}
 
@@ -7432,10 +7482,10 @@ type ISelectorContext interface {
 	SetClass(antlr.Token)
 
 	// GetSel returns the sel attribute.
-	GetSel() *Selector
+	GetSel() *tree.Selector
 
 	// SetSel sets the sel attribute.
-	SetSel(*Selector)
+	SetSel(*tree.Selector)
 
 	// IsSelectorContext differentiates from other interfaces.
 	IsSelectorContext()
@@ -7444,7 +7494,7 @@ type ISelectorContext interface {
 type SelectorContext struct {
 	*antlr.BaseParserRuleContext
 	parser  antlr.Parser
-	sel     *Selector
+	sel     *tree.Selector
 	IdValue antlr.Token
 	class   antlr.Token
 }
@@ -7479,9 +7529,9 @@ func (s *SelectorContext) SetIdValue(v antlr.Token) { s.IdValue = v }
 
 func (s *SelectorContext) SetClass(v antlr.Token) { s.class = v }
 
-func (s *SelectorContext) GetSel() *Selector { return s.sel }
+func (s *SelectorContext) GetSel() *tree.Selector { return s.sel }
 
-func (s *SelectorContext) SetSel(v *Selector) { s.sel = v }
+func (s *SelectorContext) SetSel(v *tree.Selector) { s.sel = v }
 
 func (s *SelectorContext) Hash() antlr.TerminalNode {
 	return s.GetToken(wclHash, 0)
@@ -7544,18 +7594,18 @@ func (p *wcl) Selector() (localctx ISelectorContext) {
 		}
 	}()
 
-	p.SetState(343)
+	p.SetState(352)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case wclHash:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(340)
+			p.SetState(349)
 			p.Match(wclHash)
 		}
 		{
-			p.SetState(341)
+			p.SetState(350)
 
 			var _m = p.Match(wclId)
 
@@ -7565,7 +7615,7 @@ func (p *wcl) Selector() (localctx ISelectorContext) {
 	case wclId:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(342)
+			p.SetState(351)
 
 			var _m = p.Match(wclId)
 
@@ -7574,6 +7624,466 @@ func (p *wcl) Selector() (localctx ISelectorContext) {
 
 	default:
 		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+	}
+
+	return localctx
+}
+
+// IModel_sectionContext is an interface to support dynamic dispatch.
+type IModel_sectionContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// GetSection returns the section attribute.
+	GetSection() *tree.ModelSectionNode
+
+	// SetSection sets the section attribute.
+	SetSection(*tree.ModelSectionNode)
+
+	// IsModel_sectionContext differentiates from other interfaces.
+	IsModel_sectionContext()
+}
+
+type Model_sectionContext struct {
+	*antlr.BaseParserRuleContext
+	parser  antlr.Parser
+	section *tree.ModelSectionNode
+}
+
+func NewEmptyModel_sectionContext() *Model_sectionContext {
+	var p = new(Model_sectionContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = wclRULE_model_section
+	return p
+}
+
+func (*Model_sectionContext) IsModel_sectionContext() {}
+
+func NewModel_sectionContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *Model_sectionContext {
+	var p = new(Model_sectionContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = wclRULE_model_section
+
+	return p
+}
+
+func (s *Model_sectionContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Model_sectionContext) GetSection() *tree.ModelSectionNode { return s.section }
+
+func (s *Model_sectionContext) SetSection(v *tree.ModelSectionNode) { s.section = v }
+
+func (s *Model_sectionContext) Mvc() antlr.TerminalNode {
+	return s.GetToken(wclMvc, 0)
+}
+
+func (s *Model_sectionContext) AllModel_def() []IModel_defContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IModel_defContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]IModel_defContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IModel_defContext); ok {
+			tst[i] = t.(IModel_defContext)
+			i++
+		}
+	}
+
+	return tst
+}
+
+func (s *Model_sectionContext) Model_def(i int) IModel_defContext {
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IModel_defContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IModel_defContext)
+}
+
+func (s *Model_sectionContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *Model_sectionContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *Model_sectionContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.EnterModel_section(s)
+	}
+}
+
+func (s *Model_sectionContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.ExitModel_section(s)
+	}
+}
+
+func (s *Model_sectionContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case wclVisitor:
+		return t.VisitModel_section(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *wcl) Model_section() (localctx IModel_sectionContext) {
+	this := p
+	_ = this
+
+	localctx = NewModel_sectionContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 84, wclRULE_model_section)
+	var _la int
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(354)
+		p.Match(wclMvc)
+	}
+	p.SetState(358)
+	p.GetErrorHandler().Sync(p)
+	_la = p.GetTokenStream().LA(1)
+
+	for _la == wclModel {
+		{
+			p.SetState(355)
+			p.Model_def()
+		}
+
+		p.SetState(360)
+		p.GetErrorHandler().Sync(p)
+		_la = p.GetTokenStream().LA(1)
+	}
+
+	return localctx
+}
+
+// IModel_defContext is an interface to support dynamic dispatch.
+type IModel_defContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// GetDef returns the def attribute.
+	GetDef() *tree.ModelDef
+
+	// SetDef sets the def attribute.
+	SetDef(*tree.ModelDef)
+
+	// IsModel_defContext differentiates from other interfaces.
+	IsModel_defContext()
+}
+
+type Model_defContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+	def    *tree.ModelDef
+}
+
+func NewEmptyModel_defContext() *Model_defContext {
+	var p = new(Model_defContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = wclRULE_model_def
+	return p
+}
+
+func (*Model_defContext) IsModel_defContext() {}
+
+func NewModel_defContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *Model_defContext {
+	var p = new(Model_defContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = wclRULE_model_def
+
+	return p
+}
+
+func (s *Model_defContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Model_defContext) GetDef() *tree.ModelDef { return s.def }
+
+func (s *Model_defContext) SetDef(v *tree.ModelDef) { s.def = v }
+
+func (s *Model_defContext) Model() antlr.TerminalNode {
+	return s.GetToken(wclModel, 0)
+}
+
+func (s *Model_defContext) Id() antlr.TerminalNode {
+	return s.GetToken(wclId, 0)
+}
+
+func (s *Model_defContext) Filename_seq() IFilename_seqContext {
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilename_seqContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
+
+	if t == nil {
+		return nil
+	}
+
+	return t.(IFilename_seqContext)
+}
+
+func (s *Model_defContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *Model_defContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *Model_defContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.EnterModel_def(s)
+	}
+}
+
+func (s *Model_defContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.ExitModel_def(s)
+	}
+}
+
+func (s *Model_defContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case wclVisitor:
+		return t.VisitModel_def(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *wcl) Model_def() (localctx IModel_defContext) {
+	this := p
+	_ = this
+
+	localctx = NewModel_defContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 86, wclRULE_model_def)
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(361)
+		p.Match(wclModel)
+	}
+	{
+		p.SetState(362)
+		p.Match(wclId)
+	}
+	{
+		p.SetState(363)
+		p.Filename_seq()
+	}
+
+	return localctx
+}
+
+// IFilename_seqContext is an interface to support dynamic dispatch.
+type IFilename_seqContext interface {
+	antlr.ParserRuleContext
+
+	// GetParser returns the parser.
+	GetParser() antlr.Parser
+
+	// GetSeq returns the seq attribute.
+	GetSeq() []string
+
+	// SetSeq sets the seq attribute.
+	SetSeq([]string)
+
+	// IsFilename_seqContext differentiates from other interfaces.
+	IsFilename_seqContext()
+}
+
+type Filename_seqContext struct {
+	*antlr.BaseParserRuleContext
+	parser antlr.Parser
+	seq    []string
+}
+
+func NewEmptyFilename_seqContext() *Filename_seqContext {
+	var p = new(Filename_seqContext)
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	p.RuleIndex = wclRULE_filename_seq
+	return p
+}
+
+func (*Filename_seqContext) IsFilename_seqContext() {}
+
+func NewFilename_seqContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *Filename_seqContext {
+	var p = new(Filename_seqContext)
+
+	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+
+	p.parser = parser
+	p.RuleIndex = wclRULE_filename_seq
+
+	return p
+}
+
+func (s *Filename_seqContext) GetParser() antlr.Parser { return s.parser }
+
+func (s *Filename_seqContext) GetSeq() []string { return s.seq }
+
+func (s *Filename_seqContext) SetSeq(v []string) { s.seq = v }
+
+func (s *Filename_seqContext) AllStringLit() []antlr.TerminalNode {
+	return s.GetTokens(wclStringLit)
+}
+
+func (s *Filename_seqContext) StringLit(i int) antlr.TerminalNode {
+	return s.GetToken(wclStringLit, i)
+}
+
+func (s *Filename_seqContext) AllComma() []antlr.TerminalNode {
+	return s.GetTokens(wclComma)
+}
+
+func (s *Filename_seqContext) Comma(i int) antlr.TerminalNode {
+	return s.GetToken(wclComma, i)
+}
+
+func (s *Filename_seqContext) GetRuleContext() antlr.RuleContext {
+	return s
+}
+
+func (s *Filename_seqContext) ToStringTree(ruleNames []string, recog antlr.Recognizer) string {
+	return antlr.TreesStringTree(s, ruleNames, recog)
+}
+
+func (s *Filename_seqContext) EnterRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.EnterFilename_seq(s)
+	}
+}
+
+func (s *Filename_seqContext) ExitRule(listener antlr.ParseTreeListener) {
+	if listenerT, ok := listener.(wclListener); ok {
+		listenerT.ExitFilename_seq(s)
+	}
+}
+
+func (s *Filename_seqContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
+	switch t := visitor.(type) {
+	case wclVisitor:
+		return t.VisitFilename_seq(s)
+
+	default:
+		return t.VisitChildren(s)
+	}
+}
+
+func (p *wcl) Filename_seq() (localctx IFilename_seqContext) {
+	this := p
+	_ = this
+
+	localctx = NewFilename_seqContext(p, p.GetParserRuleContext(), p.GetState())
+	p.EnterRule(localctx, 88, wclRULE_filename_seq)
+	var _la int
+
+	defer func() {
+		p.ExitRule()
+	}()
+
+	defer func() {
+		if err := recover(); err != nil {
+			if v, ok := err.(antlr.RecognitionException); ok {
+				localctx.SetException(v)
+				p.GetErrorHandler().ReportError(p, v)
+				p.GetErrorHandler().Recover(p, v)
+			} else {
+				panic(err)
+			}
+		}
+	}()
+
+	p.EnterOuterAlt(localctx, 1)
+	{
+		p.SetState(365)
+		p.Match(wclStringLit)
+	}
+	p.SetState(370)
+	p.GetErrorHandler().Sync(p)
+	_la = p.GetTokenStream().LA(1)
+
+	for _la == wclComma {
+		{
+			p.SetState(366)
+			p.Match(wclComma)
+		}
+		{
+			p.SetState(367)
+			p.Match(wclStringLit)
+		}
+
+		p.SetState(372)
+		p.GetErrorHandler().Sync(p)
+		_la = p.GetTokenStream().LA(1)
 	}
 
 	return localctx

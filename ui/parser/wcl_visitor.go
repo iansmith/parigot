@@ -3,6 +3,7 @@
 package parser // wcl
 import "github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
+
 // A complete Visitor for a parse tree produced by wcl.
 type wclVisitor interface {
 	antlr.ParseTreeVisitor
@@ -153,4 +154,13 @@ type wclVisitor interface {
 
 	// Visit a parse tree produced by wcl#selector.
 	VisitSelector(ctx *SelectorContext) interface{}
+
+	// Visit a parse tree produced by wcl#model_section.
+	VisitModel_section(ctx *Model_sectionContext) interface{}
+
+	// Visit a parse tree produced by wcl#model_def.
+	VisitModel_def(ctx *Model_defContext) interface{}
+
+	// Visit a parse tree produced by wcl#filename_seq.
+	VisitFilename_seq(ctx *Filename_seqContext) interface{}
 }

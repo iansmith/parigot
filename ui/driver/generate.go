@@ -5,7 +5,7 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/iansmith/parigot/ui/parser"
+	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
 const golang = "template/go.tmpl"
@@ -14,16 +14,14 @@ var allLanguageTemplates = []string{golang}
 
 type generateContext struct {
 	templateName string
-	program      *parser.ProgramNode
+	program      *tree.ProgramNode
 	global       map[string]any
-	scope        *parser.ScopeStack
 }
 
 func newGenerateContext(languageName string) *generateContext {
 	return &generateContext{
 		templateName: languageName,
 		global:       make(map[string]any),
-		scope:        parser.NewScopeStack(),
 	}
 }
 

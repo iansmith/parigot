@@ -8,10 +8,15 @@ Doc: '@doc';
 Local: '@local';
 Global: '@global';
 Extern: '@extern';
+Mvc: '@mvc';
 Pre: '@pre';
 Post: '@post';
 Wcl: '@wcl';
 Event: '@event';
+Model: '@model';
+View: '@view';
+ViewCollection: '@collection';
+Controller: '@controller';
 
 //ids
 //TypeId: (TypeStarter+)? IdentFirst (IdentAfter)*;

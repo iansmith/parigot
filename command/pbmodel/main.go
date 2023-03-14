@@ -1,7 +1,7 @@
-package main
+package driver
 
-import "github.com/iansmith/parigot/pbmodel"
+import "github.com/iansmith/parigot/pbmodel/driver"
 
 func main() {
-	pbmodel.Main()
+	driver.Main()
 }

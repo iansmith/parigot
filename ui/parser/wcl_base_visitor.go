@@ -202,3 +202,15 @@ func (v *BasewclVisitor) VisitEvent_call(ctx *Event_callContext) interface{} {
 func (v *BasewclVisitor) VisitSelector(ctx *SelectorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
+
+func (v *BasewclVisitor) VisitModel_section(ctx *Model_sectionContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BasewclVisitor) VisitModel_def(ctx *Model_defContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BasewclVisitor) VisitFilename_seq(ctx *Filename_seqContext) interface{} {
+	return v.VisitChildren(ctx)
+}

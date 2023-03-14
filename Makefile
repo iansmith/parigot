@@ -43,6 +43,8 @@ ui/parser/wcllex_lexer.go: ui/parser/wcllex.g4
 ui/css/css3_lexer.go: ui/css/css3.g4
 	cd ui/css;./generate.sh
 
+pbmodel/protobuf3_parser.go: pbmodel/protobuf3.g4
+	cd pbmodel; ./generate.sh
 #ui/css/css3_parser.go: ui/css/css3.g4
 #	cd css;./generate.sh
 
@@ -97,7 +99,7 @@ WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
 CSS_COMPILER=$(shell find ui/css -type f -regex ".*\.go")
 WCL_DRIVER=$(shell find ui/driver -type f -regex ".*\.go")
 
-build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/template/*.tmpl helper/antlr.go\
+build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/template/*.tmpl helper/antlr/antlr.go\
 	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go \
 	ui/css/css3_lexer.go ui/css/css3_parser.go helper/*.go
 	rm -f $@

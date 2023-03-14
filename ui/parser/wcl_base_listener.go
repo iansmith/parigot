@@ -313,3 +313,21 @@ func (s *BasewclListener) EnterSelector(ctx *SelectorContext) {}
 
 // ExitSelector is called when production selector is exited.
 func (s *BasewclListener) ExitSelector(ctx *SelectorContext) {}
+
+// EnterModel_section is called when production model_section is entered.
+func (s *BasewclListener) EnterModel_section(ctx *Model_sectionContext) {}
+
+// ExitModel_section is called when production model_section is exited.
+func (s *BasewclListener) ExitModel_section(ctx *Model_sectionContext) {}
+
+// EnterModel_def is called when production model_def is entered.
+func (s *BasewclListener) EnterModel_def(ctx *Model_defContext) {}
+
+// ExitModel_def is called when production model_def is exited.
+func (s *BasewclListener) ExitModel_def(ctx *Model_defContext) {}
+
+// EnterFilename_seq is called when production filename_seq is entered.
+func (s *BasewclListener) EnterFilename_seq(ctx *Filename_seqContext) {}
+
+// ExitFilename_seq is called when production filename_seq is exited.
+func (s *BasewclListener) ExitFilename_seq(ctx *Filename_seqContext) {}

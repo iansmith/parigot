@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/iansmith/parigot/helper"
+	v4 "github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/iansmith/parigot/helper/antlr"
 	"github.com/iansmith/parigot/ui/parser"
 )
 
@@ -49,12 +49,12 @@ func Main() {
 	b := parser.NewWclBuildListener(inFile)
 
 	// antlr setup machinery
-	el := helper.AntlrSetupLexParse(inFile, l.BaseLexer, p.BaseParser)
+	el := antlr.AntlrSetupLexParse(inFile, l.BaseLexer, p.BaseParser)
 
 	// start parsing
 	prog := p.Program()
 	p.AddParseListener(b)
-	antlr.ParseTreeWalkerDefault.Walk(b, prog)
+	v4.ParseTreeWalkerDefault.Walk(b, prog)
 	if el.Failed() {
 		wclFatalf("failed due to syntax errors")
 	}
