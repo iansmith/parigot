@@ -3,6 +3,9 @@
 package parser // wcl
 import "github.com/antlr/antlr4/runtime/Go/antlr/v4"
 
+import "github.com/iansmith/parigot/ui/parser/tree"
+
+var _ = &tree.ProgramNode{}
 
 // A complete Visitor for a parse tree produced by wcl.
 type wclVisitor interface {

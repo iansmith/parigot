@@ -26,7 +26,7 @@ func NewCSSBuild(source string) *CSSBuild {
 }
 
 func (b *CSSBuild) RelativePath(path string) string {
-	return helper.RelativePath(path, b.SourceFile)
+	return helper.RelativePath(path, b.SourceFile, "")
 }
 
 func (b *CSSBuild) EnterKnownRuleset(ctx *KnownRulesetContext) {

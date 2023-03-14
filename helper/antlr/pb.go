@@ -10,7 +10,7 @@ import (
 	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
-func EvaluateOneFile(f string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNode, string, bool) {
+func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNode, string, bool) {
 	l := pbmodel.Newprotobuf3Lexer(nil)
 	p := pbmodel.Newprotobuf3Parser(nil)
 	el := AntlrSetupLexParse(f, l.BaseLexer, p.BaseParser)
@@ -25,8 +25,11 @@ func EvaluateOneFile(f string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNode, s
 	}
 
 	for _, out := range b.OutgoingImport {
-		found := helper.FindProtobufFile(out, b.CurrentPkgPrefix)
+		rel := helper.RelativePath(out, f, b.CurrentPackage)
+		log.Printf("xxx out2 is %s, rel is %s, file is %s", out, rel, f)
+		found := helper.FindProtobufFile(rel, b.CurrentPkgPrefix)
 		if found == "" {
+			log.Printf("unable to find file '%s' as a protobuf file (relative path to '%s')", rel, f)
 			for _, s := range helper.ParigotImportPath() {
 				log.Printf("    %s\n", s)
 			}
@@ -34,7 +37,7 @@ func EvaluateOneFile(f string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNode, s
 			os.Exit(1)
 		}
 
-		_, failedFile, ok := EvaluateOneFile(found, b)
+		_, failedFile, ok := EvaluateOneFile(found, pkg, b)
 		if !ok {
 			return nil, failedFile, false
 		}

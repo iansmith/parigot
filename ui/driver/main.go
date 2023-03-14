@@ -47,7 +47,6 @@ func Main() {
 	l := parser.Newwcllex(nil)
 	p := parser.Newwcl(nil)
 	b := parser.NewWclBuildListener(inFile)
-
 	// antlr setup machinery
 	el := antlr.AntlrSetupLexParse(inFile, l.BaseLexer, p.BaseParser)
 
@@ -58,7 +57,7 @@ func Main() {
 	if el.Failed() {
 		wclFatalf("failed due to syntax errors")
 	}
-	if !parser.NameCheckVisit(prog, b.ClassName) {
+	if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
 		wclFatalf("failed due to name check")
 	}
 	execTemplate(prog, *language)

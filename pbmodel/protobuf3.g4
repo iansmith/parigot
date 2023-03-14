@@ -9,12 +9,16 @@
  * - rewrite to antlr
  * - extract some group to rule.
  *
- * @author anatawa12
+ * @author anatawa12 (hacked by ian smith)
  */
 
 grammar protobuf3;
+@parser::header {
+	import "github.com/iansmith/parigot/ui/parser/tree"
+}
 
 proto
+returns [*tree.ProtobufFileNode pbNode]
   : syntax
     (
         importStatement
@@ -34,12 +38,14 @@ syntax
 // Import Statement
 
 importStatement
+returns [string imp]
   : IMPORT ( WEAK | PUBLIC )? strLit SEMI
   ;
 
 // Package
 
 packageStatement
+returns [string pkg]
   : PACKAGE fullIdent SEMI
   ;
 
@@ -149,6 +155,7 @@ reservedFieldNames
 // Top Level definitions
 
 topLevelDef
+returns [*tree.ProtobufMessage msg]
   : messageDef
   | enumDef
   | extendDef
@@ -186,6 +193,7 @@ enumValueOption
 // message
 
 messageDef
+  returns [*tree.ProtobufMessage msg]
   : MESSAGE messageName messageBody
   ;
 

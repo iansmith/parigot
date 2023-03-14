@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -15,18 +16,22 @@ func ParigotImportPath() []string {
 	}
 	raw, ok := os.LookupEnv(parigotImportVar)
 	if !ok {
-		raw, _ = os.Getwd()
+		cachedImportPath = []string{}
+	} else {
+		cachedImportPath = filepath.SplitList(raw)
 	}
-	cachedImportPath = filepath.SplitList(raw)
+	wd, _ := os.Getwd() // if getwd doesn't work, you have bigger problems
+	cachedImportPath = append(cachedImportPath, wd)
 	return cachedImportPath
 }
 
 func ProtobufSearchPath(prefix string) []string {
 	currentPlusImportPath := []string{}
-	if prefix != "" {
-		currentPlusImportPath = []string{prefix}
-	}
+	// if prefix != "" {
+	// 	currentPlusImportPath = []string{prefix}
+	// }
 	currentPlusImportPath = append(currentPlusImportPath, ParigotImportPath()...)
 	currentPlusImportPath = append(currentPlusImportPath, "")
+	log.Printf("xxx Protobuf Search Path: %+v", currentPlusImportPath)
 	return currentPlusImportPath
 }

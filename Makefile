@@ -29,7 +29,7 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	buf generate
 
 ## running the ANTLR code for the protobuf3 code
-pbmodel/pb3_parser.go: pbmodel/protobuf3.g4 
+pbmodel/protobuf3_parser.gom: pbmodel/protobuf3.g4 
 	cd pbmodel;./generate.sh
 
 ## running the ANTLR code for the WCL parsers/lexers
@@ -98,10 +98,11 @@ build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiimpl/dom/*.go
 WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
 CSS_COMPILER=$(shell find ui/css -type f -regex ".*\.go")
 WCL_DRIVER=$(shell find ui/driver -type f -regex ".*\.go")
+PB_COMPILER=$(shell find pbmodel -type f -regex ".*\.go")
 
-build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(REP) ui/driver/template/*.tmpl helper/antlr/antlr.go\
+build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(PB_COMPILER) $(REP) ui/driver/template/*.tmpl helper/antlr/antlr.go\
 	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go \
-	ui/css/css3_lexer.go ui/css/css3_parser.go helper/*.go
+	ui/css/css3_lexer.go ui/css/css3_parser.go helper/*.go helper/antlr/*.go pbmodel/protobuf3_parser.go
 	rm -f $@
 	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/wcl
 
@@ -158,7 +159,9 @@ parserclean:
 	ui/parser/wcl_visitor.go ui/parser/wcl_base_visitor.go \
 	ui/css/css3.interp ui/css/css3.tokens ui/css/css3Lexer.interp \
 	ui/css/css3Lexer.tokens ui/css/css3_base_listener.go \
-	ui/css/css3_lexer.go ui/css/css3_parser.go
+	ui/css/css3_lexer.go ui/css/css3_parser.go \
+	pbmodel/protobuf3.interp pbmodel/protobuf3.tokens pbmodel/protobuf3Lexer.interp \
+	pbmodel/protobuf3Lexer.tokens pbmodel/protobuf3_*.go
 
 semfailtest: build/wcl
 	build/wcl -invert ui/testdata/fail_dupparam.wcl 
