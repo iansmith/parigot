@@ -8,6 +8,7 @@ import (
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/iansmith/parigot/ui/css"
 	"github.com/iansmith/parigot/ui/parser/builtin"
+	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
 const anonPrefix = "_anon"
@@ -16,7 +17,7 @@ type WclBuildListener struct {
 	*BasewclListener
 
 	// we use these when the object does not need a stack (it's a singleton)
-	TextSection *TextSectionNode
+	TextSection *tree.TextSectionNode
 
 	anonCount int
 
@@ -46,7 +47,7 @@ func (s *WclBuildListener) ExitEveryRule(ctx antlr.ParserRuleContext) {
 }
 
 func (l *WclBuildListener) EnterProgram(c *ProgramContext) {
-	c.SetP(NewProgramNode())
+	c.SetP(tree.NewProgramNode())
 }
 
 func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
@@ -65,6 +66,10 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 		c.GetP().EventSection = c.Event_section().GetSection()
 		c.GetP().EventSection.Program = c.GetP()
 	}
+	if c.Model_section() != nil && c.Model_section().GetSection() != nil {
+		c.GetP().ModelSection = c.Model_section().GetSection()
+		c.GetP().ModelSection.Program = c.GetP()
+	}
 
 	if c.Extern() != nil && c.Extern().GetE() != nil {
 		c.GetP().Extern = c.Extern().GetE()
@@ -77,7 +82,7 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 
 // Import_section
 func (l *WclBuildListener) EnterImport_section(c *Import_sectionContext) {
-	i := NewImportSectionNode()
+	i := tree.NewImportSectionNode()
 	c.SetSection(i)
 }
 func (l *WclBuildListener) ExitImport_section(c *Import_sectionContext) {
@@ -86,13 +91,13 @@ func (l *WclBuildListener) ExitImport_section(c *Import_sectionContext) {
 
 // Text_section
 func (l *WclBuildListener) EnterText_section(c *Text_sectionContext) {
-	c.SetSection(NewTextSectionNode())
+	c.SetSection(tree.NewTextSectionNode())
 	l.TextSection = c.GetSection() // singletone
 }
 
 // Text_func
 func (l *WclBuildListener) EnterText_func(c *Text_funcContext) {
-	c.SetF(NewTextFuncNode())
+	c.SetF(tree.NewTextFuncNode())
 }
 func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 	c.GetF().Name = c.Id().GetText()
@@ -133,7 +138,7 @@ func (l *WclBuildListener) EnterText_content(c *Text_contentContext) {
 }
 
 func (l *WclBuildListener) ExitText_content(c *Text_contentContext) {
-	result := []TextItem{}
+	result := []tree.TextItem{}
 	for _, t := range c.AllText_content_inner() {
 		result = append(result, t.GetItem()...)
 	}
@@ -145,7 +150,7 @@ func (l *WclBuildListener) EnterRawText(c *RawTextContext) {
 	//nothing to do
 }
 func (l *WclBuildListener) ExitRawText(c *RawTextContext) {
-	c.SetItem([]TextItem{NewTextConstant(c.ContentRawText().GetText())})
+	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.ContentRawText().GetText())})
 }
 
 // Text_content_inner.VarSub
@@ -160,29 +165,29 @@ func (l *WclBuildListener) ExitVarSub(c *VarSubContext) {
 func (l *WclBuildListener) EnterVar_subs(c *Var_subsContext) {
 }
 func (l *WclBuildListener) ExitVar_subs(c *Var_subsContext) {
-	c.SetItem([]TextItem{c.Sub().GetItem()})
+	c.SetItem([]tree.TextItem{c.Sub().GetItem()})
 }
 
 // sub
 func (l *WclBuildListener) EnterSub(c *SubContext) {
 }
 func (l *WclBuildListener) ExitSub(c *SubContext) {
-	c.SetItem(NewTextVar(c.VarId().GetText()))
+	c.SetItem(tree.NewTextVar(c.VarId().GetText()))
 }
 
 // UninterpRawText
 func (l *WclBuildListener) EnterUninterpRawText(c *UninterpRawTextContext) {
 }
 func (l *WclBuildListener) ExitUninterpRawText(c *UninterpRawTextContext) {
-	c.SetItem([]TextItem{NewTextConstant(c.UninterpRawText().GetText())})
+	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.UninterpRawText().GetText())})
 }
 
 // UninterpNested
 func (l *WclBuildListener) EnterUninterpNested(c *UninterpNestedContext) {
 }
 func (l *WclBuildListener) ExitUninterpNested(c *UninterpNestedContext) {
-	r := append([]TextItem{NewTextConstant("{")}, c.Uninterp().GetItem()...)
-	r = append(r, NewTextConstant("}"))
+	r := append([]tree.TextItem{tree.NewTextConstant("{")}, c.Uninterp().GetItem()...)
+	r = append(r, tree.NewTextConstant("}"))
 	c.SetItem(r)
 
 }
@@ -191,8 +196,8 @@ func (l *WclBuildListener) ExitUninterpNested(c *UninterpNestedContext) {
 func (l *WclBuildListener) EnterUninterp_var(c *Uninterp_varContext) {
 }
 func (l *WclBuildListener) ExitUninterp_var(c *Uninterp_varContext) {
-	v := NewTextVar(c.VarId().GetText())
-	c.SetItem([]TextItem{v})
+	v := tree.NewTextVar(c.VarId().GetText())
+	c.SetItem([]tree.TextItem{v})
 }
 
 // Var inside uninterp
@@ -206,7 +211,7 @@ func (l *WclBuildListener) ExitUninterpVar(c *UninterpVarContext) {
 func (l *WclBuildListener) EnterUninterp(c *UninterpContext) {
 }
 func (l *WclBuildListener) ExitUninterp(c *UninterpContext) {
-	result := []TextItem{}
+	result := []tree.TextItem{}
 	for _, t := range c.AllUninterp_inner() {
 		result = append(result, t.GetItem()...)
 	}
@@ -217,7 +222,7 @@ func (l *WclBuildListener) ExitUninterp(c *UninterpContext) {
 func (l *WclBuildListener) EnterParam_spec(c *Param_specContext) {
 }
 func (l *WclBuildListener) ExitParam_spec(c *Param_specContext) {
-	all := []*PFormal{}
+	all := []*tree.PFormal{}
 	p := c.AllParam_pair()
 	for _, pCtx := range p {
 		all = append(all, pCtx.GetFormal()...)
@@ -229,7 +234,7 @@ func (l *WclBuildListener) ExitParam_spec(c *Param_specContext) {
 func (l *WclBuildListener) EnterPair(c *PairContext) {
 }
 func (l *WclBuildListener) ExitPair(c *PairContext) {
-	c.SetFormal(append(c.GetFormal(), NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
+	c.SetFormal(append(c.GetFormal(), tree.NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
 }
 
 // param_pair.Last
@@ -237,7 +242,7 @@ func (l *WclBuildListener) EnterLast(c *LastContext) {
 }
 
 func (l *WclBuildListener) ExitLast(c *LastContext) {
-	c.SetFormal(append(c.GetFormal(), NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
+	c.SetFormal(append(c.GetFormal(), tree.NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
 }
 
 // Doc_tag is a full tag descriptor
@@ -277,7 +282,7 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 			}
 		}
 	}
-	tag, err := NewDocTag(ctx.Id_or_var_ref().GetIdVar(), docId, cl)
+	tag, err := tree.NewDocTag(ctx.Id_or_var_ref().GetIdVar(), docId, cl)
 	if err != nil {
 		notifyError(fmt.Sprintf("unknown tag '%s'",
 			ctx.Id_or_var_ref().GetText()),
@@ -315,11 +320,11 @@ func (s *WclBuildListener) EnterDoc_section(ctx *Doc_sectionContext) {
 // Doc_sexpr.atom exit
 func (s *WclBuildListener) ExitDoc_section(ctx *Doc_sectionContext) {
 	raw := ctx.AllDoc_func()
-	content := make([]*DocFuncNode, len(raw))
+	content := make([]*tree.DocFuncNode, len(raw))
 	for i, r := range raw {
 		content[i] = r.GetFn()
 	}
-	section := NewDocSectionNode(content)
+	section := tree.NewDocSectionNode(content)
 	ctx.SetSection(section)
 }
 
@@ -327,7 +332,7 @@ func (s *WclBuildListener) EnterDoc_elem_content(ctx *Doc_elem_contentContext) {
 
 func (s *WclBuildListener) ExitDoc_elem_content(ctx *Doc_elem_contentContext) {
 	if ctx.Doc_elem_text() != nil {
-		ctx.SetElement(&DocElement{TextContent: ctx.Doc_elem_text().GetInvoc()})
+		ctx.SetElement(&tree.DocElement{TextContent: ctx.Doc_elem_text().GetInvoc()})
 	} else {
 		ctx.SetElement(ctx.Doc_elem_child().GetElem())
 	}
@@ -343,28 +348,28 @@ func (s *WclBuildListener) EnterDoc_elem_text_anon(ctx *Doc_elem_text_anonContex
 func (s *WclBuildListener) ExitDoc_elem_text_anon(ctx *Doc_elem_text_anonContext) {
 	item := ctx.Text_top().GetItem()
 	name := fmt.Sprintf(anonPrefix+"%08d", s.anonCount)
-	fn := &TextFuncNode{Name: name, Item_: item}
+	fn := &tree.TextFuncNode{Name: name, Item_: item}
 	s.TextSection.Func = append(s.TextSection.Func, fn)
 	s.anonCount++
 
-	ctx.SetInvoc(NewFuncInvoc(&DocIdOrVar{Name: name, IsVar: false}, nil))
+	ctx.SetInvoc(tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, nil))
 }
 
 func (s *WclBuildListener) EnterDoc_elem_child(ctx *Doc_elem_childContext) {}
 
 func (s *WclBuildListener) ExitDoc_elem_child(ctx *Doc_elem_childContext) {
 	raw := ctx.AllDoc_elem()
-	result := make([]*DocElement, len(raw))
+	result := make([]*tree.DocElement, len(raw))
 	for i, elem := range raw {
 		result[i] = elem.GetElem()
 	}
-	ctx.SetElem(&DocElement{Child: result})
+	ctx.SetElem(&tree.DocElement{Child: result})
 }
 
 func (s *WclBuildListener) EnterHaveTag(ctx *HaveTagContext) {}
 
 func (s *WclBuildListener) ExitHaveTag(ctx *HaveTagContext) {
-	elem := &DocElement{Tag: ctx.Doc_tag().GetTag()}
+	elem := &tree.DocElement{Tag: ctx.Doc_tag().GetTag()}
 	elemContent := ctx.Doc_elem_content()
 	if elemContent != nil {
 		other := elemContent.GetElement()
@@ -382,7 +387,7 @@ func (s *WclBuildListener) ExitHaveVar(ctx *HaveVarContext) {
 	if !v.IsVar {
 		panic("expected element to be a variable reference: " + v.Name)
 	}
-	elem := &DocElement{Var: v.Name}
+	elem := &tree.DocElement{Var: v.Name}
 	ctx.SetElem(elem)
 }
 
@@ -404,7 +409,7 @@ func (s *WclBuildListener) EnterFunc_invoc(ctx *Func_invocContext) {
 func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	actual := ctx.Func_actual_seq().GetActual()
 	name := ctx.Id().GetText()
-	invoc := NewFuncInvoc(&DocIdOrVar{Name: name, IsVar: false}, actual)
+	invoc := tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, actual)
 	ctx.SetInvoc(invoc)
 }
 
@@ -421,7 +426,7 @@ func (s *WclBuildListener) ExitFunc_actual(ctx *Func_actualContext) {
 		lit = ctx.StringLit().GetText()
 	}
 	if id != "" || lit != "" {
-		ctx.SetActual(NewFuncActual(id, lit))
+		ctx.SetActual(tree.NewFuncActual(id, lit))
 	}
 }
 
@@ -430,7 +435,7 @@ func (s *WclBuildListener) EnterFunc_actual_seq(ctx *Func_actual_seqContext) {
 
 func (s *WclBuildListener) ExitFunc_actual_seq(ctx *Func_actual_seqContext) {
 	raw := ctx.AllFunc_actual()
-	result := make([]*FuncActual, len(raw))
+	result := make([]*tree.FuncActual, len(raw))
 	for i, r := range raw {
 		result[i] = r.GetActual()
 	}
@@ -441,7 +446,7 @@ func (s *WclBuildListener) EnterDoc_func_local(ctx *Doc_func_localContext) {}
 
 func (s *WclBuildListener) ExitDoc_func_local(ctx *Doc_func_localContext) {
 	if ctx.Param_spec() == nil {
-		ctx.SetFormal([]*PFormal{})
+		ctx.SetFormal([]*tree.PFormal{})
 	} else {
 		ctx.SetFormal(ctx.Param_spec().GetFormal())
 	}
@@ -450,7 +455,7 @@ func (s *WclBuildListener) EnterDoc_func_formal(ctx *Doc_func_formalContext) {}
 
 func (s *WclBuildListener) ExitDoc_func_formal(ctx *Doc_func_formalContext) {
 	if ctx.Param_spec() == nil {
-		ctx.SetFormal([]*PFormal{})
+		ctx.SetFormal([]*tree.PFormal{})
 	} else {
 		ctx.SetFormal(ctx.Param_spec().GetFormal())
 	}
@@ -460,7 +465,7 @@ func (s *WclBuildListener) EnterText_func_local(ctx *Text_func_localContext) {}
 
 func (s *WclBuildListener) ExitText_func_local(ctx *Text_func_localContext) {
 	if ctx.Param_spec() == nil {
-		ctx.SetFormal([]*PFormal{})
+		ctx.SetFormal([]*tree.PFormal{})
 	} else {
 		ctx.SetFormal(ctx.Param_spec().GetFormal())
 	}
@@ -469,8 +474,8 @@ func (s *WclBuildListener) ExitText_func_local(ctx *Text_func_localContext) {
 func (s *WclBuildListener) EnterDoc_func(ctx *Doc_funcContext) {}
 
 func (s *WclBuildListener) ExitDoc_func(ctx *Doc_funcContext) {
-	var f, l []*PFormal
-	var pre, post []TextItem
+	var f, l []*tree.PFormal
+	var pre, post []tree.TextItem
 
 	if ctx.Doc_func_formal() != nil {
 		f = ctx.Doc_func_formal().GetFormal()
@@ -487,7 +492,7 @@ func (s *WclBuildListener) ExitDoc_func(ctx *Doc_funcContext) {
 	if ctx.Doc_elem() == nil {
 		log.Fatalf("ctx doc func name %s", ctx.Id().GetText())
 	}
-	ctx.SetFn(NewDocFuncNode(ctx.Id().GetText(), f, l, ctx.Doc_elem().GetElem(),
+	ctx.SetFn(tree.NewDocFuncNode(ctx.Id().GetText(), f, l, ctx.Doc_elem().GetElem(),
 		pre, post))
 
 }
@@ -534,7 +539,7 @@ func (s *WclBuildListener) EnterId_or_var_ref(ctx *Id_or_var_refContext) {
 
 func (s *WclBuildListener) ExitId_or_var_ref(ctx *Id_or_var_refContext) {
 	if ctx.Id() != nil {
-		ctx.SetIdVar(&DocIdOrVar{Name: ctx.Id().GetText(), IsVar: false})
+		ctx.SetIdVar(&tree.DocIdOrVar{Name: ctx.Id().GetText(), IsVar: false})
 		return
 	}
 	ctx.SetIdVar(ctx.Var_ref().GetV())
@@ -544,7 +549,7 @@ func (s *WclBuildListener) EnterVar_ref(ctx *Var_refContext) {
 }
 
 func (s *WclBuildListener) ExitVar_ref(ctx *Var_refContext) {
-	ctx.SetV(&DocIdOrVar{Name: ctx.VarId().GetText(), IsVar: true})
+	ctx.SetV(&tree.DocIdOrVar{Name: ctx.VarId().GetText(), IsVar: true})
 }
 
 func (s *WclBuildListener) EnterCss_filespec(ctx *Css_filespecContext) {
@@ -580,9 +585,9 @@ func (s *WclBuildListener) ExitSelector(ctx *SelectorContext) {
 		return
 	}
 	if id != "" {
-		ctx.SetSel(&Selector{Id: id})
+		ctx.SetSel(&tree.Selector{Id: id})
 	} else {
-		ctx.SetSel(&Selector{Class: clazz})
+		ctx.SetSel(&tree.Selector{Class: clazz})
 	}
 
 }
@@ -601,7 +606,7 @@ func (s *WclBuildListener) ExitEvent_call(ctx *Event_callContext) {
 	ctx.SetInvoc(f)
 }
 
-func checkSingleParamIsCSSClass(ctx *Event_callContext, name string, f *FuncInvoc) {
+func checkSingleParamIsCSSClass(ctx *Event_callContext, name string, f *tree.FuncInvoc) {
 	chk, err := builtin.GetBuiltinChecker(name)
 	if err != nil {
 		notifyError(err.Error(),
@@ -625,7 +630,7 @@ func (s *WclBuildListener) EnterEvent_spec(ctx *Event_specContext) {
 }
 
 func (s *WclBuildListener) ExitEvent_spec(ctx *Event_specContext) {
-	ctx.SetSpec(&EventSpec{
+	ctx.SetSpec(&tree.EventSpec{
 		Selector:  ctx.Selector().GetSel(),
 		EventName: ctx.Id().GetText(),
 		Function:  ctx.Event_call().GetInvoc(),
@@ -637,9 +642,48 @@ func (s *WclBuildListener) EnterEvent_section(ctx *Event_sectionContext) {
 
 func (s *WclBuildListener) ExitEvent_section(ctx *Event_sectionContext) {
 	raw := ctx.AllEvent_spec()
-	e := make([]*EventSpec, len(raw))
+	e := make([]*tree.EventSpec, len(raw))
 	for i, s := range raw {
 		e[i] = s.GetSpec()
 	}
-	ctx.SetSection(&EventSectionNode{Spec: e})
+	ctx.SetSection(&tree.EventSectionNode{Spec: e})
+}
+
+func (s *WclBuildListener) EnterFilename_seq(ctx *Filename_seqContext) {
+}
+
+func (s *WclBuildListener) ExitFilename_seq(ctx *Filename_seqContext) {
+	raw := ctx.AllStringLit()
+	rest := make([]string, len(raw))
+	for i, s := range raw {
+		quoted := s.GetText()
+		notQuoted := strings.TrimPrefix(quoted, "\"")
+		notQuoted = strings.TrimSuffix(notQuoted, "\"")
+		rest[i] = notQuoted
+	}
+	ctx.SetSeq(rest)
+}
+
+func (s *WclBuildListener) EnterModel_def(ctx *Model_defContext) {
+}
+
+func (s *WclBuildListener) ExitModel_def(ctx *Model_defContext) {
+	modelDef := tree.NewModelDef()
+	modelDef.Path = ctx.Filename_seq().GetSeq()
+	modelDef.Name = ctx.Id().GetText()
+	ctx.SetDef(modelDef)
+}
+
+func (s *WclBuildListener) EnterModel_section(ctx *Model_sectionContext) {
+}
+
+func (s *WclBuildListener) ExitModel_section(ctx *Model_sectionContext) {
+	section := tree.NewModelSection()
+	raw := ctx.AllModel_def()
+	def := make([]*tree.ModelDef, len(raw))
+	for i, mod := range raw {
+		def[i] = mod.GetDef()
+	}
+	section.ModelDef = def
+	ctx.SetSection(section)
 }

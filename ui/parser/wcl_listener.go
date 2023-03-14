@@ -154,6 +154,15 @@ type wclListener interface {
 	// EnterSelector is called when entering the selector production.
 	EnterSelector(c *SelectorContext)
 
+	// EnterModel_section is called when entering the model_section production.
+	EnterModel_section(c *Model_sectionContext)
+
+	// EnterModel_def is called when entering the model_def production.
+	EnterModel_def(c *Model_defContext)
+
+	// EnterFilename_seq is called when entering the filename_seq production.
+	EnterFilename_seq(c *Filename_seqContext)
+
 	// ExitProgram is called when exiting the program production.
 	ExitProgram(c *ProgramContext)
 
@@ -300,4 +309,13 @@ type wclListener interface {
 
 	// ExitSelector is called when exiting the selector production.
 	ExitSelector(c *SelectorContext)
+
+	// ExitModel_section is called when exiting the model_section production.
+	ExitModel_section(c *Model_sectionContext)
+
+	// ExitModel_def is called when exiting the model_def production.
+	ExitModel_def(c *Model_defContext)
+
+	// ExitFilename_seq is called when exiting the filename_seq production.
+	ExitFilename_seq(c *Filename_seqContext)
 }

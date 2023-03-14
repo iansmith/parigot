@@ -5,14 +5,16 @@ import (
 	"log"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	v4 "github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/iansmith/parigot/helper/antlr"
+	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
 type NameCheck struct {
 	*BasewclVisitor
 	Passed    bool
 	Func      map[string]bool
-	Program   *ProgramNode
+	Program   *tree.ProgramNode
 	className map[string]struct{}
 }
 
@@ -21,7 +23,7 @@ var _ wclVisitor = &NameCheck{}
 func NewNameCheck(cn map[string]struct{}) *NameCheck {
 	return &NameCheck{
 		BasewclVisitor: &BasewclVisitor{
-			BaseParseTreeVisitor: &antlr.BaseParseTreeVisitor{},
+			BaseParseTreeVisitor: &v4.BaseParseTreeVisitor{},
 		},
 		Passed:    true,
 		Func:      make(map[string]bool),
@@ -31,7 +33,7 @@ func NewNameCheck(cn map[string]struct{}) *NameCheck {
 
 // NameCheckVisit returns true if the visiting pass on tree
 // completes without error.
-func NameCheckVisit(tree antlr.ParseTree, cn map[string]struct{}) bool {
+func NameCheckVisit(tree v4.ParseTree, cn map[string]struct{}) bool {
 	n := NewNameCheck(cn)
 	n.Visit(tree)
 	return n.Passed
@@ -124,9 +126,21 @@ func (n *NameCheck) VisitDoc_section(ctx *Doc_sectionContext) interface{} {
 
 }
 
+func (n *NameCheck) VisitModel_section(ctx *Model_sectionContext) interface{} {
+	for _, m := range ctx.GetSection().ModelDef {
+		log.Printf("model def %s -> %+v", m.Name, m.Path)
+	}
+	sect := ctx.GetSection()
+	bad, ok := antlr.ParseModelSection(sect)
+	if !ok {
+		antlr.AntlrFatalf("failed trying to parse the protobuf file '%s'", bad)
+	}
+	return nil
+}
+
 // /////////////////////////////// CHECKING FUNCTIONS
 
-func (n *NameCheck) checkFuncCallName(fn *DocFuncNode) string {
+func (n *NameCheck) checkFuncCallName(fn *tree.DocFuncNode) string {
 	e := fn.Elem
 	if e.TextContent != nil {
 		if !e.TextContent.Name.IsVar && strings.HasPrefix(e.TextContent.Name.Name, anonPrefix) {
@@ -163,7 +177,7 @@ func (n *NameCheck) checkFuncCallName(fn *DocFuncNode) string {
 // checkFuncCallParameters checks that that an invocation only uses variables that are
 // known.  This is called only after we have checked that the name of the function being
 // invoced is ok.
-func (n *NameCheck) checkFuncCallParameters(fn *DocFuncNode, invoc *FuncInvoc) string {
+func (n *NameCheck) checkFuncCallParameters(fn *tree.DocFuncNode, invoc *tree.FuncInvoc) string {
 	if invoc == nil || invoc.Actual == nil {
 		return ""
 	}
@@ -194,7 +208,7 @@ func (n *NameCheck) checkFuncCallParameters(fn *DocFuncNode, invoc *FuncInvoc) s
 	return ""
 }
 
-func formalContainsActual(formal []*PFormal, actual string) bool {
+func formalContainsActual(formal []*tree.PFormal, actual string) bool {
 	for _, f := range formal {
 		if f.Name == actual {
 			return true
@@ -203,7 +217,7 @@ func formalContainsActual(formal []*PFormal, actual string) bool {
 	return false
 }
 
-func (n *NameCheck) checkForDupNames(parser antlr.Parser, ctx antlr.RuleContext, funcName string, isText bool) bool {
+func (n *NameCheck) checkForDupNames(parser v4.Parser, ctx v4.RuleContext, funcName string, isText bool) bool {
 	ok := n.checkFuncName(funcName, isText)
 	okDot := strings.Contains(funcName, ".")
 	var msg string
@@ -215,13 +229,13 @@ func (n *NameCheck) checkForDupNames(parser antlr.Parser, ctx antlr.RuleContext,
 	}
 	if !ok || okDot {
 		log.Print(msg)
-		ex := antlr.NewBaseRecognitionException(msg, parser, parser.GetInputStream(), ctx)
-		ctx.(*antlr.BaseParserRuleContext).SetException(ex)
+		ex := v4.NewBaseRecognitionException(msg, parser, parser.GetInputStream(), ctx)
+		ctx.(*v4.BaseParserRuleContext).SetException(ex)
 		return false
 	}
 	return true
 }
-func checkFuncForCollisions(name string, p []*PFormal, l []*PFormal, isText bool) bool {
+func checkFuncForCollisions(name string, p []*tree.PFormal, l []*tree.PFormal, isText bool) bool {
 	fnType := "text"
 	if !isText {
 		fnType = "doc"
@@ -271,7 +285,7 @@ func checkFuncForCollisions(name string, p []*PFormal, l []*PFormal, isText bool
 	return true
 }
 
-func checkParamsAndLocalsForDot(funcName string, param []*PFormal, local []*PFormal) string {
+func checkParamsAndLocalsForDot(funcName string, param []*tree.PFormal, local []*tree.PFormal) string {
 	for _, p := range param {
 		if strings.Contains(p.Name, ".") {
 			return fmt.Sprintf("In function '%s', parameter name '%s' may not contain a dot", funcName, p.Name)
@@ -313,19 +327,15 @@ func (n *NameCheck) checkFuncName(name string, isText bool) bool {
 
 // //////////////////////////////// BOILERPLATE /////////////////////////////
 
-func (n *NameCheck) Visit(tree antlr.ParseTree) interface{} {
+func (n *NameCheck) Visit(tree v4.ParseTree) interface{} {
 	return tree.Accept(n)
 }
-func (n *NameCheck) VisitChildren(ctx antlr.RuleNode) interface{} {
+func (n *NameCheck) VisitChildren(ctx v4.RuleNode) interface{} {
 	count := ctx.GetChildCount()
 	var last interface{}
 	for i := 0; i < count; i++ {
-		tree := ctx.GetChild(i).(antlr.ParseTree)
+		tree := ctx.GetChild(i).(v4.ParseTree)
 		last = n.Visit(tree)
 	}
 	return last
-}
-
-func IsSelfVar(name string) bool {
-	return name == "result"
 }

@@ -1,0 +1,27 @@
+@wcl 0.7.0
+//
+// Test for the basics of models
+//
+/////////////////// CSS /////////////////
+// path is relative to this file
+@css 
+    +"../../static/css/bootstrap.css"
+    +"../../static/css/bootstrap-grid.css"
+/////////////////// PREAMBLE /////////////////
+@preamble {
+}
+
+
+/////////////////// MODELS /////////////////
+@mvc
+
+// queue
+@model QueueModel "../../api/proto/msg/queue/v1/queue.proto","foo/bar/baz"
+
+
+///////////////// TEXT /////////////////
+
+
+///////////////// DOC /////////////////
+
+///////////////// EVENT /////////////////

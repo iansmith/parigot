@@ -2,8 +2,9 @@ package css
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
+
+	"github.com/iansmith/parigot/helper"
 )
 
 type CSSBuild struct {
@@ -25,9 +26,7 @@ func NewCSSBuild(source string) *CSSBuild {
 }
 
 func (b *CSSBuild) RelativePath(path string) string {
-	dir := filepath.Dir(b.SourceFile)
-	result := filepath.Join(dir, path)
-	return filepath.Clean(result)
+	return helper.RelativePath(path, b.SourceFile)
 }
 
 func (b *CSSBuild) EnterKnownRuleset(ctx *KnownRulesetContext) {
