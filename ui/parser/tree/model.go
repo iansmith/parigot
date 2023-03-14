@@ -23,6 +23,7 @@ type ProtobufFileNode struct {
 	PackageName string
 	FileName    string
 	GoPkg       string
+	LocalGoPkg  string
 	ImportFile  []string
 	Import      []*ProtobufFileNode
 	Message     []*ProtobufMessage
@@ -38,6 +39,23 @@ type ProtobufMessage struct {
 
 func NewProtobufMessage(name string) *ProtobufMessage {
 	return &ProtobufMessage{Name: name}
+}
+
+type FullIdent struct {
+	Part []string
+}
+
+func NewFullIdent(c []string) *FullIdent {
+	return &FullIdent{Part: c}
+}
+
+type OptionTriple struct {
+	Name         *FullIdent
+	Value, Extra string
+}
+
+func NewOptionTriple() *OptionTriple {
+	return &OptionTriple{}
 }
 
 // func (m *ModelSectionNode) Parse() (string, bool) {

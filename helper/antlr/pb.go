@@ -23,10 +23,12 @@ func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNo
 	if b.Failed() {
 		return nil, b.CurrentFile, false
 	}
-
-	for _, out := range b.OutgoingImport {
-		rel := helper.RelativePath(out, f, b.CurrentPackage)
-		log.Printf("xxx out2 is %s, rel is %s, file is %s", out, rel, f)
+	node := proto.GetPbNode()
+	if node == nil {
+		panic("did not retrieve node from proto production!")
+	}
+	for _, out := range node.ImportFile {
+		rel := helper.RelativePath(out, f, node.PackageName)
 		found := helper.FindProtobufFile(rel, b.CurrentPkgPrefix)
 		if found == "" {
 			log.Printf("unable to find file '%s' as a protobuf file (relative path to '%s')", rel, f)
@@ -36,11 +38,12 @@ func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNo
 			log.Printf("(maybe you need to check your PARIGOT_IMPORT_PATH?)")
 			os.Exit(1)
 		}
-
-		_, failedFile, ok := EvaluateOneFile(found, pkg, b)
+		pbmodel.AddImportEdge(f, found)
+		child, failedFile, ok := EvaluateOneFile(found, pkg, b)
 		if !ok {
 			return nil, failedFile, false
 		}
+		node.Import = append(node.Import, child)
 	}
-	return nil, "", true
+	return node, "", true
 }

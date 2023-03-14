@@ -1,6 +1,7 @@
 package pbmodel
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -37,26 +38,32 @@ func (p *Pb3Builder) Reset(path string) {
 
 }
 
+var ignoredCache = make(map[string]struct{})
+
 func (p *Pb3Builder) ExitImportStatement(ctx *ImportStatementContext) {
 	import_ := ctx.StrLit().GetText()
 	import_ = strings.TrimSpace(import_)
 	import_ = strings.TrimPrefix(import_, "\"")
 	import_ = strings.TrimSuffix(import_, "\"")
 	if strings.HasPrefix(import_, "google/protobuf") {
-		log.Printf("ignoring protobuf version 2 file from google: %s", import_)
+		_, ok := ignoredCache[import_]
+		if !ok {
+			log.Printf("ignoring protobuf version 2 file from google: %s", import_)
+			ignoredCache[import_] = struct{}{}
+		}
 		p.Proto2Ignored = append(p.Proto2Ignored, import_)
 		return
 	}
-	p.OutgoingImport = append(p.OutgoingImport, import_)
+	//p.OutgoingImport = append(p.OutgoingImport, import_)
 	p.FQNameToPath[import_] = p.CurrentFile
-	pb3Import.AddEdge(p.CurrentFile, import_)
+	//Pb3Dep.AddEdge(p.CurrentFile, import_)
+	ctx.SetImp(import_)
 }
 
 func (p *Pb3Builder) ExitPackageStatement(ctx *PackageStatementContext) {
 	pkg := ctx.FullIdent().GetText()
 	p.CurrentPackage = pkg
 	p.CurrentPkgPrefix = p.StripEnds(pkg, p.CurrentFile)
-	log.Printf("inside source %s, set current package to %s (with package prefix %s)", p.CurrentFile, p.CurrentPackage, p.CurrentPkgPrefix)
 
 	ctx.SetPkg(ctx.FullIdent().GetText())
 }
@@ -70,18 +77,49 @@ func (b *Pb3Builder) StripEnds(pkg, path string) string {
 
 func (p *Pb3Builder) ExitOptionStatement(ctx *OptionStatementContext) {
 	name, value := ctx.OptionName().GetText(), ctx.Constant().GetText()
+	// only one we care about now
 	if name == "go_package" {
-		p.CurrentGoPackage = value
+		triple := tree.NewOptionTriple()
+		triple.Name = ctx.OptionName().GetName()
+		part := strings.Split(value, ";")
+		if len(part) == 1 {
+			triple.Value = value
+			ctx.SetTriple(triple)
+			return
+		}
+		if len(part) > 2 {
+			panic(fmt.Sprintf("unable to understand option '%s' with value '%s'", name, value))
+		}
+		part0 := strings.TrimPrefix(part[0], "\"")
+		part0 = strings.TrimSuffix(part0, "\"")
+		part1 := strings.TrimPrefix(part[1], "\"")
+		part1 = strings.TrimSuffix(part1, "\"")
+		triple.Value = part0
+		triple.Extra = part1
+		ctx.SetTriple(triple)
 	}
+
+}
+
+func (p *Pb3Builder) ExitOptionName(ctx *OptionNameContext) {
+	if ctx.GetSimple() == nil {
+		return
+	}
+	if ctx.GetSimple().GetText() == "" {
+		return
+	}
+	ctx.SetName(ctx.GetSimple().GetFullId())
 }
 
 func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	pbNode := tree.NewProtobufFileNode()
-	//get imports
+	//get imports, but it can have "" in the sequence because of ignored proto2 files
 	raw := ctx.AllImportStatement()
-	impFile := make([]string, len(raw))
-	for i, import_ := range raw {
-		impFile[i] = import_.GetImp()
+	impFile := []string{}
+	for _, import_ := range raw {
+		if import_.GetImp() != "" {
+			impFile = append(impFile, import_.GetImp())
+		}
 	}
 	pbNode.ImportFile = impFile
 	pbNode.FileName = p.CurrentFile
@@ -93,7 +131,6 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		panic("unable to handle multiple package statements in a .proto file")
 	}
 	if len(rawPkg) == 1 {
-		log.Printf("got the package name %s", rawPkg[0].GetPkg())
 		pbNode.PackageName = rawPkg[0].GetPkg()
 	}
 
@@ -104,14 +141,34 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		msg[i] = m.GetMsg()
 	}
 	pbNode.Message = msg
+
+	stmt := ctx.AllOptionStatement()
+	if len(stmt) > 1 {
+		panic(fmt.Sprintf("unable to understand a proto file (%s) that has more than 1 go_package option!", p.CurrentFile))
+	}
+	if len(stmt) == 1 {
+		pbNode.GoPkg = stmt[0].GetTriple().Value
+		pbNode.LocalGoPkg = stmt[0].GetTriple().Extra
+	}
+	ctx.SetPbNode(pbNode)
 }
 
 func (p *Pb3Builder) ExitTopLevelDef(ctx *TopLevelDefContext) {
-	ctx.SetMsg(ctx.MessageDef().GetMsg())
+	if ctx.MessageDef() != nil {
+		ctx.SetMsg(ctx.MessageDef().GetMsg())
+	}
 }
 
 func (p *Pb3Builder) ExitMessageDef(ctx *MessageDefContext) {
 	msg := tree.NewProtobufMessage(ctx.MessageName().GetText())
-	log.Printf("create protobuf message with %s", msg.Name)
 	ctx.SetMsg(msg)
+}
+
+func (p *Pb3Builder) ExitFullIdent(ctx *FullIdentContext) {
+	raw := ctx.AllIdent()
+	id := make([]string, len(raw))
+	for i, r := range raw {
+		id[i] = r.GetText()
+	}
+	ctx.SetFullId(tree.NewFullIdent(id))
 }

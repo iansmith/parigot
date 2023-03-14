@@ -2,7 +2,6 @@ package helper
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,13 +13,10 @@ func RelativePath(rel, origin, pkg string) string {
 	if pkg == "" {
 		dir := filepath.Dir(origin)
 		result := filepath.Join(dir, rel)
-		log.Printf("computing relative (no package) path of %s to %s => %s", rel, origin, result)
 		return filepath.Clean(result)
 	}
 	dir := StripEndsOfPathForPkg(pkg, origin)
-	log.Printf("strip ends called (%s,%s)=>%s", pkg, rel, dir)
 	result := filepath.Join(dir, rel)
-
 	return filepath.Clean(result)
 }
 
@@ -58,11 +54,16 @@ func FindProtobufFile(name, prefix string) string {
 
 func StripEndsOfPathForPkg(pkg, path string) string {
 	pkgPart := strings.Split(pkg, ".")
-	dir := filepath.Dir(path)
-	dir = filepath.Clean(dir)
+	dir1 := filepath.Dir(path)
+	dir := filepath.Clean(dir1)
 	elem := strings.Split(dir, string(os.PathSeparator))
 	if elem == nil {
 		panic("empty path given to strip ends")
+	}
+	if elem[0] == "" {
+		//start with a separator
+		elem = elem[1:]
+		elem[0] = string(os.PathSeparator) + elem[0]
 	}
 	for len(pkgPart) > 0 {
 		lastPart := pkgPart[len(pkgPart)-1]
