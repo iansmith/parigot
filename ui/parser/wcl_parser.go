@@ -11,6 +11,8 @@ import (
 
 import "github.com/iansmith/parigot/ui/parser/tree"
 
+var _ = &tree.ProgramNode{}
+
 // Suppress unused import errors
 var _ = fmt.Printf
 var _ = strconv.Itoa

@@ -329,7 +329,8 @@ generalEnclosed
 // Variable
 // https://www.w3.org/TR/css-variables-1
 var_
-    : Var ws Variable ws ')' ws
+//    : Var ws Variable ws ')' ws
+    : Var ws Variable ws (Comma ws expression ws)? ')' ws
     ;
 
 // Calc
@@ -351,6 +352,7 @@ calcValue
     | dimension ws
     | unknownDimension ws
     | percentage ws
+    | var_ ws
     | '(' ws calcSum ')' ws
     ;
 

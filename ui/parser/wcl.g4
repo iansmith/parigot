@@ -2,8 +2,9 @@ parser grammar wcl;
 options {
 	tokenVocab = wcllex;
 }
-@header {
+@parser::header {
 	import "github.com/iansmith/parigot/ui/parser/tree"
+	var _ = &tree.ProgramNode{}
 }
 
 program

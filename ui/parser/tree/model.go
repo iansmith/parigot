@@ -1,9 +1,5 @@
 package tree
 
-import (
-	"github.com/iansmith/parigot/pbmodel"
-)
-
 type ModelSectionNode struct {
 	Program  *ProgramNode
 	ModelDef []*ModelDef
@@ -27,7 +23,8 @@ type ProtobufFileNode struct {
 	PackageName string
 	FileName    string
 	GoPkg       string
-	Imports     []*ProtobufFileNode
+	ImportFile  []string
+	Import      []*ProtobufFileNode
 	Message     []*ProtobufMessage
 }
 
@@ -37,6 +34,10 @@ func NewProtobufFileNode() *ProtobufFileNode {
 
 type ProtobufMessage struct {
 	Name string
+}
+
+func NewProtobufMessage(name string) *ProtobufMessage {
+	return &ProtobufMessage{Name: name}
 }
 
 // func (m *ModelSectionNode) Parse() (string, bool) {
@@ -61,10 +62,10 @@ type ProtobufMessage struct {
 // 	return nil, "", true
 // }
 
-func ProtobufNodeFromBuilder(builder *pbmodel.Pb3Builder) *ProtobufFileNode {
-	pf := NewProtobufFileNode()
-	pf.FileName = builder.CurrentFile
-	pf.PackageName = builder.CurrentPackage
-	pf.GoPkg = builder.CurrentGoPackage
-	return pf
-}
+// func ProtobufNodeFromBuilder(builder *pbmodel.Pb3Builder) *ProtobufFileNode {
+// 	pf := NewProtobufFileNode()
+// 	pf.FileName = builder.CurrentFile
+// 	pf.PackageName = builder.CurrentPackage
+// 	pf.GoPkg = builder.CurrentGoPackage
+// 	return pf
+// }

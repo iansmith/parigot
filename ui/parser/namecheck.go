@@ -12,29 +12,33 @@ import (
 
 type NameCheck struct {
 	*BasewclVisitor
-	Passed    bool
-	Func      map[string]bool
-	Program   *tree.ProgramNode
-	className map[string]struct{}
+	Passed      bool
+	Func        map[string]bool
+	Program     *tree.ProgramNode
+	className   map[string]struct{}
+	CurrentFile string
+	CurrentPkg  string
 }
 
 var _ wclVisitor = &NameCheck{}
 
-func NewNameCheck(cn map[string]struct{}) *NameCheck {
+func NewNameCheck(cn map[string]struct{}, sourceFile, pkg string) *NameCheck {
 	return &NameCheck{
 		BasewclVisitor: &BasewclVisitor{
 			BaseParseTreeVisitor: &v4.BaseParseTreeVisitor{},
 		},
-		Passed:    true,
-		Func:      make(map[string]bool),
-		className: cn,
+		Passed:      true,
+		Func:        make(map[string]bool),
+		className:   cn,
+		CurrentFile: sourceFile,
+		CurrentPkg:  pkg,
 	}
 }
 
 // NameCheckVisit returns true if the visiting pass on tree
 // completes without error.
-func NameCheckVisit(tree v4.ParseTree, cn map[string]struct{}) bool {
-	n := NewNameCheck(cn)
+func NameCheckVisit(sourceFile, pkg string, tree v4.ParseTree, cn map[string]struct{}) bool {
+	n := NewNameCheck(cn, sourceFile, pkg)
 	n.Visit(tree)
 	return n.Passed
 }
@@ -131,7 +135,7 @@ func (n *NameCheck) VisitModel_section(ctx *Model_sectionContext) interface{} {
 		log.Printf("model def %s -> %+v", m.Name, m.Path)
 	}
 	sect := ctx.GetSection()
-	bad, ok := antlr.ParseModelSection(sect)
+	bad, ok := antlr.ParseModelSection(n.CurrentFile, n.CurrentPkg, sect)
 	if !ok {
 		antlr.AntlrFatalf("failed trying to parse the protobuf file '%s'", bad)
 	}
