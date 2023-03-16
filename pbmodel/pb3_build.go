@@ -84,6 +84,8 @@ func (p *Pb3Builder) ExitOptionStatement(ctx *OptionStatementContext) {
 		part := strings.Split(value, ";")
 		if len(part) == 1 {
 			triple.Value = value
+			part := strings.Split(value, "/")
+			log.Printf("WARNING: '%s' does not have extra portion of the go_package name denoted by a semicolon, will assume addressing name is %s", value, part[len(part)-1])
 			ctx.SetTriple(triple)
 			return
 		}

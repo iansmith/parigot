@@ -100,9 +100,10 @@ CSS_COMPILER=$(shell find ui/css -type f -regex ".*\.go")
 WCL_DRIVER=$(shell find ui/driver -type f -regex ".*\.go")
 PB_COMPILER=$(shell find pbmodel -type f -regex ".*\.go")
 
-build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(PB_COMPILER) $(REP) ui/driver/template/*.tmpl helper/antlr/antlr.go\
-	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go \
-	ui/css/css3_lexer.go ui/css/css3_parser.go helper/*.go helper/antlr/*.go pbmodel/protobuf3_parser.go
+build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(PB_COMPILER) $(REP)\
+	ui/driver/template/*.tmpl helper/antlr/antlr.go\
+	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go pbmodel/protobuf3_parser.go ui/css/css3_lexer.go\
+	helper/*.go helper/antlr/*.go
 	rm -f $@
 	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/wcl
 
@@ -180,12 +181,17 @@ semfailtest: build/wcl
 	build/wcl -invert ui/testdata/fail_badtextvarpost.wcl
 	build/wcl -invert ui/testdata/fail_conflictlocalparamtext.wcl
 	build/wcl -invert ui/testdata/fail_conflictlocalnametext.wcl
+	build/wcl -invert ui/testdata/fail_unknowncss.wcl
+	build/wcl -invert ui/testdata/fail_badmodelmsg.wcl
+	build/wcl -invert ui/testdata/fail_badtextfunccall.wcl
 	@echo "PASS"
 	
 
 semtest: build/wcl
 	build/wcl -o /dev/null ui/testdata/textfunc_test.wcl
 	build/wcl -o /dev/null ui/testdata/docfunc_test.wcl
+	build/wcl -o /dev/null ui/testdata/event_test.wcl
+	build/wcl -o /dev/null ui/testdata/model_test.wcl
 	@echo PASS
 
 #

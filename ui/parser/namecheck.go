@@ -130,7 +130,7 @@ func (n *NameCheck) VisitDoc_section(ctx *Doc_sectionContext) interface{} {
 
 }
 
-func (n *NameCheck) VisitModel_section(ctx *Model_sectionContext) interface{} {
+func (n *NameCheck) VisitModel_section(ctx *Mvc_sectionContext) interface{} {
 	sect := ctx.GetSection()
 	bad, ok := antlr.ParseModelSection(n.CurrentFile, n.CurrentPkg, sect)
 	if !ok {

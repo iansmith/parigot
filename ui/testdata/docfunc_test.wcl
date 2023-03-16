@@ -5,8 +5,8 @@
 /////////////////// CSS /////////////////
 // path is relative to this file
 @css 
-    +"../static/css/bootstrap.css"
-    +"../static/css/bootstrap-grid.css"
+    +"../../static/css/bootstrap.css"
+    +"../../static/css/bootstrap-grid.css"
 
 
 /////////////////// PREAMBLE /////////////////
@@ -56,11 +56,11 @@ peers(a int64)
 // onlyAtom
 onlyAtom <br> `example "literal" function, this is just shorthand for make an anonymous text func`
 // only in Atom tests that we can handle the _lack_ of a tag that "owns" the list
-onlyAtomInList (<br #blah .blech .foobie>)
+onlyAtomInList (<p #blah .btn-warning .display-1>)
 tagInListWithVar(in *dommsg.Tag) 
     (<${in}> `backtick string here`)
 tagInListWithCall
-    (<br #blah .fleazil .frik .frak .quux> 
+    (<p #blah .mark .small> 
         textTest("the emergency broadcast system","9"))
 justVar(a *dommsg.Element)
     (${a})

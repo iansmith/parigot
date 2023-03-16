@@ -54,10 +54,18 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 	if c.Import_section() != nil && c.Import_section().GetSection() != nil {
 		c.GetP().ImportSection = c.Import_section().GetSection()
 	}
-	if c.Text_section() != nil && c.Text_section().GetSection() != nil {
-		c.GetP().TextSection = c.Text_section().GetSection()
-		c.GetP().TextSection.Program = c.GetP()
+	var tsNode *tree.TextSectionNode
+	ts := c.Text_section()
+	if ts == nil {
+		if l.TextSection != nil {
+			tsNode = l.TextSection
+		}
 	}
+	if ts != nil && c.Text_section().GetSection() != nil {
+		tsNode = c.Text_section().GetSection()
+		tsNode.Program = c.GetP()
+	}
+	c.GetP().TextSection = tsNode
 	if c.Doc_section() != nil && c.Doc_section().GetSection() != nil {
 		c.GetP().DocSection = c.Doc_section().GetSection()
 		c.GetP().DocSection.Program = c.GetP()
@@ -66,8 +74,8 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 		c.GetP().EventSection = c.Event_section().GetSection()
 		c.GetP().EventSection.Program = c.GetP()
 	}
-	if c.Model_section() != nil && c.Model_section().GetSection() != nil {
-		c.GetP().ModelSection = c.Model_section().GetSection()
+	if c.Mvc_section() != nil && c.Mvc_section().GetSection() != nil {
+		c.GetP().ModelSection = c.Mvc_section().GetSection()
 		c.GetP().ModelSection.Program = c.GetP()
 	}
 
@@ -172,6 +180,12 @@ func (l *WclBuildListener) ExitVar_subs(c *Var_subsContext) {
 func (l *WclBuildListener) EnterSub(c *SubContext) {
 }
 func (l *WclBuildListener) ExitSub(c *SubContext) {
+	if c.Func_invoc_var() != nil {
+		log.Printf("sub found invoc %+v", c.Func_invoc_var().GetInvoc())
+		c.SetItem(tree.NewTextInvoc(c.Func_invoc_var().GetInvoc()))
+		return
+	}
+	//normal case, just a var
 	c.SetItem(tree.NewTextVar(c.VarId().GetText()))
 }
 
@@ -224,25 +238,37 @@ func (l *WclBuildListener) EnterParam_spec(c *Param_specContext) {
 func (l *WclBuildListener) ExitParam_spec(c *Param_specContext) {
 	all := []*tree.PFormal{}
 	p := c.AllParam_pair()
-	for _, pCtx := range p {
-		all = append(all, pCtx.GetFormal()...)
+	for _, pair := range p {
+		all = append(all, pair.GetFormal())
 	}
 	c.SetFormal(all)
 }
 
-// param_pair.Pair
-func (l *WclBuildListener) EnterPair(c *PairContext) {
+func (l *WclBuildListener) EnterSimple_or_model_param(c *Simple_or_model_paramContext) {
 }
-func (l *WclBuildListener) ExitPair(c *PairContext) {
-	c.SetFormal(append(c.GetFormal(), tree.NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
+func (l *WclBuildListener) ExitSimple_or_model_param(c *Simple_or_model_paramContext) {
+	if c.GetId1() != nil {
+		c.SetT(tree.NewTypeDeclSimple(c.GetId1().GetText()))
+		return
+	}
+	if c.GetId2() != nil {
+		raw := c.GetId2().GetText()
+		part := strings.Split(raw, ".")
+		if len(part) != 2 {
+			notifyError(fmt.Sprintf("'%s' is not a valid reference to a model message, should be like ':model.message'", raw),
+				c.BaseParserRuleContext, raw, c.GetParser())
+			return
+		}
+
+		c.SetT(tree.NewTypeDeclModel(part[0], part[1]))
+		return
+	}
 }
 
-// param_pair.Last
-func (l *WclBuildListener) EnterLast(c *LastContext) {
-}
-
-func (l *WclBuildListener) ExitLast(c *LastContext) {
-	c.SetFormal(append(c.GetFormal(), tree.NewPFormal(c.GetN().GetText(), c.GetT().GetText())))
+func (l *WclBuildListener) ExitParam_pair(c *Param_pairContext) {
+	n := c.Id().GetText()
+	t := c.Simple_or_model_param().GetT()
+	c.SetFormal(tree.NewPFormal(n, t))
 }
 
 // Doc_tag is a full tag descriptor
@@ -337,6 +363,11 @@ func (s *WclBuildListener) ExitDoc_elem_content(ctx *Doc_elem_contentContext) {
 		ctx.SetElement(ctx.Doc_elem_child().GetElem())
 	}
 }
+func (s *WclBuildListener) CreateTextSectionIfNeeded() {
+	if s.TextSection == nil {
+		s.TextSection = tree.NewTextSectionNode()
+	}
+}
 
 func (s *WclBuildListener) EnterDoc_elem_text_func_call(ctx *Doc_elem_text_func_callContext) {}
 
@@ -349,6 +380,7 @@ func (s *WclBuildListener) ExitDoc_elem_text_anon(ctx *Doc_elem_text_anonContext
 	item := ctx.Text_top().GetItem()
 	name := fmt.Sprintf(anonPrefix+"%08d", s.anonCount)
 	fn := &tree.TextFuncNode{Name: name, Item_: item}
+	s.CreateTextSectionIfNeeded()
 	s.TextSection.Func = append(s.TextSection.Func, fn)
 	s.anonCount++
 
@@ -413,6 +445,14 @@ func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	ctx.SetInvoc(invoc)
 }
 
+// This is a copy of func_invoc because we cannot use the same parameters (ctx is per production)
+func (s *WclBuildListener) ExitFunc_invoc_var(ctx *Func_invoc_varContext) {
+	actual := ctx.Func_actual_seq_var().GetActual()
+	name := ctx.VarId().GetText()
+	invoc := tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, actual)
+	ctx.SetInvoc(invoc)
+}
+
 func (s *WclBuildListener) EnterFunc_actual(ctx *Func_actualContext) {
 }
 
@@ -430,11 +470,36 @@ func (s *WclBuildListener) ExitFunc_actual(ctx *Func_actualContext) {
 	}
 }
 
+// This is a copy of func_actual_var because we cannot use the same parameters (ctx is per production)
+func (s *WclBuildListener) ExitFunc_actual_var(ctx *Func_actual_varContext) {
+	id := ""
+	lit := ""
+	if ctx.VarId() != nil {
+		id = ctx.VarId().GetText()
+	}
+	if ctx.VarStringLit() != nil {
+		lit = ctx.VarStringLit().GetText()
+	}
+	if id != "" || lit != "" {
+		ctx.SetActual(tree.NewFuncActual(id, lit))
+	}
+}
+
 func (s *WclBuildListener) EnterFunc_actual_seq(ctx *Func_actual_seqContext) {
 }
 
 func (s *WclBuildListener) ExitFunc_actual_seq(ctx *Func_actual_seqContext) {
 	raw := ctx.AllFunc_actual()
+	result := make([]*tree.FuncActual, len(raw))
+	for i, r := range raw {
+		result[i] = r.GetActual()
+	}
+	ctx.SetActual(result)
+}
+
+// This is a copy of func_actual_seq_var because we cannot use the same parameters (ctx is per production)
+func (s *WclBuildListener) ExitFunc_actual_seq_var(ctx *Func_actual_seq_varContext) {
+	raw := ctx.AllFunc_actual_var()
 	result := make([]*tree.FuncActual, len(raw))
 	for i, r := range raw {
 		result[i] = r.GetActual()
@@ -470,10 +535,17 @@ func (s *WclBuildListener) ExitText_func_local(ctx *Text_func_localContext) {
 		ctx.SetFormal(ctx.Param_spec().GetFormal())
 	}
 }
-
 func (s *WclBuildListener) EnterDoc_func(ctx *Doc_funcContext) {}
 
 func (s *WclBuildListener) ExitDoc_func(ctx *Doc_funcContext) {
+	dfunc := ctx.Doc_func_post().GetFn() // not Gfunk
+	dfunc.Name = ctx.Id().GetText()
+	ctx.SetFn(dfunc)
+}
+
+func (s *WclBuildListener) EnterDoc_func_post(ctx *Doc_func_postContext) {}
+
+func (s *WclBuildListener) ExitDoc_func_post(ctx *Doc_func_postContext) {
 	var f, l []*tree.PFormal
 	var pre, post []tree.TextItem
 
@@ -489,10 +561,7 @@ func (s *WclBuildListener) ExitDoc_func(ctx *Doc_funcContext) {
 	if ctx.Post_code() != nil {
 		post = ctx.Post_code().GetItem()
 	}
-	if ctx.Doc_elem() == nil {
-		log.Fatalf("ctx doc func name %s", ctx.Id().GetText())
-	}
-	ctx.SetFn(tree.NewDocFuncNode(ctx.Id().GetText(), f, l, ctx.Doc_elem().GetElem(),
+	ctx.SetFn(tree.NewDocFuncNode("", f, l, ctx.Doc_elem().GetElem(),
 		pre, post))
 
 }
@@ -664,26 +733,46 @@ func (s *WclBuildListener) ExitFilename_seq(ctx *Filename_seqContext) {
 	ctx.SetSeq(rest)
 }
 
-func (s *WclBuildListener) EnterModel_def(ctx *Model_defContext) {
+func (s *WclBuildListener) EnterModel_decl(ctx *Model_declContext) {
 }
 
-func (s *WclBuildListener) ExitModel_def(ctx *Model_defContext) {
-	modelDef := tree.NewModelDef()
-	modelDef.Path = ctx.Filename_seq().GetSeq()
-	modelDef.Name = ctx.Id().GetText()
-	ctx.SetDef(modelDef)
+func (s *WclBuildListener) ExitModel_decl(ctx *Model_declContext) {
+	modelDecl := tree.NewModelDecl()
+	modelDecl.Path = ctx.Filename_seq().GetSeq()
+	modelDecl.Name = ctx.GetId1().GetText()
+	ctx.SetDecl(modelDecl)
 }
 
-func (s *WclBuildListener) EnterModel_section(ctx *Model_sectionContext) {
+func (s *WclBuildListener) EnterView_decl(ctx *View_declContext) {
 }
 
-func (s *WclBuildListener) ExitModel_section(ctx *Model_sectionContext) {
-	section := tree.NewModelSection()
-	raw := ctx.AllModel_def()
-	def := make([]*tree.ModelDef, len(raw))
+func (s *WclBuildListener) ExitView_dedcl(ctx *View_declContext) {
+	vdecl := tree.NewViewDecl(ctx.vname.GetText())
+	fn := ctx.Doc_func_post().GetFn()
+	vdecl.DocFn = fn
+	ctx.SetVdecl(vdecl)
+}
+
+func (s *WclBuildListener) EnterMvc_section(ctx *Mvc_sectionContext) {
+}
+
+func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
+	section := tree.NewMvcSection()
+	raw := ctx.AllModel_decl()
+	decl := make([]*tree.ModelDecl, len(raw))
 	for i, mod := range raw {
-		def[i] = mod.GetDef()
+		decl[i] = mod.GetDecl()
+		log.Printf("Model '%s'", decl[i].Name)
 	}
-	section.ModelDef = def
+	section.ModelDecl = decl
+
+	rawView := ctx.AllView_decl()
+	vdecl := make([]*tree.ViewDecl, len(rawView))
+	for i, v := range rawView {
+		vdecl[i] = v.GetVdecl()
+		log.Printf("View '%s'", decl[i].Name)
+	}
+	section.ViewDecl = vdecl
+
 	ctx.SetSection(section)
 }

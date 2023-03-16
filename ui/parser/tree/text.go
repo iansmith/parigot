@@ -55,6 +55,31 @@ func (t *TextVar) SubTemplate() string {
 	return "TextVar"
 }
 
+// TextInvoc is a text function call that in source form is ${foo(bar)}
+type TextInvoc struct {
+	Invoc *FuncInvoc
+}
+
+func (t *TextInvoc) String() string {
+	return t.Invoc.String()
+}
+
+func (t *TextInvoc) Generate(_ *VarCtx) string {
+	return fmt.Sprintf("%s\n", t.Invoc.String())
+}
+
+func (t *TextInvoc) VarCtx() *VarCtx {
+	return nil
+}
+
+func NewTextInvoc(i *FuncInvoc) *TextInvoc {
+	return &TextInvoc{Invoc: i}
+}
+
+func (t *TextInvoc) SubTemplate() string {
+	return "TextInvoc"
+}
+
 // TextInline is a blob of code to copied into the output.
 type TextInline struct {
 	Name      string
@@ -98,11 +123,32 @@ type TextExpander interface {
 // PFormal holds a parameter and type pair.
 type PFormal struct {
 	Name string
-	Type string
+	Type *TypeDecl
 }
 
-func NewPFormal(n, t string) *PFormal {
+func NewPFormal(n string, t *TypeDecl) *PFormal {
 	return &PFormal{Name: n, Type: t}
+}
+
+// Either Simple is set or both ModelName and ModelMessage are set
+type TypeDecl struct {
+	Simple       string
+	ModelName    string
+	ModelMessage string
+}
+
+func (t *TypeDecl) String() string {
+	if t.Simple != "" {
+		return t.Simple
+	}
+	return fmt.Sprintf("%s_%s", t.ModelName, t.ModelMessage)
+}
+func NewTypeDeclSimple(s string) *TypeDecl {
+	return &TypeDecl{Simple: s}
+}
+
+func NewTypeDeclModel(model, message string) *TypeDecl {
+	return &TypeDecl{ModelName: model, ModelMessage: message}
 }
 
 // TextFuncNode is the that alls the information about a declared
@@ -154,6 +200,7 @@ func (f *TextFuncNode) checkLocal(name string) bool {
 func (f *TextFuncNode) checkParam(name string) bool {
 	return f.checkVar(name, f.Param)
 }
+
 func (f *TextFuncNode) checkGlobalAndExtern(name string) bool {
 	return f.Section.Program.checkGlobalAndExtern(name)
 }

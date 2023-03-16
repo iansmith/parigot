@@ -10,9 +10,7 @@ import (
 	"path/filepath"
 
 	v4 "github.com/antlr/antlr4/runtime/Go/antlr/v4"
-	"github.com/dominikbraun/graph"
 	"github.com/iansmith/parigot/helper/antlr"
-	"github.com/iansmith/parigot/pbmodel"
 	"github.com/iansmith/parigot/ui/parser"
 )
 
@@ -64,14 +62,14 @@ func Main() {
 	}
 	execTemplate(prog, *language)
 
-	topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)
-	if err != nil {
-		log.Fatalf("unable to topologically sort the PB3 dependencies!")
-	}
-	log.Printf("TOPO SORT")
-	for _, t := range topo {
-		log.Printf(t)
-	}
+	// topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)
+	// if err != nil {
+	// 	log.Fatalf("unable to topologically sort the PB3 dependencies!")
+	// }
+	// log.Printf("TOPO SORT")
+	// for _, t := range topo {
+	// 	log.Printf(t)
+	// }
 	os.Exit(exitOk)
 }
 

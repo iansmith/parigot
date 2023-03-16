@@ -14,7 +14,7 @@ program
 	import_section?  
 	extern?
 	global?
-	model_section?
+	mvc_section?
 	text_section? 
 	css_section?     
 	doc_section?
@@ -101,6 +101,7 @@ var_subs
 sub
 	returns [tree.TextItem item]: 
 	VarId VarRCurly
+	| func_invoc_var VarRCurly
 	;
 
 uninterp
@@ -122,14 +123,17 @@ uninterp_var
 
 param_spec
 	returns[[]*tree.PFormal formal]: 
-	LParen (param_pair)* RParen;
+	LParen (param_pair (Comma param_pair)*)?  RParen;
 
 param_pair
-	returns[[]*tree.PFormal formal]:
-	n=Id t=Id Comma    	#Pair
-	| n=Id t=Id         #Last
-	;
+	returns[*tree.PFormal formal]:
+	Id simple_or_model_param;
 
+simple_or_model_param
+	returns [*tree.TypeDecl t]:
+	id1=Id
+	|Colon id2=Id 
+	;
 
 doc_section
 	returns [*tree.DocSectionNode section]: 
@@ -137,7 +141,12 @@ doc_section
 
 doc_func
 	returns [*tree.DocFuncNode fn]:
-	Id doc_func_formal doc_func_local? pre_code? doc_elem post_code?
+	Id doc_func_post
+	;
+
+doc_func_post
+	returns [*tree.DocFuncNode fn]:
+	doc_func_formal doc_func_local? pre_code? doc_elem post_code?
 	;
 
 doc_func_local
@@ -207,7 +216,12 @@ doc_elem_child
 
 func_invoc
 	returns [*tree.FuncInvoc invoc]:
-	Id LParen func_actual_seq RParen 
+	Id LParen func_actual_seq RParen
+	;
+
+func_invoc_var
+	returns [*tree.FuncInvoc invoc]:
+	VarId VarLeftParen func_actual_seq_var VarRightParen
 	;
 
 func_actual_seq
@@ -215,10 +229,21 @@ func_actual_seq
 	( a=func_actual (Comma b=func_actual)* )?
 	;
 
+func_actual_seq_var
+	returns [[]*tree.FuncActual actual]:
+	( a=func_actual_var (Comma b=func_actual_var)* )?
+	;
+
 func_actual 
 	returns [*tree.FuncActual actual]:
 	Id
 	| StringLit
+	;
+
+func_actual_var
+	returns [*tree.FuncActual actual]:
+	VarId
+	| VarStringLit
 	;
 
 event_section
@@ -241,14 +266,20 @@ selector
 	| class=Id // must start with a dot
 	;
 
-model_section
-	returns [*tree.ModelSectionNode section]:
-	Mvc (model_def)*
+mvc_section
+	returns [*tree.MVCSectionNode section]:
+	Mvc Model model_decl+
+	(View view_decl*)?
 	;
 
-model_def
-	returns [*tree.ModelDef def]: 
-	Model Id filename_seq
+model_decl
+	returns [*tree.ModelDecl decl]:
+	id1=Id filename_seq
+	;
+
+view_decl
+	returns [*tree.ViewDecl vdecl]:
+	vname=Id doc_func_post
 	;
 
 filename_seq
