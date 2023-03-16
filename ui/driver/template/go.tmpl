@@ -11,6 +11,10 @@ result
 fmt.Sprint({{.Name}})
 {{- end -}}{{/* end of test for magic result */}}
 {{- end -}} {{/* template TextVar */}}
+{{/* ----------------------------------------------------- */}}
+{{- define "TextInvoc" -}}
+{{ .String -}}
+{{- end -}} {{/* template TextInvoc */}}
 
 {{/* ----------------------------------------------------- */}}
 {{- define "TextInline" -}}
@@ -24,9 +28,14 @@ fmt.Sprint({{.Name}})
 {{- if eq $subtemplate "TextVar" }}
 {{ template "TextVar" . }}
 {{- end -}} {{/*TextVar*/}}
+
 {{- if eq $subtemplate "TextInline" }}
 // Inline Code Sections Do Not Nest
 {{- end -}} {{/*TextInline*/}}
+
+{{- if eq $subtemplate "TextInvoc" }}
+{{template "TextInvoc" .}}
+{{- end -}} {{/*TextInvoc*/}}
 
 {{- end -}} {{/* end of ranging over text objects */}}
 {{- end -}} {{/* template TextInline*/}}
@@ -169,6 +178,9 @@ result.WriteString({{ template "TextVar" . }})
 {{ end }} {{/*TextVar*/}}
 {{- if eq $subtemplate "TextInline" -}}
 {{ template "TextInline" .TextItem_ }}
+{{end }} {{/*TextInline*/}}
+{{- if eq $subtemplate "TextInvoc" -}}
+result.WriteString({{ template "TextInvoc" . }})
 {{end }} {{/*TextInline*/}}
 {{- end }} {{/* end ranging item */ -}}
 {{- template "TextInline" .PostCode }}

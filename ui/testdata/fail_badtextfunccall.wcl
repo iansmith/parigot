@@ -28,4 +28,4 @@ howdy(baz string, firstName string, lastName string)
     }
     salutation = "Mr."
 }
-    ` Greetings ${salutation} ${firstName} ${lastName} ${testUTF8(a)}`
+    ` Greetings ${salutation} ${firstName} ${lastName} ${testUTF7("!", lastName)}`

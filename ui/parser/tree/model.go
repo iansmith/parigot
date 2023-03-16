@@ -1,22 +1,33 @@
 package tree
 
-type ModelSectionNode struct {
-	Program  *ProgramNode
-	ModelDef []*ModelDef
+type MVCSectionNode struct {
+	Program   *ProgramNode
+	ModelDecl []*ModelDecl
+	ViewDecl  []*ViewDecl
 }
 
-func NewModelSection() *ModelSectionNode {
-	return &ModelSectionNode{}
+func NewMvcSection() *MVCSectionNode {
+	return &MVCSectionNode{}
 }
 
-type ModelDef struct {
+type ModelDecl struct {
 	Name string
 	Path []string
 	File []*ProtobufFileNode
 }
 
-func NewModelDef() *ModelDef {
-	return &ModelDef{}
+func NewModelDecl() *ModelDecl {
+	return &ModelDecl{}
+}
+
+type ViewDecl struct {
+	Name      string
+	ModelName string
+	DocFn     *DocFuncNode
+}
+
+func NewViewDecl(view string) *ViewDecl {
+	return &ViewDecl{Name: view}
 }
 
 type ProtobufFileNode struct {
@@ -57,33 +68,3 @@ type OptionTriple struct {
 func NewOptionTriple() *OptionTriple {
 	return &OptionTriple{}
 }
-
-// func (m *ModelSectionNode) Parse() (string, bool) {
-// 	for _, def := range m.ModelDef {
-// 		_, bad, ok := def.Parse()
-// 		if !ok {
-// 			return bad, false
-// 		}
-// 	}
-// 	return "", true
-// }
-
-// func (m *ModelDef) Parse() (*ProtobufFileNode, string, bool) {
-// 	builder := pbmodel.NewPb3Builder()
-// 	for _, f := range m.Path {
-// 		pf, bad, ok := antlr.EvaluateOneFile(f, builder)
-// 		if !ok {
-// 			return nil, bad, false
-// 		}
-// 		m.File = append(m.File, pf)
-// 	}
-// 	return nil, "", true
-// }
-
-// func ProtobufNodeFromBuilder(builder *pbmodel.Pb3Builder) *ProtobufFileNode {
-// 	pf := NewProtobufFileNode()
-// 	pf.FileName = builder.CurrentFile
-// 	pf.PackageName = builder.CurrentPackage
-// 	pf.GoPkg = builder.CurrentGoPackage
-// 	return pf
-// }

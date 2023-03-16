@@ -103,11 +103,11 @@ func (v *BasewclVisitor) VisitParam_spec(ctx *Param_specContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BasewclVisitor) VisitPair(ctx *PairContext) interface{} {
+func (v *BasewclVisitor) VisitParam_pair(ctx *Param_pairContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BasewclVisitor) VisitLast(ctx *LastContext) interface{} {
+func (v *BasewclVisitor) VisitSimple_or_model_param(ctx *Simple_or_model_paramContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -116,6 +116,10 @@ func (v *BasewclVisitor) VisitDoc_section(ctx *Doc_sectionContext) interface{} {
 }
 
 func (v *BasewclVisitor) VisitDoc_func(ctx *Doc_funcContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BasewclVisitor) VisitDoc_func_post(ctx *Doc_func_postContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -179,11 +183,23 @@ func (v *BasewclVisitor) VisitFunc_invoc(ctx *Func_invocContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BasewclVisitor) VisitFunc_invoc_var(ctx *Func_invoc_varContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BasewclVisitor) VisitFunc_actual_seq(ctx *Func_actual_seqContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BasewclVisitor) VisitFunc_actual_seq_var(ctx *Func_actual_seq_varContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BasewclVisitor) VisitFunc_actual(ctx *Func_actualContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BasewclVisitor) VisitFunc_actual_var(ctx *Func_actual_varContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
@@ -203,11 +219,15 @@ func (v *BasewclVisitor) VisitSelector(ctx *SelectorContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BasewclVisitor) VisitModel_section(ctx *Model_sectionContext) interface{} {
+func (v *BasewclVisitor) VisitMvc_section(ctx *Mvc_sectionContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BasewclVisitor) VisitModel_def(ctx *Model_defContext) interface{} {
+func (v *BasewclVisitor) VisitModel_decl(ctx *Model_declContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BasewclVisitor) VisitView_decl(ctx *View_declContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

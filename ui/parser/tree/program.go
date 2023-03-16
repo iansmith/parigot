@@ -6,7 +6,7 @@ type ProgramNode struct {
 	TextSection                       *TextSectionNode
 	DocSection                        *DocSectionNode
 	EventSection                      *EventSectionNode
-	ModelSection                      *ModelSectionNode
+	ModelSection                      *MVCSectionNode
 	Extern                            []string
 	Global                            []*PFormal
 	NeedBytes, NeedElement, NeedEvent bool

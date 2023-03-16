@@ -79,17 +79,20 @@ type wclListener interface {
 	// EnterParam_spec is called when entering the param_spec production.
 	EnterParam_spec(c *Param_specContext)
 
-	// EnterPair is called when entering the Pair production.
-	EnterPair(c *PairContext)
+	// EnterParam_pair is called when entering the param_pair production.
+	EnterParam_pair(c *Param_pairContext)
 
-	// EnterLast is called when entering the Last production.
-	EnterLast(c *LastContext)
+	// EnterSimple_or_model_param is called when entering the simple_or_model_param production.
+	EnterSimple_or_model_param(c *Simple_or_model_paramContext)
 
 	// EnterDoc_section is called when entering the doc_section production.
 	EnterDoc_section(c *Doc_sectionContext)
 
 	// EnterDoc_func is called when entering the doc_func production.
 	EnterDoc_func(c *Doc_funcContext)
+
+	// EnterDoc_func_post is called when entering the doc_func_post production.
+	EnterDoc_func_post(c *Doc_func_postContext)
 
 	// EnterDoc_func_local is called when entering the doc_func_local production.
 	EnterDoc_func_local(c *Doc_func_localContext)
@@ -136,11 +139,20 @@ type wclListener interface {
 	// EnterFunc_invoc is called when entering the func_invoc production.
 	EnterFunc_invoc(c *Func_invocContext)
 
+	// EnterFunc_invoc_var is called when entering the func_invoc_var production.
+	EnterFunc_invoc_var(c *Func_invoc_varContext)
+
 	// EnterFunc_actual_seq is called when entering the func_actual_seq production.
 	EnterFunc_actual_seq(c *Func_actual_seqContext)
 
+	// EnterFunc_actual_seq_var is called when entering the func_actual_seq_var production.
+	EnterFunc_actual_seq_var(c *Func_actual_seq_varContext)
+
 	// EnterFunc_actual is called when entering the func_actual production.
 	EnterFunc_actual(c *Func_actualContext)
+
+	// EnterFunc_actual_var is called when entering the func_actual_var production.
+	EnterFunc_actual_var(c *Func_actual_varContext)
 
 	// EnterEvent_section is called when entering the event_section production.
 	EnterEvent_section(c *Event_sectionContext)
@@ -154,11 +166,14 @@ type wclListener interface {
 	// EnterSelector is called when entering the selector production.
 	EnterSelector(c *SelectorContext)
 
-	// EnterModel_section is called when entering the model_section production.
-	EnterModel_section(c *Model_sectionContext)
+	// EnterMvc_section is called when entering the mvc_section production.
+	EnterMvc_section(c *Mvc_sectionContext)
 
-	// EnterModel_def is called when entering the model_def production.
-	EnterModel_def(c *Model_defContext)
+	// EnterModel_decl is called when entering the model_decl production.
+	EnterModel_decl(c *Model_declContext)
+
+	// EnterView_decl is called when entering the view_decl production.
+	EnterView_decl(c *View_declContext)
 
 	// EnterFilename_seq is called when entering the filename_seq production.
 	EnterFilename_seq(c *Filename_seqContext)
@@ -235,17 +250,20 @@ type wclListener interface {
 	// ExitParam_spec is called when exiting the param_spec production.
 	ExitParam_spec(c *Param_specContext)
 
-	// ExitPair is called when exiting the Pair production.
-	ExitPair(c *PairContext)
+	// ExitParam_pair is called when exiting the param_pair production.
+	ExitParam_pair(c *Param_pairContext)
 
-	// ExitLast is called when exiting the Last production.
-	ExitLast(c *LastContext)
+	// ExitSimple_or_model_param is called when exiting the simple_or_model_param production.
+	ExitSimple_or_model_param(c *Simple_or_model_paramContext)
 
 	// ExitDoc_section is called when exiting the doc_section production.
 	ExitDoc_section(c *Doc_sectionContext)
 
 	// ExitDoc_func is called when exiting the doc_func production.
 	ExitDoc_func(c *Doc_funcContext)
+
+	// ExitDoc_func_post is called when exiting the doc_func_post production.
+	ExitDoc_func_post(c *Doc_func_postContext)
 
 	// ExitDoc_func_local is called when exiting the doc_func_local production.
 	ExitDoc_func_local(c *Doc_func_localContext)
@@ -292,11 +310,20 @@ type wclListener interface {
 	// ExitFunc_invoc is called when exiting the func_invoc production.
 	ExitFunc_invoc(c *Func_invocContext)
 
+	// ExitFunc_invoc_var is called when exiting the func_invoc_var production.
+	ExitFunc_invoc_var(c *Func_invoc_varContext)
+
 	// ExitFunc_actual_seq is called when exiting the func_actual_seq production.
 	ExitFunc_actual_seq(c *Func_actual_seqContext)
 
+	// ExitFunc_actual_seq_var is called when exiting the func_actual_seq_var production.
+	ExitFunc_actual_seq_var(c *Func_actual_seq_varContext)
+
 	// ExitFunc_actual is called when exiting the func_actual production.
 	ExitFunc_actual(c *Func_actualContext)
+
+	// ExitFunc_actual_var is called when exiting the func_actual_var production.
+	ExitFunc_actual_var(c *Func_actual_varContext)
 
 	// ExitEvent_section is called when exiting the event_section production.
 	ExitEvent_section(c *Event_sectionContext)
@@ -310,11 +337,14 @@ type wclListener interface {
 	// ExitSelector is called when exiting the selector production.
 	ExitSelector(c *SelectorContext)
 
-	// ExitModel_section is called when exiting the model_section production.
-	ExitModel_section(c *Model_sectionContext)
+	// ExitMvc_section is called when exiting the mvc_section production.
+	ExitMvc_section(c *Mvc_sectionContext)
 
-	// ExitModel_def is called when exiting the model_def production.
-	ExitModel_def(c *Model_defContext)
+	// ExitModel_decl is called when exiting the model_decl production.
+	ExitModel_decl(c *Model_declContext)
+
+	// ExitView_decl is called when exiting the view_decl production.
+	ExitView_decl(c *View_declContext)
 
 	// ExitFilename_seq is called when exiting the filename_seq production.
 	ExitFilename_seq(c *Filename_seqContext)

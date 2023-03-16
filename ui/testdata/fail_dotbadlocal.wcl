@@ -10,10 +10,10 @@
 
 ///////////////// TEXT /////////////////
 @text
+//foo
 foo(far string)
 @local(far.galaxy int) `Hello`
-bar{{Hello}}
 
-@doc
-quux <p>
-baz <hr>
+//bar
+bar `Howdy`
+

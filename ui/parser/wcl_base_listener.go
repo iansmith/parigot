@@ -164,17 +164,17 @@ func (s *BasewclListener) EnterParam_spec(ctx *Param_specContext) {}
 // ExitParam_spec is called when production param_spec is exited.
 func (s *BasewclListener) ExitParam_spec(ctx *Param_specContext) {}
 
-// EnterPair is called when production Pair is entered.
-func (s *BasewclListener) EnterPair(ctx *PairContext) {}
+// EnterParam_pair is called when production param_pair is entered.
+func (s *BasewclListener) EnterParam_pair(ctx *Param_pairContext) {}
 
-// ExitPair is called when production Pair is exited.
-func (s *BasewclListener) ExitPair(ctx *PairContext) {}
+// ExitParam_pair is called when production param_pair is exited.
+func (s *BasewclListener) ExitParam_pair(ctx *Param_pairContext) {}
 
-// EnterLast is called when production Last is entered.
-func (s *BasewclListener) EnterLast(ctx *LastContext) {}
+// EnterSimple_or_model_param is called when production simple_or_model_param is entered.
+func (s *BasewclListener) EnterSimple_or_model_param(ctx *Simple_or_model_paramContext) {}
 
-// ExitLast is called when production Last is exited.
-func (s *BasewclListener) ExitLast(ctx *LastContext) {}
+// ExitSimple_or_model_param is called when production simple_or_model_param is exited.
+func (s *BasewclListener) ExitSimple_or_model_param(ctx *Simple_or_model_paramContext) {}
 
 // EnterDoc_section is called when production doc_section is entered.
 func (s *BasewclListener) EnterDoc_section(ctx *Doc_sectionContext) {}
@@ -187,6 +187,12 @@ func (s *BasewclListener) EnterDoc_func(ctx *Doc_funcContext) {}
 
 // ExitDoc_func is called when production doc_func is exited.
 func (s *BasewclListener) ExitDoc_func(ctx *Doc_funcContext) {}
+
+// EnterDoc_func_post is called when production doc_func_post is entered.
+func (s *BasewclListener) EnterDoc_func_post(ctx *Doc_func_postContext) {}
+
+// ExitDoc_func_post is called when production doc_func_post is exited.
+func (s *BasewclListener) ExitDoc_func_post(ctx *Doc_func_postContext) {}
 
 // EnterDoc_func_local is called when production doc_func_local is entered.
 func (s *BasewclListener) EnterDoc_func_local(ctx *Doc_func_localContext) {}
@@ -278,17 +284,35 @@ func (s *BasewclListener) EnterFunc_invoc(ctx *Func_invocContext) {}
 // ExitFunc_invoc is called when production func_invoc is exited.
 func (s *BasewclListener) ExitFunc_invoc(ctx *Func_invocContext) {}
 
+// EnterFunc_invoc_var is called when production func_invoc_var is entered.
+func (s *BasewclListener) EnterFunc_invoc_var(ctx *Func_invoc_varContext) {}
+
+// ExitFunc_invoc_var is called when production func_invoc_var is exited.
+func (s *BasewclListener) ExitFunc_invoc_var(ctx *Func_invoc_varContext) {}
+
 // EnterFunc_actual_seq is called when production func_actual_seq is entered.
 func (s *BasewclListener) EnterFunc_actual_seq(ctx *Func_actual_seqContext) {}
 
 // ExitFunc_actual_seq is called when production func_actual_seq is exited.
 func (s *BasewclListener) ExitFunc_actual_seq(ctx *Func_actual_seqContext) {}
 
+// EnterFunc_actual_seq_var is called when production func_actual_seq_var is entered.
+func (s *BasewclListener) EnterFunc_actual_seq_var(ctx *Func_actual_seq_varContext) {}
+
+// ExitFunc_actual_seq_var is called when production func_actual_seq_var is exited.
+func (s *BasewclListener) ExitFunc_actual_seq_var(ctx *Func_actual_seq_varContext) {}
+
 // EnterFunc_actual is called when production func_actual is entered.
 func (s *BasewclListener) EnterFunc_actual(ctx *Func_actualContext) {}
 
 // ExitFunc_actual is called when production func_actual is exited.
 func (s *BasewclListener) ExitFunc_actual(ctx *Func_actualContext) {}
+
+// EnterFunc_actual_var is called when production func_actual_var is entered.
+func (s *BasewclListener) EnterFunc_actual_var(ctx *Func_actual_varContext) {}
+
+// ExitFunc_actual_var is called when production func_actual_var is exited.
+func (s *BasewclListener) ExitFunc_actual_var(ctx *Func_actual_varContext) {}
 
 // EnterEvent_section is called when production event_section is entered.
 func (s *BasewclListener) EnterEvent_section(ctx *Event_sectionContext) {}
@@ -314,17 +338,23 @@ func (s *BasewclListener) EnterSelector(ctx *SelectorContext) {}
 // ExitSelector is called when production selector is exited.
 func (s *BasewclListener) ExitSelector(ctx *SelectorContext) {}
 
-// EnterModel_section is called when production model_section is entered.
-func (s *BasewclListener) EnterModel_section(ctx *Model_sectionContext) {}
+// EnterMvc_section is called when production mvc_section is entered.
+func (s *BasewclListener) EnterMvc_section(ctx *Mvc_sectionContext) {}
 
-// ExitModel_section is called when production model_section is exited.
-func (s *BasewclListener) ExitModel_section(ctx *Model_sectionContext) {}
+// ExitMvc_section is called when production mvc_section is exited.
+func (s *BasewclListener) ExitMvc_section(ctx *Mvc_sectionContext) {}
 
-// EnterModel_def is called when production model_def is entered.
-func (s *BasewclListener) EnterModel_def(ctx *Model_defContext) {}
+// EnterModel_decl is called when production model_decl is entered.
+func (s *BasewclListener) EnterModel_decl(ctx *Model_declContext) {}
 
-// ExitModel_def is called when production model_def is exited.
-func (s *BasewclListener) ExitModel_def(ctx *Model_defContext) {}
+// ExitModel_decl is called when production model_decl is exited.
+func (s *BasewclListener) ExitModel_decl(ctx *Model_declContext) {}
+
+// EnterView_decl is called when production view_decl is entered.
+func (s *BasewclListener) EnterView_decl(ctx *View_declContext) {}
+
+// ExitView_decl is called when production view_decl is exited.
+func (s *BasewclListener) ExitView_decl(ctx *View_declContext) {}
 
 // EnterFilename_seq is called when production filename_seq is entered.
 func (s *BasewclListener) EnterFilename_seq(ctx *Filename_seqContext) {}

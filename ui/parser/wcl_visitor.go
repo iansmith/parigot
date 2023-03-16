@@ -83,17 +83,20 @@ type wclVisitor interface {
 	// Visit a parse tree produced by wcl#param_spec.
 	VisitParam_spec(ctx *Param_specContext) interface{}
 
-	// Visit a parse tree produced by wcl#Pair.
-	VisitPair(ctx *PairContext) interface{}
+	// Visit a parse tree produced by wcl#param_pair.
+	VisitParam_pair(ctx *Param_pairContext) interface{}
 
-	// Visit a parse tree produced by wcl#Last.
-	VisitLast(ctx *LastContext) interface{}
+	// Visit a parse tree produced by wcl#simple_or_model_param.
+	VisitSimple_or_model_param(ctx *Simple_or_model_paramContext) interface{}
 
 	// Visit a parse tree produced by wcl#doc_section.
 	VisitDoc_section(ctx *Doc_sectionContext) interface{}
 
 	// Visit a parse tree produced by wcl#doc_func.
 	VisitDoc_func(ctx *Doc_funcContext) interface{}
+
+	// Visit a parse tree produced by wcl#doc_func_post.
+	VisitDoc_func_post(ctx *Doc_func_postContext) interface{}
 
 	// Visit a parse tree produced by wcl#doc_func_local.
 	VisitDoc_func_local(ctx *Doc_func_localContext) interface{}
@@ -140,11 +143,20 @@ type wclVisitor interface {
 	// Visit a parse tree produced by wcl#func_invoc.
 	VisitFunc_invoc(ctx *Func_invocContext) interface{}
 
+	// Visit a parse tree produced by wcl#func_invoc_var.
+	VisitFunc_invoc_var(ctx *Func_invoc_varContext) interface{}
+
 	// Visit a parse tree produced by wcl#func_actual_seq.
 	VisitFunc_actual_seq(ctx *Func_actual_seqContext) interface{}
 
+	// Visit a parse tree produced by wcl#func_actual_seq_var.
+	VisitFunc_actual_seq_var(ctx *Func_actual_seq_varContext) interface{}
+
 	// Visit a parse tree produced by wcl#func_actual.
 	VisitFunc_actual(ctx *Func_actualContext) interface{}
+
+	// Visit a parse tree produced by wcl#func_actual_var.
+	VisitFunc_actual_var(ctx *Func_actual_varContext) interface{}
 
 	// Visit a parse tree produced by wcl#event_section.
 	VisitEvent_section(ctx *Event_sectionContext) interface{}
@@ -158,11 +170,14 @@ type wclVisitor interface {
 	// Visit a parse tree produced by wcl#selector.
 	VisitSelector(ctx *SelectorContext) interface{}
 
-	// Visit a parse tree produced by wcl#model_section.
-	VisitModel_section(ctx *Model_sectionContext) interface{}
+	// Visit a parse tree produced by wcl#mvc_section.
+	VisitMvc_section(ctx *Mvc_sectionContext) interface{}
 
-	// Visit a parse tree produced by wcl#model_def.
-	VisitModel_def(ctx *Model_defContext) interface{}
+	// Visit a parse tree produced by wcl#model_decl.
+	VisitModel_decl(ctx *Model_declContext) interface{}
+
+	// Visit a parse tree produced by wcl#view_decl.
+	VisitView_decl(ctx *View_declContext) interface{}
 
 	// Visit a parse tree produced by wcl#filename_seq.
 	VisitFilename_seq(ctx *Filename_seqContext) interface{}
