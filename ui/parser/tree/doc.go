@@ -16,8 +16,8 @@ func (s *DocSectionNode) SetNumber() {
 	}
 }
 
-func NewDocSectionNode(f []*DocFuncNode) *DocSectionNode {
-	return &DocSectionNode{DocFunc: f}
+func NewDocSectionNode(p *ProgramNode, fn []*DocFuncNode) *DocSectionNode {
+	return &DocSectionNode{Program: p, DocFunc: fn}
 }
 
 type DocFuncNode struct {
@@ -32,67 +32,68 @@ func (f *DocFuncNode) SetNumber() {
 	f.Elem.SetNumber(0)
 }
 
-func (f *DocFuncNode) CheckForBadVariableUse() string {
-	for _, seq := range [][]TextItem{f.PreCode, f.PostCode} {
-		for _, item := range seq {
-			switch varName := item.(type) {
-			case *TextVar:
-				msg := f.checkAllForNameDecl(varName.Name)
-				if msg != "" {
-					return msg
-				}
-			}
-		}
-	}
-	return ""
-}
+// func (f *DocFuncNode) CheckForBadVariableUse() string {
+// 	for _, seq := range [][]TextItem{f.PreCode, f.PostCode} {
+// 		for _, item := range seq {
+// 			switch varName := item.(type) {
+// 			case *TextValueRef:
+// 				msg := f.checkAllForNameDecl(varName.String())
+// 				if msg != "" {
+// 					return msg
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return ""
+// }
 
-func (f *DocFuncNode) checkVar(name string, formal []*PFormal) bool {
-	for _, p := range formal {
-		if p.Name == name {
-			return true
-		}
-	}
-	return false
-}
+// func (f *DocFuncNode) checkVar(name string, formal []*PFormal) bool {
+// 	for _, p := range formal {
+// 		if p.Name == name {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
-func (f *DocFuncNode) checkGlobalAndExtern(name string) bool {
-	return f.Section.Program.checkGlobalAndExtern(name)
-}
-func (f *DocFuncNode) checkAllForNameDecl(name string) string {
-	if IsSelfVar(name) {
-		return ""
-	}
-	found := f.checkLocal(name)
-	if found {
-		return ""
-	}
-	found = f.checkParam(name)
-	if found {
-		return ""
-	}
-	found = f.checkGlobalAndExtern(name)
-	if found {
-		return ""
-	}
+//	func (f *DocFuncNode) checkGlobalAndExtern(name string) bool {
+//		return f.Section.Program.checkGlobalAndExtern(name)
+//	}
+// func (f *DocFuncNode) checkAllForNameDecl(name string) string {
+// 	if IsSelfVar(name) {
+// 		return ""
+// 	}
+// 	found := f.checkLocal(name)
+// 	if found {
+// 		return ""
+// 	}
+// 	found = f.checkParam(name)
+// 	if found {
+// 		return ""
+// 	}
+// 	found = f.checkGlobalAndExtern(name)
+// 	if found {
+// 		return ""
+// 	}
 
-	return fmt.Sprintf("in doc function '%s', unknown variable '%s'",
-		f.Name, name)
-}
+// 	return fmt.Sprintf("in doc function '%s', unknown variable '%s'",
+// 		f.Name, name)
+// }
 
-func (f *DocFuncNode) checkLocal(name string) bool {
-	return f.checkVar(name, f.Local)
-}
+// func (f *DocFuncNode) checkLocal(name string) bool {
+// 	return f.checkVar(name, f.Local)
+// }
 
-func (f *DocFuncNode) checkParam(name string) bool {
-	return f.checkVar(name, f.Param)
-}
+//	func (f *DocFuncNode) checkParam(name string) bool {
+//		return f.checkVar(name, f.Param)
+//	}
+
 func NewDocFuncNode(n string, formal []*PFormal, local []*PFormal, s *DocElement, pre, post []TextItem) *DocFuncNode {
 	return &DocFuncNode{Name: n, Param: formal, Local: local, Elem: s, PreCode: pre, PostCode: post}
 }
 
 type DocElement struct {
-	Var         string // exclusive
+	ValueRef    *ValueRef
 	Number      int
 	Tag         *DocTag
 	TextContent *FuncInvoc
@@ -117,9 +118,9 @@ func (e *DocElement) SetNumber(n int) int {
 }
 
 type DocTag struct {
-	Tag   *DocIdOrVar
-	Id    string
-	Class []string
+	Tag   *ValueRef
+	Id    *ValueRef
+	Class []*ValueRef
 }
 
 type DocIdOrVar struct {
@@ -127,13 +128,13 @@ type DocIdOrVar struct {
 	IsVar bool
 }
 
-func NewDocTag(tag *DocIdOrVar, id string, class []string) (*DocTag, error) {
-	if !tag.IsVar {
-		if !validTag(tag.Name) {
-			return nil, fmt.Errorf("unknown tag '%s'", tag.Name)
+func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef) (*DocTag, error) {
+	if tag.Lit != "" {
+		if !validTag(tag.Lit) {
+			return nil, fmt.Errorf("unknown tag '%s'", tag.Lit)
 		}
 	}
-	return &DocTag{Tag: tag, Id: id, Class: class}, nil
+	return &DocTag{Tag: tag, Id: id, Class: clazz}, nil
 }
 
 func validTag(tag string) bool {

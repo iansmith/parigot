@@ -6,8 +6,8 @@ type MVCSectionNode struct {
 	ViewDecl  []*ViewDecl
 }
 
-func NewMvcSection() *MVCSectionNode {
-	return &MVCSectionNode{}
+func NewMvcSectionNode(p *ProgramNode) *MVCSectionNode {
+	return &MVCSectionNode{Program: p}
 }
 
 type ModelDecl struct {
@@ -17,7 +17,9 @@ type ModelDecl struct {
 }
 
 func NewModelDecl() *ModelDecl {
-	return &ModelDecl{}
+	m := &ModelDecl{}
+	GCurrentModel = m
+	return m
 }
 
 type ViewDecl struct {

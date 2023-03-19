@@ -1,15 +1,13 @@
 package tree
 
-import "fmt"
-
 type EventSectionNode struct {
 	Spec    []*EventSpec
 	Program *ProgramNode
 }
 
 type Selector struct {
-	Id    string
-	Class string
+	Id    *ValueRef
+	Class *ValueRef
 }
 
 type EventCall struct {
@@ -41,10 +39,13 @@ func NewEventSpec(s *Selector, name string, b *FuncInvoc) *EventSpec {
 }
 
 func (s *Selector) String() string {
-	if s.Id != "" {
-		return fmt.Sprintf("\"#%s\"", s.Id)
+	if s.Class.String() == "" && s.Id.String() == "" {
+		return "SHOULD_NEVER_HAPPEN.UNABLE_TO_FIND_VR_VALUE"
 	}
-	return fmt.Sprintf("\"%s\"", s.Class)
+	if s.Class.String() != "" {
+		return s.Class.String()
+	}
+	return "#" + s.Id.String()
 
 }
 func isEventName(name string) EventType {

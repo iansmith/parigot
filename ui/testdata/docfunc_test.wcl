@@ -10,8 +10,9 @@
 
 
 /////////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble 
+<<
+>>
 ///////////////// GLOBAL /////////////////
 @global(g string)
 ///////////////// TEXT /////////////////
@@ -21,18 +22,20 @@
 checkUTF8 
 @local(cwd string)
 `Hello, 世界`
-@post{
+@post
+<<
     cwd,_=os.Getwd()
     fmt.Printf("working directory is %s",cwd)
-}
+>>
 
 // textTest
 textTest(t string, a string) 
 @local(aString string) 
-@pre{
+@pre
+<<
     aString=fmt.Sprintf("you have %d lives left",${a})
-}
-` test of the ${t}, and a local: ${aString} with ${g} `
+>>
+<< test of the ${t}, and a local: ${aString} with ${g} >>
 
 ///////////////// DOC /////////////////
 @doc
@@ -41,40 +44,47 @@ textTest(t string, a string)
 // tests the @pre and @post
 peers(a int64) 
 @local(b int64, c int64)
-@pre{
+@pre
+<<
     ${b}=${a}>>32
     ${c}=${a}&0xffffffff
-}
- (<h1>`foo`
-    <h2>`bar`
-    <p>foo()
+>>
+ (<h1><<foo>>
+    <h2><<bar>>
+    <p><<${foo()}>>
 )
-@post{
+@post
+<<
     ${result}=${result}+fmt.Sprintf("%08x",c)
-}
+>>
 
 // onlyAtom
-onlyAtom <br> `example "literal" function, this is just shorthand for make an anonymous text func`
+onlyAtom <br> <<example "literal" function, this is just shorthand for make an anonymous text func>>
 // only in Atom tests that we can handle the _lack_ of a tag that "owns" the list
 onlyAtomInList (<p #blah .btn-warning .display-1>)
 tagInListWithVar(in *dommsg.Tag) 
-    (<${in}> `backtick string here`)
+    (<${in}> <<backtick string here>>)
 tagInListWithCall
-    (<p #blah .mark .small> 
-        textTest("the emergency broadcast system","9"))
+    (
+        <p #blah .mark .small> 
+        <<${textTest("the emergency broadcast system","9")}>>
+    )
 justVar(a *dommsg.Element)
-    (${a})
+    (<<${a}>>)
 
 deeplyNested (<p>(<p>(<p>(<p>(<p>(<p> foo() ) ) ) ) ) )
-silly (((((((<p>{{some content}})))))))
+silly (((((((
+    <p><<some content>>
+    )))))))
 exampleList(param []string) 
 @local(x string, y int)
     (<ul #d> 
-        (<li #a>liTest("foo") 
-            <li #b>liTest(param)
-            <li #c>liTest(x)
+        (<li #a><<${liTest("foo")}>>
+            <li #b><<${liTest(param)}>>
+            <li #c><<${liTest(x)}>>
         )
     )
-@post{
+@post
+<<
     ${result}=${result}+"0000001"
-}
+>>

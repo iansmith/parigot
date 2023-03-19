@@ -1,13 +1,13 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/iansmith/parigot/ui/css"
-	"github.com/iansmith/parigot/ui/parser/builtin"
 	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
@@ -15,9 +15,6 @@ const anonPrefix = "_anon"
 
 type WclBuildListener struct {
 	*BasewclListener
-
-	// we use these when the object does not need a stack (it's a singleton)
-	TextSection *tree.TextSectionNode
 
 	anonCount int
 
@@ -47,99 +44,142 @@ func (s *WclBuildListener) ExitEveryRule(ctx antlr.ParserRuleContext) {
 }
 
 func (l *WclBuildListener) EnterProgram(c *ProgramContext) {
-	c.SetP(tree.NewProgramNode())
+}
+
+func checkDuplicateEarlySection(c *ProgramContext) bool {
+	glob := c.AllGlobal()
+	ext := c.AllExtern()
+	imp := c.AllImport_section()
+	b := bytes.Buffer{}
+	result := true
+
+	if len(glob) > 1 {
+		b.WriteString("no more than one global section permitted, found global sections")
+		for _, g := range glob {
+			b.WriteString(fmt.Sprintf("\tline %d, column %d\n", g.GetG().LineNumber, g.GetG().ColumnNumber))
+		}
+		result = false
+	}
+	if len(ext) > 1 {
+		b := bytes.Buffer{}
+		b.WriteString("no more than one extern section permitted, found extern sections")
+		for _, e := range ext {
+			b.WriteString(fmt.Sprintf("\tline %d, column %d\n", e.GetE().LineNumber, e.GetE().ColumnNumber))
+		}
+		result = false
+	}
+	if len(imp) > 1 {
+		b := bytes.Buffer{}
+		b.WriteString("no more than one preamble section permitted, found preamble sections")
+		for _, i := range imp {
+			b.WriteString(fmt.Sprintf("\tline %d, column %d\n", i.GetSection().LineNumber, i.GetSection().ColumnNumber))
+		}
+		result = false
+	}
+	return result
 }
 
 func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
-	if c.Import_section() != nil && c.Import_section().GetSection() != nil {
-		c.GetP().ImportSection = c.Import_section().GetSection()
+	if !checkDuplicateEarlySection(c) {
+		notifyError(fmt.Sprintf("failed due to section count'"),
+			c.BaseParserRuleContext, c.GetParser())
+
 	}
-	var tsNode *tree.TextSectionNode
-	ts := c.Text_section()
-	if ts == nil {
-		if l.TextSection != nil {
-			tsNode = l.TextSection
+	imp := c.AllImport_section()
+	if len(imp) == 1 && imp[0].GetSection() != nil {
+		tree.GProgram.ImportSection = imp[0].GetSection()
+	}
+	ext := c.AllExtern()
+	glob := c.AllGlobal()
+	var extNode *tree.ExternSectionNode
+	var globNode *tree.GlobalSectionNode
+	if len(ext) == 1 {
+		if ext[0].GetE() != nil {
+			extNode = ext[0].GetE()
 		}
 	}
-	if ts != nil && c.Text_section().GetSection() != nil {
-		tsNode = c.Text_section().GetSection()
-		tsNode.Program = c.GetP()
+	if len(glob) == 1 {
+		if glob[0].GetG() != nil {
+			globNode = glob[0].GetG()
+		}
 	}
-	c.GetP().TextSection = tsNode
+	tree.GProgram.Global = tree.NewAllGlobal(globNode, extNode)
+
+	if c.Text_section() != nil && c.Text_section().GetSection() != nil {
+		tree.GProgram.TextSection = c.Text_section().GetSection()
+		tree.GProgram.TextSection.Program = tree.GProgram
+	}
 	if c.Doc_section() != nil && c.Doc_section().GetSection() != nil {
-		c.GetP().DocSection = c.Doc_section().GetSection()
-		c.GetP().DocSection.Program = c.GetP()
+		tree.GProgram.DocSection = c.Doc_section().GetSection()
+		tree.GProgram.TextSection.Program = tree.GProgram
 	}
 	if c.Event_section() != nil && c.Event_section().GetSection() != nil {
-		c.GetP().EventSection = c.Event_section().GetSection()
-		c.GetP().EventSection.Program = c.GetP()
-	}
-	if c.Mvc_section() != nil && c.Mvc_section().GetSection() != nil {
-		c.GetP().ModelSection = c.Mvc_section().GetSection()
-		c.GetP().ModelSection.Program = c.GetP()
+		tree.GProgram.EventSection = c.Event_section().GetSection()
+		tree.GProgram.EventSection.Program = tree.GProgram
 	}
 
-	if c.Extern() != nil && c.Extern().GetE() != nil {
-		c.GetP().Extern = c.Extern().GetE()
-	}
-	if c.Global() != nil && c.Global().GetG() != nil {
-		c.GetP().Global = c.Global().GetG()
+	if c.Mvc_section() != nil && c.Mvc_section().GetSection() != nil {
+		tree.GProgram.ModelSection = c.Mvc_section().GetSection()
+		tree.GProgram.ModelSection.Program = tree.GProgram
 	}
 
 }
 
 // Import_section
 func (l *WclBuildListener) EnterImport_section(c *Import_sectionContext) {
-	i := tree.NewImportSectionNode()
-	c.SetSection(i)
 }
 func (l *WclBuildListener) ExitImport_section(c *Import_sectionContext) {
-	c.GetSection().TextItem_ = c.Uninterp().GetItem()
+	i := tree.NewImportSectionNode()
+	i.TextItem_ = c.Uninterp().GetItem()
+	c.SetSection(i)
 }
 
 // Text_section
 func (l *WclBuildListener) EnterText_section(c *Text_sectionContext) {
-	c.SetSection(tree.NewTextSectionNode())
-	l.TextSection = c.GetSection() // singletone
+}
+
+func (l *WclBuildListener) ExitText_section(c *Text_sectionContext) {
+	raw := c.AllText_func()
+	tfn := make([]*tree.TextFuncNode, len(raw))
+	section := tree.NewTextSectionNode(tree.GProgram)
+	for i, fn := range raw {
+		tfn[i] = fn.GetF()
+	}
+	section.Func = tfn
+	c.SetSection(section)
 }
 
 // Text_func
 func (l *WclBuildListener) EnterText_func(c *Text_funcContext) {
-	c.SetF(tree.NewTextFuncNode())
 }
-func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
-	c.GetF().Name = c.Id().GetText()
-	if c.GetF() != nil && c.GetF().Item_ != nil {
-		c.GetF().Item_ = c.Text_top().GetItem()
-	}
-	if c.Param_spec() != nil {
-		c.GetF().Param = c.Param_spec().GetFormal()
-	}
-	if c.Text_func_local() != nil {
-		c.GetF().Local = c.Text_func_local().GetFormal()
-	}
-	c.GetF().Item_ = c.Text_top().GetItem()
 
-	// add to list of funcs
-	l.TextSection.Func = append(l.TextSection.Func, c.GetF())
-	if c.Pre_code() != nil && c.Pre_code().GetItem() != nil {
-		c.GetF().PreCode = c.Pre_code().GetItem()
-	}
-	if c.Post_code() != nil && c.Post_code().GetItem() != nil {
-		c.GetF().PostCode = c.Post_code().GetItem()
-	}
+func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
+	// fn := tree.NewTextFuncNode()
+	// fn.Name = c.Id().GetText()
+	// if c.Param_spec() != nil && c.Param_spec().GetFormal() != nil {
+	// 	fn.Param = c.Param_spec().GetFormal()
+	// }
+	// if c.Text_func_local() != nil && c.Text_func_local().GetFormal() != nil {
+	// 	fn.Local = c.Text_func_local().GetFormal()
+	// }
+	// fn.Item_ = c.Text_top().GetItem()
+
+	// if c.Post_code() != nil && c.Post_code().GetItem() != nil {
+	// 	fn.PostCode = c.Post_code().GetItem()
+	// }
+	// c.SetF(fn)
 }
 
 // Text_top
-func (l *WclBuildListener) EnterText_top(c *Text_topContext) {
-	//nothing to do
-}
+// func (l *WclBuildListener) EnterText_top(c *Text_topContext) {
+// 	//nothing to do
+// }
 
-func (l *WclBuildListener) ExitText_top(c *Text_topContext) {
-	if c.Text_content() != nil {
-		c.SetItem(c.Text_content().GetItem())
-	}
-}
+// func (l *WclBuildListener) ExitText_top(c *Text_topContext) {
+// 	if c.Text_content() != nil {
+// 		c.SetItem(c.Text_content().GetItem())
+// 	}
+// }
 
 // Text_content
 func (l *WclBuildListener) EnterText_content(c *Text_contentContext) {
@@ -147,79 +187,143 @@ func (l *WclBuildListener) EnterText_content(c *Text_contentContext) {
 
 func (l *WclBuildListener) ExitText_content(c *Text_contentContext) {
 	result := []tree.TextItem{}
-	for _, t := range c.AllText_content_inner() {
+	for _, t := range c.AllRaw_text_or_sub() {
 		result = append(result, t.GetItem()...)
 	}
 	c.SetItem(result)
 }
 
-// Text_content_inner.RawText
-func (l *WclBuildListener) EnterRawText(c *RawTextContext) {
-	//nothing to do
-}
-func (l *WclBuildListener) ExitRawText(c *RawTextContext) {
-	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.ContentRawText().GetText())})
+// raw_text_or_sub
+func (l *WclBuildListener) EnterRaw_text_or_sub(c *Raw_text_or_subContext) {
 }
 
-// Text_content_inner.VarSub
-func (l *WclBuildListener) EnterVarSub(c *VarSubContext) {
-	//nothing to do
+func (l *WclBuildListener) ExitRaw_text_or_sub(c *Raw_text_or_subContext) {
+	if c.RawText() != nil {
+		r := []tree.TextItem{tree.NewTextConstant(c.RawText().GetText(),
+			c.RawText().GetSymbol().GetLine(), c.RawText().GetSymbol().GetColumn())}
+		c.SetItem(r)
+		return
+	}
+	if c.Var_subs() != nil && c.Var_subs().GetItem() != nil {
+		c.SetItem(c.Var_subs().GetItem())
+		return
+	}
 }
-func (l *WclBuildListener) ExitVarSub(c *VarSubContext) {
-	c.SetItem(c.Var_subs().GetItem())
+
+// // Text_content_inner.RawText
+// func (l *WclBuildListener) EnterRawText(c *RawTextContext) {
+// 	//nothing to do
+// }
+// func (l *WclBuildListener) ExitRawText(c *RawTextContext) {
+// 	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.ContentRawText().GetText())})
+// }
+
+// Text_content_inner.VarSub
+// func (l *WclBuildListener) EnterVarSub(c *VarSubContext) {
+// 	//nothing to do
+// }
+// func (l *WclBuildListener) ExitVarSub(c *VarSubContext) {
+// 	c.SetItem(c.Var_subs().GetItem())
+// }
+
+func (l *WclBuildListener) EnterIdent(c *IdentContext) {
+}
+func (l *WclBuildListener) ExitIdent(c *IdentContext) {
+	var prev *tree.IdentPart
+	colon := false // get a colonoscopy after 45 every 5 years
+	if c.Colon() != nil {
+		colon = true
+	}
+	line, col := c.Id().GetSymbol().GetLine(), c.GetStart().GetColumn()
+	id := tree.NewIdent(c.GetStart().GetText(), colon, c.GetText(), line, col)
+	if c.AllDot_qual() != nil {
+		raw := c.AllDot_qual()
+		for _, r := range raw {
+			current := &tree.IdentPart{Qual: r.GetPart()}
+			prev.Qual = current
+			prev = current
+		}
+	}
+	if c.AllColon_qual() != nil {
+		raw := c.AllColon_qual()
+		for _, r := range raw {
+			current := &tree.IdentPart{Qual: r.GetPart(), ColonSep: true}
+			prev.Qual = current
+			prev = current
+		}
+	}
+
+	c.SetId(id)
+}
+
+// ValueRef ID
+func (l *WclBuildListener) EnterValue_ref_id(c *Value_ref_idContext) {
+}
+func (l *WclBuildListener) ExitValue_ref_id(c *Value_ref_idContext) {
+	c.SetVr(&tree.ValueRef{Id: c.Ident().GetId()})
+}
+
+// ValueRef Func
+func (l *WclBuildListener) EnterValue_ref_func(c *Value_ref_funcContext) {
+}
+func (l *WclBuildListener) ExitValue_ref_func(c *Value_ref_funcContext) {
+	c.SetVr(&tree.ValueRef{FuncInvoc: c.Func_invoc().GetInvoc()})
 }
 
 // Var_subs
 func (l *WclBuildListener) EnterVar_subs(c *Var_subsContext) {
 }
 func (l *WclBuildListener) ExitVar_subs(c *Var_subsContext) {
-	c.SetItem([]tree.TextItem{c.Sub().GetItem()})
+	vr := c.Value_ref().GetVr()
+	c.SetItem([]tree.TextItem{
+		tree.NewTextValueRef(vr, vr.LineNumber, vr.ColumnNumber),
+	})
 }
 
 // sub
-func (l *WclBuildListener) EnterSub(c *SubContext) {
-}
-func (l *WclBuildListener) ExitSub(c *SubContext) {
-	if c.Func_invoc_var() != nil {
-		log.Printf("sub found invoc %+v", c.Func_invoc_var().GetInvoc())
-		c.SetItem(tree.NewTextInvoc(c.Func_invoc_var().GetInvoc()))
-		return
-	}
-	//normal case, just a var
-	c.SetItem(tree.NewTextVar(c.VarId().GetText()))
-}
+// func (l *WclBuildListener) EnterSub(c *SubContext) {
+// }
+// func (l *WclBuildListener) ExitSub(c *SubContext) {
+// 	if c.Func_invoc_var() != nil {
+// 		log.Printf("sub found invoc %+v", c.Func_invoc_var().GetInvoc())
+// 		c.SetItem(tree.NewTextInvoc(c.Func_invoc_var().GetInvoc()))
+// 		return
+// 	}
+// 	//normal case, just a var
+// 	c.SetItem(tree.NewTextVar(c.VarId().GetText()))
+// }
 
 // UninterpRawText
-func (l *WclBuildListener) EnterUninterpRawText(c *UninterpRawTextContext) {
-}
-func (l *WclBuildListener) ExitUninterpRawText(c *UninterpRawTextContext) {
-	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.UninterpRawText().GetText())})
-}
+// func (l *WclBuildListener) EnterUninterpRawText(c *UninterpRawTextContext) {
+// }
+// func (l *WclBuildListener) ExitUninterpRawText(c *UninterpRawTextContext) {
+// 	c.SetItem([]tree.TextItem{tree.NewTextConstant(c.UninterpRawText().GetText())})
+// }
 
 // UninterpNested
-func (l *WclBuildListener) EnterUninterpNested(c *UninterpNestedContext) {
-}
-func (l *WclBuildListener) ExitUninterpNested(c *UninterpNestedContext) {
-	r := append([]tree.TextItem{tree.NewTextConstant("{")}, c.Uninterp().GetItem()...)
-	r = append(r, tree.NewTextConstant("}"))
-	c.SetItem(r)
+// func (l *WclBuildListener) EnterUninterpNested(c *UninterpNestedContext) {
+// }
+// func (l *WclBuildListener) ExitUninterpNested(c *UninterpNestedContext) {
+// 	r := append([]tree.TextItem{tree.NewTextConstant("{")}, c.Uninterp().GetItem()...)
+// 	r = append(r, tree.NewTextConstant("}"))
+// 	c.SetItem(r)
 
-}
+// }
 
 // Var text
-func (l *WclBuildListener) EnterUninterp_var(c *Uninterp_varContext) {
-}
-func (l *WclBuildListener) ExitUninterp_var(c *Uninterp_varContext) {
-	v := tree.NewTextVar(c.VarId().GetText())
-	c.SetItem([]tree.TextItem{v})
-}
+// func (l *WclBuildListener) EnterUninterp_var(c *Uninterp_varContext) {
+// }
+// func (l *WclBuildListener) ExitUninterp_var(c *Uninterp_varContext) {
+// 	v := tree.NewTextVar(c.VarId().GetText())
+// 	c.SetItem([]tree.TextItem{v})
+// }
 
 // Var inside uninterp
-func (l *WclBuildListener) EnterUninterpVar(c *UninterpVarContext) {
-}
-func (l *WclBuildListener) ExitUninterpVar(c *UninterpVarContext) {
-	c.SetItem(c.Uninterp_var().GetItem())
-}
+// func (l *WclBuildListener) EnterUninterpVar(c *UninterpVarContext) {
+// }
+// func (l *WclBuildListener) ExitUninterpVar(c *UninterpVarContext) {
+// 	c.SetItem(c.Uninterp_var().GetItem())
+// }
 
 // Uninterp
 func (l *WclBuildListener) EnterUninterp(c *UninterpContext) {
@@ -229,6 +333,10 @@ func (l *WclBuildListener) ExitUninterp(c *UninterpContext) {
 	for _, t := range c.AllUninterp_inner() {
 		result = append(result, t.GetItem()...)
 	}
+	for _, t := range result {
+		log.Printf("--%s--", t.String())
+	}
+
 	c.SetItem(result)
 }
 
@@ -256,7 +364,7 @@ func (l *WclBuildListener) ExitSimple_or_model_param(c *Simple_or_model_paramCon
 		part := strings.Split(raw, ".")
 		if len(part) != 2 {
 			notifyError(fmt.Sprintf("'%s' is not a valid reference to a model message, should be like ':model.message'", raw),
-				c.BaseParserRuleContext, raw, c.GetParser())
+				c.BaseParserRuleContext, c.GetParser())
 			return
 		}
 
@@ -267,8 +375,12 @@ func (l *WclBuildListener) ExitSimple_or_model_param(c *Simple_or_model_paramCon
 
 func (l *WclBuildListener) ExitParam_pair(c *Param_pairContext) {
 	n := c.Id().GetText()
-	t := c.Simple_or_model_param().GetT()
-	c.SetFormal(tree.NewPFormal(n, t))
+	t := c.Ident().GetId()
+	ts := ""
+	if c.TypeStarter() != nil {
+		ts = c.TypeStarter().GetText()
+	}
+	c.SetFormal(tree.NewPFormal(n, t, ts))
 }
 
 // Doc_tag is a full tag descriptor
@@ -277,7 +389,7 @@ func (s *WclBuildListener) EnterDoc_id(ctx *Doc_idContext) {
 
 // Doc_tag is a full tag descriptor
 func (s *WclBuildListener) ExitDoc_id(ctx *Doc_idContext) {
-	ctx.SetS(ctx.Id().GetText())
+	ctx.SetS(ctx.Value_ref().GetVr())
 }
 
 // Doc_tag is a full tag descriptor
@@ -286,40 +398,50 @@ func (s *WclBuildListener) EnterDoc_tag(ctx *Doc_tagContext) {
 
 // Doc_tag is a full tag descriptor
 func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
-	docId := ""
-	if ctx.Doc_id() != nil {
+	var docId *tree.ValueRef
+	if ctx.Doc_id() != nil && ctx.Doc_id().GetS() != nil {
 		docId = ctx.Doc_id().GetS()
 	}
-	cl := []string{}
-	if ctx.Doc_class() != nil {
-		cl = ctx.Doc_class().GetClazz()
-		for _, c := range cl {
-			tn := ctx.Id_or_var_ref().GetIdVar().Name
-			if !strings.HasPrefix(c, ".") {
-				notifyError(fmt.Sprintf("in tag '%s', class name '%s' is invalid, class names must start with a dot ", tn, c),
-					ctx.BaseParserRuleContext, ctx.Id_or_var_ref().GetText(), ctx.GetParser())
-				return
+	// get the string here because we might need it for err messages
+	tn := ctx.Value_ref().GetVr().String()
+	numClass := 0
+	if ctx.Doc_class() != nil && ctx.Doc_class().GetClazz() != nil {
+		numClass = len(ctx.Doc_class().GetClazz())
 
+		vr := ctx.Doc_class().GetClazz()
+		for _, ref := range vr {
+			if ref.Lit == "" {
+				continue
 			}
-			if _, ok := s.ClassName[c]; !ok {
-				notifyError(fmt.Sprintf("in tag '%s', class name '%s' is not defined the css files declared", tn, c),
-					ctx.BaseParserRuleContext, ctx.Id_or_var_ref().GetText(), ctx.GetParser())
-				return
+			if !strings.HasPrefix(ref.Lit, ".") {
+				notifyError(fmt.Sprintf("in tag '%s', class name '%s' is invalid, class names must start with a dot ", tn, ref.Lit),
+					ctx.BaseParserRuleContext, ctx.GetParser())
+			}
+			_, ok := s.ClassName[ref.Lit]
+			if !ok {
+				notifyError(fmt.Sprintf("[%s:%d:%d] in tag '%s', class name '%s' is not defined the css files declared", s.SourceCode, ref.LineNumber, ref.ColumnNumber, ref.Lit, tn),
+					ctx.BaseParserRuleContext, ctx.GetParser())
 			}
 		}
 	}
-	tag, err := tree.NewDocTag(ctx.Id_or_var_ref().GetIdVar(), docId, cl)
+	cl := []*tree.ValueRef{}
+	if numClass > 0 {
+		cl = make([]*tree.ValueRef, numClass)
+		for i, c := range ctx.Doc_class().GetClazz() {
+			cl[i] = c
+		}
+	}
+	tag, err := tree.NewDocTag(ctx.Value_ref().GetVr(), docId, cl)
 	if err != nil {
-		notifyError(fmt.Sprintf("unknown tag '%s'",
-			ctx.Id_or_var_ref().GetText()),
-			ctx.BaseParserRuleContext,
-			ctx.Id_or_var_ref().GetText(), ctx.GetParser())
+		spec := fmt.Sprintf("%s:%d:%d", s.SourceCode, ctx.Value_ref().GetVr().LineNumber, ctx.Value_ref().GetVr().ColumnNumber)
+		notifyError(fmt.Sprintf("%s: %s", spec, err.Error()),
+			ctx.BaseParserRuleContext, ctx.GetParser())
 		return
 	}
 	ctx.SetTag(tag)
 
 }
-func notifyError(msg string, ctx *antlr.BaseParserRuleContext, name string, parser antlr.Parser) {
+func notifyError(msg string, ctx *antlr.BaseParserRuleContext, parser antlr.Parser) {
 	ex := antlr.NewBaseRecognitionException(msg, parser, parser.GetInputStream(), ctx)
 	ctx.SetException(ex)
 	parser.NotifyErrorListeners(msg, ctx.GetStart(), ex)
@@ -331,10 +453,10 @@ func (s *WclBuildListener) EnterDoc_class(ctx *Doc_classContext) {
 
 // Doc_class the part of a doc atom that looks like :foo, describing a css class
 func (s *WclBuildListener) ExitDoc_class(ctx *Doc_classContext) {
-	id := ctx.AllId()
-	result := make([]string, len(id))
-	for i, t := range id {
-		result[i] = t.GetText()
+	allVR := ctx.AllValue_ref()
+	result := make([]*tree.ValueRef, len(allVR))
+	for i, v := range allVR {
+		result[i] = v.GetVr()
 	}
 	ctx.SetClazz(result)
 }
@@ -350,42 +472,34 @@ func (s *WclBuildListener) ExitDoc_section(ctx *Doc_sectionContext) {
 	for i, r := range raw {
 		content[i] = r.GetFn()
 	}
-	section := tree.NewDocSectionNode(content)
+	section := tree.NewDocSectionNode(tree.GProgram, content)
 	ctx.SetSection(section)
 }
 
-func (s *WclBuildListener) EnterDoc_elem_content(ctx *Doc_elem_contentContext) {}
+// func (s *WclBuildListener) EnterDoc_elem_content(ctx *Doc_elem_contentContext) {}
 
-func (s *WclBuildListener) ExitDoc_elem_content(ctx *Doc_elem_contentContext) {
-	if ctx.Doc_elem_text() != nil {
-		ctx.SetElement(&tree.DocElement{TextContent: ctx.Doc_elem_text().GetInvoc()})
-	} else {
-		ctx.SetElement(ctx.Doc_elem_child().GetElem())
-	}
-}
-func (s *WclBuildListener) CreateTextSectionIfNeeded() {
-	if s.TextSection == nil {
-		s.TextSection = tree.NewTextSectionNode()
-	}
-}
+// func (s *WclBuildListener) ExitDoc_elem_content(ctx *Doc_elem_contentContext) {
+// 	if ctx.Doc_elem_text() != nil {
+// 		ctx.SetElement(&tree.DocElement{TextContent: ctx.Doc_elem_text().GetInvoc()})
+// 	} else {
+// 		ctx.SetElement(ctx.Doc_elem_child().GetElem())
+// 	}
+// }
+// func (s *WclBuildListener) EnterDoc_elem_text(ctx *Doc_elem_textContext) {}
 
-func (s *WclBuildListener) EnterDoc_elem_text_func_call(ctx *Doc_elem_text_func_callContext) {}
-
-func (s *WclBuildListener) ExitDoc_elem_text_func_call(ctx *Doc_elem_text_func_callContext) {
-	ctx.SetInvoc(ctx.Func_invoc().GetInvoc())
-}
-func (s *WclBuildListener) EnterDoc_elem_text_anon(ctx *Doc_elem_text_anonContext) {}
-
-func (s *WclBuildListener) ExitDoc_elem_text_anon(ctx *Doc_elem_text_anonContext) {
-	item := ctx.Text_top().GetItem()
-	name := fmt.Sprintf(anonPrefix+"%08d", s.anonCount)
-	fn := &tree.TextFuncNode{Name: name, Item_: item}
-	s.CreateTextSectionIfNeeded()
-	s.TextSection.Func = append(s.TextSection.Func, fn)
-	s.anonCount++
-
-	ctx.SetInvoc(tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, nil))
-}
+// func (s *WclBuildListener) ExitDoc_elem_text(ctx *Doc_elem_textContext) {
+// 	// if ctx.Text_top() != nil && ctx.Text_top().GetItem() != nil {
+// 	// 	invoc := tree.NewFuncInvoc(fmt.Sprintf("%s%04d", anonPrefix, s.anonCount), nil, -1, -1)
+// 	// 	s.anonCount++
+// 	// 	invoc.AnonBody = ctx.Text_top().GetItem()
+// 	// 	ctx.SetInvoc(invoc)
+// 	// 	return
+// 	// }
+// 	// if ctx.Func_invoc() != nil && ctx.Func_invoc().GetInvoc() != nil {
+// 	// 	ctx.SetInvoc(ctx.Func_invoc().GetInvoc())
+// 	// 	return
+// 	// }
+// }
 
 func (s *WclBuildListener) EnterDoc_elem_child(ctx *Doc_elem_childContext) {}
 
@@ -401,25 +515,22 @@ func (s *WclBuildListener) ExitDoc_elem_child(ctx *Doc_elem_childContext) {
 func (s *WclBuildListener) EnterHaveTag(ctx *HaveTagContext) {}
 
 func (s *WclBuildListener) ExitHaveTag(ctx *HaveTagContext) {
-	elem := &tree.DocElement{Tag: ctx.Doc_tag().GetTag()}
-	elemContent := ctx.Doc_elem_content()
-	if elemContent != nil {
-		other := elemContent.GetElement()
-		// might be either, but won't be both
-		elem.Child = other.Child
-		elem.TextContent = other.TextContent
-	}
-	ctx.SetElem(elem)
+	// elem := &tree.DocElement{Tag: ctx.Doc_tag().GetTag()}
+	// elemContent := ctx.Doc_elem_content()
+	// if elemContent != nil {
+	// 	other := elemContent.GetElement()
+	// 	// might be either, but won't be both
+	// 	elem.Child = other.Child
+	// 	elem.TextContent = other.TextContent
+	// }
+	// ctx.SetElem(elem)
 }
 
 func (s *WclBuildListener) EnterHaveVar(ctx *HaveVarContext) {}
 
 func (s *WclBuildListener) ExitHaveVar(ctx *HaveVarContext) {
-	v := ctx.Var_ref().GetV()
-	if !v.IsVar {
-		panic("expected element to be a variable reference: " + v.Name)
-	}
-	elem := &tree.DocElement{Var: v.Name}
+	v := ctx.Value_ref().GetVr()
+	elem := &tree.DocElement{ValueRef: v}
 	ctx.SetElem(elem)
 }
 
@@ -441,15 +552,8 @@ func (s *WclBuildListener) EnterFunc_invoc(ctx *Func_invocContext) {
 func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	actual := ctx.Func_actual_seq().GetActual()
 	name := ctx.Id().GetText()
-	invoc := tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, actual)
-	ctx.SetInvoc(invoc)
-}
-
-// This is a copy of func_invoc because we cannot use the same parameters (ctx is per production)
-func (s *WclBuildListener) ExitFunc_invoc_var(ctx *Func_invoc_varContext) {
-	actual := ctx.Func_actual_seq_var().GetActual()
-	name := ctx.VarId().GetText()
-	invoc := tree.NewFuncInvoc(&tree.DocIdOrVar{Name: name, IsVar: false}, actual)
+	invoc := tree.NewFuncInvoc(name, actual,
+		ctx.Id().GetSymbol().GetLine(), ctx.Id().GetSymbol().GetColumn())
 	ctx.SetInvoc(invoc)
 }
 
@@ -457,31 +561,8 @@ func (s *WclBuildListener) EnterFunc_actual(ctx *Func_actualContext) {
 }
 
 func (s *WclBuildListener) ExitFunc_actual(ctx *Func_actualContext) {
-	id := ""
-	lit := ""
-	if ctx.Id() != nil {
-		id = ctx.Id().GetText()
-	}
-	if ctx.StringLit() != nil {
-		lit = ctx.StringLit().GetText()
-	}
-	if id != "" || lit != "" {
-		ctx.SetActual(tree.NewFuncActual(id, lit))
-	}
-}
-
-// This is a copy of func_actual_var because we cannot use the same parameters (ctx is per production)
-func (s *WclBuildListener) ExitFunc_actual_var(ctx *Func_actual_varContext) {
-	id := ""
-	lit := ""
-	if ctx.VarId() != nil {
-		id = ctx.VarId().GetText()
-	}
-	if ctx.VarStringLit() != nil {
-		lit = ctx.VarStringLit().GetText()
-	}
-	if id != "" || lit != "" {
-		ctx.SetActual(tree.NewFuncActual(id, lit))
+	if ctx.Value_ref() != nil && ctx.Value_ref().GetVr() != nil {
+		ctx.SetActual(tree.NewFuncActual(ctx.Value_ref().GetVr()))
 	}
 }
 
@@ -490,16 +571,6 @@ func (s *WclBuildListener) EnterFunc_actual_seq(ctx *Func_actual_seqContext) {
 
 func (s *WclBuildListener) ExitFunc_actual_seq(ctx *Func_actual_seqContext) {
 	raw := ctx.AllFunc_actual()
-	result := make([]*tree.FuncActual, len(raw))
-	for i, r := range raw {
-		result[i] = r.GetActual()
-	}
-	ctx.SetActual(result)
-}
-
-// This is a copy of func_actual_seq_var because we cannot use the same parameters (ctx is per production)
-func (s *WclBuildListener) ExitFunc_actual_seq_var(ctx *Func_actual_seq_varContext) {
-	raw := ctx.AllFunc_actual_var()
 	result := make([]*tree.FuncActual, len(raw))
 	for i, r := range raw {
 		result[i] = r.GetActual()
@@ -567,11 +638,13 @@ func (s *WclBuildListener) ExitDoc_func_post(ctx *Doc_func_postContext) {
 }
 
 func (s *WclBuildListener) EnterGlobal(ctx *GlobalContext) {
-
 }
 
 func (s *WclBuildListener) ExitGlobal(ctx *GlobalContext) {
-	ctx.SetG(ctx.Param_spec().GetFormal())
+	g := tree.NewGlobalSectionNode(tree.GProgram,
+		ctx.Global().GetSymbol().GetLine(), ctx.Global().GetSymbol().GetColumn())
+	g.Var = ctx.Param_spec().GetFormal()
+	ctx.SetG(g)
 }
 
 func (s *WclBuildListener) EnterExtern(ctx *ExternContext) {
@@ -583,7 +656,11 @@ func (s *WclBuildListener) ExitExtern(ctx *ExternContext) {
 	for i, name := range raw {
 		result[i] = name.GetText()
 	}
-	ctx.SetE(result)
+	e := tree.NewExternSectionNode(tree.GProgram,
+		ctx.Extern().GetSymbol().GetLine(),
+		ctx.Extern().GetSymbol().GetColumn())
+	e.Name = result
+	ctx.SetE(e)
 }
 
 func (s *WclBuildListener) EnterPre_code(ctx *Pre_codeContext) {
@@ -601,24 +678,6 @@ func (s *WclBuildListener) ExitPost_code(ctx *Post_codeContext) {
 	if ctx.Uninterp() != nil {
 		ctx.SetItem(ctx.Uninterp().GetItem())
 	}
-}
-
-func (s *WclBuildListener) EnterId_or_var_ref(ctx *Id_or_var_refContext) {
-}
-
-func (s *WclBuildListener) ExitId_or_var_ref(ctx *Id_or_var_refContext) {
-	if ctx.Id() != nil {
-		ctx.SetIdVar(&tree.DocIdOrVar{Name: ctx.Id().GetText(), IsVar: false})
-		return
-	}
-	ctx.SetIdVar(ctx.Var_ref().GetV())
-}
-
-func (s *WclBuildListener) EnterVar_ref(ctx *Var_refContext) {
-}
-
-func (s *WclBuildListener) ExitVar_ref(ctx *Var_refContext) {
-	ctx.SetV(&tree.DocIdOrVar{Name: ctx.VarId().GetText(), IsVar: true})
 }
 
 func (s *WclBuildListener) EnterCss_filespec(ctx *Css_filespecContext) {
@@ -640,23 +699,15 @@ func (s *WclBuildListener) EnterSelector(ctx *SelectorContext) {
 }
 
 func (s *WclBuildListener) ExitSelector(ctx *SelectorContext) {
-	id := ""
-	clazz := ""
-	if ctx.GetIdValue() != nil {
-		id = ctx.GetIdValue().GetText()
-	}
-	if ctx.GetClass() != nil {
-		clazz = ctx.GetClass().GetText()
-	}
-	if clazz != "" && !strings.HasPrefix(clazz, ".") {
-		notifyError(fmt.Sprintf("class name '%s' does not start with a dot", clazz),
-			ctx.BaseParserRuleContext, ctx.Id().GetText(), ctx.GetParser())
+	if ctx.GetClass() != nil && ctx.GetClass().GetVr() != nil {
+		sel := &tree.Selector{Class: ctx.GetId().GetVr()}
+		ctx.SetSel(sel)
 		return
 	}
-	if id != "" {
-		ctx.SetSel(&tree.Selector{Id: id})
-	} else {
-		ctx.SetSel(&tree.Selector{Class: clazz})
+	if ctx.GetId() != nil && ctx.GetId().GetVr() != nil {
+		sel := &tree.Selector{Id: ctx.GetId().GetVr()}
+		ctx.SetSel(sel)
+		return
 	}
 
 }
@@ -665,34 +716,40 @@ func (s *WclBuildListener) EnterEvent_call(ctx *Event_callContext) {
 }
 
 func (s *WclBuildListener) ExitEvent_call(ctx *Event_callContext) {
-	b := ctx.AllGreaterThan() != nil
-	f := ctx.Func_invoc().GetInvoc()
-	name := f.Name.Name
-	f.Builtin = b
-	if b {
-		checkSingleParamIsCSSClass(ctx, name, f)
-	}
-	ctx.SetInvoc(f)
+	// b := ctx.Dash() != nil && ctx.GreaterThan() != nil
+	// f := ctx.Func_invoc().GetInvoc()
+	// f.Builtin = b
+	// if b {
+	// 	s.checkSingleParamIsCSSClass(ctx, f)
+	// }
+	// ctx.SetInvoc(f)
 }
 
-func checkSingleParamIsCSSClass(ctx *Event_callContext, name string, f *tree.FuncInvoc) {
-	chk, err := builtin.GetBuiltinChecker(name)
-	if err != nil {
-		notifyError(err.Error(),
-			ctx.BaseParserRuleContext, name, ctx.GetParser())
+func (s *WclBuildListener) checkSingleParamIsCSSClass(ctx *Event_callContext, f *tree.FuncInvoc) {
+	//chk, err := builtin.GetBuiltinChecker(f.Name)
+	// if err != nil {
+	// 	notifyError(err.Error(),
+	// 		ctx.BaseParserRuleContext, ctx.GetParser())
+	// 	return
+	// }
+	detail := fmt.Sprintf("%s:%d:%d", s.SourceCode, f.LineNumber, f.ColumnNumber)
+	if len(f.Actual) == 0 {
+		notifyError(fmt.Sprintf("%s expected 1 parameter got 0 for %s", detail, f.Name),
+			ctx.BaseParserRuleContext, ctx.GetParser())
+		return
+
+	}
+	if len(f.Actual) > 1 {
+		notifyError(fmt.Sprintf("%s number of parameters expected for '%s' is 1", detail, f.Name),
+			ctx.BaseParserRuleContext, ctx.GetParser())
 		return
 	}
-	if len(f.Actual) != 1 {
-		notifyError(fmt.Sprintf("number of parameters expected for '%s' is 1", name),
-			ctx.BaseParserRuleContext, name, ctx.GetParser())
-		return
-	}
-	ok, errText := chk(f.Actual[0].Literal[1 : len(f.Actual[0].Literal)-1])
-	if !ok {
-		notifyError(errText,
-			ctx.BaseParserRuleContext, name, ctx.GetParser())
-		return
-	}
+	// ok, errText := chk(f.Actual[0].Literal[1 : len(f.Actual[0].Literal)-1])
+	// if !ok {
+	// 	notifyError(errText,
+	// 		ctx.BaseParserRuleContext, name, ctx.GetParser())
+	// 	return
+	// }
 }
 
 func (s *WclBuildListener) EnterEvent_spec(ctx *Event_specContext) {
@@ -757,7 +814,7 @@ func (s *WclBuildListener) EnterMvc_section(ctx *Mvc_sectionContext) {
 }
 
 func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
-	section := tree.NewMvcSection()
+	section := tree.NewMvcSectionNode(tree.GProgram)
 	raw := ctx.AllModel_decl()
 	decl := make([]*tree.ModelDecl, len(raw))
 	for i, mod := range raw {
