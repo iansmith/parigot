@@ -4,16 +4,23 @@ options {
 }
 @parser::header {
 	import "github.com/iansmith/parigot/ui/parser/tree"
+	import "log"
 	var _ = &tree.ProgramNode{}
-}
+	var _ = log.Printf
+}	
 
 program
 	returns[*tree.ProgramNode p]:
 	wcl_section
 	css_section?
-	import_section?  
-	extern?
-	global?
+
+	// the "early sections"	
+	(
+		import_section
+		|extern
+		|global
+	)*
+
 	mvc_section?
 	text_section? 
 	css_section?     
@@ -23,12 +30,12 @@ program
 	;
 
 global
-	returns [[]*tree.PFormal g]:
+	returns [*tree.GlobalSectionNode g]:
 	Global param_spec
 	;
 
 extern
-	returns [[]string e]:
+	returns [*tree.ExternSectionNode e]:
 	Extern LParen Id* RParen
 	;
 
@@ -38,7 +45,7 @@ wcl_section:
 
 import_section
 	returns[*tree.ImportSectionNode section]:
-	Import LCurly uninterp 
+	Import uninterp 
 	;
 
 css_section:
@@ -56,7 +63,7 @@ text_section
 
 text_func
 	returns[*tree.TextFuncNode f]:
-	i = Id param_spec? text_func_local? pre_code? text_top post_code?
+	i = (Id|GrabId) param_spec? text_func_local? pre_code? uninterp post_code?
 	;
 
 pre_code 
@@ -74,52 +81,50 @@ text_func_local
 	Local param_spec
 	;
 
-text_top
-	returns[[]tree.TextItem item]:
-	BackTick 	(
-		text_content
-		|
-	) ContentBackTick ;
+//text_top
+//	returns[[]tree.TextItem item]:
+//	DoubleLess (
+//		text_content
+//		|
+//	) GrabDoubleGreater;
 
 text_content
 	returns[[]tree.TextItem item]:
 	(
-		text_content_inner    
+		raw_text_or_sub
 	)*;
 
-text_content_inner
-	returns[[]tree.TextItem item]:
-		ContentRawText             	#RawText
-		| var_subs   				#VarSub
-;
+raw_text_or_sub
+	returns [[]tree.TextItem item]:
+	RawText 
+	| var_subs
+	;
 
 var_subs
 	returns [[]tree.TextItem item]: 
-	ContentDollar sub
+	(Dollar|GrabDollar) (LCurly|GrabLCurly)
+	value_ref
+	(RCurly|GrabRCurly)
 	;
 
-sub
-	returns [tree.TextItem item]: 
-	VarId VarRCurly
-	| func_invoc_var VarRCurly
+value_ref
+	returns [*tree.ValueRef vr]:
+		ident         #value_ref_id 
+	|	func_invoc    #value_ref_func
 	;
 
 uninterp
 	returns[[]tree.TextItem item]:
-	(
-		uninterp_inner  
-	)+ UninterpRCurly;
+	DoubleLess {log.Printf("xxx got double less\n")} (
+			uninterp_inner 
+	)* GrabDoubleGreater {log.Printf("xxx got double greater %+v",localctx.GetItem())}
+	;
 
 uninterp_inner 
 	returns [[]tree.TextItem Item]:
-	UninterpRawText #UninterpRawText
-	| UninterpLCurly uninterp  #UninterpNested
-	| uninterp_var #UninterpVar
-;
-
-uninterp_var
-	returns[[]tree.TextItem item]: 
-	UninterpDollar VarId VarRCurly;
+	RawText
+	|var_subs
+	;
 
 param_spec
 	returns[[]*tree.PFormal formal]: 
@@ -127,7 +132,7 @@ param_spec
 
 param_pair
 	returns[*tree.PFormal formal]:
-	Id simple_or_model_param;
+	Id (TypeStarter)? ident;
 
 simple_or_model_param
 	returns [*tree.TypeDecl t]:
@@ -162,52 +167,39 @@ doc_func_formal
 
 doc_tag
 	returns [*tree.DocTag tag]:
-	LessThan id_or_var_ref
+	LessThan value_ref
 	doc_id?
 	doc_class?
 	GreaterThan 
 	;
 
-id_or_var_ref
-	returns [*tree.DocIdOrVar idVar]:
-	Id
-	| var_ref
-	;
-
-var_ref
-	returns [*tree.DocIdOrVar v]:
-	Dollar VarId VarRCurly
-	;
-
 doc_id
-	returns [string s]:
-	Hash Id 
+	returns [*tree.ValueRef s]:
+	Hash value_ref 
 	;
 
 doc_class
-	returns [[]string clazz]:
-	 // these ids must start with a dot
-	(Id)+ 
+	returns [[]*tree.ValueRef clazz]:
+	(value_ref)+ 
 	;
 
 doc_elem
 	returns [*tree.DocElement elem]:
-	var_ref                      # haveVar
-	| doc_tag doc_elem_content?  # haveTag
+	value_ref                    # haveVar
+	| doc_tag uninterp?  # haveTag
 	| doc_elem_child             # haveList
 	;
 
-doc_elem_content
-	returns [*tree.DocElement element]:
-	doc_elem_text
-	| doc_elem_child 
-	;
+//doc_elem_content
+//	returns [*tree.DocElement element]:
+//	doc_elem_text
+//	| doc_elem_child 
+//	;
 
-doc_elem_text
-	returns [*tree.FuncInvoc invoc]:
-	func_invoc       #doc_elem_text_func_call
-	| text_top       #doc_elem_text_anon 
-	;
+//doc_elem_text
+//	returns [*tree.FuncInvoc invoc]:
+//	text_top      
+//	;
 
 doc_elem_child
 	returns [*tree.DocElement elem]:
@@ -216,39 +208,23 @@ doc_elem_child
 
 func_invoc
 	returns [*tree.FuncInvoc invoc]:
-	Id LParen func_actual_seq RParen
+	(Id|GrabId) {log.Printf("got id or grab id\n")}(LParen|GrabLParen) func_actual_seq (RParen|GrabRParen)
 	;
 
-func_invoc_var
-	returns [*tree.FuncInvoc invoc]:
-	VarId VarLeftParen func_actual_seq_var VarRightParen
-	;
 
 func_actual_seq
 	returns [[]*tree.FuncActual actual]:
-	( a=func_actual (Comma b=func_actual)* )?
-	;
-
-func_actual_seq_var
-	returns [[]*tree.FuncActual actual]:
-	( a=func_actual_var (Comma b=func_actual_var)* )?
+	( func_actual ( (Comma|GrabComma) func_actual)* )?
 	;
 
 func_actual 
 	returns [*tree.FuncActual actual]:
-	Id
-	| StringLit
-	;
-
-func_actual_var
-	returns [*tree.FuncActual actual]:
-	VarId
-	| VarStringLit
+	value_ref
 	;
 
 event_section
 	returns [*tree.EventSectionNode section]:
-	Event (event_spec)*;
+	Event {log.Printf("GOT @EVENT\n")}(event_spec)*;
 
 event_spec
 	returns [*tree.EventSpec spec]:
@@ -257,13 +233,13 @@ event_spec
 
 event_call
 	returns [*tree.FuncInvoc invoc]:
-	(GreaterThan GreaterThan)? func_invoc 
+	(Arrow)? func_invoc 
 	;
 
 selector
 	returns [*tree.Selector sel]:
-	Hash IdValue=Id
-	| class=Id // must start with a dot
+	Hash id=value_ref
+	| class=value_ref // must start with a dot
 	;
 
 mvc_section
@@ -287,3 +263,21 @@ filename_seq
 	StringLit (Comma StringLit)*
 	;
 
+ident
+	returns [*tree.Ident id]:
+	(Colon|GrabColon)? (Id|GrabId)
+	(
+		(dot_qual)*
+		| (colon_qual)*
+	)
+	;
+
+dot_qual 
+	returns [*tree.IdentPart part]: 
+	(Dot|GrabDot) ident
+	;
+
+colon_qual
+	returns [*tree.IdentPart part]: 
+	(Colon|GrabColon) ident
+	;

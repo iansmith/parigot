@@ -23,14 +23,13 @@ func AntlrSetupLexParse(path string, lexer *v4.BaseLexer, parser *v4.BaseParser)
 	}
 	fp.Close()
 	input := v4.NewInputStream(string(buffer))
-
 	// setup the connection between input->lexer->parser
 	lexer.SetInputStream(input)
 	stream := v4.NewCommonTokenStream(lexer, 0)
 	parser.SetTokenStream(stream)
 
 	// the diagnostic listener is good for debugging (displays good error msgs)
-	el := &AntlrErrorListener{}
+	el := &AntlrErrorListener{CurrentFile: path}
 	parser.RemoveErrorListeners()
 	parser.AddErrorListener(&v4.DiagnosticErrorListener{
 		DefaultErrorListener: &v4.DefaultErrorListener{},
@@ -53,10 +52,10 @@ type AntlrErrorListener struct {
 func (a *AntlrErrorListener) SyntaxError(recognizer v4.Recognizer, offendingSymbol interface{}, line, column int, msg string, e v4.RecognitionException) {
 	start := "syntax error "
 	if a.CurrentFile != "" {
-		start = fmt.Sprintf("syntax error in '%s'", a.CurrentFile)
+		start = fmt.Sprintf("syntax error %s:", a.CurrentFile)
 	}
 	if e != nil {
-		log.Printf("%s %d:%d %s %v (%T)", start, line, column, msg, offendingSymbol, e)
+		log.Printf("%s%d:%d %s %v (%T)", start, line, column, msg, offendingSymbol, e)
 		a.failure = true
 		a.countSyntaxt++
 	}

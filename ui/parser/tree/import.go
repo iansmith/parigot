@@ -1,7 +1,8 @@
 package tree
 
 type ImportSectionNode struct {
-	TextItem_ []TextItem
+	TextItem_                []TextItem
+	LineNumber, ColumnNumber int
 }
 
 func NewImportSectionNode() *ImportSectionNode {

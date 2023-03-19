@@ -5,13 +5,14 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
+@preamble 
+<<
 import (
     "os"
     "fmt"
 )
 var verbose = true
-}
+>>
 
 ///////////////// TEXT /////////////////
 @text
@@ -22,10 +23,11 @@ justSimpleText `test1`
 
 howdy(baz string, firstName string, lastName string) 
 @local(salutation string)
-@pre{
+@pre
+<<
     if !verbose {
         return ""
     }
     salutation = "Mr."
-}
-    ` Greetings ${salutation} ${firstName} ${lastName} ${testUTF8(a)}`
+>>
+    <<Greetings ${salutation} ${firstName} ${lastName} ${testUTF8(a)}>>

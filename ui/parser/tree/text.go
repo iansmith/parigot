@@ -4,10 +4,12 @@ import (
 	"fmt"
 )
 
+// ////////////////////
 // TextConstant is a simple string.
 type TextConstant struct {
-	_VarCtx *VarCtx
-	Value   string
+	_VarCtx                  *VarCtx
+	Value                    string
+	LineNumber, ColumnNumber int
 }
 
 func (t *TextConstant) String() string {
@@ -23,68 +25,47 @@ func (t *TextConstant) VarCtx() *VarCtx {
 	return t._VarCtx
 }
 
-func NewTextConstant(s string) *TextConstant {
-	return &TextConstant{_VarCtx: nil, Value: s}
+func NewTextConstant(s string, ln, col int) *TextConstant {
+	return &TextConstant{_VarCtx: nil, Value: s, LineNumber: ln, ColumnNumber: col}
 }
 func (t *TextConstant) SubTemplate() string {
 	return "TextConstant"
 }
 
-// TextVar is a text variable that in source form is ${foo}
-type TextVar struct {
-	_VarCtx *VarCtx
-	Name    string
+// ////////////////////
+// TextValueRef is a  reference to a variable or a function call
+type TextValueRef struct {
+	_VarCtx                  *VarCtx
+	Ref                      *ValueRef
+	LineNumber, ColumnNumber int
 }
 
-func (t *TextVar) String() string {
-	return fmt.Sprintf("${%s}", t.Name)
+func (t *TextValueRef) String() string {
+	return t.Ref.String()
 }
 
-func (t *TextVar) Generate(_ *VarCtx) string {
-	return fmt.Sprintf("LookupVar(%s)\n", t.Name)
+func (t *TextValueRef) Generate(_ *VarCtx) string {
+	return fmt.Sprintf("LookupVar(%s)\n", "NOT USED")
 }
 
-func (t *TextVar) VarCtx() *VarCtx {
+func (t *TextValueRef) VarCtx() *VarCtx {
 	return t._VarCtx
 }
 
-func NewTextVar(n string) *TextVar {
-	return &TextVar{Name: n}
+func NewTextValueRef(vr *ValueRef, ln, col int) *TextValueRef {
+	return &TextValueRef{Ref: vr, LineNumber: ln, ColumnNumber: col}
 }
-func (t *TextVar) SubTemplate() string {
-	return "TextVar"
-}
-
-// TextInvoc is a text function call that in source form is ${foo(bar)}
-type TextInvoc struct {
-	Invoc *FuncInvoc
+func (t *TextValueRef) SubTemplate() string {
+	return "TextValueRef"
 }
 
-func (t *TextInvoc) String() string {
-	return t.Invoc.String()
-}
-
-func (t *TextInvoc) Generate(_ *VarCtx) string {
-	return fmt.Sprintf("%s\n", t.Invoc.String())
-}
-
-func (t *TextInvoc) VarCtx() *VarCtx {
-	return nil
-}
-
-func NewTextInvoc(i *FuncInvoc) *TextInvoc {
-	return &TextInvoc{Invoc: i}
-}
-
-func (t *TextInvoc) SubTemplate() string {
-	return "TextInvoc"
-}
-
+// ////////////////////
 // TextInline is a blob of code to copied into the output.
 type TextInline struct {
-	Name      string
-	_VarCtx   *VarCtx
-	TextItem_ []TextItem
+	Name                     string
+	_VarCtx                  *VarCtx
+	TextItem_                []TextItem
+	LineNumber, ColumnNumber int
 }
 
 func (t *TextInline) String() string {
@@ -110,7 +91,7 @@ func (t *TextInline) SubTemplate() string {
 // TextItem is an interface that represents the things that we
 // know how to place inside a text unit.
 type TextItem interface {
-	//String() string
+	String() string
 	VarCtx() *VarCtx
 	SubTemplate() string
 }
@@ -122,12 +103,13 @@ type TextExpander interface {
 
 // PFormal holds a parameter and type pair.
 type PFormal struct {
-	Name string
-	Type *TypeDecl
+	Name        string
+	Type        *Ident
+	TypeStarter string
 }
 
-func NewPFormal(n string, t *TypeDecl) *PFormal {
-	return &PFormal{Name: n, Type: t}
+func NewPFormal(n string, t *Ident, ts string) *PFormal {
+	return &PFormal{Name: n, Type: t, TypeStarter: ts}
 }
 
 // Either Simple is set or both ModelName and ModelMessage are set
@@ -162,20 +144,20 @@ type TextFuncNode struct {
 	Section                  *TextSectionNode
 }
 
-func (t *TextFuncNode) CheckForBadVariableUse() string {
-	for _, seq := range [][]TextItem{t.PreCode, t.PostCode, t.Item_} {
-		for _, item := range seq {
-			switch varName := item.(type) {
-			case *TextVar:
-				msg := t.checkAllForNameDecl(varName.Name)
-				if msg != "" {
-					return msg
-				}
-			}
-		}
-	}
-	return ""
-}
+// func (t *TextFuncNode) CheckForBadVariableUse() string {
+// 	for _, seq := range [][]TextItem{t.PreCode, t.PostCode, t.Item_} {
+// 		for _, item := range seq {
+// 			switch varName := item.(type) {
+// 			case *TextValueRef:
+// 				msg := varName.checkAllForNameDecl(varName)
+// 				if msg != "" {
+// 					return msg
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return ""
+// }
 
 func (t *TextFuncNode) Item() []TextItem {
 	return t.Item_
@@ -185,43 +167,43 @@ func (t *TextFuncNode) SetItem(item []TextItem) {
 	t.Item_ = item
 }
 
-func (f *TextFuncNode) checkVar(name string, formal []*PFormal) bool {
-	for _, p := range formal {
-		if p.Name == name {
-			return true
-		}
-	}
-	return false
-}
+// func (f *TextFuncNode) checkVar(name string, formal []*PFormal) bool {
+// 	for _, p := range formal {
+// 		if p.Name == name {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
-func (f *TextFuncNode) checkLocal(name string) bool {
-	return f.checkVar(name, f.Local)
-}
-func (f *TextFuncNode) checkParam(name string) bool {
-	return f.checkVar(name, f.Param)
-}
+// func (f *TextFuncNode) checkLocal(name string) bool {
+// 	return f.checkVar(name, f.Local)
+// }
+// func (f *TextFuncNode) checkParam(name string) bool {
+// 	return f.checkVar(name, f.Param)
+// }
 
-func (f *TextFuncNode) checkGlobalAndExtern(name string) bool {
-	return f.Section.Program.checkGlobalAndExtern(name)
-}
-func (f *TextFuncNode) checkAllForNameDecl(name string) string {
-	if IsSelfVar(name) {
-		return ""
-	}
-	found := f.checkLocal(name)
-	if found {
-		return ""
-	}
-	found = f.checkParam(name)
-	if found {
-		return ""
-	}
-	found = f.checkGlobalAndExtern(name)
-	if found {
-		return ""
-	}
-	return fmt.Sprintf("in text function '%s', use of unknown variable '%s'", f.Name, name)
-}
+// func (f *TextFuncNode) checkGlobalAndExtern(name string) bool {
+// 	return f.Section.Program.checkGlobalAndExtern(name)
+// }
+// func (f *TextFuncNode) checkAllForNameDecl(name string) string {
+// 	if IsSelfVar(name) {
+// 		return ""
+// 	}
+// 	found := f.checkLocal(name)
+// 	if found {
+// 		return ""
+// 	}
+// 	found = f.checkParam(name)
+// 	if found {
+// 		return ""
+// 	}
+// 	found = f.checkGlobalAndExtern(name)
+// 	if found {
+// 		return ""
+// 	}
+// 	return fmt.Sprintf("in text function '%s', use of unknown variable '%s'", f.Name, name)
+// }
 
 func NewTextFuncNode() *TextFuncNode {
 	return &TextFuncNode{}
@@ -229,12 +211,13 @@ func NewTextFuncNode() *TextFuncNode {
 
 // TestSection is the collection of text functions.
 type TextSectionNode struct {
-	Func    []*TextFuncNode
-	Program *ProgramNode
+	Func         []*TextFuncNode
+	Program      *ProgramNode
+	SectionScope *SectionScope
 }
 
-func NewTextSectionNode() *TextSectionNode {
-	return &TextSectionNode{}
+func NewTextSectionNode(p *ProgramNode) *TextSectionNode {
+	return &TextSectionNode{Program: p, SectionScope: NewSectionScope(p.Global)}
 }
 func IsSelfVar(name string) bool {
 	return name == "result"

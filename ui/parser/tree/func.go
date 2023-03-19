@@ -5,18 +5,20 @@ import (
 )
 
 type FuncInvoc struct {
-	Name    *DocIdOrVar
-	Actual  []*FuncActual
-	Builtin bool
+	Name                     string
+	Actual                   []*FuncActual
+	Builtin                  bool
+	AnonBody                 []TextItem
+	LineNumber, ColumnNumber int
 }
 
-func NewFuncInvoc(n *DocIdOrVar, actual []*FuncActual) *FuncInvoc {
-	return &FuncInvoc{Name: n, Actual: actual}
+func NewFuncInvoc(n string, actual []*FuncActual, line, col int) *FuncInvoc {
+	return &FuncInvoc{Name: n, Actual: actual, LineNumber: line, ColumnNumber: col}
 }
 
 func (f *FuncInvoc) String() string {
 	buf := &bytes.Buffer{}
-	buf.WriteString(f.Name.Name + "(")
+	buf.WriteString(f.Name + "(")
 	for i := 0; i < len(f.Actual); i++ {
 		buf.WriteString(f.Actual[i].String())
 		buf.WriteString(",")
@@ -26,26 +28,13 @@ func (f *FuncInvoc) String() string {
 }
 
 type FuncActual struct {
-	Var     string
-	Literal string
+	Ref *ValueRef
 }
 
 func (f *FuncActual) String() string {
-	if f.Var != "" {
-		return f.Var
-	}
-	return f.Literal
+	return f.Ref.String()
 }
 
-func NewFuncActual(v, lit string) *FuncActual {
-	if v == "" && lit == "" {
-		panic("unable to understand function actual (neither variable reference nor literal)")
-	}
-	if v != "" && lit != "" {
-		panic("unable to understand function actual (both variable reference and literal)")
-	}
-	if v != "" {
-		return &FuncActual{Var: v}
-	}
-	return &FuncActual{Literal: lit}
+func NewFuncActual(vr *ValueRef) *FuncActual {
+	return &FuncActual{Ref: vr}
 }

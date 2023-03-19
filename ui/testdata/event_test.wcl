@@ -12,14 +12,16 @@
 
 
 /////////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble 
+<<
+// This is a test of stuff just getting copied to the output.
+>>
 ///////////////// TEXT /////////////////
 
-// checkUTF8
+// check the variable substitution
 @text
 napoleon(baubles string)
-`It is by such ${baubles} that men are lead.`
+<<It is by such ${baubles} that men are lead.>>
 
 
 ///////////////// DOC /////////////////
@@ -27,15 +29,15 @@ napoleon(baubles string)
     example
     (<div> (
         <div .col-6> (
-            <span> napoleon("trinkets")
-            <button .btn .btn-primary> `Agree`
+            <span> ${napoleon("trinkets")}
+            <button .btn .btn-primary> <<Agree>>
             <span> `    `
-            <button .btn .btn-secondary> `Disagree`
+            <button .btn .btn-secondary> <<Disagree>>
         )
     )
 )
 
 ///////////////// EVENT /////////////////
 @event
-    #paraLoc click  >> ToggleSingle(".text-primary")
-    .quux click >> ToggleSingle(".text-secondary")
+    #paraLoc click  -> ToggleSingle(".text-primary")
+    .quux click -> ToggleSingle(".text-secondary")

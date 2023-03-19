@@ -57,9 +57,9 @@ func Main() {
 	if el.Failed() {
 		wclFatalf("failed due to syntax errors")
 	}
-	if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
-		wclFatalf("failed due to name check")
-	}
+	// if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
+	// 	wclFatalf("failed due to name check")
+	// }
 	execTemplate(prog, *language)
 
 	// topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)

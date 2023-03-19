@@ -1,5 +1,9 @@
 lexer grammar wcllex;
 
+@lexer::header {
+// at top of file
+import "log"
+}
 // keywords
 Text: '@text';
 CSS: '@css';
@@ -18,11 +22,12 @@ View: '@view';
 ViewCollection: '@collection';
 Controller: '@controller';
 
+
 //ids
 //TypeId: (TypeStarter+)? IdentFirst (IdentAfter)*;
-Id: (TypeStarter+)? IdentFirst (IdentAfter)*;
+Id: IdentFirst (IdentAfter)*;
 
-fragment TypeStarter: '[' | ']'|'*';
+TypeStarter: '[' | ']'|'*';
 
 // consistent def of Ident
 fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '_' | '-');
@@ -30,20 +35,20 @@ fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '_' | '-');
 fragment IdentAfter: (
 		'a' .. 'z'
 		| 'A' .. 'Z'
-		| '.'
 		| '_'
-		| '-'
 		| Digit
 	);
 
 Version: Digit+ Dot Digit+ Dot Digit+;
 fragment Digit: '0' ..'9';
 
-LCurly: '{' -> pushMode(UNINTERPRETED);
+DoubleLess: '<<' -> pushMode(GrabText);
+Arrow: '->';
+LCurly: '{' ;
 RCurly: '}';
 LParen: '(';
 RParen: ')';
-Dollar: '${' -> pushMode(VAR);
+Dollar: '$';
 Comma: ',';
 Colon: ':';
 LessThan: '<';
@@ -54,27 +59,25 @@ Dash: '-';
 Caret: '^';
 Semi: ';';
 Plus: '+';
-BackTick: '`' -> pushMode(CONTENT);
+BackTick: '`';
 StringLit: '"' ( Esc | ~[\\"] )* '"';
 fragment Esc : '\\"' | '\\\\' ;
 
 DoubleSlashComment: '//' .+? [\n\r] -> skip;
 Whitespace: [ \n\r\t\u000B\u000C\u0000]+ -> skip;
 
-mode CONTENT;
-ContentRawText: ~[${`]+;
-ContentDollar: '${' -> pushMode(VAR);
-ContentBackTick: '`' -> popMode;
+mode GrabText;
+GrabDollar: '$';
+GrabLCurly: '{' ;
+GrabRCurly: '}';
+GrabColon: ':';
+GrabComma: ',';
+GrabDot: '.';
+GrabLParen: '(';
+GrabRParen: ')';
+GrabDoubleGreater: '>>' -> popMode;
+GrabId: IdentFirst (IdentAfter)*;
+RawText: 
+	~[${}()>]+ {log.Printf("xxx got '%s' for raw text",l.GetText())}
+	;
 
-mode UNINTERPRETED;
-UninterpRawText: ~[${}]+;
-UninterpDollar: '${' -> pushMode(VAR) ;
-UninterpLCurly: '{' -> pushMode(UNINTERPRETED);
-UninterpRCurly: '}' -> popMode;
-
-mode VAR;
-VarRCurly: '}' -> popMode;
-VarId: IdentFirst (IdentAfter)*;
-VarLeftParen: '(';
-VarRightParen: ')';
-VarStringLit: '"' ( Esc | ~[\\"] )* '"';
