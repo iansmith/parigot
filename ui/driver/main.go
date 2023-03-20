@@ -60,7 +60,7 @@ func Main() {
 	// if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
 	// 	wclFatalf("failed due to name check")
 	// }
-	execTemplate(prog, *language)
+	//execTemplate(prog, *language)
 
 	// topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)
 	// if err != nil {

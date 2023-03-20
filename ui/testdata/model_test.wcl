@@ -8,14 +8,15 @@
     +"../../static/css/bootstrap.css"
     +"../../static/css/bootstrap-grid.css"
 /////////////////// PREAMBLE /////////////////
-@preamble {
+@preamble 
+<<
     import(
         "google.golang.org/protobuf/types/known/anypb"
 
         queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
     )
 
-}
+>>
 
 /////////////////// MODELS /////////////////
 @mvc
@@ -28,18 +29,18 @@ FleazilModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/fil
 
 @view
 // ---- QueueMsgView -----
-QueueMsgView (a int64, model :QueModel.QueueMsg) 
+QueueMsgView (a int64, model QueModel:QueueMsg) 
  (
-    <h3> ${model.id}
+    <"h3"> << ${model} >>
     ( 
-        <h4> ${model.msg_id}
-        <h5> ${model.sent}
-        <h5> sizeInBytes(model.payload)
+        <"h4"> <<some text before ${model:msg_id} and some text after>>
+        <"h5"> <<${model.sent}>>
+        <"h5"> <<${sizeInBytes(model.payload)}>>
     )
 )
 
-QueueViewShort (a int64, model :QueueModel.QueueMsg) 
- <h3>`${model.id}:${model.msg_id}`
+QueueViewShort (a int64, model QueueModel.QueueMsg) 
+ <"h3"> <<${model.id}:${model.msg_id}>>
 
 
 ///////////////// TEXT FUNC GLOBAL /////////////////
@@ -47,13 +48,14 @@ QueueViewShort (a int64, model :QueueModel.QueueMsg)
 @text 
 sizeInBytes(p pb.Any)
 @local(size int)
-@pre{
+@pre
+<<
     ${size}=len(p.Value)
-}
-`${size} bytes`
+>>
+<<${size} bytes>>
 
 shortModel(model queuemsg.QueueMsg)
-    `${model.id}:${model.msg_id}:${sizeInBytes(model.Payload)}`
+    <<${model.id}:${model.msg_id}:${sizeInBytes(model.Payload)}>>
 
 ///////////////// DOC FUNC GLOBAL /////////////////
 

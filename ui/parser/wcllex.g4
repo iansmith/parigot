@@ -2,7 +2,6 @@ lexer grammar wcllex;
 
 @lexer::header {
 // at top of file
-import "log"
 }
 // keywords
 Text: '@text';
@@ -23,19 +22,18 @@ ViewCollection: '@collection';
 Controller: '@controller';
 
 
-//ids
-//TypeId: (TypeStarter+)? IdentFirst (IdentAfter)*;
 Id: IdentFirst (IdentAfter)*;
 
 TypeStarter: '[' | ']'|'*';
 
 // consistent def of Ident
-fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z' | '.' | '_' | '-');
+fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z'  |'_' | '-');
 
 fragment IdentAfter: (
 		'a' .. 'z'
 		| 'A' .. 'Z'
 		| '_'
+		| '-'
 		| Digit
 	);
 
@@ -67,17 +65,20 @@ DoubleSlashComment: '//' .+? [\n\r] -> skip;
 Whitespace: [ \n\r\t\u000B\u000C\u0000]+ -> skip;
 
 mode GrabText;
-GrabDollar: '$';
-GrabLCurly: '{' ;
-GrabRCurly: '}';
-GrabColon: ':';
-GrabComma: ',';
-GrabDot: '.';
-GrabLParen: '(';
-GrabRParen: ')';
+GrabDollar: '$' -> popMode;
+//GrabLCurly: '{' ;
+//GrabRCurly: '}' ;
+//GrabColon: ':';
+//GrabComma: ',';
+//GrabDot: '.';
+//GrabLParen: '(';
+//GrabRParen: ')';
+GrabGreaterThan: '\\>' -> type(RawText);
 GrabDoubleGreater: '>>' -> popMode;
-GrabId: IdentFirst (IdentAfter)*;
+//GrabId: IdentFirst (IdentAfter)*;
 RawText: 
-	~[${}()>]+ {log.Printf("xxx got '%s' for raw text",l.GetText())}
+//	~[${}()>\\:.]+
+	~[$\\>]+
 	;
+
 

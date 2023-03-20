@@ -17,9 +17,9 @@ var verbose = true
 ///////////////// TEXT /////////////////
 @text
 testUTF8(punct string)
-    `Hello, 世界${punct}`
+    <<Hello, 世界${punct}>>
 
-justSimpleText `test1`
+justSimpleText <<test, test, this is only a test>>
 
 howdy(baz string, firstName string, lastName string) 
 @local(salutation string)

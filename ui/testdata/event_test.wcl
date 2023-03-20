@@ -27,17 +27,17 @@ napoleon(baubles string)
 ///////////////// DOC /////////////////
 @doc 
     example
-    (<div> (
-        <div .col-6> (
-            <span> ${napoleon("trinkets")}
-            <button .btn .btn-primary> <<Agree>>
-            <span> `    `
-            <button .btn .btn-secondary> <<Disagree>>
+    (<"div"> (
+        <"div" ."col-6"> (
+            <"span"> <<(english translation) ${napoleon("trinkets")}>>
+            <"button" ."btn" ."btn-primary"> <<Agree>>
+            <"span"> <<   >>
+            <"button" ."btn" ."btn-secondary"> <<Disagree>>
         )
     )
 )
 
 ///////////////// EVENT /////////////////
 @event
-    #paraLoc click  -> ToggleSingle(".text-primary")
-    .quux click -> ToggleSingle(".text-secondary")
+    #"paraLoc" click  -> ToggleSingle(".text-primary")
+    ."quux" click -> ToggleSingle(".text-secondary")
