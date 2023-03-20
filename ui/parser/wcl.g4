@@ -63,17 +63,17 @@ text_section
 
 text_func
 	returns[*tree.TextFuncNode f]:
-	i = (Id|GrabId) param_spec? text_func_local? pre_code? uninterp post_code?
+	i = Id param_spec? text_func_local? pre_code? uninterp post_code?
 	;
 
 pre_code 
 	returns [[]tree.TextItem item]:
-	Pre LCurly uninterp
+	Pre uninterp
 	;
 
 post_code 
 	returns [[]tree.TextItem item]:
-	Post LCurly uninterp
+	Post uninterp
 	;
 
 text_func_local
@@ -91,7 +91,7 @@ text_func_local
 text_content
 	returns[[]tree.TextItem item]:
 	(
-		raw_text_or_sub
+		raw_text_or_sub {log.Printf("iter2\n")}
 	)*;
 
 raw_text_or_sub
@@ -100,24 +100,27 @@ raw_text_or_sub
 	| var_subs
 	;
 
+// because of lookahead we have to switch the lexer mode back to GrabText
+// BEFORE we consume the right curly... it has already been processed, but not
+// things passed it.
 var_subs
 	returns [[]tree.TextItem item]: 
-	(Dollar|GrabDollar) (LCurly|GrabLCurly)
-	value_ref
-	(RCurly|GrabRCurly)
+	(Dollar LCurly value_ref RCurly)
+	| (GrabDollar LCurly value_ref {localctx.GetParser().GetTokenStream().GetTokenSource().(*antlr.BaseLexer).PushMode(wcllexGrabText)}) RCurly 
 	;
 
 value_ref
 	returns [*tree.ValueRef vr]:
-		ident         #value_ref_id 
-	|	func_invoc    #value_ref_func
+	ident         	#value_ref_id 
+	| func_invoc   	#value_ref_func
+	| StringLit 	#value_ref_lit
 	;
 
 uninterp
 	returns[[]tree.TextItem item]:
-	DoubleLess {log.Printf("xxx got double less\n")} (
+	DoubleLess  (
 			uninterp_inner 
-	)* GrabDoubleGreater {log.Printf("xxx got double greater %+v",localctx.GetItem())}
+	)* GrabDoubleGreater 
 	;
 
 uninterp_inner 
@@ -180,13 +183,13 @@ doc_id
 
 doc_class
 	returns [[]*tree.ValueRef clazz]:
-	(value_ref)+ 
+	(Dot value_ref)+ 
 	;
 
 doc_elem
 	returns [*tree.DocElement elem]:
-	value_ref                    # haveVar
-	| doc_tag uninterp?  # haveTag
+	//value_ref                    # haveVar
+	doc_tag uninterp?  # haveTag
 	| doc_elem_child             # haveList
 	;
 
@@ -208,13 +211,13 @@ doc_elem_child
 
 func_invoc
 	returns [*tree.FuncInvoc invoc]:
-	(Id|GrabId) {log.Printf("got id or grab id\n")}(LParen|GrabLParen) func_actual_seq (RParen|GrabRParen)
+	Id LParen func_actual_seq RParen
 	;
 
 
 func_actual_seq
 	returns [[]*tree.FuncActual actual]:
-	( func_actual ( (Comma|GrabComma) func_actual)* )?
+	( func_actual ( Comma func_actual)* )?
 	;
 
 func_actual 
@@ -224,7 +227,7 @@ func_actual
 
 event_section
 	returns [*tree.EventSectionNode section]:
-	Event {log.Printf("GOT @EVENT\n")}(event_spec)*;
+	Event (event_spec)*;
 
 event_spec
 	returns [*tree.EventSpec spec]:
@@ -239,7 +242,7 @@ event_call
 selector
 	returns [*tree.Selector sel]:
 	Hash id=value_ref
-	| class=value_ref // must start with a dot
+	| Dot class=value_ref // must start with a dot
 	;
 
 mvc_section
@@ -265,19 +268,21 @@ filename_seq
 
 ident
 	returns [*tree.Ident id]:
-	(Colon|GrabColon)? (Id|GrabId)
+	Id
 	(
-		(dot_qual)*
-		| (colon_qual)*
+		dot_qual
+		| colon_qual
 	)
 	;
 
 dot_qual 
 	returns [*tree.IdentPart part]: 
-	(Dot|GrabDot) ident
+	Dot Id dot_qual
+	|
 	;
 
 colon_qual
 	returns [*tree.IdentPart part]: 
-	(Colon|GrabColon) ident
+	Colon Id colon_qual
+	|
 	;

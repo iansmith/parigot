@@ -21,7 +21,7 @@
 @text
 checkUTF8 
 @local(cwd string)
-`Hello, 世界`
+<<Hello, 世界>>
 @post
 <<
     cwd,_=os.Getwd()
@@ -46,7 +46,7 @@ peers(a int64)
 @local(b int64, c int64)
 @pre
 <<
-    ${b}=${a}>>32
+    ${b}=${a}\>\>32
     ${c}=${a}&0xffffffff
 >>
  (<h1><<foo>>
@@ -61,27 +61,29 @@ peers(a int64)
 // onlyAtom
 onlyAtom <br> <<example "literal" function, this is just shorthand for make an anonymous text func>>
 // only in Atom tests that we can handle the _lack_ of a tag that "owns" the list
-onlyAtomInList (<p #blah .btn-warning .display-1>)
-tagInListWithVar(in *dommsg.Tag) 
-    (<${in}> <<backtick string here>>)
+onlyAtomInList (<"p" #"blah" ."btn-warning" ."display-1">)
+tagInListWithVar(in *dommsg.Foo) 
+    (<in> <<string in double less and double greater here>>)
 tagInListWithCall
     (
-        <p #blah .mark .small> 
+        <"p" #"blah" ."mark" ."small"> 
         <<${textTest("the emergency broadcast system","9")}>>
     )
-justVar(a *dommsg.Element)
-    (<<${a}>>)
 
-deeplyNested (<p>(<p>(<p>(<p>(<p>(<p> foo() ) ) ) ) ) )
+// does NOT produce a link (anchor)!
+justVar(a *dommsg.Element)
+    (<a>)
+
+deeplyNested (<p>(<p>(<p>(<p>(<p>(<p> <<${foo()}>> ) ) ) ) ) )
 silly (((((((
-    <p><<some content>>
+    <"p"><<some content>>
     )))))))
 exampleList(param []string) 
 @local(x string, y int)
-    (<ul #d> 
-        (<li #a><<${liTest("foo")}>>
-            <li #b><<${liTest(param)}>>
-            <li #c><<${liTest(x)}>>
+    (<"ul" #"d"> 
+        (<"li" #"a"><<${liTest("foo")}>>
+            <"li" #"b"><<${liTest(param)}>>
+            <"li" #"c"><<${liTest(x)}>>
         )
     )
 @post

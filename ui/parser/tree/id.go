@@ -12,7 +12,7 @@ type IdentPart struct {
 }
 
 type Ident struct {
-	HasStartColon            bool
+	HasStartDot              bool
 	LineNumber, ColumnNumber int
 	Part                     *IdentPart
 	Text                     string
@@ -22,8 +22,8 @@ func (i *Ident) String() string {
 	return i.Text
 }
 
-func NewIdent(start string, colon bool, text string, line, col int) *Ident {
-	i := &Ident{HasStartColon: colon, Text: text, LineNumber: line, ColumnNumber: col}
+func NewIdent(start string, dot bool, text string, line, col int) *Ident {
+	i := &Ident{HasStartDot: dot, Text: text, LineNumber: line, ColumnNumber: col}
 	i.Part = &IdentPart{Id: start}
 	return i
 }
@@ -33,7 +33,7 @@ func (i *Ident) IsWellFormed() string {
 		return fmt.Sprintf("did not find expected id, full text was '%s'", i.Text)
 	}
 	prev := i.Part
-	if i.HasStartColon || prev.ColonSep {
+	if prev.ColonSep {
 		for prev != nil {
 			if prev.Qual != nil {
 				return fmt.Sprintf("Badly formed id '%s', cannot mix qualifying identifier with Dot and Colon", i.Text)

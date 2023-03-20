@@ -229,29 +229,36 @@ func (l *WclBuildListener) ExitRaw_text_or_sub(c *Raw_text_or_subContext) {
 func (l *WclBuildListener) EnterIdent(c *IdentContext) {
 }
 func (l *WclBuildListener) ExitIdent(c *IdentContext) {
-	var prev *tree.IdentPart
-	colon := false // get a colonoscopy after 45 every 5 years
-	if c.Colon() != nil {
-		colon = true
+	//var prev *tree.IdentPart
+	// hasDot := false // get a colonoscopy after 45 every 5 years
+	// if c.Dot() != nil || c.GrabDot() != nil {
+	// 	hasDot = true
+	// }
+	var line, col int
+	if c.Id() != nil {
+		line, col = c.Id().GetSymbol().GetLine(), c.GetStart().GetColumn()
 	}
-	line, col := c.Id().GetSymbol().GetLine(), c.GetStart().GetColumn()
-	id := tree.NewIdent(c.GetStart().GetText(), colon, c.GetText(), line, col)
-	if c.AllDot_qual() != nil {
-		raw := c.AllDot_qual()
-		for _, r := range raw {
-			current := &tree.IdentPart{Qual: r.GetPart()}
-			prev.Qual = current
-			prev = current
-		}
+	var text string
+	if c.Id() != nil {
+		text = c.Id().GetText()
 	}
-	if c.AllColon_qual() != nil {
-		raw := c.AllColon_qual()
-		for _, r := range raw {
-			current := &tree.IdentPart{Qual: r.GetPart(), ColonSep: true}
-			prev.Qual = current
-			prev = current
-		}
-	}
+	id := tree.NewIdent(text, false, c.GetText(), line, col)
+	// if c.Dot_qual() != nil {
+	// 	// raw := c.AllDot_qual()
+	// 	// for _, r := range raw {
+	// 	// 	current := &tree.IdentPart{Qual: r.GetPart()}
+	// 	// 	prev.Qual = current
+	// 	// 	prev = current
+	// 	// }
+	// }
+	// if c.Colon_qual() != nil {
+	// 	// raw := c.AllColon_qual()
+	// 	// for _, r := range raw {
+	// 	// 	current := &tree.IdentPart{Qual: r.GetPart(), ColonSep: true}
+	// 	// 	prev.Qual = current
+	// 	// 	prev = current
+	// 	// }
+	// }
 
 	c.SetId(id)
 }
@@ -261,6 +268,20 @@ func (l *WclBuildListener) EnterValue_ref_id(c *Value_ref_idContext) {
 }
 func (l *WclBuildListener) ExitValue_ref_id(c *Value_ref_idContext) {
 	c.SetVr(&tree.ValueRef{Id: c.Ident().GetId()})
+}
+
+// ValueRef lit
+func (l *WclBuildListener) EnterValue_ref_lit(c *Value_ref_litContext) {
+}
+func (l *WclBuildListener) ExitValue_ref_lit(c *Value_ref_litContext) {
+	lit := c.StringLit()
+	line := lit.GetSymbol().GetLine()
+	col := lit.GetSymbol().GetColumn()
+	text := lit.GetSymbol().GetText()
+	text = strings.TrimPrefix(text, "\"")
+	text = strings.TrimSuffix(text, "\"")
+
+	c.SetVr(tree.NewValueRef(nil, nil, text, line, col))
 }
 
 // ValueRef Func
@@ -413,11 +434,8 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 			if ref.Lit == "" {
 				continue
 			}
-			if !strings.HasPrefix(ref.Lit, ".") {
-				notifyError(fmt.Sprintf("in tag '%s', class name '%s' is invalid, class names must start with a dot ", tn, ref.Lit),
-					ctx.BaseParserRuleContext, ctx.GetParser())
-			}
-			_, ok := s.ClassName[ref.Lit]
+			l := "." + ref.Lit
+			_, ok := s.ClassName[l]
 			if !ok {
 				notifyError(fmt.Sprintf("[%s:%d:%d] in tag '%s', class name '%s' is not defined the css files declared", s.SourceCode, ref.LineNumber, ref.ColumnNumber, ref.Lit, tn),
 					ctx.BaseParserRuleContext, ctx.GetParser())
@@ -526,13 +544,13 @@ func (s *WclBuildListener) ExitHaveTag(ctx *HaveTagContext) {
 	// ctx.SetElem(elem)
 }
 
-func (s *WclBuildListener) EnterHaveVar(ctx *HaveVarContext) {}
+// func (s *WclBuildListener) EnterHaveVar(ctx *HaveVarContext) {}
 
-func (s *WclBuildListener) ExitHaveVar(ctx *HaveVarContext) {
-	v := ctx.Value_ref().GetVr()
-	elem := &tree.DocElement{ValueRef: v}
-	ctx.SetElem(elem)
-}
+// func (s *WclBuildListener) ExitHaveVar(ctx *HaveVarContext) {
+// 	v := ctx.Value_ref().GetVr()
+// 	elem := &tree.DocElement{ValueRef: v}
+// 	ctx.SetElem(elem)
+// }
 
 func (s *WclBuildListener) EnterHaveList(ctx *HaveListContext) {}
 
@@ -551,9 +569,16 @@ func (s *WclBuildListener) EnterFunc_invoc(ctx *Func_invocContext) {
 
 func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	actual := ctx.Func_actual_seq().GetActual()
-	name := ctx.Id().GetText()
-	invoc := tree.NewFuncInvoc(name, actual,
-		ctx.Id().GetSymbol().GetLine(), ctx.Id().GetSymbol().GetColumn())
+	var name string
+	if ctx.Id() != nil {
+		name = ctx.Id().GetText()
+	}
+	var line, col int
+	if ctx.Id() != nil {
+		line = ctx.Id().GetSymbol().GetLine()
+		col = ctx.Id().GetSymbol().GetColumn()
+	}
+	invoc := tree.NewFuncInvoc(name, actual, line, col)
 	ctx.SetInvoc(invoc)
 }
 
@@ -700,7 +725,7 @@ func (s *WclBuildListener) EnterSelector(ctx *SelectorContext) {
 
 func (s *WclBuildListener) ExitSelector(ctx *SelectorContext) {
 	if ctx.GetClass() != nil && ctx.GetClass().GetVr() != nil {
-		sel := &tree.Selector{Class: ctx.GetId().GetVr()}
+		sel := &tree.Selector{Class: ctx.GetClass().GetVr()}
 		ctx.SetSel(sel)
 		return
 	}
@@ -819,7 +844,7 @@ func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
 	decl := make([]*tree.ModelDecl, len(raw))
 	for i, mod := range raw {
 		decl[i] = mod.GetDecl()
-		log.Printf("Model '%s'", decl[i].Name)
+		//log.Printf("Model '%s'", decl[i].Name)
 	}
 	section.ModelDecl = decl
 
@@ -827,7 +852,7 @@ func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
 	vdecl := make([]*tree.ViewDecl, len(rawView))
 	for i, v := range rawView {
 		vdecl[i] = v.GetVdecl()
-		log.Printf("View '%s'", decl[i].Name)
+		//log.Printf("View '%s'", decl[i].Name)
 	}
 	section.ViewDecl = vdecl
 

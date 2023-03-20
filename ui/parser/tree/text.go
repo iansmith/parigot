@@ -26,6 +26,9 @@ func (t *TextConstant) VarCtx() *VarCtx {
 }
 
 func NewTextConstant(s string, ln, col int) *TextConstant {
+	if s == "\\>" {
+		s = ">"
+	}
 	return &TextConstant{_VarCtx: nil, Value: s, LineNumber: ln, ColumnNumber: col}
 }
 func (t *TextConstant) SubTemplate() string {
