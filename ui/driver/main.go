@@ -12,6 +12,7 @@ import (
 	v4 "github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/iansmith/parigot/helper/antlr"
 	"github.com/iansmith/parigot/ui/parser"
+	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
 var langToTempl = map[string]string{
@@ -57,10 +58,14 @@ func Main() {
 	if el.Failed() {
 		wclFatalf("failed due to syntax errors")
 	}
+
+	// need to clean up some pointers and such
+	tree.GProgram.FinalizeSemantics()
+
 	// if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
 	// 	wclFatalf("failed due to name check")
 	// }
-	//execTemplate(prog, *language)
+	execTemplate(prog, *language)
 
 	// topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)
 	// if err != nil {
@@ -91,17 +96,17 @@ func execTemplate(prog parser.IProgramContext, lang string) {
 	ctx := newGenerateContext(t)
 	ctx.program = prog.GetP()
 	ctx.templateName = t
-	ctx.global["import"] = prog.GetP().ImportSection
-	ctx.global["text"] = prog.GetP().TextSection
-	ctx.global["doc"] = prog.GetP().DocSection
-	ctx.global["event"] = prog.GetP().EventSection
+	ctx.global["import"] = tree.GProgram.ImportSection
+	ctx.global["text"] = tree.GProgram.TextSection
+	ctx.global["doc"] = tree.GProgram.DocSection
+	ctx.global["event"] = tree.GProgram.EventSection
 	ctx.global["inputFile"] = flag.Arg(0)
 	golang := make(map[string]any)
 	ctx.global["golang"] = golang
 	golang["package"] = *gopkg
-	golang["needBytes"] = prog.GetP().NeedBytes
-	golang["needElement"] = prog.GetP().NeedElement
-	golang["needEvent"] = prog.GetP().NeedEvent
+	// golang["needBytes"] = tree.GProgram.NeedBytes
+	// golang["needElement"] = tree.GProgram.NeedElement
+	// golang["needEvent"] = tree.GProgram.NeedEvent
 	// deal with output file
 	dir, err := os.MkdirTemp(os.TempDir(), "wcl*")
 	if err != nil {
@@ -109,8 +114,9 @@ func execTemplate(prog parser.IProgramContext, lang string) {
 	}
 	defer func() {
 		//log.Printf("cleaning up temp dir %s", dir)
-		os.RemoveAll(dir) // clean up
+		//os.RemoveAll(dir) // clean up
 	}()
+	log.Printf("output file is %s\n", filepath.Join(dir, "output_program.go"))
 	file := filepath.Join(dir, "output_program.go")
 	fp, err := os.Create(file)
 	if err != nil {

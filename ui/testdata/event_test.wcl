@@ -14,7 +14,17 @@
 /////////////////// PREAMBLE /////////////////
 @preamble 
 <<
-// This is a test of stuff just getting copied to the output.
+import (
+    "bytes"
+    "fmt"
+)
+
+import (
+    dommsg "github.com/iansmith/parigot/g/msg/dom/v1"
+    dom "github.com/iansmith/parigot/g/dom/v1"
+    apidom "github.com/iansmith/parigot/apiimpl/dom"
+    "github.com/iansmith/parigot/ui/parser/builtin"
+)
 >>
 ///////////////// TEXT /////////////////
 

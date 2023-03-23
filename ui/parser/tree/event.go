@@ -10,6 +10,13 @@ type Selector struct {
 	Class *ValueRef
 }
 
+func (s *Selector) String() string {
+	if s.Id != nil {
+		return s.Id.String()
+	}
+	return s.Class.String()
+}
+
 type EventCall struct {
 	Invoc *FuncInvoc
 }
@@ -38,16 +45,6 @@ func NewEventSpec(s *Selector, name string, b *FuncInvoc) *EventSpec {
 	return &EventSpec{s, name, b, t}
 }
 
-func (s *Selector) String() string {
-	if s.Class.String() == "" && s.Id.String() == "" {
-		return "SHOULD_NEVER_HAPPEN.UNABLE_TO_FIND_VR_VALUE"
-	}
-	if s.Class.String() != "" {
-		return s.Class.String()
-	}
-	return "#" + s.Id.String()
-
-}
 func isEventName(name string) EventType {
 	switch name {
 	case "click", "dblclick", "mousedown", "mouseup":

@@ -1,13 +1,23 @@
 package tree
 
 import (
+	"bytes"
 	"fmt"
+	"log"
+	"strings"
 )
 
 type DocSectionNode struct {
 	DocFunc      []*DocFuncNode
 	AnonymousNum int
 	Program      *ProgramNode
+}
+
+func (s *DocSectionNode) FinalizeSemantics() {
+	s.SetNumber()
+	// if len(s.DocFunc) > 0 {
+	// 	s.Program.NeedBytes = true
+	// }
 }
 
 func (s *DocSectionNode) SetNumber() {
@@ -93,11 +103,20 @@ func NewDocFuncNode(n string, formal []*PFormal, local []*PFormal, s *DocElement
 }
 
 type DocElement struct {
-	ValueRef    *ValueRef
 	Number      int
 	Tag         *DocTag
-	TextContent *FuncInvoc
+	TextContent []TextItem
 	Child       []*DocElement
+}
+
+func NewDocElementWithText(tag *DocTag, content []TextItem) *DocElement {
+	return &DocElement{
+		Tag: tag, TextContent: content,
+	}
+}
+
+func NewDocElementWithChild(child []*DocElement) *DocElement {
+	return &DocElement{Child: child}
 }
 
 func (e *DocElement) SetNumber(n int) int {
@@ -111,6 +130,7 @@ func (e *DocElement) SetNumber(n int) int {
 	}
 	e.Number = n
 	n++
+	log.Printf("xxx set number, n = %d, num child %d\n", n, len(e.Child))
 	for _, c := range e.Child {
 		n = c.SetNumber(n)
 	}
@@ -123,11 +143,6 @@ type DocTag struct {
 	Class []*ValueRef
 }
 
-type DocIdOrVar struct {
-	Name  string
-	IsVar bool
-}
-
 func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef) (*DocTag, error) {
 	if tag.Lit != "" {
 		if !validTag(tag.Lit) {
@@ -135,6 +150,43 @@ func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef) (*DocTag, error) 
 		}
 	}
 	return &DocTag{Tag: tag, Id: id, Class: clazz}, nil
+}
+
+func (d *DocTag) String() string {
+	if d.Tag == nil {
+		return `&dommsg.Tag{Name:"span"}`
+	}
+	t := d.Tag.String()
+	id := ""
+	class := []string{}
+	if d.Id != nil {
+		id = "#" + d.Id.String()
+	}
+	if len(d.Class) != 0 {
+		for _, c := range d.Class {
+			str := c.String()
+			str = strings.TrimPrefix(str, "\"")
+			str = strings.TrimSuffix(str, "\"")
+			class = append(class, "."+str)
+		}
+	}
+	buf := &bytes.Buffer{}
+	buf.WriteString("&dommsg.Tag{Name:" + t + ",\n")
+	if id != "" {
+		buf.WriteString("Id:" + id + ",\n")
+	}
+	if len(class) != 0 {
+		buf.WriteString("Class: []string{\n")
+		for _, c := range class {
+			buf.WriteString(c + ",\n")
+		}
+	} else {
+		buf.WriteString("Class: []string{},\n")
+	}
+	buf.WriteString("}")
+	result := buf.String()
+	result = strings.TrimSpace(result)
+	return result
 }
 
 func validTag(tag string) bool {
