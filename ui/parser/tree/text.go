@@ -64,32 +64,32 @@ func (t *TextValueRef) SubTemplate() string {
 
 // ////////////////////
 // TextInline is a blob of code to copied into the output.
-type TextInline struct {
-	Name                     string
-	_VarCtx                  *VarCtx
-	TextItem_                []TextItem
-	LineNumber, ColumnNumber int
-}
+// type TextInline struct {
+// 	Name                     string
+// 	_VarCtx                  *VarCtx
+// 	TextItem_                []TextItem
+// 	LineNumber, ColumnNumber int
+// }
 
-func (t *TextInline) String() string {
-	return "BLEAH NOT AVAILABLE"
-}
+// func (t *TextInline) String() string {
+// 	return "BLEAH NOT AVAILABLE"
+// }
 
-func (t *TextInline) Generate(_ *VarCtx) string {
-	return "BLEAH NOT AVAILABLE Generate"
-}
+// func (t *TextInline) Generate(_ *VarCtx) string {
+// 	return "BLEAH NOT AVAILABLE Generate"
+// }
 
-func (t *TextInline) VarCtx() *VarCtx {
-	return t._VarCtx
-}
+// func (t *TextInline) VarCtx() *VarCtx {
+// 	return t._VarCtx
+// }
 
-func NewTextInline() *TextInline {
-	return &TextInline{}
-}
+// func NewTextInline() *TextInline {
+// 	return &TextInline{}
+// }
 
-func (t *TextInline) SubTemplate() string {
-	return "TextInline"
-}
+// func (t *TextInline) SubTemplate() string {
+// 	return "TextInline"
+// }
 
 // TextItem is an interface that represents the things that we
 // know how to place inside a text unit.
@@ -97,11 +97,6 @@ type TextItem interface {
 	String() string
 	VarCtx() *VarCtx
 	SubTemplate() string
-}
-
-// TextExpander is something that can have variables uses in it.
-type TextExpander interface {
-	Item() []TextItem
 }
 
 // PFormal holds a parameter and type pair.

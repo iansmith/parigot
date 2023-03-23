@@ -40,7 +40,7 @@ type ExternSectionNode struct {
 
 func (e *ExternSectionNode) LookupFunc(f *FuncInvoc) bool {
 	for _, n := range e.Name {
-		if n == f.Name {
+		if n == f.String() {
 			return true //no check of actuals
 		}
 	}
@@ -90,13 +90,13 @@ func (s *SectionScope) Parent() Scope {
 func (s *SectionScope) LookupFunc(f *FuncInvoc) bool {
 	if s.TextFn != nil {
 		for _, fn := range s.TextFn {
-			if fn.Name == f.Name {
+			if fn.Name == f.Name.String() {
 				return true
 			}
 		}
 	} else if s.DocFn != nil {
 		for _, fn := range s.TextFn {
-			if fn.Name == f.Name {
+			if fn.Name == f.Name.String() {
 				return true
 			}
 		}

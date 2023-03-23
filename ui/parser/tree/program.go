@@ -1,5 +1,9 @@
 package tree
 
+type FSemantics interface {
+	FinalizeSemantics()
+}
+
 type ProgramNode struct {
 	ImportSection *ImportSectionNode
 	CSSSection    *CSSSectionNode
@@ -9,7 +13,17 @@ type ProgramNode struct {
 	ModelSection  *MVCSectionNode
 	Global        *AllGlobal
 
-	NeedBytes, NeedElement, NeedEvent bool
+	//NeedBytes, NeedElement, NeedEvent bool
+}
+
+func (p *ProgramNode) FinalizeSemantics() {
+	for _, node := range []any{p.ImportSection, p.CSSSection, p.TextSection, p.DocSection,
+		p.EventSection, p.ModelSection} {
+		f, ok := node.(FSemantics)
+		if ok {
+			f.FinalizeSemantics()
+		}
+	}
 }
 
 // func (p *ProgramNode) checkGlobalAndExtern(n string) bool {

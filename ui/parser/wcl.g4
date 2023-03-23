@@ -81,32 +81,13 @@ text_func_local
 	Local param_spec
 	;
 
-//text_top
-//	returns[[]tree.TextItem item]:
-//	DoubleLess (
-//		text_content
-//		|
-//	) GrabDoubleGreater;
-
-text_content
-	returns[[]tree.TextItem item]:
-	(
-		raw_text_or_sub {log.Printf("iter2\n")}
-	)*;
-
-raw_text_or_sub
-	returns [[]tree.TextItem item]:
-	RawText 
-	| var_subs
-	;
-
 // because of lookahead we have to switch the lexer mode back to GrabText
 // BEFORE we consume the right curly... it has already been processed, but not
-// things passed it.
+// the tokens passed the right curly.
 var_subs
-	returns [[]tree.TextItem item]: 
-	(Dollar LCurly value_ref RCurly)
-	| (GrabDollar LCurly value_ref {localctx.GetParser().GetTokenStream().GetTokenSource().(*antlr.BaseLexer).PushMode(wcllexGrabText)}) RCurly 
+	returns [tree.TextItem item]: 
+	(Dollar LCurly normal=value_ref RCurly)
+	| (GrabDollar LCurly grab=value_ref {localctx.GetParser().GetTokenStream().GetTokenSource().(*antlr.BaseLexer).PushMode(wcllexGrabText)}) RCurly 
 	;
 
 value_ref
@@ -124,7 +105,7 @@ uninterp
 	;
 
 uninterp_inner 
-	returns [[]tree.TextItem Item]:
+	returns [tree.TextItem Item]:
 	RawText
 	|var_subs
 	;
@@ -188,21 +169,10 @@ doc_class
 
 doc_elem
 	returns [*tree.DocElement elem]:
-	//value_ref                    # haveVar
-	doc_tag uninterp?  # haveTag
-	| doc_elem_child             # haveList
+	doc_tag uninterp?  			# haveTag
+	| doc_elem_child            # haveList
 	;
 
-//doc_elem_content
-//	returns [*tree.DocElement element]:
-//	doc_elem_text
-//	| doc_elem_child 
-//	;
-
-//doc_elem_text
-//	returns [*tree.FuncInvoc invoc]:
-//	text_top      
-//	;
 
 doc_elem_child
 	returns [*tree.DocElement elem]:
@@ -211,7 +181,7 @@ doc_elem_child
 
 func_invoc
 	returns [*tree.FuncInvoc invoc]:
-	Id LParen func_actual_seq RParen
+	ident LParen func_actual_seq RParen
 	;
 
 
