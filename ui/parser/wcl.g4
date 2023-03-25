@@ -169,13 +169,12 @@ doc_class
 
 doc_elem
 	returns [*tree.DocElement elem]:
-	doc_tag uninterp?  			# haveTag
-	| doc_elem_child            # haveList
+	doc_tag uninterp? (doc_elem_child)? 			# haveTag
 	;
 
 
 doc_elem_child
-	returns [*tree.DocElement elem]:
+	returns [[]*tree.DocElement elem]:
 	LParen (doc_elem)* RParen
 	;
 

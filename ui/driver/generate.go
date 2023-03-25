@@ -25,6 +25,9 @@ func newGenerateContext(languageName string) *generateContext {
 	}
 }
 
+func zerothElem(in []*tree.FuncActual) *tree.ValueRef {
+	return in[0].Ref
+}
 func runTemplate(ctx *generateContext, out io.Writer) error {
 	root, err := loadTemplates()
 	if err != nil {
@@ -46,7 +49,9 @@ func loadTemplates() (*template.Template, error) {
 	// create root template
 	root := template.New("root")
 	// add functions
-	funcMap := template.FuncMap{}
+	funcMap := template.FuncMap{
+		"zerothElem": zerothElem,
+	}
 	root = root.Funcs(funcMap)
 
 	// these calls are meant to be "chained" so this construction is needed

@@ -116,7 +116,7 @@ package {{.package}}
 {{- end -}} {{/* iterate over children, recursively downward */}}
 
 {{ if eq 0 .Number -}}result{{- else -}}n{{- .Number -}}{{- end -}}:=
-    &dommsg.Element{ {{template "DocTag" .Tag}} // tag template ended
+    &dommsg.Element{ {{template "DocTag" .Tag}} // tag part ended
 {{ if .TextContent }}
     Text:""
 {{- range .TextContent -}}
@@ -143,11 +143,19 @@ package {{.package}}
 {{- end }} {{/* end of if .Child */}}
 {{- end}} {{/*end of template */}}
 {{/* ----------------------------------------------------- */}}
-{{define "Function"}}
+{{define "EventFunction"}}
 {{- if .Builtin -}}
 builtin.
 {{- end -}}
 {{- .Name.String -}}
+{{- end}} {{/*end of template */}}
+{{/* ----------------------------------------------------- */}}
+{{define "Selector"}}
+{{- if .Id -}}
+"#"+{{template "ValueRef" .Id}}
+{{- else -}}
+"."+{{template "ValueRef" .Class}}
+{{- end}} {{/*end of if .Id */}}
 {{- end}} {{/*end of template */}}
 
 {{/* ----------------------------------------------------- */}}
@@ -177,15 +185,14 @@ builtin.
 func {{.Name -}}({{- template "ParamFormal" .Param -}}) string {
     {{- template "DeclareLocal" .Local}}
     var result bytes.Buffer
-    {{- template "TextInline" .PreCode }}
-
+{{- template "TextInline" .PreCode }}
 {{ range .Item -}}
 {{- $subtemplate := .SubTemplate -}}
 {{- if eq $subtemplate "TextConstant" -}}
 result.WriteString(`{{- template "TextConstant" . -}}`)
 {{ end }}{{/*TextConstant*/ -}}
-{{- if eq $subtemplate "TextVar" -}}
-result.WriteString({{ template "TextVar" . }})
+{{- if eq $subtemplate "TextValueRef" -}}
+result.WriteString({{ template "TextValueRef" . }})
 {{ end }} {{/*TextVar*/}}
 {{- if eq $subtemplate "TextInline" -}}
 {{ template "TextInline" .TextItem_ }}
@@ -224,9 +231,18 @@ return result
 // Event Section
 //
 {{if .event}}
-func AddGlobalEvent(dom dom.DOMService) {
+func AddGlobalEvent(svc dom.DOMService) {
+var tmp js.Value
+var fn func(js.Value, []js.Value) any
+var vr,selector string
 {{- range .event.Spec}}
-dom.(*apidom.DOMServer).AddEvent({{.Selector.String}},"{{.EventName}}",{{template "Function" .Function}})
+vr={{template "ValueRef" zerothElem .Function.Actual}}
+tmp=js.ValueOf(vr)
+selector={{template "Selector" .Selector}}
+fn = func(this js.Value, arg []js.Value) any{ 
+    return {{template "EventFunction" .Function}}(this,append(arg,tmp,js.ValueOf(selector),js.ValueOf(svc.(*apidom.DOMServer).ServerId())))
+}
+svc.(*apidom.DOMServer).AddEvent({{template "Selector" .Selector}},"{{.EventName}}",fn)
 {{- end}} {{/* end of ranging over event specs */}}
 }
 {{end}} {{/* end of event section*/}}

@@ -3,7 +3,6 @@ package tree
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -124,13 +123,8 @@ func (e *DocElement) SetNumber(n int) int {
 		e.Number = n
 		return n + 1
 	}
-	if e.TextContent != nil {
-		e.Number = n
-		return n + 1
-	}
 	e.Number = n
 	n++
-	log.Printf("xxx set number, n = %d, num child %d\n", n, len(e.Child))
 	for _, c := range e.Child {
 		n = c.SetNumber(n)
 	}

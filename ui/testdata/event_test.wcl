@@ -17,6 +17,7 @@
 import (
     "bytes"
     "fmt"
+    "syscall/js"
 )
 
 import (
@@ -37,17 +38,20 @@ napoleon(baubles string)
 ///////////////// DOC /////////////////
 @doc 
     example
-    (<"div"> (
-        <"div" ."col-6"> (
-            <"span"> <<(english translation) ${napoleon("trinkets")}>>
-            <"button" ."btn" ."btn-primary"> <<Agree>>
-            <"span"> <<   >>
-            <"button" ."btn" ."btn-secondary"> <<Disagree>>
+    <"div"> (
+        <"div"> (
+            <"div"> (
+                <"span" #"quux" ."offset-lg-2"> <<Napoleon: (english translation) ${napoleon("trinkets")}>>    
+            )
+        <"div"> (
+            <"div" ."offset-lg-4">
+                <"button" ."btn" ."btn-primary"> <<Agree>>
+                <"button" ."btn" ."btn-outline-primary"> <<Disagree>>
+            )
         )
     )
-)
 
 ///////////////// EVENT /////////////////
 @event
-    #"paraLoc" click  -> ToggleSingle(".text-primary")
-    ."quux" click -> ToggleSingle(".text-secondary")
+    #"paraLoc" click  -> ToggleSingle("h2")
+    #"quux" click -> ToggleSingle("h2")
