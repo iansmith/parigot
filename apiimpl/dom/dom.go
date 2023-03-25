@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log"
+	"math/rand"
 	"strings"
 	"syscall/js"
 
@@ -21,12 +23,14 @@ var DOMAlreadyPresent = errors.New("already present")
 
 const ParigotIdAttribute = "parigot-id"
 
+var allDomServer = make(map[float64]dom.DOMService)
+
 // DOMServer makes the browser work like other servers.   Currently a DOMServer is bound to a Document in the HTML sense.
 type DOMServer struct {
 	doc js.Value
 	// go from a string rep of a parigot id to the actual id
-	strId map[string]lib.Id
-
+	strId     map[string]lib.Id
+	serverId  float64
 	startList []func()
 }
 
@@ -39,25 +43,65 @@ func LocateDOMServer() (dom.DOMService, error) {
 		doc:       doc,
 		strId:     make(map[string]lib.Id),
 		startList: []func(){},
+		serverId:  rand.Float64(),
 	}, nil
+}
+
+func (d *DOMServer) elemById(id string) (js.Value, error) {
+	value := d.doc.Call("getElementById", id)
+	if !value.Truthy() {
+		if value.IsNull() {
+			return js.Null(), DOMNotFound
+		}
+		return js.Undefined(), DOMInternalError
+	}
+	return value, nil
+}
+
+func (d *DOMServer) elemByEitherId(parigotId, id string) (js.Value, error) {
+	trimmed := strings.TrimSpace(id)
+	if trimmed != "" {
+		result := d.doc.Call("getElementById", id)
+		if !result.IsNull() && !result.Truthy() {
+			return js.Undefined(), DOMInternalError
+		}
+		return result, nil
+	}
+	trimmed = strings.TrimSpace(parigotId)
+	if trimmed != "" {
+		result := d.doc.Call("querySelector", fmt.Sprintf("[%s=\"%s\"]", ParigotIdAttribute, trimmed))
+		if result.Truthy() {
+			return result, nil
+		}
+	}
+	return js.Null(), DOMNotFound
 }
 
 // ElementById finds the element that has the id given in the request.  That element is returned or the error is
 // set to non-nil, probably DOMNotFound.  Note that the children of the node are not fully filled out because
 // that could lead a VERY large amount DOM interaction if we tried to fill out the subtree.
 func (d *DOMServer) ElementById(in *dommsg.ElementByIdRequest) (*dommsg.ElementByIdResponse, error) {
-	value := d.doc.Call("getElementById", in.Id)
-	if !value.Truthy() {
-		if value.IsNull() {
-			return nil, DOMNotFound
-		}
-		return nil, DOMInternalError
+	value, err := d.elemById(in.Id)
+	if err != nil {
+		return nil, err // dom puked
 	}
 	elem, err := d.buildElement(value)
 	if err != nil {
 		return nil, err
 	}
+	if elem.Tag.Id != in.Id {
+		panic("Wrong Id found")
+	}
 	return &dommsg.ElementByIdResponse{Elem: elem}, nil
+}
+
+func (d *DOMServer) ServerId() float64 {
+	sid := d.serverId
+	if _, ok := allDomServer[sid]; !ok {
+		allDomServer[sid] = d
+		log.Printf("full all DomServer %#v", allDomServer)
+	}
+	return sid
 }
 
 // buildBasics returns an parigot *Element with the data provided by domElem.  This
@@ -68,28 +112,24 @@ func (d *DOMServer) buildBasics(domElem js.Value) (*dommsg.Element, error) {
 		return nil, DOMInternalError
 	}
 	i := domElem.Get("id")
-	if !i.Truthy() {
-		return nil, DOMInternalError
-	}
 
-	c := domElem.Call("getAttribute", "class")
+	c := domElem.Get("className")
 	if !c.IsNull() && !c.Truthy() {
 		return nil, DOMInternalError
 	}
+	if c.IsNull() {
+		log.Printf("no classes found on %s", domElem.Get("id"))
+	}
 	clazz := []string{}
 	if !c.IsNull() {
-		l := c.Get("length")
-		if !l.Truthy() {
-			return nil, DOMInternalError
-		}
-		for num := 0; num < l.Int(); num++ {
-			s := c.Index(num)
-			clazz = append(clazz, s.String())
-		}
+		clazz = strings.Split(c.String(), " ")
 	}
 
 	tagName := t.String()
-	id := i.String()
+	id := ""
+	if i.Truthy() {
+		id = i.String()
+	}
 
 	tag := &dommsg.Tag{
 		Name:     tagName,
@@ -139,24 +179,21 @@ func (d *DOMServer) buildElement(domElem js.Value) (*dommsg.Element, error) {
 	return elem, nil
 }
 
-// ElementByParigotId mimics the behavior of the ElementById method, but checks for an attribute called parigotid
+// ElementByEitherId mimics the behavior of the ElementById method, but checks ADDITIONALLY for an attribute called parigotid
 // to try to find the element in question.  Be aware that if you, wrongly, have two elements with the same ParigotId in the
 // DOM you'll only get the first one.
-func (d *DOMServer) ElementByParigotId(in *dommsg.ElementByParigotIdRequest) (*dommsg.ElementByParigotIdResponse, error) {
+func (d *DOMServer) ElementByEitherId(in *dommsg.ElementByEitherIdRequest) (*dommsg.ElementByEitherIdResponse, error) {
 	pid := lib.Unmarshal(in.ParigotId)
 
-	obj := d.findById(pid.StringRaw(), "")
-	if !obj.Truthy() {
-		if obj.IsNull() {
-			return nil, DOMNotFound
-		}
-		return nil, DOMInternalError
+	obj, err := d.elemByEitherId(pid.StringRaw(), "")
+	if err != nil {
+		return nil, err
 	}
 	elem, err := d.buildElement(obj)
 	if err != nil {
 		return nil, err
 	}
-	return &dommsg.ElementByParigotIdResponse{Elem: elem}, nil
+	return &dommsg.ElementByEitherIdResponse{Elem: elem}, nil
 }
 
 func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildResponse, error) {
@@ -165,19 +202,19 @@ func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildRespon
 		pid := lib.Unmarshal(in.ParigotId)
 		parigotId = pid.StringRaw()
 	}
-	parent := d.findById(parigotId, in.Id)
-	if !parent.Truthy() {
-		if parent.IsNull() {
-			return nil, DOMNotFound
-		}
-		return nil, DOMInternalError
+	parent, err := d.elemByEitherId(parigotId, in.Id)
+	if err != nil {
+		return nil, err
 	}
 
 	replaced := d.removeAllChildren(parent)
 	var buf bytes.Buffer
 	for i := 0; i < len(in.Child); i++ {
 		element := in.Child[i]
-		check := d.findById(elementParigotIdToString(element), element.Tag.Id)
+		check, err := d.elemByEitherId(elementParigotIdToString(element), element.Tag.Id)
+		if err != nil {
+			return nil, err
+		}
 		if check.Truthy() {
 			return nil, DOMAlreadyPresent
 		}
@@ -197,14 +234,15 @@ func (d *DOMServer) removeAllChildren(parent js.Value) int {
 	return dropped
 }
 
-// CreateElement will build a tree of elements, as described by the request.  The return values are only
-// the root and first level children's parigot ids, now that they have been created.
+// CreateElement will build a tree of elements, as described by the request.
+// This function returns the tree root.
 func (d *DOMServer) CreateElement(in *dommsg.CreateElementRequest) (*dommsg.CreateElementResponse, error) {
 	var parent js.Value
 	if in.Parent != nil {
-		parent = d.findById(elementParigotIdToString(in.Parent), in.Parent.Tag.Id)
-		if !parent.Truthy() {
-			return nil, DOMNotFound
+		var err error
+		parent, err = d.elemByEitherId(elementParigotIdToString(in.Parent), in.Parent.Tag.Id)
+		if err != nil {
+			return nil, err
 		}
 	}
 	resp, root, err := d.createElementWithValue(in, in.Parent != nil)
@@ -219,24 +257,6 @@ func (d *DOMServer) CreateElement(in *dommsg.CreateElementRequest) (*dommsg.Crea
 	}
 
 	return resp, err
-}
-
-func (d *DOMServer) findById(parigotId, id string) js.Value {
-	trimmed := strings.TrimSpace(id)
-	if trimmed != "" {
-		result := d.doc.Call("getElementById", id)
-		if result.Truthy() {
-			return result
-		}
-	}
-	trimmed = strings.TrimSpace(parigotId)
-	if trimmed != "" {
-		result := d.doc.Call("querySelector", fmt.Sprintf("[%s=\"%s\"]", ParigotIdAttribute, trimmed))
-		if result.Truthy() {
-			return result
-		}
-	}
-	return js.Null()
 }
 
 // createElementWithValue will build a tree of elements, as described by the request.
@@ -288,6 +308,7 @@ func (d *DOMServer) createSingleElement(element *dommsg.Element, createDOM bool)
 		}
 		s := strings.Join(all, " ")
 		result.Set("cssClass", s)
+		result.Call("setAttribute", "class", s)
 	}
 	result.Call("setAttribute", ParigotIdAttribute, pidStr)
 	result.Set("textContent", element.Text)
@@ -308,7 +329,9 @@ func toHtml(e *dommsg.Element) string {
 		for _, clazz := range tag.GetCssClass() {
 			allClass.WriteString(clazz + " ")
 		}
-		t = fmt.Sprintf("<%s id=\"%s\" class=\"%s\">", tag.GetName(), tag.GetId(), allClass)
+		txtVersion := strings.TrimSpace(allClass.String())
+		log.Printf("xxx to HTML %+v, %s", e, txtVersion)
+		t = fmt.Sprintf("<%s id=\"%s\" class=\"%s\">", tag.GetName(), tag.GetId(), allClass.String())
 		end = fmt.Sprintf("</%s>", tag.GetName())
 	}
 	inner := e.GetText()
@@ -321,6 +344,7 @@ func toHtml(e *dommsg.Element) string {
 	}
 
 	result := fmt.Sprintf("%s%s%s", t, inner, end)
+	log.Printf("result of toHtml: %s", result)
 	return result
 }
 
@@ -341,8 +365,36 @@ func (d *DOMServer) AddEvent(selectorString string, eventName string, fn func(th
 		elem := d.doc.Call("querySelector", selectorString)
 		if !elem.Truthy() {
 			fmt.Printf("WARNING: selector '%s' did not match any elements", selectorString)
+		} else {
+			elem.Call("addEventListener", eventName, js.FuncOf(fn), false)
 		}
-		elem.Call("addEventListener", eventName, js.FuncOf(fn))
 	}
-	fmt.Printf("--- selector %s\n", selectorString[0:1])
+	if selectorString[0:1] == "." {
+		elem := d.doc.Call("querySelector", selectorString)
+		if !elem.Truthy() {
+			fmt.Printf("WARNING: selector '%s' did not match any elements", selectorString)
+		} else {
+			elem.Call("addEventListener", eventName, js.FuncOf(fn), false)
+		}
+	}
+	//fmt.Printf("xxx selector for adding event %s\n", selectorString[0:1])
+}
+
+func FindByServerId(f float64) dom.DOMService {
+	if _, ok := allDomServer[f]; !ok {
+		panic("failed to find  dom server:" + fmt.Sprint(f))
+	}
+	return allDomServer[f]
+}
+
+// UpdateCSSClass changes the underlying DOM to have these classes
+// on the element provided.
+func (d *DOMServer) UpdateCssClass(in *dommsg.UpdateCssClassRequest) error {
+	p := lib.Unmarshal(in.Elem.ParigotId)
+	e, err := d.elemByEitherId(p.StringRaw(), in.Elem.Tag.Id)
+	if err != nil {
+		return err
+	}
+	e.Set("className", strings.Join(in.Elem.Tag.CssClass, " "))
+	return nil
 }

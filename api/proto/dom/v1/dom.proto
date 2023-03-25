@@ -7,9 +7,12 @@ service DOMService {
     // ElementById returns the DOMElement that has the has the (DOM) id
     // given or it returns an error, DOMNotFound.
     rpc ElementById(msg.dom.v1.ElementByIdRequest) returns (msg.dom.v1.ElementByIdResponse); 
-    // ElementById returns the DOMElement that has the has the Parigot id
-    // given or it returns an error, DOMNotFound.
-    rpc ElementByParigotId(msg.dom.v1.ElementByParigotIdRequest) returns (msg.dom.v1.ElementByParigotIdResponse); 
+    // ElementByEitherId returns the DOMElement that has the either the given
+    // DOM id or the given ParigotId. Note that the DOM element id is
+    // checked first, so this is a drop-in replacement for ElementById
+    // which also checks for parigot id.
+    // If can't find any element given both ids, it returns an error, DOMNotFound.
+    rpc ElementByEitherId(msg.dom.v1.ElementByEitherIdRequest) returns (msg.dom.v1.ElementByEitherIdResponse); 
     // SetChild is used when you created an element or elements with CreateElement
     // but did not provide a parent.  This call will add the element or elements
     // given to parent given.
@@ -18,4 +21,7 @@ service DOMService {
     // to the dom to the parent given, or simply returns them if no parent
     // was given.
     rpc CreateElement(msg.dom.v1.CreateElementRequest) returns (msg.dom.v1.CreateElementResponse);
+    // Update the css classes present on an element.
+    // The new values should be present in the element.
+    rpc UpdateCssClass(msg.dom.v1.UpdateCssClassRequest) returns (msg.dom.v1.UpdateCssClassResponse);
 }

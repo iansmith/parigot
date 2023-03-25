@@ -139,10 +139,10 @@ apiimpl/queue/go_/db.go: $(QUEUE_SQL)
 	cd apiimpl/queue/go_/sqlc && sqlc generate
 
 # build a wasm binary for the test program
-static/t1.wasm: command/t1/nap.go command/t1/main.go apiimpl/dom/*.go build/wcl 
+static/t1.wasm: command/t1/nap.go command/t1/main.go
 	GOOS=js GOARCH=wasm go build -tags browser -o static/t1.wasm command/t1/*.go
 
-command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go
+command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiimpl/dom/*.go build/wcl 
 	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
 
 #

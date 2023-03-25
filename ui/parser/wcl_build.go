@@ -273,9 +273,6 @@ func (l *WclBuildListener) ExitUninterp(c *UninterpContext) {
 	for _, t := range c.AllUninterp_inner() {
 		result = append(result, t.GetItem())
 	}
-	for _, t := range result {
-		log.Printf("--%s--", t.String())
-	}
 
 	c.SetItem(result)
 }
@@ -446,30 +443,21 @@ func (s *WclBuildListener) ExitDoc_elem_child(ctx *Doc_elem_childContext) {
 	for i, elem := range raw {
 		result[i] = elem.GetElem()
 	}
-	ctx.SetElem(&tree.DocElement{Child: result})
+	ctx.SetElem(result)
 }
 
 func (s *WclBuildListener) EnterHaveTag(ctx *HaveTagContext) {}
 
 func (s *WclBuildListener) ExitHaveTag(ctx *HaveTagContext) {
-	item := []tree.TextItem{}
+	e := &tree.DocElement{}
 	if ctx.Uninterp() != nil {
-		item = ctx.Uninterp().GetItem()
+		e.TextContent = ctx.Uninterp().GetItem()
 	}
-	ctx.SetElem(tree.NewDocElementWithText(ctx.Doc_tag().GetTag(),
-		item))
-}
-
-func (s *WclBuildListener) EnterHaveList(ctx *HaveListContext) {}
-
-func (s *WclBuildListener) ExitHaveList(ctx *HaveListContext) {
-	if ctx.Doc_elem_child() == nil {
-		log.Fatalf("no element child")
+	if ctx.Doc_elem_child() != nil {
+		e.Child = ctx.Doc_elem_child().GetElem()
 	}
-	elem := tree.NewDocElementWithChild([]*tree.DocElement{ctx.Doc_elem_child().GetElem()})
-	elem.Tag = nil
-	ctx.SetElem(elem)
-
+	e.Tag = ctx.Doc_tag().GetTag()
+	ctx.SetElem(e)
 }
 
 func (s *WclBuildListener) EnterFunc_invoc(ctx *Func_invocContext) {

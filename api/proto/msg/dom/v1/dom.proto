@@ -22,28 +22,30 @@ message Element {
 
 // ElementById returns the element associated with the id given.  Note
 // that a document that has more than one element with the same id is
-// invalid.  This is the request to the service.
+// invalid. The id given must be a DOM id.
 message ElementByIdRequest {
     string id = 1;
 }
 
-// ElementByParigotId returns the element associated with the parigot id given.  Note
-// that a document that has more than one element with the same id is
-// invalid.  This is the request to the service.
-message ElementByParigotIdRequest {
-    msg.protosupport.v1.ElementId parigot_id = 1;
-}
-
 // ElementById returns the element associated with the id given and this is 
-// the return value from that call.
+// the return value from that call. 
 message ElementByIdResponse {
     Element elem = 1;
 }
 
+// ElementByEitherId returns the element associated with either the id or
+// parigot id given.  The id (DOM id) is checked first.  If there are
+// multiple matching elements (and there should not be) you will receive
+// a response that includes only the first match.
+message ElementByEitherIdRequest {
+    msg.protosupport.v1.ElementId parigot_id = 1;
+    string id =2;
+}
 
-// ElementByParigotId returns the element associated with the id given and this is 
+
+// ElementByEitherId returns the element associated with the either of the ids given and this is 
 // the return value from that call.
-message ElementByParigotIdResponse {
+message ElementByEitherIdResponse {
     Element elem = 1;
 }
 
@@ -80,4 +82,18 @@ message CreateElementRequest {
 // fields filled in.
 message CreateElementResponse {
     Element root = 1;
+}
+
+// UpdateCssClass find the element in the DOM based on
+// id field in this element or the parigot id in this
+// element, if no id is provided.  The CSS classes in the
+// DOM will be replaced the values in this element. 
+// This update is NOT recursive downward.
+message UpdateCssClassRequest {
+    Element elem = 1;
+}
+
+// There is no return value from UpdateCSSClass because
+// any errors would have been signalled at the call site.
+message UpdateCssClassResponse {
 }

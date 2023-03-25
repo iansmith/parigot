@@ -15,15 +15,13 @@ func main() {
 	if err != nil {
 		panic("unable to get DOMService: " + err.Error())
 	}
-
-	elem, err := svc.ElementById(&dommsg.ElementByIdRequest{Id: parentId})
+	resp, err := svc.ElementById(&dommsg.ElementByIdRequest{Id: parentId})
 	if err != nil {
 		panic("unable to get element by id:" + err.Error())
 	}
-
 	req := &dommsg.CreateElementRequest{
 		Root:   example(),
-		Parent: elem.Elem,
+		Parent: resp.Elem,
 	}
 	_, err = svc.CreateElement(req)
 	if err != nil {
@@ -32,14 +30,4 @@ func main() {
 
 	AddGlobalEvent(svc)
 	_ = <-exitChan
-
-	// setReq := &dommsg.SetChildRequest{
-	// 	Id:    parentId,
-	// 	Child: []*dommsg.Element{resp.Root},
-	// }
-	// respSet, err := svc.SetChild(setReq)
-	// if err != nil {
-	// 	panic("unable to set child:" + err.Error())
-	// }
-	// fmt.Printf("set success: %+v\n", respSet)
 }

@@ -2,6 +2,8 @@
 
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <script src="/js/wasm_exec.js"></script>
     <script>
         const go = new Go();
@@ -9,15 +11,20 @@
             go.run(result.instance);
         });
     </script>
-    <link rel="stylesheet" href="/css/simple.css">
+    <link rel="stylesheet" href="/css/bootstrap.css">
+    <link rel="stylesheet" href="/css/bootstrap-grid.css">
     <link rel="icon" href="/image/favicon.png">
     <link rel="apple-touch-icon" href="/images/favicon.png">
 </head>
 
 <body>
-    <h1>Example App With Protobuf</h1>
-    <p id="paraLoc"></p>
-
+    <div class="container">
+    <div class="row text-center">
+        <h1>Example App For WCL</h1>
+    </div>
+    <div id="paraLoc" class="blah row">
+    </div>
+    </div>
 </body>
 
 </html>
