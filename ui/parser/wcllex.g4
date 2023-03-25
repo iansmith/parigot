@@ -24,7 +24,7 @@ Controller: '@controller';
 
 Id: IdentFirst (IdentAfter)*;
 
-TypeStarter: '[' | ']'|'*';
+TypeStarter: ('[' | ']'|'*')+;
 
 // consistent def of Ident
 fragment IdentFirst: ('a' .. 'z' | 'A' .. 'Z'  |'_' | '-');
@@ -66,13 +66,6 @@ Whitespace: [ \n\r\t\u000B\u000C\u0000]+ -> skip;
 
 mode GrabText;
 GrabDollar: '$' -> popMode;
-//GrabLCurly: '{' ;
-//GrabRCurly: '}' ;
-//GrabColon: ':';
-//GrabComma: ',';
-//GrabDot: '.';
-//GrabLParen: '(';
-//GrabRParen: ')';
 GrabGreaterThan: '\\>' -> type(RawText);
 GrabDoubleGreater: '>>' -> popMode;
 //GrabId: IdentFirst (IdentAfter)*;

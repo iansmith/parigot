@@ -24,9 +24,9 @@ fmt.Sprint({{- template "ValueRef" .Ref -}})
 {{- template "TextConstant" . -}}
 {{- end -}}{{/*TextConstant*/}}
 
-{{- if eq $subtemplate "TextVar" }}
-{{ template "TextVar" . }}
-{{- end -}} {{/*TextVar*/}}
+{{- if eq $subtemplate "TextValueRef" }}
+{{ template "TextValueRef" . }}
+{{- end -}} {{/*TextValueRef*/}}
 
 {{- if eq $subtemplate "TextInline" }}
 // Inline Code Sections Do Not Nest
@@ -61,7 +61,7 @@ var {{ .Name }} {{ .Type -}}
 {{- define "ValueRef" -}}
 {{- if . -}}
 {{- if .Id }}
-{{- .Id.Text -}}
+{{- .Id.String -}}
 {{- end -}} {{/* end of Id field */}}
 {{- if .FuncInvoc -}}
 {{- template "FuncInvoc" .FuncInvoc -}}
@@ -81,7 +81,7 @@ package {{.package}}
 {{- define "FuncInvoc" -}}
     {{- .Name.String -}}(
     {{- range .Actual -}}
-    {{- template "ValueRef" .Ref -}}
+    {{- template "ValueRef" .Ref -}},
     {{- end -}}) {{/*end of ranging over actuals*/}}
 {{- end -}}{{/* end of template */}}
 {{/* ----------------------------------------------------- */}}

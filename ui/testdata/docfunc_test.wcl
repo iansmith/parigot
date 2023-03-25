@@ -40,8 +40,6 @@ textTest(t string, a string)
 ///////////////// DOC /////////////////
 @doc
 
-// peers forms three elements that end up as peers in the tree
-// tests the @pre and @post
 peers(a int64) 
 @local(b int64, c int64)
 @pre
@@ -49,43 +47,40 @@ peers(a int64)
     ${b}=${a}\>\>32
     ${c}=${a}&0xffffffff
 >>
- (<h1><<foo>>
-    <h2><<bar>>
-    <p><<${foo()}>>
-)
+ <"h1"><<foo>> (
+    <"h2"><<bar>>
+    <"p"><<${foo()}>>
+    )
 @post
 <<
     ${result}=${result}+fmt.Sprintf("%08x",c)
 >>
 
 // onlyAtom
-onlyAtom <br> <<example "literal" function, this is just shorthand for make an anonymous text func>>
-// only in Atom tests that we can handle the _lack_ of a tag that "owns" the list
-onlyAtomInList (<"p" #"blah" ."btn-warning" ."display-1">)
+onlyAtom <"p"> <<example "literal" function, this is just shorthand for make an anonymous text func>>
+// only in Atom tests that we can nest single elem
+onlyAtomInList <"span"> (<"p" #"blah" ."btn-warning" ."display-1">)
 tagInListWithVar(in *dommsg.Foo) 
-    (<in> <<string in double less and double greater here>>)
+    <in> <<string in double less and double greater here>>
 tagInListWithCall
-    (
+    <"div"> (
         <"p" #"blah" ."mark" ."small"> 
         <<${textTest("the emergency broadcast system","9")}>>
     )
 
 // does NOT produce a link (anchor)!
 justVar(a *dommsg.Element)
-    (<a>)
+    <a>
 
-deeplyNested (<p>(<p>(<p>(<p>(<p>(<p> <<${foo()}>> ) ) ) ) ) )
-silly (((((((
-    <"p"><<some content>>
-    )))))))
+deeplyNested <p>(<p>(<p>(<p>(<p>(<p> <<${foo()}>> ) ) ) ) ) 
 exampleList(param []string) 
 @local(x string, y int)
-    (<"ul" #"d"> 
+    <"ul" #"d"> 
         (<"li" #"a"><<${liTest("foo")}>>
             <"li" #"b"><<${liTest(param)}>>
             <"li" #"c"><<${liTest(x)}>>
         )
-    )
+    
 @post
 <<
     ${result}=${result}+"0000001"

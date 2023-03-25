@@ -182,6 +182,7 @@ func (l *WclBuildListener) ExitIdent(c *IdentContext) {
 	if c.Id() != nil {
 		text = c.Id().GetText()
 	}
+	log.Printf("created new id? '%s', '%s'", text, c.GetText())
 	id := tree.NewIdent(text, false, c.GetText(), line, col)
 	// if c.Dot_qual() != nil {
 	// 	// raw := c.AllDot_qual()

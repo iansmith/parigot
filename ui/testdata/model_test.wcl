@@ -30,14 +30,13 @@ FleazilModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/fil
 @view
 // ---- QueueMsgView -----
 QueueMsgView (a int64, model QueModel:QueueMsg) 
- (
     <"h3"> << ${model} >>
     ( 
         <"h4"> <<some text before ${model:msg_id} and some text after>>
         <"h5"> <<${model.sent}>>
         <"h5"> <<${sizeInBytes(model.payload)}>>
     )
-)
+
 
 QueueViewShort (a int64, model QueueModel.QueueMsg) 
  <"h3"> <<${model.id}:${model.msg_id}>>
