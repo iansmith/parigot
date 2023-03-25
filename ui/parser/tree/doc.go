@@ -13,6 +13,9 @@ type DocSectionNode struct {
 }
 
 func (s *DocSectionNode) FinalizeSemantics() {
+	if s == nil {
+		return
+	}
 	s.SetNumber()
 	// if len(s.DocFunc) > 0 {
 	// 	s.Program.NeedBytes = true

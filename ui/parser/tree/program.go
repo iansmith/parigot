@@ -1,5 +1,7 @@
 package tree
 
+import "log"
+
 type FSemantics interface {
 	FinalizeSemantics()
 }
@@ -17,10 +19,14 @@ type ProgramNode struct {
 }
 
 func (p *ProgramNode) FinalizeSemantics() {
-	for _, node := range []any{p.ImportSection, p.CSSSection, p.TextSection, p.DocSection,
+	for i, node := range []any{p.ImportSection, p.CSSSection, p.TextSection, p.DocSection,
 		p.EventSection, p.ModelSection} {
+		if node == nil {
+			continue
+		}
 		f, ok := node.(FSemantics)
-		if ok {
+		if ok && node != nil {
+			log.Printf("xxxx ??? %T  %T %d %v", node, f, i, f == nil)
 			f.FinalizeSemantics()
 		}
 	}
