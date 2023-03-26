@@ -162,11 +162,7 @@ func (s *TextFuncNode) VarCheck(filename string) bool {
 	if !CheckAllItems(s.Name, s.PostCode, s.Local, s.Param, s.Section.Scope_, filename) {
 		return false
 	}
-	if !CheckAllItems(s.Name, s.Item_, s.Local, s.Param, s.Section.Scope_, filename) {
-		return false
-	}
-
-	return true
+	return CheckAllItems(s.Name, s.Item_, s.Local, s.Param, s.Section.Scope_, filename)
 }
 
 func (s *TextSectionNode) FinalizeSemantics() {

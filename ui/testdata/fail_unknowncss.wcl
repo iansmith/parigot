@@ -19,4 +19,4 @@
 ///////////////// DOC /////////////////
 @doc
 // bad css class
-onlyAtom <br #blah .btn-warning .fleazil>
+onlyAtom <br #"blah" ."btn-warning" ."fleazil">

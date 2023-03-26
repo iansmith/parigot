@@ -137,6 +137,7 @@ func checkDupParamAndLocal(p, l []*PFormal, filename, funcName string, isDoc boo
 		}
 		seen[param.Name] = struct{}{}
 	}
+	seen = make(map[string]struct{})
 	for _, local := range l {
 		if local.Name == funcName {
 			e := ErrorLoc{Filename: filename, Line: local.LineNumber, Col: local.ColumnNumber}
@@ -145,6 +146,14 @@ func checkDupParamAndLocal(p, l []*PFormal, filename, funcName string, isDoc boo
 			return false
 
 		}
+		if _, ok := seen[local.Name]; ok {
+			e := ErrorLoc{Filename: filename, Line: local.LineNumber, Col: local.ColumnNumber}
+			log.Printf("%s function '%s' has two local variables named '%s' at %s",
+				fType, funcName, local.Name, e.String())
+			return false
+		}
+		seen[local.Name] = struct{}{}
+
 	}
 	return true
 }
@@ -261,10 +270,19 @@ type DocTag struct {
 	Class []*ValueRef
 }
 
-func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef) (*DocTag, error) {
+func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef, existing map[string]struct{}) (*DocTag, error) {
 	if tag.Lit != "" {
 		if !ValidTag(tag.Lit) {
 			return nil, fmt.Errorf("unknown tag '%s'", tag.Lit)
+		}
+	}
+	for _, class := range clazz {
+		if class.Lit == "" {
+			continue
+		}
+		_, ok := existing["."+class.Lit]
+		if !ok {
+			return nil, fmt.Errorf("unknown css class '%s'", class.Lit)
 		}
 	}
 	return &DocTag{Tag: tag, Id: id, Class: clazz}, nil

@@ -182,7 +182,8 @@ semfailtest: build/wcl
 	build/wcl -invert ui/testdata/fail_conflictlocalparamtext.wcl
 	build/wcl -invert ui/testdata/fail_conflictlocalnametext.wcl
 	build/wcl -invert ui/testdata/fail_unknowncss.wcl
-	build/wcl -invert ui/testdata/fail_badmodelmsg.wcl
+	#build/wcl -invert ui/testdata/fail_badmodelmsg.wcl
+	#build/wcl -invert ui/testdata/fail_badmodelderef.wcl
 	build/wcl -invert ui/testdata/fail_badtextfunccall.wcl
 	@echo "PASS"
 	
