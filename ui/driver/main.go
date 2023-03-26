@@ -24,7 +24,7 @@ var outputFile = flag.String("o", "", "output file (default is stdout)")
 var gopkg = flag.String("gopkg", "main", "golang package code should be generated for")
 var invert = flag.Bool("invert", false, "invert the exit error code (useful only for testing)")
 
-var buildSuccess = true
+//var buildSuccess = true
 
 //go:embed template/*
 var templateFS embed.FS
@@ -61,6 +61,9 @@ func Main() {
 
 	// need to clean up some pointers and such
 	tree.GProgram.FinalizeSemantics()
+
+	// check all the
+	tree.GProgram.VarCheck(inFile)
 
 	// if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
 	// 	wclFatalf("failed due to name check")
@@ -114,9 +117,9 @@ func execTemplate(prog parser.IProgramContext, lang string) {
 	}
 	defer func() {
 		//log.Printf("cleaning up temp dir %s", dir)
-		//os.RemoveAll(dir) // clean up
+		os.RemoveAll(dir) // clean up
 	}()
-	log.Printf("output file is %s\n", filepath.Join(dir, "output_program.go"))
+	//log.Printf("output file is %s\n", filepath.Join(dir, "output_program.go"))
 	file := filepath.Join(dir, "output_program.go")
 	fp, err := os.Create(file)
 	if err != nil {

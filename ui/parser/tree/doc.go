@@ -8,18 +8,30 @@ import (
 
 type DocSectionNode struct {
 	DocFunc      []*DocFuncNode
+	Scope_       *SectionScope
 	AnonymousNum int
 	Program      *ProgramNode
 }
 
 func (s *DocSectionNode) FinalizeSemantics() {
+
 	if s == nil {
 		return
 	}
 	s.SetNumber()
-	// if len(s.DocFunc) > 0 {
-	// 	s.Program.NeedBytes = true
-	// }
+	for _, fn := range s.DocFunc {
+		fn.Section = s
+	}
+	s.Scope_.DocFn = s.DocFunc
+}
+
+func (s *DocSectionNode) VarCheck(filename string) bool {
+	for _, fn := range s.DocFunc {
+		if !fn.VarCheck(filename) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *DocSectionNode) SetNumber() {
@@ -29,7 +41,7 @@ func (s *DocSectionNode) SetNumber() {
 }
 
 func NewDocSectionNode(p *ProgramNode, fn []*DocFuncNode) *DocSectionNode {
-	return &DocSectionNode{Program: p, DocFunc: fn}
+	return &DocSectionNode{Program: p, DocFunc: fn, Scope_: NewSectionScope(p.Global)}
 }
 
 type DocFuncNode struct {
@@ -41,64 +53,32 @@ type DocFuncNode struct {
 }
 
 func (f *DocFuncNode) SetNumber() {
+	if f == nil {
+		return
+	}
 	f.Elem.SetNumber(0)
 }
 
-// func (f *DocFuncNode) CheckForBadVariableUse() string {
-// 	for _, seq := range [][]TextItem{f.PreCode, f.PostCode} {
-// 		for _, item := range seq {
-// 			switch varName := item.(type) {
-// 			case *TextValueRef:
-// 				msg := f.checkAllForNameDecl(varName.String())
-// 				if msg != "" {
-// 					return msg
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return ""
-// }
+func (f *DocFuncNode) VarCheck(filename string) bool {
+	if f.Section == nil {
+		panic("xxx FAIL")
+	}
 
-// func (f *DocFuncNode) checkVar(name string, formal []*PFormal) bool {
-// 	for _, p := range formal {
-// 		if p.Name == name {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-//	func (f *DocFuncNode) checkGlobalAndExtern(name string) bool {
-//		return f.Section.Program.checkGlobalAndExtern(name)
-//	}
-// func (f *DocFuncNode) checkAllForNameDecl(name string) string {
-// 	if IsSelfVar(name) {
-// 		return ""
-// 	}
-// 	found := f.checkLocal(name)
-// 	if found {
-// 		return ""
-// 	}
-// 	found = f.checkParam(name)
-// 	if found {
-// 		return ""
-// 	}
-// 	found = f.checkGlobalAndExtern(name)
-// 	if found {
-// 		return ""
-// 	}
-
-// 	return fmt.Sprintf("in doc function '%s', unknown variable '%s'",
-// 		f.Name, name)
-// }
-
-// func (f *DocFuncNode) checkLocal(name string) bool {
-// 	return f.checkVar(name, f.Local)
-// }
-
-//	func (f *DocFuncNode) checkParam(name string) bool {
-//		return f.checkVar(name, f.Param)
-//	}
+	if !CheckAllItems(f.PreCode, f.Local, f.Param, f.Section.Scope_, filename) {
+		return false
+	}
+	if !CheckAllItems(f.PostCode, f.Local, f.Param, f.Section.Scope_, filename) {
+		return false
+	}
+	if f.Elem != nil && f.Elem.Child != nil {
+		for _, fn := range f.Elem.Child {
+			if !CheckAllItems(fn.TextContent, f.Local, f.Param, f.Section.Scope_, filename) {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 func NewDocFuncNode(n string, formal []*PFormal, local []*PFormal, s *DocElement, pre, post []TextItem) *DocFuncNode {
 	return &DocFuncNode{Name: n, Param: formal, Local: local, Elem: s, PreCode: pre, PostCode: post}
@@ -122,6 +102,9 @@ func NewDocElementWithChild(child []*DocElement) *DocElement {
 }
 
 func (e *DocElement) SetNumber(n int) int {
+	if e == nil {
+		return n
+	}
 	if e.TextContent == nil && len(e.Child) == 0 {
 		e.Number = n
 		return n + 1

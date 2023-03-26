@@ -66,10 +66,16 @@ func (a *AllGlobal) Parent() Scope {
 }
 
 func (a *AllGlobal) LookupFunc(f *FuncInvoc) bool {
+	if a == nil || a.E == nil {
+		return false
+	}
 	return a.E.LookupFunc(f)
 }
 
 func (a *AllGlobal) LookupVar(id *Ident) *PFormal {
+	if a == nil || a.G == nil {
+		return nil
+	}
 	return a.G.LookupVar(id)
 }
 

@@ -143,10 +143,14 @@ func (l *WclBuildListener) ExitText_section(c *Text_sectionContext) {
 	raw := c.AllText_func()
 	tfn := make([]*tree.TextFuncNode, len(raw))
 	section := tree.NewTextSectionNode(tree.GProgram)
+	count := 0
 	for i, fn := range raw {
 		tfn[i] = fn.GetF()
+		count++
 	}
-	section.Func = tfn
+	if len(tfn) > 0 {
+		section.Func = tfn
+	}
 	c.SetSection(section)
 }
 
@@ -157,13 +161,19 @@ func (l *WclBuildListener) EnterText_func(c *Text_funcContext) {
 func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 	fn := tree.NewTextFuncNode()
 	fn.Name = c.Id().GetText()
+
 	if c.Param_spec() != nil && c.Param_spec().GetFormal() != nil {
 		fn.Param = c.Param_spec().GetFormal()
 	}
 	if c.Text_func_local() != nil && c.Text_func_local().GetFormal() != nil {
 		fn.Local = c.Text_func_local().GetFormal()
 	}
-	fn.Item_ = c.Uninterp().GetItem()
+	if c.Uninterp() != nil {
+		fn.Item_ = c.Uninterp().GetItem()
+	}
+	if c.Pre_code() != nil && c.Pre_code().GetItem() != nil {
+		fn.PreCode = c.Pre_code().GetItem()
+	}
 
 	if c.Post_code() != nil && c.Post_code().GetItem() != nil {
 		fn.PostCode = c.Post_code().GetItem()
@@ -182,25 +192,7 @@ func (l *WclBuildListener) ExitIdent(c *IdentContext) {
 	if c.Id() != nil {
 		text = c.Id().GetText()
 	}
-	log.Printf("created new id? '%s', '%s'", text, c.GetText())
 	id := tree.NewIdent(text, false, c.GetText(), line, col)
-	// if c.Dot_qual() != nil {
-	// 	// raw := c.AllDot_qual()
-	// 	// for _, r := range raw {
-	// 	// 	current := &tree.IdentPart{Qual: r.GetPart()}
-	// 	// 	prev.Qual = current
-	// 	// 	prev = current
-	// 	// }
-	// }
-	// if c.Colon_qual() != nil {
-	// 	// raw := c.AllColon_qual()
-	// 	// for _, r := range raw {
-	// 	// 	current := &tree.IdentPart{Qual: r.GetPart(), ColonSep: true}
-	// 	// 	prev.Qual = current
-	// 	// 	prev = current
-	// 	// }
-	// }
-
 	c.SetId(id)
 }
 
@@ -340,6 +332,9 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 	if ctx.Doc_id() != nil && ctx.Doc_id().GetS() != nil {
 		docId = ctx.Doc_id().GetS()
 	}
+	if ctx.Value_ref() == nil {
+		return
+	}
 	// get the string here because we might need it for err messages
 	tn := ctx.Value_ref().GetVr().String()
 	numClass := 0
@@ -403,9 +398,15 @@ func (s *WclBuildListener) EnterDoc_section(ctx *Doc_sectionContext) {
 // Doc_sexpr.atom exit
 func (s *WclBuildListener) ExitDoc_section(ctx *Doc_sectionContext) {
 	raw := ctx.AllDoc_func()
-	content := make([]*tree.DocFuncNode, len(raw))
-	for i, r := range raw {
-		content[i] = r.GetFn()
+	content := []*tree.DocFuncNode{}
+	for _, r := range raw {
+		if r == nil || r.GetFn() == nil {
+			continue
+		}
+		content = append(content, r.GetFn())
+	}
+	if len(content) == 0 {
+		return
 	}
 	section := tree.NewDocSectionNode(tree.GProgram, content)
 	ctx.SetSection(section)
@@ -541,6 +542,7 @@ func (s *WclBuildListener) EnterDoc_func_post(ctx *Doc_func_postContext) {}
 func (s *WclBuildListener) ExitDoc_func_post(ctx *Doc_func_postContext) {
 	var f, l []*tree.PFormal
 	var pre, post []tree.TextItem
+	var elem *tree.DocElement
 
 	if ctx.Doc_func_formal() != nil {
 		f = ctx.Doc_func_formal().GetFormal()
@@ -554,7 +556,10 @@ func (s *WclBuildListener) ExitDoc_func_post(ctx *Doc_func_postContext) {
 	if ctx.Post_code() != nil {
 		post = ctx.Post_code().GetItem()
 	}
-	ctx.SetFn(tree.NewDocFuncNode("", f, l, ctx.Doc_elem().GetElem(),
+	if ctx.Doc_elem() != nil && ctx.Doc_elem().GetElem() != nil {
+		elem = ctx.Doc_elem().GetElem()
+	}
+	ctx.SetFn(tree.NewDocFuncNode("", f, l, elem,
 		pre, post))
 
 }
@@ -644,8 +649,6 @@ func (s *WclBuildListener) ExitEvent_call(ctx *Event_callContext) {
 		f.Builtin = true
 		s.checkBuiltinWithSingleParam(ctx, f)
 	}
-	log.Printf("got event call : %v, %v, %+v\n", b,
-		f.Builtin, f)
 	ctx.SetInvoc(f)
 }
 
