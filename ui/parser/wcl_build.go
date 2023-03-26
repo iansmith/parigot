@@ -12,12 +12,8 @@ import (
 	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
-const anonPrefix = "_anon"
-
 type WclBuildListener struct {
 	*BasewclListener
-
-	anonCount int
 
 	ClassName map[string]struct{}
 
@@ -97,22 +93,25 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 	if len(ext) == 1 {
 		if ext[0].GetE() != nil {
 			extNode = ext[0].GetE()
+			extNode.Program = tree.GProgram
 		}
 	}
 	if len(glob) == 1 {
 		if glob[0].GetG() != nil {
 			globNode = glob[0].GetG()
+			globNode.Program = tree.GProgram
 		}
 	}
-	tree.GProgram.Global = tree.NewAllGlobal(globNode, extNode)
-
+	tree.GProgram.Global = tree.NewAllGlobal(tree.GProgram, globNode, extNode)
 	if c.Text_section() != nil && c.Text_section().GetSection() != nil {
 		tree.GProgram.TextSection = c.Text_section().GetSection()
 		tree.GProgram.TextSection.Program = tree.GProgram
+		tree.GProgram.TextSection.Scope_.Parent_ = tree.GProgram.Global
 	}
 	if c.Doc_section() != nil && c.Doc_section().GetSection() != nil {
 		tree.GProgram.DocSection = c.Doc_section().GetSection()
-		tree.GProgram.TextSection.Program = tree.GProgram
+		tree.GProgram.DocSection.Program = tree.GProgram
+		tree.GProgram.DocSection.Scope_.Parent_ = tree.GProgram.Global
 	}
 	if c.Event_section() != nil && c.Event_section().GetSection() != nil {
 		tree.GProgram.EventSection = c.Event_section().GetSection()
@@ -150,6 +149,7 @@ func (l *WclBuildListener) ExitText_section(c *Text_sectionContext) {
 	}
 	if len(tfn) > 0 {
 		section.Func = tfn
+		section.Scope_.TextFn = tfn
 	}
 	c.SetSection(section)
 }
@@ -178,6 +178,8 @@ func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 	if c.Post_code() != nil && c.Post_code().GetItem() != nil {
 		fn.PostCode = c.Post_code().GetItem()
 	}
+	fn.LineNumber = c.Id().GetSymbol().GetLine()
+	fn.ColumnNumber = c.Id().GetSymbol().GetColumn()
 	c.SetF(fn)
 }
 
@@ -310,7 +312,7 @@ func (l *WclBuildListener) ExitParam_pair(c *Param_pairContext) {
 	if c.TypeStarter() != nil {
 		ts = c.TypeStarter().GetText()
 	}
-	c.SetFormal(tree.NewPFormal(n, t, ts))
+	c.SetFormal(tree.NewPFormal(n, t, ts, c.Id().GetSymbol().GetLine(), c.Id().GetSymbol().GetColumn()))
 }
 
 // Doc_tag is a full tag descriptor
@@ -340,7 +342,6 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 	numClass := 0
 	if ctx.Doc_class() != nil && ctx.Doc_class().GetClazz() != nil {
 		numClass = len(ctx.Doc_class().GetClazz())
-
 		vr := ctx.Doc_class().GetClazz()
 		for _, ref := range vr {
 			if ref.Lit == "" {
@@ -349,7 +350,8 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 			l := "." + ref.Lit
 			_, ok := s.ClassName[l]
 			if !ok {
-				notifyError(fmt.Sprintf("[%s:%d:%d] in tag '%s', class name '%s' is not defined the css files declared", s.SourceCode, ref.LineNumber, ref.ColumnNumber, ref.Lit, tn),
+				e := &tree.ErrorLoc{Filename: s.SourceCode, Line: ref.LineNumber, Col: ref.ColumnNumber}
+				notifyError(fmt.Sprintf("at %s in tag '%s', class name '%s' is not defined the css files declared", e.String(), ref.Lit, tn),
 					ctx.BaseParserRuleContext, ctx.GetParser())
 			}
 		}
@@ -534,6 +536,8 @@ func (s *WclBuildListener) EnterDoc_func(ctx *Doc_funcContext) {}
 func (s *WclBuildListener) ExitDoc_func(ctx *Doc_funcContext) {
 	dfunc := ctx.Doc_func_post().GetFn() // not Gfunk
 	dfunc.Name = ctx.Id().GetText()
+	dfunc.LineNumber = ctx.Id().GetSymbol().GetLine()
+	dfunc.ColumnNumber = ctx.Id().GetSymbol().GetColumn()
 	ctx.SetFn(dfunc)
 }
 

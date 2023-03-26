@@ -3,8 +3,13 @@ package tree
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 )
+
+const anonPrefix = "_anon"
+
+var anonCount int
 
 type DocSectionNode struct {
 	DocFunc      []*DocFuncNode
@@ -21,8 +26,10 @@ func (s *DocSectionNode) FinalizeSemantics() {
 	s.SetNumber()
 	for _, fn := range s.DocFunc {
 		fn.Section = s
+		fn.Elem.attachAnonTextFunc(s.Program.TextSection)
 	}
 	s.Scope_.DocFn = s.DocFunc
+
 }
 
 func (s *DocSectionNode) VarCheck(filename string) bool {
@@ -30,6 +37,29 @@ func (s *DocSectionNode) VarCheck(filename string) bool {
 		if !fn.VarCheck(filename) {
 			return false
 		}
+		if !fn.CheckDup(filename) {
+			return false
+		}
+		seen := make(map[string]*ErrorLoc)
+		for _, fn := range s.DocFunc {
+			e := &ErrorLoc{filename, fn.LineNumber, fn.ColumnNumber}
+			if _, ok := seen[fn.Name]; ok {
+				log.Printf("two instances of doc func '%s' found at %s and %s", fn.Name, seen[fn.Name].String(), e.String())
+				return false
+			}
+			seen[fn.Name] = e
+			if s.Program.TextSection != nil && s.Program.TextSection.Func != nil {
+				for _, other := range s.Program.TextSection.Func {
+					if fn.Name == other.Name {
+						eDoc := &ErrorLoc{filename, fn.LineNumber, fn.ColumnNumber}
+						eText := &ErrorLoc{Filename: filename, Line: other.LineNumber, Col: other.ColumnNumber}
+						log.Printf("two functions with the same name '%s' found %s and %s", fn.Name, eDoc.String(), eText.String())
+						return false
+					}
+				}
+			}
+		}
+
 	}
 	return true
 }
@@ -45,11 +75,12 @@ func NewDocSectionNode(p *ProgramNode, fn []*DocFuncNode) *DocSectionNode {
 }
 
 type DocFuncNode struct {
-	Name              string
-	Elem              *DocElement
-	Param, Local      []*PFormal
-	PreCode, PostCode []TextItem
-	Section           *DocSectionNode
+	Name                     string
+	Elem                     *DocElement
+	Param, Local             []*PFormal
+	PreCode, PostCode        []TextItem
+	Section                  *DocSectionNode
+	LineNumber, ColumnNumber int
 }
 
 func (f *DocFuncNode) SetNumber() {
@@ -59,20 +90,127 @@ func (f *DocFuncNode) SetNumber() {
 	f.Elem.SetNumber(0)
 }
 
-func (f *DocFuncNode) VarCheck(filename string) bool {
-	if f.Section == nil {
-		panic("xxx FAIL")
+func (f *DocElement) attachAnonTextFunc(sect *TextSectionNode) {
+	if f != nil && len(f.TextContent) > 0 {
+		tf := NewTextFuncNode()
+		tf.Section = sect
+		n := fmt.Sprintf("%s_%04d", anonPrefix, anonCount)
+		id := NewIdent(n, false, n, 0, 0)
+		tf.Name = id.String()
+		anonCount++
+		tf.Item_ = f.TextContent
+		sect.Func = append(sect.Func, tf)
+		sect.Scope_.TextFn = append(sect.Scope_.TextFn, tf)
+		first := f.TextContent[0]
+		fi := NewFuncInvoc(id, nil, first.GetLine(), first.GetCol())
+		ref := NewValueRef(nil, fi, "", first.GetLine(), first.GetCol())
+		f.TextContent = []TextItem{NewTextValueRef(ref, first.GetLine(), first.GetCol())}
+		// log.Printf("attached %s from %s: sect.Func %d, sect.Scope_ %d TextContent %d",
+		// 	n, f.Tag.Tag, len(sect.Func), len(sect.Scope_.TextFn), len(f.TextContent))
 	}
+	if f != nil && f.Child != nil {
+		for _, c := range f.Child {
+			c.attachAnonTextFunc(sect)
+		}
+	}
+}
 
-	if !CheckAllItems(f.PreCode, f.Local, f.Param, f.Section.Scope_, filename) {
+func checkDupParamAndLocal(p, l []*PFormal, filename, funcName string, isDoc bool) bool {
+	fType := "doc"
+	if !isDoc {
+		fType = "text"
+	}
+	seen := make(map[string]struct{})
+	for _, param := range p {
+		if _, ok := seen[param.Name]; ok {
+			e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
+			log.Printf("%s function '%s' has duplicate paramater '%s' at %s",
+				fType, funcName, param.Name, e.String())
+			return false
+		}
+		if param.Name == funcName {
+			e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
+			log.Printf("%s function '%s' has a parameter of the same name at %s",
+				fType, funcName, e.String())
+			return false
+
+		}
+		seen[param.Name] = struct{}{}
+	}
+	for _, local := range l {
+		if local.Name == funcName {
+			e := ErrorLoc{Filename: filename, Line: local.LineNumber, Col: local.ColumnNumber}
+			log.Printf("%s function '%s' has a local of the same name at %s",
+				fType, funcName, e.String())
+			return false
+
+		}
+	}
+	return true
+}
+
+func checkParamShadown(p []*PFormal, filename, funcName string, scope Scope, docFunc bool) bool {
+	fType := "doc"
+	if !docFunc {
+		fType = "text"
+	}
+	for _, param := range p {
+		id := NewIdent(param.Name, false, param.Name, 0, 0)
+		if scope.LookupVar(id) != nil {
+			e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
+			log.Printf("in %s function '%s', parameter '%s' at %s shadows outer definition", fType, funcName, param.Name, e.String())
+			return false
+		}
+		invoc := NewFuncInvoc(id, nil, 0, 0)
+		if scope.LookupFunc(invoc) {
+			e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
+			log.Printf("in %s function '%s', paramater '%s' at %s shadows outer function", fType, funcName, param.Name, e.String())
+			return false
+		}
+	}
+	return true
+}
+
+func checkLocalShadow(l, p []*PFormal, filename, funcName string, scope Scope, docFunc bool) bool {
+	fType := "doc"
+	if !docFunc {
+		fType = "text"
+	}
+	for _, param := range p {
+		for _, local := range l {
+			if param.Name == local.Name {
+				e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
+				log.Printf("in %s function '%s', parameter '%s' at %s shadows local declaration of '%s'", fType, funcName, param.Name, e.String(), param.Name)
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (f *DocFuncNode) CheckDup(filename string) bool {
+	if !checkDupParamAndLocal(f.Param, f.Local, f.Name, f.Name, true) {
 		return false
 	}
-	if !CheckAllItems(f.PostCode, f.Local, f.Param, f.Section.Scope_, filename) {
+	if !checkParamShadown(f.Param, filename, f.Name, f.Section.Scope_, true) {
+		return false
+	}
+	if !checkLocalShadow(f.Local, f.Param, filename, f.Name, f.Section.Scope_, true) {
+		return false
+	}
+	return true
+}
+
+func (f *DocFuncNode) VarCheck(filename string) bool {
+	if !CheckAllItems(f.Name, f.PreCode, f.Local, f.Param, f.Section.Scope_, filename) {
+		return false
+	}
+	if !CheckAllItems(f.Name, f.PostCode, f.Local, f.Param, f.Section.Scope_, filename) {
 		return false
 	}
 	if f.Elem != nil && f.Elem.Child != nil {
 		for _, fn := range f.Elem.Child {
-			if !CheckAllItems(fn.TextContent, f.Local, f.Param, f.Section.Scope_, filename) {
+			if !CheckAllItems(f.Name, fn.TextContent, f.Local, f.Param, f.Section.Scope_, filename) {
 				return false
 			}
 		}
@@ -125,7 +263,7 @@ type DocTag struct {
 
 func NewDocTag(tag *ValueRef, id *ValueRef, clazz []*ValueRef) (*DocTag, error) {
 	if tag.Lit != "" {
-		if !validTag(tag.Lit) {
+		if !ValidTag(tag.Lit) {
 			return nil, fmt.Errorf("unknown tag '%s'", tag.Lit)
 		}
 	}
@@ -169,7 +307,7 @@ func (d *DocTag) String() string {
 	return result
 }
 
-func validTag(tag string) bool {
+func ValidTag(tag string) bool {
 	switch tag {
 	case
 		"article", "aside", "details", "figcaption", "figure", "footer", "header", "legend", "main",

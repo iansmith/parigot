@@ -5,14 +5,14 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
-foo`Hello`
-bar`Hello`
+foo <<Hello>>
+bar <<Hello>>
 
 @doc
-bar.foo <p>
-baz <hr>
+bar.foo <<p>>
+baz <<hr>>

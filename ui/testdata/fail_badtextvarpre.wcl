@@ -5,8 +5,8 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 	
 ///////////////// Extern /////////////////
 @extern(foo,bar,baz)
@@ -20,9 +20,7 @@
 
 example(a string, b string)
 	@local(c string, d string, e string)
-	@pre{
-		log.Printf("bad var %s",${fleazil})
-	}
-	` this is a test of bad var in the pre code `
+	@pre<<log.Printf("bad var %s",${fleazil})>>
+	<< this is a test of bad var in the pre code >>
 	
 	

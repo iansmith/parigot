@@ -5,11 +5,11 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 	
 ///////////////// TEXT /////////////////
 @doc
-	failure <fleazil>
+	failure <"fleazil">
 	
 	

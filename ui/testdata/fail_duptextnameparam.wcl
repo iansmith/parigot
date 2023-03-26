@@ -4,10 +4,10 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
-foo(bar string)`Hello`
-bar(bar string)`Hello`
+foo(bar string)<<Hello>>
+bar(bar string)<<Hello>>

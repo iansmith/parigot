@@ -39,6 +39,9 @@ textTest(t string, a string)
 >>
 << test of the ${t}, and a local: ${aString} with ${g} >>
 
+liTest(t string)
+<<${t}>>
+
 ///////////////// DOC /////////////////
 @doc
 

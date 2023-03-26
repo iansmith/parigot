@@ -2,6 +2,7 @@ package tree
 
 import (
 	"fmt"
+	"log"
 )
 
 const ValueRefTemplate = "TextValueRef"
@@ -25,6 +26,12 @@ func (t *TextConstant) Generate(_ *VarCtx) string {
 
 func (t *TextConstant) VarCtx() *VarCtx {
 	return t._VarCtx
+}
+func (t *TextConstant) GetLine() int {
+	return t.LineNumber
+}
+func (t *TextConstant) GetCol() int {
+	return t.ColumnNumber
 }
 
 func NewTextConstant(s string, ln, col int) *TextConstant {
@@ -64,34 +71,12 @@ func (t *TextValueRef) SubTemplate() string {
 	return ValueRefTemplate
 }
 
-// ////////////////////
-// TextInline is a blob of code to copied into the output.
-// type TextInline struct {
-// 	Name                     string
-// 	_VarCtx                  *VarCtx
-// 	TextItem_                []TextItem
-// 	LineNumber, ColumnNumber int
-// }
-
-// func (t *TextInline) String() string {
-// 	return "BLEAH NOT AVAILABLE"
-// }
-
-// func (t *TextInline) Generate(_ *VarCtx) string {
-// 	return "BLEAH NOT AVAILABLE Generate"
-// }
-
-// func (t *TextInline) VarCtx() *VarCtx {
-// 	return t._VarCtx
-// }
-
-// func NewTextInline() *TextInline {
-// 	return &TextInline{}
-// }
-
-// func (t *TextInline) SubTemplate() string {
-// 	return "TextInline"
-// }
+func (t *TextValueRef) GetLine() int {
+	return t.LineNumber
+}
+func (t *TextValueRef) GetCol() int {
+	return t.ColumnNumber
+}
 
 // TextItem is an interface that represents the things that we
 // know how to place inside a text unit.
@@ -99,17 +84,20 @@ type TextItem interface {
 	String() string
 	VarCtx() *VarCtx
 	SubTemplate() string
+	GetLine() int
+	GetCol() int
 }
 
 // PFormal holds a parameter and type pair.
 type PFormal struct {
-	Name        string
-	Type        *Ident
-	TypeStarter string
+	Name                     string
+	Type                     *Ident
+	TypeStarter              string
+	LineNumber, ColumnNumber int
 }
 
-func NewPFormal(n string, t *Ident, ts string) *PFormal {
-	return &PFormal{Name: n, Type: t, TypeStarter: ts}
+func NewPFormal(n string, t *Ident, ts string, line, col int) *PFormal {
+	return &PFormal{Name: n, Type: t, TypeStarter: ts, LineNumber: line, ColumnNumber: col}
 }
 
 // Either Simple is set or both ModelName and ModelMessage are set
@@ -142,22 +130,22 @@ type TextFuncNode struct {
 	Local                    []*PFormal
 	Item_, PreCode, PostCode []TextItem
 	Section                  *TextSectionNode
+	LineNumber, ColumnNumber int
 }
 
-// func (t *TextFuncNode) CheckForBadVariableUse() string {
-// 	for _, seq := range [][]TextItem{t.PreCode, t.PostCode, t.Item_} {
-// 		for _, item := range seq {
-// 			switch varName := item.(type) {
-// 			case *TextValueRef:
-// 				msg := varName.checkAllForNameDecl(varName)
-// 				if msg != "" {
-// 					return msg
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return ""
-// }
+func (f *TextFuncNode) CheckDup(filename string) bool {
+	if !checkDupParamAndLocal(f.Param, f.Local, filename, f.Name, false) {
+		return false
+	}
+	if !checkParamShadown(f.Param, filename, f.Name, f.Section.Scope_, false) {
+		return false
+	}
+	if !checkLocalShadow(f.Local, f.Param, filename, f.Name, f.Section.Scope_, true) {
+		return false
+	}
+
+	return true
+}
 
 func (t *TextFuncNode) Item() []TextItem {
 	return t.Item_
@@ -168,15 +156,16 @@ func (t *TextFuncNode) SetItem(item []TextItem) {
 }
 
 func (s *TextFuncNode) VarCheck(filename string) bool {
-	if !CheckAllItems(s.PreCode, s.Local, s.Param, s.Section.Scope_, filename) {
+	if !CheckAllItems(s.Name, s.PreCode, s.Local, s.Param, s.Section.Scope_, filename) {
 		return false
 	}
-	if !CheckAllItems(s.PostCode, s.Local, s.Param, s.Section.Scope_, filename) {
+	if !CheckAllItems(s.Name, s.PostCode, s.Local, s.Param, s.Section.Scope_, filename) {
 		return false
 	}
-	if !CheckAllItems(s.Item_, s.Local, s.Param, s.Section.Scope_, filename) {
+	if !CheckAllItems(s.Name, s.Item_, s.Local, s.Param, s.Section.Scope_, filename) {
 		return false
 	}
+
 	return true
 }
 
@@ -208,8 +197,24 @@ func IsSelfVar(name string) bool {
 	return name == "result"
 }
 
-func (t *TextSectionNode) VarCheck(filename string) {
+func (t *TextSectionNode) VarCheck(filename string) bool {
 	for _, fn := range t.Func {
-		fn.VarCheck(filename)
+		if !fn.VarCheck(filename) {
+			return false
+		}
+		if !fn.CheckDup(filename) {
+			return false
+		}
+		seen := make(map[string]*ErrorLoc)
+		for _, fn := range t.Func {
+			e := &ErrorLoc{filename, fn.LineNumber, fn.ColumnNumber}
+			if _, ok := seen[fn.Name]; ok {
+				log.Printf("two instances of text func %s found %s and %s", fn.Name, seen[fn.Name].String(), e.String())
+				return false
+			}
+			seen[fn.Name] = e
+		}
+
 	}
+	return true
 }

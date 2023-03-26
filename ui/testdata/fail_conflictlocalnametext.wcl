@@ -5,8 +5,8 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 	
 ///////////////// Extern /////////////////
 @extern(foo,bar,baz)
@@ -17,10 +17,10 @@
 
 ///////////////// TEXT /////////////////
 @text
-foo ` red herring `
+foo <<red herring>>
 
 example(a string, b string)
 	@local(c string, d string, example string)
-	` can't make a local the same name as function `
+	<<can't make a local the same name as function>>
 	
 	
