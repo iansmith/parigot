@@ -4,6 +4,8 @@ import (
 	"fmt"
 )
 
+const ValueRefTemplate = "TextValueRef"
+
 // ////////////////////
 // TextConstant is a simple string.
 type TextConstant struct {
@@ -59,7 +61,7 @@ func NewTextValueRef(vr *ValueRef, ln, col int) *TextValueRef {
 	return &TextValueRef{Ref: vr, LineNumber: ln, ColumnNumber: col}
 }
 func (t *TextValueRef) SubTemplate() string {
-	return "TextValueRef"
+	return ValueRefTemplate
 }
 
 // ////////////////////
@@ -165,43 +167,28 @@ func (t *TextFuncNode) SetItem(item []TextItem) {
 	t.Item_ = item
 }
 
-// func (f *TextFuncNode) checkVar(name string, formal []*PFormal) bool {
-// 	for _, p := range formal {
-// 		if p.Name == name {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
+func (s *TextFuncNode) VarCheck(filename string) bool {
+	if !CheckAllItems(s.PreCode, s.Local, s.Param, s.Section.Scope_, filename) {
+		return false
+	}
+	if !CheckAllItems(s.PostCode, s.Local, s.Param, s.Section.Scope_, filename) {
+		return false
+	}
+	if !CheckAllItems(s.Item_, s.Local, s.Param, s.Section.Scope_, filename) {
+		return false
+	}
+	return true
+}
 
-// func (f *TextFuncNode) checkLocal(name string) bool {
-// 	return f.checkVar(name, f.Local)
-// }
-// func (f *TextFuncNode) checkParam(name string) bool {
-// 	return f.checkVar(name, f.Param)
-// }
-
-// func (f *TextFuncNode) checkGlobalAndExtern(name string) bool {
-// 	return f.Section.Program.checkGlobalAndExtern(name)
-// }
-// func (f *TextFuncNode) checkAllForNameDecl(name string) string {
-// 	if IsSelfVar(name) {
-// 		return ""
-// 	}
-// 	found := f.checkLocal(name)
-// 	if found {
-// 		return ""
-// 	}
-// 	found = f.checkParam(name)
-// 	if found {
-// 		return ""
-// 	}
-// 	found = f.checkGlobalAndExtern(name)
-// 	if found {
-// 		return ""
-// 	}
-// 	return fmt.Sprintf("in text function '%s', use of unknown variable '%s'", f.Name, name)
-// }
+func (s *TextSectionNode) FinalizeSemantics() {
+	if s == nil {
+		return
+	}
+	for _, fn := range s.Func {
+		fn.Section = s
+	}
+	s.Scope_.TextFn = s.Func
+}
 
 func NewTextFuncNode() *TextFuncNode {
 	return &TextFuncNode{}
@@ -209,14 +196,20 @@ func NewTextFuncNode() *TextFuncNode {
 
 // TestSection is the collection of text functions.
 type TextSectionNode struct {
-	Func         []*TextFuncNode
-	Program      *ProgramNode
-	SectionScope *SectionScope
+	Func    []*TextFuncNode
+	Program *ProgramNode
+	Scope_  *SectionScope
 }
 
 func NewTextSectionNode(p *ProgramNode) *TextSectionNode {
-	return &TextSectionNode{Program: p, SectionScope: NewSectionScope(p.Global)}
+	return &TextSectionNode{Program: p, Scope_: NewSectionScope(p.Global)}
 }
 func IsSelfVar(name string) bool {
 	return name == "result"
+}
+
+func (t *TextSectionNode) VarCheck(filename string) {
+	for _, fn := range t.Func {
+		fn.VarCheck(filename)
+	}
 }

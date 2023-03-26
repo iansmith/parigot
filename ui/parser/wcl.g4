@@ -63,7 +63,7 @@ text_section
 
 text_func
 	returns[*tree.TextFuncNode f]:
-	i = Id param_spec? text_func_local? pre_code? uninterp post_code?
+	i = Id param_spec? text_func_local? pre_code? uninterp? post_code?
 	;
 
 pre_code 
@@ -135,7 +135,7 @@ doc_func
 
 doc_func_post
 	returns [*tree.DocFuncNode fn]:
-	doc_func_formal doc_func_local? pre_code? doc_elem post_code?
+	doc_func_formal doc_func_local? pre_code? doc_elem? post_code?
 	;
 
 doc_func_local

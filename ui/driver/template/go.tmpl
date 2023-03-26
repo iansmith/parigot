@@ -215,10 +215,11 @@ result.WriteString({{ template "TextInvoc" . }})
 {{if .doc }}
 {{range .doc.DocFunc}}
 func {{.Name -}}({{- template "ParamFormal" .Param -}}) *dommsg.Element{
-
 {{- template "DeclareLocal" .Local }}
 {{- template "TextInline" .PreCode }}
+{{if .Elem}}
 {{- template "DocElement" .Elem}}
+{{end}} {{/* end of making sure we have elements*/}}
 {{- template "TextInline" .PostCode }}
 
 return result

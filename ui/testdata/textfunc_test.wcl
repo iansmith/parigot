@@ -31,3 +31,25 @@ howdy(baz string, firstName string, lastName string)
     salutation = "Mr."
 >>
     <<Greetings ${salutation} ${firstName} ${lastName} ${testUTF8(a)}>>
+
+no_body_text_func(a string)
+@local(x string)
+@pre
+<<
+// some pre code
+>>
+@post
+<<
+// some post code
+>>
+
+
+@doc
+nobodydoc(a int)
+@local(b int)
+@pre << 
+// frik
+>>
+@post <<
+// frak
+>>
