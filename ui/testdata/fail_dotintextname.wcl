@@ -5,13 +5,13 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
-foo.quux`Hello`
-bar`Hello`
+foo.quux<<Hello>>
+bar<<Hello>>
 
 @doc
 fleazil <p>

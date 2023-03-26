@@ -5,10 +5,11 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
+foo(baz string,bar string) 
 @local(x int, x string)
-foo(baz string,bar string)`Hello`
+<<Hello>>

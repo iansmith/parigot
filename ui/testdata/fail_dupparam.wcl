@@ -4,10 +4,6 @@
 // Fail if param name repeated
 //
 
-///////////////// PREAMBLE /////////////////
-@preamble {
-}
-
 ///////////////// TEXT /////////////////
 @text
-foo(bar string,bar string)`Hello`
+foo(bar string,bar string)<<Hello>>

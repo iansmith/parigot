@@ -5,8 +5,8 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 	
 ///////////////// Extern /////////////////
 @extern(foo,bar,baz)
@@ -19,9 +19,9 @@
 @doc
 	example(a string, b string)
 	@local(c9 string)
-	@pre{
+	@pre<<
 		 c9=${checking}
-	}
+	>>
 	
 	
 	

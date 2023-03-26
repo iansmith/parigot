@@ -1,17 +1,17 @@
 @wcl 0.7.0
 
 //
-// Fail if text func name repeated
+// Fail if param has dot in name
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
-foo(far.away string)`Hello`
-bar`Hello`
+foo(far.away string)<<Hello>>
+bar<<Hello>>
 
 @doc
 quux <p>

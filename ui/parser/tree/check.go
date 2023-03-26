@@ -29,28 +29,24 @@ func ResolveReferenceFormal(formal *PFormal, ident *Ident) *PFormal {
 	return nil
 }
 
-func CheckLocalAndParam(id *Ident, local, param []*PFormal, parent Scope) *PFormal {
+func CheckLocalAndParam(fname string, id *Ident, local, param []*PFormal, parent Scope) *PFormal {
 	var f *PFormal
 	found := false
-	if local != nil {
-		for _, formal := range local {
-			f = ResolveReferenceFormal(formal, id)
-			if f != nil {
-				found = true
-				break
-			}
+	for _, formal := range local {
+		f = ResolveReferenceFormal(formal, id)
+		if f != nil {
+			found = true
+			break
 		}
 	}
 	if found {
 		return f
 	}
-	if param != nil {
-		for _, formal := range param {
-			f = ResolveReferenceFormal(formal, id)
-			if f != nil {
-				found = true
-				break
-			}
+	for _, formal := range param {
+		f = ResolveReferenceFormal(formal, id)
+		if f != nil {
+			found = true
+			break
 		}
 	}
 	if found {
@@ -59,18 +55,18 @@ func CheckLocalAndParam(id *Ident, local, param []*PFormal, parent Scope) *PForm
 	return parent.LookupVar(id)
 }
 
-func CheckVarName(id *Ident, local, param []*PFormal, parent Scope, e *ErrorLoc) *PFormal {
+func CheckVarName(fname string, id *Ident, local, param []*PFormal, parent Scope, e *ErrorLoc) *PFormal {
 	copy := *e
 	copy.Line = id.LineNumber
 	copy.Col = id.ColumnNumber
-	result := CheckLocalAndParam(id, local, param, parent)
+	result := CheckLocalAndParam(fname, id, local, param, parent)
 	if result == nil {
 		log.Printf("use of unknown variable '%s' at %s", id.String(), e.String())
 	}
 	return result
 }
 
-func CheckAllItems(item []TextItem, local, param []*PFormal, parent Scope, filename string) bool {
+func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, parent Scope, filename string) bool {
 	for _, i := range item {
 		if i.SubTemplate() != ValueRefTemplate {
 			continue
@@ -88,7 +84,7 @@ func CheckAllItems(item []TextItem, local, param []*PFormal, parent Scope, filen
 			return CheckFuncName(ref.FuncInvoc, parent, e)
 		}
 		if ref.Id.String() == "result" {
-			return true
+			continue
 		}
 		e := &ErrorLoc{
 			Filename: filename,
@@ -96,7 +92,7 @@ func CheckAllItems(item []TextItem, local, param []*PFormal, parent Scope, filen
 			Col:      ref.Id.ColumnNumber,
 		}
 
-		return CheckVarName(ref.Id, local, param, parent, e) != nil
+		return CheckVarName(fname, ref.Id, local, param, parent, e) != nil
 
 	}
 	return true

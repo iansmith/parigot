@@ -25,15 +25,24 @@ func (p *ProgramNode) FinalizeSemantics() {
 			f.FinalizeSemantics()
 		}
 	}
+	if p.DocSection != nil && p.DocSection.Scope_ != nil && p.TextSection != nil && p.TextSection.Scope_ != nil {
+		p.DocSection.Scope_.Brother = p.TextSection.Scope_
+	}
 }
 
-func (p *ProgramNode) VarCheck(filename string) {
+func (p *ProgramNode) VarCheck(filename string) bool {
 	if p.DocSection != nil {
-		p.DocSection.VarCheck(filename)
+		if !p.DocSection.VarCheck(filename) {
+			return false
+		}
 	}
 	if p.TextSection != nil {
-		p.TextSection.VarCheck(filename)
+		if !p.TextSection.VarCheck(filename) {
+			return false
+		}
 	}
+
+	return true
 }
 
 // Singleton and global with GProgramNode

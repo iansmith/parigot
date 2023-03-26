@@ -62,12 +62,10 @@ func Main() {
 	// need to clean up some pointers and such
 	tree.GProgram.FinalizeSemantics()
 
-	// check all the
-	tree.GProgram.VarCheck(inFile)
+	if !tree.GProgram.VarCheck(inFile) {
+		wclFatalf("failed check of variables and functions")
+	}
 
-	// if !parser.NameCheckVisit(inFile, "", prog, b.ClassName) {
-	// 	wclFatalf("failed due to name check")
-	// }
 	execTemplate(prog, *language)
 
 	// topo, err := graph.TopologicalSort(pbmodel.Pb3Dep)

@@ -40,7 +40,7 @@ type ExternSectionNode struct {
 
 func (e *ExternSectionNode) LookupFunc(f *FuncInvoc) bool {
 	for _, n := range e.Name {
-		if n == f.String() {
+		if n == f.Name.String() {
 			return true //no check of actuals
 		}
 	}
@@ -55,10 +55,11 @@ func NewExternSectionNode(p *ProgramNode, ln, col int) *ExternSectionNode {
 type AllGlobal struct {
 	G *GlobalSectionNode
 	E *ExternSectionNode
+	P *ProgramNode
 }
 
-func NewAllGlobal(g *GlobalSectionNode, e *ExternSectionNode) *AllGlobal {
-	return &AllGlobal{G: g, E: e}
+func NewAllGlobal(p *ProgramNode, g *GlobalSectionNode, e *ExternSectionNode) *AllGlobal {
+	return &AllGlobal{G: g, E: e, P: p}
 }
 
 func (a *AllGlobal) Parent() Scope {
@@ -72,6 +73,15 @@ func (a *AllGlobal) LookupFunc(f *FuncInvoc) bool {
 	return a.E.LookupFunc(f)
 }
 
+// A doc func can call functions in a different section, the text section.
+// So this FIRST checks the brother and then does the normal lookup.
+func (a *AllGlobal) LookupFuncBrother(f *FuncInvoc) bool {
+	if a.P.TextSection.Scope_.LookupFunc(f) {
+		return true
+	}
+	return a.LookupFunc(f)
+}
+
 func (a *AllGlobal) LookupVar(id *Ident) *PFormal {
 	if a == nil || a.G == nil {
 		return nil
@@ -83,6 +93,7 @@ type SectionScope struct {
 	TextFn  []*TextFuncNode
 	DocFn   []*DocFuncNode
 	Parent_ Scope
+	Brother *SectionScope
 }
 
 func NewSectionScope(a *AllGlobal) *SectionScope {
@@ -94,19 +105,28 @@ func (s *SectionScope) Parent() Scope {
 }
 
 func (s *SectionScope) LookupFunc(f *FuncInvoc) bool {
-	if s.TextFn != nil {
-		for _, fn := range s.TextFn {
-			if fn.Name == f.Name.String() {
-				return true
+	if s.Brother == nil {
+		// just a text section
+		if s.TextFn != nil {
+			for _, fn := range s.TextFn {
+				if fn.Name == f.Name.String() {
+					return true
+				}
 			}
 		}
-	} else if s.DocFn != nil {
-		for _, fn := range s.TextFn {
-			if fn.Name == f.Name.String() {
-				return true
-			}
+		return s.Parent_.LookupFunc(f)
+	}
+
+	// we are a doc section because we have a brother
+	for _, fn := range s.DocFn {
+		if fn.Name == f.Name.String() {
+			return true
 		}
 	}
+	if s.Brother.LookupFunc(f) {
+		return true
+	}
+
 	return s.Parent().LookupFunc(f)
 }
 

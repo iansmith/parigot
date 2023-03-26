@@ -1,19 +1,19 @@
 @wcl 0.7.0
 
 //
-// Fail if text func name repeated
+// Fail if dot in local name 
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 
 ///////////////// TEXT /////////////////
 @text
 //foo
 foo(far string)
-@local(far.galaxy int) `Hello`
+@local(far.galaxy int) <<Hello>>
 
 //bar
-bar `Howdy`
+bar <<Howdy>>
 

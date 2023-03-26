@@ -5,8 +5,8 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<
+>>
 	
 ///////////////// Extern /////////////////
 @extern(foo,bar,baz)
@@ -19,13 +19,11 @@
 @text
 
 redherring(fleazil string) 
-	`no relation to the other ${fleazil}`
+	<<no relation to the other ${fleazil}>>
 
 example(a string, b string)
 	@local(c string, d string, e string)
-	` this is a test of bad var in the pre code `
-	@post{
-		${result}=${fleazil}
-	}
+	<< this is a test of bad var in the pre code >>
+	@post<<${result}=${fleazil}>>
 	
 	

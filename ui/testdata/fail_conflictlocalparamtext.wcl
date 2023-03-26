@@ -5,8 +5,7 @@
 //
 
 ///////////////// PREAMBLE /////////////////
-@preamble {
-}
+@preamble <<>>
 	
 ///////////////// Extern /////////////////
 @extern(foo,bar,baz)
@@ -19,6 +18,6 @@
 @text
 	example(a string, b string)
 	@local(c string, d string, b string)
-	` can't make a local the same name as a param ${b}`
+	<<can't make a local the same name as a param ${b}>>
 	
 	
