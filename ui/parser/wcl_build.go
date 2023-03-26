@@ -351,7 +351,7 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 			_, ok := s.ClassName[l]
 			if !ok {
 				e := &tree.ErrorLoc{Filename: s.SourceCode, Line: ref.LineNumber, Col: ref.ColumnNumber}
-				notifyError(fmt.Sprintf("at %s in tag '%s', class name '%s' is not defined the css files declared", e.String(), ref.Lit, tn),
+				notifyError(fmt.Sprintf("at %s in tag '%s', class name '%s' is not defined the css files declared", e.String(), tn, ref.Lit),
 					ctx.BaseParserRuleContext, ctx.GetParser())
 			}
 		}
@@ -363,7 +363,7 @@ func (s *WclBuildListener) ExitDoc_tag(ctx *Doc_tagContext) {
 			cl[i] = c
 		}
 	}
-	tag, err := tree.NewDocTag(ctx.Value_ref().GetVr(), docId, cl)
+	tag, err := tree.NewDocTag(ctx.Value_ref().GetVr(), docId, cl, s.ClassName)
 	if err != nil {
 		spec := fmt.Sprintf("%s:%d:%d", s.SourceCode, ctx.Value_ref().GetVr().LineNumber, ctx.Value_ref().GetVr().ColumnNumber)
 		notifyError(fmt.Sprintf("%s: %s", spec, err.Error()),

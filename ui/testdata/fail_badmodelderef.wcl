@@ -1,6 +1,6 @@
 @wcl 0.7.0
 //
-// Test to fail if you don't use a proper message from your model
+// Test to fail if use a dot when you should have used a colon
 //
 /////////////////// CSS /////////////////
 
@@ -17,10 +17,13 @@ QueueModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/
 
 @view
 // ---- QueueMsgView -----
-QueueMsgView (a int64, model QueueModel:Fleazil) 
-    <"h3"> <<fleazil is a not a real message>>
-
-
+QueueMsgView (a int64, model QueueModel:QueueMsg) 
+    <"h3"> <<fleazil is a not a>>
+    ( 
+        <"h4"> <<${model:id}>>
+        <"h5"> <<${model:sent}>>
+        <"h5"> <<${sizeInBytes(model.payload)}>>
+    )
 
 ///////////////// TEXT /////////////////
 

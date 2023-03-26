@@ -16,7 +16,7 @@ func (e *ErrorLoc) String() string {
 
 func CheckFuncName(fn *FuncInvoc, scope Scope, e *ErrorLoc) bool {
 	if !scope.LookupFunc(fn) {
-		log.Printf("invocation of unknown function '%s' in %s", fn.String(), e.String())
+		log.Printf("invocation of unknown function '%s' at %s", fn.String(), e.String())
 		return false
 	}
 	return true
@@ -81,7 +81,10 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 				Line:     ref.FuncInvoc.LineNumber,
 				Col:      ref.FuncInvoc.ColumnNumber,
 			}
-			return CheckFuncName(ref.FuncInvoc, parent, e)
+			if !CheckFuncName(ref.FuncInvoc, parent, e) {
+				return false
+			}
+			continue
 		}
 		if ref.Id.String() == "result" {
 			continue
@@ -92,7 +95,9 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 			Col:      ref.Id.ColumnNumber,
 		}
 
-		return CheckVarName(fname, ref.Id, local, param, parent, e) != nil
+		if CheckVarName(fname, ref.Id, local, param, parent, e) == nil {
+			return false
+		}
 
 	}
 	return true
