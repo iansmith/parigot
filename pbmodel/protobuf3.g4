@@ -64,10 +64,12 @@ optionName
 
 // Normal Field
 fieldLabel
+  returns [*tree.ProtobufMsgField f]
   : OPTIONAL | REPEATED
   ;
 
 field
+  returns [*tree.ProtobufMsgField f]
   : fieldLabel? type_ fieldName EQ fieldNumber ( LB fieldOptions RB )? SEMI
   ;
 
@@ -94,8 +96,8 @@ oneofField
   ;
 
 // Map field
-
 mapField
+  returns [*tree.ProtobufMapField m]
   : MAP LT keyType COMMA type_ GT mapName
         EQ fieldNumber ( LB fieldOptions RB )? SEMI
   ;
@@ -200,10 +202,12 @@ messageDef
   ;
 
 messageBody
+  returns [*tree.ProtobufMsgBody body]
   : LC messageElement* RC
   ;
 
 messageElement
+  returns [*tree.ProtobufMsgElem elem]
   : field
   | enumDef
   | messageDef

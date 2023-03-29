@@ -11,7 +11,6 @@ Doc: '@doc';
 Local: '@local';
 Global: '@global';
 Extern: '@extern';
-Mvc: '@mvc';
 Pre: '@pre';
 Post: '@post';
 Wcl: '@wcl';

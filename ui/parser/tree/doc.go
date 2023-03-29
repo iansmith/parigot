@@ -29,7 +29,23 @@ func (s *DocSectionNode) FinalizeSemantics() {
 		fn.Elem.attachAnonTextFunc(s.Program.TextSection)
 	}
 	s.Scope_.DocFn = s.DocFunc
-
+}
+func (s *DocSectionNode) AttachViewToSection(view *ViewDecl) {
+	if view == nil {
+		panic("nil view")
+	}
+	if s == nil {
+		s = NewDocSectionNode(view.Section.Program, nil)
+		if view.Section.Program.DocSection != nil {
+			panic("trying to replace existing doc section")
+		}
+		view.Section.Program.DocSection = s
+		s.Scope_.Brother = GProgram.TextSection.Scope_
+		//log.Printf("fixed the doc section")
+	}
+	view.DocFn.Section = s
+	s.DocFunc = append(s.DocFunc, view.DocFn)
+	//log.Printf("xxx got view to attach, %s,%d", view.DocFn.Name, len(s.DocFunc))
 }
 
 func (s *DocSectionNode) VarCheck(filename string) bool {
@@ -95,7 +111,7 @@ func (f *DocElement) attachAnonTextFunc(sect *TextSectionNode) {
 		tf := NewTextFuncNode()
 		tf.Section = sect
 		n := fmt.Sprintf("%s_%04d", anonPrefix, anonCount)
-		id := NewIdent(n, false, n, 0, 0)
+		id := NewIdent(n, n, 0, 0)
 		tf.Name = id.String()
 		anonCount++
 		tf.Item_ = f.TextContent
@@ -105,8 +121,6 @@ func (f *DocElement) attachAnonTextFunc(sect *TextSectionNode) {
 		fi := NewFuncInvoc(id, nil, first.GetLine(), first.GetCol())
 		ref := NewValueRef(nil, fi, "", first.GetLine(), first.GetCol())
 		f.TextContent = []TextItem{NewTextValueRef(ref, first.GetLine(), first.GetCol())}
-		// log.Printf("attached %s from %s: sect.Func %d, sect.Scope_ %d TextContent %d",
-		// 	n, f.Tag.Tag, len(sect.Func), len(sect.Scope_.TextFn), len(f.TextContent))
 	}
 	if f != nil && f.Child != nil {
 		for _, c := range f.Child {
@@ -164,7 +178,7 @@ func checkParamShadown(p []*PFormal, filename, funcName string, scope Scope, doc
 		fType = "text"
 	}
 	for _, param := range p {
-		id := NewIdent(param.Name, false, param.Name, 0, 0)
+		id := NewIdent(param.Name, param.Name, 0, 0)
 		if scope.LookupVar(id) != nil {
 			e := ErrorLoc{Filename: filename, Line: param.LineNumber, Col: param.ColumnNumber}
 			log.Printf("in %s function '%s', parameter '%s' at %s shadows outer definition", fType, funcName, param.Name, e.String())
@@ -211,6 +225,9 @@ func (f *DocFuncNode) CheckDup(filename string) bool {
 }
 
 func (f *DocFuncNode) VarCheck(filename string) bool {
+	if f.Section == nil {
+		panic("no section present on doc func node")
+	}
 	if !CheckAllItems(f.Name, f.PreCode, f.Local, f.Param, f.Section.Scope_, filename) {
 		return false
 	}

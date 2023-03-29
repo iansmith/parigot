@@ -12,7 +12,7 @@ type IdentPart struct {
 }
 
 type Ident struct {
-	HasStartDot              bool
+	HasStartColon            bool
 	LineNumber, ColumnNumber int
 	Part                     *IdentPart
 	Text                     string
@@ -22,8 +22,8 @@ func (i *Ident) String() string {
 	return i.Text
 }
 
-func NewIdent(start string, dot bool, text string, line, col int) *Ident {
-	i := &Ident{HasStartDot: dot, Text: text, LineNumber: line, ColumnNumber: col}
+func NewIdent(start string, text string, line, col int) *Ident {
+	i := &Ident{Text: text, LineNumber: line, ColumnNumber: col}
 	i.Part = &IdentPart{Id: start}
 	return i
 }

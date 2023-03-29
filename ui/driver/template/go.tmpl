@@ -43,7 +43,7 @@ fmt.Sprint({{- template "ValueRef" .Ref -}})
 {{- define "ParamFormal" -}}
 {{- if . }}
 {{- range . }}
-{{- .Name }} {{ .Type -}},
+{{- .Name }} {{ transformFormalType . -}},
 {{- end }} {{/* end of ranging over param list */}}
 {{- end }} {{/*end of if */}}
 {{- end }} {{/* end of template ParamFormal */}}

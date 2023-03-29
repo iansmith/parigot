@@ -90,6 +90,7 @@ type TextItem interface {
 
 // PFormal holds a parameter and type pair.
 type PFormal struct {
+	Message                  *ProtobufMessage
 	Name                     string
 	Type                     *Ident
 	TypeStarter              string

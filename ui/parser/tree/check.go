@@ -76,6 +76,7 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 			continue
 		}
 		if ref.FuncInvoc != nil {
+			//log.Printf("checking a value ref for %s", ref.String())
 			e := &ErrorLoc{
 				Filename: filename,
 				Line:     ref.FuncInvoc.LineNumber,
@@ -95,8 +96,21 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 			Col:      ref.Id.ColumnNumber,
 		}
 
-		if CheckVarName(fname, ref.Id, local, param, parent, e) == nil {
+		formal := CheckVarName(fname, ref.Id, local, param, parent, e)
+		// if formal != nil {
+		// 	log.Printf("xxx check var name %v, id %s", formal.Message != nil, ref.Id.String())
+		// }
+		if formal == nil {
 			return false
+		} else {
+			// might be a model reference
+			if formal.Message != nil {
+				if formal.Message != nil {
+					_ = fmt.Sprintf("xxx reference to model, name=%s, type=%s",
+						formal.Name, formal.Message.Name)
+
+				}
+			}
 		}
 
 	}
