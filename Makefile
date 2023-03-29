@@ -29,7 +29,7 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	buf generate
 
 ## running the ANTLR code for the protobuf3 code
-pbmodel/protobuf3_parser.gom: pbmodel/protobuf3.g4 
+pbmodel/protobuf3_parser.go: pbmodel/protobuf3.g4 
 	cd pbmodel;./generate.sh
 
 ## running the ANTLR code for the WCL parsers/lexers
@@ -43,8 +43,6 @@ ui/parser/wcllex_lexer.go: ui/parser/wcllex.g4
 ui/css/css3_lexer.go: ui/css/css3.g4
 	cd ui/css;./generate.sh
 
-pbmodel/protobuf3_parser.go: pbmodel/protobuf3.g4
-	cd pbmodel; ./generate.sh
 #ui/css/css3_parser.go: ui/css/css3.g4
 #	cd css;./generate.sh
 

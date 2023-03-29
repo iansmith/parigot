@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	antlrhelp "github.com/iansmith/parigot/helper/antlr"
+
 	"github.com/iansmith/parigot/ui/css"
 	"github.com/iansmith/parigot/ui/parser/builtin"
 	"github.com/iansmith/parigot/ui/parser/tree"
@@ -122,7 +124,6 @@ func (l *WclBuildListener) ExitProgram(c *ProgramContext) {
 		tree.GProgram.ModelSection = c.Mvc_section().GetSection()
 		tree.GProgram.ModelSection.Program = tree.GProgram
 	}
-
 }
 
 // Import_section
@@ -180,6 +181,7 @@ func (l *WclBuildListener) ExitText_func(c *Text_funcContext) {
 	}
 	fn.LineNumber = c.Id().GetSymbol().GetLine()
 	fn.ColumnNumber = c.Id().GetSymbol().GetColumn()
+	//log.Printf("got text fn %s, pre=%d main=%d", fn.Name, len(fn.PreCode), len(fn.Item_))
 	c.SetF(fn)
 }
 
@@ -187,15 +189,67 @@ func (l *WclBuildListener) EnterIdent(c *IdentContext) {
 }
 func (l *WclBuildListener) ExitIdent(c *IdentContext) {
 	var line, col int
-	if c.Id() != nil {
-		line, col = c.Id().GetSymbol().GetLine(), c.GetStart().GetColumn()
-	}
 	var text string
-	if c.Id() != nil {
-		text = c.Id().GetText()
+	line, col = c.Id().GetSymbol().GetLine(), c.GetStart().GetColumn()
+	text = c.Id().GetSymbol().GetText()
+	id := tree.NewIdent(text, c.GetText(), line, col)
+	if c.Colon() != nil {
+		id.HasStartColon = true
 	}
-	id := tree.NewIdent(text, false, c.GetText(), line, col)
+
+	rawC := c.AllColon_qual()
+	rawD := c.AllDot_qual()
+	if len(rawC) > 0 && len(rawD) > 0 {
+		msg := fmt.Sprintf("identifier '%s' cannot dot and colon qualified parts",
+			text)
+		notifyError(msg, c.BaseParserRuleContext, c.GetParser())
+		return
+	}
+	prev := &id.Part.Qual
+	if len(rawC) > 0 {
+		colonPart := make([]*tree.IdentPart, len(rawC))
+		for i, p := range rawC {
+			colonPart[i] = p.GetPart()
+			*prev = p.GetPart()
+			prev = &(p.GetPart().Qual)
+		}
+		c.SetId(id)
+		return
+	}
+	if len(rawD) > 0 {
+		dotPart := make([]*tree.IdentPart, len(rawD))
+		for i, p := range rawD {
+			dotPart[i] = p.GetPart()
+			*prev = p.GetPart()
+			prev = &(p.GetPart().Qual)
+		}
+		c.SetId(id)
+		return
+	}
 	c.SetId(id)
+
+}
+
+// dot qual
+func (l *WclBuildListener) EnterDot_qual(c *Dot_qualContext) {
+}
+func (l *WclBuildListener) ExitDot_qual(c *Dot_qualContext) {
+	c.SetPart(&tree.IdentPart{
+		Id:       c.Id().GetSymbol().GetText(),
+		ColonSep: false,
+		Qual:     nil,
+	})
+}
+
+// colon qual
+func (l *WclBuildListener) EnterColon_qual(c *Colon_qualContext) {
+}
+func (l *WclBuildListener) ExitColon_qual(c *Colon_qualContext) {
+	c.SetPart(&tree.IdentPart{
+		Id:       c.Id().GetSymbol().GetText(),
+		ColonSep: true,
+		Qual:     nil,
+	})
 }
 
 // ValueRef ID
@@ -282,27 +336,6 @@ func (l *WclBuildListener) ExitParam_spec(c *Param_specContext) {
 		all = append(all, pair.GetFormal())
 	}
 	c.SetFormal(all)
-}
-
-func (l *WclBuildListener) EnterSimple_or_model_param(c *Simple_or_model_paramContext) {
-}
-func (l *WclBuildListener) ExitSimple_or_model_param(c *Simple_or_model_paramContext) {
-	if c.GetId1() != nil {
-		c.SetT(tree.NewTypeDeclSimple(c.GetId1().GetText()))
-		return
-	}
-	if c.GetId2() != nil {
-		raw := c.GetId2().GetText()
-		part := strings.Split(raw, ".")
-		if len(part) != 2 {
-			notifyError(fmt.Sprintf("'%s' is not a valid reference to a model message, should be like ':model.message'", raw),
-				c.BaseParserRuleContext, c.GetParser())
-			return
-		}
-
-		c.SetT(tree.NewTypeDeclModel(part[0], part[1]))
-		return
-	}
 }
 
 func (l *WclBuildListener) ExitParam_pair(c *Param_pairContext) {
@@ -475,6 +508,9 @@ func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	}
 	var line, col int
 	if ctx.Ident() != nil {
+		if ctx.Ident().GetId() == nil {
+			log.Printf("xxxx --- ident %+v", ctx.Ident().GetId())
+		}
 		line = ctx.Ident().GetId().LineNumber
 		col = ctx.Ident().GetId().ColumnNumber
 	}
@@ -726,10 +762,11 @@ func (s *WclBuildListener) ExitModel_decl(ctx *Model_declContext) {
 func (s *WclBuildListener) EnterView_decl(ctx *View_declContext) {
 }
 
-func (s *WclBuildListener) ExitView_dedcl(ctx *View_declContext) {
-	vdecl := tree.NewViewDecl(ctx.vname.GetText())
+func (s *WclBuildListener) ExitView_decl(ctx *View_declContext) {
+	vdecl := tree.NewViewDecl()
 	fn := ctx.Doc_func_post().GetFn()
 	vdecl.DocFn = fn
+	vdecl.DocFn.Name = ctx.Id().GetText()
 	ctx.SetVdecl(vdecl)
 }
 
@@ -742,7 +779,6 @@ func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
 	decl := make([]*tree.ModelDecl, len(raw))
 	for i, mod := range raw {
 		decl[i] = mod.GetDecl()
-		//log.Printf("Model '%s'", decl[i].Name)
 	}
 	section.ModelDecl = decl
 
@@ -750,9 +786,14 @@ func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
 	vdecl := make([]*tree.ViewDecl, len(rawView))
 	for i, v := range rawView {
 		vdecl[i] = v.GetVdecl()
-		//log.Printf("View '%s'", decl[i].Name)
 	}
 	section.ViewDecl = vdecl
+
+	_, err := antlrhelp.ParseModelSection(s.SourceCode, "", section)
+	if err != nil {
+		notifyError(fmt.Sprintf("failed due to problem with proto files (originating at '%+v')", section.ModelDecl[0].Path),
+			ctx.BaseParserRuleContext, ctx.GetParser())
+	}
 
 	ctx.SetSection(section)
 }

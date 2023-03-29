@@ -31,6 +31,16 @@ func (p *ProgramNode) FinalizeSemantics() {
 }
 
 func (p *ProgramNode) VarCheck(filename string) bool {
+	// ordering of the section checks matterns because
+	// model moves things to doc section and doc section
+	// moves things to text section
+
+	if p.ModelSection != nil {
+		if !p.ModelSection.VarCheck(filename) {
+			return false
+		}
+	}
+
 	if p.DocSection != nil {
 		if !p.DocSection.VarCheck(filename) {
 			return false

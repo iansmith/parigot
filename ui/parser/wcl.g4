@@ -20,7 +20,6 @@ program
 		|extern
 		|global
 	)*
-
 	mvc_section?
 	text_section? 
 	css_section?     
@@ -116,13 +115,8 @@ param_spec
 
 param_pair
 	returns[*tree.PFormal formal]:
-	Id (TypeStarter)? ident;
+	Id (TypeStarter)?  ident;
 
-simple_or_model_param
-	returns [*tree.TypeDecl t]:
-	id1=Id
-	|Colon id2=Id 
-	;
 
 doc_section
 	returns [*tree.DocSectionNode section]: 
@@ -216,8 +210,10 @@ selector
 
 mvc_section
 	returns [*tree.MVCSectionNode section]:
-	Mvc Model model_decl+
-	(View view_decl*)?
+	(
+		Model model_decl*
+		|View view_decl*
+	)+
 	;
 
 model_decl
@@ -237,21 +233,19 @@ filename_seq
 
 ident
 	returns [*tree.Ident id]:
-	Id
+	(Colon)? Id
 	(
 		dot_qual
 		| colon_qual
-	)
+	)*
 	;
 
 dot_qual 
 	returns [*tree.IdentPart part]: 
-	Dot Id dot_qual
-	|
+	Dot Id 
 	;
 
 colon_qual
 	returns [*tree.IdentPart part]: 
-	Colon Id colon_qual
-	|
+	Colon Id 
 	;

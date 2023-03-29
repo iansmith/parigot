@@ -19,7 +19,7 @@
 >>
 
 /////////////////// MODELS /////////////////
-@mvc
+
 
 //----- queue -----
 @model 
@@ -28,18 +28,25 @@ QueueModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/
 FleazilModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/v1/file.proto"
 
 @view
-// ---- QueueMsgView -----
-QueueMsgView (a int64, model QueModel:QueueMsg) 
+// ---- QueueMsgView ---
+// xxx add test for :Quemodel with no qualifier
+// xxx add test for :QueueModel.foo
+// xxx add test for :QueueModel:foo:bar
+
+// xxx add tests for bad mesg from model
+// xxx add tests to amke sure . works but is not checked
+
+QueueMsgView (a int64, model :QueueModel:QueueMsg) 
     <"h3"> << ${model} >>
     ( 
         <"h4"> <<some text before ${model:msg_id} and some text after>>
         <"h5"> <<${model.sent}>>
-        <"h5"> <<${sizeInBytes(model.payload)}>>
+        <"h5"> <<${sizeInBytes(model:payload)}>>
     )
 
 
-QueueViewShort (a int64, model QueueModel.QueueMsg) 
- <"h3"> <<${model.id}:${model.msg_id}>>
+QueueViewShort (a int64, model :QueueModel:QueueMsg) 
+ <"h3"> <<${model:id}:${model.msg_id}>>
 
 
 ///////////////// TEXT FUNC GLOBAL /////////////////
@@ -54,7 +61,7 @@ sizeInBytes(p pb.Any)
 <<${size} bytes>>
 
 shortModel(model queuemsg.QueueMsg)
-    <<${model.id}:${model.msg_id}:${sizeInBytes(model.Payload)}>>
+    <<${model:id}:${model:msg_id}:${sizeInBytes(model.Payload)}>>
 
 ///////////////// DOC FUNC GLOBAL /////////////////
 

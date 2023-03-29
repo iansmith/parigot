@@ -3,6 +3,7 @@ package driver
 import (
 	"fmt"
 	"io"
+	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/ui/parser/tree"
@@ -28,6 +29,38 @@ func newGenerateContext(languageName string) *generateContext {
 func zerothElem(in []*tree.FuncActual) *tree.ValueRef {
 	return in[0].Ref
 }
+
+func transformFormalType(formal *tree.PFormal) string {
+	s := formal.Type.String()
+	if !strings.Contains(s, ":") {
+		return s
+	}
+	if !strings.HasPrefix(s, ":") {
+		panic(fmt.Sprintf("unable to understand type %s (no model?)", formal.Type.String()))
+	}
+	s = s[1:]
+	if !strings.Contains(s, ":") {
+		panic(fmt.Sprintf("unable to understand type %s (no qualifier?)", formal.Type.String()))
+	}
+	if formal.Message == nil {
+		panic(fmt.Sprintf("we got a formal that is a model:message ('%s'), but no message registered on formal!", formal.Type.String()))
+	}
+	pkg := formal.Message.Package
+	part := strings.Split(pkg, ".")
+
+	if strings.HasPrefix(pkg, "msg") {
+		if len(part) < 2 {
+			panic(fmt.Sprintf("unable to understand package name: %s", pkg))
+		}
+		p := part[len(part)-1]
+		if strings.HasPrefix(p, "v") {
+			p = part[len(part)-2]
+			return "msg" + p + "." + formal.Message.Name
+		}
+	}
+	return part[len(part)-1] + "." + formal.Message.Name
+}
+
 func runTemplate(ctx *generateContext, out io.Writer) error {
 	root, err := loadTemplates()
 	if err != nil {
@@ -50,7 +83,8 @@ func loadTemplates() (*template.Template, error) {
 	root := template.New("root")
 	// add functions
 	funcMap := template.FuncMap{
-		"zerothElem": zerothElem,
+		"zerothElem":          zerothElem,
+		"transformFormalType": transformFormalType,
 	}
 	root = root.Funcs(funcMap)
 

@@ -124,7 +124,7 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		}
 	}
 	pbNode.ImportFile = impFile
-	pbNode.FileName = p.CurrentFile
+	pbNode.Filename = p.CurrentFile
 
 	// package?
 	rawPkg := ctx.AllPackageStatement()
@@ -143,6 +143,9 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		msg[i] = m.GetMsg()
 	}
 	pbNode.Message = msg
+	for _, m := range pbNode.Message {
+		m.Package = pbNode.PackageName
+	}
 
 	stmt := ctx.AllOptionStatement()
 	if len(stmt) > 1 {
@@ -151,6 +154,9 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	if len(stmt) == 1 {
 		pbNode.GoPkg = stmt[0].GetTriple().Value
 		pbNode.LocalGoPkg = stmt[0].GetTriple().Extra
+	}
+	if pbNode == nil {
+		panic("nil for pbNode")
 	}
 	ctx.SetPbNode(pbNode)
 }
@@ -162,8 +168,88 @@ func (p *Pb3Builder) ExitTopLevelDef(ctx *TopLevelDefContext) {
 }
 
 func (p *Pb3Builder) ExitMessageDef(ctx *MessageDefContext) {
-	msg := tree.NewProtobufMessage(ctx.MessageName().GetText())
-	ctx.SetMsg(msg)
+	field := make(map[string]*tree.ProtobufMsgElem)
+	if ctx.MessageBody() != nil {
+		body := ctx.MessageBody().GetBody()
+		for _, elem := range body.Elem {
+			_, ok := field[elem.Name]
+			if ok {
+				log.Printf("message definiton '%s' failed because field '%s' is defined more than once", ctx.MessageName().GetText(), elem.Name)
+				p.failure = true
+				return
+			}
+			field[elem.Name] = elem
+		}
+		msg := tree.NewProtobufMessage(ctx.MessageName().GetText(), field)
+		ctx.SetMsg(msg)
+	} else {
+		panic("no message body for message def")
+	}
+}
+
+func (p *Pb3Builder) ExitMessageBody(ctx *MessageBodyContext) {
+	raw := ctx.AllMessageElement()
+	e := make([]*tree.ProtobufMsgElem, len(raw))
+	for i, m := range raw {
+		e[i] = m.GetElem()
+	}
+	ctx.SetBody(tree.NewProtobufMsgBody(e))
+}
+
+func (p *Pb3Builder) ExitField(ctx *FieldContext) {
+	var f *tree.ProtobufMsgField
+	if ctx.FieldLabel() != nil {
+		f = ctx.FieldLabel().GetF()
+	} else {
+		f = tree.NewProtobufMsgField(false, false)
+	}
+	name := ctx.FieldName().GetText()
+	f.Name = name
+	f.Type = ctx.Type_().GetText()
+	if isBaseTypeInProtobuf(f.Type) {
+		f.TypeBase = true
+	}
+	ctx.SetF(f)
+}
+
+func (p *Pb3Builder) ExitFieldLabel(ctx *FieldLabelContext) {
+	opt := false
+	rep := false
+	if ctx.OPTIONAL() != nil {
+		opt = true
+	}
+	if ctx.REPEATED() != nil {
+		rep = true
+	}
+	ctx.SetF(tree.NewProtobufMsgField(opt, rep))
+}
+
+func (p *Pb3Builder) ExitMessageElement(ctx *MessageElementContext) {
+	if ctx.Field() == nil && ctx.MapField() == nil {
+		panic(fmt.Sprintf("unable to understand anything other than fields as protobuf message components right now: %s", ctx.GetText()))
+	}
+	var f *tree.ProtobufMsgField
+	var m *tree.ProtobufMapField
+	if ctx.Field() != nil {
+		f = ctx.Field().GetF()
+	}
+	if ctx.MapField() != nil {
+		m = ctx.MapField().GetM()
+	}
+	//log.Printf("create msg element %v,%v", f == nil, m == nil)
+	ctx.SetElem(tree.NewProtobufMsgElem(f, m))
+}
+
+func (p *Pb3Builder) ExitMapField(ctx *MapFieldContext) {
+	kt := ctx.KeyType().GetText()
+	vt := ctx.Type_().GetText()
+	mapName := ctx.MapName().GetText()
+	f := tree.NewProtobufMapField(kt, vt, mapName)
+	if isBaseTypeInProtobuf(vt) {
+		f.ValueTypeBase = true
+	}
+	ctx.SetM(f)
+
 }
 
 func (p *Pb3Builder) ExitFullIdent(ctx *FullIdentContext) {
@@ -173,4 +259,27 @@ func (p *Pb3Builder) ExitFullIdent(ctx *FullIdentContext) {
 		id[i] = r.GetText()
 	}
 	ctx.SetFullId(tree.NewFullIdent(id))
+}
+
+func isBaseTypeInProtobuf(s string) bool {
+	switch s {
+	case "double",
+		"float",
+		"int32",
+		"int64",
+		"unsigned int32",
+		"unsigned int64",
+		"signed int32",
+		"signed int64",
+		"fixed32",
+		"fixed64",
+		"sfixed32",
+		"sfixed64",
+		"bool",
+		"string",
+		"bytes":
+		return true
+	default:
+		return false
+	}
 }

@@ -10,6 +10,22 @@ import (
 	"github.com/iansmith/parigot/ui/parser/tree"
 )
 
+// func ReadAllModelFiles(mod *tree.ModelDecl) error {
+// 	for _, path := range mod.Path {
+// 		log.Printf("xxx -- %s", path)
+// 		build := pbmodel.NewPb3Builder()
+// 		pbnode, filename, ok := EvaluateOneFile(path, "", build)
+// 		if !ok {
+// 			return fmt.Errorf("unable to understand imported model file '%s'", filename)
+// 		}
+// 		if pbnode == nil {
+// 			panic("bad pbnode")
+// 		}
+// 		mod.File = append(mod.File, pbnode)
+// 	}
+// 	return nil
+// }
+
 func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNode, string, bool) {
 	l := pbmodel.Newprotobuf3Lexer(nil)
 	p := pbmodel.Newprotobuf3Parser(nil)

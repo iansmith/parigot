@@ -17,7 +17,7 @@ QueueModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/
 
 @view
 // ---- QueueMsgView -----
-QueueMsgView (a int64, model QueueModel:Fleazil) 
+QueueMsgView (a int64, model :QueueModel:Fleazil) 
     <"h3"> <<fleazil is a not a real message>>
 
 
