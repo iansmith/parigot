@@ -3,6 +3,7 @@ package tree
 import (
 	"fmt"
 	"log"
+	"strings"
 )
 
 type ErrorLoc struct {
@@ -61,6 +62,7 @@ func CheckVarName(fname string, id *Ident, local, param []*PFormal, parent Scope
 	copy.Col = id.ColumnNumber
 	result := CheckLocalAndParam(fname, id, local, param, parent)
 	if result == nil {
+		log.Printf("xxx -- checklocalandparam failed %s", id.String())
 		log.Printf("use of unknown variable '%s' at %s", id.String(), e.String())
 	}
 	return result
@@ -97,6 +99,14 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 		}
 
 		formal := CheckVarName(fname, ref.Id, local, param, parent, e)
+		if formal != nil {
+			if strings.Contains(ref.Id.String(), ":") {
+				log.Printf("xxx -- check var name?? formal=%p %+v, %+v, %+v %d -> %+v", formal, formal.Name, formal.Type, ref.Id.String(), formal.LineNumber, formal.Message)
+			}
+		} else {
+			log.Printf("xxxx check var name gave a nil %s, %s", fname, ref.Id.String())
+		}
+
 		// if formal != nil {
 		// 	log.Printf("xxx check var name %v, id %s", formal.Message != nil, ref.Id.String())
 		// }

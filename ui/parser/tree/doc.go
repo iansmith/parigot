@@ -18,10 +18,10 @@ type DocSectionNode struct {
 	Program      *ProgramNode
 }
 
-func (s *DocSectionNode) FinalizeSemantics() {
+func (s *DocSectionNode) FinalizeSemantics(path string) error {
 
 	if s == nil {
-		return
+		return nil // no doc section, no errors
 	}
 	s.SetNumber()
 	for _, fn := range s.DocFunc {
@@ -29,7 +29,9 @@ func (s *DocSectionNode) FinalizeSemantics() {
 		fn.Elem.attachAnonTextFunc(s.Program.TextSection)
 	}
 	s.Scope_.DocFn = s.DocFunc
+	return nil
 }
+
 func (s *DocSectionNode) AttachViewToSection(view *ViewDecl) {
 	if view == nil {
 		panic("nil view")
@@ -226,7 +228,7 @@ func (f *DocFuncNode) CheckDup(filename string) bool {
 
 func (f *DocFuncNode) VarCheck(filename string) bool {
 	if f.Section == nil {
-		panic("no section present on doc func node")
+		panic(fmt.Sprintf("no section present on doc func node: %s", f.Name))
 	}
 	if !CheckAllItems(f.Name, f.PreCode, f.Local, f.Param, f.Section.Scope_, filename) {
 		return false

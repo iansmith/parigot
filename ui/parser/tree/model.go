@@ -31,7 +31,10 @@ func NewModelDecl() *ModelDecl {
 
 var ErrMessageNotFound = fmt.Errorf("unable to find message")
 
-func (m *ModelDecl) FinalizeSemantics() {
+func (m *ModelDecl) FinalizeSemantics(filename string) error {
+
+	// this builds a map in each *message* that knows how to resolve each of message's fields to a type (which can be another
+	// message)
 	for _, file := range m.File {
 		for _, msg := range file.Message {
 			//log.Printf("\t message %s", msg.Name)
@@ -39,17 +42,17 @@ func (m *ModelDecl) FinalizeSemantics() {
 				var mark, name string
 				if field.Field != nil {
 					if field.Field.TypeBase {
+						log.Printf("xxx -- skipping %s bceasue its a type base", field.Field.Name)
 						continue
 					}
-					if !field.Field.TypeBase {
-						pbnode, mesg, err := m.findMessageTypeByName(field.Field.Type)
-						if err == ErrMessageNotFound {
-							log.Printf("unable to find message named '%s' for field '%s' (in '%s')", field.Field.Type, field.Field.Name, file.Filename)
-							return
-						} else {
-							loc := &TypeLocation{pbnode, mesg}
-							msg.Location[field.Name] = loc
-						}
+					pbnode, mesg, err := m.FindMessageTypeByName(field.Field.Type)
+					if err == ErrMessageNotFound {
+						e := ErrorLoc{Filename: filename, Line: 0, Col: 0} // xxx fixme
+						s := fmt.Sprintf("unable to find message named '%s' for field '%s' (in '%s') at %s", field.Field.Type, field.Field.Name, file.Filename, e.String())
+						return fmt.Errorf("%s", s)
+					} else {
+						loc := &TypeLocation{pbnode, mesg}
+						msg.Location[field.Name] = loc
 					}
 				} else {
 					mark = ""
@@ -63,15 +66,52 @@ func (m *ModelDecl) FinalizeSemantics() {
 			}
 		}
 	}
+	return nil
+}
+
+// ResolveModelType returns either the place where the type is defined (file and message) or a NotFound. It walks all the
+// known models.
+func (s *MVCSectionNode) ResolveModelType(filename string, formal *PFormal) (*ProtobufFileNode, *ProtobufMessage, error) {
+	if !strings.Contains(formal.Type.String(), ":") {
+		panic(fmt.Sprintf("unable to understand formal type referenc (no qualifiers) '%s'", formal.Type.String()))
+	}
+	part := strings.Split(formal.Type.String(), ":")
+	if len(part) != 3 {
+		panic(fmt.Sprintf("unable to understand formal type reference (too many qualifiers) '%s'", formal.Type.String()))
+	}
+	part = part[1:]
+	var found *ModelDecl
+	for _, model := range s.ModelDecl {
+		if model.Name == part[0] {
+			found = model
+			break
+		}
+	}
+	if found == nil {
+		e := ErrorLoc{
+			Filename: filename,
+			Line:     formal.Type.LineNumber,
+			Col:      formal.Type.ColumnNumber,
+		}
+		return nil, nil, fmt.Errorf("unable find a model named '%s' at %s", part[0], e.String())
+	}
+	//continue looking for the message
+	for _, f := range found.File {
+		for _, msg := range f.Message {
+			if msg.Name == part[1] {
+				return f, msg, nil
+			}
+		}
+	}
+	return nil, nil, ErrMessageNotFound
 }
 
 // findMessageTypeByName returns the ProtobufFileNode and the ProtobufMessage associated with the name provided, if the name
 // was found. If not, it returns MessageNotFound
-
-func (m *ModelDecl) findMessageTypeByName(n string) (*ProtobufFileNode, *ProtobufMessage, error) {
+func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *ProtobufMessage, error) {
 	hasDot := strings.Contains(n, ".")
 	for _, file := range m.File {
-		//log.Printf("--- find message type by name '%s' in '%s',", n, file.PackageName)
+		log.Printf("--- find message type by name '%s' in '%s  with file imports %+v", n, file.PackageName, file.ImportFile)
 		candidate := n
 		if hasDot {
 			part := strings.Split(candidate, ".")
@@ -80,9 +120,10 @@ func (m *ModelDecl) findMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 		for _, msg := range file.Message {
 			if hasDot {
 				for _, imp := range file.Import {
-					//log.Printf("xxx -- reached import %s (%s) from %s", imp.Filename, imp.PackageName, file.Filename)
+					log.Printf("xxx -- reached import %s (%s) from %s", imp.Filename, imp.PackageName, file.Filename)
 					for _, message := range imp.Message {
 						if message.Name == candidate {
+							log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)
 							return imp, msg, nil
 						}
 					}
@@ -96,10 +137,20 @@ func (m *ModelDecl) findMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 					}
 				}
 			}
-			return file, msg, nil
+			//return file, msg, nil
+		}
+	}
+	for googleName, msg := range googleTypes {
+		if googleName == n {
+			return nil, msg, nil
 		}
 	}
 	return nil, nil, ErrMessageNotFound
+}
+
+var googleTypes = map[string]*ProtobufMessage{
+	"google.protobuf.Any":       {Name: "Any", Package: "google.protobuf", AnyField: true},
+	"google.protobuf.Timestamp": {Name: "Timestamp", Package: "google.protobuf", AnyField: true},
 }
 
 type ViewDecl struct {
@@ -154,7 +205,8 @@ func (v *ViewDecl) CheckModelName() bool {
 	return false
 }
 
-func (v *ViewDecl) FinalizeSemantics() {
+func (v *ViewDecl) FinalizeSemantics(filename string) error {
+	return nil
 }
 
 type ProtobufFileNode struct {
@@ -180,6 +232,7 @@ type ProtobufMessage struct {
 	Package  string
 	Field    map[string]*ProtobufMsgElem
 	Location map[string]*TypeLocation
+	AnyField bool // this is true if we are not going to check the fields of this message (usually a google type)
 }
 
 func NewProtobufMessage(name string, allField map[string]*ProtobufMsgElem) *ProtobufMessage {
@@ -218,21 +271,33 @@ func (m *MVCSectionNode) MoveDocFns() {
 	}
 	m.ViewDecl = nil
 }
-func (m *MVCSectionNode) FinalizeSemantics() {
+func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 	if m == nil {
-		return
+		return nil
 	}
 	if m.ModelDecl != nil {
 		for _, mod := range m.ModelDecl {
-			mod.FinalizeSemantics()
 			mod.Section = m
 		}
 
 	}
 	if m.ViewDecl != nil {
 		for _, view := range m.ViewDecl {
-			view.FinalizeSemantics()
 			view.Section = m
 		}
 	}
+	// we want all the section pointers set up FIRST, then we can run this code
+	if m.ModelDecl != nil {
+		for _, mod := range m.ModelDecl {
+			if err := mod.FinalizeSemantics(filename); err != nil {
+				return err
+			}
+		}
+		for _, v := range m.ViewDecl {
+			if err := v.FinalizeSemantics(filename); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

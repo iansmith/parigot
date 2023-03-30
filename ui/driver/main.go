@@ -60,7 +60,9 @@ func Main() {
 	}
 
 	// need to clean up some pointers and such
-	tree.GProgram.FinalizeSemantics()
+	if err := tree.GProgram.FinalizeSemantics(inFile); err != nil {
+		wclFatalf("failed due to semantic checks: %v", err)
+	}
 
 	if !tree.GProgram.VarCheck(inFile) {
 		wclFatalf("failed check of variables and functions")
