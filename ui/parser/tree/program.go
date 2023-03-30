@@ -1,7 +1,7 @@
 package tree
 
 type FSemantics interface {
-	FinalizeSemantics()
+	FinalizeSemantics(path string) error
 }
 
 type ProgramNode struct {
@@ -14,20 +14,24 @@ type ProgramNode struct {
 	Global        *AllGlobal
 }
 
-func (p *ProgramNode) FinalizeSemantics() {
-	for _, node := range []any{p.ImportSection, p.CSSSection, p.TextSection, p.DocSection,
-		p.EventSection, p.ModelSection} {
+func (p *ProgramNode) FinalizeSemantics(path string) error {
+	// ordering of this list matters... models have to be fully put together before dealing with parameters in the text and doc sections
+	for _, node := range []any{p.ImportSection, p.CSSSection, p.ModelSection, p.TextSection, p.DocSection,
+		p.EventSection} {
 		if node == nil {
 			continue
 		}
 		f, ok := node.(FSemantics)
 		if ok && node != nil {
-			f.FinalizeSemantics()
+			if err := f.FinalizeSemantics(path); err != nil {
+				return err
+			}
 		}
 	}
 	if p.DocSection != nil && p.DocSection.Scope_ != nil && p.TextSection != nil && p.TextSection.Scope_ != nil {
 		p.DocSection.Scope_.Brother = p.TextSection.Scope_
 	}
+	return nil
 }
 
 func (p *ProgramNode) VarCheck(filename string) bool {

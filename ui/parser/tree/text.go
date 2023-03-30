@@ -166,14 +166,29 @@ func (s *TextFuncNode) VarCheck(filename string) bool {
 	return CheckAllItems(s.Name, s.Item_, s.Local, s.Param, s.Section.Scope_, filename)
 }
 
-func (s *TextSectionNode) FinalizeSemantics() {
+func (s *TextSectionNode) FinalizeSemantics(path string) error {
 	if s == nil {
-		return
+		return nil //no section no error
 	}
 	for _, fn := range s.Func {
 		fn.Section = s
 	}
 	s.Scope_.TextFn = s.Func
+
+	// patch up the parameter types
+	modelSect := s.Program.ModelSection
+	for _, fn := range s.Func {
+		for _, param := range fn.Param {
+			if param.Type.HasStartColon {
+				_, msg, err := modelSect.ResolveModelType(path, param)
+				if err != nil {
+					return err
+				}
+				param.Message = msg
+			}
+		}
+	}
+	return nil
 }
 
 func NewTextFuncNode() *TextFuncNode {

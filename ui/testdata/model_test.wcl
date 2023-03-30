@@ -12,7 +12,6 @@
 <<
     import(
         "google.golang.org/protobuf/types/known/anypb"
-
         queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
     )
 
@@ -60,7 +59,7 @@ sizeInBytes(p pb.Any)
 >>
 <<${size} bytes>>
 
-shortModel(model queuemsg.QueueMsg)
+shortModel(model :QueueModel:QueueMsg)
     <<${model:id}:${model:msg_id}:${sizeInBytes(model.Payload)}>>
 
 ///////////////// DOC FUNC GLOBAL /////////////////
