@@ -39,10 +39,9 @@ func (m *ModelDecl) FinalizeSemantics(filename string) error {
 		for _, msg := range file.Message {
 			//log.Printf("\t message %s", msg.Name)
 			for _, field := range msg.Field {
-				var mark, name string
 				if field.Field != nil {
 					if field.Field.TypeBase {
-						log.Printf("xxx -- skipping %s bceasue its a type base", field.Field.Name)
+						//log.Printf("xxx -- skipping %s bceasue its a type base", field.Field.Name)
 						continue
 					}
 					pbnode, mesg, err := m.FindMessageTypeByName(field.Field.Type)
@@ -55,14 +54,15 @@ func (m *ModelDecl) FinalizeSemantics(filename string) error {
 						msg.Location[field.Name] = loc
 					}
 				} else {
+					var mark, name string
 					mark = ""
 					name = "[map]" + field.Map.Name
 					if !field.Map.ValueTypeBase {
 						mark = field.Map.ValueType
 					}
-					log.Printf("\t\t%s field is '%s' '%s'-- %v ", msg.Name, name, mark, field.Map.ValueTypeBase)
+					//log.Printf("\t\t%s field is '%s' '%s'-- %v ", msg.Name, name, mark, field.Map.ValueTypeBase)
+					_ = fmt.Sprintf("%s,%s", mark, name)
 				}
-				//x := fmt.Sprintf("%s,%s", mark, name)
 			}
 		}
 	}
@@ -120,7 +120,7 @@ func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 		for _, msg := range file.Message {
 			if hasDot {
 				for _, imp := range file.Import {
-					log.Printf("xxx -- reached import %s (%s) from %s", imp.Filename, imp.PackageName, file.Filename)
+					//log.Printf("xxx -- reached import %s (%s) from %s", imp.Filename, imp.PackageName, file.Filename)
 					for _, message := range imp.Message {
 						if message.Name == candidate {
 							log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)

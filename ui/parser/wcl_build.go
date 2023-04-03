@@ -508,9 +508,9 @@ func (s *WclBuildListener) ExitFunc_invoc(ctx *Func_invocContext) {
 	}
 	var line, col int
 	if ctx.Ident() != nil {
-		if ctx.Ident().GetId() == nil {
-			log.Printf("xxxx --- ident %+v", ctx.Ident().GetId())
-		}
+		// if ctx.Ident().GetId() == nil {
+		// 	log.Printf("xxxx --- ident %+v", ctx.Ident().GetId())
+		// }
 		line = ctx.Ident().GetId().LineNumber
 		col = ctx.Ident().GetId().ColumnNumber
 	}
