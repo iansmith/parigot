@@ -1,18 +1,230 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Posts on Parigot Blog and Docs</title>
-    <link>http://parigot.github.io/posts/</link>
-    <description>Recent content in Posts on Parigot Blog and Docs</description>
+    <title>Technical Blog on Parigot</title>
+    <link>https://parigot.info/posts/</link>
+    <description>Recent content in Technical Blog on Parigot</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 29 Sep 2022 19:42:04 -0400</lastBuildDate><atom:link href="http://parigot.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 26 Jan 2023 17:39:02 -0400</lastBuildDate><atom:link href="https://parigot.info/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Errors</title>
+      <link>https://parigot.info/posts/errors/</link>
+      <pubDate>Thu, 26 Jan 2023 17:39:02 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/errors/</guid>
+      <description>I realized that it been a while since I had written a post. I suppose that is good, because the reason is that things in the software itself have been coming together.
+After a lot of back and forth and trying various things to see how they &amp;ldquo;felt&amp;rdquo;, I finally made a decision on errors. The question was in what way should errors be signaled from the implementation of a system call to the client (WASM) side or from the implementation of a service.</description>
+    </item>
+    
+    <item>
+      <title>Dev environment options</title>
+      <link>https://parigot.info/posts/containerization/</link>
+      <pubDate>Tue, 10 Jan 2023 16:26:25 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/containerization/</guid>
+      <description>For the benefit of others, especially new folks, I have built four types of development containers:
+raw container local for use with VSCode devscontainer on your personal machine github codespaces jetbrains spaces The first one is for the hardcore do-it-yourselfer. If you want to just have the tooling in a container and do everything else yourself, go for it. The name of the container is iansmith/parigot-dev:atlanta. You&amp;rsquo;ll have to git clone the repo and mount that into a container yourself.</description>
+    </item>
+    
+    <item>
+      <title>Big reorg</title>
+      <link>https://parigot.info/posts/big_reorg/</link>
+      <pubDate>Fri, 06 Jan 2023 13:35:28 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/big_reorg/</guid>
+      <description>It had to be done. I did a grand reorg of the code over the last two days in my effort to make testing easier, and add some functional tests. These tests will test that the core functionality of RPC works properly. It&amp;rsquo;s hard to test kernel features with unit tests because the interactions are so complex.
+This reorg had a number of good effects because of simplification, and one sad effect.</description>
+    </item>
+    
+    <item>
+      <title>Fyne UI toolkit and logging</title>
+      <link>https://parigot.info/posts/fyne_ui_toolkit/</link>
+      <pubDate>Tue, 27 Dec 2022 15:53:41 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/fyne_ui_toolkit/</guid>
+      <description>Prior to the Christmas holidays, I spent an afternoon learning about the Fyne UI toolkit. This toolkit&amp;rsquo;s claims to fame are that 1) it is written in go 2) it expects client code to be writteN in go and 3) it can run on mobile device as well as desktops. It further claims that it can run &amp;ldquo;the same&amp;rdquo; on windows, linux and mac&amp;ndash;but I only tested the mac version. I have not tried the use of fyne</description>
+    </item>
+    
+    <item>
+      <title>New API Mechanism</title>
+      <link>https://parigot.info/posts/new_api_interface/</link>
+      <pubDate>Tue, 27 Dec 2022 15:02:30 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/new_api_interface/</guid>
+      <description>I had spent some time before Christmas doing a &amp;ldquo;standardish&amp;rdquo; interface to dropping from user code, in WASM into system code, in go. This was done primarily to support some future work by the S3 team. This interface is designed to function much like an RPC call with protobufs&amp;hellip; in fact, it is quite similar to an RPC call with protobufs, just using memory instead of a wire.
+For clarity, it is worth saying that this is not exactly the same thing as an RPC call that you would make on another service.</description>
+    </item>
+    
+    <item>
+      <title>Pctx and logging</title>
+      <link>https://parigot.info/posts/pctx_logging/</link>
+      <pubDate>Sat, 10 Dec 2022 06:29:37 -0500</pubDate>
+      
+      <guid>https://parigot.info/posts/pctx_logging/</guid>
+      <description>I realized had not blogged in a while, primarily because I was in Qatar for a bit more than 2 weeks and then I&amp;rsquo;ve been sick with some type of sinus problem since I got back. But let&amp;rsquo;s return to our regularly scheduled transmission&amp;hellip;
+On the flight back to the US from the world cup I completed milestone two: I have a program compiled to wasm that can be run as a single process or as multiple processes over a network.</description>
+    </item>
+    
+    <item>
+      <title>Networking layers</title>
+      <link>https://parigot.info/posts/net_layer/</link>
+      <pubDate>Tue, 15 Nov 2022 06:29:37 -0500</pubDate>
+      
+      <guid>https://parigot.info/posts/net_layer/</guid>
+      <description>After a couple of rewrites of the networking layers to support the distributed case, I finally have a setup that I can live with for some period of time.
+There are three layers to the way we handle networking on the server side:
+Logical layer: This is implemented with go channels, so when waiting for a call from the network, you use a channel to block on. Netio layer: This layer implements a simple network protocol for sending and receiving bundles.</description>
+    </item>
+    
+    <item>
+      <title>Four Milestones</title>
+      <link>https://parigot.info/posts/four_mile/</link>
+      <pubDate>Thu, 03 Nov 2022 12:44:09 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/four_mile/</guid>
+      <description>I spent some time yesterday—in all honesty in the shower—trying to figure out how I would know if parigot was &amp;ldquo;ready&amp;rdquo; to be revealed publicly. I decide that there were four key milestones that had to be achieved. These are
+Demonstrate that you can run a microservice based application in a single address space, and make it deterministic in terms of startup and tests. Demonstrate that you can patch together multiple services to create a deployment unit or &amp;ldquo;wos&amp;rdquo; that has several services.</description>
+    </item>
+    
+    <item>
+      <title>Compiler change</title>
+      <link>https://parigot.info/posts/compiler_change/</link>
+      <pubDate>Sat, 29 Oct 2022 11:23:23 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/compiler_change/</guid>
+      <description>A couple of days ago I got really frustrated by trying to use tinygo as my &amp;ldquo;client side&amp;rdquo; go compiler. This particular frustration was that it does not support the full go reflection API. This is probably fine for the their intended audience, but since I use code generated by the protobuf-&amp;gt;go generator and it uses reflection a lot, I was seriously hosed. I tried a few things to work around it, but eventually just started swearing and got up from my desk for more tea.</description>
+    </item>
+    
+    <item>
+      <title>First syscall</title>
+      <link>https://parigot.info/posts/first_syscall/</link>
+      <pubDate>Sat, 29 Oct 2022 11:00:05 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/first_syscall/</guid>
+      <description>I guess I made an important decision this morning. I decided on the tagline for parigot. I suppose shouldn&amp;rsquo;t say this is permanent as all the decisions I make related to pargot seem to change, but I think I&amp;rsquo;m going to use this:
+parigot: the operating environment for microservices.
+I&amp;rsquo;m going to use that capitalization too, if possible. parigot is not capitalized, even if the first word of a sentence.</description>
+    </item>
+    
+    <item>
+      <title>Calling conventions</title>
+      <link>https://parigot.info/posts/callingconv/</link>
+      <pubDate>Mon, 24 Oct 2022 08:46:09 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/callingconv/</guid>
+      <description>Over the course of yesterdayday afternoon and evening, plus a little thought in bed this morning, I decided I was going to have to abandon my idea (dream?) of having a simple, language-neutral &amp;ldquo;core&amp;rdquo; for parigot.
+Under the original model, there would be a set of &amp;ldquo;porcelain&amp;rdquo; interfaces to the kernal that would be simple functions. These functions would perform the lowest level tasks and the api would be built on top of these.</description>
+    </item>
+    
+    <item>
+      <title>jdepp on trial</title>
+      <link>https://parigot.info/posts/jdepp/</link>
+      <pubDate>Fri, 21 Oct 2022 19:32:33 +0000</pubDate>
+      
+      <guid>https://parigot.info/posts/jdepp/</guid>
+      <description>Yesterday, I would have to say that jdepp was on trial, and I think he won. I spent a good part of yesterday working on a tool I&amp;rsquo;ve christened jdepp. All of the good &amp;lsquo;dep&amp;rsquo; name were already taken.
+jdepp solves a problem that has been a rock in my shoe for a long time: the problem of go and generated code. The go compiler is blindingly fast and it is tempting, especially early in a project, to just run the darn thing every time for every binary.</description>
+    </item>
+    
+    <item>
+      <title>Unlinking</title>
+      <link>https://parigot.info/posts/unlinking/</link>
+      <pubDate>Mon, 17 Oct 2022 15:29:57 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/unlinking/</guid>
+      <description>I got the idea this morning that I could actually &amp;ldquo;unlink&amp;rdquo; a WASM program. By this I mean that I could remove the bindings generated by the compiler between function names and code and substitute new bindings that referred to external code. Doing this with the standard library/interpreter of many languages would be awesome.
+This approach, if successful, has a couple of benefits. First, it means that the number of bytes in a program is far less.</description>
+    </item>
+    
+    <item>
+      <title>Compiler status</title>
+      <link>https://parigot.info/posts/compilerstatus/</link>
+      <pubDate>Mon, 17 Oct 2022 07:34:13 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/compilerstatus/</guid>
+      <description>I just refer to my protoc plugin now as &amp;ldquo;the compiler&amp;rdquo; because it is doing a lot of compilerish stuff in compilerish ways.
+I managed to get a fairly complete version of the compiler done yesterday. It required a second major rewrite, but sometimes you don&amp;rsquo;t know what you want in the code until you are dissatisfied with what you have. The compiler correctly handles emitting go code (the only supported language right now) for the ABI interface, parigot-provided libraries that are defined in protos, and user created protos.</description>
+    </item>
+    
+    <item>
+      <title>Web coordination language</title>
+      <link>https://parigot.info/posts/webcoordlang/</link>
+      <pubDate>Mon, 17 Oct 2022 07:12:19 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/webcoordlang/</guid>
+      <description>As I thought about the future last night, I had an interesting idea that could result in a webassembly-based website (in browser) that didn&amp;rsquo;t have the usual size problems.
+I began to think about what I wanted, and I was pretty sure of two things I did not want: typescript and the usual suspects of JS tooling. This combination results in the huge masses of code in node_modules and the complete inability to do partial compilation via make because of things like webpack.</description>
+    </item>
+    
+    <item>
+      <title>Codegen</title>
+      <link>https://parigot.info/posts/codegen/</link>
+      <pubDate>Thu, 13 Oct 2022 03:05:34 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/codegen/</guid>
+      <description>Yesterday I got the first big part of code generation done. I feel really good about the investment in the &amp;ldquo;codegen toolkit&amp;rdquo;. I found that yesterday I was able to add functionality with this toolkit quickly and easily. I think I could write a code generator for a new language in an afterneen; this is almost certainly wrong, since I haven&amp;rsquo;t actually done the porting work yet, but it is a good feeling.</description>
+    </item>
+    
+    <item>
+      <title>Some small naming issues</title>
+      <link>https://parigot.info/posts/naming-small/</link>
+      <pubDate>Tue, 11 Oct 2022 16:02:00 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/naming-small/</guid>
+      <description>Note that this post is now out of date with respect to the particular filenames used in repository.
+I&amp;rsquo;ve been working on the code generation in several areas and I&amp;rsquo;ve decided that I&amp;rsquo;m going to be consistent with names of things.
+As protobuf does, always use singular for a collection of things. Never use snake case in names or filenames. (Arrgh! Hugo expects filenames with underscores!) In filenames, dont use capitals because of filesystem differences.</description>
+    </item>
+    
+    <item>
+      <title>The baby&#39;s first words</title>
+      <link>https://parigot.info/posts/first_words/</link>
+      <pubDate>Wed, 05 Oct 2022 20:04:47 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/first_words/</guid>
+      <description>The first words uttered for real by parigot were
+a=67332 b=5 done with success!
+It may not look like much, but it proves the basic idea that parigot needs to work. I can make a call from wasm&amp;ndash;a &amp;ldquo;client&amp;rdquo; program&amp;ndash;to a &amp;ldquo;supervisor&amp;rdquo; ABI and the parameters reach the supervisory layer and it is free to implement the ABI how it sees fit. The implementation of the supervisor level is not visible and not accessible to the client code.</description>
+    </item>
+    
+    <item>
+      <title>Editing toolkit</title>
+      <link>https://parigot.info/posts/editing_toolkit/</link>
+      <pubDate>Wed, 05 Oct 2022 12:17:02 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/editing_toolkit/</guid>
+      <description>Update Jan 2 This tool was called surgery but is no longer in the build. In the future, it will be used to unlink binaries.
+command/transform I worked for about 3-4 days in an effort to build a binary editing toolkit for WASM. Honestly, I was starting to get worried on Monday (day 4) because I had actually wondered to myself, &amp;ldquo;Should I try to do this right with an editing toolkit, or just hack some script together and move on to other, likely more important, things?</description>
+    </item>
+    
+    <item>
+      <title>IsOs() bool</title>
+      <link>https://parigot.info/posts/is-os/</link>
+      <pubDate>Sat, 01 Oct 2022 16:51:56 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/is-os/</guid>
+      <description>Updated October 6 and Jan 2.
+I&amp;rsquo;ve been thinking of this project, parigot, as an operating system. In particular the program that invokes and supervises wasm &amp;ldquo;apps&amp;rdquo; will be called the &amp;ldquo;kernel&amp;rdquo;. Sadly, at the current time the program is named runner.
+There are some business reasons (fear) that one might not want to advertise an &amp;ldquo;os&amp;rdquo; or &amp;ldquo;kernel&amp;rdquo; to the public at large. That warning aside, I think about parigot as an operating system because:</description>
+    </item>
+    
+    <item>
+      <title>Binary Editing</title>
+      <link>https://parigot.info/posts/binary-editing/</link>
+      <pubDate>Sat, 01 Oct 2022 04:42:48 -0400</pubDate>
+      
+      <guid>https://parigot.info/posts/binary-editing/</guid>
+      <description>Updated Jan 2 You can&amp;rsquo;t make a service call into a function call because WASM doesn&amp;rsquo;t permit memory sharing between wasm modules. There are some options here but I don&amp;rsquo;t want to turn on threads.
+Yesterday I started on the ability to programmatically edit WASM binaries. I did this by building a simple Antlr4 grammar for the WAT format of a WASM file. I got this far enough to parse the real output of a &amp;lsquo;hello world&amp;rsquo; program, which is probably pretty close to complete since WASM doesn&amp;rsquo;t have that many opcodes and a great many of them are used in the machinery that the compiler generates as preamble to any function call and the preamble to any program.</description>
+    </item>
+    
     <item>
       <title>First Post</title>
-      <link>http://parigot.github.io/posts/firstpost/</link>
+      <link>https://parigot.info/posts/firstpost/</link>
       <pubDate>Thu, 29 Sep 2022 19:42:04 -0400</pubDate>
       
-      <guid>http://parigot.github.io/posts/firstpost/</guid>
+      <guid>https://parigot.info/posts/firstpost/</guid>
       <description>I woke up at about 5am with an idea in my head. The idea was to build an operating system (of sorts) in go, but with user processes created from WASM binaries. After some thinking, the idea started to congeal a bit and I realized I was trying to fix something that had bugged me about microservices for some time: microservices are good (great?) for the deployment and operational problems of devops, but it is radically harder to develop and debug an array of microservices once you get to about 6 or 8 services.</description>
     </item>
     
