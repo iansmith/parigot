@@ -38,6 +38,10 @@ fmt.Sprint({{- template "ValueRef" .Ref -}})
 
 {{- end -}} {{/* end of ranging over text objects */}}
 {{- end -}} {{/* template TextInline*/}}
+{{/* ----------------------------------------------------- */}}
+{{- define "IdOutput" -}}
+{{ idOutputGo . }}
+{{- end -}} {{/*end of idOutput */}}
 
 {{/* ----------------------------------------------------- */}}
 {{- define "ParamFormal" -}}
@@ -61,7 +65,7 @@ var {{ .Name }} {{ .Type -}}
 {{- define "ValueRef" -}}
 {{- if . -}}
 {{- if .Id }}
-{{- .Id.String -}}
+{{- idOutputGo .Id.String -}}
 {{- end -}} {{/* end of Id field */}}
 {{- if .FuncInvoc -}}
 {{- template "FuncInvoc" .FuncInvoc -}}

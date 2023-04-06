@@ -101,10 +101,53 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 		formal := CheckVarName(fname, ref.Id, local, param, parent, e)
 		if formal != nil {
 			if strings.Contains(ref.Id.String(), ":") {
-				log.Printf("xxx -- check var name?? formal=%p %+v, %+v, %+v %d -> %+v", formal, formal.Name, formal.Type, ref.Id.String(), formal.LineNumber, formal.Message)
+				log.Printf("xxx -- check var name?? formal=%s, %v, %s", formal.Name, formal.Type.String(), formal.Message.Name)
+				e := &ErrorLoc{
+					Filename: filename,
+					Line:     ref.Id.LineNumber,
+					Col:      ref.Id.ColumnNumber,
+				}
+				// at this point we have the base name checked and found the formal so we need to walk the message fields
+				// and qualifiers
+				currIdPart := ref.Id.Part.Qual
+				currMsg := formal.Message
+				log.Printf("currIdPart xxx %s and %+v", currIdPart.Id, currMsg.Field)
+				first := true
+				for currIdPart != nil {
+					if !first {
+						if !currIdPart.ColonSep {
+							log.Printf("cannot use dot separators in a qualifier referring to a protobuf, must use colons at %s: %s", currIdPart.Id, e.String())
+							return false
+						}
+					} else {
+						first = false
+					}
+					if currMsg == nil {
+						panic(fmt.Sprintf("no message to search for field %s", currIdPart.Id))
+					}
+					currentField, ok := currMsg.Field[currIdPart.Id]
+					if !ok {
+						log.Printf("xxx -> failed to find protobuf field %s: %s", currIdPart.Id, e.String())
+					} else {
+						log.Printf("xxx -> found field %s-->%s, field is message? %v", currIdPart.Id, currentField.Name, currentField.Field.Message)
+						if currentField.Field.Message == nil {
+							log.Printf("xxx checking on location map[%s] %+v", currIdPart.Id, currMsg.Location[currIdPart.Id])
+							loc, ok := currMsg.Location[currIdPart.Id]
+							if !ok {
+								log.Printf("unable to find a protobuf field named '%s' in '%s'", currIdPart.Id, currMsg.Name)
+								return false
+							}
+							currMsg = loc.Message
+						} else {
+							currMsg = currentField.Field.Message
+						}
+					}
+					currIdPart = currIdPart.Qual
+				}
 			}
 		} else {
 			log.Printf("xxxx check var name gave a nil %s, %s", fname, ref.Id.String())
+			return false
 		}
 
 		// if formal != nil {
