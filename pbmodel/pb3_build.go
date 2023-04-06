@@ -125,7 +125,7 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	}
 	pbNode.ImportFile = impFile
 	pbNode.Filename = p.CurrentFile
-
+	log.Printf("finished %s (importFile %+v)", pbNode.Filename, pbNode.ImportFile)
 	// package?
 	rawPkg := ctx.AllPackageStatement()
 	if len(rawPkg) > 1 {
@@ -158,6 +158,7 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	if pbNode == nil {
 		panic("nil for pbNode")
 	}
+	log.Printf("finished with pbNode: %+v", pbNode)
 	ctx.SetPbNode(pbNode)
 }
 
@@ -208,6 +209,15 @@ func (p *Pb3Builder) ExitField(ctx *FieldContext) {
 	f.Type = ctx.Type_().GetText()
 	if isBaseTypeInProtobuf(f.Type) {
 		f.TypeBase = true
+	} else {
+		log.Printf("possible message as the type: %s", f.Type)
+		// _, msg, err := tree.GCurrentModel.FindMessageTypeByName(f.Type)
+		// if err != nil {
+		// 	log.Printf("unable to find referenced type '%s', referenced in protobuf file", f.Type)
+		// 	p.failure = true
+		// 	return
+		// }
+		// f.Message = msg
 	}
 	ctx.SetF(f)
 }
@@ -236,7 +246,11 @@ func (p *Pb3Builder) ExitMessageElement(ctx *MessageElementContext) {
 	if ctx.MapField() != nil {
 		m = ctx.MapField().GetM()
 	}
-	//log.Printf("create msg element %v,%v", f == nil, m == nil)
+	log.Printf("create msg element %v,%v", f == nil, m == nil)
+	if f == nil && m == nil {
+		log.Printf("not a field, but a %+v", ctx.Field())
+		panic("found a field that is not a field or a map")
+	}
 	ctx.SetElem(tree.NewProtobufMsgElem(f, m))
 }
 

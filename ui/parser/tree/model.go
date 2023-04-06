@@ -111,7 +111,7 @@ func (s *MVCSectionNode) ResolveModelType(filename string, formal *PFormal) (*Pr
 func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *ProtobufMessage, error) {
 	hasDot := strings.Contains(n, ".")
 	for _, file := range m.File {
-		log.Printf("--- find message type by name '%s' in '%s  with file imports %+v", n, file.PackageName, file.ImportFile)
+		//log.Printf("--- find message type by name '%s' in '%s  with file imports %+v", n, file.PackageName, file.ImportFile)
 		candidate := n
 		if hasDot {
 			part := strings.Split(candidate, ".")
@@ -120,8 +120,9 @@ func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 		for _, msg := range file.Message {
 			if hasDot {
 				for _, imp := range file.Import {
-					//log.Printf("xxx -- reached import %s (%s) from %s", imp.Filename, imp.PackageName, file.Filename)
+					//log.Printf("xxx -- reached import %s (%s) from %s [candidate =%s]--[len messages =%d]", imp.Filename, imp.PackageName, file.Filename, candidate, len(imp.Message))
 					for _, message := range imp.Message {
+						//log.Printf("xxx ---consider %s vs %s ", message.Name, candidate)
 						if message.Name == candidate {
 							log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)
 							return imp, msg, nil

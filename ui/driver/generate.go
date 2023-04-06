@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/iansmith/parigot/ui/parser/tree"
 )
@@ -85,6 +86,7 @@ func loadTemplates() (*template.Template, error) {
 	funcMap := template.FuncMap{
 		"zerothElem":          zerothElem,
 		"transformFormalType": transformFormalType,
+		"idOutputGo":          idOutputGo,
 	}
 	root = root.Funcs(funcMap)
 
@@ -103,4 +105,35 @@ func loadTemplates() (*template.Template, error) {
 		}
 	}
 	return t, nil
+}
+
+func idOutputGo(id string) string {
+	hasDot := strings.Contains(id, ".")
+	hasColon := strings.Contains(id, ":")
+
+	if !hasDot && !hasColon {
+		return id
+		// r := rune(id[0])
+		// return string(unicode.ToUpper(r)) + id[1:]
+	}
+	var part []string
+	if hasDot {
+		part = strings.Split(id, ".")
+	} else {
+		part = strings.Split(id, ":")
+	}
+	result := make([]string, len(part))
+	for i, segment := range part {
+		if i == 0 {
+			result[0] = part[0]
+			continue
+		}
+		var b = ""
+		for _, u := range strings.Split(segment, "_") {
+			cap := string(unicode.ToUpper(rune(u[0]))) + u[1:]
+			b += cap
+		}
+		result[i] = b
+	}
+	return strings.Join(result, ".")
 }

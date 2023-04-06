@@ -245,6 +245,7 @@ func (l *WclBuildListener) ExitDot_qual(c *Dot_qualContext) {
 func (l *WclBuildListener) EnterColon_qual(c *Colon_qualContext) {
 }
 func (l *WclBuildListener) ExitColon_qual(c *Colon_qualContext) {
+	log.Printf("xxx exit colon qual: %s", c.Id().GetSymbol().GetText())
 	c.SetPart(&tree.IdentPart{
 		Id:       c.Id().GetSymbol().GetText(),
 		ColonSep: true,
