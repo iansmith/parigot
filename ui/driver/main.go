@@ -103,14 +103,13 @@ func execTemplate(prog parser.IProgramContext, lang string) {
 	ctx.global["text"] = tree.GProgram.TextSection
 	ctx.global["doc"] = tree.GProgram.DocSection
 	ctx.global["event"] = tree.GProgram.EventSection
+	if tree.GProgram.ModelSection != nil {
+		ctx.global["controller"] = tree.GProgram.ModelSection.ControllerDecl
+	}
 	ctx.global["inputFile"] = flag.Arg(0)
 	golang := make(map[string]any)
 	ctx.global["golang"] = golang
 	golang["package"] = *gopkg
-	// golang["needBytes"] = tree.GProgram.NeedBytes
-	// golang["needElement"] = tree.GProgram.NeedElement
-	// golang["needEvent"] = tree.GProgram.NeedEvent
-	// deal with output file
 	dir, err := os.MkdirTemp(os.TempDir(), "wcl*")
 	if err != nil {
 		wclFatalf("unable to create temp dir: %v", err)

@@ -101,7 +101,7 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 		formal := CheckVarName(fname, ref.Id, local, param, parent, e)
 		if formal != nil {
 			if strings.Contains(ref.Id.String(), ":") {
-				log.Printf("xxx -- check var name?? formal=%s, %v, %s", formal.Name, formal.Type.String(), formal.Message.Name)
+				//log.Printf("xxx -- check var name?? formal=%s, %v, %s", formal.Name, formal.Type.String(), formal.Message.Name)
 				e := &ErrorLoc{
 					Filename: filename,
 					Line:     ref.Id.LineNumber,
@@ -111,7 +111,7 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 				// and qualifiers
 				currIdPart := ref.Id.Part.Qual
 				currMsg := formal.Message
-				log.Printf("currIdPart xxx %s and %+v", currIdPart.Id, currMsg.Field)
+				//log.Printf("currIdPart xxx %s and %+v", currIdPart.Id, currMsg.Field)
 				first := true
 				for currIdPart != nil {
 					if !first {
@@ -129,7 +129,7 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 					if !ok {
 						log.Printf("xxx -> failed to find protobuf field %s: %s", currIdPart.Id, e.String())
 					} else {
-						log.Printf("xxx -> found field %s-->%s, field is message? %v", currIdPart.Id, currentField.Name, currentField.Field.Message)
+						log.Printf("xxx -> found field %s-->%s, field is message? %v", currIdPart.Id, currentField.Name, currentField.Field.Message != nil)
 						if currentField.Field.Message == nil {
 							log.Printf("xxx checking on location map[%s] %+v", currIdPart.Id, currMsg.Location[currIdPart.Id])
 							loc, ok := currMsg.Location[currIdPart.Id]
@@ -146,7 +146,7 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 				}
 			}
 		} else {
-			log.Printf("xxxx check var name gave a nil %s, %s", fname, ref.Id.String())
+			//log.Printf("xxxx check var name gave a nil %s, %s", fname, ref.Id.String())
 			return false
 		}
 

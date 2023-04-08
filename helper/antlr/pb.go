@@ -44,7 +44,7 @@ func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNo
 		panic("did not retrieve node from proto production!")
 	}
 	for _, out := range node.ImportFile {
-		rel := helper.RelativePath(out, f, node.PackageName)
+		rel := helper.RelativePath(out, f, node.Package)
 		found := helper.FindProtobufFile(rel, b.CurrentPkgPrefix)
 		if found == "" {
 			log.Printf("unable to find file '%s' as a protobuf file (relative path to '%s')", rel, f)

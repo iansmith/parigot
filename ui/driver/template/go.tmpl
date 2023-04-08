@@ -161,6 +161,18 @@ builtin.
 "."+{{template "ValueRef" .Class}}
 {{- end}} {{/*end of if .Id */}}
 {{- end}} {{/*end of template */}}
+{{/* ----------------------------------------------------- */}}
+{{define "Controller"}}
+func AddEvent{{.Message.Name}}(model {{fqProtobufNameGo .Message}}) {
+{{- range .Spec}}
+selector:={{template "Selector" .Selector}}
+fn = func(this js.Value, arg []js.Value) any{ 
+    return {{template "EventFunction" .Function}}(this,append(arg,model,js.ValueOf(selector),js.ValueOf(svc.(*apidom.DOMServer).ServerId())))
+}
+svc.(*apidom.DOMServer).AddEvent({{template "Selector" .Selector}},"{{.EventName}}",fn)
+{{- end}} {{/* end of ranging over event specs */}}
+}
+{{- end}} {{/*end of template Controller */}}
 
 {{/* ----------------------------------------------------- */}}
 {{/* PROGRAM GEN */}}
@@ -252,3 +264,8 @@ svc.(*apidom.DOMServer).AddEvent({{template "Selector" .Selector}},"{{.EventName
 }
 {{end}} {{/* end of event section*/}}
 {{end}} {{/*end of if on .event */}}
+{{if .controller}}
+{{ range .controller }}
+{{ template "Controller" .}}
+{{end}} {{/* range controller*/}}
+{{end}} {{/*controller*/}}

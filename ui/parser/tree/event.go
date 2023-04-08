@@ -2,6 +2,7 @@ package tree
 
 type EventSectionNode struct {
 	Spec    []*EventSpec
+	Section *MVCSectionNode
 	Program *ProgramNode
 }
 
@@ -51,4 +52,11 @@ func isEventName(name string) EventType {
 		return MouseEvent
 	}
 	return NotDefined
+}
+func NewEventSectionNode(p *ProgramNode) *EventSectionNode {
+	return &EventSectionNode{
+		Spec:    []*EventSpec{},
+		Section: &MVCSectionNode{},
+		Program: p,
+	}
 }
