@@ -87,6 +87,7 @@ func loadTemplates() (*template.Template, error) {
 		"zerothElem":          zerothElem,
 		"transformFormalType": transformFormalType,
 		"idOutputGo":          idOutputGo,
+		"fqProtobufNameGo":    fqProtobufNameGo,
 	}
 	root = root.Funcs(funcMap)
 
@@ -105,6 +106,36 @@ func loadTemplates() (*template.Template, error) {
 		}
 	}
 	return t, nil
+}
+func fqProtobufNameGo(msg *tree.ProtobufMessage) string {
+	if len(msg.Package) == 0 && msg.LocalGoPkg == "" {
+		return msg.Name
+	}
+	if msg.LocalGoPkg != "" {
+		return msg.LocalGoPkg + "." + msg.Name
+	}
+
+	part := strings.Split(msg.Package, ".")
+	if len(part) == 1 {
+		return msg.Package + "." + msg.Name
+	}
+	candidate := part[len(part)-1]
+	if len(candidate) < 2 {
+		return candidate
+	}
+	allDigit := true
+	if candidate[0] == 'v' {
+		for i := 1; i < len(candidate); i++ {
+			if !unicode.IsDigit(rune(candidate[i])) {
+				allDigit = false
+				break
+			}
+		}
+	}
+	if allDigit {
+		return part[len(part)-2] + "." + msg.Name
+	}
+	return part[len(part)-1] + "." + msg.Name
 }
 
 func idOutputGo(id string) string {

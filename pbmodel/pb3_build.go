@@ -48,7 +48,7 @@ func (p *Pb3Builder) ExitImportStatement(ctx *ImportStatementContext) {
 	if strings.HasPrefix(import_, "google/protobuf") {
 		_, ok := ignoredCache[import_]
 		if !ok {
-			log.Printf("ignoring protobuf version 2 file from google: %s", import_)
+			//			log.Printf("ignoring protobuf version 2 file from google: %s", import_)
 			ignoredCache[import_] = struct{}{}
 		}
 		p.Proto2Ignored = append(p.Proto2Ignored, import_)
@@ -125,7 +125,7 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	}
 	pbNode.ImportFile = impFile
 	pbNode.Filename = p.CurrentFile
-	log.Printf("finished %s (importFile %+v)", pbNode.Filename, pbNode.ImportFile)
+	//log.Printf("finished %s (importFile %+v)", pbNode.Filename, pbNode.ImportFile)
 	// package?
 	rawPkg := ctx.AllPackageStatement()
 	if len(rawPkg) > 1 {
@@ -133,7 +133,7 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		panic("unable to handle multiple package statements in a .proto file")
 	}
 	if len(rawPkg) == 1 {
-		pbNode.PackageName = rawPkg[0].GetPkg()
+		pbNode.Package = rawPkg[0].GetPkg()
 	}
 
 	// message
@@ -143,9 +143,6 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 		msg[i] = m.GetMsg()
 	}
 	pbNode.Message = msg
-	for _, m := range pbNode.Message {
-		m.Package = pbNode.PackageName
-	}
 
 	stmt := ctx.AllOptionStatement()
 	if len(stmt) > 1 {
@@ -158,7 +155,12 @@ func (p *Pb3Builder) ExitProto(ctx *ProtoContext) {
 	if pbNode == nil {
 		panic("nil for pbNode")
 	}
-	log.Printf("finished with pbNode: %+v", pbNode)
+	//copy values to message
+	for _, m := range pbNode.Message {
+		m.Package = pbNode.Package
+		m.LocalGoPkg = pbNode.LocalGoPkg
+	}
+	//log.Printf("finished with pbNode: %+v", pbNode)
 	ctx.SetPbNode(pbNode)
 }
 
@@ -209,15 +211,6 @@ func (p *Pb3Builder) ExitField(ctx *FieldContext) {
 	f.Type = ctx.Type_().GetText()
 	if isBaseTypeInProtobuf(f.Type) {
 		f.TypeBase = true
-	} else {
-		log.Printf("possible message as the type: %s", f.Type)
-		// _, msg, err := tree.GCurrentModel.FindMessageTypeByName(f.Type)
-		// if err != nil {
-		// 	log.Printf("unable to find referenced type '%s', referenced in protobuf file", f.Type)
-		// 	p.failure = true
-		// 	return
-		// }
-		// f.Message = msg
 	}
 	ctx.SetF(f)
 }
@@ -246,7 +239,7 @@ func (p *Pb3Builder) ExitMessageElement(ctx *MessageElementContext) {
 	if ctx.MapField() != nil {
 		m = ctx.MapField().GetM()
 	}
-	log.Printf("create msg element %v,%v", f == nil, m == nil)
+	//log.Printf("create msg element %v,%v", f == nil, m == nil)
 	if f == nil && m == nil {
 		log.Printf("not a field, but a %+v", ctx.Field())
 		panic("found a field that is not a field or a map")

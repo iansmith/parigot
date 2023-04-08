@@ -8,6 +8,7 @@ import (
 
 	"github.com/iansmith/parigot/apiimpl/dom"
 	dommsg "github.com/iansmith/parigot/g/msg/dom/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 )
 
 // ToggleSingle either adds or removes the arg[0] class to the
@@ -76,4 +77,9 @@ func removeElement(part []string, candidate string) (bool, []string) {
 		part = append(part[:found], part[found+1:]...)
 	}
 	return true, part
+}
+
+// ParigotId returns the string value of the id given.
+func ParigotId[T lib.AllIdPtr](id T) string {
+	return lib.Unmarshal(id).String()
 }

@@ -46,7 +46,7 @@ returns [string imp]
 
 packageStatement
 returns [string pkg]
-  : PACKAGE fullIdent SEMI
+  : PACKAGE fullIdent SEMI 
   ;
 
 // Option

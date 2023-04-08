@@ -180,7 +180,7 @@ func (s *TextSectionNode) FinalizeSemantics(path string) error {
 	for _, fn := range s.Func {
 		for _, param := range fn.Param {
 			if param.Type.HasStartColon {
-				_, msg, err := modelSect.ResolveModelType(path, param)
+				_, msg, err := modelSect.ResolveModelMessageTypeForParam(path, param)
 				if err != nil {
 					return err
 				}

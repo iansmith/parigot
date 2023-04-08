@@ -7,9 +7,10 @@ import (
 )
 
 type MVCSectionNode struct {
-	Program   *ProgramNode
-	ModelDecl []*ModelDecl
-	ViewDecl  []*ViewDecl
+	Program        *ProgramNode
+	ModelDecl      []*ModelDecl
+	ViewDecl       []*ViewDecl
+	ControllerDecl []*ControllerDecl
 }
 
 func NewMvcSectionNode(p *ProgramNode) *MVCSectionNode {
@@ -69,19 +70,20 @@ func (m *ModelDecl) FinalizeSemantics(filename string) error {
 	return nil
 }
 
-// ResolveModelType returns either the place where the type is defined (file and message) or a NotFound. It walks all the
-// known models.
-func (s *MVCSectionNode) ResolveModelType(filename string, formal *PFormal) (*ProtobufFileNode, *ProtobufMessage, error) {
-	if !strings.Contains(formal.Type.String(), ":") {
-		panic(fmt.Sprintf("unable to understand formal type referenc (no qualifiers) '%s'", formal.Type.String()))
+// ResolveModelMessageByIdent returns either the place where the type is defined (file and message) or a NotFound. It walks all the
+// defined models.
+func (s *MVCSectionNode) ResolveModelMessageTypeByIdent(filename string, ident *Ident) (*ProtobufFileNode, *ProtobufMessage, error) {
+	if !strings.Contains(ident.String(), ":") {
+		panic(fmt.Sprintf("unable to understand formal type referenc (no qualifiers) '%s'", ident.String()))
 	}
-	part := strings.Split(formal.Type.String(), ":")
+	part := strings.Split(ident.String(), ":")
 	if len(part) != 3 {
-		panic(fmt.Sprintf("unable to understand formal type reference (too many qualifiers) '%s'", formal.Type.String()))
+		panic(fmt.Sprintf("unable to understand model message reference (too many qualifiers) '%s'", ident.String()))
 	}
 	part = part[1:]
 	var found *ModelDecl
 	for _, model := range s.ModelDecl {
+		//log.Printf("xxxx comparing model.Name %s to %s", model.Name, part[0])
 		if model.Name == part[0] {
 			found = model
 			break
@@ -90,10 +92,10 @@ func (s *MVCSectionNode) ResolveModelType(filename string, formal *PFormal) (*Pr
 	if found == nil {
 		e := ErrorLoc{
 			Filename: filename,
-			Line:     formal.Type.LineNumber,
-			Col:      formal.Type.ColumnNumber,
+			Line:     ident.LineNumber,
+			Col:      ident.ColumnNumber,
 		}
-		return nil, nil, fmt.Errorf("unable find a model named '%s' at %s", part[0], e.String())
+		return nil, nil, fmt.Errorf("unable find a model message named '%s' at %s", part[0], e.String())
 	}
 	//continue looking for the message
 	for _, f := range found.File {
@@ -104,6 +106,13 @@ func (s *MVCSectionNode) ResolveModelType(filename string, formal *PFormal) (*Pr
 		}
 	}
 	return nil, nil, ErrMessageNotFound
+
+}
+
+// ResolveModelMessageTypeForParam returns either the place where the type is defined (file and message) or a NotFound. It walks all the
+// known models.
+func (s *MVCSectionNode) ResolveModelMessageTypeForParam(filename string, param *PFormal) (*ProtobufFileNode, *ProtobufMessage, error) {
+	return s.ResolveModelMessageTypeByIdent(filename, param.Type)
 }
 
 // findMessageTypeByName returns the ProtobufFileNode and the ProtobufMessage associated with the name provided, if the name
@@ -124,7 +133,7 @@ func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 					for _, message := range imp.Message {
 						//log.Printf("xxx ---consider %s vs %s ", message.Name, candidate)
 						if message.Name == candidate {
-							log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)
+							//log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)
 							return imp, msg, nil
 						}
 					}
@@ -155,7 +164,8 @@ var googleTypes = map[string]*ProtobufMessage{
 }
 
 type ViewDecl struct {
-	ModelName string
+	ModelName *Ident
+	Message   *ProtobufMessage
 	Section   *MVCSectionNode
 	DocFn     *DocFuncNode
 }
@@ -207,17 +217,24 @@ func (v *ViewDecl) CheckModelName() bool {
 }
 
 func (v *ViewDecl) FinalizeSemantics(filename string) error {
+	_, msg, err := v.Section.ResolveModelMessageTypeByIdent(filename, v.ModelName)
+	if err != nil {
+		return err
+	}
+	v.Message = msg
+	formal := NewPFormal("model", v.ModelName, v.ModelName.Text, v.ModelName.LineNumber, v.ModelName.ColumnNumber)
+	v.DocFn.Param = append([]*PFormal{formal}, v.DocFn.Param...)
 	return nil
 }
 
 type ProtobufFileNode struct {
-	PackageName string
-	Filename    string
-	GoPkg       string
-	LocalGoPkg  string
-	ImportFile  []string
-	Import      []*ProtobufFileNode
-	Message     []*ProtobufMessage
+	Package    string
+	Filename   string
+	GoPkg      string
+	LocalGoPkg string
+	ImportFile []string
+	Import     []*ProtobufFileNode
+	Message    []*ProtobufMessage
 }
 
 func NewProtobufFileNode() *ProtobufFileNode {
@@ -229,11 +246,12 @@ type TypeLocation struct {
 	Message *ProtobufMessage
 }
 type ProtobufMessage struct {
-	Name     string
-	Package  string
-	Field    map[string]*ProtobufMsgElem
-	Location map[string]*TypeLocation
-	AnyField bool // this is true if we are not going to check the fields of this message (usually a google type)
+	Name       string
+	Package    string
+	LocalGoPkg string
+	Field      map[string]*ProtobufMsgElem
+	Location   map[string]*TypeLocation
+	AnyField   bool // this is true if we are not going to check the fields of this message (usually a google type)
 }
 
 func NewProtobufMessage(name string, allField map[string]*ProtobufMsgElem) *ProtobufMessage {
@@ -272,6 +290,7 @@ func (m *MVCSectionNode) MoveDocFns() {
 	}
 	m.ViewDecl = nil
 }
+
 func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 	if m == nil {
 		return nil
@@ -287,6 +306,11 @@ func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 			view.Section = m
 		}
 	}
+	if m.ControllerDecl != nil {
+		for _, cont := range m.ControllerDecl {
+			cont.Section = m
+		}
+	}
 	// we want all the section pointers set up FIRST, then we can run this code
 	if m.ModelDecl != nil {
 		for _, mod := range m.ModelDecl {
@@ -299,6 +323,40 @@ func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 				return err
 			}
 		}
+		for _, c := range m.ControllerDecl {
+			if err := c.FinalizeSemantics(filename); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+type ControllerDecl struct {
+	ModelName *Ident
+	Message   *ProtobufMessage
+	Section   *MVCSectionNode
+	Spec      []*EventSpec
+}
+
+func NewControllerDecl() *ControllerDecl {
+	return &ControllerDecl{}
+}
+
+func (c *ControllerDecl) FinalizeSemantics(filename string) error {
+	_, msg, err := c.Section.ResolveModelMessageTypeByIdent(filename, c.ModelName)
+	if err != nil {
+		return err
+	}
+	c.Message = msg
+	for _, spec := range c.Spec {
+		act := spec.Function.Actual
+		extra := &FuncActual{
+			Ref: &ValueRef{
+				Lit: "actual",
+			},
+		}
+		spec.Function.Actual = append([]*FuncActual{extra}, act...)
 	}
 	return nil
 }

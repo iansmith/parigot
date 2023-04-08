@@ -245,7 +245,7 @@ func (l *WclBuildListener) ExitDot_qual(c *Dot_qualContext) {
 func (l *WclBuildListener) EnterColon_qual(c *Colon_qualContext) {
 }
 func (l *WclBuildListener) ExitColon_qual(c *Colon_qualContext) {
-	log.Printf("xxx exit colon qual: %s", c.Id().GetSymbol().GetText())
+	//log.Printf("xxx exit colon qual: %s", c.Id().GetSymbol().GetText())
 	c.SetPart(&tree.IdentPart{
 		Id:       c.Id().GetSymbol().GetText(),
 		ColonSep: true,
@@ -756,7 +756,12 @@ func (s *WclBuildListener) EnterModel_decl(ctx *Model_declContext) {
 func (s *WclBuildListener) ExitModel_decl(ctx *Model_declContext) {
 	modelDecl := tree.NewModelDecl()
 	modelDecl.Path = ctx.Filename_seq().GetSeq()
-	modelDecl.Name = ctx.GetId1().GetText()
+	name := ctx.GetId1().GetId()
+	raw := name.String()
+	if name.HasStartColon {
+		raw = raw[1:]
+	}
+	modelDecl.Name = raw
 	ctx.SetDecl(modelDecl)
 }
 
@@ -768,7 +773,22 @@ func (s *WclBuildListener) ExitView_decl(ctx *View_declContext) {
 	fn := ctx.Doc_func_post().GetFn()
 	vdecl.DocFn = fn
 	vdecl.DocFn.Name = ctx.Id().GetText()
+	vdecl.ModelName = ctx.Ident().GetId()
 	ctx.SetVdecl(vdecl)
+}
+
+func (s *WclBuildListener) EnterController_decl(ctx *Controller_declContext) {
+}
+
+func (s *WclBuildListener) ExitController_decl(ctx *Controller_declContext) {
+	cdecl := tree.NewControllerDecl()
+	cdecl.ModelName = ctx.Ident().GetId()
+	spec := make([]*tree.EventSpec, len(ctx.AllEvent_spec()))
+	for i, raw := range ctx.AllEvent_spec() {
+		spec[i] = raw.GetSpec()
+	}
+	cdecl.Spec = spec
+	ctx.SetCdecl(cdecl)
 }
 
 func (s *WclBuildListener) EnterMvc_section(ctx *Mvc_sectionContext) {
@@ -789,6 +809,13 @@ func (s *WclBuildListener) ExitMvc_section(ctx *Mvc_sectionContext) {
 		vdecl[i] = v.GetVdecl()
 	}
 	section.ViewDecl = vdecl
+
+	rawCont := ctx.AllController_decl()
+	cdecl := make([]*tree.ControllerDecl, len(rawCont))
+	for i, d := range rawCont {
+		cdecl[i] = d.GetCdecl()
+	}
+	section.ControllerDecl = cdecl
 
 	_, err := antlrhelp.ParseModelSection(s.SourceCode, "", section)
 	if err != nil {

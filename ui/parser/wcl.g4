@@ -213,18 +213,25 @@ mvc_section
 	(
 		Model model_decl*
 		|View view_decl*
+		|Controller controller_decl*
 	)+
 	;
 
 model_decl
 	returns [*tree.ModelDecl decl]:
-	id1=Id filename_seq
+	id1=ident filename_seq
 	;
 
 view_decl
 	returns [*tree.ViewDecl vdecl]:
-	vname=Id doc_func_post
+	vname=Id ident doc_func_post
 	;
+
+controller_decl
+	returns [*tree.ControllerDecl cdecl]:
+	ident (event_spec)*
+	;
+
 
 filename_seq
 	returns [[]string seq]: 

@@ -12,7 +12,7 @@
 <<
     import(
         "google.golang.org/protobuf/types/known/anypb"
-        queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
+        "github.com/iansmith/parigot/g/msg/queue/v1"
     )
 
 >>
@@ -20,33 +20,38 @@
 /////////////////// MODELS /////////////////
 
 
-//----- queue -----
+//----- queue message is the actual thing we are going to utilize -----
 @model 
-QueueModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/v1/file.proto"
-//----- fleazil -----
-FleazilModel "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/v1/file.proto"
+// paths are relative to this file
+:QueueModel 
+    "../../api/proto/msg/queue/v1/queue.proto","../../api/proto/msg/file/v1/file.proto"
 
 @view
-// ---- QueueMsgView ---
+// ---- Tests Needed ---
 // xxx add test for :Quemodel with no qualifier
 // xxx add test for :QueueModel.foo
 // xxx add test for :QueueModel:foo:bar
-
 // xxx add tests for bad mesg from model
-// xxx add tests to amke sure . works but is not checked
+// xxx add tests to make sure . works but is not checked
+// xxx add test for google types (proto v2)
 
-QueueMsgView (a int64, model :QueueModel:QueueMsg) 
-    <"h3"> << ${model} >>
+QueueMsgParent :QueueModel:QueueMsg() 
+    <"div" #ParigotId(model:msg_id)>
+
+QueueMsgView :QueueModel:QueueMsg(a int64) 
+    <"h3"> << Message ${model:msg_id:id} from Queue ${$model:id}>>
     ( 
         <"h4"> <<some text before ${model:msg_id:id} and some text after>>
-        <"h5"> <<${model.sent}>>
-        <"h5"> <<${sizeInBytes(model:payload)}>>
+        <"h5">  <<Sent: ${model.sent}>>
+        <"h5"> <<Size:${sizeInBytes(model:payload)} bytes>>
     )
 
+QueueMsgViewShort :QueueModel:QueueMsg(a int64) 
+ <"h3"> <<${shortModel(model)}>>
 
-QueueViewShort (a int64, model :QueueModel:QueueMsg) 
- <"h3"> <<${model:id}:${model.msg_id}>>
-
+@controller :QueueModel:QueueMsg
+    #builtin.ParigotId(model:msg_id) click switchShortAndLong()
+    
 
 ///////////////// TEXT FUNC GLOBAL /////////////////
 
