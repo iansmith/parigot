@@ -135,6 +135,21 @@ func (l *WclBuildListener) ExitImport_section(c *Import_sectionContext) {
 	c.SetSection(i)
 }
 
+// TypeName
+func (l *WclBuildListener) EnterType_name(c *Type_nameContext) {
+}
+
+func (l *WclBuildListener) ExitType_name(c *Type_nameContext) {
+	starter := ""
+	if c.TypeStarter() != nil {
+		starter = c.TypeStarter().GetText()
+	}
+	c.SetTypeName(&tree.TypeName{
+		Type:        c.Ident().GetId(),
+		TypeStarter: starter,
+	})
+}
+
 // Text_section
 func (l *WclBuildListener) EnterText_section(c *Text_sectionContext) {
 }
@@ -341,12 +356,9 @@ func (l *WclBuildListener) ExitParam_spec(c *Param_specContext) {
 
 func (l *WclBuildListener) ExitParam_pair(c *Param_pairContext) {
 	n := c.Id().GetText()
-	t := c.Ident().GetId()
-	ts := ""
-	if c.TypeStarter() != nil {
-		ts = c.TypeStarter().GetText()
-	}
-	c.SetFormal(tree.NewPFormal(n, t, ts, c.Id().GetSymbol().GetLine(), c.Id().GetSymbol().GetColumn()))
+	tn := c.Type_name().GetTypeName()
+	text := tn.String()
+	c.SetFormal(tree.NewPFormal(n, tn, text, c.Id().GetSymbol().GetLine(), c.Id().GetSymbol().GetColumn()))
 }
 
 // Doc_tag is a full tag descriptor

@@ -112,7 +112,7 @@ func (s *MVCSectionNode) ResolveModelMessageTypeByIdent(filename string, ident *
 // ResolveModelMessageTypeForParam returns either the place where the type is defined (file and message) or a NotFound. It walks all the
 // known models.
 func (s *MVCSectionNode) ResolveModelMessageTypeForParam(filename string, param *PFormal) (*ProtobufFileNode, *ProtobufMessage, error) {
-	return s.ResolveModelMessageTypeByIdent(filename, param.Type)
+	return s.ResolveModelMessageTypeByIdent(filename, param.TypeName.Type)
 }
 
 // findMessageTypeByName returns the ProtobufFileNode and the ProtobufMessage associated with the name provided, if the name
@@ -177,7 +177,7 @@ func (v *ViewDecl) CheckModelName() bool {
 	foundModel := false
 	modelType := []*PFormal{}
 	for _, p := range v.DocFn.Param {
-		if p.Type.HasStartColon {
+		if p.TypeName.Type.HasStartColon {
 			foundModel = true
 			modelType = append(modelType, p)
 			break
@@ -189,17 +189,17 @@ func (v *ViewDecl) CheckModelName() bool {
 	}
 	for _, mt := range modelType {
 		for _, modDecl := range v.Section.ModelDecl {
-			if modDecl.Name == mt.Type.Part.Id {
-				if mt.Type.Part.Qual == nil {
+			if modDecl.Name == mt.TypeName.Type.Part.Id {
+				if mt.TypeName.Type.Part.Qual == nil {
 					log.Printf("view function '%s' has a parameter '%s' which is a model ('%s') but no message selected",
 						v.DocFn.Name, mt.Name, modDecl.Name)
 					return false
 				}
 				// we got a suffix
-				q := mt.Type.Part.Qual
+				q := mt.TypeName.Type.Part.Qual
 				if q.Qual != nil {
 					log.Printf("view function '%s' has a parameter '%s' which is a model ('%s') but message name cannot have qualifier ('%s')",
-						v.DocFn.Name, mt.Name, modDecl.Name, mt.Type.String())
+						v.DocFn.Name, mt.Name, modDecl.Name, mt.TypeName.String())
 					return false
 				}
 				for _, protobufNode := range modDecl.File {
@@ -222,7 +222,11 @@ func (v *ViewDecl) FinalizeSemantics(filename string) error {
 		return err
 	}
 	v.Message = msg
-	formal := NewPFormal("model", v.ModelName, v.ModelName.Text, v.ModelName.LineNumber, v.ModelName.ColumnNumber)
+	t := &TypeName{
+		TypeStarter: "*",
+		Type:        v.ModelName,
+	}
+	formal := NewPFormal("model", t, t.String(), v.ModelName.LineNumber, v.ModelName.ColumnNumber)
 	v.DocFn.Param = append([]*PFormal{formal}, v.DocFn.Param...)
 	return nil
 }
@@ -281,20 +285,23 @@ func (m *MVCSectionNode) VarCheck(filename string) bool {
 			return false
 		}
 	}
-	m.MoveDocFns()
 	return true
 }
 func (m *MVCSectionNode) MoveDocFns() {
 	for _, view := range m.ViewDecl {
 		m.Program.DocSection.AttachViewToSection(view)
 	}
-	m.ViewDecl = nil
+	// this is kinda tricky, we cannot just set ViewDecl to nil here
+	// although that we be nice.  We need to run some checks that walk
+	// the parameters/expressions and make sure they are ok
+	//m.ViewDecl = nil
 }
 
 func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 	if m == nil {
 		return nil
 	}
+
 	if m.ModelDecl != nil {
 		for _, mod := range m.ModelDecl {
 			mod.Section = m
@@ -305,6 +312,8 @@ func (m *MVCSectionNode) FinalizeSemantics(filename string) error {
 		for _, view := range m.ViewDecl {
 			view.Section = m
 		}
+		// we have to do this after the section gets assigned
+		m.MoveDocFns()
 	}
 	if m.ControllerDecl != nil {
 		for _, cont := range m.ControllerDecl {

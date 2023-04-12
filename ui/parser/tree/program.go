@@ -1,5 +1,7 @@
 package tree
 
+import "log"
+
 type FSemantics interface {
 	FinalizeSemantics(path string) error
 }
@@ -15,12 +17,15 @@ type ProgramNode struct {
 }
 
 func (p *ProgramNode) FinalizeSemantics(path string) error {
+	log.Printf("xxx --- finalize semantics ... %+v", p)
 	// ordering of this list matters... models have to be fully put together before dealing with parameters in the text and doc sections
 	for _, node := range []any{p.ImportSection, p.CSSSection, p.ModelSection, p.TextSection, p.DocSection,
 		p.EventSection} {
 		if node == nil {
+			log.Printf("nil found in FS list")
 			continue
 		}
+		log.Printf("xxx fs -- %T found in FS list %v", node, node == nil)
 		f, ok := node.(FSemantics)
 		if ok && node != nil {
 			if err := f.FinalizeSemantics(path); err != nil {
@@ -31,6 +36,11 @@ func (p *ProgramNode) FinalizeSemantics(path string) error {
 	if p.DocSection != nil && p.DocSection.Scope_ != nil && p.TextSection != nil && p.TextSection.Scope_ != nil {
 		p.DocSection.Scope_.Brother = p.TextSection.Scope_
 	}
+
+	if p.DocSection != nil {
+		p.DocSection.SetNumber()
+	}
+
 	return nil
 }
 

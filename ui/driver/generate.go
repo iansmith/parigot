@@ -32,33 +32,32 @@ func zerothElem(in []*tree.FuncActual) *tree.ValueRef {
 }
 
 func transformFormalType(formal *tree.PFormal) string {
-	s := formal.Type.String()
+	s := formal.TypeName.Type.String()
 	if !strings.Contains(s, ":") {
-		return s
+		return formal.TypeName.String()
 	}
 	if !strings.HasPrefix(s, ":") {
-		panic(fmt.Sprintf("unable to understand type %s (no model?)", formal.Type.String()))
+		panic(fmt.Sprintf("unable to understand type %s (no model?)", formal.TypeName.String()))
 	}
-	s = s[1:]
 	if !strings.Contains(s, ":") {
-		panic(fmt.Sprintf("unable to understand type %s (no qualifier?)", formal.Type.String()))
+		panic(fmt.Sprintf("unable to understand type %s (no qualifier?)", formal.TypeName.String()))
 	}
 	if formal.Message == nil {
-		panic(fmt.Sprintf("we got a formal that is a model:message ('%s'), but no message registered on formal!", formal.Type.String()))
+		panic(fmt.Sprintf("we got a formal that is a model:message ('%s'), but no message registered on formal!", formal.TypeName.String()))
+	}
+	if formal.Message.LocalGoPkg != "" {
+		ts := formal.TypeName.TypeStarter
+		switch ts {
+		case "":
+			ts = "*"
+		case "[]":
+			ts = "[]*"
+		}
+		return ts + formal.Message.LocalGoPkg + "." + formal.Message.Name
 	}
 	pkg := formal.Message.Package
 	part := strings.Split(pkg, ".")
 
-	if strings.HasPrefix(pkg, "msg") {
-		if len(part) < 2 {
-			panic(fmt.Sprintf("unable to understand package name: %s", pkg))
-		}
-		p := part[len(part)-1]
-		if strings.HasPrefix(p, "v") {
-			p = part[len(part)-2]
-			return "msg" + p + "." + formal.Message.Name
-		}
-	}
 	return part[len(part)-1] + "." + formal.Message.Name
 }
 
@@ -109,19 +108,19 @@ func loadTemplates() (*template.Template, error) {
 }
 func fqProtobufNameGo(msg *tree.ProtobufMessage) string {
 	if len(msg.Package) == 0 && msg.LocalGoPkg == "" {
-		return msg.Name
+		return "*" + msg.Name
 	}
 	if msg.LocalGoPkg != "" {
-		return msg.LocalGoPkg + "." + msg.Name
+		return "*" + msg.LocalGoPkg + "." + msg.Name
 	}
 
 	part := strings.Split(msg.Package, ".")
 	if len(part) == 1 {
-		return msg.Package + "." + msg.Name
+		return "*" + msg.Package + "." + msg.Name
 	}
 	candidate := part[len(part)-1]
 	if len(candidate) < 2 {
-		return candidate
+		return "*" + candidate
 	}
 	allDigit := true
 	if candidate[0] == 'v' {
@@ -133,9 +132,9 @@ func fqProtobufNameGo(msg *tree.ProtobufMessage) string {
 		}
 	}
 	if allDigit {
-		return part[len(part)-2] + "." + msg.Name
+		return "*" + part[len(part)-2] + "." + msg.Name
 	}
-	return part[len(part)-1] + "." + msg.Name
+	return "*" + part[len(part)-1] + "." + msg.Name
 }
 
 func idOutputGo(id string) string {

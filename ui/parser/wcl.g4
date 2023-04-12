@@ -111,16 +111,24 @@ uninterp_inner
 
 param_spec
 	returns[[]*tree.PFormal formal]: 
-	LParen (param_pair (Comma param_pair)*)?  RParen;
+	LParen (param_pair (Comma param_pair)*)?  RParen
+	;
 
 param_pair
 	returns[*tree.PFormal formal]:
-	Id (TypeStarter)?  ident;
+	Id type_name
+	;
 
+type_name
+	returns[*tree.TypeName typeName]
+	:
+	(TypeStarter)? ident
+	;
 
 doc_section
 	returns [*tree.DocSectionNode section]: 
-	Doc (doc_func)*;
+	Doc (doc_func)*
+	;
 
 doc_func
 	returns [*tree.DocFuncNode fn]:

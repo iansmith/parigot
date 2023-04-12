@@ -19,11 +19,11 @@ type DocSectionNode struct {
 }
 
 func (s *DocSectionNode) FinalizeSemantics(path string) error {
-
 	if s == nil {
+		log.Printf("xxx -- docsection is nil")
 		return nil // no doc section, no errors
 	}
-	s.SetNumber()
+	panic("FinalizeSemantics")
 	for _, fn := range s.DocFunc {
 		fn.Section = s
 		fn.Elem.attachAnonTextFunc(s.Program.TextSection)
@@ -43,11 +43,11 @@ func (s *DocSectionNode) AttachViewToSection(view *ViewDecl) {
 		}
 		view.Section.Program.DocSection = s
 		s.Scope_.Brother = GProgram.TextSection.Scope_
-		//log.Printf("fixed the doc section")
+		log.Printf("fixed the doc section")
 	}
 	view.DocFn.Section = s
 	s.DocFunc = append(s.DocFunc, view.DocFn)
-	//log.Printf("xxx got view to attach, %s,%d", view.DocFn.Name, len(s.DocFunc))
+	log.Printf("xxx got view to attach, %s,%d", view.DocFn.Name, len(s.DocFunc))
 }
 
 func (s *DocSectionNode) VarCheck(filename string) bool {
@@ -271,13 +271,16 @@ func (e *DocElement) SetNumber(n int) int {
 	if e == nil {
 		return n
 	}
+	log.Printf("SetNumber %d: 1", n)
 	if e.TextContent == nil && len(e.Child) == 0 {
 		e.Number = n
 		return n + 1
 	}
 	e.Number = n
 	n++
+	log.Printf("SetNumber %d: 2", n)
 	for _, c := range e.Child {
+		log.Printf("SetNumber child %d: 3", n)
 		n = c.SetNumber(n)
 	}
 	return n

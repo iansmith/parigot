@@ -56,7 +56,7 @@ fmt.Sprint({{- template "ValueRef" .Ref -}})
 {{- define "DeclareLocal" -}}
 {{- if . }}
 {{- range . }}
-var {{ .Name }} {{ .Type -}}
+var {{ .Name }} {{ .TypeName.Type.String -}}
 {{- end }} {{/* end of ranging over param list */}}
 {{- end }} {{/*end of if */}}
 {{- end }} {{/* end of template ParamFormal */}}
@@ -119,8 +119,10 @@ package {{.package}}
 {{template "DocElement" .}}
 {{- end -}} {{/* iterate over children, recursively downward */}}
 
+// number is {{.Number}}
 {{ if eq 0 .Number -}}result{{- else -}}n{{- .Number -}}{{- end -}}:=
     &dommsg.Element{ {{template "DocTag" .Tag}} // tag part ended
+    ParigotId: lib.Marshal[protosupportmsg.ElementId](lib.NewElementId()),
 {{ if .TextContent }}
     Text:""
 {{- range .TextContent -}}
@@ -163,11 +165,11 @@ builtin.
 {{- end}} {{/*end of template */}}
 {{/* ----------------------------------------------------- */}}
 {{define "Controller"}}
-func AddEvent{{.Message.Name}}(model {{fqProtobufNameGo .Message}}) {
+func AddEvent{{.Message.Name}}(model {{fqProtobufNameGo .Message}},svc dom.DOMService) {
 {{- range .Spec}}
 selector:={{template "Selector" .Selector}}
-fn = func(this js.Value, arg []js.Value) any{ 
-    return {{template "EventFunction" .Function}}(this,append(arg,model,js.ValueOf(selector),js.ValueOf(svc.(*apidom.DOMServer).ServerId())))
+fn := func(this js.Value, arg []js.Value) any{ 
+    return {{template "EventFunction" .Function}}(this,append(arg,js.ValueOf(model),js.ValueOf(selector),js.ValueOf(svc.(*apidom.DOMServer).ServerId())))
 }
 svc.(*apidom.DOMServer).AddEvent({{template "Selector" .Selector}},"{{.EventName}}",fn)
 {{- end}} {{/* end of ranging over event specs */}}

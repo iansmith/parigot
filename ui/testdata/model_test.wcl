@@ -11,13 +11,36 @@
 @preamble 
 <<
     import(
-        "google.golang.org/protobuf/types/known/anypb"
+        "bytes"
+        "fmt"
+        "syscall/js"
+
+	    dommsg "github.com/iansmith/parigot/g/msg/dom/v1"
+        dom "github.com/iansmith/parigot/g/dom/v1"
+        apidom "github.com/iansmith/parigot/apiimpl/dom"
+        protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+
+        "github.com/iansmith/parigot/ui/parser/builtin"
+        "github.com/iansmith/parigot/lib/go"
         "github.com/iansmith/parigot/g/msg/queue/v1"
+
+        "google.golang.org/protobuf/types/known/anypb"
+
     )
 
+// This is necessary so we don't have to refer to builtin.ParigotId which causes
+// parsing problems.    
+func ParigotId[T lib.AllIdPtr](id T) string {
+    return builtin.ParigotId(id)
+}
+func switchShortAndLong(this js.Value, arg []js.Value) any {
+    return nil
+}
 >>
 
-/////////////////// MODELS /////////////////
+@extern(ParigotId,switchShortAndLong)
+
+/////////////////// MODEL   S /////////////////
 
 
 //----- queue message is the actual thing we are going to utilize -----
@@ -36,10 +59,10 @@
 // xxx add test for google types (proto v2)
 
 QueueMsgParent :QueueModel:QueueMsg() 
-    <"div" #ParigotId(model:msg_id)>
+    <"div" #ParigotId(model:id)>
 
 QueueMsgView :QueueModel:QueueMsg(a int64) 
-    <"h3"> << Message ${model:msg_id:id} from Queue ${$model:id}>>
+    <"h3"> <<Message ${model:msg_id:id} from Queue ${$model:id}>>
     ( 
         <"h4"> <<some text before ${model:msg_id:id} and some text after>>
         <"h5">  <<Sent: ${model.sent}>>
@@ -47,25 +70,33 @@ QueueMsgView :QueueModel:QueueMsg(a int64)
     )
 
 QueueMsgViewShort :QueueModel:QueueMsg(a int64) 
- <"h3"> <<${shortModel(model)}>>
+ <"h2"> <<${shortModel(model)}>>
 
+// xxx this is really a call to builtin.ParigotId
 @controller :QueueModel:QueueMsg
-    #builtin.ParigotId(model:msg_id) click switchShortAndLong()
+    #ParigotId(model:msg_id) click switchShortAndLong()
     
 
 ///////////////// TEXT FUNC GLOBAL /////////////////
 
 @text 
-sizeInBytes(p pb.Any)
+sizeInBytes(p *anypb.Any)
 @local(size int)
 @pre
 <<
-    ${size}=len(p.Value)
+    size=len(p.Value)
 >>
 <<${size} bytes>>
 
 shortModel(model :QueueModel:QueueMsg)
-    <<${model:id}:${model:msg_id}:${sizeInBytes(model.Payload)}>>
+@local(qid string,mid string,size string)
+@pre
+<<
+    qid=lib.Unmarshal(model.Id).String()
+    mid=lib.Unmarshal(model.MsgId).String()
+    size=${sizeInBytes(model.Payload)}
+>>
+    <<${qid}:${mid}:${size}>>
 
 ///////////////// DOC FUNC GLOBAL /////////////////
 
