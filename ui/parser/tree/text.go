@@ -88,17 +88,26 @@ type TextItem interface {
 	GetCol() int
 }
 
+// TypeName is a potential type starter and an ident
+type TypeName struct {
+	Type        *Ident
+	TypeStarter string
+}
+
+func (t *TypeName) String() string {
+	return t.TypeStarter + t.Type.Text
+}
+
 // PFormal holds a parameter and type pair.
 type PFormal struct {
 	Message                  *ProtobufMessage
 	Name                     string
-	Type                     *Ident
-	TypeStarter              string
+	TypeName                 *TypeName
 	LineNumber, ColumnNumber int
 }
 
-func NewPFormal(n string, t *Ident, ts string, line, col int) *PFormal {
-	return &PFormal{Name: n, Type: t, TypeStarter: ts, LineNumber: line, ColumnNumber: col}
+func NewPFormal(n string, t *TypeName, ts string, line, col int) *PFormal {
+	return &PFormal{Name: n, TypeName: t, LineNumber: line, ColumnNumber: col}
 }
 
 // Either Simple is set or both ModelName and ModelMessage are set
@@ -179,7 +188,7 @@ func (s *TextSectionNode) FinalizeSemantics(path string) error {
 	modelSect := s.Program.ModelSection
 	for _, fn := range s.Func {
 		for _, param := range fn.Param {
-			if param.Type.HasStartColon {
+			if param.TypeName.Type.HasStartColon {
 				_, msg, err := modelSect.ResolveModelMessageTypeForParam(path, param)
 				if err != nil {
 					return err

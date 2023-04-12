@@ -3,7 +3,9 @@ package lib
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math/rand"
+	"runtime/debug"
 
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 )
@@ -139,6 +141,11 @@ func NewQueueId() Id {
 	return newIdRand(queueIdLetter)
 }
 
+// NewQueueMsgId returns a queue id, initialized for use.
+func NewQueueMsgId() Id {
+	return newIdRand(queueMsgLetter)
+}
+
 // NewElementId returns a element id, initialized for use.
 func NewElementId() Id {
 	return newIdRand(elementIdLetter)
@@ -160,6 +167,7 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 	var h [8]byte
 	binary.LittleEndian.PutUint64(h[:], high)
 	var t T
+	log.Printf("xxxx --- abotu to do type to letter %T", t)
 	letter := typeToLetter(t)
 	if letter != h[7] {
 		panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
@@ -358,6 +366,11 @@ func typeToLetter(i interface{}) byte {
 		return testErrorIdLetter
 	case *protosupportmsg.ElementId:
 		return elementIdLetter
+	case *protosupportmsg.BaseId:
+		log.Printf("xxx got a call on BaseId")
 	}
-	panic("unknown id type:" + fmt.Sprintf("%T", i))
+	log.Printf("uknown id type %T", i)
+	debug.PrintStack()
+	//return '?'
+	panic("unknown id type:")
 }
