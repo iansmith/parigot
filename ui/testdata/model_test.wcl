@@ -40,7 +40,7 @@ func switchShortAndLong(this js.Value, arg []js.Value) any {
 
 @extern(ParigotId,switchShortAndLong)
 
-/////////////////// MODEL   S /////////////////
+/////////////////// MODELS /////////////////
 
 
 //----- queue message is the actual thing we are going to utilize -----
@@ -62,15 +62,15 @@ QueueMsgParent :QueueModel:QueueMsg()
     <"div" #ParigotId(model:id)>
 
 QueueMsgView :QueueModel:QueueMsg(a int64) 
-    <"h3"> <<Message ${model:msg_id:id} from Queue ${$model:id}>>
+    <"h4"> <<Message ${model:msg_id:id} from Queue ${$model:id}>>
     ( 
-        <"h4"> <<some text before ${model:msg_id:id} and some text after>>
-        <"h5">  <<Sent: ${model.sent}>>
-        <"h5"> <<Size:${sizeInBytes(model:payload)} bytes>>
+        <"h5"> <<some text before ${model:msg_id:id} and some text after>>
+        <"h6">  <<Sent: ${model.sent}>>
+        <"h6"> <<Size:${sizeInBytes(model:payload)} bytes>>
     )
 
 QueueMsgViewShort :QueueModel:QueueMsg(a int64) 
- <"h2"> <<${shortModel(model)}>>
+ <"h4"> <<${shortModel(model)}>>
 
 // xxx this is really a call to builtin.ParigotId
 @controller :QueueModel:QueueMsg
@@ -92,11 +92,11 @@ shortModel(model :QueueModel:QueueMsg)
 @local(qid string,mid string,size string)
 @pre
 <<
-    qid=lib.Unmarshal(model.Id).String()
-    mid=lib.Unmarshal(model.MsgId).String()
+    qid=lib.Unmarshal(model.Id).Short()
+    mid=lib.Unmarshal(model.MsgId).Short()
     size=${sizeInBytes(model.Payload)}
 >>
-    <<${qid}:${mid}:${size}>>
+    <<QueueId: ${qid}:Message Id: ${mid}:${size}>>
 
 ///////////////// DOC FUNC GLOBAL /////////////////
 

@@ -17,7 +17,6 @@ type ProgramNode struct {
 }
 
 func (p *ProgramNode) FinalizeSemantics(path string) error {
-	log.Printf("xxx --- finalize semantics ... %+v", p)
 	// ordering of this list matters... models have to be fully put together before dealing with parameters in the text and doc sections
 	for _, node := range []any{p.ImportSection, p.CSSSection, p.ModelSection, p.TextSection, p.DocSection,
 		p.EventSection} {
@@ -25,7 +24,6 @@ func (p *ProgramNode) FinalizeSemantics(path string) error {
 			log.Printf("nil found in FS list")
 			continue
 		}
-		log.Printf("xxx fs -- %T found in FS list %v", node, node == nil)
 		f, ok := node.(FSemantics)
 		if ok && node != nil {
 			if err := f.FinalizeSemantics(path); err != nil {

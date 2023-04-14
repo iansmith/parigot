@@ -60,11 +60,8 @@ func (d *DOMServer) elemById(id string) (js.Value, error) {
 
 func (d *DOMServer) elemByEitherId(parigotId, id string) (js.Value, error) {
 	trimmed := strings.TrimSpace(id)
-	log.Printf("elemByEitherId: %s,%s (trimmed %s)", parigotId, id, trimmed)
 	if trimmed != "" {
-		log.Printf("xxx?? --- %s", id)
 		result := d.doc.Call("getElementById", id)
-		log.Printf("xxx??? result %s", result.Get("id"))
 		if !result.IsNull() && !result.Truthy() {
 			return js.Undefined(), DOMInternalError
 		}
@@ -72,7 +69,6 @@ func (d *DOMServer) elemByEitherId(parigotId, id string) (js.Value, error) {
 	}
 
 	trimmed = strings.TrimSpace(parigotId)
-	log.Printf("xxx33 elemByEitherId: %s,%s (trimmed %s)", parigotId, id, trimmed)
 	if trimmed != "" {
 		result := d.doc.Call("querySelector", fmt.Sprintf("[%s=\"%s\"]", ParigotIdAttribute, trimmed))
 		if result.Truthy() {
@@ -104,7 +100,6 @@ func (d *DOMServer) ServerId() float64 {
 	sid := d.serverId
 	if _, ok := allDomServer[sid]; !ok {
 		allDomServer[sid] = d
-		log.Printf("full all DomServer %#v", allDomServer)
 	}
 	return sid
 }
@@ -201,6 +196,8 @@ func (d *DOMServer) ElementByEitherId(in *dommsg.ElementByEitherIdRequest) (*dom
 	return &dommsg.ElementByEitherIdResponse{Elem: elem}, nil
 }
 
+// setChildFirst takes the _root_ of a new tree and tries to place it in the DOM.  If returns
+// if it was successful.
 func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildResponse, error) {
 	var parigotId string
 	if in.ParigotId != nil {
@@ -211,9 +208,9 @@ func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildRespon
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("xxx setting the children of parent id=%s, %s", parent.Get("id"), lib.Unmarshal(in.Child[0].ParigotId))
 
 	replaced := d.removeAllChildren(parent)
+
 	var buf bytes.Buffer
 	for i := 0; i < len(in.Child); i++ {
 		element := in.Child[i]
@@ -221,13 +218,11 @@ func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildRespon
 		if id == nil {
 			panic(fmt.Sprintf("no parigot id for %+v (%d children, %s)", element.ParigotId, len(in.Child), element.Tag.Name))
 		}
-		log.Printf("xxx in loop to set children.... about to call elemByEither %v", id)
-		check, err := d.elemByEitherId(id.String(), element.Tag.Id)
-		if err != nil {
+		_, err := d.elemByEitherId(id.String(), element.Tag.Id)
+		// dom not found is what we expect since it should not be there
+		if err != nil && err != DOMNotFound {
+			// the "normal" bad case here is DOMAlreadyExists
 			return nil, err
-		}
-		if check.Truthy() {
-			return nil, DOMAlreadyPresent
 		}
 		buf.WriteString(toHtml(element))
 	}
@@ -235,7 +230,9 @@ func (d *DOMServer) SetChild(in *dommsg.SetChildRequest) (*dommsg.SetChildRespon
 	return &dommsg.SetChildResponse{
 		Replacements: int32(replaced),
 	}, nil
+
 }
+
 func (d *DOMServer) removeAllChildren(parent js.Value) int {
 	dropped := 0
 	for parent.Get("childElementCount").Int() > 0 {
@@ -246,7 +243,7 @@ func (d *DOMServer) removeAllChildren(parent js.Value) int {
 }
 
 // CreateElement will build a tree of elements, as described by the request.
-// This function returns the tree root.
+// This function returns the tree root as part of the response.
 func (d *DOMServer) CreateElement(in *dommsg.CreateElementRequest) (*dommsg.CreateElementResponse, error) {
 	var parent js.Value
 	if in.Parent != nil {
@@ -276,15 +273,13 @@ func (d *DOMServer) CreateElement(in *dommsg.CreateElementRequest) (*dommsg.Crea
 // createElementWithValue will build a tree of elements, as described by the request.
 func (d *DOMServer) createElementWithValue(in *dommsg.CreateElementRequest, createDOMElem bool) (*dommsg.CreateElementResponse, js.Value, error) {
 	resp := &dommsg.CreateElementResponse{}
-	id, v, err := d.createSingleElement(in.Root, createDOMElem)
+	_, v, err := d.createSingleElement(in.Root, createDOMElem)
 	if err != nil {
 		return resp, js.Null(), err
 	}
-	log.Printf("xxx created a singleElement %s", id.String())
 	resp.Root = in.Root
 	if len(in.Root.Child) > 0 {
 		for i := 0; i < len(in.Root.Child); i++ {
-			log.Printf("recurse on child %d", i)
 			recurseResp, c, err := d.createElementWithValue(&dommsg.CreateElementRequest{Root: in.Root.Child[i], Parent: in.Root}, createDOMElem)
 			if err != nil {
 				return nil, js.Null(), err
@@ -305,14 +300,11 @@ func (d *DOMServer) createSingleElement(element *dommsg.Element, createDOM bool)
 	pidStr := pid.String()
 	d.strId[pidStr] = pid
 	element.ParigotId = lib.Marshal[protosupportmsg.ElementId](pid)
-	log.Printf("created new element id %p -> %s", element, pid.String())
 	if element.Tag == nil {
 		element.Tag = &dommsg.Tag{Name: "span"}
-		//fmt.Printf("created fake SPAN node, it has %d child\n", len(element.Child))
 	}
 	result := d.doc.Call("createElement", element.Tag.Name)
 	if !result.Truthy() {
-		//fmt.Printf("createSingleElement: result.Truthy?? %v,%v\n", result.Truthy(), result)
 		return nil, js.Null(), DOMInternalError
 	}
 	if element.Tag.Id != "" {
@@ -346,16 +338,12 @@ func toHtml(e *dommsg.Element) string {
 		for _, clazz := range tag.GetCssClass() {
 			allClass.WriteString(clazz + " ")
 		}
-		txtVersion := strings.TrimSpace(allClass.String())
-		log.Printf("xxx to HTML %+v, %s", e, txtVersion)
 		t = fmt.Sprintf("<%s id=\"%s\" class=\"%s\">", tag.GetName(), tag.GetId(), allClass.String())
 		end = fmt.Sprintf("</%s>", tag.GetName())
 	}
 	inner := e.GetText()
 	if len(e.Child) > 0 {
 		child := &bytes.Buffer{}
-		log.Printf("xxx inner text: %s", inner)
-		log.Printf("xxx len(e.Child) %d", len(e.Child))
 		for _, c := range e.GetChild() {
 			child.WriteString(toHtml(c))
 		}
@@ -363,7 +351,6 @@ func toHtml(e *dommsg.Element) string {
 	}
 
 	result := fmt.Sprintf("%s%s%s", t, inner, end)
-	log.Printf("result of toHtml: %s", result)
 	return result
 }
 
