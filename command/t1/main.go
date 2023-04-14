@@ -52,28 +52,23 @@ func main() {
 		Root:   QueueMsgParent(mod),
 		Parent: resp.Elem,
 	}
-	log.Printf("xxx create")
 	_, err = svc.CreateElement(req)
 	if err != nil {
 		panic("failed to create element: " + err.Error())
 	}
-	log.Printf("xxx create 2")
 	elem := QueueMsgViewShort(mod, 0)
 	if elem == nil {
 		log.Fatalf("unable to create the initial short display")
 	}
-	dom.DumpElementTree(elem, 0)
 	setChildReq := &dommsg.SetChildRequest{
 		Id:        lib.Unmarshal(mod.Id).String(), // we just grab it from the already built msg object
 		ParigotId: elem.ParigotId,
 		Child:     []*dommsg.Element{elem},
 	}
-	log.Printf("setChildReq %s", setChildReq.Id)
 	_, err = svc.SetChild(setChildReq)
 	if err != nil {
-		log.Fatalf("unable to set child: %v", err)
+		log.Fatalf("unable to set child: %+v=> %v", setChildReq, err)
 	}
-
 	AddGlobalEvent(svc)
 	_ = <-exitChan
 }

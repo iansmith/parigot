@@ -50,13 +50,14 @@ func shortModel(model *queuemsg.QueueMsg) string {
 	var mid string
 	var size string
 	var result bytes.Buffer
-	qid = lib.Unmarshal(model.Id).String()
-	mid = lib.Unmarshal(model.MsgId).String()
+	qid = lib.Unmarshal(model.Id).Short()
+	mid = lib.Unmarshal(model.MsgId).Short()
 	size =
 		fmt.Sprint(sizeInBytes(model.Payload))
 
+	result.WriteString(`QueueId: `)
 	result.WriteString(fmt.Sprint(qid))
-	result.WriteString(`:`)
+	result.WriteString(`:Message Id: `)
 	result.WriteString(fmt.Sprint(mid))
 	result.WriteString(`:`)
 	result.WriteString(fmt.Sprint(size))
@@ -88,7 +89,7 @@ func QueueMsgView(model *queuemsg.QueueMsg, a int64) *dommsg.Element {
 	// number is 1
 	n1 :=
 		&dommsg.Element{Tag: &dommsg.Tag{
-			Name: "h4",
+			Name: "h5",
 		}, // end of tag with name,id,class
 
 			// tag part ended
@@ -100,7 +101,7 @@ func QueueMsgView(model *queuemsg.QueueMsg, a int64) *dommsg.Element {
 	// number is 2
 	n2 :=
 		&dommsg.Element{Tag: &dommsg.Tag{
-			Name: "h5",
+			Name: "h6",
 		}, // end of tag with name,id,class
 
 			// tag part ended
@@ -112,7 +113,7 @@ func QueueMsgView(model *queuemsg.QueueMsg, a int64) *dommsg.Element {
 	// number is 3
 	n3 :=
 		&dommsg.Element{Tag: &dommsg.Tag{
-			Name: "h5",
+			Name: "h6",
 		}, // end of tag with name,id,class
 
 			// tag part ended
@@ -124,7 +125,7 @@ func QueueMsgView(model *queuemsg.QueueMsg, a int64) *dommsg.Element {
 	// number is 0
 	result :=
 		&dommsg.Element{Tag: &dommsg.Tag{
-			Name: "h3",
+			Name: "h4",
 		}, // end of tag with name,id,class
 
 			// tag part ended
@@ -146,7 +147,7 @@ func QueueMsgViewShort(model *queuemsg.QueueMsg, a int64) *dommsg.Element {
 	// number is 0
 	result :=
 		&dommsg.Element{Tag: &dommsg.Tag{
-			Name: "h2",
+			Name: "h4",
 		}, // end of tag with name,id,class
 
 			// tag part ended

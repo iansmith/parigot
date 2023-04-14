@@ -126,12 +126,8 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 						panic(fmt.Sprintf("no message to search for field %s", currIdPart.Id))
 					}
 					currentField, ok := currMsg.Field[currIdPart.Id]
-					if !ok {
-						log.Printf("xxx -> failed to find protobuf field %s: %s", currIdPart.Id, e.String())
-					} else {
-						log.Printf("xxx -> found field %s-->%s, field is message? %v", currIdPart.Id, currentField.Name, currentField.Field.Message != nil)
+					if ok {
 						if currentField.Field.Message == nil {
-							log.Printf("xxx checking on location map[%s] %+v", currIdPart.Id, currMsg.Location[currIdPart.Id])
 							loc, ok := currMsg.Location[currIdPart.Id]
 							if !ok {
 								log.Printf("unable to find a protobuf field named '%s' in '%s'", currIdPart.Id, currMsg.Name)
@@ -146,26 +142,12 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 				}
 			}
 		} else {
-			//log.Printf("xxxx check var name gave a nil %s, %s", fname, ref.Id.String())
 			return false
 		}
 
-		// if formal != nil {
-		// 	log.Printf("xxx check var name %v, id %s", formal.Message != nil, ref.Id.String())
-		// }
 		if formal == nil {
 			return false
-		} else {
-			// might be a model reference
-			if formal.Message != nil {
-				if formal.Message != nil {
-					_ = fmt.Sprintf("xxx reference to model, name=%s, type=%s",
-						formal.Name, formal.Message.Name)
-
-				}
-			}
 		}
-
 	}
 	return true
 }

@@ -42,7 +42,6 @@ func (m *ModelDecl) FinalizeSemantics(filename string) error {
 			for _, field := range msg.Field {
 				if field.Field != nil {
 					if field.Field.TypeBase {
-						//log.Printf("xxx -- skipping %s bceasue its a type base", field.Field.Name)
 						continue
 					}
 					pbnode, mesg, err := m.FindMessageTypeByName(field.Field.Type)
@@ -129,9 +128,7 @@ func (m *ModelDecl) FindMessageTypeByName(n string) (*ProtobufFileNode, *Protobu
 		for _, msg := range file.Message {
 			if hasDot {
 				for _, imp := range file.Import {
-					//log.Printf("xxx -- reached import %s (%s) from %s [candidate =%s]--[len messages =%d]", imp.Filename, imp.PackageName, file.Filename, candidate, len(imp.Message))
 					for _, message := range imp.Message {
-						//log.Printf("xxx ---consider %s vs %s ", message.Name, candidate)
 						if message.Name == candidate {
 							//log.Printf("got a hit on message %s,%s", imp.Filename, msg.Name)
 							return imp, msg, nil

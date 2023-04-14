@@ -20,7 +20,6 @@ type DocSectionNode struct {
 
 func (s *DocSectionNode) FinalizeSemantics(path string) error {
 	if s == nil {
-		log.Printf("xxx -- docsection is nil")
 		return nil // no doc section, no errors
 	}
 	panic("FinalizeSemantics")
@@ -43,11 +42,9 @@ func (s *DocSectionNode) AttachViewToSection(view *ViewDecl) {
 		}
 		view.Section.Program.DocSection = s
 		s.Scope_.Brother = GProgram.TextSection.Scope_
-		log.Printf("fixed the doc section")
 	}
 	view.DocFn.Section = s
 	s.DocFunc = append(s.DocFunc, view.DocFn)
-	log.Printf("xxx got view to attach, %s,%d", view.DocFn.Name, len(s.DocFunc))
 }
 
 func (s *DocSectionNode) VarCheck(filename string) bool {
@@ -255,8 +252,10 @@ type DocElement struct {
 	Tag         *DocTag
 	TextContent []TextItem
 	Child       []*DocElement
+	Parent      *DocElement
 }
 
+/*
 func NewDocElementWithText(tag *DocTag, content []TextItem) *DocElement {
 	return &DocElement{
 		Tag: tag, TextContent: content,
@@ -266,21 +265,19 @@ func NewDocElementWithText(tag *DocTag, content []TextItem) *DocElement {
 func NewDocElementWithChild(child []*DocElement) *DocElement {
 	return &DocElement{Child: child}
 }
+*/
 
 func (e *DocElement) SetNumber(n int) int {
 	if e == nil {
 		return n
 	}
-	log.Printf("SetNumber %d: 1", n)
 	if e.TextContent == nil && len(e.Child) == 0 {
 		e.Number = n
 		return n + 1
 	}
 	e.Number = n
 	n++
-	log.Printf("SetNumber %d: 2", n)
 	for _, c := range e.Child {
-		log.Printf("SetNumber child %d: 3", n)
 		n = c.SetNumber(n)
 	}
 	return n
@@ -355,7 +352,7 @@ func ValidTag(tag string) bool {
 		"abbr", "address", "base", "blockquote", "body", "col", "head", "hr", "link", "meta", "noscript",
 		"object", "param", "progress", "q", "sub", "sup", "track", "var", "video", "wbr",
 
-		"h1", "h2", "h3", "h4", "h5", "title", "br",
+		"h1", "h2", "h3", "h4", "h5", "h6", "title", "br",
 		"strong", "em",
 		"a", "p", "span", "div",
 		"form", "input", "fieldset", "label", "keygen", "optgroup", "option", "textarea", "button",
