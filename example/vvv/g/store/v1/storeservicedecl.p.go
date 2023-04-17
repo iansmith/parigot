@@ -4,22 +4,22 @@
 package store
 
 import(
-    "example/vvv/g/msg/store/v1" 
+    storemsg "example/vvv/g/msg/store/v1" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  // id manipulation
-    "github.com/iansmith/parigot/g/msg/syscall/v1"  
+    "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiimpl/syscall"  // to get a callImpl
 
 
 )
 //
-// StoreService (from store/v1/store.proto)
+// StoreService from store/v1/store.proto
 //
 type StoreService interface { 
-    MediaTypesInStock()(*storemsg.MediaTypesInStockResponse, error)
-    BestOfAllTime(in *storemsg.BestOfAllTimeRequest)(*storemsg.BestOfAllTimeResponse, error)
-    Revenue(in *storemsg.RevenueRequest)(*storemsg.RevenueResponse, error)
+    MediaTypesInStock()(*storemsg.MediaTypesInStockResponse, error) // xxxx
+    BestOfAllTime(in *storemsg.BestOfAllTimeRequest)(*storemsg.BestOfAllTimeResponse, error) // xxxx
+    Revenue(in *storemsg.RevenueRequest)(*storemsg.RevenueResponse, error) // xxxx
     SoldItem(in *storemsg.SoldItemRequest)error 
 } 
 

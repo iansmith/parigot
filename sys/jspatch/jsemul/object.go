@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"unsafe"
 
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
@@ -628,6 +629,7 @@ func logJSConsoleMessage(s string) {
 //
 
 type objMap struct {
+	lock sync.Mutex
 	next int32
 	data map[int32]JsObject
 }
@@ -648,6 +650,8 @@ func (o *objMap) Put(obj JsObject) JsObject {
 	if t == TypeNumber || t == TypeUndefined {
 		panic("should not be putting numbers or undefined into the object map")
 	}
+	o.lock.Lock()
+	defer o.lock.Unlock()
 	obj.(*jsObj).n = o.next
 	o.next++
 	o.data[obj.Id()] = obj
@@ -656,6 +660,8 @@ func (o *objMap) Put(obj JsObject) JsObject {
 
 func (o *objMap) predefined(obj JsObject, expected int32) JsObject {
 	obj.(*jsObj).n = expected
+	o.lock.Lock()
+	defer o.lock.Unlock()
 	o.data[expected] = obj
 	if expected >= o.next {
 		o.next = expected + 1
@@ -667,6 +673,9 @@ func (o *objMap) Get(id int32) JsObject {
 	if id < 0 {
 		panic("attempt to get object from map that was never entered " + fmt.Sprint(id))
 	}
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
 	v, ok := o.data[id]
 	if !ok {
 		panic("unknown object id " + fmt.Sprint(id))

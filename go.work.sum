@@ -1,4 +1,6 @@
 github.com/BurntSushi/toml v1.1.0 h1:ksErzDEI1khOiGPgpwuI7x2ebx/uXQNw7xJpn9Eq1+I=
+github.com/bytecodealliance/wasmtime-go/v7 v7.0.0 h1:/rBNjgFju2HCZnkPb1eL+W4GBwP8DMbaQu7i+GR9DH4=
+github.com/bytecodealliance/wasmtime-go/v7 v7.0.0/go.mod h1:bu6fic7trDt20w+LMooX7j3fsOwv4/ln6j8gAdP6vmA=
 github.com/census-instrumentation/opencensus-proto v0.2.1 h1:glEXhBS5PSLLv4IXzLA5yPRVX4bilULVyxxbrfOtDAk=
 github.com/envoyproxy/protoc-gen-validate v0.1.0 h1:EQciDnbrYxy13PgWoY8AqoxGiPrpgBZ1R8UNe3ddc+A=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1 h1:QbL/5oDUmRBzO9/Z7Seo6zf912W/a6Sr4Eu0G/3Jho0=

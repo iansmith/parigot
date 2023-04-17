@@ -169,7 +169,7 @@ func (n *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	}
 
 	myProc := key.(*DepKeyImpl).proc
-	myProc.reachedRunBlock = true
+	myProc.SetReachedRunBlock(true)
 	myName := myProc.microservice.GetName()
 
 	chAny, ok := n.notify.Load(myName)
@@ -210,7 +210,8 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 // Require is used to inform the nameserver that a particular process
 // requires the given service.
 func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	return n.NSCore.Require(key, pkgPath, service)
+	id := n.NSCore.Require(key, pkgPath, service)
+	return id
 }
 
 // RunIfReady checks to see if any process is ready to run because all its

@@ -2,6 +2,7 @@ package lib
 
 import (
 	"bytes"
+	"fmt"
 )
 
 type perrorImpl struct {
@@ -33,7 +34,7 @@ func NewPerrorFromError(msg string, err error) *perrorImpl {
 // a value that is "no error" (IsError() returns false).
 func NewPerrorFromId(msg string, idv Id) *perrorImpl {
 	if idv.IsError() == false {
-		panic("unexpected usage of id; tried to use it as an error id but it contains no error")
+		panic(fmt.Sprintf("unexpected usage of id; tried to use it as an error id but it contains no error: %x,%x", idv.High(), idv.Low()))
 	}
 	return &perrorImpl{
 		message: msg + idv.Short(),

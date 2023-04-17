@@ -36,7 +36,7 @@ func EvaluateOneFile(f, pkg string, b *pbmodel.Pb3Builder) (*tree.ProtobufFileNo
 				log.Printf("    %s\n", s)
 			}
 			log.Printf("(maybe you need to check your PARIGOT_IMPORT_PATH?)")
-			os.Exit(1)
+			os.Exit(10)
 		}
 		pbmodel.AddImportEdge(f, found)
 		child, failedFile, ok := EvaluateOneFile(found, pkg, b)

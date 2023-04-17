@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	"github.com/iansmith/parigot/sys/backdoor"
 	"google.golang.org/protobuf/types/known/timestamppb"
