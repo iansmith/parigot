@@ -8,13 +8,14 @@ package store
 
 import (
 	"fmt"
-"example/vvv/g/msg/store/v1" 
+storemsg "example/vvv/g/msg/store/v1" 
 
 	os "os"
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/apiimpl/syscall"
+	"github.com/iansmith/parigot/apiimpl/background"
 	lib "github.com/iansmith/parigot/lib/go"
 	
 	"google.golang.org/protobuf/proto"
@@ -43,8 +44,9 @@ var revenueMethod lib.Id
 var soldItemMethod lib.Id 
 
 
-var storeServiceServerVerbose = false
+var storeServiceServerVerbose = true
 var storeServiceCall = syscall.NewCallImpl()
+var storeServiceBackground background.Background
 
 func RunStoreService(impl StoreServiceServer) {
 	// register all methods
@@ -57,10 +59,17 @@ func RunStoreService(impl StoreServiceServer) {
 		//
 		// wait for notification
 		//
-		resp, err := storeServiceBlockUntilCall()
+		resp, err := storeServiceBlockUntilCall(storeServiceBackground!=nil)
 		if err != nil {
 			// error is likely local to this process
 			storeServicePrint("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
+			continue
+		}
+		if resp.TimedOut{
+			if storeServiceBackground==nil {
+				continue
+			}
+			storeServiceBackground.Background()
 			continue
 		}
 		storeServicePrint("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
@@ -123,7 +132,7 @@ func RunStoreService(impl StoreServiceServer) {
 			panic("server failed to return value: "+e.Error())
 		}
 		if retresp.ExitAfterUse {
-			os.Exit(0)
+			os.Exit(2)
 		}
 		// about to loop again
 	}
@@ -175,16 +184,26 @@ func storeServiceBind(impl StoreServiceServer) (string, error) {
 	if !impl.Ready(){
 		panic("unable to start StoreService because it failed Ready() check")
 	}
+	var ok bool
+	storeServiceBackground, ok = impl.(background.Background)
+	if !ok {
+		print("StoreServiceServer not background\n")
+	}
 	return "",nil
 }
 
-func storeServiceBlockUntilCall() (*syscallmsg.BlockUntilCallResponse, error) {
 
+func storeServiceTimedOut()  {
+	print("storeServiceTimedOut()\n")
+}
+
+func storeServiceBlockUntilCall(canTimeout bool) (*syscallmsg.BlockUntilCallResponse, error) {
 	req := &syscallmsg.BlockUntilCallRequest{}
-	resp, err := storeServiceCall.BlockUntilCall(req)
+	resp, err := storeServiceCall.BlockUntilCall(req, canTimeout)
 	if err != nil {
 		return nil, err
 	}
+	
 	return resp, nil
 }
 

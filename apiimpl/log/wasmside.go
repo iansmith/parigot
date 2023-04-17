@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/iansmith/parigot/apiimpl/log/go_"
 	"github.com/iansmith/parigot/apiimpl/splitutil"
@@ -19,17 +20,21 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-
+	print("main of log xxx \n")
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
 	if _, err := callImpl.Export1("log", "LogService"); err != nil {
+		print("export1 of log main xxxx\n")
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
+	print("main of log about to run service xxx \n")
 	log.RunLogService(&myLogServer{})
 }
 
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
+	print("main, reached ready of log xxx \n")
+
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
@@ -57,7 +62,8 @@ func (m *myLogServer) Log(pctx *protosupportmsg.Pctx, inProto proto.Message) err
 		return nil
 	}
 	if req.Level == logmsg.LogLevel_LOG_LEVEL_FATAL {
-		callImpl.Exit(&syscallmsg.ExitRequest{Code: 7})
+		print(fmt.Sprintf("xxx -- FATAL FATAL FATAL --> %s\n", inProto.(*logmsg.LogRequest).Message))
+		//callImpl.Exit(&syscallmsg.ExitRequest{Code: 7})
 	}
 	return nil
 }

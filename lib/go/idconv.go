@@ -76,7 +76,7 @@ type AllId interface {
 // NoError() creates an id of the given type with the "error type" but with no error as the value.
 func NoError[T AllIdPtr]() Id {
 	var t T
-	letter := typeToLetter(t)
+	letter, _ := typeToLetter(t)
 	return newFromErrorCode(0, letter)
 }
 
@@ -89,7 +89,11 @@ func NoErrorMarshaled[T AllId, P AllIdPtr]() *T {
 // the low 16 bits of the low uint64 of the id.
 func NewError[T AllIdPtr](err uint16) Id {
 	var t T
-	letter := typeToLetter(t)
+	letter, ok := typeToLetter(t)
+	if ok {
+		return newFromErrorCode(uint64(err), letter)
+	}
+	log.Printf("created an error which is not associated with a type (%T), this is likely to be wrong", t)
 	return newFromErrorCode(uint64(err), letter)
 }
 
@@ -167,19 +171,57 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 	var h [8]byte
 	binary.LittleEndian.PutUint64(h[:], high)
 	var t T
-	log.Printf("xxxx --- abotu to do type to letter %T", t)
-	letter := typeToLetter(t)
-	if letter != h[7] {
-		panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
+
+	letter, ok := typeToLetter(t)
+	if ok {
+		print(fmt.Sprintf("xxxx --- 1 about to do type to letter %T\n", t))
+		if letter != h[7] {
+			panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
+		}
+		switch letter {
+		case 'k', 'Q', 'F':
+			if h[6] == 0 {
+				panic(fmt.Sprintf("xxx NewFrom64BitPair failed because bad high uint:%x,%x\n", high, low))
+			}
+		}
+		if h[6]&1 == 1 {
+			log.Printf("xxx -- byte 6 bit 1 is high %v", letter)
+			// this is an error so we need to create it with the error code
+			h[6] &= 0xfe
+			return newFromErrorCode(low, letter)
+		}
+		return idFromUint64Pair(high, low, letter)
 	}
-	if letter == 'k' && h[6] == 0 {
-		panic(fmt.Sprintf("xxx NewFrom64BitPair failed because bad high uint:%x,%x\n", high, low))
+	// this is the case where we did NOT get a letter we understood
+	if h[7] == 0 {
+		print("xxx should panic!!\n")
+		panic(fmt.Sprintf("unable to understand attempt to create Id from golang type %T", t))
 	}
+	print("converted from unknown type to '" + string([]byte{h[7]}) + "'\n")
+	return idFromUint64Pair(high, low, h[7])
+}
+
+// NewIdCopy is dangerous and most callers should use "NewFrom64BitPair".
+// This call does no checking of the validity of the values provided.  NewFrom64BitPair
+// does, and anytime you are not getting handed raw bits, you should probably use
+// the NewFrom64BitPair.
+func NewIdCopy(high, low uint64) Id {
+	return &IdBase{
+		h: high,
+		l: low,
+	}
+}
+
+// IdRepresentsError _only_ checks the error bit in the Id, it ignores the letter.  ;;
+func IdRepresentsError(high, _ uint64) bool {
+	var h [8]byte
+	binary.LittleEndian.PutUint64(h[:], high)
 	if h[6]&1 == 1 {
-		// this is an error so we need to create it with the error code
-		return newFromErrorCode(low, letter)
+		h[7] = 0
+		h[6] = 0
+		return !(binary.LittleEndian.Uint64(h[:]) == 0)
 	}
-	return idFromUint64Pair(high, low, letter)
+	return false
 }
 
 // newIdRand computes a new id for any given letter with the value drawn from the source of
@@ -238,9 +280,9 @@ func Marshal[T AllId](id Id) *T {
 	}
 	result := new(T)
 	asAny := interface{}(result)
-	letter := typeToLetter(asAny)
-	if highByte != letter {
-		panic("mismatched letters in id, type letter does not match the letter found")
+	letter, ok := typeToLetter(asAny)
+	if highByte != letter || !ok {
+		panic(fmt.Sprintf("mismatched letters in id, type letter does not match the letter found or could not understand type %T", result))
 	}
 	addInnerIdToType(asAny, inner)
 	return result
@@ -252,7 +294,10 @@ func Marshal[T AllId](id Id) *T {
 // NewError() or NoError().
 func NewId[T AllIdPtr]() Id {
 	var t T
-	letter := typeToLetter(t)
+	letter, ok := typeToLetter(t)
+	if !ok {
+		log.Printf("unexpected type provided to NewId (T%), that is likely an mistake", t)
+	}
 	return newIdRand(letter)
 }
 
@@ -262,7 +307,10 @@ func NewId[T AllIdPtr]() Id {
 // always use NewId().
 func LocalId[T AllIdPtr](v uint64) Id {
 	var t T
-	letter := typeToLetter(t)
+	letter, ok := typeToLetter(t)
+	if !ok {
+		panic(fmt.Sprintf("unable to understand call to LocalId because it contains a bad type %T", t))
+	}
 	return idFromUint64Pair(0, v, letter)
 }
 
@@ -336,41 +384,47 @@ func typeToInnerId(i interface{}) *protosupportmsg.BaseId {
 }
 
 // typeToLetter returns the single ascii character (as a byte) that represents a given type of id.
-func typeToLetter(i interface{}) byte {
-	switch i.(type) {
+func typeToLetter(i interface{}) (byte, bool) {
+	switch t := i.(type) {
 	case *protosupportmsg.CallId:
-		return callIdLetter
+		return callIdLetter, true
 	case *protosupportmsg.DBConnId:
-		return dbConnIdLetter
+		return dbConnIdLetter, true
 	case *protosupportmsg.DBIOId:
-		return dbIOIdLetter
+		return dbIOIdLetter, true
 	case *protosupportmsg.FileId:
-		return fileIdLetter
+		return fileIdLetter, true
 	case *protosupportmsg.FileErrorId:
-		return fileErrorIdLetter
+		return fileErrorIdLetter, true
 	case *protosupportmsg.FileIOId:
-		return fileIOIdLetter
+		return fileIOIdLetter, true
 	case *protosupportmsg.MethodId:
-		return methodIdLetter
+		return methodIdLetter, true
 	case *protosupportmsg.ServiceId:
-		return serviceIdLetter
+		return serviceIdLetter, true
 	case *protosupportmsg.KernelErrorId:
-		return kernelErrorIdLetter
+		return kernelErrorIdLetter, true
 	case *protosupportmsg.QueueErrorId:
-		return queueErrorIdLetter
+		return queueErrorIdLetter, true
 	case *protosupportmsg.QueueId:
-		return queueIdLetter
+		return queueIdLetter, true
 	case *protosupportmsg.QueueMsgId:
-		return queueMsgLetter
+		return queueMsgLetter, true
 	case *protosupportmsg.TestErrorId:
-		return testErrorIdLetter
+		return testErrorIdLetter, true
 	case *protosupportmsg.ElementId:
-		return elementIdLetter
+		return elementIdLetter, true
 	case *protosupportmsg.BaseId:
-		log.Printf("xxx got a call on BaseId")
+		if t == nil {
+			print(fmt.Sprintf("t is nil!\n"))
+		}
+		var h [8]byte
+		binary.LittleEndian.PutUint64(h[:], t.High)
+		l := (h[7])
+		print(fmt.Sprintf("converted unknown type of id to '%c'\n", l))
+		return l, true
 	}
 	log.Printf("uknown id type %T", i)
 	debug.PrintStack()
-	//return '?'
-	panic("unknown id type:")
+	return '?', false
 }

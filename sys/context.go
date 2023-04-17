@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
 	"github.com/iansmith/parigot/command/runner/runner"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
@@ -22,7 +22,7 @@ type DeployContext struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
+var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration

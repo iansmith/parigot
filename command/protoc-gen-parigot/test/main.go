@@ -55,7 +55,7 @@ func main() {
 	}
 	if testBuffer == nil { // useful for debugging, just dump it
 		_ = readUntilEOFOrNextFile(outBuffer, true)
-		os.Exit(0)
+		os.Exit(3)
 	}
 	var currentTestLine, currentOutLine string
 	for {
@@ -64,7 +64,7 @@ func main() {
 			//off chance of perfect sync
 			_, ok := nextNonBlankLine(testBuffer)
 			if !ok {
-				os.Exit(0)
+				os.Exit(1)
 			}
 			log.Fatalf("unexpected eof in output buffer after line %s", currentOutLine)
 		}
@@ -72,7 +72,7 @@ func main() {
 		nextTest, ok := nextNonBlankLine(testBuffer)
 		if !ok {
 			// all the lines matched until eof of test file
-			os.Exit(0)
+			os.Exit(4)
 		}
 		currentTestLine = nextTest
 		if strings.TrimSpace(currentOutLine) != strings.TrimSpace(currentTestLine) {
@@ -81,7 +81,7 @@ func main() {
 			log.Printf("%s", currentOutLine)
 			log.Printf("test:")
 			log.Printf("%s", currentTestLine)
-			os.Exit(1)
+			os.Exit(7)
 		}
 		// line is ok
 	}

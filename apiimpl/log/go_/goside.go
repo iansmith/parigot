@@ -5,8 +5,10 @@ package go_
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -106,7 +108,28 @@ var logChannel = make(chan *logTuple, 32)
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
 func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, isJS bool, buffer []byte) {
 	tuple := &logTuple{buffer, req, isKernel, isBackend, isJS}
+	myW.Write([]byte(req.Message))
 	logChannel <- tuple
+}
+
+var myW = myWriter{os.Stdout}
+
+type myWriter struct {
+	io.Writer
+}
+
+func (m *myWriter) Write(p []byte) (n int, err error) {
+	n, err = m.Writer.Write(p)
+
+	if flusher, ok := m.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
+	} else if syncer := m.Writer.(interface{ Sync() error }); ok {
+		// Preserve original error
+		if err2 := syncer.Sync(); err2 != nil && err == nil {
+			err = err2
+		}
+	}
+	return
 }
 
 // channelProcessor is started by the init() function on its own goroutine. Its job is to take each

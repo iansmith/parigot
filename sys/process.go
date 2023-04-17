@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	fileimpl "github.com/iansmith/parigot/apiimpl/file/go_"
 	logimpl "github.com/iansmith/parigot/apiimpl/log/go_"
@@ -12,7 +13,7 @@ import (
 	"github.com/iansmith/parigot/sys/dep"
 	"github.com/iansmith/parigot/sys/jspatch"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -38,13 +39,15 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false || envVerbose != ""
+var processVerbose = true || envVerbose != ""
 
 var lastProcessId = 7
 
 type Process struct {
 	id   int
 	path string
+
+	lock sync.Mutex
 
 	module       *wasmtime.Module
 	linkage      []wasmtime.AsExtern
@@ -139,11 +142,17 @@ func (p *Process) IsServer() bool {
 }
 
 func (p *Process) Exit() {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	print(fmt.Sprintf("process %s exiting\n", p))
 	p.exited = true
 }
 
 func (p *Process) String() string {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	dir, file := filepath.Split(p.path)
 	if dir == "" {
 		dir = "."
@@ -152,14 +161,34 @@ func (p *Process) String() string {
 	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
 }
 
+func (p *Process) SetReachedRunBlock(r bool) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.reachedRunBlock = r
+}
+
 func (p *Process) ReachedRunBlock() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	return p.reachedRunBlock
 }
 func (p *Process) Running() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	return p.running
 }
 
+func (p *Process) SetExited(e bool) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	p.exited = e
+}
 func (p *Process) Exited() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
 	return p.exited
 }
 
@@ -191,11 +220,17 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 }
 
 func (p *Process) SetExitCode(code int) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	p.exitCode_ = code
 	p.exited = true
 }
 
 func (p *Process) ExitCode() int {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
 	return p.exitCode_
 }
 
@@ -209,10 +244,15 @@ func (p *Process) Run() {
 func (p *Process) Start() (code int) {
 	procPrint("START ", "we have been loaded/started by the runner: %s", p)
 	var err error
+	procPrint("START", "start of args  %s", p)
 	startOfArgs := wasmStartAddr + int32(0)
 	if p == nil {
 		panic("process is nil!")
 	}
+	// p.lock.Lock()
+	// defer p.lock.Unlock()
+
+	procPrint("START", "get buffer from args and env  %s", p)
 	p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
 	if err != nil {
 		code = int(ExitCodeArgsTooLarge)
@@ -220,19 +260,26 @@ func (p *Process) Start() (code int) {
 	}
 	p.argc = int32(len(p.microservice.GetArg()))
 
+	procPrint("START", "create wasm mem %s", p)
+
 	wasmMem := jspatch.NewWasmMem(p.memPtr)
 	wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
 	wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
 
+	procPrint("START", "get export %s", p)
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
 		p.SetExitCode(int(ExitCodeNoStartSymbol))
 		return p.ExitCode()
 	}
+	procPrint("START", "defer %s", p)
 
 	defer func(proc *Process) {
-		if r := recover(); r != nil {
+		r := recover()
+		if r != nil {
+			procPrint("START ******** ", "INSIDE defer %s, %+v", proc, r)
 			e, ok := r.(*syscallmsg.ExitRequest)
+			procPrint("START ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
 			if ok {
 				code = int(e.GetCode())
 				proc.SetExitCode(code)
@@ -244,7 +291,9 @@ func (p *Process) Start() (code int) {
 			}
 		}
 	}(p)
+	procPrint("START", "getting start func %s", p)
 	f := start.Func()
+	procPrint("START", "calling start func %s", p)
 	result, err := f.Call(p.parent, p.argc, p.argv)
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 
@@ -255,11 +304,14 @@ func (p *Process) Start() (code int) {
 	}
 	if result == nil {
 		procPrint("END ", "process %s finished (exit code %d)", p, p.ExitCode())
-		p.exited = true
+		p.SetExited(true)
 		return p.ExitCode()
 
 	}
 	procPrint("END ", "process %s finished normally: %+v", p, result)
+	procPrint("END ", "going to sleep now")
+	ch := make(chan struct{})
+	<-ch
 	return p.ExitCode()
 }
 

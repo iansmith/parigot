@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	fyne.io/fyne/v2 v2.3.0
-	github.com/bytecodealliance/wasmtime-go/v3 v3.0.2
+	github.com/bytecodealliance/wasmtime-go/v7 v7.0.0
 	github.com/lucas-clemente/quic-go v0.30.0
 	github.com/onsi/ginkgo/v2 v2.2.0
 	github.com/onsi/gomega v1.20.1

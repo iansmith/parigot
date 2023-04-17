@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var nscoreVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
+var nscoreVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NScore is used by both the local and remote (net) name server implementations
 // to manage all the dependencies and handle require, export, and runWait.
@@ -393,15 +393,18 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 	g := GetGID()
 	serviceId := n.newServiceId()
 	nscorePrint("Require ", "about to enter lock region %x", g)
+	// this func is here just so we can use defer
 	lockRegion := func(sid lib.Id) lib.Id {
 		n.lock.Lock()
 		defer n.lock.Unlock()
 
 		// we create the namespaces if they are not there yet because the exporter
 		// may not have registered yet
+		print(fmt.Sprintf("xxxx --- lockRegion 1\n"))
 		n.CreateWithSid(key, pkgPath, service, sid)
 		//n.create(key, pkgPath, service)
 		nscorePrint("require.lockRegion ", "%s.%s for %s, on gid %x", pkgPath, service, key.String(), g)
+		print(fmt.Sprintf("xxxx --- lockRegion 2\n"))
 
 		node, ok := n.dependencyGraph_.GetEdge(key)
 		if !ok {
@@ -409,10 +412,12 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 			n.dependencyGraph_.PutEdge(key, node)
 			nscorePrint("require.lockRegion ", "added edge holder for %s on gid %x", key.String(), g)
 		}
+		print(fmt.Sprintf("xxxx --- lockRegion 3\n"))
 		nscorePrint("Require", "process %s did a require for %s.%s and already exported? %v (gid %x)",
 			key.String(), pkgPath, service, alreadyExported, g)
 		if !alreadyExported {
 			found := false
+			print(fmt.Sprintf("xxxx --- lockRegion 4\n"))
 			nscorePrint("lockRegion ", "about to hit the search for already exported on require list, on gid %x", g)
 			node.WalkRequire(func(s string) bool {
 				if s == name {
@@ -422,12 +427,14 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 				return true
 			})
 			if found {
+				print(fmt.Sprintf("xxxx --- lockRegion 5\n"))
 				nscorePrint("Require ", "%s already required the service %s, error RET", key.String(), name)
 				return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
 			}
 			nscorePrint("Require ", "%s about to add require %s", key.String(), name)
 			node.AddRequire(name)
 		}
+		print(fmt.Sprintf("xxxx --- lockRegion 6\n"))
 		nscorePrint("Require ", "process %s  NORMAL RET %x", key.String(), GetGID())
 		return nil
 	}

@@ -2,12 +2,11 @@ package sys
 
 import (
 	"fmt"
-	"runtime/debug"
 
 	filego "github.com/iansmith/parigot/apiimpl/file/go_"
 	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v3"
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
@@ -30,33 +29,33 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 	result["go.syscall/js.valueInstanceOf"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueInstanceOf)
 	result["go.syscall/js.copyBytesToGo"] = wasmtime.WrapFunc(store, rt.jsEnv.CopyBytesToGo)
 	result["go.syscall/js.copyBytesToJS"] = wasmtime.WrapFunc(store, rt.jsEnv.CopyBytesToJS)
-	result["go.runtime.resetMemoryDataView"] = wrapWithRecover(store, rt.runtimeEnv.ResetMemoryDataView)
-	result["go.runtime.wasmExit"] = wrapWithRecover(store, rt.wasiEnv.WasiExit)
-	result["go.runtime.wasmWrite"] = wrapWithRecover(store, rt.wasiEnv.WasiWrite)
-	result["go.runtime.nanotime1"] = wrapWithRecover(store, rt.runtimeEnv.Nanotime1)
-	result["go.runtime.walltime"] = wrapWithRecover(store, rt.runtimeEnv.WallTime)
-	result["go.runtime.scheduleTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ScheduleTimeoutEvent)
-	result["go.runtime.clearTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ClearTimeoutEvent)
+	result["go.runtime.resetMemoryDataView"] = wrapWithRecover(store, rt.runtimeEnv.ResetMemoryDataView, "ResetMemoryDataView")
+	result["go.runtime.wasmExit"] = wrapWithRecover(store, rt.wasiEnv.WasiExit, "WasiExit")
+	result["go.runtime.wasmWrite"] = wrapWithRecover(store, rt.wasiEnv.WasiWrite, "WasiWrite")
+	result["go.runtime.nanotime1"] = wrapWithRecover(store, rt.runtimeEnv.Nanotime1, "Nanotime1")
+	result["go.runtime.walltime"] = wrapWithRecover(store, rt.runtimeEnv.WallTime, "WallTime")
+	result["go.runtime.scheduleTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ScheduleTimeoutEvent, "ScheduleTimeoutEvent")
+	result["go.runtime.clearTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ClearTimeoutEvent, "ClearTimeoutEvent")
 	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, rt.runtimeEnv.GetRandomData)
 	//result["parigot.debugprint"] = wrapWithRecover(store, rt.syscall.DebugPrint)
-	result["go.debug"] = wrapWithRecover(store, rt.runtimeEnv.GoDebug)
+	result["go.debug"] = wrapWithRecover(store, rt.runtimeEnv.GoDebug, "GoDebug")
 
 	//system calls
-	result["go.parigot.locate_"] = wrapWithRecover(store, rt.syscall.Locate)
-	//result["go.parigot.register_"] = wrapWithRecover(store, rt.syscall.Register)
+	result["go.parigot.locate_"] = wrapWithRecover(store, rt.syscall.Locate, "Locate")
+	//result["go.parigot.register_"] = wrapWithRecover(store, rt.syscall.Register,"Register")
 	// xxx fix me: How are we going to clean up the resources for a particular service when it exits?
 	// how do we find the resources associated with the caller of exit().
-	result["go.parigot.exit_"] = wrapWithRecover(store, rt.syscall.Exit)
-	result["go.parigot.dispatch_"] = wrapWithRecover(store, rt.syscall.Dispatch)
-	result["go.parigot.bind_method_"] = wrapWithRecover(store, rt.syscall.BindMethod)
-	result["go.parigot.return_value_"] = wrapWithRecover(store, rt.syscall.ReturnValue)
-	result["go.parigot.block_until_call_"] = wrapWithRecover(store, rt.syscall.BlockUntilCall)
-	result["go.parigot.require_"] = wrapWithRecover(store, rt.syscall.Require)
-	result["go.parigot.export_"] = wrapWithRecover(store, rt.syscall.Export)
-	result["go.parigot.run_"] = wrapWithRecover(store, rt.syscall.Run)
+	result["go.parigot.exit_"] = wrapWithRecover(store, rt.syscall.Exit, "Exit")
+	result["go.parigot.dispatch_"] = wrapWithRecover(store, rt.syscall.Dispatch, "Dispatch")
+	result["go.parigot.bind_method_"] = wrapWithRecover(store, rt.syscall.BindMethod, "BindMethod")
+	result["go.parigot.return_value_"] = wrapWithRecover(store, rt.syscall.ReturnValue, "ReturnValue")
+	result["go.parigot.block_until_call_"] = wrapWithRecover(store, rt.syscall.BlockUntilCall, "BlockUntilCall")
+	result["go.parigot.require_"] = wrapWithRecover(store, rt.syscall.Require, "Require")
+	result["go.parigot.export_"] = wrapWithRecover(store, rt.syscall.Export, "Export")
+	result["go.parigot.run_"] = wrapWithRecover(store, rt.syscall.Run, "Run")
 
 	//backdoor to the logger
-	result["go.parigot.backdoor_log_"] = wrapWithRecover(store, rt.syscall.BackdoorLog)
+	result["go.parigot.backdoor_log_"] = wrapWithRecover(store, rt.syscall.BackdoorLog, "BackdoorLog")
 }
 
 func addSplitModeFunctions(store wasmtime.Storelike,
@@ -65,20 +64,20 @@ func addSplitModeFunctions(store wasmtime.Storelike,
 	fileSvc *filego.FileSvcImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	result["go.logviewer.log_request_handler"] = wrapWithRecover(store, logViewer.LogRequestHandler)
+	result["go.logviewer.log_request_handler"] = wrapWithRecover(store, logViewer.LogRequestHandler, "LogRequestHandler")
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	result["go.filesvc.open"] = wrapWithRecover(store, fileSvc.FileSvcOpen)
-	result["go.filesvc.load"] = wrapWithRecover(store, fileSvc.FileSvcLoad)
+	result["go.filesvc.open"] = wrapWithRecover(store, fileSvc.FileSvcOpen, "FileSvcOpen")
+	result["go.filesvc.load"] = wrapWithRecover(store, fileSvc.FileSvcLoad, "FileSvcLoad")
 
 }
 
-func wrapWithRecover(store wasmtime.Storelike, fn func(int32)) *wasmtime.Func {
+func wrapWithRecover(store wasmtime.Storelike, fn func(int32), name string) *wasmtime.Func {
 	return wasmtime.WrapFunc(store, func(sp int32) {
 		defer func() {
 			if r := recover(); r != nil {
-				print(fmt.Sprintf("aborting due to panic: %v\n", r))
-				debug.PrintStack()
-				print("END RECOVER+STACKTRACE\n")
+				print("START RECOVER STACKTRACE " + name + "\n")
+				print(fmt.Sprintf("trapped panic: %s %v (%T)\n", name, r, r))
+				print("END RECOVER+STACKTRACE" + name + "\n")
 			}
 		}()
 		fn(sp)

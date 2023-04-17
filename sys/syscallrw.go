@@ -22,7 +22,7 @@ import (
 // Flip this switch for debug output.
 var envVerbose = os.Getenv("PARIGOT_VERBOSE")
 
-var syscallVerbose = false || envVerbose != ""
+var syscallVerbose = true || envVerbose != ""
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
