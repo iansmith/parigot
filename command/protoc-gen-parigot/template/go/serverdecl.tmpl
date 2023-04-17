@@ -171,7 +171,7 @@ you would have a method with no input or output, which is checked elsewhere */}}
 			panic("server failed to return value: "+e.Error())
 		}
 		if retresp.ExitAfterUse {
-			os.Exit(0)
+			os.Exit(2)
 		}
 		// about to loop again
 	}

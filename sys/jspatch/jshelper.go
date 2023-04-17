@@ -2,6 +2,7 @@ package jspatch
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"unsafe"
 
@@ -26,28 +27,17 @@ func (j *JSPatch) SetMemPtr(m uintptr) {
 	j.mem = NewWasmMem(m)
 }
 
-const jsEmulVerbose = false
+const jsEmulVerbose = true
 
-func enter(funcName string, rest ...string) {
-	if !jsEmulVerbose {
-		return
+func jsLog(spec string, x ...interface{}) {
+	if jsEmulVerbose {
+		s := fmt.Sprintf(spec, x...)
+		log.Printf(s)
 	}
-	result := ""
-	for i, s := range rest {
-		result += s
-		if i != len(rest)-1 {
-			result += ","
-		}
-	}
-	// if len(rest) > 0 {
-	// 	log.Printf("---- entering  %s ---- [%s]", funcName, result)
-	// } else {
-	// 	log.Printf("---- entering %s ----", funcName)
-	// }
 }
 
 func (j *JSPatch) ValueIndex(sp int32) {
-	enter("ValueIndex")
+	jsLog("ValueIndex")
 	index := j.mem.GetInt64(sp + 16)
 	value := j.mem.LoadValue(sp + 8)
 	result := value.Index(int(index))
@@ -56,7 +46,7 @@ func (j *JSPatch) ValueIndex(sp int32) {
 }
 
 func (j *JSPatch) ValueSetIndex(sp int32) {
-	enter("ValueSetIndex")
+	jsLog("ValueSetIndex")
 	index := j.mem.GetInt64(sp + 16)
 	value := j.mem.LoadValue(sp + 8)
 	newValue := j.mem.LoadValue(sp + 24)
@@ -64,7 +54,7 @@ func (j *JSPatch) ValueSetIndex(sp int32) {
 }
 
 func (j *JSPatch) ValueLoadString(sp int32) {
-	enter("ValueLoadIndex")
+	jsLog("ValueLoadIndex")
 	str := j.mem.LoadValue(sp + 8)
 	slice := j.mem.LoadSlice(sp + 16)
 	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
@@ -75,14 +65,14 @@ func (j *JSPatch) ValueLoadString(sp int32) {
 }
 
 func (j *JSPatch) ValueLength(sp int32) {
-	enter("ValueLength")
+	jsLog("ValueLength")
 	v := j.mem.LoadValue(sp + 8)
 	l := v.Length()
 	j.mem.SetInt64(sp+16, int64(l))
 }
 
 func (j *JSPatch) ValueInstanceOf(sp int32) {
-	enter("ValueInstanceOf")
+	jsLog("ValueInstanceOf")
 	example := j.mem.LoadValue(sp + 16)
 	candidate := j.mem.LoadValue(sp + 8)
 	if example.InstanceOf(candidate) {
@@ -97,13 +87,13 @@ func (j *JSPatch) ValuePrepareString(sp int32) {
 }
 
 func (j *JSPatch) FinalizeRef(sp int32) {
-	enter("FinalizeRef")
+	jsLog("FinalizeRef")
 	panic("finalize not implemented (multiple encodings)")
 }
 
 //go:noinline
 func (j *JSPatch) ValueCall(sp int32) {
-	enter("ValueCall")
+	jsLog("ValueCall")
 	// can go switch the stack on us here?
 	inst := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
@@ -114,14 +104,14 @@ func (j *JSPatch) ValueCall(sp int32) {
 }
 
 func (j *JSPatch) StringVal(sp int32) {
-	enter("StringVal")
+	jsLog("StringVal")
 	s := j.mem.LoadString(sp + 8)
 	obj := jsemul.GoToJS(s)
 	j.mem.StoreValue(sp+24, obj)
 }
 
 func (j *JSPatch) ValueGet(sp int32) {
-	enter("ValueGet")
+	jsLog("ValueGet")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	v := value.Get(prop)
@@ -129,7 +119,7 @@ func (j *JSPatch) ValueGet(sp int32) {
 }
 
 func (j *JSPatch) ValueInvoke(sp int32) {
-	enter("ValueInvoke")
+	jsLog("ValueInvoke")
 	// can go switch the stack on us here?
 	callee := j.mem.LoadValue(sp + 8)
 	args := j.mem.LoadSliceOfValues(sp + 16)
@@ -137,9 +127,10 @@ func (j *JSPatch) ValueInvoke(sp int32) {
 	j.mem.StoreValue(sp+40, jsemul.GoToJS(result))
 	j.mem.SetUint8(sp+48, 1)
 }
+
 func (j *JSPatch) ValueNew(sp int32) {
 	// can go switch the stack on us here?
-	enter("ValueNew")
+	jsLog("ValueNew")
 	v := j.mem.LoadValue(sp + 8)
 	if !v.IsClassObject() {
 		panic(fmt.Sprintf("attempt to call valueNew() on something that is not a class, %s", v))
@@ -153,7 +144,7 @@ func (j *JSPatch) ValueNew(sp int32) {
 	j.mem.SetUint8(sp+48, 1) // should we be setting just 1 byte? on a stack?
 }
 func (j *JSPatch) ValueSet(sp int32) {
-	enter("ValueSet")
+	jsLog("ValueSet")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	newPropVal := j.mem.LoadValue(sp + 32)
@@ -161,7 +152,7 @@ func (j *JSPatch) ValueSet(sp int32) {
 }
 
 func (j *JSPatch) ValueDelete(sp int32) {
-	enter("ValueDelete")
+	jsLog("ValueDelete")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	value.Delete(prop)

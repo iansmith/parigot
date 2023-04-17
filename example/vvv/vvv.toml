@@ -10,22 +10,22 @@ SearchDir=["./build",
     "../../build"]  # location of the parigot source
 
 [microservice.client]
-Path="build/storeclient.p.wasm"
+Path="example/vvv/build/storeclient.p.wasm"
 Main=true
 Arg=["storeclient.p.wasm"]
 Env=[]
 
 [microservice.storeserver]
-Path="build/server.p.wasm"
+Path="example/vvv/build/server.p.wasm"
 Arg=["server.p.wasm"]
 Env=[]
 
 [microservice.log]
-Path="../../build/log.p.wasm"
+Path="build/log.p.wasm"
 Arg=["log.p.wasm"]
 Env=[]
 
 [microservice.file]
-Path="../../build/file.p.wasm"
+Path="build/file.p.wasm"
 Arg=["file.p.wasm"]
 Env=[]

@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apiimpl/netconst"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 
@@ -54,8 +53,8 @@ func NewSinglePayload() *SinglePayload {
 }
 
 func IsErrorInSinglePayload(ptr *SinglePayload) bool {
-	errRtn := lib.NewFrom64BitPair[*protosupportmsg.BaseId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
-	return errRtn.IsError()
+	errRtn := lib.IdRepresentsError(uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+	return errRtn
 }
 
 // This is the top level entry point for the WASM side.  It sends the proto given and fills in the resp
@@ -71,15 +70,17 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	if callImpl == nil {
 		callImpl = c
 	}
+	print(fmt.Sprintf("xxx SendRecieveSingleProto -> %#v\n", req))
 	u, id, detail := SendSingleProto(req)
 	if id != nil {
 		return false, id, detail
 	}
 	fn(int32(u))
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
+	print(fmt.Sprintf("xxx --- send receive single proto %0x,%0x\n", ptr.ErrPtr[0], ptr.ErrPtr[1]))
 	// check to see if this is an returned error
 	if IsErrorInSinglePayload(ptr) {
-		errRtn := lib.NewFrom64BitPair[*protosupportmsg.BaseId](uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
+		errRtn := lib.NewIdCopy(uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
 		return true, errRtn, ""
 	}
 	// if they returned nothing, we are done

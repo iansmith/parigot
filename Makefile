@@ -58,7 +58,8 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 # launch a deployment based on a config file with runner
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SPLIT_UTIL)
+LIB_SRC=$(shell find lib -type f -regex ".*\.go")
+build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SPLIT_UTIL) $(LIB_SRC)
 	rm -f $@
 	go build -o $@ github.com/iansmith/parigot/command/runner
 

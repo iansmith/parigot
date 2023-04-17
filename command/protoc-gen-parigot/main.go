@@ -64,14 +64,26 @@ func main() {
 	// generate code, at this point language neutral
 	file, err := generateNeutral(info, genReq, importToPackageMap)
 
+	seen := make(map[string]struct{})
+	// clean up the list of files?
+	outFile := []*util.OutputFile{}
+	for _, f := range file {
+		_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
+		if foundIt {
+			continue
+		}
+		seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
+		outFile = append(outFile, f)
+	}
+
 	// set up the response going back out stdout to the protocol buffers compiler
 	// response with an error filled in or a set of output files
 	if err != nil {
 		resp.Error = new(string)
 		*resp.Error = err.Error()
 	} else {
-		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(file))
-		for i, f := range file {
+		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
+		for i, f := range outFile {
 			resp.File[i] = f.ToGoogleCGResponseFile()
 		}
 	}
