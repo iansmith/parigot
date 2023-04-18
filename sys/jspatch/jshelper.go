@@ -87,13 +87,13 @@ func (j *JSPatch) ValuePrepareString(sp int32) {
 }
 
 func (j *JSPatch) FinalizeRef(sp int32) {
-	jsLog("FinalizeRef")
+	//jsLog("FinalizeRef")
 	panic("finalize not implemented (multiple encodings)")
 }
 
 //go:noinline
 func (j *JSPatch) ValueCall(sp int32) {
-	jsLog("ValueCall")
+	//jsLog("ValueCall")
 	// can go switch the stack on us here?
 	inst := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
@@ -104,14 +104,14 @@ func (j *JSPatch) ValueCall(sp int32) {
 }
 
 func (j *JSPatch) StringVal(sp int32) {
-	jsLog("StringVal")
+	//jsLog("StringVal")
 	s := j.mem.LoadString(sp + 8)
 	obj := jsemul.GoToJS(s)
 	j.mem.StoreValue(sp+24, obj)
 }
 
 func (j *JSPatch) ValueGet(sp int32) {
-	jsLog("ValueGet")
+	//jsLog("ValueGet")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	v := value.Get(prop)
@@ -119,7 +119,7 @@ func (j *JSPatch) ValueGet(sp int32) {
 }
 
 func (j *JSPatch) ValueInvoke(sp int32) {
-	jsLog("ValueInvoke")
+	//jsLog("ValueInvoke")
 	// can go switch the stack on us here?
 	callee := j.mem.LoadValue(sp + 8)
 	args := j.mem.LoadSliceOfValues(sp + 16)
@@ -130,7 +130,7 @@ func (j *JSPatch) ValueInvoke(sp int32) {
 
 func (j *JSPatch) ValueNew(sp int32) {
 	// can go switch the stack on us here?
-	jsLog("ValueNew")
+	//jsLog("ValueNew")
 	v := j.mem.LoadValue(sp + 8)
 	if !v.IsClassObject() {
 		panic(fmt.Sprintf("attempt to call valueNew() on something that is not a class, %s", v))
@@ -144,7 +144,7 @@ func (j *JSPatch) ValueNew(sp int32) {
 	j.mem.SetUint8(sp+48, 1) // should we be setting just 1 byte? on a stack?
 }
 func (j *JSPatch) ValueSet(sp int32) {
-	jsLog("ValueSet")
+	//jsLog("ValueSet")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	newPropVal := j.mem.LoadValue(sp + 32)
@@ -152,7 +152,7 @@ func (j *JSPatch) ValueSet(sp int32) {
 }
 
 func (j *JSPatch) ValueDelete(sp int32) {
-	jsLog("ValueDelete")
+	//jsLog("ValueDelete")
 	value := j.mem.LoadValue(sp + 8)
 	prop := j.mem.LoadString(sp + 16)
 	value.Delete(prop)
