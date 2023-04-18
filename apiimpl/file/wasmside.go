@@ -20,14 +20,22 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	print("FILE FILE FILE main\n")
+	print("FILE FILE FILE main1\n")
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
 	if _, err := callImpl.Export1("file", "FileService"); err != nil {
-		panic("ready: error in attempt to export api.Log: " + err.Error())
+		print("FILE FILE FILE export file" + err.Error() + "\n")
+		for i := 0; i < 15; i++ {
+			print("\n")
+		}
 	}
+	print("FILE FILE FILE main2\n")
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("ready: error in attempt to export api.Log: " + err.Error())
+		print("FILE FILE FILE require1 file" + err.Error() + "\n")
+		for i := 0; i < 15; i++ {
+			print("\n")
+		}
 	}
+	print("FILE FILE FILE main3\n")
 
 	file.RunFileService(&myFileServer{})
 }

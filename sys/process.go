@@ -144,7 +144,7 @@ func (p *Process) IsServer() bool {
 func (p *Process) Exit() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-
+	panic("xxx exit() xxx")
 	print(fmt.Sprintf("process %s exiting\n", p))
 	p.exited = true
 }
@@ -232,6 +232,19 @@ func (p *Process) ExitCode() int {
 	defer p.lock.Unlock()
 
 	return p.exitCode_
+}
+func (p *Process) IsRunning() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	return p.running
+}
+
+func (p *Process) SetRunning(r bool) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+
+	p.running = r
 }
 
 // Run() is used to let a process proceed with running.  This is
