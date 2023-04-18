@@ -174,7 +174,6 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 
 	letter, ok := typeToLetter(t)
 	if ok {
-		print(fmt.Sprintf("xxxx --- 1 about to do type to letter %T\n", t))
 		if letter != h[7] {
 			panic(fmt.Sprintf("type of id does not match letter, expected %x but got %x", letter, h[7]))
 		}
@@ -213,8 +212,13 @@ func NewIdCopy(high, low uint64) Id {
 }
 
 // IdRepresentsError _only_ checks the error bit in the Id, it ignores the letter.  ;;
-func IdRepresentsError(high, _ uint64) bool {
+func IdRepresentsError(high, low uint64) bool {
 	var h [8]byte
+	if high == 0 && low == 0 {
+		log.Printf("xxx --- assuminng DOUBLE zero is no error")
+		return false
+	}
+
 	binary.LittleEndian.PutUint64(h[:], high)
 	if h[6]&1 == 1 {
 		h[7] = 0

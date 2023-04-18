@@ -145,6 +145,9 @@ func NewDepKeyFromAddr(a string) *DepKeyImpl {
 // change the edge holders.  This function does not allow you to add or
 // remove entire nodes.
 func (n *NSCore) walkDependencyGraph(fn func(key string, eh *dep.EdgeHolder) bool) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	n.dependencyGraph_.Walk(fn)
 }
 

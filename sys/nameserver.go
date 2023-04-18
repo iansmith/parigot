@@ -189,7 +189,7 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 	for _, ready := range readyList {
 		readyProc := ready.(*DepKeyImpl).proc
 		readyName := readyProc.microservice.GetName()
-		if readyProc.running {
+		if readyProc.IsRunning() {
 			backdoor.Log(&logmsg.LogRequest{
 				Message: fmt.Sprintf("about to skip ready list entry '%s', already marked as running\n", readyName),
 				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
@@ -202,7 +202,7 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 			panic("unable to find the notify channel associated with " + readyName)
 		}
 		ch := chAny.(chan bool)
-		readyProc.running = true
+		readyProc.SetRunning(true)
 		ch <- true
 	}
 }
@@ -246,6 +246,7 @@ func (n *LocalNameServer) ExitWhenInFlightEmpty() bool {
 // through the run channel to tell them to give up.  We have to use Walk()
 // here to walk through all the dependencies and leave the graph unchanged.
 func (n *LocalNameServer) sendAbortMessage() {
+	panic("sendAbortMessage")
 	n.walkDependencyGraph(func(key string, value *dep.EdgeHolder) bool {
 		p := value.Key().(*DepKeyImpl).proc
 		if p.ReachedRunBlock() && !p.Running() && !p.exited {

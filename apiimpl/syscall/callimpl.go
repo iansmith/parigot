@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -222,13 +221,13 @@ func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, r
 // Export1 is a wrapper around Export which makes it easy to say you export a single
 // service. It does not change any of the Export behavior.
 func (l *callImpl) Export1(packagePath, service string) (*syscallmsg.ExportResponse, error) {
-	log.Printf("export1 reached " + service)
+	//log.Printf("export1 reached " + service)
 	fqSvc := &syscallmsg.FullyQualifiedService{
 		PackagePath: packagePath, Service: service}
-	log.Printf("export1 reached2 ")
+	//log.Printf("export1 reached2 ")
 	req := &syscallmsg.ExportRequest{}
 	req.Service = []*syscallmsg.FullyQualifiedService{fqSvc}
-	log.Printf("export reached3 ")
+	//log.Printf("export reached3 ")
 	return l.Export(req)
 }
 
