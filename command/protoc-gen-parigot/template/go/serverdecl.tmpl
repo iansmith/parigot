@@ -110,8 +110,8 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 			{{$svcCamelFL}}Background.Background()
 			continue
 		}
-		{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
-			proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
+		//{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
+		//	proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
 		//
 		// incoming values, pctx and params
 		//

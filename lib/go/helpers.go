@@ -24,11 +24,12 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 			rv.MarshalError = marshalError.Error()
 		} else {
 			rv.ExecError = execError.Error()
-			perr, ok := execError.(Error)
-			if ok {
-				rv.ExecErrorId = Marshal[protosupportmsg.BaseId](perr.Id())
-			}
+			// perr, ok := execError.(Error)
+			// if ok {
+			// 	rv.ExecErrorId = Marshal[protosupportmsg.BaseId](perr.Id())
+			// }
 		}
+		//print(fmt.Sprintf("xxx -- about to go to encode error: marshal '%s', exec '%s'", rv.MarshalError, rv.ExecError))
 		goto encodeError
 	}
 	// these are the mostly normal cases, but they can go hawywire

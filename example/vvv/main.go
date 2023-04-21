@@ -121,7 +121,6 @@ func (m *myStoreServer) SoldItem(pctx *protosupportmsg.Pctx, in proto.Message) e
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (m *myStoreServer) Ready() bool {
-	print("storeServer ready1\n")
 	if _, err := callImpl.Run(&pbsys.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -131,7 +130,6 @@ func (m *myStoreServer) Ready() bool {
 		print("ERROR trying to create log client: ", err.Error(), "\n")
 		return false
 	}
-	print("storeServer ready2\n")
 	m.logger = logger
 
 	fClient, err := file.LocateFileService(logger)
@@ -141,18 +139,19 @@ func (m *myStoreServer) Ready() bool {
 	}
 	m.fileSvc = fClient
 	// load the test data... this creates an in-memory filesystem that has an entry
-	// at /app/test
+	// at /app/testdata/vvv
 	_, err = m.fileSvc.LoadTest(&filemsg.LoadTestRequest{
-		Path:          "../../testdata/vvv",
+		Path:          "testdata/vvv",
 		MountLocation: "/testdata/vvv", // => /app/testdata/vvv/<blah>.toml
 	})
 	if err != nil {
 		m.log(nil, logmsg.LogLevel_LOG_LEVEL_FATAL, "unable to load the test data: %v: ", err.Error())
+		return false
 	}
-	print("storeServer ready3\n")
 	_, err = m.fileSvc.Open(&filemsg.OpenRequest{Path: "/app/testdata/vvv/boat.toml"})
 	if err != nil {
 		m.log(nil, logmsg.LogLevel_LOG_LEVEL_FATAL, "unable to open the boat.toml file:%v", err)
+		return false
 	}
 	return true
 

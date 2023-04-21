@@ -70,14 +70,12 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	if callImpl == nil {
 		callImpl = c
 	}
-	print(fmt.Sprintf("xxx SendRecieveSingleProto -> %#v\n", req))
 	u, id, detail := SendSingleProto(req)
 	if id != nil {
 		return false, id, detail
 	}
 	fn(int32(u))
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
-	print(fmt.Sprintf("xxx --- send receive single proto %0x,%0x\n", ptr.ErrPtr[0], ptr.ErrPtr[1]))
 	// check to see if this is an returned error
 	if IsErrorInSinglePayload(ptr) {
 		errRtn := lib.NewIdCopy(uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
@@ -230,7 +228,7 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) (lib.Id, string) {
 	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
 	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
 	if expected != result {
-		return lib.NewKernelError(lib.KernelDecodeError), "Unable to find magic byte sequence"
+		return lib.NewKernelError(lib.KernelDecodeError), "CRC check failed for bundle"
 	}
 	return nil, ""
 

@@ -190,11 +190,11 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 		readyProc := ready.(*DepKeyImpl).proc
 		readyName := readyProc.microservice.GetName()
 		if readyProc.IsRunning() {
-			backdoor.Log(&logmsg.LogRequest{
-				Message: fmt.Sprintf("about to skip ready list entry '%s', already marked as running\n", readyName),
-				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-				Stamp:   timestamppb.Now(), // xxx fixme(iansmith) use kernel now
-			}, true, false, false, nil)
+			// backdoor.Log(&logmsg.LogRequest{
+			// 	Message: fmt.Sprintf("about to skip ready list entry '%s', already marked as running\n", readyName),
+			// 	Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
+			// 	Stamp:   timestamppb.Now(), // xxx fixme(iansmith) use kernel now
+			// }, true, false, false, nil)
 			continue // nothing to do
 		}
 		chAny, ok := n.notify.Load(readyName)

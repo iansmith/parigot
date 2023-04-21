@@ -62,7 +62,7 @@ func CheckVarName(fname string, id *Ident, local, param []*PFormal, parent Scope
 	copy.Col = id.ColumnNumber
 	result := CheckLocalAndParam(fname, id, local, param, parent)
 	if result == nil {
-		log.Printf("xxx -- checklocalandparam failed %s", id.String())
+		//log.Printf("xxx -- checklocalandparam failed %s", id.String())
 		log.Printf("use of unknown variable '%s' at %s", id.String(), e.String())
 	}
 	return result
