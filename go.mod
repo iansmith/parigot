@@ -56,4 +56,5 @@ require (
 	golang.org/x/tools v0.1.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/js/dom v0.0.0-20210725211120-f030747120f2 // indirect
+	mae.earth/pkg/sexpr v0.0.0-20200317092527-9c3d4f430b0e // indirect
 )

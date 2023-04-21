@@ -20,23 +20,17 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	print("FILE FILE FILE main1\n")
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
 	if _, err := callImpl.Export1("file", "FileService"); err != nil {
-		print("FILE FILE FILE export file" + err.Error() + "\n")
 		for i := 0; i < 15; i++ {
 			print("\n")
 		}
 	}
-	print("FILE FILE FILE main2\n")
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		print("FILE FILE FILE require1 file" + err.Error() + "\n")
 		for i := 0; i < 15; i++ {
 			print("\n")
 		}
 	}
-	print("FILE FILE FILE main3\n")
-
 	file.RunFileService(&myFileServer{})
 }
 
@@ -45,7 +39,6 @@ type myFileServer struct {
 }
 
 func (m *myFileServer) Ready() bool {
-	print("FILE FILE FILE ready\n")
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
 		return false
@@ -55,8 +48,6 @@ func (m *myFileServer) Ready() bool {
 	if err != nil {
 		panic("unable to locate the log:" + err.Error())
 	}
-
-	print("FILE FILE FILE erady done\n")
 
 	return true
 }

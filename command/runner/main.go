@@ -52,7 +52,6 @@ func main() {
 			panic("os.Exit() with code " + fmt.Sprint(code))
 		}
 	}
-	log.Printf("main programs xxx -- %+v", main)
 	go func() {
 		var buf bytes.Buffer
 		for {

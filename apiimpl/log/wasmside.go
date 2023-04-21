@@ -20,13 +20,10 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-	print("main of log xxx \n")
 	// you need to put Require and Export calls in here, but put Run() call in Ready()
 	if _, err := callImpl.Export1("log", "LogService"); err != nil {
-		print("export1 of log main xxxx\n")
 		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
 	}
-	print("main of log about to run service xxx \n")
 	log.RunLogService(&myLogServer{})
 }
 

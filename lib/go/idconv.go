@@ -184,7 +184,6 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 			}
 		}
 		if h[6]&1 == 1 {
-			log.Printf("xxx -- byte 6 bit 1 is high %v", letter)
 			// this is an error so we need to create it with the error code
 			h[6] &= 0xfe
 			return newFromErrorCode(low, letter)
@@ -193,10 +192,9 @@ func NewFrom64BitPair[T AllIdPtr](high, low uint64) Id {
 	}
 	// this is the case where we did NOT get a letter we understood
 	if h[7] == 0 {
-		print("xxx should panic!!\n")
 		panic(fmt.Sprintf("unable to understand attempt to create Id from golang type %T", t))
 	}
-	print("converted from unknown type to '" + string([]byte{h[7]}) + "'\n")
+	//print("converted from unknown type to '" + string([]byte{h[7]}) + "'\n")
 	return idFromUint64Pair(high, low, h[7])
 }
 
