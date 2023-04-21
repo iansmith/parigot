@@ -72,8 +72,8 @@ func RunStoreService(impl StoreServiceServer) {
 			storeServiceBackground.Background()
 			continue
 		}
-		storeServicePrint("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
-			proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
+		//storeServicePrint("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
+		//	proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
 		//
 		// incoming values, pctx and params
 		//
