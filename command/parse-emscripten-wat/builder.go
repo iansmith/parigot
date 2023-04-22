@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strconv"
 	"strings"
 )
@@ -91,7 +90,6 @@ func (s *SexprBuilder) ExitItem(ctx *ItemContext) {
 func (s *SexprBuilder) ExitSexpr(ctx *SexprContext) {
 	raw := ctx.AllItem()
 	item := make([]*Item, len(raw))
-	log.Printf("sexpr size %d", len(raw))
 	for i, c := range raw {
 		item[i] = c.GetItem_()
 	}
