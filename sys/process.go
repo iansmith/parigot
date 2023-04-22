@@ -196,6 +196,7 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
+	addEmscriptenFuncs(p.parent, available, rt)
 	addSupportedFunctions(p.parent, available, rt)
 	addSplitModeFunctions(p.parent, available, lv, fs)
 
