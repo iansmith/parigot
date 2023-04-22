@@ -1,0 +1,8 @@
+# these represent where the loader will look to find binaries
+SearchDir=["./build"]
+
+[microservice.python]
+Path="build/pyodide.asm.wasm"
+Main=true
+Arg=["pyodide.p.wasm"]
+Env=[]

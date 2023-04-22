@@ -5,17 +5,25 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/iansmith/parigot/helper/antlr"
 
 	v4 "github.com/antlr/antlr4/runtime/Go/antlr/v4"
 )
 
-type FuncDetail struct {
+type TypeDetail struct {
 	Param  []TypeName
 	Result TypeName
 }
+type FuncDetail struct {
+	Package string
+	Name    string
+	TypeNum int
+	FuncNum int
+}
 
+var TypeInfo = make(map[int]*TypeDetail)
 var FuncInfo = make(map[int]*FuncDetail)
 
 type TypeName string
@@ -30,6 +38,20 @@ const (
 func (t TypeName) String() string {
 	return string(t)
 }
+func (t TypeName) GoType() string {
+	switch t {
+	case i32:
+		return "int32"
+	case i64:
+		return "int64"
+	case f32:
+		return "float32"
+	case f64:
+		return "float64"
+	}
+	panic("unknown type")
+}
+
 func ToTypeName(s string) TypeName {
 	switch s {
 	case "i32", "i64", "f32", "f64":
@@ -44,7 +66,6 @@ func main() {
 		log.Fatalf("you should supply exactly one file, containing wat, to this program")
 	}
 	file := flag.Arg(0)
-	log.Printf("file is %s", file)
 	lexer := NewsexprLexer(nil)
 	parser := NewsexprParser(nil)
 	build := NewSexprBuilder(file)
@@ -57,18 +78,21 @@ func main() {
 	if el.Failed() {
 		antlr.AntlrFatalf("failed due to syntax errors trying to parse sexpression")
 	}
-	//log.Printf("xxx %s", item.GetItem_()[0].String())
 	list := item.GetItem_()[0].List[1:]
 
-	log.Printf("inner list len %d", len(list))
 	for _, stmt := range list {
 		if isListWithFirstAtom(stmt, "type") {
 			processType(stmt)
 		}
+		if isListWithFirstAtom(stmt, "import") {
+			imp := processImport(stmt)
+			if imp != nil {
+				FuncInfo[imp.FuncNum] = imp
+			}
+		}
 	}
 
-	log.Printf("finished")
-
+	generateFile()
 }
 
 func isListWithFirstAtom(curr *Item, s string) bool {
@@ -90,16 +114,27 @@ func isListWithFirstAtom(curr *Item, s string) bool {
 }
 
 func processType(curr *Item) {
-
 	l := curr.List
 	num := l[1].List[0].Atom.Number
-	param, result := processFunc(l[2].List)
-	FuncInfo[num] = &FuncDetail{Param: param, Result: result}
-	log.Printf("#%d(%+v)", num, FuncInfo[num])
+	param, result := processFuncTypeParamsReturn(l[2].List)
+	TypeInfo[num] = &TypeDetail{Param: param, Result: result}
 }
 
-func processImport(line *Item) {
+func processImport(line *Item) *FuncDetail {
+	if line.List[1].Atom == nil || line.List[2].Atom == nil {
+		panic("unexpect formatting of import")
+	}
+	if line.List[1].Atom.String == "" || line.List[2].Atom.String == "" {
+		panic("import is missing the name of the import (package or func name)")
+	}
+	pkg := strings.TrimPrefix(strings.TrimSuffix(line.List[1].Atom.String, "\""), "\"")
+	fn := strings.TrimPrefix(strings.TrimSuffix(line.List[2].Atom.String, "\""), "\"")
 
+	if line.List[3].List[0].Atom.Symbol != "func" {
+		//log.Printf("ignorning import: %s", line.List[3].List[0])
+		return nil
+	}
+	return processImportDef(line.List[3:], pkg, fn)
 }
 
 func (i *Item) String() string {
@@ -159,8 +194,22 @@ func (i *Item) StringToBuffer(b *bytes.Buffer, indent int, useCR bool) {
 
 	}
 }
+func processImportDef(f []*Item, pkg, name string) *FuncDetail {
+	if name == "__memory_base" {
+		return nil
+	}
 
-func processFunc(f []*Item) ([]TypeName, TypeName) {
+	fnNum := f[0].List[1].List[0].Atom.Number
+	typeNum := f[0].List[2].List[0].Atom.Number
+	return &FuncDetail{
+		Package: pkg,
+		Name:    name,
+		TypeNum: typeNum,
+		FuncNum: fnNum,
+	}
+}
+
+func processFuncTypeParamsReturn(f []*Item) ([]TypeName, TypeName) {
 	param := []TypeName{}
 	var result TypeName
 
@@ -199,4 +248,72 @@ func processFunc(f []*Item) ([]TypeName, TypeName) {
 	}
 
 	return param, result
+}
+
+var file = `
+package sys
+
+import (
+	"log"
+
+	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
+)
+
+$1
+
+func addEmscriptenFuncs(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
+$2
+}
+`
+
+func generateFile() {
+	decl := &bytes.Buffer{}
+	for _, f := range FuncInfo {
+		decl.WriteString(fmt.Sprintf("// %s.%s => wasm function #%d\n", f.Package, f.Name, f.FuncNum))
+		decl.WriteString(fmt.Sprintf("func %s_%s(", f.Package, f.Name))
+		tInfo := TypeInfo[f.TypeNum]
+		for i, p := range tInfo.Param {
+			decl.WriteString(fmt.Sprintf("p%d %s", i, p.GoType()))
+			if i != len(tInfo.Param)-1 {
+				decl.WriteString(",")
+			}
+		}
+		decl.WriteString(")")
+		if tInfo.Result.String() != "" {
+			decl.WriteString(" " + tInfo.Result.GoType())
+		}
+		decl.WriteString("{\n")
+		decl.WriteString(fmt.Sprintf("\tlog.Printf(\"call to --> %s_%s:", f.Package, f.Name))
+		for i, p := range tInfo.Param {
+			if p.String() == "i32" || p.String() == "i64" {
+				decl.WriteString("0x%x")
+			} else {
+				decl.WriteString("%4.4f")
+			}
+			if i != len(tInfo.Param)-1 {
+				decl.WriteString(",")
+			}
+		}
+		decl.WriteString("\",")
+
+		for i := range tInfo.Param {
+			decl.WriteString(fmt.Sprintf("p%d", i))
+			if i != len(tInfo.Param)-1 {
+				decl.WriteString(",")
+			}
+		}
+		decl.WriteString(")\n")
+		decl.WriteString("\treturn 0\n")
+		decl.WriteString("}\n\n")
+	}
+
+	wrap := &bytes.Buffer{}
+
+	for _, f := range FuncInfo {
+		wrap.WriteString(fmt.Sprintf("\tresult[\"%s.%s\"] = wasmtime.WrapFunc(store,%s_%s)\n", f.Package, f.Name, f.Package, f.Name))
+	}
+
+	x := strings.Replace(file, "$1", decl.String(), 1)
+	x = strings.Replace(x, "$2", wrap.String(), 1)
+	fmt.Print(x)
 }
