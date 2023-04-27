@@ -16,15 +16,21 @@ type TypeDetail struct {
 	Param  []TypeName
 	Result TypeName
 }
-type FuncDetail struct {
+type ImportDetail struct {
 	Package string
 	Name    string
 	TypeNum int
 	FuncNum int
+
+	IsGlobal      bool
+	GlobalNum     int
+	GlobalMutable bool
+	GlobalType    TypeName
 }
 
 var TypeInfo = make(map[int]*TypeDetail)
-var FuncInfo = make(map[int]*FuncDetail)
+var ImportFuncInfo = make(map[int]*ImportDetail)
+var ImportGlobalInfo = make(map[int]*ImportDetail)
 
 type TypeName string
 
@@ -87,11 +93,14 @@ func main() {
 		if isListWithFirstAtom(stmt, "import") {
 			imp := processImport(stmt)
 			if imp != nil {
-				FuncInfo[imp.FuncNum] = imp
+				if imp.IsGlobal {
+					ImportGlobalInfo[imp.GlobalNum] = imp
+				} else {
+					ImportFuncInfo[imp.FuncNum] = imp
+				}
 			}
 		}
 	}
-
 	generateFile()
 }
 
@@ -120,7 +129,7 @@ func processType(curr *Item) {
 	TypeInfo[num] = &TypeDetail{Param: param, Result: result}
 }
 
-func processImport(line *Item) *FuncDetail {
+func processImport(line *Item) *ImportDetail {
 	if line.List[1].Atom == nil || line.List[2].Atom == nil {
 		panic("unexpect formatting of import")
 	}
@@ -130,11 +139,14 @@ func processImport(line *Item) *FuncDetail {
 	pkg := strings.TrimPrefix(strings.TrimSuffix(line.List[1].Atom.String, "\""), "\"")
 	fn := strings.TrimPrefix(strings.TrimSuffix(line.List[2].Atom.String, "\""), "\"")
 
-	if line.List[3].List[0].Atom.Symbol != "func" {
-		//log.Printf("ignorning import: %s", line.List[3].List[0])
-		return nil
+	if line.List[3].List[0].Atom.Symbol == "func" {
+		return processImportDefFunc(line.List[3:], pkg, fn)
 	}
-	return processImportDef(line.List[3:], pkg, fn)
+	if line.List[3].List[0].Atom.Symbol == "global" {
+		log.Printf("import of %s.%s => %s", pkg, fn, line.List[3].List[0].Atom.Symbol)
+		return processImportDefGlobal(line.List[3].List[1:], pkg, fn)
+	}
+	return nil
 }
 
 func (i *Item) String() string {
@@ -194,14 +206,40 @@ func (i *Item) StringToBuffer(b *bytes.Buffer, indent int, useCR bool) {
 
 	}
 }
-func processImportDef(f []*Item, pkg, name string) *FuncDetail {
-	if name == "__memory_base" {
-		return nil
+func processImportDefGlobal(f []*Item, pkg, name string) *ImportDetail {
+	globalNum := f[0].List[0].Atom.Number
+	mut := false
+	var globalT TypeName
+
+	// is the key structure a list
+	if f[1].List != nil {
+		if f[1].List[0].Atom.Symbol != "mut" {
+			panic("unable to understand global import")
+		}
+		raw := f[1].List[1].Atom.Symbol
+		globalT = ToTypeName(raw)
+	} else {
+		raw := f[1].Atom.Symbol
+		globalT = ToTypeName(raw)
 	}
+	id := &ImportDetail{
+		Package:       pkg,
+		Name:          name,
+		TypeNum:       0,
+		FuncNum:       0,
+		GlobalNum:     globalNum,
+		GlobalMutable: mut,
+		GlobalType:    globalT,
+		IsGlobal:      true,
+	}
+	return id
+
+}
+func processImportDefFunc(f []*Item, pkg, name string) *ImportDetail {
 
 	fnNum := f[0].List[1].List[0].Atom.Number
 	typeNum := f[0].List[2].List[0].Atom.Number
-	return &FuncDetail{
+	return &ImportDetail{
 		Package: pkg,
 		Name:    name,
 		TypeNum: typeNum,
@@ -264,11 +302,24 @@ $1
 func addEmscriptenFuncs(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
 $2
 }
+
+func addEmscriptenGlobals(store wasmtime.Storelike, result map[string]*wasmtime.Global) {
+	var valType *wasmtime.ValType
+	var gType *wasmtime.GlobalType
+	var g *wasmtime.Global
+	var err error
+
+$3
+}
+	
 `
 
 func generateFile() {
 	decl := &bytes.Buffer{}
-	for _, f := range FuncInfo {
+	for _, f := range ImportFuncInfo {
+		if f.IsGlobal {
+			continue
+		}
 		decl.WriteString(fmt.Sprintf("// %s.%s => wasm function #%d\n", f.Package, f.Name, f.FuncNum))
 		decl.WriteString(fmt.Sprintf("func %s_%s(", f.Package, f.Name))
 		tInfo := TypeInfo[f.TypeNum]
@@ -309,11 +360,47 @@ func generateFile() {
 
 	wrap := &bytes.Buffer{}
 
-	for _, f := range FuncInfo {
+	for _, f := range ImportFuncInfo {
+		if f.IsGlobal {
+			continue
+		}
 		wrap.WriteString(fmt.Sprintf("\tresult[\"%s.%s\"] = wasmtime.WrapFunc(store,%s_%s)\n", f.Package, f.Name, f.Package, f.Name))
+	}
+
+	global := &bytes.Buffer{}
+
+	for _, f := range ImportGlobalInfo {
+		if !f.IsGlobal {
+			continue
+		}
+		typeSuffix := "I32"
+		switch f.GlobalType {
+		case i32:
+			break
+		case i64:
+			typeSuffix = "I64"
+		case f64:
+			typeSuffix = "F64"
+		case f32:
+			typeSuffix = "F32"
+		}
+		mut := "false"
+		if f.GlobalMutable {
+			mut = "true"
+		}
+		typeWithSuffix := "wasmtime.Kind" + typeSuffix
+		valWithSuffix := "wasmtime.Val" + typeSuffix
+		global.WriteString(fmt.Sprintf("\tvalType=wasmtime.NewValType(%s)\n", typeWithSuffix))
+		global.WriteString(fmt.Sprintf("\tgType=wasmtime.NewGlobalType(valType,%s)\n", mut))
+		global.WriteString(fmt.Sprintf("\tg,err=wasmtime.NewGlobal(store,gType,%s(0))\n", valWithSuffix))
+		global.WriteString("\tif err!=nil {\n")
+		global.WriteString("\t\tpanic(err.Error())\n")
+		global.WriteString("\t}\n")
+		global.WriteString(fmt.Sprintf("\tresult[\"%s.%s\"]=g\n", f.Package, f.Name))
 	}
 
 	x := strings.Replace(file, "$1", decl.String(), 1)
 	x = strings.Replace(x, "$2", wrap.String(), 1)
+	x = strings.Replace(x, "$3", global.String(), 1)
 	fmt.Print(x)
 }
