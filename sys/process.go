@@ -3,6 +3,7 @@ package sys
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"path/filepath"
 	"sync"
 
@@ -112,6 +113,7 @@ func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *Dep
 
 	instance, err :=
 		wasmtime.NewInstance(parentStore, proc.module, l)
+
 	if err != nil {
 		return nil, err
 	}
@@ -196,9 +198,15 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
+	availableObj := make(map[string]wasmtime.AsExtern)
+
 	addEmscriptenFuncs(p.parent, available, rt)
 	addSupportedFunctions(p.parent, available, rt)
 	addSplitModeFunctions(p.parent, available, lv, fs)
+	addEmscriptenObjects(p.parent, availableObj)
+
+	glob := make(map[string]*wasmtime.Global)
+	addEmscriptenGlobals(p.parent, glob)
 
 	// result of checking the linkage
 	linkage := []wasmtime.AsExtern{}
@@ -212,12 +220,45 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 		importName := fmt.Sprintf("%s.%s", imp.Module(), n)
 		ext, ok := available[importName]
 		if !ok {
+			// possibly a global
+			g, ok := glob[importName]
+			if ok {
+				external := wasmtime.AsExtern(g)
+				linkage = append(linkage, external)
+				continue
+			} else {
+				// might be another type of object
+				obj, ok := availableObj[importName]
+				if ok {
+					linkage = append(linkage, obj)
+					continue
+				}
+			}
 			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
 			linkage = append(linkage, ext)
 		}
 	}
 	return linkage, nil
+}
+
+func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) {
+	mtype := wasmtime.NewMemoryType(320, true, 32767)
+	mem, err := wasmtime.NewMemory(store, mtype)
+	if err != nil {
+		panic("unable to create memory object inside wasmtime")
+	}
+	obj["env.memory"] = wasmtime.AsExtern(mem)
+}
+
+func addSupportedGlobals(store *wasmtime.Store, glob map[string]*wasmtime.Global) {
+	valType := wasmtime.NewValType(wasmtime.KindI32)
+	gType := wasmtime.NewGlobalType(valType, false)
+	g, err := wasmtime.NewGlobal(store, gType, wasmtime.ValI32(0))
+	if err != nil {
+		log.Fatalf("unable to create global " + err.Error())
+	}
+	glob["env.__memory_base"] = g
 }
 
 func (p *Process) SetExitCode(code int) {

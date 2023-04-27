@@ -34,6 +34,7 @@ func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 	wasmConfig := wasmtime.NewConfig()
 
 	engine := wasmtime.NewEngineWithConfig(wasmConfig)
+
 	// load the images from disk and make sure they are valid modules
 	if err := conf.LoadAllModules(engine); err != nil {
 		return nil, err
