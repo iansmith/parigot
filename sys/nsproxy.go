@@ -259,7 +259,7 @@ func (n *NSProxy) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib
 	err = result.UnmarshalTo(resp)
 	if err != nil {
 		return nil, lib.NewKernelError(lib.KernelUnmarshalFailed),
-			fmt.Sprintf("failed to unmarshal response: %v", err)
+			fmt.Sprintf("failed to unmarshal response (GetService): %v", err)
 	}
 	addr := resp.GetAddr()
 	sidPtr := resp.GetSid()

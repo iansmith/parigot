@@ -108,7 +108,7 @@ var logChannel = make(chan *logTuple, 32)
 // version of req, buffer can be passed as nil and this function will create the buffer itself.
 func ProcessLogRequest(req *logmsg.LogRequest, isKernel, isBackend bool, isJS bool, buffer []byte) {
 	tuple := &logTuple{buffer, req, isKernel, isBackend, isJS}
-	myW.Write([]byte(req.Message))
+	//myW.Write([]byte(req.Message))
 	logChannel <- tuple
 }
 

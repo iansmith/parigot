@@ -66,6 +66,7 @@ func IsErrorInSinglePayload(ptr *SinglePayload) bool {
 // the error is ALREADY recorded in the return object.  It returns false,nil,""
 // if everything is ok.  If the bool is true, it means that the implementation of
 // the function fn actually went ahead and set the error code during its execution.
+
 func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32)) (bool, lib.Id, string) {
 	if callImpl == nil {
 		callImpl = c
@@ -76,7 +77,9 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	}
 	fn(int32(u))
 	ptr := (*SinglePayload)(unsafe.Pointer(u))
+	print(fmt.Sprintf("WASM SIDE SRSP: %#v, %v\n", ptr, IsErrorInSinglePayload(ptr)))
 	// check to see if this is an returned error
+	//print(fmt.Sprintf("WASM SIDE found an error?? in error ptr 0x%x,0x%x", ptr.ErrPtr[0], ptr.ErrPtr[1]))
 	if IsErrorInSinglePayload(ptr) {
 		errRtn := lib.NewIdCopy(uint64(ptr.ErrPtr[0]), uint64(ptr.ErrPtr[1]))
 		return true, errRtn, ""
@@ -92,6 +95,7 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	wasmSideSlice.Cap = int(ptr.OutLen)
 	id, detail = DecodeSingleProto(byteBuffer, resp)
 	if id != nil {
+		print("xxx ---> send/recv single proto <--- xxx \n")
 		return false, id, detail
 	}
 	return false, nil, ""
@@ -240,12 +244,14 @@ func DecodeSingleProto(buffer []byte, obj proto.Message) (lib.Id, string) {
 func ErrorResponse(mem *jspatch.WasmMem, sp int32, id lib.Id, errorDetail string) {
 	wasmPtr := mem.GetInt64(sp + 8)
 	errId := id
+	print("ERR RESPONSE 1\n")
 	// the [0] value is the high 8 bytes, the [1] the low 8 bytes
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)),
 		int64(errId.High()))
 	// high is 8 bytes higher
 	mem.SetInt64(int32(wasmPtr)+int32(unsafe.Offsetof(SinglePayload{}.ErrPtr)+8),
 		int64(errId.Low()))
+	print(fmt.Sprintf("ERR RESPONSE 2 -- 0x%x,0x%x\n", errId.High(), errId.Low()))
 	highBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(highBytes, errId.High())
 }
@@ -265,6 +271,7 @@ func StackPointerToRequest(mem *jspatch.WasmMem, sp int32, req proto.Message) (l
 
 	id, detail := DecodeSingleProto(buffer, req)
 	if id != nil {
+		print("xxx ---> FAILED IN DECODE SINGLE SP 2 Req <--- xxx \n")
 		ErrorResponse(mem, int32(wasmPtr), id, detail)
 		return id, detail
 	}

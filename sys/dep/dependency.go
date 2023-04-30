@@ -312,15 +312,15 @@ func (e *EdgeHolder) IsReady() bool {
 // This function will lock its own edges that it is changing, but it does lock the graph.
 // That is the responsibility of Walk() on the dependency graph which is how this should
 // be called.
-func (e *EdgeHolder) RemoveRequire(exportedList []string) bool {
+func (e *EdgeHolder) RemoveRequire(exportedList []string, onBehalf DepKey) bool {
 	result := []string{}
 	changed := false
-	depgraphPrint("RemoveRequire ", "start--------considering if node %s is now enabled to run", e.key.String())
-	depgraphPrint("RemoveRequire ", "exports to remove list size? %d values? %+v", len(exportedList), exportedList)
+	depgraphPrint("RemoveRequire ", "start--------considering if node %s is now enabled to run (on behalf of %s)", e.key.String(), onBehalf)
+	depgraphPrint("RemoveRequire ", "exports to remove list size? %d values? %+v (on behalf %s)", len(exportedList), exportedList, onBehalf)
 	for _, req := range e.require {
 		found := false
 		for _, exported := range exportedList {
-			depgraphPrint("RemoveRequire ", "considering %s vs %s, for %s", req, exported, e.key.String())
+			depgraphPrint("RemoveRequire ", "considering %s vs %s, for %s (on behalf of %s)", req, exported, e.key.String(), onBehalf)
 			if exported == req {
 				found = true
 				break
@@ -367,7 +367,7 @@ func depgraphPrint(method, spec string, arg ...interface{}) {
 	if depgraphVerbose {
 		part1 := fmt.Sprintf("depGraph:%s", method)
 		part2 := fmt.Sprintf(spec, arg...)
-		msg := fmt.Sprintf("%s%s", part1, part2)
+		msg := fmt.Sprintf("%s%s\n", part1, part2)
 		req := &logmsg.LogRequest{
 			Message: msg,
 			Stamp:   timestamppb.Now(),
@@ -375,4 +375,11 @@ func depgraphPrint(method, spec string, arg ...interface{}) {
 		}
 		backdoor.Log(req, true, false, false, nil)
 	}
+}
+func (g *DepGraph) DumpDepgraph(method string) {
+	buf := &bytes.Buffer{}
+	for _, edge := range g.edges {
+		buf.WriteString(fmt.Sprintf("\t%s->%+v\n", edge.key.String(), edge.require))
+	}
+	depgraphPrint(method, "---\n%s--\n", buf)
 }

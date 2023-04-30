@@ -161,6 +161,7 @@ func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id
 // the previous caller by writing to the notify channel.
 func (n *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
 	readyList := n.NSCore.RunIfReady(key)
+
 	go n.possiblyUnblock(readyList)
 
 	proc := key.(*DepKeyImpl).proc
@@ -265,9 +266,11 @@ func (n *LocalNameServer) sendAbortMessage() {
 // of a remote call.  In this the local case, we *could* just pass the result back
 // from B to A.
 func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
+	print(fmt.Sprintf("CALL Service %s\n", key.String()))
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
 	result := <-ctx.respCh
+	print(fmt.Sprintf("CALL Service Got Result %#v\n", result))
 	return result, nil, ""
 }
 
@@ -276,17 +279,21 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) (*syscal
 // block on our callCh and wait for another process to use CallService to
 // signal us that they need one of our methods.
 func (l *LocalNameServer) BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext {
-	if canTimeout { //simple case
+	print(fmt.Sprintf("block until call entered: %s, %v\n", key.String(), canTimeout))
+	if !canTimeout { //simple case
 		v := <-key.(*DepKeyImpl).proc.callCh
+		print(fmt.Sprintf("block until call got a call: %#v\n", v))
 		return v
 	}
 	// complex case
 	select {
 	case v := <-key.(*DepKeyImpl).proc.callCh:
 		v.timedOut = false
+		print(fmt.Sprintf("block until call got a call (no timeout): %#v\n", v))
 		return v
 	case <-time.After(1 * time.Second):
 		v := &callContext{}
+		print(fmt.Sprintf("block until call got a call (timeout out): %#v\n", v))
 		v.timedOut = true
 		return v
 	}

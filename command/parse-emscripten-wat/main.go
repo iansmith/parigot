@@ -48,14 +48,14 @@ func (t TypeName) GoType() string {
 	switch t {
 	case i32:
 		return "int32"
-	case i64:
+	case "i64":
 		return "int64"
 	case f32:
 		return "float32"
 	case f64:
 		return "float64"
 	}
-	panic("unknown type")
+	panic("unknown type" + fmt.Sprintf("%T,'%s'", t, t))
 }
 
 func ToTypeName(s string) TypeName {
@@ -143,8 +143,16 @@ func processImport(line *Item) *ImportDetail {
 		return processImportDefFunc(line.List[3:], pkg, fn)
 	}
 	if line.List[3].List[0].Atom.Symbol == "global" {
-		log.Printf("import of %s.%s => %s", pkg, fn, line.List[3].List[0].Atom.Symbol)
-		return processImportDefGlobal(line.List[3].List[1:], pkg, fn)
+		//log.Printf("n is %d", line.List[3].List[1].List[0].Atom.Number)
+		n := line.List[3].List[1].List[0].Atom.Number
+		if line.List[3].List[2].Atom != nil {
+			log.Printf("about to process not mutable %s", line.List[3].List[2])
+			return processImportDefGlobal(line.List[3].List[2].Atom.Symbol, false, n, pkg, fn)
+		}
+		m := line.List[3].List[2].List[0].Atom.Symbol == "mut"
+		t := line.List[3].List[2].List[1].Atom.Symbol
+		log.Printf("about to process %v,%s", m, t)
+		return processImportDefGlobal(t, m, n, pkg, fn)
 	}
 	return nil
 }
@@ -206,22 +214,8 @@ func (i *Item) StringToBuffer(b *bytes.Buffer, indent int, useCR bool) {
 
 	}
 }
-func processImportDefGlobal(f []*Item, pkg, name string) *ImportDetail {
-	globalNum := f[0].List[0].Atom.Number
-	mut := false
-	var globalT TypeName
+func processImportDefGlobal(globalT string, mut bool, globalNum int, pkg, name string) *ImportDetail {
 
-	// is the key structure a list
-	if f[1].List != nil {
-		if f[1].List[0].Atom.Symbol != "mut" {
-			panic("unable to understand global import")
-		}
-		raw := f[1].List[1].Atom.Symbol
-		globalT = ToTypeName(raw)
-	} else {
-		raw := f[1].Atom.Symbol
-		globalT = ToTypeName(raw)
-	}
 	id := &ImportDetail{
 		Package:       pkg,
 		Name:          name,
@@ -229,7 +223,7 @@ func processImportDefGlobal(f []*Item, pkg, name string) *ImportDetail {
 		FuncNum:       0,
 		GlobalNum:     globalNum,
 		GlobalMutable: mut,
-		GlobalType:    globalT,
+		GlobalType:    ToTypeName(globalT),
 		IsGlobal:      true,
 	}
 	return id
@@ -238,7 +232,9 @@ func processImportDefGlobal(f []*Item, pkg, name string) *ImportDetail {
 func processImportDefFunc(f []*Item, pkg, name string) *ImportDetail {
 
 	fnNum := f[0].List[1].List[0].Atom.Number
-	typeNum := f[0].List[2].List[0].Atom.Number
+	typeNum := f[0].List[2].List[1].Atom.Number
+	// log.Printf("ideffunc: %s, -- %d", f[0].List[2].List[0], f[0].List[2].List[1].Atom.Number)
+	// log.Printf("processImportDefFunc %s.%s=>%d", pkg, name, typeNum)
 	return &ImportDetail{
 		Package: pkg,
 		Name:    name,
@@ -354,7 +350,10 @@ func generateFile() {
 			}
 		}
 		decl.WriteString(")\n")
-		decl.WriteString("\treturn 0\n")
+		if tInfo.Result != "" {
+			//log.Printf("f is %s.%s and tInfo.Result is %s", f.Package, f.Name, tInfo.Result)
+			decl.WriteString("\treturn 0\n")
+		}
 		decl.WriteString("}\n\n")
 	}
 

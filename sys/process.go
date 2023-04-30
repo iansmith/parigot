@@ -9,6 +9,7 @@ import (
 
 	fileimpl "github.com/iansmith/parigot/apiimpl/file/go_"
 	logimpl "github.com/iansmith/parigot/apiimpl/log/go_"
+	queueimpl "github.com/iansmith/parigot/apiimpl/queue/go_"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"
@@ -83,6 +84,10 @@ func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *Dep
 	// split mode
 	logViewer := &logimpl.LogViewerImpl{}
 	fileSvc := &fileimpl.FileSvcImpl{}
+	queueSvc, errId, errInfo := queueimpl.NewQueueSvc(nil) // wasm mem gets filled in later
+	if errId != nil && errInfo != "" {
+		panic(fmt.Sprintf("unable to create the queueService: %s", errInfo))
+	}
 
 	lastProcessId++
 	id := lastProcessId
@@ -105,12 +110,14 @@ func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *Dep
 	}
 	proc.key = NewDepKeyFromProcess(proc)
 
-	l, err := proc.checkLinkage(rt, logViewer, fileSvc)
+	l, memPtr, err := proc.checkLinkage(rt, logViewer, fileSvc, queueSvc)
 	if err != nil {
 		return nil, err
 	}
+	if proc.memPtr == 0 && memPtr != 0 {
+		proc.memPtr = memPtr
+	}
 	proc.linkage = l
-
 	instance, err :=
 		wasmtime.NewInstance(parentStore, proc.module, l)
 
@@ -120,16 +127,27 @@ func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *Dep
 	proc.instance = instance
 
 	ext := instance.GetExport(parentStore, "mem")
-	if ext.Memory() == nil {
-		return nil, fmt.Errorf("'mem' export is not a memory object")
-	}
+	if ext == nil {
+		log.Printf("module %s does not export mem, so not the golang compiler", proc.String())
+		if proc.memPtr == 0 {
+			panic("emscripten not able to find memory ptr")
+		}
+		log.Printf("connected up emscripten memory")
+	} else {
+		// we have the ext which is the exported memory
+		if ext.Memory() == nil {
+			return nil, fmt.Errorf("'mem' export is not a memory object")
+		}
 
-	memptr := uintptr(ext.Memory().Data(parentStore))
-	proc.memPtr = memptr
-	rt.SetMemPtr(memptr)
-	// split mode
-	logViewer.SetWasmMem(memptr)
-	fileSvc.SetWasmMem(memptr)
+		memptr := uintptr(ext.Memory().Data(parentStore))
+		proc.memPtr = memptr
+		rt.SetMemPtr(memptr)
+		// split mode
+		logViewer.SetWasmMem(memptr)
+		fileSvc.SetWasmMem(memptr)
+		queueSvc.SetWasmMem(memptr)
+
+	}
 	rt.SetProcess(proc)
 
 	return proc, nil
@@ -194,7 +212,7 @@ func (p *Process) Exited() bool {
 	return p.exited
 }
 
-func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl) ([]wasmtime.AsExtern, error) {
+func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl, queue *queueimpl.QueueSvcImpl) ([]wasmtime.AsExtern, uintptr, error) {
 
 	// all available funcs end up in here
 	available := make(map[string]*wasmtime.Func)
@@ -202,8 +220,10 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 
 	addEmscriptenFuncs(p.parent, available, rt)
 	addSupportedFunctions(p.parent, available, rt)
-	addSplitModeFunctions(p.parent, available, lv, fs)
-	addEmscriptenObjects(p.parent, availableObj)
+	addSplitModeFunctions(p.parent, available, lv, fs, queue)
+
+	result := uintptr(0)
+	memPtr := addEmscriptenObjects(p.parent, availableObj)
 
 	glob := make(map[string]*wasmtime.Global)
 	addEmscriptenGlobals(p.parent, glob)
@@ -229,26 +249,38 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 			} else {
 				// might be another type of object
 				obj, ok := availableObj[importName]
+				log.Printf("request for import %s, %+v  ok?%v  %v", importName, availableObj, ok, obj)
 				if ok {
+					log.Printf("extra link step for %s", importName)
+					result = memPtr
 					linkage = append(linkage, obj)
 					continue
 				}
 			}
-			return nil, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
+			return nil, 0, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
 		} else {
 			linkage = append(linkage, ext)
 		}
 	}
-	return linkage, nil
+	return linkage, result, nil
 }
 
-func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) {
+func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) uintptr {
 	mtype := wasmtime.NewMemoryType(320, true, 32767)
 	mem, err := wasmtime.NewMemory(store, mtype)
 	if err != nil {
 		panic("unable to create memory object inside wasmtime")
 	}
+	memPtr := uintptr(mem.Data(store))
 	obj["env.memory"] = wasmtime.AsExtern(mem)
+	ftype := wasmtime.NewValType(wasmtime.KindFuncref)
+	ttype := wasmtime.NewTableType(ftype, 6376, true, 8192)
+	tbl, err := wasmtime.NewTable(store, ttype, wasmtime.ValFuncref(nil))
+	if err != nil {
+		panic("unable to create table object inside wasmtime")
+	}
+	obj["env.__indirect_function_table"] = tbl
+	return memPtr
 }
 
 func addSupportedGlobals(store *wasmtime.Store, glob map[string]*wasmtime.Global) {
@@ -324,8 +356,13 @@ func (p *Process) Start() (code int) {
 	procPrint("START", "get export %s", p)
 	start := p.instance.GetExport(p.parent, "run")
 	if start == nil {
-		p.SetExitCode(int(ExitCodeNoStartSymbol))
-		return p.ExitCode()
+		start = p.instance.GetExport(p.parent, "run_main")
+		if start == nil {
+			log.Printf("Unable to find entry point to module %s", p.String())
+			p.SetExitCode(int(ExitCodeNoStartSymbol))
+			return p.ExitCode()
+
+		}
 	}
 	procPrint("START", "defer %s", p)
 
@@ -346,10 +383,14 @@ func (p *Process) Start() (code int) {
 			}
 		}
 	}(p)
-	procPrint("START", "getting start func %s", p)
+	procPrint("START ", "getting start func %s", p)
 	f := start.Func()
-	procPrint("START", "calling start func %s", p)
+	procPrint("START ", "calling start func %s", p)
+	// this is the way that you can call the main of golang
+	// but you cannot use that for emscripten because it wants no params and return int32
+	//   (type (;8;) (func (result i32)))
 	result, err := f.Call(p.parent, p.argc, p.argv)
+	//result, err := f.Call(p.parent)
 	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
 
 	if err != nil {

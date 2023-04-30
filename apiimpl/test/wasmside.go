@@ -36,7 +36,7 @@ func main() {
 		panic("myLogServer:ready: error in attempt to require queue.QueueService: " + err.Error())
 	}
 	// The logger we will use
-	if _, err := callImpl.Require1("log", "Log"); err != nil {
+	if _, err := callImpl.Require1("log", "LogService"); err != nil {
 		panic("myLogServer:ready: error in attempt to require log.Log: " + err.Error())
 	}
 
@@ -128,7 +128,7 @@ func (m *myTestServer) findOrCreateQueue(name string) (lib.Id, string) {
 	req.QueueName = testQueueName
 	resp, err := m.queueSvc.Locate(&req)
 	if err != nil {
-		panic("myTestServer: ready: error in attempt to get queue service: " + err.Error())
+		panic("myTestServer: ready: error in attempt to get queue by name: " + err.Error())
 	}
 	qid := lib.Unmarshal(resp.Id)
 	if qid.IsErrorType() && qid.ErrorCode() != lib.QueueNotFound {

@@ -22,7 +22,7 @@ type DeployContext struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration

@@ -30,8 +30,6 @@ func main() {
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	print("main, reached ready of log xxx \n")
-
 	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
 		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
 	}
@@ -44,6 +42,7 @@ func (m *myLogServer) Ready() bool {
 // We discard the pb.LogResponse{} since there is no content inside it.
 
 func (m *myLogServer) Log(pctx *protosupportmsg.Pctx, inProto proto.Message) error {
+
 	resp := logmsg.LogResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.LogRequestHandler)
