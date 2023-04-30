@@ -158,7 +158,7 @@ func NewElementId() Id {
 // newFromErrorCode is a convenience wrapper around creating an id which represents an error for
 // any of the wrapper types.
 func newFromErrorCode(code uint64, letter byte) Id {
-	id := idBaseFromConst(code, true, letter)
+	id := idBaseFromConst(code, code != 0, letter)
 	return id
 }
 
@@ -209,19 +209,22 @@ func NewIdCopy(high, low uint64) Id {
 	}
 }
 
-// IdRepresentsError _only_ checks the error bit in the Id, it ignores the letter.  ;;
+// IdRepresentsError checks the error bit.  We do not want errors marked
+// with the error bit (in byte 6 of high) when they have no code.
 func IdRepresentsError(high, low uint64) bool {
 	var h [8]byte
 	if high == 0 && low == 0 {
-		log.Printf("xxx --- assuminng DOUBLE zero is no error")
 		return false
 	}
 
 	binary.LittleEndian.PutUint64(h[:], high)
+	//print(fmt.Sprintf("IdRepresentsError: 0x%x, 0x%x, [%x,%x] %v\n", high, low, h[7], h[6], h[6]&1 == 1))
 	if h[6]&1 == 1 {
-		h[7] = 0
-		h[6] = 0
-		return !(binary.LittleEndian.Uint64(h[:]) == 0)
+		lowBits := low & 0xffff
+		if lowBits == 0 {
+			panic("badly formed error id:" + fmt.Sprintf("%x,%x", h[7], low))
+		}
+		return lowBits != 0
 	}
 	return false
 }

@@ -1,4 +1,4 @@
-package queue
+package main
 
 import (
 	"fmt"
@@ -20,8 +20,8 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
-	if _, err := callImpl.Export1("file", "FileService"); err != nil {
+	// we export and require services before the call to queueImpl.Run()... our call to the Run() system call is in Ready()
+	if _, err := callImpl.Export1("queue", "QueueService"); err != nil {
 		panic("ready: error in attempt to export api.Log: " + err.Error())
 	}
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {

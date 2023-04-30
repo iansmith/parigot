@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -232,7 +231,6 @@ func (l *FileSvcImpl) loadLocal(req *filemsg.LoadTestRequest) (*filemsg.LoadTest
 			continue
 		}
 		// make sure in memory FS has the directory(ies) we need
-		log.Printf("xxx --- %s vs %s but %s", filepath.Join(p, child), filepath.Join(memoryPrefix, req.MountLocation, child), child)
 		memPath := filepath.Join(memoryPrefix, req.MountLocation, child)
 		backdoor.Log(&logmsg.LogRequest{
 			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,

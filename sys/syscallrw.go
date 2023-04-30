@@ -3,6 +3,7 @@ package sys
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 	"unsafe"
@@ -22,7 +23,7 @@ import (
 // Flip this switch for debug output.
 var envVerbose = os.Getenv("PARIGOT_VERBOSE")
 
-var syscallVerbose = true || envVerbose != ""
+var syscallVerbose = false || envVerbose != ""
 
 // syscallReadWrite is the code that reads the parameters from the client side and responds to
 // the client side via the same parameters. In between it calls either remote or local to implement
@@ -114,24 +115,30 @@ func (s *syscallReadWrite) Locate(sp int32) {
 // Dispatch is the way that a client invokes and RPC to another service.  This code is on the kernel
 // side (go implementation of kernel).
 func (s *syscallReadWrite) Dispatch(sp int32) {
+	print("xxx -- dispatch1\n")
 	resp := syscallmsg.DispatchResponse{}
 	req := syscallmsg.DispatchRequest{}
 	errId, errDetail := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	if errId != nil {
 		return // the error return code is already set
 	}
+	print("xxx -- dispatch2\n")
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
 	ctx, errId, errDetail := s.procToSysCall().FindMethodByName(key, sid, req.Method)
 	if errId != nil {
-		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "\n")
+		print("xxxctx is nil in Dispatch:" + key.String() + "," + req.Method + "," + key.String() + "," + sid.String() + "\n")
+		print("xxxctx---------\n")
+		debug.PrintStack()
+		print("xxxctx---------\n")
 		splitutil.ErrorResponse(s.mem, sp, errId, errDetail)
 		return
 	}
 	ctx.param = req.Param
-
+	print(fmt.Sprintf("xxx -- dispatch2a %#v \n", req))
 	// this call is the machinery for making a call to another service
 	retReq, id, errDetail := s.procToSysCall().CallService(ctx.target, ctx)
+	print("xxx -- dispatch3\n")
 	if id != nil {
 		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
 		return
@@ -276,7 +283,6 @@ func (s *syscallReadWrite) Require(sp int32) {
 // requests to match up.
 func (s *syscallReadWrite) Run(sp int32) {
 	req := &syscallmsg.RunRequest{}
-	//sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "syscallReadWrite.Run", "xxx --- syscallReadWrite.Run %+v, sp %x, %s", req, sp, runtime.GOOS)
 	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) (lib.Id, string) {
 		//sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "Run", "about to call new implementation of run inside nameserver")
 		ok, err := s.ns.RunBlock(s.proc.key)

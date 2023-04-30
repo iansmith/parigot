@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"math"
 	"time"
@@ -25,9 +24,6 @@ var callImpl = syscall.NewCallImpl()
 
 func main() {
 	lib.FlagParseCreateEnv()
-	for i := 0; i < flag.NArg(); i++ {
-		print(fmt.Sprintf("xxx foo %d=>%s\n", i, flag.Arg(i)))
-	}
 
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
 	if _, err := callImpl.Require1("log", "LogService"); err != nil {
@@ -36,7 +32,6 @@ func main() {
 	if _, err := callImpl.Export1("methodcall", "FooService"); err != nil {
 		panic("unable to export methodcall.Foo: " + err.Error())
 	}
-	print("about to run foo service\n")
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
 	methodcall.RunFooService(&fooServer{})
 }

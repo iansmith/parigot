@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"runtime/debug"
 	"time"
 
 	"github.com/iansmith/parigot/apiimpl/splitutil"
@@ -14,7 +15,6 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -67,6 +67,10 @@ var legalName = regexp.MustCompile(`[A-Za-z0-9_\-\.]+`)
 
 func (q *QueueSvcImpl) validateName(name string) bool {
 	return legalName.MatchString(name)
+}
+
+func (q *QueueSvcImpl) SetWasmMem(ptr uintptr) {
+	q.mem = jspatch.NewWasmMem(ptr)
 }
 
 // QueueSvcCreateQueueImpl is separate from the "real" call of
@@ -278,14 +282,18 @@ func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp 
 // get the error code and detail, typically QueueErrNotFound.  If things
 // are ok, this returns the queue id for a given name in the response.
 func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *queuemsg.LocateResponse) (lib.Id, string) {
+	print("QUEUE SVC LOCATE IMPL1\n")
+	debug.PrintStack()
 	if !q.validateName(req.GetQueueName()) {
 		return lib.NewQueueError(lib.QueueInvalidName),
 			fmt.Sprintf("%s is not a valid name, should be a sequenc of only alphanumeric and '_','-','.'", req.GetQueueName())
 	}
 	row, err := q.queries.Locate(context.Background(), req.QueueName)
+	print("QUEUE SVC LOCATE IMPL2 ", err != nil, " -- ", req.QueueName, "\n")
 	if err != nil {
 		return lib.NewQueueError(lib.QueueNotFound), err.Error()
 	}
+	print("QUEUE SVC LOCATE IMPL3\n")
 	h := uint64(row.IDHigh.Int64)
 	l := uint64(row.IDLow.Int64)
 	// type here is just for validation of the char
@@ -396,6 +404,7 @@ func (q *QueueSvcImpl) QueueSvcReceiveImpl(req *queuemsg.ReceiveRequest, resp *q
 //
 
 type allReq interface {
+	proto.Message
 	*queuemsg.CreateQueueRequest |
 		*queuemsg.DeleteQueueRequest |
 		*queuemsg.LengthRequest |
@@ -405,6 +414,7 @@ type allReq interface {
 		*queuemsg.ReceiveRequest
 }
 type allResp interface {
+	proto.Message
 	*queuemsg.CreateQueueResponse |
 		*queuemsg.DeleteQueueResponse |
 		*queuemsg.LengthResponse |
@@ -415,45 +425,44 @@ type allResp interface {
 }
 
 // generic
-func queueOp[T allReq, U allResp](q *QueueSvcImpl, sp int32, op func(T, U) (lib.Id, string)) {
-	var req T
-	var resp U
-	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, protoreflect.ProtoMessage(req))
+func queueOp[T allReq, U allResp](q *QueueSvcImpl, sp int32, req T, resp U, op func(T, U) (lib.Id, string)) {
+
+	errId, errDetail := splitutil.StackPointerToRequest(q.mem, sp, req)
 	if errId != nil {
 		splitutil.ErrorResponse(q.mem, sp, errId, errDetail)
 		return
 	}
 	id, errDetail := op(req, resp)
 	if id != nil {
+		print("QueueOp generate filling in id ", id.String(), " with ", errDetail, "\n")
 		splitutil.ErrorResponse(q.mem, sp, id, errDetail)
 		return
 	}
-	splitutil.RespondSingleProto(q.mem, sp, protoreflect.ProtoMessage(resp))
+	splitutil.RespondSingleProto(q.mem, sp, resp)
 
 }
 
 // WRAPPERS
 func (q *QueueSvcImpl) QueueSvcCreateQueue(sp int32) {
-	queueOp(q, sp, q.QueueSvcCreateQueueImpl)
+	queueOp(q, sp, &queuemsg.CreateQueueRequest{}, &queuemsg.CreateQueueResponse{}, q.QueueSvcCreateQueueImpl)
 }
 func (q *QueueSvcImpl) QueueSvcDeleteQueue(sp int32) {
-	queueOp(q, sp, q.QueueSvcDeleteQueueImpl)
+	queueOp(q, sp, &queuemsg.DeleteQueueRequest{}, &queuemsg.DeleteQueueResponse{}, q.QueueSvcDeleteQueueImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLength(sp int32) {
-	queueOp(q, sp, q.QueueSvcLengthImpl)
+	queueOp(q, sp, &queuemsg.LengthRequest{}, &queuemsg.LengthResponse{}, q.QueueSvcLengthImpl)
 }
 func (q *QueueSvcImpl) QueueSvcLocate(sp int32) {
-	queueOp(q, sp, q.QueueSvcLocateImpl)
+	queueOp(q, sp, &queuemsg.LocateRequest{}, &queuemsg.LocateResponse{}, q.QueueSvcLocateImpl)
 }
 func (q *QueueSvcImpl) QueueSvcMarkDone(sp int32) {
-	queueOp(q, sp, q.QueueSvcMarkDoneImpl)
+	queueOp(q, sp, &queuemsg.MarkDoneRequest{}, &queuemsg.MarkDoneResponse{}, q.QueueSvcMarkDoneImpl)
 }
 func (q *QueueSvcImpl) QueueSvcSend(sp int32) {
-	queueOp(q, sp, q.QueueSvcSendImpl)
+	queueOp(q, sp, &queuemsg.SendRequest{}, &queuemsg.SendResponse{}, q.QueueSvcSendImpl)
 }
-
 func (q *QueueSvcImpl) QueueSvcReceive(sp int32) {
-	queueOp(q, sp, q.QueueSvcReceiveImpl)
+	queueOp(q, sp, &queuemsg.ReceiveRequest{}, &queuemsg.ReceiveResponse{}, q.QueueSvcReceiveImpl)
 }
 
 // dumpAll is only for debugging the sqlite3 queries, should not

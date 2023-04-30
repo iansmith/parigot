@@ -405,19 +405,19 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 		// may not have registered yet
 		n.CreateWithSid(key, pkgPath, service, sid)
 		//n.create(key, pkgPath, service)
-		nscorePrint("require.lockRegion ", "%s.%s for %s, on gid %x", pkgPath, service, key.String(), g)
+		nscorePrint("require.LOCKREGION ", "%s.%s for %s, on gid %x", pkgPath, service, key.String(), g)
 
 		node, ok := n.dependencyGraph_.GetEdge(key)
 		if !ok {
 			node = dep.NewEdgeHolder(key)
 			n.dependencyGraph_.PutEdge(key, node)
-			nscorePrint("require.lockRegion ", "added edge holder for %s on gid %x", key.String(), g)
+			nscorePrint("require.LOCKREGION ", "added edge holder for %s on gid %x", key.String(), g)
 		}
-		nscorePrint("Require", "process %s did a require for %s.%s and already exported? %v (gid %x)",
+		nscorePrint("REQUIRE ", "process %s did a require for %s.%s and already exported? %v (gid %x)",
 			key.String(), pkgPath, service, alreadyExported, g)
 		if !alreadyExported {
 			found := false
-			nscorePrint("lockRegion ", "about to hit the search for already exported on require list, on gid %x", g)
+			nscorePrint("LOCKREGION ", "about to hit the search for already exported on require list, on gid %x", g)
 			node.WalkRequire(func(s string) bool {
 				if s == name {
 					found = true
@@ -463,6 +463,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 	// the only time things can change is when a new process calls run
 	// so we only to make sure here that we find all the eligible processes to run
 
+	n.dependencyGraph_.DumpDepgraph("RunIfReady")
 	node, ok := n.dependencyGraph_.GetEdge(key)
 	if !ok {
 		nscorePrint("RunIfReady ", "Ignoring request to check on key %s -- no edges assuming ready to run", key.String())
@@ -475,11 +476,11 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 		// RemoveRequireSimple is no-op if already[i] is not required by the node
 		node.RemoveRequireSimple(already[i])
 	}
-
 	candidateList := []*dep.EdgeHolder{node}
 
-	nscorePrint("RunIfReady ", "node %s (%d req,%d exp) and dep-graph has %d total entries",
-		key, node.RequireLen(), node.ExportLen(), n.dependencyGraph_.Len())
+	nscorePrint("RunIfReady ", "node %s (%d req,%d exp) and dep-graph has %d total entries, already exported? %+v",
+		key, node.RequireLen(), node.ExportLen(), n.dependencyGraph_.Len(), already)
+
 	for len(candidateList) > 0 {
 		newCandidates := []*dep.EdgeHolder{}
 		readyList := []string{}
@@ -494,12 +495,12 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 		// is candidate ready to run?
 		if candidate.IsReady() {
 			nscorePrint("RunIfReady ", "candidate %s is ready to run", candidate.Key())
-			key := candidate.Key()
-			n.dependencyGraph_.Del(key)
+			outerKey := candidate.Key()
+			n.dependencyGraph_.Del(outerKey)
 			// we are ready, so lets process his exports through the list of waiting processes
 			exports := candidate.Export()
 			n.dependencyGraph_.Walk(func(key string, other *dep.EdgeHolder) bool {
-				changed := other.RemoveRequire(exports)
+				changed := other.RemoveRequire(exports, outerKey)
 				if changed {
 					newCandidates = append(newCandidates, other)
 					nscorePrint("RunIfReady ", "candidate list changed")
@@ -516,7 +517,7 @@ func (n *NSCore) RunIfReady(key dep.DepKey) []dep.DepKey {
 		}
 		//update datastructures and start in alpha order
 		sort.Strings(readyList)
-		nscorePrint("RunIfReady", "sorted ready List: %+v", readyList)
+		nscorePrint("RunIfReady ", "sorted ready List: %+v", readyList)
 		for _, readyName := range readyList {
 			nscorePrint("RunIfReady ", "adding %s to result list", readyName)
 			readyMap[readyName].Key().(*DepKeyImpl).proc.requirementsMet = true
@@ -595,7 +596,7 @@ func (n *NSCore) FindOrCreateMethodId(key dep.DepKey, packagePath, service, meth
 	methodAny, ok := sData.method.Load(method)
 	if !ok {
 		ct, l := mapToContent(sData.method)
-		nscorePrint("FindOrCreateMethodId", "failed on method %s, %d, %+v", method, ct, l)
+		nscorePrint("FindOrCreateMethodId ", "failed on method %s, %d, %+v", method, ct, l)
 		nscorePrint("FindOrCreateMethodId ", "we need to create a method id for %s.%s.%s", packagePath, service, method)
 		mid = lib.NewId[*protosupportmsg.MethodId]()
 		sData.method.Store(method, mid)
