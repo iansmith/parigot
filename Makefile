@@ -5,6 +5,7 @@ all: allprotos \
 	apiimpl \
 	methodcalltest \
 	sqlc \
+	build/runner \
 	static/t1.wasm
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
@@ -20,6 +21,7 @@ API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 SPLIT_UTIL=$(shell find apiimpl/splitutil -type f -regex ".*\.go")
+SYSCALL_CLIENT_SIDE=apiimpl/syscall/*.go $(SPLIT_UTIL)
 
 ## we just use a single representative file for all the generated code
 REP=g/file/$(API_VERSION)/file.pb.go
@@ -46,7 +48,6 @@ ui/css/css3_lexer.go: ui/css/css3.g4
 #ui/css/css3_parser.go: ui/css/css3.g4
 #	cd css;./generate.sh
 
-
 # protoc plugin
 TEMPLATE=$(shell find command/protoc-gen-parigot -type f -regex ".*\.tmpl")
 GENERATOR_SRC=$(shell find command/protoc-gen-parigot -type f -regex ".*\.go")
@@ -59,39 +60,46 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SPLIT_UTIL) $(LIB_SRC)
+build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SYSCALL_CLIENT_SIDE) $(LIB_SRC) apiimpl
 	rm -f $@
 	go build -o $@ github.com/iansmith/parigot/command/runner
 
+
+# impl of the code to parse a wat from emscripten
+PEM_SRC=$(shell find command/parse-emscripten-wat -type f -regex ".*\.go")
+build/parse-emscripten-wat: $(PEM_SRC) 
+	rm -f $@
+	go build -o $@ github.com/iansmith/parigot/command/parse-emscripten-wat
+
 # implementation of the file service
 FILE_SERVICE=$(shell find apiimpl/file -type f -regex ".*\.go")
-build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SPLIT_UTIL)
+build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/apiimpl/file
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/file
 
 # implementation of the test service
 TEST_SERVICE=$(shell find apiimpl/test -type f -regex ".*\.go")
-build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SPLIT_UTIL)
+build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/apiimpl/test
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/test
 
 # implementation of the log service
 LOG_SERVICE=$(shell find apiimpl/log -type f -regex ".*\.go")
-build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SPLIT_UTIL)
+build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/apiimpl/log
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/log
 
 # queue service impl
 QUEUE_SERVICE=$(shell find apiimpl/queue -type f -regex ".*\.go")
-build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SPLIT_UTIL) apiimpl/queue/go_/db.go 
+build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) apiimpl/queue/go_/db.go 
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/apiimpl/queue
+	$(GO_CMD) build  -o $@ github.com/iansmith/parigot/apiimpl/queue
 
 # dom service impl
-QUEUE_SERVICE=$(shell find apiimpl/dom -type f -regex ".*\.go")
+DOM_SERVICE=$(shell find apiimpl/dom -type f -regex ".*\.go")
 build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiimpl/dom/*.go 
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/apiimpl/dom
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/dom
 
 # wcl compiler
 WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
@@ -113,23 +121,21 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
-SYSCALL_CLIENT_SIDE=apiimpl/syscall/*.go
-
 build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/runner $(METHODCALL_TEST_SVC) 
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 # methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 # methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
-build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml 
+build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -a -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
+	$(GO_CMD) build -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
 # sqlc for queue
 QUEUE_SQL=$(shell find apiimpl/queue/go_/ -type f -regex ".*\.sql")

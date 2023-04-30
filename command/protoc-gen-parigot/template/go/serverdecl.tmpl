@@ -204,11 +204,11 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	if !impl.Ready(){
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")
 	}
-	var ok bool
-	{{$svcCamelFL}}Background, ok = impl.(background.Background)
-	if !ok {
-		print("{{$svcCamel}}Server not background\n")
-	}
+	//var ok bool
+	{{$svcCamelFL}}Background, _ = impl.(background.Background)
+	//if !ok {
+	//	print("{{$svcCamel}}Server not background\n")
+	//}
 	return "",nil
 }
 

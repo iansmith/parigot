@@ -26,7 +26,6 @@ var exitCode = int32(0)
 
 func main() {
 	lib.FlagParseCreateEnv()
-	print("about to require\n")
 
 	if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
 		panic("unable to require bar service: " + err.Error())
@@ -43,7 +42,6 @@ func main() {
 	if _, err := callImpl.Export1("test.v1", "UnderTestService"); err != nil {
 		panic("unable to require foo service: " + err.Error())
 	}
-	print("about to run under test service\n")
 	test.RunUnderTestService(underTestServer)
 }
 

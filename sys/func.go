@@ -2,9 +2,11 @@ package sys
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	filego "github.com/iansmith/parigot/apiimpl/file/go_"
 	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
+	queuego "github.com/iansmith/parigot/apiimpl/queue/go_"
 
 	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
 )
@@ -61,7 +63,8 @@ func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime
 func addSplitModeFunctions(store wasmtime.Storelike,
 	result map[string]*wasmtime.Func,
 	logViewer *loggo.LogViewerImpl,
-	fileSvc *filego.FileSvcImpl) {
+	fileSvc *filego.FileSvcImpl,
+	queueSvc *queuego.QueueSvcImpl) {
 
 	// mixed mode entries: this should be automated (xxxfixmexxx)
 	result["go.logviewer.log_request_handler"] = wrapWithRecover(store, logViewer.LogRequestHandler, "LogRequestHandler")
@@ -69,6 +72,13 @@ func addSplitModeFunctions(store wasmtime.Storelike,
 	result["go.filesvc.open"] = wrapWithRecover(store, fileSvc.FileSvcOpen, "FileSvcOpen")
 	result["go.filesvc.load"] = wrapWithRecover(store, fileSvc.FileSvcLoad, "FileSvcLoad")
 
+	result["go.queuesvc.create_handler"] = wrapWithRecover(store, queueSvc.QueueSvcCreateQueue, "QueueSvcCreateHandler")
+	result["go.queuesvc.delete_handler"] = wrapWithRecover(store, queueSvc.QueueSvcDeleteQueue, "QueueSvcDeleteHandler")
+	result["go.queuesvc.length_handler"] = wrapWithRecover(store, queueSvc.QueueSvcLength, "QueueSvcLengthHandler")
+	result["go.queuesvc.locate_handler"] = wrapWithRecover(store, queueSvc.QueueSvcLocate, "QueueSvcLocateHandler")
+	result["go.queuesvc.mark_done_handler"] = wrapWithRecover(store, queueSvc.QueueSvcMarkDone, "QueueSvcMarkDoneHandler")
+	result["go.queuesvc.send_handler"] = wrapWithRecover(store, queueSvc.QueueSvcSend, "QueueSvcSendHandler")
+	result["go.queuesvc.receive_handler"] = wrapWithRecover(store, queueSvc.QueueSvcReceive, "QueueSvcReceiveHandler")
 }
 
 func wrapWithRecover(store wasmtime.Storelike, fn func(int32), name string) *wasmtime.Func {
@@ -77,9 +87,13 @@ func wrapWithRecover(store wasmtime.Storelike, fn func(int32), name string) *was
 			if r := recover(); r != nil {
 				print("START RECOVER STACKTRACE " + name + "\n")
 				print(fmt.Sprintf("trapped panic: %s %v (%T)\n", name, r, r))
-				print("END RECOVER+STACKTRACE" + name + "\n")
+				debug.PrintStack()
+				print("END RECOVER+STACKTRACE " + name + "\n")
 			}
 		}()
+		if sp == 0 {
+			panic("BAD SP")
+		}
 		fn(sp)
 	})
 }

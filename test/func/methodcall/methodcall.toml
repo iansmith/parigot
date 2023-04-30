@@ -21,6 +21,10 @@ Arg=["log.p.wasm"]
 Path="build/test.p.wasm"
 Arg=["test.p.wasm"]
 
+[microservice.queue]
+Path="build/queue.p.wasm"
+Arg=["queue.p.wasm"]
+
 [microservice.methodcall_test]
 Path="build/methodcalltest.p.wasm"
 Arg=["methodcalltest.p.wasm"]
