@@ -12,7 +12,6 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -58,10 +57,9 @@ func (m *myFileServer) Ready() bool {
 // go specific and the code generator determines the signature here.
 func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := filemsg.OpenResponse{}
-	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
-	if errId != nil {
-		return nil, lib.NewPerrorFromId(errDetail, errId)
+	spayload := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
+	if splitutil.IsErrorInSinglePayload(spayload) {
+		return nil, splitutil.NewPerrorFromSinglePayload(spayload)
 	}
 	return &resp, nil
 }
@@ -97,11 +95,10 @@ func (m *myFileServer) log(pctx *protosupportmsg.Pctx, spec string, rest ...inte
 func (m *myFileServer) LoadTest(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := filemsg.LoadTestResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
-	in := inProto.(*filemsg.LoadTestRequest)
-	if errId != nil {
-		m.log(nil, "in WASM fileserver.Load('%s'), error trying to return: %s (%s)", in.Path, errId.Short(), errDetail)
-		return nil, lib.NewPerrorFromId(errDetail, errId)
+	spayload := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
+	if splitutil.IsErrorInSinglePayload(spayload) {
+		err := splitutil.NewPerrorFromSinglePayload(spayload)
+		return nil, err
 	}
 	return &resp, nil
 }

@@ -12,7 +12,6 @@ import (
 	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -56,9 +55,9 @@ func (m *myQueueServer) Ready() bool {
 
 func simpleRequestResponse(in, out proto.Message, fn func(int32)) (proto.Message, error) {
 	// your IDE may become confuse and show an error because of the tricks we are doing to call QueueSvcCreateQueue
-	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, in, out, fn)
-	if errId != nil {
-		return nil, lib.NewPerrorFromId(errDetail, errId)
+	spayload := splitutil.SendReceiveSingleProto(callImpl, in, out, fn)
+	if splitutil.IsErrorInSinglePayload(spayload) {
+		return nil, splitutil.NewPerrorFromSinglePayload(spayload)
 	}
 	return out, nil
 }

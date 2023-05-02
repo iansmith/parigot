@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"log"
+
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"google.golang.org/protobuf/proto"
@@ -43,6 +45,7 @@ func ReturnValueEncode(callImpl Call, cid, mid Id, marshalError, execError error
 	} else {
 		rv.Result = nil
 	}
+	log.Printf("xxx -- ReturnValue Encode Calling ReturnValue %#v", rv)
 	return callImpl.ReturnValue(rv)
 internalMarshalProblem:
 	// this is an internal error, so we signal it the opposite way we did the others at the top
@@ -50,5 +53,7 @@ internalMarshalProblem:
 encodeError:
 	rv.Pctx = nil
 	rv.Result = nil
+	log.Printf("xxx -- ReturnValue Value BIG CLUE %#v", rv)
+
 	return callImpl.ReturnValue(rv)
 }

@@ -100,11 +100,13 @@ func (c *DeployContext) CreateAllProcess() error {
 // returns the exit code to be used when exiting.
 func (c *DeployContext) StartServer() ([]string, int) {
 	mainList := []string{}
+	log.Printf("StartServer: set of services %#v", c.config.Microservice)
 	for _, f := range c.config.Microservice {
 		procAny, ok := c.process.Load(f.Name())
 		if !ok {
 			panic("unable to find (internal) process for name " + f.Name())
 		}
+		log.Printf("in loop for all services %#v", f)
 		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
 			mainList = append(mainList, f.Name())
 		}

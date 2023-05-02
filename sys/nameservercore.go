@@ -81,6 +81,7 @@ func (n *NSCore) nextServiceCounter() int {
 // addAlreadyExported does NOT lock and the caller should have the
 // the NSCore lock before calling this function.
 func (n *NSCore) addAlreadyExported(export ...string) {
+
 	n.alreadyExported_ = append(n.alreadyExported_, export...)
 }
 
@@ -374,6 +375,13 @@ func GetGID() uint64 {
 	return n
 }
 
+func (n *NSCore) lockThenGetAlreadyExported() []string {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.copyAlreadyExported()
+}
+
 // Require indicates a required package that must be up (pkgPath.service) before the given
 // service (key) can start running.  This function locks the NSCore at one
 // point because it needs exclusive access to the dep graph.
@@ -384,9 +392,8 @@ func (n *NSCore) Require(key dep.DepKey, pkgPath, service string) lib.Id {
 
 	name := fmt.Sprintf("%s.%s", pkgPath, service)
 	// this check always fails in the remote case, but n.alreadyExported==nil so it doesn't really hurt
-	// n.copyAlreadyExported asserts the lock on NSCore so we can't lock before this
-	// XXXYYY alreadyExported is not locked?
-	for _, s := range n.copyAlreadyExported() {
+	alreadyExp := n.lockThenGetAlreadyExported()
+	for _, s := range alreadyExp {
 		if s == name {
 			nscorePrint("Require ", "process %s required %s.%s but it is already exported",
 				key.String(), pkgPath, service)
