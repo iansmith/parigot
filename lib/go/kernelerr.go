@@ -85,4 +85,7 @@ const (
 	// an "error" but rather an indication that the program that requested the
 	// exit may do so immediately.
 	KernelExitRequest KernelErrorCode = 21
+	// KernelEncodeError indicates that an attempt encode a protobuf
+	// with header and CRC has failed.
+	KernelEncodeError KernelErrorCode = 22
 )
