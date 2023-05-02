@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/iansmith/parigot/apiimpl/log/go_"
@@ -45,17 +44,15 @@ func (m *myLogServer) Log(pctx *protosupportmsg.Pctx, inProto proto.Message) err
 
 	resp := logmsg.LogResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
-	_, errId, errDetail := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.LogRequestHandler)
-	if errId != nil {
-		return lib.NewPerrorFromId(errDetail, errId)
+	spayload := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.LogRequestHandler)
+	if splitutil.IsErrorInSinglePayload(spayload) {
+		err := splitutil.NewPerrorFromSinglePayload(spayload)
+		return err
 	}
-	if errId != nil {
-		return errors.New("Log() failed:" + errId.Short())
-	}
-
 	req, ok := inProto.(*logmsg.LogRequest)
 	if !ok {
-		return nil
+		print("MAYDAY! trying ot log an error, but failed!\n")
+		return nil // xxx ugh swallowing this? But what else can be done?
 	}
 	if req.Level == logmsg.LogLevel_LOG_LEVEL_FATAL {
 		print(fmt.Sprintf("xxx -- FATAL FATAL FATAL --> %s\n", inProto.(*logmsg.LogRequest).Message))

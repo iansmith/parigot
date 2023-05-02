@@ -4,7 +4,6 @@
 package {{ .package }}
 {{ $file:=.file}}
 import(
-    "fmt"
 {{- range $j,$i := .import }}
     {{$j}}
 {{- end}} {{/* imports */}}
@@ -148,7 +147,6 @@ func (i *{{$svcCamel}}Client) {{$methCamel}}()
 {{- if .OutputCodeNeeded }}
     err = resp.Result.UnmarshalTo(out)
     if err!=nil {
-        print(fmt.Sprintf("generated code size of out %T, %v\n",out,out!=nil))
         return nil,lib.NewPerrorFromError("failed to unmarshal result (generated code):",err)
     }
     return out,nil

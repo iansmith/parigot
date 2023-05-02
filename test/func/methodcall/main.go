@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/iansmith/parigot/apiimpl/syscall"
@@ -168,6 +169,7 @@ func (m *myUnderTestServer) Ready() bool {
 	}
 	// now we need to setup the stuff we need to run tests
 	var err error
+	log.Printf("READY1")
 	m.logger, err = log.LocateLogService()
 	if err != nil {
 		panic("unable to get logger with locate")
@@ -187,6 +189,7 @@ func (m *myUnderTestServer) Ready() bool {
 		m.logError("LocateTestServer:", err)
 		return false
 	}
+	log.Printf("READY2")
 	if err := m.setupTests(); err != nil {
 		m.logError("test setup failed:", err)
 		return false
@@ -195,6 +198,7 @@ func (m *myUnderTestServer) Ready() bool {
 }
 func (m *myUnderTestServer) Exec(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	req := inProto.(*testmsg.ExecRequest)
+	log.Printf("EXEC1")
 	m.logInfo(fmt.Sprintf("got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName()))
 	resp := &testmsg.ExecResponse{}
 	return resp, nil
@@ -208,6 +212,8 @@ func (m *myUnderTestServer) setupTests() error {
 	}); err != nil {
 		panic("error trying to log in methodcalltest")
 	}
+	log.Printf("setupTests")
+
 	addReq := &testmsg.AddTestSuiteRequest{
 		Suite: []*testmsg.SuiteInfo{
 			{

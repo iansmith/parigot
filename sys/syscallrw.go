@@ -2,7 +2,9 @@ package sys
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -40,10 +42,11 @@ type syscallReadWrite struct {
 
 func splitImplRetOne[T, U proto.Message](mem *jspatch.WasmMem, sp int32, req T, resp U,
 	fn func(t T, u U) (lib.Id, string)) {
-	errId, errDetail := splitutil.StackPointerToRequest(mem, sp, req)
+	errId, _ := splitutil.StackPointerToRequest(mem, sp, req)
 	if errId != nil {
 		return // error already set
 	}
+	var errDetail string
 	errId, errDetail = fn(req, resp)
 	if errId != nil {
 		splitutil.ErrorResponse(mem, sp, errId, errDetail)
@@ -115,14 +118,12 @@ func (s *syscallReadWrite) Locate(sp int32) {
 // Dispatch is the way that a client invokes and RPC to another service.  This code is on the kernel
 // side (go implementation of kernel).
 func (s *syscallReadWrite) Dispatch(sp int32) {
-	print("xxx -- dispatch1\n")
 	resp := syscallmsg.DispatchResponse{}
 	req := syscallmsg.DispatchRequest{}
 	errId, errDetail := splitutil.StackPointerToRequest(s.mem, sp, &req)
 	if errId != nil {
 		return // the error return code is already set
 	}
-	print("xxx -- dispatch2\n")
 	key := NewDepKeyFromProcess(s.proc)
 	sid := lib.Unmarshal(req.GetServiceId())
 	ctx, errId, errDetail := s.procToSysCall().FindMethodByName(key, sid, req.Method)
@@ -135,10 +136,8 @@ func (s *syscallReadWrite) Dispatch(sp int32) {
 		return
 	}
 	ctx.param = req.Param
-	print(fmt.Sprintf("xxx -- dispatch2a %#v \n", req))
 	// this call is the machinery for making a call to another service
 	retReq, id, errDetail := s.procToSysCall().CallService(ctx.target, ctx)
-	print("xxx -- dispatch3\n")
 	if id != nil {
 		splitutil.ErrorResponse(s.mem, sp, id, errDetail)
 		return
@@ -208,9 +207,11 @@ func splitImplRetEmpty[T proto.Message](mem *jspatch.WasmMem, sp int32, req T, f
 func (s *syscallReadWrite) ReturnValue(sp int32) {
 	req := syscallmsg.ReturnValueRequest{}
 	resp := syscallmsg.ReturnValueResponse{}
+	log.Printf("xxx -- ReturnValue (%s)", runtime.GOARCH)
 	splitImplRetOne(s.mem, sp, &req, &resp, func(t *syscallmsg.ReturnValueRequest, u *syscallmsg.ReturnValueResponse) (lib.Id, string) {
 		cid := lib.Unmarshal(req.GetCall())
 		ctx := s.procToSysCall().GetInfoForCallId(cid)
+		log.Printf("xxx -- ReturnValue inside (%s) %#v", runtime.GOARCH, ctx)
 		if ctx == nil {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no record of that call (caller addr %v)", ctx.sender.(*DepKeyImpl).addr)
 			return lib.NewKernelError(lib.KernelCallerUnavailable),
@@ -221,6 +222,9 @@ func (s *syscallReadWrite) ReturnValue(sp int32) {
 			sysPrint(logmsg.LogLevel_LOG_LEVEL_WARNING, "RETURNVALUE ", "no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
 			return lib.NewKernelError(lib.KernelCallerUnavailable),
 				fmt.Sprintf("no caller proc, caller addr is %s", ctx.sender.(*DepKeyImpl).addr)
+		}
+		if req.Result == nil {
+			panic("NO HOPE, NIL RESULT")
 		}
 		ctx.respCh <- &req
 

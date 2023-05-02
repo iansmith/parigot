@@ -44,7 +44,6 @@ func main() {
 	if err := ctx.CreateAllProcess(); err != nil {
 		log.Fatalf("unable to create process: %v", err)
 	}
-
 	main, code := ctx.StartServer()
 	if main == nil {
 		if code != 0 {
@@ -67,6 +66,7 @@ func main() {
 			print("periodic check:-----------\n", buf.String(), "\n")
 		}
 	}()
+
 	for _, mainProg := range main {
 		code, err := ctx.StartMain(mainProg)
 		if err != nil {
@@ -76,6 +76,7 @@ func main() {
 			log.Fatalf("main program '%s' exited with code %d", mainProg, code)
 		}
 	}
+	log.Printf("size of main is %+v", main)
 	if len(main) > 1 {
 		backdoor.Log(&logmsg.LogRequest{
 			Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
@@ -88,6 +89,7 @@ func main() {
 			Stamp:   timestamppb.Now(),
 			Message: "main program completed successfully",
 		}, false, true, false, nil)
+		log.Printf("xxx backdoor log, main completed\n")
 	}
 	os.Exit(8)
 }

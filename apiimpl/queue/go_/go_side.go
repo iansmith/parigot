@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"runtime/debug"
 	"time"
 
 	"github.com/iansmith/parigot/apiimpl/splitutil"
@@ -282,18 +281,10 @@ func (q *QueueSvcImpl) QueueSvcMarkDoneImpl(req *queuemsg.MarkDoneRequest, resp 
 // get the error code and detail, typically QueueErrNotFound.  If things
 // are ok, this returns the queue id for a given name in the response.
 func (q *QueueSvcImpl) QueueSvcLocateImpl(req *queuemsg.LocateRequest, resp *queuemsg.LocateResponse) (lib.Id, string) {
-	print("QUEUE SVC LOCATE IMPL1\n")
-	debug.PrintStack()
-	if !q.validateName(req.GetQueueName()) {
-		return lib.NewQueueError(lib.QueueInvalidName),
-			fmt.Sprintf("%s is not a valid name, should be a sequenc of only alphanumeric and '_','-','.'", req.GetQueueName())
-	}
 	row, err := q.queries.Locate(context.Background(), req.QueueName)
-	print("QUEUE SVC LOCATE IMPL2 ", err != nil, " -- ", req.QueueName, "\n")
 	if err != nil {
 		return lib.NewQueueError(lib.QueueNotFound), err.Error()
 	}
-	print("QUEUE SVC LOCATE IMPL3\n")
 	h := uint64(row.IDHigh.Int64)
 	l := uint64(row.IDLow.Int64)
 	// type here is just for validation of the char
