@@ -51,6 +51,11 @@ func main() {
 			panic("os.Exit() with code " + fmt.Sprint(code))
 		}
 	}
+	for {
+		log.Printf("busywaitingxxx---")
+		time.Sleep(10 * time.Second)
+	}
+
 	go func() {
 		var buf bytes.Buffer
 		for {
@@ -72,6 +77,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("could not start main program:%v", err)
 		}
+		log.Printf("logging return code of %d from %s [%v]", code, mainProg, err)
 		if code != 0 {
 			log.Fatalf("main program '%s' exited with code %d", mainProg, code)
 		}

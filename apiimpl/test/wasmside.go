@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	golog "log"
 	"regexp"
 	"strings"
 
@@ -32,18 +33,11 @@ func main() {
 	lib.FlagParseCreateEnv()
 
 	// The queue we will use
-	if _, err := callImpl.Require1("queue", "QueueService"); err != nil {
-		panic("myLogServer:ready: error in attempt to require queue.QueueService: " + err.Error())
-	}
-	// The logger we will use
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("myLogServer:ready: error in attempt to require log.Log: " + err.Error())
-	}
+	queue.RequireQueueServiceOrPanic()
+	log.RequireLogServiceOrPanic()
 
-	// you need to put Require and Export calls in here, but put Run() call in Ready()
-	if _, err := callImpl.Export1("test", "TestService"); err != nil {
-		panic("myLogServer:ready: error in attempt to export test.TestService: " + err.Error())
-	}
+	test.ExportTestServiceOrPanic()
+
 	test.RunTestService(&myTestServer{})
 }
 
@@ -102,19 +96,10 @@ func (m *myTestServer) Ready() bool {
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
 
-	var err error
-
-	if _, err = callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		panic("myTestServer: ready: error in attempt to signal Run: " + err.Error())
-	}
-	m.logger, err = log.LocateLogService()
-	if err != nil {
-		panic("myTestServer: ready: error in attempt to get logger: " + err.Error())
-	}
-	m.queueSvc, err = queue.LocateQueueService(m.logger)
-	if err != nil {
-		panic("myTestServer: ready: error in attempt to get queue service: " + err.Error())
-	}
+	golog.Printf("myTestServer ready called")
+	test.WaitTestServiceOrPanic()
+	m.logger = log.LocateLogServiceOrPanic()
+	m.queueSvc = queue.LocateQueueServiceOrPanic(m.logger)
 	qid, deets := m.findOrCreateQueue(testQueueName)
 	if qid.IsErrorType() {
 		panic("myTestServer: unable to create the test queue: " + deets)

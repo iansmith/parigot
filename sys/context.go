@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/command/runner/runner"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
@@ -22,7 +22,7 @@ type DeployContext struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
+var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration
@@ -32,7 +32,8 @@ var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
 	wasmConfig := wasmtime.NewConfig()
-
+	wasmConfig.SetDebugInfo(false)
+	wasmConfig.SetCraneliftOptLevel(wasmtime.OptLevelNone)
 	engine := wasmtime.NewEngineWithConfig(wasmConfig)
 
 	// load the images from disk and make sure they are valid modules
@@ -106,7 +107,6 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		if !ok {
 			panic("unable to find (internal) process for name " + f.Name())
 		}
-		log.Printf("in loop for all services %#v", f)
 		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
 			mainList = append(mainList, f.Name())
 		}
@@ -114,7 +114,9 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		if f.Server {
 			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process '%s' at Start()", name)
 			go func(p *Process, serverProcessName string) {
+				log.Printf("inside the goroutine for %s, about to start it", serverProcessName)
 				code := p.Start()
+				log.Printf("inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
 				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)

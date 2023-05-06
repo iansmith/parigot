@@ -290,7 +290,7 @@ package sys
 import (
 	"log"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
 $1

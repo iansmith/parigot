@@ -38,9 +38,10 @@ ENV GOROOT=/home/parigot/tools/go${GOLANG_VERSION}
 # RUN rm -rf build
 
 # wasmtime
-ENV WASMTIME_VERSION=4.0.0
+ENV WASMTIME_VERSION=8.0.1
+ENV WASMTIME_ARCH=aarch64
 WORKDIR /home/parigot/deps
-RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz
+RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}-linux.tar.xz
 RUN unxz wasmtime*.tar.xz
 RUN tar xf wasmtime*.tar
 RUN rm wasmtime*tar

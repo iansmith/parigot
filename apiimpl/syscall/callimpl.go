@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"fmt"
+	golog "log"
 	"os"
 	"reflect"
 	"strings"
@@ -119,6 +120,7 @@ func (l *callImpl) bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscal
 
 // Run is used only at startup.  A call is made to Run when a program has notified the kernel of all the
 // requires and exports it has.  When Run() is called, the program calling
+// run blocks.
 func (l *callImpl) Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 	out := new(syscallmsg.RunResponse)
 	r, e := splitImplementation[*syscallmsg.RunRequest, *syscallmsg.RunResponse](l, in, out, run)
@@ -209,11 +211,13 @@ func (l *callImpl) log(funcName string, spec string, rest ...interface{}) {
 func splitImplementation[T proto.Message, U proto.Message](l *callImpl, req T, resp U, fn func(int32)) (U, error) {
 	var zeroValForU U
 	spayload := splitutil.SendReceiveSingleProto(l, req, resp, fn)
-	//log.Printf("split impl: [[[[ %#v ]]]]", spayload)
+	golog.Printf("split impl: [[[[ %#v ]]]] => %T, %T (%v)", spayload, req, resp, splitutil.IsErrorInSinglePayload(spayload))
 	if splitutil.IsErrorInSinglePayload(spayload) {
+		golog.Printf("split impl returning error 0x%x 0x%x ", spayload.ErrPtr[0], spayload.ErrPtr[1])
 		return zeroValForU, splitutil.NewPerrorFromSinglePayload(spayload)
 
 	}
+	golog.Printf("split impl returning ok %#v", resp)
 	return resp, nil
 }
 

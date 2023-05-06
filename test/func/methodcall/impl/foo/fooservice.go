@@ -13,7 +13,6 @@ import (
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -26,13 +25,10 @@ func main() {
 	lib.FlagParseCreateEnv()
 
 	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("unable to require log service: " + err.Error())
-	}
-	if _, err := callImpl.Export1("methodcall", "FooService"); err != nil {
-		panic("unable to export methodcall.Foo: " + err.Error())
-	}
+	log.RequireLogServiceOrPanic()
+
 	// one cannot initialize the fields of fooServer{} here, must wait until Ready() is called
+	methodcall.ExportFooServiceOrPanic()
 	methodcall.RunFooService(&fooServer{})
 }
 
@@ -92,16 +88,11 @@ func (f *fooServer) WritePi(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMes
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
-		return false
-	}
-	logger, err := log.LocateLogService()
-	if err != nil {
-		print("ERROR trying to create log client: ", err.Error(), "\n")
-		return false
-	}
+	methodcall.WaitFooServiceOrPanic()
+
+	logger := log.LocateLogServiceOrPanic()
 	f.logger = logger
+
 	return true
 }
 
