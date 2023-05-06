@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"flag"
+	"log"
 	"os"
 	"strings"
 	"unsafe"
@@ -43,6 +44,7 @@ func loadArgvPointer(argv int32) int32 {
 	var buf [4]byte
 	for i := int32(0); i < 4; i++ {
 		str := (*byte)(unsafe.Pointer(uintptr(int32(argv + i))))
+		log.Printf("xxxx loadArgvPointer: %d, %p", i, str)
 		buf[i] = *str
 	}
 	return int32(binary.LittleEndian.Uint32(buf[:]))
@@ -52,11 +54,14 @@ func loadArgvPointer(argv int32) int32 {
 // then uses each of these to read a C style string.  The args and the env are terminated by an empty
 // string.
 func computeArgvEnvp() ([]string, []string) {
+	log.Printf("compute ArgvEnvp")
 	// xxx hacky: we put argv at a fixed memory location because we have no way to pass param to this function... except via argv!
 	argvAddr := loadArgvPointer(0x1000 - 4)
+	log.Printf("compute ArgvEnvp2")
 	argVector := []string{}
 	envVector := []string{}
 	index := int32(0)
+	log.Printf("xxx computeArgvEnvp333333")
 	for {
 		ptr := loadArgvPointer(argvAddr + (8 * index))
 		index++
@@ -74,12 +79,15 @@ func computeArgvEnvp() ([]string, []string) {
 		envVector = append(envVector, loadCString(ptr))
 		index++
 	}
+	log.Printf("xxx computeArgvEnvy2")
+
 	return argVector, envVector
 }
 
 var envp, argv []string
 
 func FlagParseCreateEnv() {
+	log.Printf("xxx -- FlagParseCreateEnv()")
 	argv, envp = computeArgvEnvp()
 	os.Args = argv
 	flag.Parse()

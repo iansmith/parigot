@@ -8,7 +8,7 @@ import (
 	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
 	queuego "github.com/iansmith/parigot/apiimpl/queue/go_"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 )
 
 func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {

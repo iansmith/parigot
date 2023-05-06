@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	golog "log"
 
 	"github.com/iansmith/parigot/apiimpl/queue/go_"
 	"github.com/iansmith/parigot/apiimpl/splitutil"
@@ -10,8 +11,8 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -19,13 +20,10 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	// we export and require services before the call to queueImpl.Run()... our call to the Run() system call is in Ready()
-	if _, err := callImpl.Export1("queue", "QueueService"); err != nil {
-		panic("ready: error in attempt to export api.Log: " + err.Error())
-	}
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("ready: error in attempt to export api.Log: " + err.Error())
-	}
+	lib.FlagParseCreateEnv()
+
+	queue.ExportQueueServiceOrPanic()
+	log.RequireLogServiceOrPanic()
 
 	queue.RunQueueService(&myQueueServer{})
 }
@@ -41,15 +39,9 @@ type myQueueServer struct {
 }
 
 func (m *myQueueServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		print("ready: error in attempt to signal Run from Queue service: ", err.Error(), "\n")
-		return false
-	}
-	var err error
-	m.logger, err = log.LocateLogService()
-	if err != nil {
-		panic("unable to locate the log:" + err.Error())
-	}
+	golog.Printf("queue server, ready called")
+	queue.WaitQueueServiceOrPanic()
+	m.logger = log.LocateLogServiceOrPanic()
 	return true
 }
 

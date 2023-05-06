@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
-	"log"
+	golog "log"
 	"reflect"
 	"unsafe"
 
@@ -73,10 +73,13 @@ func IsErrorInSinglePayload(ptr *SinglePayload) bool {
 // code.  thus, we care that the internal response (ptr, SinglePayload) has the
 // error code.
 func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32)) *SinglePayload {
+	golog.Printf("xxx SRSP %v and %T", callImpl == nil, c)
 	if callImpl == nil {
 		callImpl = c
 	}
+	golog.Printf("xxx SRSP 2 %v", callImpl == nil)
 	spayload := SendSingleProto(req)
+	golog.Printf("xxx SRSP 3 %#v", spayload)
 	if IsErrorInSinglePayload(spayload) {
 		return spayload
 	}
@@ -186,7 +189,6 @@ func RespondEmpty(mem *jspatch.WasmMem, sp int32) {
 func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 	wasmPtr := int32(mem.GetInt64(sp + 8))
 
-	log.Printf("xxx --- Respond Single Proto1: %#v\n", resp)
 	size := proto.Size(resp)
 	fullSize := int64(netconst.TrailerSize + netconst.FrontMatterSize + size)
 	// how much space do we have?
@@ -203,21 +205,15 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 	buffer, id, detail := encodeSingleProto(resp, size)
 	if id != nil {
 		// this can only happen on some type of protobuf encoding issue
-		log.Printf("xxx --- Respond Single Proto2A: %s\n", id)
 		ErrorResponse(mem, wasmPtr, id, detail)
 		return
 	}
-	u := unsafe.Pointer(&buffer)
-	sh := (*reflect.SliceHeader)(u)
-	spayload := (*SinglePayload)(unsafe.Pointer(sh.Data))
 
 	ptrOffset := unsafe.Offsetof(SinglePayload{}.OutPtr)
 	// this is tricky: we have to COPY the bytes from the go side to the wasm side bc the pointer
 	// returned as buffer is in the GO address space
 	CopyToPtr(mem, int64(wasmPtr), ptrOffset, buffer)
 
-	log.Printf("xxx --- Respond Single Proto3: InPtr 0x%0x, InLen 0x%0x, ErrPtr[0] 0x%0x, ErrPtr[1] 0x%0x, ErrDetailLen 0x%0x, ErrDetail: 0x%0x\n",
-		spayload.InPtr, spayload.InLen, spayload.ErrPtr[0], spayload.ErrPtr[1], spayload.ErrDetailLen, spayload.ErrDetail)
 	// tell the caller the length
 	mem.SetInt64(wasmPtr+offsetForLen, fullSize)
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/iansmith/parigot/sys/dep"
 	"github.com/iansmith/parigot/sys/jspatch"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go/v7"
+	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -41,7 +41,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false || envVerbose != ""
+var processVerbose = true || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -165,7 +165,7 @@ func (p *Process) Exit() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	panic("xxx exit() xxx")
-	print(fmt.Sprintf("process %s exiting\n", p))
+	log.Printf("process %s exiting\n", p)
 	p.exited = true
 }
 
@@ -218,15 +218,15 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 	available := make(map[string]*wasmtime.Func)
 	availableObj := make(map[string]wasmtime.AsExtern)
 
-	addEmscriptenFuncs(p.parent, available, rt)
+	//addEmscriptenFuncs(p.parent, available, rt)
 	addSupportedFunctions(p.parent, available, rt)
 	addSplitModeFunctions(p.parent, available, lv, fs, queue)
 
 	result := uintptr(0)
-	memPtr := addEmscriptenObjects(p.parent, availableObj)
+	//memPtr := addEmscriptenObjects(p.parent, availableObj)
 
 	glob := make(map[string]*wasmtime.Global)
-	addEmscriptenGlobals(p.parent, glob)
+	//addEmscriptenGlobals(p.parent, glob)
 
 	// result of checking the linkage
 	linkage := []wasmtime.AsExtern{}
@@ -252,7 +252,7 @@ func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *filei
 				log.Printf("request for import %s, %+v  ok?%v  %v", importName, availableObj, ok, obj)
 				if ok {
 					log.Printf("extra link step for %s", importName)
-					result = memPtr
+					//result = memPtr
 					linkage = append(linkage, obj)
 					continue
 				}
@@ -364,18 +364,18 @@ func (p *Process) Start() (code int) {
 
 		}
 	}
-	procPrint("START", "defer %s", p)
+	procPrint("START", "defer %s (%v)", p, start.Func() != nil)
 
 	defer func(proc *Process) {
 		r := recover()
 		if r != nil {
 			procPrint("START ******** ", "INSIDE defer %s, %+v", proc, r)
 			e, ok := r.(*syscallmsg.ExitRequest)
-			procPrint("START ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
+			procPrint("Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
 			if ok {
 				code = int(e.GetCode())
 				proc.SetExitCode(code)
-				procPrint("Start/Exit", "exiting with code %d", e.GetCode())
+				procPrint("Start/Exit", "INSIDE DEFER exiting with code %d", e.GetCode())
 			} else {
 				p.SetExitCode(int(ExitCodePanic))
 				code = int(ExitCodePanic)
@@ -391,7 +391,7 @@ func (p *Process) Start() (code int) {
 	//   (type (;8;) (func (result i32)))
 	result, err := f.Call(p.parent, p.argc, p.argv)
 	//result, err := f.Call(p.parent)
-	procPrint("END ", "process %s has completed: %v, %v", p, result, err)
+	procPrint("END ", "process %s has completed: result=%v, err=%v", p, result, err)
 
 	if err != nil {
 		p.SetExitCode(int(ExitCodeTrapped))
@@ -399,10 +399,9 @@ func (p *Process) Start() (code int) {
 		return int(ExitCodeTrapped)
 	}
 	if result == nil {
-		procPrint("END ", "process %s finished (exit code %d)", p, p.ExitCode())
+		procPrint("END ", "process %s finished w/no return value (exit code %d)", p, p.ExitCode())
 		p.SetExited(true)
 		return p.ExitCode()
-
 	}
 	procPrint("END ", "process %s finished normally: %+v", p, result)
 	procPrint("END ", "going to sleep now")
@@ -421,6 +420,6 @@ func procPrint(method string, spec string, arg ...interface{}) {
 				Message: part1 + part2 + "\n",
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
 			}, true, false, false, nil)
-
 	}
+	print("xxx -- hit proc print\n")
 }
