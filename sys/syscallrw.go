@@ -288,7 +288,7 @@ func (s *syscallReadWrite) Require(sp int32) {
 func (s *syscallReadWrite) Run(sp int32) {
 	req := &syscallmsg.RunRequest{}
 	splitImplRetEmpty(s.mem, sp, req, func(req *syscallmsg.RunRequest) (lib.Id, string) {
-		//sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "Run", "about to call new implementation of run inside nameserver")
+		sysPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "Run", "about to call new implementation of run inside nameserver")
 		ok, err := s.ns.RunBlock(s.proc.key)
 		if err != nil && err.IsErrorType() && err.IsError() {
 			return err, "failed when doing RunBlock " + s.proc.key.String()

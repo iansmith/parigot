@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/iansmith/parigot/apiimpl/syscall"
-	"github.com/iansmith/parigot/g/log/v1"
+	plog "github.com/iansmith/parigot/g/log/v1"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
+	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -26,23 +27,32 @@ var callImpl = syscall.NewCallImpl()
 var exitCode = int32(0)
 
 func main() {
+	log.Printf("before flag parse -- 1")
 	lib.FlagParseCreateEnv()
+	log.Printf("xxx main of methodcall test -- 1")
+	//panic("main test")
 
-	if _, err := callImpl.Require1("methodcall", "BarService"); err != nil {
-		panic("unable to require bar service: " + err.Error())
+	plog.RequireLogServiceOrPanic()
+	log.Printf("xxx main 2222 of methodcall test")
+	methodcall.RequireFooServiceOrPanic()
+	methodcall.RequireBarServiceOrPanic()
+	//test.RequireTestServiceOrPanic()
+	queue.RequireQueueServiceOrPanic()
+
+	// xxx fix me, this should be some type of library function
+	callImpl := syscall.NewCallImpl()
+	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
+		panic("test/func/methodcall/main.go: error in attempt to call Run syscall: " + err.Error())
 	}
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("unable to require log service: " + err.Error())
-	}
-	if _, err := callImpl.Require1("test", "TestService"); err != nil {
-		panic("unable to require log service: " + err.Error())
-	}
-	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
-		panic("unable to require foo service: " + err.Error())
-	}
-	if _, err := callImpl.Export1("test.v1", "UnderTestService"); err != nil {
-		panic("unable to require foo service: " + err.Error())
-	}
+
+	// now get handles to the services
+	logger := plog.LocateLogServiceOrPanic()
+	methodcall.LocateBarServiceOrPanic(logger)
+	methodcall.LocateFooServiceOrPanic(logger)
+	queue.LocateQueueServiceOrPanic(logger)
+
+	log.Printf("xxx DONE main of methodcall test")
+
 	test.RunUnderTestService(underTestServer)
 }
 
@@ -157,7 +167,7 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
-	logger  *log.LogServiceClient
+	logger  *plog.LogServiceClient
 	testSvc *test.TestServiceClient
 	foo     *methodcall.FooServiceClient
 	bar     *methodcall.BarServiceClient
@@ -170,20 +180,23 @@ func (m *myUnderTestServer) Ready() bool {
 	// now we need to setup the stuff we need to run tests
 	var err error
 	log.Printf("READY1")
-	m.logger, err = log.LocateLogService()
+	m.logger, err = plog.LocateLogService()
 	if err != nil {
 		panic("unable to get logger with locate")
 	}
+	log.Printf("READYA")
 	m.foo, err = methodcall.LocateFooService(m.logger)
 	if err != nil {
 		m.logError("LocateFooServer:", err)
 		return false
 	}
+	log.Printf("READYB")
 	m.bar, err = methodcall.LocateBarService(m.logger)
 	if err != nil {
 		m.logError("LocateBarServer:", err)
 		return false
 	}
+	log.Printf("READYC")
 	m.testSvc, err = test.LocateTestService(m.logger)
 	if err != nil {
 		m.logError("LocateTestServer:", err)

@@ -2,17 +2,16 @@ package main
 
 import (
 	"fmt"
+	golog "log"
 	"time"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 
 	"github.com/iansmith/parigot/apiimpl/syscall"
 	"github.com/iansmith/parigot/g/log/v1"
 	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,22 +20,14 @@ import (
 var callImpl = syscall.NewCallImpl()
 
 func main() {
-	lib.FlagParseCreateEnv()
-	// for i := 0; i < flag.NArg(); i++ {
-	// 	print(fmt.Sprintf("xxx bar %d=>%s\n", i, flag.Arg(i)))
-	// }
+	//lib.FlagParseCreateEnv()
+	print(" xxxx --- about to start doing require in Bar service\n")
+	log.RequireLogServiceOrPanic()
+	methodcall.RequireFooServiceOrPanic()
 
-	//if things need to be required/exported you need to force them to the ready state BEFORE calling run()
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		panic("unable to require log service: " + err.Error())
-	}
-	if _, err := callImpl.Require1("methodcall", "FooService"); err != nil {
-		panic("unable to require methodcall.FooService service: " + err.Error())
-	}
-	if _, err := callImpl.Export1("methodcall", "BarService"); err != nil {
-		panic("unable to export methodcall.BarService: " + err.Error())
-	}
 	// one cannot initialize the fields of barServer{} here, must wait until Ready() is called
+	methodcall.ExportBarServiceOrPanic()
+	print(" xxxx --- about to run bar service from main\n")
 	methodcall.RunBarService(&barServer{})
 }
 
@@ -104,22 +95,11 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (b *barServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
-		return false
-	}
-	logger, err := log.LocateLogService()
-	if err != nil {
-		print("ERROR trying to create log client: ", err.Error(), "\n")
-		return false
-	}
-	foo, err := methodcall.LocateFooService(logger)
-	if err != nil {
-		print("ERROR trying to create foo client: ", err.Error(), "\n")
-		return false
-	}
-	b.logger = logger
-	b.foo = foo
+	golog.Printf("xxx--- ready called on bar")
+	methodcall.WaitBarServiceOrPanic()
+
+	b.logger = log.LocateLogServiceOrPanic()
+	b.foo = methodcall.LocateFooServiceOrPanic(b.logger)
 	return true
 }
 

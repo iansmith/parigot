@@ -67,6 +67,7 @@ type {{$svcCamel}}Client struct {
     *lib.ClientSideService
     lib.Call
 }
+var required{{$svc}} bool
 
 // Locate finds a reference to the client interface of {{$svc}}.  The logger parameter can be 
 // nil which implies that client code cannot call the Log() interface of ClientSideService.
@@ -80,6 +81,7 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
+
     callImpl:=syscall.NewCallImpl()
     resp, err:=callImpl.Locate(req)
     if err!=nil {
@@ -99,6 +101,52 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         ClientSideService: cs,
         Call: callImpl,
     }, nil
+}
+
+{{- if $needLog }}
+func Locate{{$svc}}OrPanic(logger lib.Log) *{{$svcCamel}}Client {
+{{- else }}
+func Locate{{$svc}}OrPanic() *{{$svcCamel}}Client {
+{{- end}} {{/*end of if $needLog*/}}
+    if !required{{$svc}} {
+        panic("call of Locate{{$svc}}OrPanic without previous call to Require{{$svc}}OrPanic")
+    }
+
+{{- if $needLog }}
+    result, err:=Locate{{$svc}}(logger)
+{{- else }}
+    result, err:=Locate{{$svc}}()
+{{- end}} {{/*end of if $needLog*/}}
+
+    if err!=nil {
+        panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    }
+    return result
+}
+
+func Require{{$svc}}OrPanic() {
+    callImpl:=syscall.NewCallImpl()
+    _, err:=callImpl.Require1("{{.ProtoPackage}}","{{$svc}}")
+    if err!=nil {
+        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    }
+    required{{$svc}}=true
+}
+
+func Export{{$svc}}OrPanic() {
+    callImpl:=syscall.NewCallImpl()
+    _, err:=callImpl.Export1("{{.ProtoPackage}}","{{$svc}}")
+    if err!=nil {
+        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    }
+}
+func Wait{{$svc}}OrPanic() {
+    callImpl:=syscall.NewCallImpl()
+
+	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
+		panic("{{.ProtoPackage}}.{{$svc}}: ready: error in attempt to call Run syscall: " + err.Error())
+	}
+
 }
 
 {{range .GetWasmMethod}}

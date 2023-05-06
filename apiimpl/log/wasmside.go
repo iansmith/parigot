@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	golog "log"
 
 	"github.com/iansmith/parigot/apiimpl/log/go_"
 	"github.com/iansmith/parigot/apiimpl/splitutil"
@@ -9,7 +10,6 @@ import (
 	"github.com/iansmith/parigot/g/log/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
@@ -17,21 +17,31 @@ import (
 
 var callImpl = syscall.NewCallImpl()
 
+func bar() {
+	return
+}
+
 func main() {
-	lib.FlagParseCreateEnv()
-	// you need to put Require and Export calls in here, but put Run() call in Ready()
-	if _, err := callImpl.Export1("log", "LogService"); err != nil {
-		panic("myLogServer:ready: error in attempt to export api.Log: " + err.Error())
+	bar()
+	for i := 0; i < 10; i++ {
+		golog.Printf("xxx --> LOG mainxxx()")
+		golog.Printf("xxx 222 --> LOG mainxxx()")
 	}
+
+	lib.FlagParseCreateEnv()
+	golog.Printf("xxx --> LOG main() 2")
+
+	log.ExportLogServiceOrPanic()
+	golog.Printf("xxx --> LOG main() 3")
 	log.RunLogService(&myLogServer{})
+	golog.Printf("xxx --> LOG main() 4")
+
 }
 
 type myLogServer struct{}
 
 func (m *myLogServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
-	}
+	log.WaitLogServiceOrPanic()
 	return true
 }
 
