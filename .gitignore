@@ -9,3 +9,6 @@ Makefile.orig
 .DS_Store
 .vscode
 ui/parser/.antlr
+.bash_history
+.cache
+.lesshst

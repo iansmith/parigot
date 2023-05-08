@@ -41,8 +41,8 @@ type QueueSvcImpl struct {
 // NewQueueSvc returns an initialized Queue service and two nils or
 // a nil service and two bits of error information.  When running unit
 // tests, it is ok to pass nil to this function.
-func NewQueueSvc(mem *jspatch.WasmMem) (*QueueSvcImpl, lib.Id, string) {
-	q := &QueueSvcImpl{mem: mem}
+func NewQueueSvc() (*QueueSvcImpl, lib.Id, string) {
+	q := &QueueSvcImpl{mem: nil}
 
 	var err error
 	//open db
@@ -68,7 +68,7 @@ func (q *QueueSvcImpl) validateName(name string) bool {
 	return legalName.MatchString(name)
 }
 
-func (q *QueueSvcImpl) SetWasmMem(ptr uintptr) {
+func (q *QueueSvcImpl) SetMemPtr(ptr uintptr) {
 	q.mem = jspatch.NewWasmMem(ptr)
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"runtime/debug"
@@ -26,6 +27,7 @@ type WasmMem struct {
 }
 
 func NewWasmMem(memPtr uintptr) *WasmMem {
+	log.Printf("xxx new wasm mem 0x%x", memPtr)
 	return &WasmMem{
 		memPtr: memPtr,
 	}
@@ -82,6 +84,7 @@ func (w *WasmMem) SetInt32(addr int32, value int32) {
 	header.Data = ptr
 	header.Len = 4
 	header.Cap = 4
+	log.Printf("Set Int32 %x, %x", addr, value)
 	binary.LittleEndian.PutUint32(buf, uint32(value))
 }
 

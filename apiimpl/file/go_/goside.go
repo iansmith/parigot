@@ -1,6 +1,3 @@
-//go:build !js
-// +build !js
-
 package go_
 
 import (
@@ -31,6 +28,11 @@ type FileSvcImpl struct {
 	fs              *memfs.FS
 	idToFilePointer map[string] /*really string version of lib.Id*/ int64
 	idToMemPath     map[string]string
+}
+
+// FileSvcImpl's mem pointer has to be filled in later
+func NewFileSvcImpl() *FileSvcImpl {
+	return &FileSvcImpl{}
 }
 
 // This is the native code side of the file service.  It reads the payload sent by the wasm world.
@@ -71,7 +73,7 @@ func (l *FileSvcImpl) FileSvcOpen(sp int32) {
 	splitutil.RespondSingleProto(l.mem, sp, &resp)
 }
 
-func (l *FileSvcImpl) SetWasmMem(ptr uintptr) {
+func (l *FileSvcImpl) SetMemPtr(ptr uintptr) {
 	l.mem = jspatch.NewWasmMem(ptr)
 }
 
