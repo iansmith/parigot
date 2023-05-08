@@ -1,6 +1,3 @@
-//go:build !js
-// +build !js
-
 package go_
 
 import (
@@ -23,6 +20,11 @@ import (
 
 type LogViewerImpl struct {
 	mem *jspatch.WasmMem
+}
+
+// NewLogViewer will get it's mem ptr filled inlater
+func NewLogViewerImpl() *LogViewerImpl {
+	return &LogViewerImpl{}
 }
 
 const dialPathToLogViewer = "host.docker.internal:4004"
@@ -77,7 +79,7 @@ func (s *LogViewerImpl) ReadSlice(structPtr int64, dataOffset uintptr, lenOffset
 		int32(structPtr)+int32(lenOffset))
 }
 
-func (l *LogViewerImpl) SetWasmMem(ptr uintptr) {
+func (l *LogViewerImpl) SetMemPtr(ptr uintptr) {
 	l.mem = jspatch.NewWasmMem(ptr)
 }
 

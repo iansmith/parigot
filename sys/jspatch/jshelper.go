@@ -32,7 +32,7 @@ const jsEmulVerbose = true
 func jsLog(spec string, x ...interface{}) {
 	if jsEmulVerbose {
 		s := fmt.Sprintf(spec, x...)
-		log.Printf(s)
+		log.Print(s)
 	}
 }
 
@@ -59,9 +59,12 @@ func (j *JSPatch) ValueLoadString(sp int32) {
 	slice := j.mem.LoadSlice(sp + 16)
 	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
 	content := str.String()
+	// XXX this has to be changed between tinygo and gc
+	// XXX uintptr(len(content)) -> len(content)
+	l := uintptr(len(content))
+	ptr.Len = l
+	ptr.Cap = l
 	ptr.Data = uintptr(unsafe.Pointer((&content)))
-	ptr.Len = len(content)
-	ptr.Cap = len(content)
 }
 
 func (j *JSPatch) ValueLength(sp int32) {

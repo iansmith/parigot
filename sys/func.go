@@ -1,99 +1,93 @@
 package sys
 
 import (
-	"fmt"
-	"runtime/debug"
-
-	filego "github.com/iansmith/parigot/apiimpl/file/go_"
-	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
-	queuego "github.com/iansmith/parigot/apiimpl/queue/go_"
-
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	"github.com/iansmith/parigot/eng"
 )
 
-func addSupportedFunctions(store wasmtime.Storelike, result map[string]*wasmtime.Func, rt *Runtime) {
-	result["env.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueSetIndex)
-	result["go.syscall/js.valueGet"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueGet)
-	result["env.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValuePrepareString)
-	result["env.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueLoadString)
-	result["go.syscall/js.finalizeRef"] = wasmtime.WrapFunc(store, rt.jsEnv.FinalizeRef)
-	result["go.syscall/js.stringVal"] = wasmtime.WrapFunc(store, rt.jsEnv.StringVal)
-	result["go.syscall/js.valueSet"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueSet)
-	result["go.syscall/js.valueDelete"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueDelete)
-	result["go.syscall/js.valueIndex"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueIndex)
-	result["go.syscall/js.valueSetIndex"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueSetIndex)
-	result["go.syscall/js.valueLength"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueLength)
-	result["go.syscall/js.valuePrepareString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValuePrepareString)
-	result["go.syscall/js.valueCall"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueCall)
-	result["go.syscall/js.valueInvoke"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueInvoke)
-	result["go.syscall/js.valueNew"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueNew)
-	result["go.syscall/js.valueLoadString"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueLoadString)
-	result["go.syscall/js.valueInstanceOf"] = wasmtime.WrapFunc(store, rt.jsEnv.ValueInstanceOf)
-	result["go.syscall/js.copyBytesToGo"] = wasmtime.WrapFunc(store, rt.jsEnv.CopyBytesToGo)
-	result["go.syscall/js.copyBytesToJS"] = wasmtime.WrapFunc(store, rt.jsEnv.CopyBytesToJS)
-	result["go.runtime.resetMemoryDataView"] = wrapWithRecover(store, rt.runtimeEnv.ResetMemoryDataView, "ResetMemoryDataView")
-	result["go.runtime.wasmExit"] = wrapWithRecover(store, rt.wasiEnv.WasiExit, "WasiExit")
-	result["go.runtime.wasmWrite"] = wrapWithRecover(store, rt.wasiEnv.WasiWrite, "WasiWrite")
-	result["go.runtime.nanotime1"] = wrapWithRecover(store, rt.runtimeEnv.Nanotime1, "Nanotime1")
-	result["go.runtime.walltime"] = wrapWithRecover(store, rt.runtimeEnv.WallTime, "WallTime")
-	result["go.runtime.scheduleTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ScheduleTimeoutEvent, "ScheduleTimeoutEvent")
-	result["go.runtime.clearTimeoutEvent"] = wrapWithRecover(store, rt.runtimeEnv.ClearTimeoutEvent, "ClearTimeoutEvent")
-	result["go.runtime.getRandomData"] = wasmtime.WrapFunc(store, rt.runtimeEnv.GetRandomData)
-	//result["parigot.debugprint"] = wrapWithRecover(store, rt.syscall.DebugPrint)
-	result["go.debug"] = wrapWithRecover(store, rt.runtimeEnv.GoDebug, "GoDebug")
+func addSupportedFunctions(eng eng.Engine, w *WasmtimeSupportFunc) {
+	rt := w.rt
+	eng.AddSupportedFunc("env.syscall/js.valueSetIndex", rt.jsEnv.ValueSetIndex)
+	eng.AddSupportedFunc("env.syscall/js.valuePrepareString", rt.jsEnv.ValuePrepareString)
+	eng.AddSupportedFunc("env.syscall/js.valueLoadString", rt.jsEnv.ValueLoadString)
+
+	eng.AddSupportedFunc("syscall/js.valueGet", rt.jsEnv.ValueGet)
+	eng.AddSupportedFunc("syscall/js.finalizeRef", rt.jsEnv.FinalizeRef)
+	eng.AddSupportedFunc("syscall/js.stringVal", rt.jsEnv.StringVal)
+	eng.AddSupportedFunc("syscall/js.valueSet", rt.jsEnv.ValueSet)
+	eng.AddSupportedFunc("syscall/js.valueDelete", rt.jsEnv.ValueDelete)
+	eng.AddSupportedFunc("syscall/js.valueIndex", rt.jsEnv.ValueIndex)
+	eng.AddSupportedFunc("syscall/js.valueSetIndex", rt.jsEnv.ValueSetIndex)
+	eng.AddSupportedFunc("syscall/js.valueLength", rt.jsEnv.ValueLength)
+	eng.AddSupportedFunc("syscall/js.valuePrepareString", rt.jsEnv.ValuePrepareString)
+	eng.AddSupportedFunc("syscall/js.valueCall", rt.jsEnv.ValueCall)
+	eng.AddSupportedFunc("syscall/js.valueInvoke", rt.jsEnv.ValueInvoke)
+	eng.AddSupportedFunc("syscall/js.valueNew", rt.jsEnv.ValueNew)
+	eng.AddSupportedFunc("syscall/js.valueLoadString", rt.jsEnv.ValueLoadString)
+	eng.AddSupportedFunc("syscall/js.valueInstanceOf", rt.jsEnv.ValueInstanceOf)
+	eng.AddSupportedFunc("syscall/js.copyBytesToGo", rt.jsEnv.CopyBytesToGo)
+	eng.AddSupportedFunc("syscall/js.copyBytesToJS", rt.jsEnv.CopyBytesToJS)
+
+	eng.AddSupportedFunc("runtime.resetMemoryDataView", rt.runtimeEnv.ResetMemoryDataView)
+	eng.AddSupportedFunc("runtime.wasmExit", rt.wasiEnv.WasiExit)
+	eng.AddSupportedFunc("runtime.wasmWrite", rt.wasiEnv.WasiWrite)
+	eng.AddSupportedFunc("runtime.nanotime1", rt.runtimeEnv.Nanotime1)
+	eng.AddSupportedFunc("runtime.walltime", rt.runtimeEnv.WallTime)
+	eng.AddSupportedFunc("runtime.scheduleTimeoutEvent", rt.runtimeEnv.ScheduleTimeoutEvent)
+	eng.AddSupportedFunc("runtime.clearTimeoutEvent", rt.runtimeEnv.ClearTimeoutEvent)
+	eng.AddSupportedFunc("runtime.getRandomData", rt.runtimeEnv.GetRandomData)
+
+	//eng.AddSupportedFunc("parigot.debugprint", wrapWithRecover(store, rt.syscall.DebugPrint)
+	eng.AddSupportedFunc("debug", rt.runtimeEnv.GoDebug)
 
 	//system calls
-	result["go.parigot.locate_"] = wrapWithRecover(store, rt.syscall.Locate, "Locate")
-	//result["go.parigot.register_"] = wrapWithRecover(store, rt.syscall.Register,"Register")
+	eng.AddSupportedFunc("parigot.locate_", rt.syscall.Locate)
+
 	// xxx fix me: How are we going to clean up the resources for a particular service when it exits?
 	// how do we find the resources associated with the caller of exit().
-	result["go.parigot.exit_"] = wrapWithRecover(store, rt.syscall.Exit, "Exit")
-	result["go.parigot.dispatch_"] = wrapWithRecover(store, rt.syscall.Dispatch, "Dispatch")
-	result["go.parigot.bind_method_"] = wrapWithRecover(store, rt.syscall.BindMethod, "BindMethod")
-	result["go.parigot.return_value_"] = wrapWithRecover(store, rt.syscall.ReturnValue, "ReturnValue")
-	result["go.parigot.block_until_call_"] = wrapWithRecover(store, rt.syscall.BlockUntilCall, "BlockUntilCall")
-	result["go.parigot.require_"] = wrapWithRecover(store, rt.syscall.Require, "Require")
-	result["go.parigot.export_"] = wrapWithRecover(store, rt.syscall.Export, "Export")
-	result["go.parigot.run_"] = wrapWithRecover(store, rt.syscall.Run, "Run")
+
+	eng.AddSupportedFunc("parigot.exit_", rt.syscall.Exit)
+	eng.AddSupportedFunc("parigot.dispatch_", rt.syscall.Dispatch)
+	eng.AddSupportedFunc("parigot.bind_method_", rt.syscall.BindMethod)
+	eng.AddSupportedFunc("parigot.return_value_", rt.syscall.ReturnValue)
+	eng.AddSupportedFunc("parigot.block_until_call_", rt.syscall.BlockUntilCall)
+	eng.AddSupportedFunc("parigot.require_", rt.syscall.Require)
+	eng.AddSupportedFunc("parigot.export_", rt.syscall.Export)
+	eng.AddSupportedFunc("parigot.run_", rt.syscall.Run)
 
 	//backdoor to the logger
-	result["go.parigot.backdoor_log_"] = wrapWithRecover(store, rt.syscall.BackdoorLog, "BackdoorLog")
+	eng.AddSupportedFunc("parigot.backdoor_log_", rt.syscall.BackdoorLog)
 }
 
-func addSplitModeFunctions(store wasmtime.Storelike,
-	result map[string]*wasmtime.Func,
-	logViewer *loggo.LogViewerImpl,
-	fileSvc *filego.FileSvcImpl,
-	queueSvc *queuego.QueueSvcImpl) {
-
+func addSplitModeFunctions(eng eng.Engine, w *WasmtimeSupportFunc) {
+	// split mode
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	result["go.logviewer.log_request_handler"] = wrapWithRecover(store, logViewer.LogRequestHandler, "LogRequestHandler")
+	eng.AddSupportedFunc("logviewer.log_request_handler", w.log.LogRequestHandler)
 	// mixed mode entries: this should be automated (xxxfixmexxx)
-	result["go.filesvc.open"] = wrapWithRecover(store, fileSvc.FileSvcOpen, "FileSvcOpen")
-	result["go.filesvc.load"] = wrapWithRecover(store, fileSvc.FileSvcLoad, "FileSvcLoad")
+	eng.AddSupportedFunc("filesvc.open", w.file.FileSvcOpen)
+	eng.AddSupportedFunc("filesvc.load", w.file.FileSvcLoad)
 
-	result["go.queuesvc.create_handler"] = wrapWithRecover(store, queueSvc.QueueSvcCreateQueue, "QueueSvcCreateHandler")
-	result["go.queuesvc.delete_handler"] = wrapWithRecover(store, queueSvc.QueueSvcDeleteQueue, "QueueSvcDeleteHandler")
-	result["go.queuesvc.length_handler"] = wrapWithRecover(store, queueSvc.QueueSvcLength, "QueueSvcLengthHandler")
-	result["go.queuesvc.locate_handler"] = wrapWithRecover(store, queueSvc.QueueSvcLocate, "QueueSvcLocateHandler")
-	result["go.queuesvc.mark_done_handler"] = wrapWithRecover(store, queueSvc.QueueSvcMarkDone, "QueueSvcMarkDoneHandler")
-	result["go.queuesvc.send_handler"] = wrapWithRecover(store, queueSvc.QueueSvcSend, "QueueSvcSendHandler")
-	result["go.queuesvc.receive_handler"] = wrapWithRecover(store, queueSvc.QueueSvcReceive, "QueueSvcReceiveHandler")
+	eng.AddSupportedFunc("queuesvc.create_handler", w.queue.QueueSvcCreateQueue)
+	eng.AddSupportedFunc("queuesvc.delete_handler", w.queue.QueueSvcDeleteQueue)
+	eng.AddSupportedFunc("queuesvc.length_handler", w.queue.QueueSvcLength)
+	eng.AddSupportedFunc("queuesvc.locate_handler", w.queue.QueueSvcLocate)
+	eng.AddSupportedFunc("queuesvc.mark_done_handler", w.queue.QueueSvcMarkDone)
+	eng.AddSupportedFunc("queuesvc.send_handler", w.queue.QueueSvcSend)
+	eng.AddSupportedFunc("queuesvc.receive_handler", w.queue.QueueSvcReceive)
 }
 
-func wrapWithRecover(store wasmtime.Storelike, fn func(int32), name string) *wasmtime.Func {
-	return wasmtime.WrapFunc(store, func(sp int32) {
-		defer func() {
-			if r := recover(); r != nil {
-				print("START RECOVER STACKTRACE " + name + "\n")
-				print(fmt.Sprintf("trapped panic: %s %v (%T)\n", name, r, r))
-				debug.PrintStack()
-				print("END RECOVER+STACKTRACE " + name + "\n")
-			}
-		}()
-		if sp == 0 {
-			panic("BAD SP")
-		}
-		fn(sp)
-	})
-}
+// func wra	pWithRecover(store wasmtime.Storelike, fn func(int32), name string) *wasmtime.Func {
+// 	return wasmtime.WrapFunc(store, func(sp int32) {
+// 		defer func() {
+// 			if r := recover(); r != nil {
+// 				print("START RECOVER STACKTRACE " + name + "\n")
+// 				print(fmt.Sprintf("trapped panic: %s %v (%T)\n", name, r, r))
+// 				debug.PrintStack()
+// 				print("END RECOVER+STACKTRACE " + name + "\n")
+// 			}
+// 		}()
+// 		if sp == 0 {
+// 			panic("BAD SP")
+// 		}
+// 		fn(sp)
+// 	})
+// }

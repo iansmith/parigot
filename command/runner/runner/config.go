@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
+	"github.com/iansmith/parigot/eng"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	"github.com/iansmith/parigot/sys/backdoor"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -49,14 +49,14 @@ type Microservice struct {
 	// stuff we add
 	name   string
 	remote bool
-	module *wasmtime.Module
+	module eng.Module
 }
 
 func (m *Microservice) Name() string {
 	return m.name
 }
 
-func (m *Microservice) Module() *wasmtime.Module {
+func (m *Microservice) Module() eng.Module {
 	return m.module
 }
 
@@ -151,8 +151,8 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	return &result, nil
 }
 
-func (c *DeployConfig) loadSingleModule(engine *wasmtime.Engine, m *Microservice) (*wasmtime.Module, error) {
-	mod, err := wasmtime.NewModuleFromFile(engine, m.Path)
+func (c *DeployConfig) loadSingleModule(engine eng.Engine, m *Microservice) (eng.Module, error) {
+	mod, err := engine.NewModuleFromFile(m.Path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
 			m.name, m.Path, err)
@@ -172,7 +172,7 @@ func deployPrint(level logmsg.LogLevel, method string, spec string, rest ...inte
 	}
 }
 
-func (c *DeployConfig) LoadAllModules(engine *wasmtime.Engine) error {
+func (c *DeployConfig) LoadAllModules(engine eng.Engine) error {
 	for _, m := range c.Microservice {
 		mod, err := c.loadSingleModule(engine, m)
 		if err != nil {
@@ -191,7 +191,7 @@ func (c *DeployConfig) AllName() []string {
 	return result
 }
 
-func (c *DeployConfig) Module(name string) *wasmtime.Module {
+func (c *DeployConfig) Module(name string) eng.Module {
 	m, ok := c.Microservice[name]
 	if !ok {
 		return nil
@@ -222,6 +222,6 @@ func (m *Microservice) GetArg() []string {
 func (m *Microservice) GetPath() string {
 	return m.Path
 }
-func (m *Microservice) GetModule() *wasmtime.Module {
+func (m *Microservice) GetModule() eng.Module {
 	return m.module
 }
