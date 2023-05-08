@@ -116,7 +116,9 @@ RUN go install github.com/kyleconroy/sqlc/cmd/sqlc@latest
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
-# add error correction
+
+RUN wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_armhf.deb
+
 
 # set some vars
 WORKDIR /home/parigot/src

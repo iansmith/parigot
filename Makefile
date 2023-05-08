@@ -14,7 +14,7 @@ apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm
 commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
 sqlc: apiimpl/queue/go_/db.go
 
-GO_CMD=GOOS=js GOARCH=wasm go
+GO_CMD=docker run --rm --mount type=bind,source=`pwd`,target=/home/tinygo tinygo/tinygo:0.27.0 tinygo
 GO_LOCAL=go
 
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")

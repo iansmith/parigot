@@ -97,8 +97,11 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 	var byteBuffer []byte
 	wasmSideSlice := (*reflect.SliceHeader)(unsafe.Pointer(&byteBuffer))
 	wasmSideSlice.Data = uintptr(spayload.OutPtr)
-	wasmSideSlice.Len = int(spayload.OutLen)
-	wasmSideSlice.Cap = int(spayload.OutLen)
+	// XXX this has to be changed between tinygo and gc
+	// XXX uintptr(spayload.OutLen) -> int(spayloadOutLen)
+	l := uintptr(spayload.OutLen)
+	wasmSideSlice.Len = l
+	wasmSideSlice.Cap = l
 	id, detail := DecodeSingleProto(byteBuffer, resp)
 	if id != nil {
 		formatErrorResult(spayload, id, detail)

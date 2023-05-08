@@ -7,15 +7,13 @@ import (
 	"path/filepath"
 	"sync"
 
-	fileimpl "github.com/iansmith/parigot/apiimpl/file/go_"
 	logimpl "github.com/iansmith/parigot/apiimpl/log/go_"
-	queueimpl "github.com/iansmith/parigot/apiimpl/queue/go_"
+	"github.com/iansmith/parigot/eng"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"
 	"github.com/iansmith/parigot/sys/jspatch"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -27,7 +25,7 @@ type Service interface {
 	GetArg() []string
 	GetEnv() []string
 	GetPath() string
-	GetModule() *wasmtime.Module
+	GetModule() eng.Module
 }
 
 type ParigotExitCode int
@@ -51,11 +49,11 @@ type Process struct {
 
 	lock sync.Mutex
 
-	module       *wasmtime.Module
-	linkage      []wasmtime.AsExtern
+	module eng.Module
+	//linkage      []eng.Extern
 	memPtr       uintptr
-	instance     *wasmtime.Instance
-	parent       *wasmtime.Store
+	instance     eng.Instance
+	engine       eng.Engine
 	syscall      *syscallReadWrite
 	microservice Service
 	key          dep.DepKey
@@ -78,27 +76,17 @@ type Process struct {
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl??
-func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *DeployContext) (*Process, error) {
-
-	rt := newRuntime(ctx)
-	// split mode
-	logViewer := &logimpl.LogViewerImpl{}
-	fileSvc := &fileimpl.FileSvcImpl{}
-	queueSvc, errId, errInfo := queueimpl.NewQueueSvc(nil) // wasm mem gets filled in later
-	if errId != nil && errInfo != "" {
-		panic(fmt.Sprintf("unable to create the queueService: %s", errInfo))
-	}
+func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext) (*Process, error) {
 
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
 		id:              id,
-		parent:          parentStore,
+		engine:          engine,
 		module:          m.GetModule(),
-		linkage:         nil,
 		memPtr:          0,
 		instance:        nil,
-		syscall:         rt.syscall,
+		syscall:         ctx.supportFunc.rt.syscall,
 		running:         false,
 		reachedRunBlock: false,
 		exited:          false,
@@ -110,45 +98,34 @@ func NewProcessFromMicroservice(parentStore *wasmtime.Store, m Service, ctx *Dep
 	}
 	proc.key = NewDepKeyFromProcess(proc)
 
-	l, memPtr, err := proc.checkLinkage(rt, logViewer, fileSvc, queueSvc)
-	if err != nil {
-		return nil, err
-	}
-	if proc.memPtr == 0 && memPtr != 0 {
-		proc.memPtr = memPtr
-	}
-	proc.linkage = l
-	instance, err :=
-		wasmtime.NewInstance(parentStore, proc.module, l)
-
+	// l, memPtr, err := proc.checkLinkage(rt, logViewer, fileSvc, queueSvc)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if proc.memPtr == 0 && memPtr != 0 {
+	// 	proc.memPtr = memPtr
+	// }
+	// XXX WASMTIME SPECIFIC
+	//	ext := make([]eng.Extern, len(l))
+	// for i, inst := range l {
+	// 	ext[i] = eng.NewWasmtimeLinkage(inst)
+	// }
+	//proc.linkage = ext
+	instance, err := proc.module.NewInstance()
 	if err != nil {
 		return nil, err
 	}
 	proc.instance = instance
 
-	ext := instance.GetExport(parentStore, "mem")
-	if ext == nil {
-		log.Printf("module %s does not export mem, so not the golang compiler", proc.String())
-		if proc.memPtr == 0 {
-			panic("emscripten not able to find memory ptr")
-		}
-		log.Printf("connected up emscripten memory")
-	} else {
-		// we have the ext which is the exported memory
-		if ext.Memory() == nil {
-			return nil, fmt.Errorf("'mem' export is not a memory object")
-		}
-
-		memptr := uintptr(ext.Memory().Data(parentStore))
-		proc.memPtr = memptr
-		rt.SetMemPtr(memptr)
-		// split mode
-		logViewer.SetWasmMem(memptr)
-		fileSvc.SetWasmMem(memptr)
-		queueSvc.SetWasmMem(memptr)
-
+	memExt, err := instance.GetMemoryExport()
+	if err != nil {
+		return nil, err
 	}
-	rt.SetProcess(proc)
+	// memory pointer shenanigans
+	memptr := memExt.Memptr()
+	ctx.supportFunc.SetMemPtr(memptr)
+	ctx.supportFunc.SetProcess(proc)
+	proc.SetMemPtr(memptr)
 
 	return proc, nil
 }
@@ -180,7 +157,9 @@ func (p *Process) String() string {
 
 	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
 }
-
+func (p *Process) SetMemPtr(u uintptr) {
+	p.memPtr = u
+}
 func (p *Process) SetReachedRunBlock(r bool) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -212,86 +191,86 @@ func (p *Process) Exited() bool {
 	return p.exited
 }
 
-func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl, queue *queueimpl.QueueSvcImpl) ([]wasmtime.AsExtern, uintptr, error) {
+// func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl, queue *queueimpl.QueueSvcImpl) ([]wasmtime.AsExtern, uintptr, error) {
 
-	// all available funcs end up in here
-	available := make(map[string]*wasmtime.Func)
-	availableObj := make(map[string]wasmtime.AsExtern)
+// 	// all available funcs end up in here
+// 	//available := make(map[string]*wasmtime.Func)
+// 	//availableObj := make(map[string]wasmtime.AsExtern)
 
-	//addEmscriptenFuncs(p.parent, available, rt)
-	addSupportedFunctions(p.parent, available, rt)
-	addSplitModeFunctions(p.parent, available, lv, fs, queue)
+// 	//addEmscriptenFuncs(p.parent, available, rt)
+// 	addSupportedFunctions(p.engine, rt)
+// 	addSplitModeFunctions(p.engine, lv, fs, queue)
 
-	result := uintptr(0)
-	//memPtr := addEmscriptenObjects(p.parent, availableObj)
+// 	result := uintptr(0)
+// 	//memPtr := addEmscriptenObjects(p.parent, availableObj)
 
-	glob := make(map[string]*wasmtime.Global)
-	//addEmscriptenGlobals(p.parent, glob)
+// 	//	_glob := make(map[string]*wasmtime.Global)
+// 	//addEmscriptenGlobals(p.parent, glob)
 
-	// result of checking the linkage
-	linkage := []wasmtime.AsExtern{}
+// 	// result of checking the linkage
+// 	linkage := []wasmtime.AsExtern{}
 
-	// walk all the module's imports
-	for _, imp := range p.module.Imports() {
-		n := "$$ANON$$"
-		if imp.Name() != nil {
-			n = *imp.Name()
-		}
-		importName := fmt.Sprintf("%s.%s", imp.Module(), n)
-		ext, ok := available[importName]
-		if !ok {
-			// possibly a global
-			g, ok := glob[importName]
-			if ok {
-				external := wasmtime.AsExtern(g)
-				linkage = append(linkage, external)
-				continue
-			} else {
-				// might be another type of object
-				obj, ok := availableObj[importName]
-				log.Printf("request for import %s, %+v  ok?%v  %v", importName, availableObj, ok, obj)
-				if ok {
-					log.Printf("extra link step for %s", importName)
-					//result = memPtr
-					linkage = append(linkage, obj)
-					continue
-				}
-			}
-			return nil, 0, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
-		} else {
-			linkage = append(linkage, ext)
-		}
-	}
-	return linkage, result, nil
-}
+// walk all the module's imports
+// 	for _, imp := range p.module.Imports() {
+// 		n := "$$ANON$$"
+// 		if imp.Name() != nil {
+// 			n = *imp.Name()
+// 		}
+// 		importName := fmt.Sprintf("%s.%s", imp.Module(), n)
+// 		ext, ok := available[importName]
+// 		if !ok {
+// 			// // possibly a global
+// 			// g, ok := glob[importName]
+// 			// if ok {
+// 			// 	external := wasmtime.AsExtern(g)
+// 			// 	linkage = append(linkage, external)
+// 			// 	continue
+// 			// } else {
+// 			// 	// might be another type of object
+// 			// 	obj, ok := availableObj[importName]
+// 			// 	log.Printf("request for import %s, %+v  ok?%v  %v", importName, availableObj, ok, obj)
+// 			// 	if ok {
+// 			// 		log.Printf("extra link step for %s", importName)
+// 			// 		//result = memPtr
+// 			// 		linkage = append(linkage, obj)
+// 			// 		continue
+// 			// 	}
+// 			// }
+// 			return nil, 0, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
+// 		} else {
+// 			linkage = append(linkage, ext)
+// 		}
+// 	}
+// 	return linkage, result, nil
+//}
 
-func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) uintptr {
-	mtype := wasmtime.NewMemoryType(320, true, 32767)
-	mem, err := wasmtime.NewMemory(store, mtype)
-	if err != nil {
-		panic("unable to create memory object inside wasmtime")
-	}
-	memPtr := uintptr(mem.Data(store))
-	obj["env.memory"] = wasmtime.AsExtern(mem)
-	ftype := wasmtime.NewValType(wasmtime.KindFuncref)
-	ttype := wasmtime.NewTableType(ftype, 6376, true, 8192)
-	tbl, err := wasmtime.NewTable(store, ttype, wasmtime.ValFuncref(nil))
-	if err != nil {
-		panic("unable to create table object inside wasmtime")
-	}
-	obj["env.__indirect_function_table"] = tbl
-	return memPtr
-}
+// func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) uintptr {
+// 	mtype := wasmtime.NewMemoryType(320, true, 32767)
+// 	mem, err := wasmtime.NewMemory(store, mtype)
+// 	if err != nil {
+// 		panic("unable to create memory object inside wasmtime")
+// 	}
+// 	memPtr := uintptr(mem.Data(store))
+// 	obj["env.memory"] = wasmtime.AsExtern(mem)
+// 	ftype := wasmtime.NewValType(wasmtime.KindFuncref)
+// 	ttype := wasmtime.NewTableType(ftype, 6376, true, 8192)
+// 	tbl, err := wasmtime.NewTable(store, ttype, wasmtime.ValFuncref(nil))
+// 	if err != nil {
+// 		panic("unable to create table object inside wasmtime")
+// 	}
+// 	obj["env.__indirect_function_table"] = tbl
+// 	return memPtr
+// }
 
-func addSupportedGlobals(store *wasmtime.Store, glob map[string]*wasmtime.Global) {
-	valType := wasmtime.NewValType(wasmtime.KindI32)
-	gType := wasmtime.NewGlobalType(valType, false)
-	g, err := wasmtime.NewGlobal(store, gType, wasmtime.ValI32(0))
-	if err != nil {
-		log.Fatalf("unable to create global " + err.Error())
-	}
-	glob["env.__memory_base"] = g
-}
+// func addSupportedGlobals(store *wasmtime.Store, glob map[string]*wasmtime.Global) {
+// 	valType := wasmtime.NewValType(wasmtime.KindI32)
+// 	gType := wasmtime.NewGlobalType(valType, false)
+// 	g, err := wasmtime.NewGlobal(store, gType, wasmtime.ValI32(0))
+// 	if err != nil {
+// 		log.Fatalf("unable to create global " + err.Error())
+// 	}
+// 	glob["env.__memory_base"] = g
+// }
 
 func (p *Process) SetExitCode(code int) {
 	p.lock.Lock()
@@ -329,46 +308,45 @@ func (p *Process) Run() {
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
 func (p *Process) Start() (code int) {
-	procPrint("START ", "we have been loaded/started by the runner: %s", p)
+	procPrint("START ", "start process: %s", p)
 	var err error
-	procPrint("START", "start of args  %s", p)
-	startOfArgs := wasmStartAddr + int32(0)
-	if p == nil {
-		panic("process is nil!")
-	}
+	procPrint("START ", "start of args  %+v", p.microservice.GetArg())
+	// startOfArgs := wasmStartAddr + int32(0)
+	// if p == nil {
+	// 	panic("process is nil!")
+	// }
 	// p.lock.Lock()
 	// defer p.lock.Unlock()
 
-	procPrint("START", "get buffer from args and env  %s", p)
-	p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
-	if err != nil {
-		code = int(ExitCodeArgsTooLarge)
-		return
-	}
-	p.argc = int32(len(p.microservice.GetArg()))
+	// procPrint("START ", "get buffer from args and env  %s", p)
+	// p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
+	// if err != nil {
+	// 	code = int(ExitCodeArgsTooLarge)
+	// 	return
+	// }
+	// p.argc = int32(len(p.microservice.GetArg()))
 
-	procPrint("START", "create wasm mem %s", p)
-
+	log.Printf("inside lock 0x%x", p.memPtr)
+	log.Printf("START create wasm mem %s (%v)", p, p.memPtr != 0)
+	log.Print("testing")
+	//wasmMem := &jspatch.WasmMem{}
 	wasmMem := jspatch.NewWasmMem(p.memPtr)
-	wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
-	wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
+	// wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
+	// wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
 
-	procPrint("START", "get export %s", p)
-	start := p.instance.GetExport(p.parent, "run")
-	if start == nil {
-		start = p.instance.GetExport(p.parent, "run_main")
-		if start == nil {
-			log.Printf("Unable to find entry point to module %s", p.String())
-			p.SetExitCode(int(ExitCodeNoStartSymbol))
-			return p.ExitCode()
-
-		}
+	log.Print("START get entry point")
+	start, err := p.instance.GetEntryPointExport()
+	if err != nil {
+		panic(err)
 	}
-	procPrint("START", "defer %s (%v)", p, start.Func() != nil)
+	procPrint("START", "defer %s (%v)", p, start != nil)
 
 	defer func(proc *Process) {
 		r := recover()
 		if r != nil {
+			log.Printf("defer caught it %T, %v", r, r.(string))
+			log.Printf("flush")
+
 			procPrint("START ******** ", "INSIDE defer %s, %+v", proc, r)
 			e, ok := r.(*syscallmsg.ExitRequest)
 			procPrint("Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
@@ -383,27 +361,21 @@ func (p *Process) Start() (code int) {
 			}
 		}
 	}(p)
-	procPrint("START ", "getting start func %s", p)
-	f := start.Func()
 	procPrint("START ", "calling start func %s", p)
-	// this is the way that you can call the main of golang
-	// but you cannot use that for emscripten because it wants no params and return int32
-	//   (type (;8;) (func (result i32)))
-	result, err := f.Call(p.parent, p.argc, p.argv)
-	//result, err := f.Call(p.parent)
-	procPrint("END ", "process %s has completed: result=%v, err=%v", p, result, err)
+	retVal, err := start.Run(p.microservice.GetArg(), wasmMinDataAddr, wasmMem)
+	procPrint("END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {
 		p.SetExitCode(int(ExitCodeTrapped))
 		procPrint("END ", "process %s trapped: %v, exit code %d", p, err, p.ExitCode())
 		return int(ExitCodeTrapped)
 	}
-	if result == nil {
+	if retVal == nil {
 		procPrint("END ", "process %s finished w/no return value (exit code %d)", p, p.ExitCode())
 		p.SetExited(true)
 		return p.ExitCode()
 	}
-	procPrint("END ", "process %s finished normally: %+v", p, result)
+	procPrint("END ", "process %s finished normally: %+v", p, retVal)
 	procPrint("END ", "going to sleep now")
 	ch := make(chan struct{})
 	<-ch
@@ -421,5 +393,4 @@ func procPrint(method string, spec string, arg ...interface{}) {
 				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
 			}, true, false, false, nil)
 	}
-	print("xxx -- hit proc print\n")
 }

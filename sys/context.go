@@ -6,19 +6,20 @@ import (
 	"os"
 	"sync"
 
-	wasmtime "github.com/bytecodealliance/wasmtime-go"
 	"github.com/iansmith/parigot/command/runner/runner"
+	"github.com/iansmith/parigot/eng"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
 
 // A DeployContext represents a deployment during the process of starting it up.
 // A context holds the processes that are used by other parts of the system.
 type DeployContext struct {
-	config     *runner.DeployConfig
-	engine     *wasmtime.Engine
-	notify     *sync.Map
-	process    *sync.Map
-	nameserver NameServer
+	config      *runner.DeployConfig
+	engine      eng.Engine
+	notify      *sync.Map
+	process     *sync.Map
+	supportFunc *WasmtimeSupportFunc
+	nameserver  NameServer
 }
 
 // Flip this flag for more detailed output from the runner.
@@ -31,10 +32,11 @@ var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 // processes and start them running.
 func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
-	wasmConfig := wasmtime.NewConfig()
-	wasmConfig.SetDebugInfo(false)
-	wasmConfig.SetCraneliftOptLevel(wasmtime.OptLevelNone)
-	engine := wasmtime.NewEngineWithConfig(wasmConfig)
+	c := &eng.Config{
+		OptLevel: 2,
+		NoDebug:  true,
+	}
+	engine := eng.NewWasmtimeEngine(c)
 
 	// load the images from disk and make sure they are valid modules
 	if err := conf.LoadAllModules(engine); err != nil {
@@ -54,14 +56,20 @@ func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 		panic("not implemented yet, remote nameserever start up")
 	}
 
-	return &DeployContext{
+	ctx := &DeployContext{
 		config:     conf,
 		engine:     engine,
 		process:    processMap,
 		notify:     notifyMap,
 		nameserver: ns,
-		//	remoteSpec: rs,
-	}, nil
+	}
+
+	wasmtimeFn := NewWasmtimeSupportFunc(ctx)
+	ctx.supportFunc = wasmtimeFn
+	addSupportedFunctions(engine, wasmtimeFn)
+	addSplitModeFunctions(engine, wasmtimeFn)
+
+	return ctx, nil
 }
 
 func (c *DeployContext) Process() *sync.Map {
@@ -75,13 +83,11 @@ func (c *DeployContext) CreateAllProcess() error {
 	// create processes and check linkage for each user program
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
-		procPrint("CreateAlllProcess", "create process %s", name)
-		store := wasmtime.NewStore(c.engine)
 		mod := c.config.Module(name)
 		if mod == nil {
 			panic("unable to find (internal) module for " + name)
 		}
-		p, err := NewProcessFromMicroservice(store, m, c)
+		p, err := NewProcessFromMicroservice(c.engine, m, c)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
 		}
@@ -101,7 +107,6 @@ func (c *DeployContext) CreateAllProcess() error {
 // returns the exit code to be used when exiting.
 func (c *DeployContext) StartServer() ([]string, int) {
 	mainList := []string{}
-	log.Printf("StartServer: set of services %#v", c.config.Microservice)
 	for _, f := range c.config.Microservice {
 		procAny, ok := c.process.Load(f.Name())
 		if !ok {
@@ -112,11 +117,11 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process '%s' at Start()", name)
+			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process '%s'", name)
 			go func(p *Process, serverProcessName string) {
-				log.Printf("inside the goroutine for %s, about to start it", serverProcessName)
+				contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer ", "goroutine for %s starting", serverProcessName)
 				code := p.Start()
-				log.Printf("inside the gofunc for %s, got code %d", serverProcessName, code)
+				contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
 				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)
