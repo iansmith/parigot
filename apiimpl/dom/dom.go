@@ -1,4 +1,4 @@
-package dom
+package main
 
 import (
 	"bytes"
@@ -32,6 +32,10 @@ type DOMServer struct {
 	strId     map[string]lib.Id
 	serverId  float64
 	startList []func()
+}
+
+func main() {
+	log.Fatalf("failed because dom is still under development")
 }
 
 func LocateDOMServer() (dom.DOMService, error) {

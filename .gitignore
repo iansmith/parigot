@@ -12,3 +12,4 @@ ui/parser/.antlr
 .bash_history
 .cache
 .lesshst
+go

@@ -91,7 +91,7 @@ WORKDIR /home/parigot
 RUN chown -R parigot .
 RUN chgrp -R parigot .
 
-#zsh
+#zsh    
 RUN chsh -s /usr/bin/zsh parigot
 
 #temporary
@@ -104,7 +104,7 @@ ENV PROTOC_GRPC_VERSION=1.51.0
 RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
 #RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
-RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+#RUN go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
 RUN go install github.com/bufbuild/buf/cmd/buf@latest
 RUN go install golang.org/x/tools/gopls@latest

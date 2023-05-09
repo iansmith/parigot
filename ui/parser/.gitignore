@@ -4,3 +4,7 @@ wcl_base_visitor.go
 wcl_listener.go
 wcl_parser.go
 wcl_visitor.go
+wcl.tokens
+wcllex.interp
+wcllex.tokens
+wcllex_lexer.go

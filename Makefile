@@ -5,16 +5,20 @@ all: allprotos \
 	apiimpl \
 	methodcalltest \
 	sqlc \
-	build/runner \
-	static/t1.wasm
+	build/runner 
+	
+#static/t1.wasm
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm build/dom.p.wasm build/dom.p.wasm
+apiimpl: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm build/dom.p.wasm
 commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
 sqlc: apiimpl/queue/go_/db.go
 
-GO_CMD=docker run --rm --mount type=bind,source=`pwd`,target=/home/tinygo tinygo/tinygo:0.27.0 tinygo
+## make this empty to not show the commands on a build of wasm code
+SHOW_COMMANDS_GO=-x
+
+GO_CMD=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
 GO_LOCAL=go
 
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
@@ -75,31 +79,31 @@ build/parse-emscripten-wat: $(PEM_SRC)
 FILE_SERVICE=$(shell find apiimpl/file -type f -regex ".*\.go")
 build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/file
+	$(GO_CMD) build  $(SHOW_COMMANDS_GO) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiimpl/file
 
 # implementation of the test service
 TEST_SERVICE=$(shell find apiimpl/test -type f -regex ".*\.go")
 build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/test
+	$(GO_CMD) build $(SHOW_COMMANDS_GO) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiimpl/test
 
 # implementation of the log service
 LOG_SERVICE=$(shell find apiimpl/log -type f -regex ".*\.go")
 build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/log
+	$(GO_CMD) build $(SHOW_COMMANDS_GO) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiimpl/log
 
 # queue service impl
 QUEUE_SERVICE=$(shell find apiimpl/queue -type f -regex ".*\.go")
 build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) apiimpl/queue/go_/db.go 
 	rm -f $@
-	$(GO_CMD) build  -o $@ github.com/iansmith/parigot/apiimpl/queue
+	$(GO_CMD) build $(SHOW_COMMANDS_GO) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiimpl/queue
 
 # dom service impl
 DOM_SERVICE=$(shell find apiimpl/dom -type f -regex ".*\.go")
 build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiimpl/dom/*.go 
 	rm -f $@
-	$(GO_CMD) build -o $@ github.com/iansmith/parigot/apiimpl/dom
+	$(GO_CMD) build $(SHOW_COMMANDS_GO) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiimpl/dom
 
 # wcl compiler
 WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
@@ -144,15 +148,14 @@ apiimpl/queue/go_/db.go: $(QUEUE_SQL)
 	cd apiimpl/queue/go_/sqlc && sqlc generate
 
 # build a wasm binary for the test program
-#static/t1.wasm: command/t1/nap.go command/t1/main.go
-static/t1.wasm: command/t1/mvc.go command/t1/main.go
-	GOOS=js GOARCH=wasm go build -tags browser -o static/t1.wasm command/t1/*.go
+# static/t1.wasm: command/t1/mvc.go command/t1/main.go
+# 	$(GO_CMD) build -tags browser -o static/t1.wasm github.com/iansmith/parigot/command/t1
 
-command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiimpl/dom/*.go build/wcl 
-	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
+# command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiimpl/dom/*.go build/wcl 
+# 	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
 
-command/t1/mvc.go:  ui/testdata/model_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiimpl/dom/*.go build/wcl 
-	build/wcl -o command/t1/mvc.go ui/testdata/model_test.wcl
+# command/t1/mvc.go:  ui/testdata/model_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiimpl/dom/*.go build/wcl 
+# 	build/wcl -o command/t1/mvc.go ui/testdata/model_test.wcl
 
 #
 # TEST
