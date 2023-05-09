@@ -18,7 +18,7 @@ const parentId = "paraLoc"
 
 var exitChan = make(chan bool)
 
-func main() {
+func Main() {
 
 	svc, err := dom.LocateDOMServer()
 	if err != nil {

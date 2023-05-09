@@ -37,7 +37,7 @@ type {{$svcCamel}} interface {
 {{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
 {{- if eq false $genTest }}
     // skipping {{.}}, not in test mode
-    {{- continue}}
+    {{- continue }}
 {{- end}}
 
 {{- $methCamel:=toCamelCase .WasmMethodName}}
@@ -162,7 +162,7 @@ func Wait{{$svc}}OrPanic() {
 {{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
 {{- if eq false $genTest }}
     // skipping {{.}}, not in test mode
-    {{- continue}}
+    {{- continue }}
 {{- end}}
 
 {{- if .InputCodeNeeded -}}

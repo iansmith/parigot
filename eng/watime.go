@@ -6,7 +6,7 @@ import (
 
 	"github.com/iansmith/parigot/sys/jspatch"
 
-	"github.com/bytecodealliance/wasmtime-go"
+	"github.com/bytecodealliance/wasmtime-go/v8"
 )
 
 // This is the implementation of the eng types for the wasmtime

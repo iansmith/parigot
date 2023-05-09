@@ -40,7 +40,7 @@ type {{$svcCamel}}Server interface {
 {{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
 {{- if eq false $genTest }} 
 	//skipping {{.WasmMethodName}}(), not in test mode
-    {{- continue}}
+    {{- continue -}}
 {{- end}}
 
 

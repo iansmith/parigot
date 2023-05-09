@@ -8,7 +8,7 @@ require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
-	github.com/bytecodealliance/wasmtime-go v1.0.0
+	github.com/bytecodealliance/wasmtime-go/v8 v8.0.0
 	github.com/dominikbraun/graph v0.16.1
 	github.com/lucas-clemente/quic-go v0.30.0
 	github.com/mattn/go-sqlite3 v1.14.16
