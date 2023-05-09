@@ -3,8 +3,6 @@ package jspatch
 import (
 	"fmt"
 	"log"
-	"reflect"
-	"unsafe"
 
 	"github.com/iansmith/parigot/sys/jspatch/jsemul"
 )
@@ -56,15 +54,15 @@ func (j *JSPatch) ValueSetIndex(sp int32) {
 func (j *JSPatch) ValueLoadString(sp int32) {
 	jsLog("ValueLoadIndex")
 	str := j.mem.LoadValue(sp + 8)
+	// all of this is to deal with the fact that tinygo and go define reflect.SliceHeader differently
 	slice := j.mem.LoadSlice(sp + 16)
-	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
-	content := str.String()
-	// XXX this has to be changed between tinygo and gc
-	// XXX uintptr(len(content)) -> len(content)
-	l := uintptr(len(content))
-	ptr.Len = l
-	ptr.Cap = l
-	ptr.Data = uintptr(unsafe.Pointer((&content)))
+	//	ptr := (*reflect.SliceHeader)(unsafe.Pointer(&slice))
+	//content := str.String()
+	convertSlice(slice, str)
+	// l := uintptr(len(content))
+	// ptr.Len = l
+	// ptr.Cap = l
+	// ptr.Data = uintptr(unsafe.Pointer((&content)))
 }
 
 func (j *JSPatch) ValueLength(sp int32) {
