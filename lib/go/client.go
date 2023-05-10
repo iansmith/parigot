@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"github.com/iansmith/parigot/apiwasm/syscall"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
@@ -9,20 +10,18 @@ import (
 )
 
 type ClientSideService struct {
-	call   Call
 	svc    Id
 	caller string
 	pctx   *protosupportmsg.Pctx
 	logger Log
 }
 
-func NewClientSideService(id Id, caller string, logger Log, call Call) *ClientSideService {
+func NewClientSideService(id Id, caller string, logger Log) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
 		pctx:   &protosupportmsg.Pctx{},
 		logger: logger,
-		call:   call,
 	}
 }
 
@@ -54,12 +53,46 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 		InPctx:    c.pctx,
 		Param:     a,
 	}
-	return c.call.Dispatch(in)
+	out := syscall.Dispatch(in)
+	// xxx should be checking for error value
+	return out, nil
 }
 
 func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
 	req := syscallmsg.RunRequest{
 		Wait: true,
 	}
-	return c.call.Run(&req)
+	out := syscall.Run(&req)
+	// xxx should be checking for error value
+	return out, nil
+}
+
+// Require1 is a thin wrapper over syscall.Require so it's easy
+// to require things by their name.  This is used by the code generator
+// primarily.
+func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
+	fqs := &syscallmsg.FullyQualifiedService{
+		PackagePath: pkg,
+		Service:     name,
+	}
+	in := &syscallmsg.RequireRequest{
+		Service: []*syscallmsg.FullyQualifiedService{fqs},
+	}
+	out := syscall.Require(in)
+	return out, nil
+}
+
+// Export1 is a thin wrapper over syscall.Export so it's easy
+// to export things by their name.  This is used by the code generator
+// primarily.
+func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
+	fqs := &syscallmsg.FullyQualifiedService{
+		PackagePath: pkg,
+		Service:     name,
+	}
+	in := &syscallmsg.ExportRequest{
+		Service: []*syscallmsg.FullyQualifiedService{fqs},
+	}
+	out := syscall.Export(in)
+	return out, nil
 }

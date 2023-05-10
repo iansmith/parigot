@@ -12,7 +12,6 @@ import (
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"
-	"github.com/iansmith/parigot/sys/jspatch"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -37,8 +36,6 @@ const (
 	ExitCodeTrapped       ParigotExitCode = 253
 	ExitCodeNoMain        ParigotExitCode = 255
 )
-
-const useWasmtime = false
 
 // Flip this switch to see debug messages from the process.
 var processVerbose = true || envVerbose != ""
@@ -328,16 +325,6 @@ func (p *Process) Start() (code int) {
 	// }
 	// p.argc = int32(len(p.microservice.GetArg()))
 
-	var wasmMem *jspatch.WasmMem
-	if useWasmtime {
-		procPrint("START", "create wasm mem %s (%v)", p, p.memPtr != 0)
-		//wasmMem := &jspatch.WasmMem{}
-		wasmMem = jspatch.NewWasmMem(p.memPtr)
-
-		// wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
-		// wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
-	}
-
 	procPrint("START", "get entry point")
 	start, err := p.instance.GetEntryPointExport()
 	if err != nil {
@@ -367,9 +354,6 @@ func (p *Process) Start() (code int) {
 	}(p)
 	procPrint("START ", "calling start func %s", p)
 	var info interface{}
-	if useWasmtime {
-		info = eng.NewWasmtimeMemInfo(wasmMinDataAddr, wasmMem)
-	}
 
 	retVal, err := start.Run(p.microservice.GetArg(), info)
 	procPrint("END ", "process %s has completed: result=%v, err=%v", p, retVal, err)

@@ -20,6 +20,13 @@ type Instance interface {
 	Name() string
 	GetMemoryExport() (MemoryExtern, error)
 	GetEntryPointExport() (EntryPointExtern, error)
+	GetFunction(pkg, name string) (Function, error)
+	Allocate(size uint32) (uintptr, error)
+	Free(ptr uintptr) error
+}
+
+type Function interface {
+	Call(int32) int32
 }
 
 type Extern interface {
