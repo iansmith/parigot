@@ -16,12 +16,13 @@ import (
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/apiimpl/syscall"
-	"github.com/iansmith/parigot/apiimpl/background"
+	"github.com/iansmith/parigot/apiwasm/syscall"
+	"github.com/iansmith/parigot/apiwasm/background"
 	lib "github.com/iansmith/parigot/lib/go"
 	
 	"google.golang.org/protobuf/proto"
-	
+	"google.golang.org/protobuf/types/known/anypb"
+
 )
 
 
@@ -83,7 +84,6 @@ var {{$methCamelFL}}Method lib.Id
 
 
 var {{$svcCamelFL}}ServerVerbose = true
-var {{$svcCamelFL}}Call = syscall.NewCallImpl()
 var {{$svcCamelFL}}Background background.Background
 
 func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
@@ -97,7 +97,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 		//
 		// wait for notification
 		//
-		resp, err := {{$svcCamelFL}}BlockUntilCall({{$svcCamelFL}}Background!=nil)
+		resp := {{$svcCamelFL}}BlockUntilCall({{$svcCamelFL}}Background!=nil)
 		if err != nil {
 			// error is likely local to this process
 			{{$svcCamelFL}}Print("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
@@ -164,12 +164,27 @@ you would have a method with no input or output, which is checked elsewhere */}}
 {{- end}} {{/*end of ranging over methods for the switch */}}
         }
 		//
-		// could be error, could be everything is cool, send to lib to figure it out
-		//
-		retresp, e:=lib.ReturnValueEncode({{$svcCamelFL}}Call, cid, mid, marshalError, execError, out, resp.GetPctx())
-		if e!=nil {
-			panic("server failed to return value: "+e.Error())
+		// could be error, could be everything is cool
+		a:=&anypb.Any{}
+		err=a.MarshalFrom(out) 
+		if err!=nil {
+			marshalError=fmt.Errorf("error converting response for return value")
 		}
+		eid:=lib.NoError[*protosupportmsg.KernelErrorId]()
+		if execError.Error()!="" {
+			eid=lib.NewKernelError(lib.KernelExecError)
+		}
+		retreq:=&syscallmsg.ReturnValueRequest{
+			Call: lib.Marshal[protosupportmsg.CallId](cid),
+			Method: lib.Marshal[protosupportmsg.MethodId](mid),
+			Result: a,
+			Pctx:resp.GetPctx(),
+			MarshalError: marshalError.Error(),
+			ExecError: execError.Error(),
+			// XXX this error setup needs to be fixed properly
+			ExecErrorId: lib.Marshal[protosupportmsg.BaseId](eid),
+		}
+		retresp:=syscall.ReturnValue(retreq)
 		if retresp.ExitAfterUse {
 			os.Exit(2)
 		}
@@ -191,7 +206,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-	resp, {{$methCamelFL}}err := {{$svcCamelFL}}Call.BindMethod{{$dir}}(&syscallmsg.BindMethodRequest{
+	resp, {{$methCamelFL}}err := lib.BindMethod{{$dir}}(&syscallmsg.BindMethodRequest{
 		ProtoPackage: "{{.ProtoPackage}}",
 		Service:      "{{$svcCamel}}",
 		Method:       "{{$methCamel}}",
@@ -217,14 +232,10 @@ func {{$svcCamelFL}}TimedOut()  {
 	print("{{$svcCamelFL}}TimedOut()\n")
 }
 
-func {{$svcCamelFL}}BlockUntilCall(canTimeout bool) (*syscallmsg.BlockUntilCallResponse, error) {
-	req := &syscallmsg.BlockUntilCallRequest{}
-	resp, err := {{$svcCamelFL}}Call.BlockUntilCall(req, canTimeout)
-	if err != nil {
-		return nil, err
-	}
-	
-	return resp, nil
+func {{$svcCamelFL}}BlockUntilCall(canTimeout bool) *syscallmsg.BlockUntilCallResponse {
+	req := &syscallmsg.BlockUntilCallRequest{CanTimeout:canTimeout}
+	resp:=syscall.BlockUntilCall(req)
+	return resp
 }
 
 func {{$svcCamelFL}}Print(method string, spec string, arg ...interface{}) {

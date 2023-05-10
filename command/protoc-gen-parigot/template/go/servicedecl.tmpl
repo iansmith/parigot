@@ -12,7 +12,7 @@ import(
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  // id manipulation
     "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
-    "github.com/iansmith/parigot/apiimpl/syscall"  // to get a callImpl
+    "github.com/iansmith/parigot/apiwasm/syscall"  // to get a callImpl
 
 {{/* this special case for log.Log kinda stinks */}}
 {{- $needLog:=true}}
@@ -76,30 +76,29 @@ func Locate{{$svc}}(logger lib.Log) (*{{$svcCamel}}Client,error) {
 {{- else }}
 func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
 {{- end}} {{/*end of if $needLog*/}}
-	var resp *syscallmsg.LocateResponse
 	req := &syscallmsg.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
 
-    callImpl:=syscall.NewCallImpl()
-    resp, err:=callImpl.Locate(req)
-    if err!=nil {
-        return nil, err
-    }
+    resp:=syscall.Locate(req)
+    sid:=resp.GetServiceId()
     if resp.GetServiceId()==nil {
         panic("service id is nil, can't create ClientSideService")
     }
+    id:=lib.Unmarshal(sid)
+    if lib.IdRepresentsError(id.High(),id.Low()) {
+        return nil, lib.NewPerrorFromId("failed to unmarshal service id",id)
+    }
     service:=lib.Unmarshal(resp.GetServiceId())
 {{- if $needLog }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",logger,callImpl)
+    cs := lib.NewClientSideService(service, "{{$svc}}Client",logger)
 {{- else }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",nil,callImpl)
+    cs := lib.NewClientSideService(service, "{{$svc}}Client",nil)
 {{- end}} {{/*end of if $needLog*/}}
     
     return &{{$svc}}Client{
         ClientSideService: cs,
-        Call: callImpl,
     }, nil
 }
 
@@ -125,8 +124,7 @@ func Locate{{$svc}}OrPanic() *{{$svcCamel}}Client {
 }
 
 func Require{{$svc}}OrPanic() {
-    callImpl:=syscall.NewCallImpl()
-    _, err:=callImpl.Require1("{{.ProtoPackage}}","{{$svc}}")
+    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
     if err!=nil {
         panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Error())
     }
@@ -134,18 +132,13 @@ func Require{{$svc}}OrPanic() {
 }
 
 func Export{{$svc}}OrPanic() {
-    callImpl:=syscall.NewCallImpl()
-    _, err:=callImpl.Export1("{{.ProtoPackage}}","{{$svc}}")
+    _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
     if err!=nil {
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Error())
     }
 }
 func Wait{{$svc}}OrPanic() {
-    callImpl:=syscall.NewCallImpl()
-
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		panic("{{.ProtoPackage}}.{{$svc}}: ready: error in attempt to call Run syscall: " + err.Error())
-	}
+	_ = syscall.Run(&syscallmsg.RunRequest{Wait: true})
 
 }
 
