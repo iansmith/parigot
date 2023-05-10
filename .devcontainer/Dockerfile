@@ -1,8 +1,8 @@
-FROM arm64v8/ubuntu:jammy
+FROM ubuntu:22.04
 RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update --fix-missing
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
-    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file
+    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file clang-15
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -13,38 +13,39 @@ RUN mkdir /home/parigot/deps
 RUN mkdir /home/parigot/tmp
 WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+## golang version
+ENV GOLANG_VERSION="1.19.9"
+## wasmtime version
+ENV WASMTIME_VERSION=8.0.1
 
-# install go1.19
-ENV GOLANG_VERSION="1.19.6"
-ENV PROC_ARCH=arm64
-RUN wget -q https://go.dev/dl/go${GOLANG_VERSION}.linux-${PROC_ARCH}.tar.gz
-RUN tar xzf go*linux*tar.gz
-RUN rm go*linux*.tar.gz 
+#figure out ARCH and download correct tarballs
+RUN set -e; \
+	unamearch="$(uname -m)" ; \
+	unameos="$(uname -s)"; \
+	if [ "$unameos" != "Linux" ] ; \
+	then \
+	echo "build failed, operating system inside container not linux -- $unameos"; return 1;\
+	fi ;\
+	case $unamearch in \
+		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION}.linux-arm64.tar.gz ; \
+		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ;; \
+		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz ; \
+		wget -O wasmitme.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz;; \
+        *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
+	esac; \
+	ls -l 
+
+## install golang
+RUN tar xzf go.tar.gz
+RUN rm go.tar.gz 
 RUN mv go go${GOLANG_VERSION}
 ENV GOROOT=/home/parigot/tools/go${GOLANG_VERSION}
 
-# get all the wabt project code
-# WORKDIR /home/parigot/deps
-# RUN git clone -q  --recursive https://github.com/WebAssembly/wabt
-# WORKDIR /home/parigot/deps/wabt
-# RUN git submodule update -q --init
-
-# build all the code in wabt
-# RUN mkdir /home/parigot/deps/wabt/build
-# WORKDIR /home/parigot/deps/wabt/build
-# RUN cmake ..
-# RUN make
-# WORKDIR /home/parigot/deps/wabt
-# RUN rm -rf build
-
-# wasmtime
-ENV WASMTIME_VERSION=8.0.1
-ENV WASMTIME_ARCH=aarch64
+## install wasmtime
 WORKDIR /home/parigot/deps
-RUN wget -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}-linux.tar.xz
-RUN unxz wasmtime*.tar.xz
-RUN tar xf wasmtime*.tar
-RUN rm wasmtime*tar
+RUN unxz wasmtime.tar.xz
+RUN tar xf wasmtime.tar
+RUN rm wasmtime.tar
 
 # get ready for symlinks
 RUN mkdir /home/parigot/deps/bin
@@ -58,21 +59,47 @@ RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 ENV PB_REL=""
 
-# build then link the wabt tools in place
-#RUN ln -s /home/parigot/deps/wabt /home/parigot/tools
+## tinygo
+ENV TINYGO_VERSION=v0.27.0
+WORKDIR /usr/local
+RUN git clone --depth 1 --branch ${TINYGO_VERSION} https://github.com/tinygo-org/tinygo.git
+WORKDIR /usr/local/tinygo
+# these two env vars are temporary until we get tinygo built
+ENV PATH=/home/parigot/deps/go${GOLANG_VERSION}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION}
+RUN which go
+RUN make llvm-source
+RUN make llvm-build 
+RUN git submodule update --init
+RUN make wasi-libc
+RUN make binaryen
+RUN make
 
 # symlink all the single binaries in tools/bin
 RUN mkdir /home/parigot/tools/bin
 WORKDIR /home/parigot/tools/bin
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
-RUN ln -s /home/parigot/deps/wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime /home/parigot/tools/bin
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION} /home/parigot/tools
+RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
+RUN ln -s /usr/lib/llvm-15/bin/clang /home/parigot/tools/bin
+RUN ln -s /usr/lib/llvm-15/bin/clang /usr/bin  # compiled in somewhere
 
-# antlr 4.9 is a platform-neutral lib (java)
-# ENV ANTLR_VERSION=4.11.1
-# RUN mkdir -p /home/parigot/tools/lib
-# WORKDIR /home/parigot/tools/lib
-# RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
+RUN set -eux \
+	ls -l /home/parigot/tools/bin ;\
+	unamearch="$(uname -m)" ; \
+	case $unamearch in \
+		aarch64) ln -s /home/parigot/deps/wasmtime-v${WASMTIME_VERSION}-aarch64-linux/wasmtime /home/parigot/tools/bin;;\
+		x86_64) ln -s /home/parigot/deps/wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime /home/parigot/tools/bin;;\
+        *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
+	esac; \
+	ls -l /home/parigot/tools/bin
+
+
+# antlr 4.11 is a platform-neutral lib (java)
+ENV ANTLR_VERSION=4.11.1
+RUN mkdir -p /home/parigot/tools/lib
+WORKDIR /home/parigot/tools/lib
+RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
 
 ADD zshrc /home/parigot/.zshrc
 ADD p10k.zsh /home/parigot/.p10k.zsh
@@ -94,9 +121,8 @@ RUN chgrp -R parigot .
 #zsh    
 RUN chsh -s /usr/bin/zsh parigot
 
-#temporary
+#temporary PATH hack
 USER parigot
-#go progs
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/go${GOLANG_VERSION}/bin:/home/parigot/.local/bin
 
 ENV PROTOC_GO_VERSION=1.28.1
@@ -117,8 +143,9 @@ RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
 
-RUN wget https://github.com/tinygo-org/tinygo/releases/download/v0.27.0/tinygo_0.27.0_armhf.deb
-
+RUN mkdir ~/.ssh
+RUN chmod 700 ~/.ssh
+RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
 # set some vars
 WORKDIR /home/parigot/src
@@ -128,6 +155,8 @@ ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV PARIGOT_TOOLS=/home/parigot/tools
 ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$GOTOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
+ENV CC=/usr/bin/clang
+ENV GOFLAGS="-buildvcs=false"
 
 ENTRYPOINT ["bash"]
 

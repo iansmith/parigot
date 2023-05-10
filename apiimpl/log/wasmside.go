@@ -21,7 +21,9 @@ func bar() {
 	return
 }
 
-func main() {
+//go:export parigot_main
+//go:linkname parigot_main
+func parigot_main() {
 	bar()
 	for i := 0; i < 10; i++ {
 		golog.Printf("xxx --> LOG mainxxx()")

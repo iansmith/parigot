@@ -18,7 +18,9 @@ import (
 
 var callImpl = syscall.NewCallImpl()
 
-func main() {
+//go:export parigot_main
+//go:linkname parigot_main
+func parigot_main() {
 	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
 	if _, err := callImpl.Export1("file", "FileService"); err != nil {
 		for i := 0; i < 15; i++ {

@@ -38,6 +38,8 @@ const (
 	ExitCodeNoMain        ParigotExitCode = 255
 )
 
+const useWasmtime = false
+
 // Flip this switch to see debug messages from the process.
 var processVerbose = true || envVerbose != ""
 
@@ -326,15 +328,17 @@ func (p *Process) Start() (code int) {
 	// }
 	// p.argc = int32(len(p.microservice.GetArg()))
 
-	log.Printf("inside lock 0x%x", p.memPtr)
-	log.Printf("START create wasm mem %s (%v)", p, p.memPtr != 0)
-	log.Print("testing")
-	//wasmMem := &jspatch.WasmMem{}
-	wasmMem := jspatch.NewWasmMem(p.memPtr)
-	// wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
-	// wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
+	var wasmMem *jspatch.WasmMem
+	if useWasmtime {
+		procPrint("START", "create wasm mem %s (%v)", p, p.memPtr != 0)
+		//wasmMem := &jspatch.WasmMem{}
+		wasmMem = jspatch.NewWasmMem(p.memPtr)
 
-	log.Print("START get entry point")
+		// wasmMem.SetInt32(wasmStartAddr-int32(4), p.argv)
+		// wasmMem.CopyToMemAddr(startOfArgs, p.argvBuffer.Bytes())
+	}
+
+	procPrint("START", "get entry point")
 	start, err := p.instance.GetEntryPointExport()
 	if err != nil {
 		panic(err)
@@ -362,7 +366,12 @@ func (p *Process) Start() (code int) {
 		}
 	}(p)
 	procPrint("START ", "calling start func %s", p)
-	retVal, err := start.Run(p.microservice.GetArg(), wasmMinDataAddr, wasmMem)
+	var info interface{}
+	if useWasmtime {
+		info = eng.NewWasmtimeMemInfo(wasmMinDataAddr, wasmMem)
+	}
+
+	retVal, err := start.Run(p.microservice.GetArg(), info)
 	procPrint("END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {
