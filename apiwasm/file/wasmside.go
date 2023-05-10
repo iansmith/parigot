@@ -3,35 +3,38 @@ package main
 import (
 	"fmt"
 
-	"github.com/iansmith/parigot/apiimpl/file/go_"
-	"github.com/iansmith/parigot/apiimpl/splitutil"
-	"github.com/iansmith/parigot/apiimpl/syscall"
+	"github.com/iansmith/parigot/apiwasm/syscall"
 	"github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/log/v1"
 	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/proto"
 )
 
-var callImpl = syscall.NewCallImpl()
+//
+// These two functions are the parts of this service that
+// have to be implemented on the host.
+//
+// see apigo/file/go_/filehost.go
+
+// go:wasm-module file
+// go:export open
+func Open(*filemsg.OpenRequest) *filemsg.OpenResponse
+
+// go:wasm-module file
+// go:export load_test_data
+func LoadTestData(*filemsg.LoadTestDataRequest) *filemsg.LoadTestDataResponse
 
 //go:export parigot_main
 //go:linkname parigot_main
 func parigot_main() {
-	// we export and require services before the call to file.Run()... our call to the Run() system call is in Ready()
-	if _, err := callImpl.Export1("file", "FileService"); err != nil {
-		for i := 0; i < 15; i++ {
-			print("\n")
-		}
-	}
-	if _, err := callImpl.Require1("log", "LogService"); err != nil {
-		for i := 0; i < 15; i++ {
-			print("\n")
-		}
-	}
+	file.ExportFileServiceOrPanic()
+	log.RequireLogServiceOrPanic()
+
 	file.RunFileService(&myFileServer{})
 }
 
@@ -39,11 +42,9 @@ type myFileServer struct {
 	logger log.LogService
 }
 
+// Do you setup of myFileServer in here, not in main
 func (m *myFileServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		print("ready: error in attempt to signal Run: ", err.Error(), "\n")
-		return false
-	}
+	_ = syscall.Run(&syscallmsg.RunRequest{Wait: true})
 	var err error
 	m.logger, err = log.LocateLogService()
 	if err != nil {
@@ -57,13 +58,13 @@ func (m *myFileServer) Ready() bool {
 // this service.  That other part is the one that runs natively on the host machine.  This code runs
 // in WASM.  Note that this code returns a "normal" go error; the code generator is
 // go specific and the code generator determines the signature here.
-func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
-	resp := filemsg.OpenResponse{}
-	spayload := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcOpen)
-	if splitutil.IsErrorInSinglePayload(spayload) {
-		return nil, splitutil.NewPerrorFromSinglePayload(spayload)
+func (m *myFileServer) Open(pctx *protosupportmsg.Pctx, in *filemsg.OpenRequest) (*filemsg.OpenResponse, error) {
+	out := Open(in)
+	id := lib.Unmarshal(out.Id)
+	if id.IsErrorType() && id.IsError() {
+		return nil, lib.NewPerrorFromId("open goside call", id)
 	}
-	return &resp, nil
+	return out, nil
 }
 
 func (m *myFileServer) Close(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
@@ -94,7 +95,7 @@ func (m *myFileServer) log(pctx *protosupportmsg.Pctx, spec string, rest ...inte
 // it into an in-memory filesystem.  This is used only for testing.  Once the
 // LoadTest has completed successfully the in memory filesystem can be used with other
 // file-related calls.
-func (m *myFileServer) LoadTest(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
+func (m *myFileServer) LoadTestData(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
 	resp := filemsg.LoadTestResponse{}
 	// your IDE may become confuse and show an error because of the tricks we are doing to call LogRequestHandler
 	spayload := splitutil.SendReceiveSingleProto(callImpl, inProto, &resp, go_.FileSvcLoad)
