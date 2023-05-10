@@ -34,7 +34,9 @@ type DOMServer struct {
 	startList []func()
 }
 
-func main() {
+//go:export parigot_main
+//go:linkname parigot_main
+func parigot_main() {
 	log.Fatalf("failed because dom is still under development")
 }
 

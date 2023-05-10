@@ -43,6 +43,18 @@ type wasmtimeEntryPointExtern struct {
 	*wasmtimeAsExtern
 }
 
+type wasmMemInfo struct {
+	highmem uintptr // this is the first address of the program (past the argvp and envp pointer)
+	mem     *jspatch.WasmMem
+}
+
+func NewWasmtimeMemInfo(highmem uintptr, mem *jspatch.WasmMem) interface{} {
+	return &wasmMemInfo{
+		highmem: highmem,
+		mem:     mem,
+	}
+}
+
 // Implementation functions
 func (i *wasmtimeInstance) Name() string {
 	return i.name
@@ -117,7 +129,8 @@ func (e *wasmtimeEngine) NewModuleFromFile(path string) (Module, error) {
 	}, nil
 }
 
-func (e *wasmtimeEngine) AddSupportedFunc(name string, fn any) {
+func (e *wasmtimeEngine) AddSupportedFunc(pkg, n string, fn interface{}) {
+	name := fmt.Sprintf("%s.%s", pkg, n)
 	e.funcMap[name] = wasmtime.WrapFunc(e.s, fn)
 }
 
@@ -177,7 +190,10 @@ func (e *wasmtimeAsExtern) Name() string {
 
 }
 
-func (e *wasmtimeEntryPointExtern) Run(argv []string, memHigh int32, mem *jspatch.WasmMem) (any, error) {
+func (e *wasmtimeEntryPointExtern) Run(argv []string, extra interface{}) (any, error) {
+	// memInfo := extra.(*wasmMemInfo)
+	// mem := memInfo.mem
+	// highmem := memInfo.highmem
 
 	f := e.e.(*wasmtime.Extern).Func()
 	// argc := int32(len(argv))

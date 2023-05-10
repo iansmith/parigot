@@ -2,8 +2,6 @@ module github.com/iansmith/parigot
 
 go 1.19
 
-replace github.com/mattn/go-sqlite3 v1.14.16 => ./go-sqlite3
-
 require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
@@ -14,6 +12,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/psanford/memfs v0.0.0-20210214183328-a001468d78ef
 	google.golang.org/protobuf v1.28.1
+	github.com/tetratelabs/wazero v1.1.0
 )
 
 require (
@@ -43,6 +42,7 @@ require (
 	github.com/srwiley/oksvg v0.0.0-20220731023508-a61f04f16b76 // indirect
 	github.com/srwiley/rasterx v0.0.0-20210519020934-456a8d69b780 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
+	github.com/tetratelabs/wazero v1.1.0 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
