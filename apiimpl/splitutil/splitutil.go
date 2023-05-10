@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apiimpl/netconst"
+	apiimpl "github.com/iansmith/parigot/apiimpl"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/sys/jspatch"
 
@@ -20,7 +20,7 @@ import (
 // languages to use it.  The WASM portion of the service builds an instance of this structure somewhere
 // in memory, usually on the heap,  The caller should allocate space for the result buffer to be filled
 // in by parigot. parigot will fill in the OutLen slot with the actual size of the result.  The size
-// of the result buffer (probably netconst.ReadBufferSize) should be set by the caller so parigot
+// of the result buffer (probably apiimpl.ReadBufferSize) should be set by the caller so parigot
 // kernel is aware of the amount of space available for the result.  The ErrId will be filled in by
 // parigot so the caller is notified of errors.
 type SinglePayload struct {
@@ -40,7 +40,7 @@ var callImpl lib.Call
 // NewSinglePayload is used to allocate the space for the SinglePayload as well as the needed return values
 // during a call from WASM to the go language side.  This code is run in WASM.
 func NewSinglePayload() *SinglePayload {
-	buffer := make([]byte, netconst.ReadBufferSize)
+	buffer := make([]byte, apiimpl.ReadBufferSize)
 	ptr, l := SliceToTwoInt64s(buffer)
 
 	sp := &SinglePayload{
@@ -110,7 +110,7 @@ func SendReceiveSingleProto(c lib.Call, req, resp proto.Message, fn func(int32))
 func SendSingleProto(req proto.Message) *SinglePayload {
 	size := proto.Size(req)
 	if size > 0 {
-		if size+netconst.TrailerSize+netconst.FrontMatterSize >= netconst.ReadBufferSize {
+		if size+apiimpl.TrailerSize+apiimpl.FrontMatterSize >= apiimpl.ReadBufferSize {
 			retVal := NewSinglePayload()
 			kid := lib.NewKernelError(lib.KernelDataTooLarge)
 			formatErrorResult(retVal, kid, "not enough space for call argument")
@@ -148,9 +148,9 @@ func formatErrorResult(s *SinglePayload, id lib.Id, msg string) {
 // This code is called BOTH from the go side and the wasm side.
 func encodeSingleProto(req proto.Message, size int) ([]byte, lib.Id, string) {
 	//frontmatter
-	buffer := make([]byte, netconst.FrontMatterSize)
-	binary.LittleEndian.PutUint64(buffer[:8], netconst.MagicStringOfBytes)
-	binary.LittleEndian.PutUint32(buffer[8:netconst.FrontMatterSize], uint32(size))
+	buffer := make([]byte, apiimpl.FrontMatterSize)
+	binary.LittleEndian.PutUint64(buffer[:8], apiimpl.MagicStringOfBytes)
+	binary.LittleEndian.PutUint32(buffer[8:apiimpl.FrontMatterSize], uint32(size))
 	// append network form
 	buffer, err := proto.MarshalOptions{}.MarshalAppend(buffer, req)
 	if err != nil {
@@ -158,10 +158,10 @@ func encodeSingleProto(req proto.Message, size int) ([]byte, lib.Id, string) {
 			fmt.Sprintf("unable to marshal request:%v", err)
 	}
 	// compute checksum
-	result := crc32.Checksum(buffer[netconst.FrontMatterSize:netconst.FrontMatterSize+size], netconst.KoopmanTable)
+	result := crc32.Checksum(buffer[apiimpl.FrontMatterSize:apiimpl.FrontMatterSize+size], apiimpl.KoopmanTable)
 	buffer = append(buffer, []byte{0, 0, 0, 0}...) //space for the crc
 	// put checksum in buffer
-	binary.LittleEndian.PutUint32(buffer[netconst.FrontMatterSize+size:], uint32(result))
+	binary.LittleEndian.PutUint32(buffer[apiimpl.FrontMatterSize+size:], uint32(result))
 	return buffer, nil, ""
 }
 
@@ -187,7 +187,7 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 	wasmPtr := int32(mem.GetInt64(sp + 8))
 
 	size := proto.Size(resp)
-	fullSize := int64(netconst.TrailerSize + netconst.FrontMatterSize + size)
+	fullSize := int64(apiimpl.TrailerSize + apiimpl.FrontMatterSize + size)
 	// how much space do we have?
 	offsetForLen := int32(unsafe.Offsetof(SinglePayload{}.OutLen))
 	available := mem.GetInt64(wasmPtr + offsetForLen)
@@ -224,25 +224,25 @@ func RespondSingleProto(mem *jspatch.WasmMem, sp int32, resp proto.Message) {
 // Note: you must pass the pointer to an allocated and empty protobuf structure here as the obj.
 func DecodeSingleProto(buffer []byte, obj proto.Message) (lib.Id, string) {
 	m := binary.LittleEndian.Uint64(buffer[0:8])
-	if m != netconst.MagicStringOfBytes {
+	if m != apiimpl.MagicStringOfBytes {
 		return lib.NewKernelError(lib.KernelDecodeError), "Unable to find magic byte sequence"
 	}
 	l := binary.LittleEndian.Uint32(buffer[8:12])
-	if l >= uint32(netconst.ReadBufferSize) {
+	if l >= uint32(apiimpl.ReadBufferSize) {
 		return lib.NewKernelError(lib.KernelDecodeError),
-			fmt.Sprintf("Size of buffer to decode (%d) is too large (max is %d)", l, netconst.ReadBufferSize)
+			fmt.Sprintf("Size of buffer to decode (%d) is too large (max is %d)", l, apiimpl.ReadBufferSize)
 	}
 	size := int(l)
 	if size == 0 {
 		buffer = nil
 		return nil, ""
 	}
-	objBuffer := buffer[netconst.FrontMatterSize : netconst.FrontMatterSize+size]
+	objBuffer := buffer[apiimpl.FrontMatterSize : apiimpl.FrontMatterSize+size]
 	if err := proto.Unmarshal(objBuffer, obj); err != nil {
 		return lib.NewKernelError(lib.KernelUnmarshalFailed), fmt.Sprintf("unable to unmarshal encoded object: %v", err)
 	}
-	result := crc32.Checksum(objBuffer, netconst.KoopmanTable)
-	expected := binary.LittleEndian.Uint32(buffer[netconst.FrontMatterSize+size : netconst.FrontMatterSize+size+4])
+	result := crc32.Checksum(objBuffer, apiimpl.KoopmanTable)
+	expected := binary.LittleEndian.Uint32(buffer[apiimpl.FrontMatterSize+size : apiimpl.FrontMatterSize+size+4])
 	if expected != result {
 		return lib.NewKernelError(lib.KernelDecodeError), "CRC check failed for bundle"
 	}

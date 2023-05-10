@@ -1,10 +1,10 @@
 package eng
 
-import "github.com/iansmith/parigot/sys/jspatch"
-
 type Engine interface {
 	NewModuleFromFile(path string) (Module, error)
-	AddSupportedFunc(name string, fn any)
+	// AddSupportedFunc defines a function but the type of the function def is engine specific so
+	// we have to use interface{} for the function ptr.
+	AddSupportedFunc(pkg, name string, fn interface{})
 }
 
 type Config struct {
@@ -33,5 +33,6 @@ type MemoryExtern interface {
 
 type EntryPointExtern interface {
 	Extern
-	Run(argv []string, highMem int32, mem *jspatch.WasmMem) (any, error)
+	// Run has extra parameters that are specific to the paritcular wasm engine.
+	Run(argv []string, extra interface{}) (any, error)
 }

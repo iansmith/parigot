@@ -1,4 +1,4 @@
-package netconst
+package apiimpl
 
 import "hash/crc32"
 

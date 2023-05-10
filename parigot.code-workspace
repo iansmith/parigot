@@ -13,6 +13,7 @@
 		"go.inlayHints.compositeLiteralTypes": true,
 		"go.inlayHints.compositeLiteralFields": true,
 		"go.survey.prompt": false,
+		"go.goroot": "",
 	},
 	"launch": {
 		"version": "0.2.0",
