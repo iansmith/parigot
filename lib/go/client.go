@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"context"
+
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
@@ -12,25 +14,17 @@ import (
 type ClientSideService struct {
 	svc    Id
 	caller string
-	pctx   *protosupportmsg.Pctx
-	logger Log
 }
 
-func NewClientSideService(id Id, caller string, logger Log) *ClientSideService {
+func NewClientSideService(ctx context.Context, id Id, caller string) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
-		pctx:   &protosupportmsg.Pctx{},
-		logger: logger,
 	}
 }
 
 func (c *ClientSideService) SetCaller(caller string) {
 	c.caller = caller
-}
-
-func (c *ClientSideService) SetPctx(pctx *protosupportmsg.Pctx) {
-	c.pctx = pctx
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
@@ -50,7 +44,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 		ServiceId: Marshal[protosupportmsg.ServiceId](c.svc),
 		Caller:    c.caller,
 		Method:    method,
-		InPctx:    c.pctx,
+		InPctx:    nil,
 		Param:     a,
 	}
 	out := syscall.Dispatch(in)

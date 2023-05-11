@@ -130,7 +130,9 @@ func (o *OutputParam) GetLanguage() LanguageText {
 func (o *OutputParam) SetEmpty() {
 	o.cgType.SetEmpty()
 }
-
+func (o *OutputParam) CGType() *CGType {
+	return o.cgType
+}
 func (o *OutputParam) SetCGType(c *CGType) {
 	if o.cgType != nil {
 		panic("attempt to setCGType on an output param with it already set")

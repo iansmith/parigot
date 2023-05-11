@@ -130,6 +130,10 @@ func (c *CGType) String(from string) string {
 	return addr
 }
 
+func (c *CGType) StringNotInProto() string {
+	return c.String("")
+}
+
 func GetCGTypeForInputParam(i *InputParam) *CGType {
 	// input param has either 0 or 1 entry
 	inputName := i.GetParent().GetInputType()

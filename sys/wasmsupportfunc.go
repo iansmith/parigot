@@ -1,15 +1,13 @@
 package sys
 
 import (
-	filego "github.com/iansmith/parigot/apiimpl/file/go_"
-	loggo "github.com/iansmith/parigot/apiimpl/log/go_"
-	queuego "github.com/iansmith/parigot/apiimpl/queue/go_"
+	filego "github.com/iansmith/parigot/apigo/file/go_"
+	queuego "github.com/iansmith/parigot/apigo/queue/go_"
 )
 
 type WasmtimeSupportFunc struct {
 	rt    *Runtime
 	file  *filego.FileSvcImpl
-	log   *loggo.LogViewerImpl
 	queue *queuego.QueueSvcImpl
 }
 
@@ -21,7 +19,6 @@ func NewWasmtimeSupportFunc(ctx *DeployContext) *WasmtimeSupportFunc {
 	return &WasmtimeSupportFunc{
 		rt:    newRuntime(ctx),
 		file:  filego.NewFileSvcImpl(),
-		log:   loggo.NewLogViewerImpl(),
 		queue: q,
 	}
 }
@@ -32,6 +29,5 @@ func (w *WasmtimeSupportFunc) SetProcess(p *Process) {
 func (w *WasmtimeSupportFunc) SetMemPtr(u uintptr) {
 	w.rt.SetMemPtr(u)
 	w.file.SetMemPtr(u)
-	w.log.SetMemPtr(u)
 	w.queue.SetMemPtr(u)
 }
