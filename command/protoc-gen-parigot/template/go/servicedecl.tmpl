@@ -4,6 +4,8 @@
 package {{ .package }}
 {{ $file:=.file}}
 import(
+    "context"
+
 {{- range $j,$i := .import }}
     {{$j}}
 {{- end}} {{/* imports */}}
@@ -11,7 +13,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  // id manipulation
-    "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
+    syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiwasm/syscall"  // to get a callImpl
 
 {{/* this special case for log.Log kinda stinks */}}
@@ -25,7 +27,6 @@ import(
 )   
 
 {{- range .service }}
-{{- if .NoKernelOption}}
 {{- $svc:=.GetWasmServiceName }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 //
@@ -43,39 +44,56 @@ type {{$svcCamel}} interface {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $iParam:=.InputParam.CGType.StringNotInProto}}
+{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 {{- if .InputCodeNeeded }}
-    {{$methCamel}}(in {{$inParam}}) 
+    {{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }} 
-    {{$methCamel}}() 
+    {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, error) // xxxx
+    (*{{$oParam}}, error) // xxxx
 {{- else -}}
     error
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
-{{- end }}{{/* closes no kernel option */}}
-{{- end}} {{/* closes top service, the interface stuff*/}}
+
+// Client Side Interface (has no context.Context)
+type {{$svcCamel}}Client interface {
+{{- range .GetWasmMethod}}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $iParam:=.InputParam.CGType.StringNotInProto}}
+{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- if .InputCodeNeeded }}
+    {{$methCamel}}(in *{{$iParam}}) 
+{{- else }} 
+    {{$methCamel}}() 
+{{- end -}} 
+{{- if .OutputCodeNeeded -}}
+    (*{{$oParam}}, error) // xxxx
+{{- else -}}
+    error
+{{- end -}} {{/* end of output code needed for declaration */}}
+{{- end }} {{/* end of range over methods */}}
+}
+
+{{- end}} {{/* closes service, the interface stuff*/}}
 
 {{- range .service }}
 {{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 
-type {{$svcCamel}}Client struct {
+type {{$svcCamel}}Client_ struct {
     *lib.ClientSideService
-    lib.Call
 }
 var required{{$svc}} bool
 
-// Locate finds a reference to the client interface of {{$svc}}.  The logger parameter can be 
-// nil which implies that client code cannot call the Log() interface of ClientSideService.
-{{- if $needLog }}
-func Locate{{$svc}}(logger lib.Log) (*{{$svcCamel}}Client,error) {
-{{- else }}
-func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
-{{- end}} {{/*end of if $needLog*/}}
+// Locate finds a reference to the client interface of {{$svc}}.  
+func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,error) {
 	req := &syscallmsg.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
@@ -91,31 +109,19 @@ func Locate{{$svc}}() (*{{$svcCamel}}Client,error) {
         return nil, lib.NewPerrorFromId("failed to unmarshal service id",id)
     }
     service:=lib.Unmarshal(resp.GetServiceId())
-{{- if $needLog }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",logger)
-{{- else }}
-    cs := lib.NewClientSideService(service, "{{$svc}}Client",nil)
-{{- end}} {{/*end of if $needLog*/}}
+    cs := lib.NewClientSideService(ctx, service, "{{$svc}}Client")
     
-    return &{{$svc}}Client{
+    return &{{$svc}}Client_{
         ClientSideService: cs,
     }, nil
 }
 
-{{- if $needLog }}
-func Locate{{$svc}}OrPanic(logger lib.Log) *{{$svcCamel}}Client {
-{{- else }}
-func Locate{{$svc}}OrPanic() *{{$svcCamel}}Client {
-{{- end}} {{/*end of if $needLog*/}}
+func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
     if !required{{$svc}} {
         panic("call of Locate{{$svc}}OrPanic without previous call to Require{{$svc}}OrPanic")
     }
 
-{{- if $needLog }}
-    result, err:=Locate{{$svc}}(logger)
-{{- else }}
-    result, err:=Locate{{$svc}}()
-{{- end}} {{/*end of if $needLog*/}}
+    result, err:=Locate{{$svc}}(ctx)
 
     if err!=nil {
         panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Error())
@@ -123,7 +129,7 @@ func Locate{{$svc}}OrPanic() *{{$svcCamel}}Client {
     return result
 }
 
-func Require{{$svc}}OrPanic() {
+func Require{{$svc}}OrPanic(ctx context.Context) {
     _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
     if err!=nil {
         panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Error())
@@ -159,9 +165,9 @@ func Wait{{$svc}}OrPanic() {
 {{- end}}
 
 {{- if .InputCodeNeeded -}}
-func (i *{{$svcCamel}}Client) {{$methCamel}}(in {{$inParam}}) 
+func (i *{{$svcCamel}}Client_) {{$methCamel}}(in {{$inParam}}) 
 {{- else -}}
-func (i *{{$svcCamel}}Client) {{$methCamel}}() 
+func (i *{{$svcCamel}}Client_) {{$methCamel}}() 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
     ({{$outParam}}, error) {

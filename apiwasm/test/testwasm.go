@@ -2,30 +2,23 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	golog "log"
 	"regexp"
 	"strings"
 
-	"github.com/iansmith/parigot/apiimpl/syscall"
-	"github.com/iansmith/parigot/g/log/v1"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
-	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
-
+	"github.com/iansmith/parigot/apiwasm/syscall"
+	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
-	"github.com/iansmith/parigot/sys/backdoor"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-var callImpl = syscall.NewCallImpl()
 
 const testQueueName = "test_queue"
 
@@ -33,11 +26,8 @@ func main() {
 	lib.FlagParseCreateEnv()
 
 	// The queue we will use
-	queue.RequireQueueServiceOrPanic()
-	log.RequireLogServiceOrPanic()
-
+	queue.RequireQueueServiceOrPanic(context.Background())
 	test.ExportTestServiceOrPanic()
-
 	test.RunTestService(&myTestServer{})
 }
 
@@ -46,8 +36,7 @@ type myTestServer struct {
 	suiteExec map[string]string
 	testQid   lib.Id
 
-	queueSvc queue.QueueService
-	logger   log.LogService
+	queueSvc queue.QueueServiceClient
 
 	started    bool
 	haveName   bool
@@ -91,16 +80,15 @@ func (s *suiteInfo) String() string {
 	return buf.String()
 }
 
-func (m *myTestServer) Ready() bool {
+func (m *myTestServer) Ready(ctx context.Context) bool {
 	// initialization needs to be done here, not in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
 
-	golog.Printf("myTestServer ready called")
+	pcontext.Debugf(ctx, "Ready", "myTestServer ready called")
 	test.WaitTestServiceOrPanic()
-	m.logger = log.LocateLogServiceOrPanic()
-	m.queueSvc = queue.LocateQueueServiceOrPanic(m.logger)
-	qid, deets := m.findOrCreateQueue(testQueueName)
+	m.queueSvc = queue.LocateQueueServiceOrPanic(ctx)
+	qid, deets := m.findOrCreateQueue(ctx, testQueueName)
 	if qid.IsErrorType() {
 		panic("myTestServer: unable to create the test queue: " + deets)
 	}
@@ -108,7 +96,7 @@ func (m *myTestServer) Ready() bool {
 	return true
 }
 
-func (m *myTestServer) findOrCreateQueue(name string) (lib.Id, string) {
+func (m *myTestServer) findOrCreateQueue(ctx context.Context, name string) (lib.Id, string) {
 	req := queuemsg.LocateRequest{}
 	req.QueueName = testQueueName
 	resp, err := m.queueSvc.Locate(&req)
@@ -133,12 +121,11 @@ func (m *myTestServer) findOrCreateQueue(name string) (lib.Id, string) {
 	return qid, ""
 }
 
-func (m *myTestServer) AddTestSuite(_ *protosupportmsg.Pctx, in proto.Message) (proto.Message, error) {
-	req := in.(*testmsg.AddTestSuiteRequest)
+func (m *myTestServer) AddTestSuite(ctx context.Context, req *testmsg.AddTestSuiteRequest) (*testmsg.AddTestSuiteResponse, error) {
 
 	infoList, err := newSuiteInfo(req)
 	if err != nil { // really should not happen
-		logError("unable to create suite info", err)
+		pcontext.Errorf(ctx, "unable to create suite info: %s", err.Error())
 		return nil, err
 	}
 	success := make(map[string]bool)
@@ -170,7 +157,7 @@ func (m *myTestServer) AddTestSuite(_ *protosupportmsg.Pctx, in proto.Message) (
 	resp := &testmsg.AddTestSuiteResponse{
 		Succeeded: success,
 	}
-	logDebug(fmt.Sprintf("addSuiteResp.Succeeded:%#v", resp.Succeeded))
+	pcontext.Debugf(ctx, "", "addSuiteResp.Succeeded:%#v", resp.Succeeded)
 
 	return resp, nil
 }
@@ -184,8 +171,7 @@ func contains(list []string, cand string) bool {
 	return false
 }
 
-func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.Message, error) {
-	req := in.(*testmsg.StartRequest)
+func (m *myTestServer) Start(ctx context.Context, req *testmsg.StartRequest) (*testmsg.StartResponse, error) {
 	var err error
 	var regexpFail bool
 	var suiteString, nameString string
@@ -262,7 +248,7 @@ func (m *myTestServer) Start(_ *protosupportmsg.Pctx, in proto.Message) (proto.M
 	}
 	return resp, nil
 }
-func (m *myTestServer) Background() {
+func (m *myTestServer) Background(ctx context.Context) {
 	if !m.started {
 		return
 	}
@@ -272,11 +258,7 @@ func (m *myTestServer) Background() {
 	}
 	resp, err := m.queueSvc.Receive(&req)
 	if err != nil {
-		m.logger.Log(&logmsg.LogRequest{
-			Stamp:   timestamppb.Now(),
-			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
-			Message: fmt.Sprintf("unable to pull test message from queue:%v", err),
-		})
+		pcontext.Errorf(ctx, "unable to receive from queue: %s, retrying...", err.Error())
 		return
 	}
 	msg := resp.Message[0]
@@ -284,19 +266,10 @@ func (m *myTestServer) Background() {
 	payload := testmsg.QueuePayload{}
 	err = aload.UnmarshalTo(&payload)
 	if err != nil {
-		m.logger.Log(&logmsg.LogRequest{
-			Stamp:   timestamppb.Now(),
-			Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
-			Message: fmt.Sprintf("unable to unmarshal test message from queue:%v", err),
-		})
+		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s, retrying...", err.Error())
 		return
 	}
-	m.logger.Log(&logmsg.LogRequest{
-		Stamp:   timestamppb.Now(),
-		Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-		Message: fmt.Sprintf("got test from queue: %s,%s", payload.Name, payload.FuncName),
-	})
-
+	pcontext.Logf(ctx, pcontext.Info, "got test from queue %s,%s", payload.Name, payload.FuncName)
 }
 
 func (m *myTestServer) addAllTests(info *suiteInfo) {
@@ -315,50 +288,24 @@ func suiteInfoToSuiteName(info *suiteInfo) string {
 	return fmt.Sprintf("%s.%s", info.pkg, info.service)
 }
 
-func logDebug(msg string) {
-	backdoor.Log(&logmsg.LogRequest{
-		Message: msg,
-		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Stamp:   timestamppb.Now(),
-	}, false, true, false, nil)
-}
-
-func logError(msg string, err error) {
-	backdoor.Log(&logmsg.LogRequest{
-		Message: fmt.Sprintf("%s:%s", msg, err.Error()),
-		Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
-		Stamp:   timestamppb.Now(),
-	}, false, true, false, nil)
-}
-
-var badLocate = &test.UnderTestServiceClient{}
-
-func (m *myTestServer) runTests(fullTestName, execPackageSvc string) (lib.Id, string) {
-	call := syscall.NewCallImpl()
+func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) (lib.Id, string) {
 	print(fmt.Sprintf("run tests0\n"))
-	locate := make(map[string]*test.UnderTestServiceClient)
-	var client *test.UnderTestServiceClient
+	locate := make(map[string]test.UnderTestServiceClient)
+	var client test.UnderTestServiceClient
 	part := strings.Split(fullTestName, ".")
 
 	pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
 	//name := part[len(part)-1]
 	print(fmt.Sprintf("run tests2 %s,%s\n", fullTestName, execPackageSvc))
 	loc, ok := locate[execPackageSvc]
-	if ok && loc == badLocate {
-		print(fmt.Sprintf("run tests3a, not able to locate\n"))
-		return lib.NewTestError(lib.TestErrorServiceNotFound), "unable to locate " + execPackageSvc
-	}
 	if !ok {
 		execPkg, execSvc := splitPkgAndService(execPackageSvc)
-		client = m.locateClient(execPkg, execSvc, call)
+		client = m.locateClient(ctx, execPkg, execSvc)
 		locate[execPackageSvc] = client
 	} else {
 		client = loc
 	}
 	print(fmt.Sprintf("run tests4, got a client\n"))
-	if client == badLocate {
-		return lib.NewTestError(lib.TestErrorServiceNotFound), "unable to locate " + execPackageSvc
-	}
 	resp, err := client.Exec(&testmsg.ExecRequest{Package: pkg, Service: svc, Name: part[len(part)-1]})
 	if err != nil {
 		print(fmt.Sprintf("xxx run tests %v\n", err.Error()))
@@ -377,31 +324,25 @@ func splitPkgAndService(s string) (string, string) {
 
 }
 
-func (m *myTestServer) locateClient(pkg, svc string, call lib.Call) *test.UnderTestServiceClient {
+func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) test.UnderTestServiceClient {
 	print(fmt.Sprintf("xxx locate test pkg=%s svc=%s\n", pkg, svc))
 	req := &syscallmsg.LocateRequest{
 		PackageName: pkg,
 		ServiceName: svc,
 	}
 	print(fmt.Sprintf("xxx locate client 1\n"))
-	resp, err := call.Locate(req)
-	if err != nil {
-		print("error caught in the locate code:" + err.Error() + "\n")
-		return badLocate
-	}
+	resp := syscall.Locate(req)
 	print(fmt.Sprintf("xxx locate client 2\n"))
 	if resp.GetServiceId() == nil {
-		print("locate failed for " + pkg + "." + svc + "\n")
-		return badLocate
+		panic("locate failed for " + pkg + "." + svc + "\n")
 	}
 	print(fmt.Sprintf("xxx locate client 3\n"))
 	service := lib.Unmarshal(resp.GetServiceId())
-	cs := lib.NewClientSideService(service, "testService", nil, callImpl)
+	cs := lib.NewClientSideService(ctx, service, "testService")
 
-	print(fmt.Sprintf("xxx locate client 4\n"))
-	return &test.UnderTestServiceClient{
+	pcontext.Debugf(ctx, "locateClient", "xxx locate client 4")
+	return &test.UnderTestServiceClient_{
 		ClientSideService: cs,
-		Call:              syscall.NewCallImpl(),
 	}
 }
 

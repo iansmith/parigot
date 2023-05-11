@@ -9,14 +9,13 @@ import (
 // // Flip this switch for debug output.
 // var libparigotVerbose = false || envVerbose != ""
 
-// Locate is a kernel request that returns either a reference to the service
-// or an error.  In the former case, the token returned can be used with Dispatch()
-// to make a call on a remote service.  It is implicit in the use of this call that
-// the caller wants to be a client of the service in question.  This call can
-// be made by clients or servers, but in either case the code in question becomes
-// a client of the named service.
-// go:wasm-module parigot
-// go:export locate
+// Locate is the means of aquiring a handle to a particular service.
+// Most users will not want this interface, but rather will use the
+// auto generated method LocateFooOrPanic() for getting an initial
+// handle the Foo service.
+//
+//go:wasm-module parigot
+//go:export locate
 func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -26,39 +25,65 @@ func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 // result they are pulled out and returned in the error parameter.  Thus
 // if the error parameter is nil, the Dispatch() occurred successfully.
 // This is code that runs on the WASM side.
-// go:wasm-module parigot
-// go:export dispatch
+//
+//go:wasm-module parigot
+//go:export dispatch
 func Dispatch(*syscallmsg.DispatchRequest) *syscallmsg.DispatchResponse
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
 // all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
 // go:wasm-module parigot
-// go:export blockUntilCall
+//
+//go:wasm-module parigot
+//go:export blockUntilCall
 func BlockUntilCall(*syscallmsg.BlockUntilCallRequest) *syscallmsg.BlockUntilCallResponse
 
-// go:wasm-module parigot
-// go:export bindMethod
+// BindMethod is the way that a particular service gets associated with
+// a given method id. This is normally not needed by user code because the
+// generated code for any service will call this automatically.
+//
+//go:wasm-module parigot
+//go:export bindMethod
 func BindMethod(*syscallmsg.BindMethodRequest) *syscallmsg.BindMethodResponse
 
-// go:wasm-module parigot
-// go:export run
+// Run is a request to start running. Note that this may not return
+// immediately and may fail entirely.  For most user code this is not
+// used because user code usually uses file.WaitFileServiceOrPanic() to
+// block service File until it is cleared to run.
+//
+//go:wasm-module parigot
+//go:export run
 func Run(*syscallmsg.RunRequest) *syscallmsg.RunResponse
 
-// go:wasm-module parigot
-// go:export export
+// Export is a declaration that a service implements a particular interface.
+// This is not needed by most user code that will use queue.ExportQueueServiceOrPanic()
+// to export itself as the queue service.
+//
+//go:wasm-module parigot
+//go:export export
 func Export(*syscallmsg.ExportRequest) *syscallmsg.ExportResponse
 
-// go:wasm-module parigot
-// go:export return_value
+// ReturnValue is not a call that user code should be using. It is the
+// mechanism for a return value to be communicated back to the caller
+// from the caller.  User code will typically use the wrappers around
+// this that make the method calls looking synchronous.
+//
+//go:wasm-module parigot
+//go:export return_value
 func ReturnValue(*syscallmsg.ReturnValueRequest) *syscallmsg.ReturnValueResponse
 
-// go:wasm-module parigot
-// go:export require
+// Require is a declaration that a service needs a particular interface.
+// This is not needed by most user code that will use queue.ImpleQueueServiceOrPanic()
+// to import the queue service.
+//
+//go:wasm-module parigot
+//go:export require
 func Require(*syscallmsg.RequireRequest) *syscallmsg.RequireResponse
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
 // the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
 // will marke it dead and so forth.
-// go:wasm-module parigot
-// go:export exit
+//
+//go:wasm-module parigot
+//go:export exit
 func Exit(*syscallmsg.ExitRequest) *syscallmsg.ExitResponse

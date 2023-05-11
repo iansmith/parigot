@@ -11,11 +11,12 @@ all: allprotos \
 
 allprotos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-apiwasm: build/file.p.wasm build/log.p.wasm build/test.p.wasm build/queue.p.wasm build/dom.p.wasm
+apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
 sqlc: apigo/queue/go_/db.go
 
 ## -x make this empty to not show the commands on a build of wasm code
+#-ldflags "--allow-undefined-file=foo"
 EXTRA_WASM_COMP_ARGS=-x -target=wasi 
 
 #this command can be useful if you want to run tinygo in a container but otherwise use your host machine
@@ -90,12 +91,6 @@ build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
 	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
-# implementation of the log service
-LOG_SERVICE=$(shell find apiwasm/log -type f -regex ".*\.go")
-build/log.p.wasm: $(LOG_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
-	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/log
-
 # queue service impl
 QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
 build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
@@ -103,10 +98,10 @@ build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
 
 # dom service impl
-DOM_SERVICE=$(shell find apiwasm/dom -type f -regex ".*\.go")
-build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiwasm/dom/*.go 
-	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/dom
+#DOM_SERVICE=$(shell find apiwasm/dom -type f -regex ".*\.go")
+#build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiwasm/dom/*.go 
+#	rm -f $@
+#	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/dom
 
 # wcl compiler
 WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
@@ -154,10 +149,10 @@ apiwasm/queue/go_/db.go: $(QUEUE_SQL)
 # static/t1.wasm: command/t1/mvc.go command/t1/main.go
 # 	$(GO_CMD) build -tags browser -o static/t1.wasm github.com/iansmith/parigot/command/t1
 
-# command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiwasm/dom/*.go build/wcl 
+# command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go build/wcl 
 # 	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
 
-# command/t1/mvc.go:  ui/testdata/model_test.wcl ui/driver/template/go.tmpl ui/parser/*.go apiwasm/dom/*.go build/wcl 
+# command/t1/mvc.go:  ui/testdata/model_test.wcl ui/driver/template/go.tmpl ui/parser/*.go build/wcl 
 # 	build/wcl -o command/t1/mvc.go ui/testdata/model_test.wcl
 
 #
