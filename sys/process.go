@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	logimpl "github.com/iansmith/parigot/apiimpl/log/go_"
 	"github.com/iansmith/parigot/eng"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"

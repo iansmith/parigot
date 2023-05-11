@@ -1,5 +1,7 @@
 package background
 
+import "context"
+
 type Background interface {
-	Background()
+	Background(ctx context.Context)
 }
