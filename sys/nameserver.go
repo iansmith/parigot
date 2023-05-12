@@ -1,20 +1,19 @@
 package sys
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"sync"
 	"time"
 
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
-	"github.com/iansmith/parigot/sys/backdoor"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Flip this switch to get extra debug information from the nameserver when it is doing
@@ -34,17 +33,17 @@ var NetNS *NSProxy
 // have different behaviors in the local and remote cases.
 type NameServer interface {
 	//HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
-	Export(key dep.DepKey, pkgPath, service string) lib.Id
-	Require(key dep.DepKey, pkgPath, service string) lib.Id
-	CloseService(key dep.DepKey, pkgPath, service string) lib.Id
-	RunBlock(key dep.DepKey) (bool, lib.Id)
-	RunIfReady(key dep.DepKey) []dep.DepKey
-	GetService(key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string)
-	StartFailedInfo() string
-	FindMethodByName(key dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string)
-	CallService(dep.DepKey, *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string)
-	GetInfoForCallId(target lib.Id) *callContext
-	ExitWhenInFlightEmpty() bool
+	Export(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
+	Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
+	CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
+	RunBlock(ctx context.Context, key dep.DepKey) (bool, lib.Id)
+	RunIfReady(ctx context.Context, key dep.DepKey) []dep.DepKey
+	GetService(ctx context.Context, key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string)
+	StartFailedInfo(ctx context.Context) string
+	FindMethodByName(ctx context.Context, key dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string)
+	CallService(ctx context.Context, dep dep.DepKey, cctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string)
+	GetInfoForCallId(ctx context.Context, target lib.Id) *callContext
+	ExitWhenInFlightEmpty(ctx context.Context) bool
 }
 
 type callContext struct {
@@ -130,8 +129,8 @@ func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib
 // GetProcessForCallId is used to match up responses with requests.  It
 // walks the in-flight calls and if it finds the target cid it returns
 // it and removes it from the in-flight list.
-func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
-	return n.NSCore.getContextForCallId(target)
+func (n *LocalNameServer) GetInfoForCallId(ctx context.Context, target lib.Id) *callContext {
+	return n.NSCore.getContextForCallId(ctx, target)
 }
 
 // CloseService is called by a server to inform us (via lib
@@ -140,16 +139,16 @@ func (n *LocalNameServer) GetInfoForCallId(target lib.Id) *callContext {
 // closed or the service cannot be found and if so, we return
 // the appropriate kernel error to the caller wrapped in a
 // lib.Error.
-func (n *LocalNameServer) CloseService(key dep.DepKey, pkgPath, service string) lib.Id {
-	return n.NSCore.CloseService(key, pkgPath, service)
+func (n *LocalNameServer) CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+	return n.NSCore.CloseService(ctx, key, pkgPath, service)
 }
 
 // Exports is used to inform the nameserver that a particular process
 // exports the given service.  It returns a kernel error id
 // if the service cannot be found or has already been exported
 // by another server.
-func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id {
-	return n.NSCore.Export(key, pkgPath, service, nil)
+func (n *LocalNameServer) Export(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+	return n.NSCore.Export(ctx, key, pkgPath, service, nil)
 }
 
 // RunBlock is used to wait until the requirements of this process have been
@@ -160,8 +159,8 @@ func (n *LocalNameServer) Export(key dep.DepKey, pkgPath, service string) lib.Id
 // in a block on the notify channel. Later, some *other* goroutine, representing
 // a client or a server will end up calling this function and it will unblock
 // the previous caller by writing to the notify channel.
-func (n *LocalNameServer) RunBlock(key dep.DepKey) (bool, lib.Id) {
-	readyList := n.NSCore.RunIfReady(key)
+func (n *LocalNameServer) RunBlock(ctx context.Context, key dep.DepKey) (bool, lib.Id) {
+	readyList := n.NSCore.RunIfReady(ctx, key)
 
 	go n.possiblyUnblock(readyList)
 
@@ -211,15 +210,15 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 
 // Require is used to inform the nameserver that a particular process
 // requires the given service.
-func (n *LocalNameServer) Require(key dep.DepKey, pkgPath, service string) lib.Id {
-	id := n.NSCore.Require(key, pkgPath, service)
+func (n *LocalNameServer) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+	id := n.NSCore.Require(ctx, key, pkgPath, service)
 	return id
 }
 
 // RunIfReady checks to see if any process is ready to run because all its
 // dependencies are satisfied.  If there are ready processes, they are returned.
-func (n *LocalNameServer) RunIfReady(key dep.DepKey) []dep.DepKey {
-	return n.NSCore.RunIfReady(key)
+func (n *LocalNameServer) RunIfReady(ctx context.Context, key dep.DepKey) []dep.DepKey {
+	return n.NSCore.RunIfReady(ctx, key)
 }
 
 // ExitWhenInFlightEmpty is a switch that says only the calls currently in progress
@@ -236,8 +235,8 @@ func (n *LocalNameServer) RunIfReady(key dep.DepKey) []dep.DepKey {
 // processed until the in flight list is actually empty.  This is usually what you
 // want but it could be a problem in a client that has some repetitive task that
 // actually "starve" the attempt to ExitWhenInFlightEmpty().
-func (n *LocalNameServer) ExitWhenInFlightEmpty() bool {
-	return n.NSCore.ExitWhenInFlightEmpty()
+func (n *LocalNameServer) ExitWhenInFlightEmpty(ctx context.Context) bool {
+	return n.NSCore.ExitWhenInFlightEmpty(ctx)
 }
 
 // SendAbortMessage is used to tell processes that are waiting to run that their
@@ -247,7 +246,7 @@ func (n *LocalNameServer) ExitWhenInFlightEmpty() bool {
 // Because the processes are blocked on their notify channel, we can send a false
 // through the run channel to tell them to give up.  We have to use Walk()
 // here to walk through all the dependencies and leave the graph unchanged.
-func (n *LocalNameServer) sendAbortMessage() {
+func (n *LocalNameServer) sendAbortMessage(ctx context.Context) {
 	panic("sendAbortMessage")
 	n.walkDependencyGraph(func(key string, value *dep.EdgeHolder) bool {
 		p := value.Key().(*DepKeyImpl).proc
@@ -266,7 +265,7 @@ func (n *LocalNameServer) sendAbortMessage() {
 // We use the returnValueRequest so this path is the same as it would be in the case
 // of a remote call.  In this the local case, we *could* just pass the result back
 // from B to A.
-func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
+func (l *LocalNameServer) CallService(c context.Context, key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
 	result := <-ctx.respCh
@@ -285,7 +284,7 @@ func (l *LocalNameServer) CallService(key dep.DepKey, ctx *callContext) (*syscal
 // called.  Because this all implemented locally in this case, we just
 // block on our callCh and wait for another process to use CallService to
 // signal us that they need one of our methods.
-func (l *LocalNameServer) BlockUntilCall(key dep.DepKey, canTimeout bool) *callContext {
+func (l *LocalNameServer) BlockUntilCall(ctx context.Context, key dep.DepKey, canTimeout bool) *callContext {
 	if !canTimeout { //simple case
 		v := <-key.(*DepKeyImpl).proc.callCh
 		return v
@@ -302,15 +301,9 @@ func (l *LocalNameServer) BlockUntilCall(key dep.DepKey, canTimeout bool) *callC
 	}
 }
 
-func nameserverPrint(methodName string, format string, arg ...interface{}) {
+func nameserverPrint(ctx context.Context, methodName string, format string, arg ...interface{}) {
 	if nameserverVerbose {
-		part1 := fmt.Sprintf("NAMESERVER:%s", methodName)
-		part2 := fmt.Sprintf(format, arg...)
-		req := logmsg.LogRequest{
-			Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-			Stamp:   timestamppb.Now(), //xxx fix me should be using the kernel for this
-			Message: part1 + part2,
-		}
-		backdoor.Log(&req, true, false, false, nil)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, methodName, format, arg...)
+
 	}
 }

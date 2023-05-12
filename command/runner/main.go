@@ -9,11 +9,8 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/sys"
-	"github.com/iansmith/parigot/sys/backdoor"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var testMode *bool = flag.Bool("t", false, "turns testmode on, implies running services marked 'Test' in deploy config")
@@ -51,10 +48,6 @@ func main() {
 			panic("os.Exit() with code " + fmt.Sprint(code))
 		}
 	}
-	for {
-		log.Printf("busywaitingxxx---")
-		time.Sleep(10 * time.Second)
-	}
 
 	go func() {
 		var buf bytes.Buffer
@@ -84,18 +77,9 @@ func main() {
 	}
 	log.Printf("size of main is %+v", main)
 	if len(main) > 1 {
-		backdoor.Log(&logmsg.LogRequest{
-			Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-			Stamp:   timestamppb.Now(),
-			Message: "all main programs completed successfully",
-		}, false, true, false, nil)
+		pcontext.ClientLogf(pcontext.Info, "all main programs completed successfully")
 	} else {
-		backdoor.Log(&logmsg.LogRequest{
-			Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-			Stamp:   timestamppb.Now(),
-			Message: "main program completed successfully",
-		}, false, true, false, nil)
-		log.Printf("xxx backdoor log, main completed\n")
+		pcontext.ClientLogf(pcontext.Info, "main program completed successfully")
 	}
 	os.Exit(8)
 }

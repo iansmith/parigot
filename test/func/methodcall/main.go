@@ -1,28 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
 
-	"github.com/iansmith/parigot/apiimpl/syscall"
-	plog "github.com/iansmith/parigot/g/log/v1"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/v1"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
-
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-var callImpl = syscall.NewCallImpl()
 
 var exitCode = int32(0)
 
@@ -32,24 +24,19 @@ func main() {
 	log.Printf("xxx main of methodcall test -- 1")
 	//panic("main test")
 
-	plog.RequireLogServiceOrPanic()
-	log.Printf("xxx main 2222 of methodcall test")
-	methodcall.RequireFooServiceOrPanic()
-	methodcall.RequireBarServiceOrPanic()
-	//test.RequireTestServiceOrPanic()
-	queue.RequireQueueServiceOrPanic()
-
-	// xxx fix me, this should be some type of library function
-	callImpl := syscall.NewCallImpl()
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		panic("test/func/methodcall/main.go: error in attempt to call Run syscall: " + err.Error())
-	}
+	cont := &pcontext.LogContainer{}
+	defer pcontext.Dump(cont)
+	cc := pcontext.ClientContext(cont, "main")
+	pcontext.Debugf(cc, "main", "xxx main 2222 of methodcall test")
+	methodcall.RequireFooServiceOrPanic(cc)
+	methodcall.RequireBarServiceOrPanic(cc)
+	//test.RequireTestServiceOrPanic(bg)
+	queue.RequireQueueServiceOrPanic(cc)
 
 	// now get handles to the services
-	logger := plog.LocateLogServiceOrPanic()
-	methodcall.LocateBarServiceOrPanic(logger)
-	methodcall.LocateFooServiceOrPanic(logger)
-	queue.LocateQueueServiceOrPanic(logger)
+	methodcall.LocateBarServiceOrPanic(cc)
+	methodcall.LocateFooServiceOrPanic(cc)
+	queue.LocateQueueServiceOrPanic(cc)
 
 	log.Printf("xxx DONE main of methodcall test")
 
@@ -58,7 +45,6 @@ func main() {
 
 // TestAddMulitply is a test of a function that has both input and output.
 func (m *myUnderTestServer) TestAddMultiply(t *testing.T) {
-	callImpl.Exit(&syscallmsg.ExitRequest{Code: 0})
 	fn := func(t *testing.T, value0, value1, sum, product int32) {
 		req := &methodcallmsg.AddMultiplyRequest{
 			Value0: value0,
@@ -142,20 +128,11 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 		t.Fail()
 	}
 	member := result.GetSequence()[const_.LucasSize]
-	t.Logf("member inside lucas test %d\n", member)
-	m.logger.Log(&logmsg.LogRequest{Stamp: timestamppb.Now(),
-		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Message: fmt.Sprintf("lucas sequence: %+v (%d)", result.GetSequence(), member),
-	})
 	if member != 141422324 {
 		t.Logf("outside func f2\n")
 		t.Logf("unexpected value in lucas sequence (index %d): got %d but expected %d\n",
 			const_.LucasSize-1, member, 141422324)
 	}
-	m.logger.Log(&logmsg.LogRequest{Stamp: timestamppb.Now(),
-		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Message: fmt.Sprintf("lucas sequence: %+v (%d)", result.GetSequence(), member),
-	})
 	t.Logf("outside func\n")
 }
 
@@ -167,65 +144,29 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
-	logger  *plog.LogServiceClient
-	testSvc *test.TestServiceClient
-	foo     *methodcall.FooServiceClient
-	bar     *methodcall.BarServiceClient
+	testSvc test.TestServiceClient
+	foo     methodcall.FooServiceClient
+	bar     methodcall.BarServiceClient
 }
 
-func (m *myUnderTestServer) Ready() bool {
-	if _, err := callImpl.Run(&syscallmsg.RunRequest{Wait: true}); err != nil {
-		panic("myLogServer: ready: error in attempt to signal Run: " + err.Error())
-	}
-	// now we need to setup the stuff we need to run tests
-	var err error
-	log.Printf("READY1")
-	m.logger, err = plog.LocateLogService()
-	if err != nil {
-		panic("unable to get logger with locate")
-	}
-	log.Printf("READYA")
-	m.foo, err = methodcall.LocateFooService(m.logger)
-	if err != nil {
-		m.logError("LocateFooServer:", err)
-		return false
-	}
-	log.Printf("READYB")
-	m.bar, err = methodcall.LocateBarService(m.logger)
-	if err != nil {
-		m.logError("LocateBarServer:", err)
-		return false
-	}
-	log.Printf("READYC")
-	m.testSvc, err = test.LocateTestService(m.logger)
-	if err != nil {
-		m.logError("LocateTestServer:", err)
-		return false
-	}
-	log.Printf("READY2")
-	if err := m.setupTests(); err != nil {
-		m.logError("test setup failed:", err)
+func (m *myUnderTestServer) Ready(ctx context.Context) bool {
+	m.foo = methodcall.LocateFooServiceOrPanic(ctx)
+	m.bar = methodcall.LocateBarServiceOrPanic(ctx)
+	m.testSvc = test.LocateTestServiceOrPanic(ctx)
+	if err := m.setupTests(ctx); err != nil {
+		pcontext.ClientLogf(pcontext.Error, "test setup failed:", err)
 		return false
 	}
 	return true
 }
-func (m *myUnderTestServer) Exec(pctx *protosupportmsg.Pctx, inProto proto.Message) (proto.Message, error) {
-	req := inProto.(*testmsg.ExecRequest)
-	log.Printf("EXEC1")
-	m.logInfo(fmt.Sprintf("got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName()))
+func (m *myUnderTestServer) Exec(ctx context.Context, req *testmsg.ExecRequest) (*testmsg.ExecResponse, error) {
+	pcontext.Debugf(ctx, "Exec", "got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName())
 	resp := &testmsg.ExecResponse{}
 	return resp, nil
 }
 
-func (m *myUnderTestServer) setupTests() error {
-	if err := m.logger.Log(&logmsg.LogRequest{
-		Stamp:   timestamppb.Now(), // xxx use kernel now()
-		Level:   logmsg.LogLevel_LOG_LEVEL_DEBUG,
-		Message: "Testing logger is functioning ok.",
-	}); err != nil {
-		panic("error trying to log in methodcalltest")
-	}
-	log.Printf("setupTests")
+func (m *myUnderTestServer) setupTests(ctx context.Context) error {
+	pcontext.Debugf(ctx, "setupTests", "setup tests reached")
 
 	addReq := &testmsg.AddTestSuiteRequest{
 		Suite: []*testmsg.SuiteInfo{
@@ -238,39 +179,21 @@ func (m *myUnderTestServer) setupTests() error {
 		ExecPackage: "test.v1",
 		ExecService: "UnderTestService",
 	}
-	resp, err := m.testSvc.AddTestSuite(addReq)
+	resp, err := m.testSvc.AddTestSuite(ctx, addReq)
 	if err != nil {
-		m.logError("testSvc.AddTestSuite", err)
+		pcontext.Logf(ctx, pcontext.Error, "AddTestSuite:%v", err)
 		return err
 	}
-	m.logInfo(fmt.Sprintf("AddTestSuite success: %+v", resp.Succeeded))
+	pcontext.Logf(ctx, pcontext.Info, "AddTestSuite success: %+v", resp.Succeeded)
 	startResp, err := m.testSvc.Start(&testmsg.StartRequest{})
 	if err != nil {
-		m.logError("testSvc.Start()", err)
+		pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%v", err)
 		return err
 	}
 	if startResp.GetRegexFailed() {
-		m.logError("RegexpFailed in filter", err)
+		pcontext.Logf(ctx, pcontext.Error, "Regexp Failed in filter:%v", err)
 		return fmt.Errorf("RegexpFailed in filter")
 	}
-	m.logInfo(fmt.Sprintf("Start() success: started %v tests", startResp.GetNumTest()))
+	pcontext.Logf(ctx, pcontext.Info, "Start() success: started %v tests", startResp.GetNumTest())
 	return nil
-}
-
-func (m *myUnderTestServer) logError(msg string, err error) {
-	req := &logmsg.LogRequest{
-		Level:   logmsg.LogLevel_LOG_LEVEL_ERROR,
-		Stamp:   timestamppb.Now(),
-		Message: fmt.Sprintf("%s:%s", msg, err.Error()),
-	}
-	m.logger.Log(req)
-}
-
-func (m *myUnderTestServer) logInfo(msg string) {
-	req := &logmsg.LogRequest{
-		Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-		Stamp:   timestamppb.Now(),
-		Message: msg,
-	}
-	m.logger.Log(req)
 }

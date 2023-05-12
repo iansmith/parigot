@@ -4,11 +4,6 @@ import (
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 )
 
-// var envVerbose = os.Getenv("PARIGOT_VERBOSE")
-
-// // Flip this switch for debug output.
-// var libparigotVerbose = false || envVerbose != ""
-
 // Locate is the means of aquiring a handle to a particular service.
 // Most users will not want this interface, but rather will use the
 // auto generated method LocateFooOrPanic() for getting an initial

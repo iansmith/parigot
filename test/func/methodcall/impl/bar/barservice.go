@@ -1,40 +1,29 @@
 package main
 
 import (
-	"fmt"
-	golog "log"
-	"time"
+	"context"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 
-	"github.com/iansmith/parigot/apiimpl/syscall"
-	"github.com/iansmith/parigot/g/log/v1"
-	pblog "github.com/iansmith/parigot/g/msg/log/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var callImpl = syscall.NewCallImpl()
+//go:export parigot_main
+//go:linkname parigot_main
+func parigot_main() {
+	lib.FlagParseCreateEnv()
 
-func main() {
-	//lib.FlagParseCreateEnv()
-	print(" xxxx --- about to start doing require in Bar service\n")
-	log.RequireLogServiceOrPanic()
-	methodcall.RequireFooServiceOrPanic()
-
-	// one cannot initialize the fields of barServer{} here, must wait until Ready() is called
+	bg := context.Background()
 	methodcall.ExportBarServiceOrPanic()
-	print(" xxxx --- about to run bar service from main\n")
-	methodcall.RunBarService(&barServer{})
+	methodcall.RequireFooServiceOrPanic(bg)
+	s := &barServer{}
+	methodcall.RunBarService(s)
 }
 
 // this type better implement methodcall.v1.BarService
 type barServer struct {
-	logger log.LogService
-	foo    *methodcall.FooServiceClient
+	foo methodcall.FooServiceClient
 }
 
 //
@@ -42,8 +31,7 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.ProtoMessage) (protoreflect.ProtoMessage, error) {
-	req := in.(*methodcallmsg.AccumulateRequest)
+func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, error) {
 	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for barServer.AccumulateMultiply")
 	resp := &methodcallmsg.AccumulateResponse{}
 	if len(req.Value) == 0 {
@@ -66,7 +54,7 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 	var err error
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, err = b.foo.AddMultiply(reqAdd)
+		respAdd, err = b.foo.AddMultiply(ctx, reqAdd)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +64,7 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 
 		/// multiply
 		reqMul.Value0 = req.GetValue()[i]
-		respMul, err = b.foo.AddMultiply(reqMul)
+		respMul, err = b.foo.AddMultiply(ctx, reqMul)
 		if err != nil {
 			return nil, err
 		}
@@ -94,25 +82,8 @@ func (b *barServer) Accumulate(pctx *protosupportmsg.Pctx, in protoreflect.Proto
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
-func (b *barServer) Ready() bool {
-	golog.Printf("xxx--- ready called on bar")
+func (b *barServer) Ready(ctx context.Context) bool {
 	methodcall.WaitBarServiceOrPanic()
-
-	b.logger = log.LocateLogServiceOrPanic()
-	b.foo = methodcall.LocateFooServiceOrPanic(b.logger)
+	b.foo = methodcall.LocateFooServiceOrPanic(ctx)
 	return true
-}
-
-func (b *barServer) log(pctx *protosupportmsg.Pctx, level pblog.LogLevel, spec string, rest ...interface{}) {
-	n := time.Now()
-	if pctx != nil && !pctx.GetNow().AsTime().IsZero() {
-		n = pctx.GetNow().AsTime() // xxx need to use kernel time or better use the pctx itself
-	}
-	msg := fmt.Sprintf(spec, rest...)
-	req := pblog.LogRequest{
-		Stamp:   timestamppb.New(n),
-		Level:   level,
-		Message: msg,
-	}
-	b.logger.Log(&req)
 }
