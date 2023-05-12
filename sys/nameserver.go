@@ -10,7 +10,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -32,27 +32,26 @@ var NetNS *NSProxy
 // of the functions in SysCall are actually delegated down to here.  This is typically done to
 // have different behaviors in the local and remote cases.
 type NameServer interface {
-	//HandleMethod(p *Process, pkgPath, service, method string) (lib.Id, lib.Id)
-	Export(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
-	Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
-	CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id
-	RunBlock(ctx context.Context, key dep.DepKey) (bool, lib.Id)
+	Export(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id
+	Require(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id
+	CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id
+	RunBlock(ctx context.Context, key dep.DepKey) (bool, id.Id)
 	RunIfReady(ctx context.Context, key dep.DepKey) []dep.DepKey
-	GetService(ctx context.Context, key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string)
+	GetService(ctx context.Context, key dep.DepKey, pkgPath, service string) (id.Id, id.Id, string)
 	StartFailedInfo(ctx context.Context) string
-	FindMethodByName(ctx context.Context, key dep.DepKey, serviceId lib.Id, method string) (*callContext, lib.Id, string)
-	CallService(ctx context.Context, dep dep.DepKey, cctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string)
-	GetInfoForCallId(ctx context.Context, target lib.Id) *callContext
+	FindMethodByName(ctx context.Context, key dep.DepKey, serviceId id.Id, method string) (*callContext, id.Id, string)
+	CallService(ctx context.Context, dep dep.DepKey, cctx *callContext) (*syscallmsg.ReturnValueRequest, id.Id, string)
+	GetInfoForCallId(ctx context.Context, target id.Id) *callContext
 	ExitWhenInFlightEmpty(ctx context.Context) bool
 }
 
 type callContext struct {
-	mid          lib.Id                              // the method id this call is going to be made TO
+	mid          id.Id                               // the method id this call is going to be made TO
 	method       string                              // if the call is remote our LOCAL mid wont mean squat, the remote needs the name
 	target       dep.DepKey                          // the process/addr this call is going to be made TO
-	cid          lib.Id                              // call id that should be be used by the caller to match results
+	cid          id.Id                               // call id that should be be used by the caller to match results
 	sender       dep.DepKey                          // the process/addr this call is going to be made FROM
-	sid          lib.Id                              // service that is being called
+	sid          id.Id                               // service that is being called
 	respCh       chan *syscallmsg.ReturnValueRequest // this is where to send the return results
 	param        *anypb.Any                          // where to put the param data
 	pctx         *protosupportmsg.Pctx               // where to put the previous pctx
@@ -95,24 +94,24 @@ func mapToContent(sm *sync.Map) (int, []string) {
 // with the in flight list.  If there was an error the last two return values will
 // indicate the error.  If there was no error, the last two return values will
 // nil,"".
-func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, name string) (*callContext, lib.Id, string) {
+func (n *LocalNameServer) FindMethodByName(ctx context.Context, caller dep.DepKey, serviceId id.Id, name string) (*callContext, id.Id, string) {
 	// we are NOT holding the lock here
 	sData := n.ServiceData(serviceId)
 	if sData == nil {
-		return nil, lib.NewKernelError(lib.KernelNotFound),
+		return nil, id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("could not find service for %s", serviceId.String())
 	}
 	mid, ok := sData.method.Load(name)
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound),
+		return nil, id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("could not find method %s on service %s", name, serviceId.String())
 	}
 	cc := &callContext{
 		method: name,
 		sid:    serviceId,
-		mid:    mid.(lib.Id),
+		mid:    mid.(id.Id),
 		respCh: make(chan *syscallmsg.ReturnValueRequest),
-		cid:    lib.NewId[*protosupportmsg.CallId](),
+		cid:    id.NewId[*protosupportmsg.CallId](),
 		sender: caller,
 		target: sData.key,
 	}
@@ -122,14 +121,14 @@ func (n *LocalNameServer) FindMethodByName(caller dep.DepKey, serviceId lib.Id, 
 
 // GetService can be called by either a client or a server. If this returns without error, the resulting
 // serviceId can be used to be a client of the requested service.
-func (n *LocalNameServer) GetService(_ dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
-	return n.NSCore.GetService(pkgPath, service)
+func (n *LocalNameServer) GetService(ctx context.Context, _ dep.DepKey, pkgPath, service string) (id.Id, id.Id, string) {
+	return n.NSCore.GetService(ctx, pkgPath, service)
 }
 
 // GetProcessForCallId is used to match up responses with requests.  It
 // walks the in-flight calls and if it finds the target cid it returns
 // it and removes it from the in-flight list.
-func (n *LocalNameServer) GetInfoForCallId(ctx context.Context, target lib.Id) *callContext {
+func (n *LocalNameServer) GetInfoForCallId(ctx context.Context, target id.Id) *callContext {
 	return n.NSCore.getContextForCallId(ctx, target)
 }
 
@@ -139,7 +138,7 @@ func (n *LocalNameServer) GetInfoForCallId(ctx context.Context, target lib.Id) *
 // closed or the service cannot be found and if so, we return
 // the appropriate kernel error to the caller wrapped in a
 // lib.Error.
-func (n *LocalNameServer) CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *LocalNameServer) CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	return n.NSCore.CloseService(ctx, key, pkgPath, service)
 }
 
@@ -147,7 +146,7 @@ func (n *LocalNameServer) CloseService(ctx context.Context, key dep.DepKey, pkgP
 // exports the given service.  It returns a kernel error id
 // if the service cannot be found or has already been exported
 // by another server.
-func (n *LocalNameServer) Export(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *LocalNameServer) Export(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	return n.NSCore.Export(ctx, key, pkgPath, service, nil)
 }
 
@@ -159,7 +158,7 @@ func (n *LocalNameServer) Export(ctx context.Context, key dep.DepKey, pkgPath, s
 // in a block on the notify channel. Later, some *other* goroutine, representing
 // a client or a server will end up calling this function and it will unblock
 // the previous caller by writing to the notify channel.
-func (n *LocalNameServer) RunBlock(ctx context.Context, key dep.DepKey) (bool, lib.Id) {
+func (n *LocalNameServer) RunBlock(ctx context.Context, key dep.DepKey) (bool, id.Id) {
 	readyList := n.NSCore.RunIfReady(ctx, key)
 
 	go n.possiblyUnblock(readyList)
@@ -210,7 +209,7 @@ func (n *LocalNameServer) possiblyUnblock(readyList []dep.DepKey) {
 
 // Require is used to inform the nameserver that a particular process
 // requires the given service.
-func (n *LocalNameServer) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *LocalNameServer) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	id := n.NSCore.Require(ctx, key, pkgPath, service)
 	return id
 }
@@ -265,7 +264,7 @@ func (n *LocalNameServer) sendAbortMessage(ctx context.Context) {
 // We use the returnValueRequest so this path is the same as it would be in the case
 // of a remote call.  In this the local case, we *could* just pass the result back
 // from B to A.
-func (l *LocalNameServer) CallService(c context.Context, key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
+func (l *LocalNameServer) CallService(c context.Context, key dep.DepKey, ctx *callContext) (*syscallmsg.ReturnValueRequest, id.Id, string) {
 	proc := key.(*DepKeyImpl).proc
 	proc.callCh <- ctx
 	result := <-ctx.respCh
@@ -274,7 +273,7 @@ func (l *LocalNameServer) CallService(c context.Context, key dep.DepKey, ctx *ca
 		debug.PrintStack()
 		print("xxxxxxxxxxxxxxxxxxxx\n")
 	}
-	if result.ExecErrorId != nil && lib.IdRepresentsError(result.ExecErrorId.High, result.ExecErrorId.Low) {
+	if result.ExecErrorId != nil && id.IdRepresentsError(result.ExecErrorId.High, result.ExecErrorId.Low) {
 		panic(fmt.Sprintf("Call service found an error: %s %v ", result.ExecErrorId.String(), result.ExecError))
 	}
 	return result, nil, ""

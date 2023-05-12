@@ -24,11 +24,6 @@ type DeployContext struct {
 // Flip this flag for more detailed output from the runner.
 var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
-var defaultConfig = &eng.Config{
-	OptLevel: 1,
-	NoDebug:  false,
-}
-
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration
 // of the deploy (runner.DeployConfig) and the running state of the deployment
@@ -36,7 +31,7 @@ var defaultConfig = &eng.Config{
 // processes and start them running.
 func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
-	engine := eng.NewWaZeroEngine(ctx, &defaultConfig)
+	engine := eng.NewWaZeroEngine(ctx, nil)
 
 	// load the images from disk and make sure they are valid modules
 	if err := conf.LoadAllModules(ctx, engine); err != nil {
@@ -64,12 +59,12 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 		nameserver: ns,
 	}
 
-	supFn := NewWazeroSupportFunc(ctx, depCtx)
-	ctx.supportFunc = wasmtimeFn
-	addSupportedFunctions(engine, wasmtimeFn)
-	addSplitModeFunctions(engine, wasmtimeFn)
-
-	return ctx, nil
+	// supFn := NewWazeroSupportFunc(ctx, depCtx)
+	// ctx.supportFunc = wasmtimeFn
+	// addSupportedFunctions(engine, wasmtimeFn)
+	// addSplitModeFunctions(engine, wasmtimeFn)
+	panic("how do I get support functions?")
+	return depCtx, nil
 }
 
 func (c *DeployContext) Process() *sync.Map {
@@ -79,7 +74,7 @@ func (c *DeployContext) Process() *sync.Map {
 // CreateAllProcess returns an error if it could not create a process (and an underlying store) for each
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
-func (c *DeployContext) CreateAllProcess() error {
+func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 	// create processes and check linkage for each user program
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
@@ -87,7 +82,7 @@ func (c *DeployContext) CreateAllProcess() error {
 		if mod == nil {
 			panic("unable to find (internal) module for " + name)
 		}
-		p, err := NewProcessFromMicroservice(c.engine, m, c)
+		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
 		}

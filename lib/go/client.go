@@ -2,21 +2,24 @@ package lib
 
 import (
 	"context"
+	"time"
 
 	"github.com/iansmith/parigot/apiwasm/syscall"
+	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"github.com/iansmith/parigot/id"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type ClientSideService struct {
-	svc    Id
+	svc    id.Id
 	caller string
 }
 
-func NewClientSideService(ctx context.Context, id Id, caller string) *ClientSideService {
+func NewClientSideService(ctx context.Context, id id.Id, caller string) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
@@ -34,14 +37,14 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, NewPerrorFromError("unable to convert param for dispatch into Any", err)
+			return nil, id.NewPerrorFromError("unable to convert param for dispatch into Any", err)
 		}
 	}
 	if c.svc == nil {
 		panic("cannot dispatch to a nil service! client side service field 'svc' is nil")
 	}
 	in := &syscallmsg.DispatchRequest{
-		ServiceId: Marshal[protosupportmsg.ServiceId](c.svc),
+		ServiceId: id.Marshal[protosupportmsg.ServiceId](c.svc),
 		Caller:    c.caller,
 		Method:    method,
 		InPctx:    nil,
@@ -89,4 +92,16 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
 	}
 	out := syscall.Export(in)
 	return out, nil
+}
+
+// PrepContextForServer is used by the code generator to
+// create proper contexts for any calls on the the methods
+// of the service.
+func PrepContextForServer(cont *pcontext.LogContainer, name string) context.Context {
+	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
+	ctx = context.WithValue(ctx, pcontext.ParigotFunc, name)
+	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerWasm)
+	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
+	return ctx
+
 }

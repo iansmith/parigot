@@ -9,7 +9,6 @@ package {{ .package }}
 import (
 	"fmt"
 	"context"
-	"time"
 
 {{ range $j,$i := .import -}}
 	{{$j -}}
@@ -21,8 +20,8 @@ import (
 	"github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	"github.com/iansmith/parigot/apiwasm/background"
-	lib "github.com/iansmith/parigot/lib/go"
-	"github.com/iansmith/parigot/lib/helper"  
+	"github.com/iansmith/parigot/id"
+	lib "github.com/iansmith/parigot/lib/go"  
 	pcontext "github.com/iansmith/parigot/context"
 	
 	"google.golang.org/protobuf/proto"
@@ -87,7 +86,7 @@ type {{$svcCamel}}Server interface {
 {{- end}}
 
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
-var {{$methCamelFL}}Method lib.Id
+var {{$methCamelFL}}Method id.Id
 {{- end }} {{/* range over methods */}}
 
 
@@ -116,25 +115,22 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 				continue
 			}
 			cont:=&pcontext.LogContainer{}
-			ctx:=prepContext(cont,"Background")
+			ctx:=lib.PrepContextForServer(cont,"Background")
 			{{$svcCamelFL}}Background.Background(ctx)
 			pcontext.Dump(cont)
 			continue
 		}
-		//{{$svcCamelFL}}Print("RUN: primary for loop ", "block completed, got two values:pctx size %d, param size %d",
-		//	proto.Size(resp.GetPctx()), proto.Size(resp.GetParam()))
-		//
-		// incoming values, pctx and params
-		//
-		mid := lib.Unmarshal(resp.GetMethod())
-		cid := lib.Unmarshal(resp.GetCall())
+		mid := id.Unmarshal(resp.GetMethod())
+		cid := id.Unmarshal(resp.GetCall())
+
+		//container gets printed at the bottom of this loop
+		cont:=&pcontext.LogContainer{}
 
 		//
 		// pick the method
 		//
 		var marshalError, execError error
 		var out proto.Message
-		cont:=&pcontext.LogContainer{}
 		switch {
 {{- range .GetWasmMethod}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false true .}}
@@ -148,7 +144,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
-			ctx:=prepContext(cont,"{{$methCamelFL}}")
+			ctx:=lib.PrepContextForServer(cont,"{{$methCamelFL}}")
 
 {{- if .InputCodeNeeded}}
 			req := &{{$inParam}}{}
@@ -170,7 +166,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 {{- else}}
 {{/* no need for checking input code needed here, because if that were false, 
 you would have a method with no input or output, which is checked elsewhere */}}
-            execError = impl.{{$methCamel}}(req)
+            execError = impl.{{$methCamel}}(ctx,req)
 {{- end}}
 			pcontext.Dump(cont)
 			if execError != nil {
@@ -185,24 +181,25 @@ you would have a method with no input or output, which is checked elsewhere */}}
 		if err!=nil {
 			marshalError=fmt.Errorf("error converting response for return value")
 		}
-		eid:=lib.NoError[*protosupportmsg.KernelErrorId]()
+		eid:=id.NoError[*protosupportmsg.KernelErrorId]()
 		if execError.Error()!="" {
-			eid=lib.NewKernelError(lib.KernelExecError)
+			eid=id.NewKernelError(id.KernelExecError)
 		}
 		retreq:=&syscallmsg.ReturnValueRequest{
-			Call: lib.Marshal[protosupportmsg.CallId](cid),
-			Method: lib.Marshal[protosupportmsg.MethodId](mid),
+			Call: id.Marshal[protosupportmsg.CallId](cid),
+			Method: id.Marshal[protosupportmsg.MethodId](mid),
 			Result: a,
 			Pctx:nil,
 			MarshalError: marshalError.Error(),
 			ExecError: execError.Error(),
 			// XXX this error setup needs to be fixed properly
-			ExecErrorId: lib.Marshal[protosupportmsg.BaseId](eid),
+			ExecErrorId: id.Marshal[protosupportmsg.BaseId](eid),
 		}
 		retresp:=syscall.ReturnValue(retreq)
 		if retresp.ExitAfterUse {
 			os.Exit(2)
 		}
+		pcontext.Dump(cont)
 		// about to loop again
 	}
 	// wont reach here
@@ -221,7 +218,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-	resp, {{$methCamelFL}}err := helper.BindMethod{{$dir}}(&syscallmsg.BindMethodRequest{
+	resp, {{$methCamelFL}}err := lib.BindMethod{{$dir}}(&syscallmsg.BindMethodRequest{
 		ProtoPackage: "{{.ProtoPackage}}",
 		Service:      "{{$svcCamel}}",
 		Method:       "{{$methCamel}}",
@@ -230,10 +227,10 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	if {{$methCamelFL}}err != nil {
 		return "{{$methCamel}}", {{$methCamelFL}}err
 	}
-	{{$methCamelFL}}Method = lib.Unmarshal(resp.GetMethodId())
+	{{$methCamelFL}}Method = id.Unmarshal(resp.GetMethodId())
 {{- end }} {{/* end of rang over methods */}}
 	cont:=&pcontext.LogContainer{}
-	ctx:=prepContext(cont,"Ready")
+	ctx:=lib.PrepContextForServer(cont,"Ready")
 	if !impl.Ready(ctx){
 		pcontext.Dump(cont)
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")
@@ -282,7 +279,16 @@ type Simple{{$svcCamel}} struct {
 
 //go:wasm-module {{packageToGoName $pkg}}
 //go:export {{$methSnake}}
+{{if .InputCodeNeeded }}
+{{- if .OutputCodeNeeded }} 
 func {{$methCamel}}(*{{$iParam}}) *{{$oParam}}
+{{- else }} {{/* other side of output code needed */}}
+func {{$methCamel}}(*{{$iParam}}) 
+{{- end }} {{/* end of if output code needed */}}
+{{- else }} {{/* other side of InputCodeNeeded */}}
+func {{$methCamel}}() *{{$oParam}}
+{{- end }}  {{/* end of InputCodeNeeded */}}
+
 
 {{if .InputCodeNeeded }}
 {{- if .OutputCodeNeeded }} 
@@ -313,10 +319,3 @@ func NewSimple{{$svcCamel}}(fn func(context.Context,*Simple{{$svcCamel}})bool) *
 
 
 {{- end }} {{/* range over services */}}
-func prepContext(cont *pcontext.LogContainer,name string) context.Context {
-	ctx:=context.WithValue(context.Background(),pcontext.ParigotTime,time.Now())
-	ctx=context.WithValue(ctx,pcontext.ParigotFunc,name)
-	ctx=context.WithValue(ctx,pcontext.ParigotSource,pcontext.ServerWasm)
-	ctx=context.WithValue(ctx,pcontext.ParigotLogContainer,cont)
-	return ctx
-}

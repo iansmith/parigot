@@ -1,4 +1,4 @@
-package lib
+package id
 
 const (
 	// FileNoError means just what it sounds like.  All Ids that are errors represent

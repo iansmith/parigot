@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -31,17 +32,25 @@ func main() {
 	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
+
 	}
+	cont := &pcontext.LogContainer{}
+
+	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
+	ctx = context.WithValue(ctx, pcontext.ParigotFunc, "main")
+	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerWasm)
+	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
+	defer pcontext.Dump(cont)
 
 	// the deploy context creation also creates any needed nameservers
-	ctx, err := sys.NewDeployContext(config)
+	deployCtx, err := sys.NewDeployContext(ctx, config)
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
-	if err := ctx.CreateAllProcess(); err != nil {
+	if err := deployCtx.CreateAllProcess(ctx); err != nil {
 		log.Fatalf("unable to create process: %v", err)
 	}
-	main, code := ctx.StartServer()
+	main, code := deployCtx.StartServer(ctx)
 	if main == nil {
 		if code != 0 {
 			log.Printf("server startup returned error code %d", code)
@@ -54,7 +63,7 @@ func main() {
 		for {
 			buf.Reset()
 			time.Sleep(15 * time.Second)
-			ctx.Process().Range(func(keyAny, valueAny any) bool {
+			deployCtx.Process().Range(func(keyAny, valueAny any) bool {
 				key := keyAny.(string)
 				proc := valueAny.(*sys.Process)
 				buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
@@ -66,20 +75,21 @@ func main() {
 	}()
 
 	for _, mainProg := range main {
-		code, err := ctx.StartMain(mainProg)
+		code, err := deployCtx.StartMain(ctx, mainProg)
 		if err != nil {
-			log.Fatalf("could not start main program:%v", err)
+			pcontext.Logf(ctx, pcontext.Error, "could not start main program:%v", err)
+			return
 		}
 		log.Printf("logging return code of %d from %s [%v]", code, mainProg, err)
 		if code != 0 {
-			log.Fatalf("main program '%s' exited with code %d", mainProg, code)
+			pcontext.Logf(ctx, pcontext.Error, "main program '%s' exited with code %d", mainProg, code)
+			return
 		}
 	}
-	log.Printf("size of main is %+v", main)
 	if len(main) > 1 {
-		pcontext.ClientLogf(pcontext.Info, "all main programs completed successfully")
+		pcontext.Logf(ctx, pcontext.Info, "all main programs completed successfully")
 	} else {
-		pcontext.ClientLogf(pcontext.Info, "main program completed successfully")
+		pcontext.Logf(ctx, pcontext.Info, "main program completed successfully")
 	}
 	os.Exit(8)
 }
