@@ -12,9 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iansmith/parigot/apiimpl/netconst"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"

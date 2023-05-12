@@ -6,13 +6,10 @@ require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
-	github.com/bytecodealliance/wasmtime-go/v8 v8.0.0
 	github.com/dominikbraun/graph v0.16.1
 	github.com/lucas-clemente/quic-go v0.30.0
-	github.com/mattn/go-sqlite3 v1.14.16
-	github.com/psanford/memfs v0.0.0-20210214183328-a001468d78ef
-	google.golang.org/protobuf v1.28.1
 	github.com/tetratelabs/wazero v1.1.0
+	google.golang.org/protobuf v1.28.1
 )
 
 require (
@@ -42,7 +39,6 @@ require (
 	github.com/srwiley/oksvg v0.0.0-20220731023508-a61f04f16b76 // indirect
 	github.com/srwiley/rasterx v0.0.0-20210519020934-456a8d69b780 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
-	github.com/tetratelabs/wazero v1.1.0 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
@@ -54,6 +50,7 @@ require (
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.12 // indirect
+	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/js/dom v0.0.0-20210725211120-f030747120f2 // indirect
 )

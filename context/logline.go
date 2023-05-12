@@ -11,10 +11,14 @@ import (
 const MaxLineLen = 512
 const MaxContainerSize = 256
 
-const ParigotTime = "parigot_time"
-const ParigotFunc = "parigot_func"
-const ParigotSource = "parigot_source"
-const ParigotLogContainer = "parigot_log_container"
+type ParigotKey string
+
+const (
+	ParigotTime         ParigotKey = "parigot_time"
+	ParigotFunc         ParigotKey = "parigot_func"
+	ParigotSource       ParigotKey = "parigot_source"
+	ParigotLogContainer ParigotKey = "parigot_log_container"
+)
 
 type LogLevel int
 
@@ -152,7 +156,7 @@ func ClientLogf(level LogLevel, spec string, rest ...interface{}) {
 
 // ClientLogf is just like Debugf except is sets the source to be client.  This is
 // useful (with no context param) because client's usually don't have a context.
-func ClientDebugf(ctx context.Context, funcName string, spec string, rest ...interface{}) {
+func ClientDebugf(funcName string, spec string, rest ...interface{}) {
 	LogFullf(context.Background(), Debug, UnknownS, funcName, spec, rest...)
 }
 
@@ -204,4 +208,12 @@ func CallTo(ctx context.Context, s string) context.Context {
 }
 func CallGo(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, ServerGo)
+}
+
+func ClientContext(cont *LogContainer, name string) context.Context {
+	ctx := context.WithValue(context.Background(), ParigotTime, time.Now())
+	ctx = context.WithValue(ctx, ParigotFunc, name)
+	ctx = context.WithValue(ctx, Client, ServerWasm)
+	ctx = context.WithValue(ctx, ParigotLogContainer, cont)
+	return ctx
 }

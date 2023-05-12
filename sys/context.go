@@ -1,45 +1,45 @@
 package sys
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 
 	"github.com/iansmith/parigot/command/runner/runner"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 )
 
 // A DeployContext represents a deployment during the process of starting it up.
 // A context holds the processes that are used by other parts of the system.
 type DeployContext struct {
-	config      *runner.DeployConfig
-	engine      eng.Engine
-	notify      *sync.Map
-	process     *sync.Map
-	supportFunc *WasmtimeSupportFunc
-	nameserver  NameServer
+	config     *runner.DeployConfig
+	engine     eng.Engine
+	notify     *sync.Map
+	process    *sync.Map
+	nameserver NameServer
 }
 
 // Flip this flag for more detailed output from the runner.
 var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+
+var defaultConfig = &eng.Config{
+	OptLevel: 1,
+	NoDebug:  false,
+}
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration
 // of the deploy (runner.DeployConfig) and the running state of the deployment
 // which is represented by DeployContext.  This context can be used to create
 // processes and start them running.
-func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
+func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
-	c := &eng.Config{
-		OptLevel: 2,
-		NoDebug:  true,
-	}
-	engine := eng.NewWasmtimeEngine(c)
+	engine := eng.NewWaZeroEngine(ctx, &defaultConfig)
 
 	// load the images from disk and make sure they are valid modules
-	if err := conf.LoadAllModules(engine); err != nil {
+	if err := conf.LoadAllModules(ctx, engine); err != nil {
 		return nil, err
 	}
 	// our notify map is shared by the nameserver
@@ -56,7 +56,7 @@ func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 		panic("not implemented yet, remote nameserever start up")
 	}
 
-	ctx := &DeployContext{
+	depCtx := &DeployContext{
 		config:     conf,
 		engine:     engine,
 		process:    processMap,
@@ -64,7 +64,7 @@ func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 		nameserver: ns,
 	}
 
-	wasmtimeFn := NewWasmtimeSupportFunc(ctx)
+	supFn := NewWazeroSupportFunc(ctx, depCtx)
 	ctx.supportFunc = wasmtimeFn
 	addSupportedFunctions(engine, wasmtimeFn)
 	addSplitModeFunctions(engine, wasmtimeFn)
@@ -105,7 +105,7 @@ func (c *DeployContext) CreateAllProcess() error {
 // the value of the flags in the configuration.  If there was an error,
 // this function returns a nil for the list of main programs and it
 // returns the exit code to be used when exiting.
-func (c *DeployContext) StartServer() ([]string, int) {
+func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 	mainList := []string{}
 	for _, f := range c.config.Microservice {
 		procAny, ok := c.process.Load(f.Name())
@@ -117,13 +117,13 @@ func (c *DeployContext) StartServer() ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer", "StartProcess creating goroutine for server process '%s'", name)
+			contextPrint(ctx, pcontext.Debug, "StartingServer", "StartProcess creating goroutine for server process '%s'", name)
 			go func(p *Process, serverProcessName string) {
-				contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer ", "goroutine for %s starting", serverProcessName)
-				code := p.Start()
-				contextPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)
+				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for %s starting", serverProcessName)
+				code := p.Start(ctx)
+				contextPrint(ctx, pcontext.Debug, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
-				contextPrint(logmsg.LogLevel_LOG_LEVEL_ERROR, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
+				contextPrint(ctx, pcontext.Debug, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)
 		}
 	}
@@ -136,13 +136,13 @@ func (c *DeployContext) StartServer() ([]string, int) {
 // StartMain runs a main program (one that is not a server and usually expected
 // to terminate) and returns the error code provided by the main program.  Note
 // that this function is run synchronously, not on a goroutine.
-func (c *DeployContext) StartMain(mainProg string) (int, error) {
+func (c *DeployContext) StartMain(ctx context.Context, mainProg string) (int, error) {
 	procAny, ok := c.process.Load(mainProg)
 	if !ok {
 		return 0, fmt.Errorf("main program '%s' not found", mainProg)
 	}
 	proc := procAny.(*Process)
-	code := proc.Start()
+	code := proc.Start(ctx)
 	proc.SetExitCode(code)
 	return code, nil
 }
@@ -151,10 +151,8 @@ func (d *DeployContext) NotifyMap() *sync.Map {
 	return d.notify
 }
 
-func contextPrint(level logmsg.LogLevel, method, spec string, arg ...interface{}) {
+func contextPrint(ctx context.Context, level pcontext.LogLevel, method, spec string, arg ...interface{}) {
 	if runnerVerbose {
-		part1 := fmt.Sprintf("RUNNER:%s ", method)
-		part2 := fmt.Sprintf(spec, arg...)
-		log.Printf("%s%s", part1, part2)
+		pcontext.LogFullf(ctx, level, pcontext.Parigot, method, spec, arg...)
 	}
 }

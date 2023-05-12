@@ -2,17 +2,16 @@ package sys
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"path/filepath"
 	"sync"
 
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Service interface {
@@ -47,12 +46,10 @@ type Process struct {
 
 	lock sync.Mutex
 
-	module eng.Module
-	//linkage      []eng.Extern
-	memPtr       uintptr
-	instance     eng.Instance
-	engine       eng.Engine
-	syscall      *syscallReadWrite
+	module   eng.Module
+	instance eng.Instance
+	engine   eng.Engine
+
 	microservice Service
 	key          dep.DepKey
 
@@ -82,9 +79,7 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 		id:              id,
 		engine:          engine,
 		module:          m.GetModule(),
-		memPtr:          0,
 		instance:        nil,
-		syscall:         ctx.supportFunc.rt.syscall,
 		running:         false,
 		reachedRunBlock: false,
 		exited:          false,
@@ -115,15 +110,10 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	}
 	proc.instance = instance
 
-	memExt, err := instance.GetMemoryExport()
-	if err != nil {
-		return nil, err
-	}
-	// memory pointer shenanigans
-	memptr := memExt.Memptr()
-	ctx.supportFunc.SetMemPtr(memptr)
-	ctx.supportFunc.SetProcess(proc)
-	proc.SetMemPtr(memptr)
+	// memExt, err := instance.GetMemoryExport()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return proc, nil
 }
@@ -154,9 +144,6 @@ func (p *Process) String() string {
 	}
 
 	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
-}
-func (p *Process) SetMemPtr(u uintptr) {
-	p.memPtr = u
 }
 func (p *Process) SetReachedRunBlock(r bool) {
 	p.lock.Lock()
@@ -305,10 +292,10 @@ func (p *Process) Run() {
 }
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
-func (p *Process) Start() (code int) {
-	procPrint("START ", "start process: %s", p)
+func (p *Process) Start(ctx context.Context) (code int) {
+	procPrint(ctx, "START ", "start process: %s", p)
 	var err error
-	procPrint("START ", "start of args  %+v", p.microservice.GetArg())
+	procPrint(ctx, "START ", "start of args  %+v", p.microservice.GetArg())
 	// startOfArgs := wasmStartAddr + int32(0)
 	// if p == nil {
 	// 	panic("process is nil!")
@@ -324,12 +311,12 @@ func (p *Process) Start() (code int) {
 	// }
 	// p.argc = int32(len(p.microservice.GetArg()))
 
-	procPrint("START", "get entry point")
+	procPrint(ctx, "START", "get entry point")
 	start, err := p.instance.GetEntryPointExport()
 	if err != nil {
 		panic(err)
 	}
-	procPrint("START", "defer %s (%v)", p, start != nil)
+	procPrint(ctx, "START", "defer %s (%v)", p, start != nil)
 
 	defer func(proc *Process) {
 		r := recover()
@@ -337,52 +324,45 @@ func (p *Process) Start() (code int) {
 			log.Printf("defer caught it %T, %v", r, r.(string))
 			log.Printf("flush")
 
-			procPrint("START ******** ", "INSIDE defer %s, %+v", proc, r)
+			procPrint(ctx, "START ******** ", "INSIDE defer %s, %+v", proc, r)
 			e, ok := r.(*syscallmsg.ExitRequest)
-			procPrint("Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
+			procPrint(ctx, "Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
 			if ok {
 				code = int(e.GetCode())
 				proc.SetExitCode(code)
-				procPrint("Start/Exit", "INSIDE DEFER exiting with code %d", e.GetCode())
+				procPrint(ctx, "Start/Exit", "INSIDE DEFER exiting with code %d", e.GetCode())
 			} else {
 				p.SetExitCode(int(ExitCodePanic))
 				code = int(ExitCodePanic)
-				print(fmt.Sprintf("golang (not WASM) panic '%v'\n", r))
+				procPrint(ctx, "Start/Exit", "golang (not WASM) panic '%v'\n", r)
 			}
 		}
 	}(p)
-	procPrint("START ", "calling start func %s", p)
+	procPrint(ctx, "START ", "calling start func %s", p)
 	var info interface{}
 
 	retVal, err := start.Run(p.microservice.GetArg(), info)
-	procPrint("END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
+	procPrint(ctx, "END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {
 		p.SetExitCode(int(ExitCodeTrapped))
-		procPrint("END ", "process %s trapped: %v, exit code %d", p, err, p.ExitCode())
+		procPrint(ctx, "END ", "process %s trapped: %v, exit code %d", p, err, p.ExitCode())
 		return int(ExitCodeTrapped)
 	}
 	if retVal == nil {
-		procPrint("END ", "process %s finished w/no return value (exit code %d)", p, p.ExitCode())
+		procPrint(ctx, "END ", "process %s finished w/no return value (exit code %d)", p, p.ExitCode())
 		p.SetExited(true)
 		return p.ExitCode()
 	}
-	procPrint("END ", "process %s finished normally: %+v", p, retVal)
-	procPrint("END ", "going to sleep now")
+	procPrint(ctx, "END ", "process %s finished normally: %+v", p, retVal)
+	procPrint(ctx, "END ", "going to sleep now")
 	ch := make(chan struct{})
 	<-ch
 	return p.ExitCode()
 }
 
-func procPrint(method string, spec string, arg ...interface{}) {
+func procPrint(ctx context.Context, method string, spec string, arg ...interface{}) {
 	if processVerbose {
-		part1 := fmt.Sprintf("PROCESS:%s", method)
-		part2 := fmt.Sprintf(spec, arg...)
-		logimpl.ProcessLogRequest(
-			&logmsg.LogRequest{
-				Level:   logmsg.LogLevel_LOG_LEVEL_INFO,
-				Message: part1 + part2 + "\n",
-				Stamp:   timestamppb.Now(), // xxx should use the kernel calls
-			}, true, false, false, nil)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method, spec, arg...)
 	}
 }

@@ -17,7 +17,6 @@
 
 	    dommsg "github.com/iansmith/parigot/g/msg/dom/v1"
         dom "github.com/iansmith/parigot/g/dom/v1"
-        apidom "github.com/iansmith/parigot/apiimpl/dom"
         protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 
         "github.com/iansmith/parigot/ui/parser/builtin"

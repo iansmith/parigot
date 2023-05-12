@@ -1,16 +1,15 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
-	"github.com/iansmith/parigot/sys/backdoor"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var deployVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
@@ -151,30 +150,25 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	return &result, nil
 }
 
-func (c *DeployConfig) loadSingleModule(engine eng.Engine, m *Microservice) (eng.Module, error) {
-	mod, err := engine.NewModuleFromFile(m.Path)
+func (c *DeployConfig) loadSingleModule(ctx context.Context, engine eng.Engine, m *Microservice) (eng.Module, error) {
+	mod, err := engine.NewModuleFromFile(ctx, m.Path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
 			m.name, m.Path, err)
 	}
-	deployPrint(logmsg.LogLevel_LOG_LEVEL_DEBUG, "loadSingleModule", "loading module %s (%s)", m.name, m.Path)
+	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (%s)", m.name, m.Path)
 	return mod, nil
 }
 
-func deployPrint(level logmsg.LogLevel, method string, spec string, rest ...interface{}) {
+func deployPrint(ctx context.Context, ll pcontext.LogLevel, method string, spec string, rest ...interface{}) {
 	if deployVerbose {
-		m := fmt.Sprintf("%s:", method)
-		backdoor.Log(&logmsg.LogRequest{
-			Stamp:   timestamppb.Now(),
-			Level:   level,
-			Message: m + fmt.Sprintf(spec, rest...),
-		}, true, false, false, nil)
+		pcontext.LogFullf(ctx, ll, pcontext.UnknownS, method, spec, rest...)
 	}
 }
 
-func (c *DeployConfig) LoadAllModules(engine eng.Engine) error {
+func (c *DeployConfig) LoadAllModules(ctx context.Context, engine eng.Engine) error {
 	for _, m := range c.Microservice {
-		mod, err := c.loadSingleModule(engine, m)
+		mod, err := c.loadSingleModule(ctx, engine, m)
 		if err != nil {
 			return err
 		}
