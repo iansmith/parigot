@@ -1,20 +1,22 @@
 package syscall
 
 import (
+	"context"
 	"log"
 
 	"github.com/iansmith/parigot/eng"
 )
 
-func ParigotInit(e eng.Engine, inst eng.Instance) {
-	e.AddSupportedFunc("parigot", "locate", wrapFunc(inst, locate))
-	e.AddSupportedFunc("parigot", "dispatch", wrapFunc(inst, dispatch))
-	e.AddSupportedFunc("parigot", "blockUntilCall", wrapFunc(inst, blockUntilCall))
-	e.AddSupportedFunc("parigot", "bindMethod", wrapFunc(inst, bindMethod))
-	e.AddSupportedFunc("parigot", "run", wrapFunc(inst, run))
-	e.AddSupportedFunc("parigot", "export", wrapFunc(inst, export))
-	e.AddSupportedFunc("parigot", "return_value", wrapFunc(inst, returnValue))
-	e.AddSupportedFunc("parigot", "require", wrapFunc(inst, require))
+func ParigotInit(ctx context.Context, e eng.Engine, inst eng.Instance) {
+	e.AddSupportedFunc(ctx, "parigot", "locate", wrapFunc(inst, locate))
+	e.AddSupportedFunc(ctx, "parigot", "dispatch", wrapFunc(inst, dispatch))
+	e.AddSupportedFunc(ctx, "parigot", "blockUntilCall", wrapFunc(inst, blockUntilCall))
+	e.AddSupportedFunc(ctx, "parigot", "bindMethod", wrapFunc(inst, bindMethod))
+	e.AddSupportedFunc(ctx, "parigot", "run", wrapFunc(inst, run))
+	e.AddSupportedFunc(ctx, "parigot", "export", wrapFunc(inst, export))
+	e.AddSupportedFunc(ctx, "parigot", "return_value", wrapFunc(inst, returnValue))
+	e.AddSupportedFunc(ctx, "parigot", "require", wrapFunc(inst, require))
+	e.AddSupportedFunc(ctx, "parigot", "exit", wrapFunc(inst, exit))
 }
 
 func wrapFunc(i eng.Instance, fn func(eng.Instance, int32) int32) func(int32) int32 {

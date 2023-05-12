@@ -5,7 +5,7 @@ import (
 
 	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -22,37 +22,37 @@ func newRemoteSysCall(ns *NSProxy) *remoteSyscall {
 	}
 }
 
-func (r *remoteSyscall) Bind(ctx context.Context, p *Process, packagePath, service, method string) (lib.Id, lib.Id) {
+func (r *remoteSyscall) Bind(ctx context.Context, p *Process, packagePath, service, method string) (id.Id, id.Id) {
 	sysPrint(ctx, "BIND", "[remote] bind for method %s on (%s.%s)", method, packagePath, service)
-	return sharedBind(r.nameServer.NSCore, p, packagePath, service, method)
+	return sharedBind(ctx, r.nameServer.NSCore, p, packagePath, service, method)
 }
 
-func (r *remoteSyscall) Export(ctx context.Context, key dep.DepKey, pkg, service string) lib.Id {
+func (r *remoteSyscall) Export(ctx context.Context, key dep.DepKey, pkg, service string) id.Id {
 	return sharedExport(ctx, r.nameServer, key, pkg, service)
 }
 
-func (r *remoteSyscall) CallService(ctx context.Context, key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, lib.Id, string) {
+func (r *remoteSyscall) CallService(ctx context.Context, key dep.DepKey, info *callContext) (*syscallmsg.ReturnValueRequest, id.Id, string) {
 	return sharedCallService(ctx, r.nameServer, key, info)
 }
 
-// func (r *remoteSyscall) HandleMethod(ctx context.Context,key dep.DepKey, pkgPath, service, method string) (lib.Id, lib.Id) {
+// func (r *remoteSyscall) HandleMethod(ctx context.Context,key dep.DepKey, pkgPath, service, method string) (id.Id, id.Id) {
 // 	return sharedHandleMethod(r.nameServer, key.(*DepKeyImpl).proc, pkgPath, service, method)
 // }
 
-func (r *remoteSyscall) FindMethodByName(ctx context.Context, caller dep.DepKey, sid lib.Id, method string) (*callContext, lib.Id, string) {
+func (r *remoteSyscall) FindMethodByName(ctx context.Context, caller dep.DepKey, sid id.Id, method string) (*callContext, id.Id, string) {
 	return r.nameServer.FindMethodByName(ctx, caller, sid, method)
 }
 
-func (r *remoteSyscall) GetInfoForCallId(ctx context.Context, cid lib.Id) *callContext {
+func (r *remoteSyscall) GetInfoForCallId(ctx context.Context, cid id.Id) *callContext {
 	return r.nameServer.GetInfoForCallId(ctx, cid)
 }
-func (r *remoteSyscall) GetService(ctx context.Context, key dep.DepKey, pkgPath, service string) (lib.Id, lib.Id, string) {
+func (r *remoteSyscall) GetService(ctx context.Context, key dep.DepKey, pkgPath, service string) (id.Id, id.Id, string) {
 	return sharedGetService(ctx, r.nameServer, key, pkgPath, service)
 }
-func (r *remoteSyscall) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (r *remoteSyscall) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	return sharedRequire(ctx, r.nameServer, key, pkgPath, service)
 }
-func (r *remoteSyscall) RunBlock(ctx context.Context, key dep.DepKey) (bool, lib.Id) {
+func (r *remoteSyscall) RunBlock(ctx context.Context, key dep.DepKey) (bool, id.Id) {
 	return r.nameServer.RunBlock(ctx, key)
 }
 func (l *remoteSyscall) BlockUntilCall(ctx context.Context, key dep.DepKey, canTimeout bool) *callContext {

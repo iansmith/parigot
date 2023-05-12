@@ -179,7 +179,7 @@ func (m *myUnderTestServer) setupTests(ctx context.Context) error {
 		ExecPackage: "test.v1",
 		ExecService: "UnderTestService",
 	}
-	resp, err := m.testSvc.AddTestSuite(ctx, addReq)
+	resp, err := m.testSvc.AddTestSuite(addReq)
 	if err != nil {
 		pcontext.Logf(ctx, pcontext.Error, "AddTestSuite:%v", err)
 		return err
