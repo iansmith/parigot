@@ -1,4 +1,4 @@
-package apiimpl
+package apiwasm
 
 import "hash/crc32"
 

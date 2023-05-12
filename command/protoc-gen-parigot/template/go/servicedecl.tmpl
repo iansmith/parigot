@@ -12,9 +12,10 @@ import(
 {{- $info:=.info }}
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  // id manipulation
+    lib "github.com/iansmith/parigot/lib/go"  
     syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
-    "github.com/iansmith/parigot/apiwasm/syscall"  // to get a callImpl
+    "github.com/iansmith/parigot/apiwasm/syscall" 
+
 
 {{/* this special case for log.Log kinda stinks */}}
 {{- $needLog:=true}}

@@ -47,18 +47,19 @@ type wazeroEntryPointExtern struct {
 
 var bg = context.Background()
 
-func NewWaZeroEngine(conf wazero.RuntimeConfig) Engine {
+func NewWaZeroEngine(ctx context.Context, conf wazero.RuntimeConfig) Engine {
 	e := &wazeroEng{}
 	if conf != nil {
 		e.r = wazero.NewRuntimeWithConfig(bg, conf)
 	} else {
 		e.r = wazero.NewRuntime(bg)
 	}
-	wasi_snapshot_preview1.MustInstantiate(bg, e.r)
+	wasi_snapshot_preview1.MustInstantiate(ctx, e.r)
 	e.builder = make(map[string]wazero.HostModuleBuilder)
 	return e
 }
-func (e *wazeroEng) NewModuleFromFile(path string) (Module, error) {
+
+func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string) (Module, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -89,7 +90,7 @@ func (e *wazeroExtern) Name() string {
 	return e.parent.Name()
 }
 
-func (i *wazeroInstance) GetMemoryExport() (MemoryExtern, error) {
+func (i *wazeroInstance) GetMemoryExport(ctx context.Context) (MemoryExtern, error) {
 	def := i.m.ExportedMemoryDefinitions()
 	if def == nil {
 		return nil, fmt.Errorf("module '%s' has no exported memory definitions", i.Name())
@@ -103,9 +104,6 @@ func (i *wazeroInstance) GetMemoryExport() (MemoryExtern, error) {
 	return &wazeroMemoryExtern{m: def["0"]}, nil
 }
 
-func (m *wazeroMemoryExtern) Memptr() uintptr {
-	return 0
-}
 func (m *wazeroMemoryExtern) Name() string {
 	return m.wazeroExtern.parent.Name()
 }
@@ -114,7 +112,7 @@ func (i *wazeroInstance) Name() string {
 	return i.m.Name()
 }
 
-func (i *wazeroInstance) GetEntryPointExport() (EntryPointExtern, error) {
+func (i *wazeroInstance) GetEntryPointExport(ctx context.Context) (EntryPointExtern, error) {
 	fn := i.m.ExportedFunction(EntryPoint)
 	if fn == nil {
 		return nil, fmt.Errorf("unable to find exported symbol '%s' in %s", EntryPoint, i.Name())
@@ -126,7 +124,7 @@ func (i *wazeroInstance) GetEntryPointExport() (EntryPointExtern, error) {
 	return epoint, nil
 }
 
-func (m *wazeroModule) NewInstance() (Instance, error) {
+func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	mod, err := m.parent.r.InstantiateModule(bg, m.cm, nil)
 	if err != nil {
 		return nil, err
@@ -149,7 +147,7 @@ func (m *wazeroModule) NewInstance() (Instance, error) {
 	return i, nil
 }
 
-func (e *wazeroEng) AddSupportedFunc(pkg, name string, raw interface{}) {
+func (e *wazeroEng) AddSupportedFunc(ctxt context.Context, pkg, name string, raw interface{}) {
 	mod, ok := e.builder[pkg]
 	if !ok {
 		mod = e.r.NewHostModuleBuilder(pkg)
@@ -162,7 +160,7 @@ func (e *wazeroEng) AddSupportedFunc(pkg, name string, raw interface{}) {
 	}
 }
 
-func (e *wazeroEntryPointExtern) Run(argv []string, extra interface{}) (any, error) {
+func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
 	argptr := make([]uint64, len(argv))
 	for i, arg := range argv {
 		enc := api.EncodeI32(int32(len(arg)))
@@ -189,4 +187,14 @@ func (e *wazeroEntryPointExtern) Run(argv []string, extra interface{}) (any, err
 		log.Printf("\tresult %02d:%x", i, r)
 	}
 	return nil, nil
+}
+
+func (i *wazeroInstance) Allocate(ctx context.Context, size uint32) (uintptr, error) {
+	panic("ALLOCATE")
+}
+func (i *wazeroInstance) Free(ctx context.Context, ptr uintptr) error {
+	panic("FREE")
+}
+func (i *wazeroInstance) GetFunction(ctx context.Context, pkg, name string) (Function, error) {
+	panic("GET FUNCTION")
 }

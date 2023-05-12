@@ -15,21 +15,21 @@ apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm
 commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
 sqlc: apigo/queue/go_/db.go
 
-## -x make this empty to not show the commands on a build of wasm code
-#-ldflags "--allow-undefined-file=foo"
 EXTRA_WASM_COMP_ARGS=-x -target=wasi 
+EXTRA_HOST_ARGS=-x  -work
 
 #this command can be useful if you want to run tinygo in a container but otherwise use your host machine
-#GO_CMD=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
+#GO_TO_WASM=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
 
-GO_CMD=tinygo
-GO_LOCAL=go
+GO_TO_WASM=tinygo
+GO_TO_HOST=go
+
+
 
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
-SPLIT_UTIL=$(shell find apiwasm/splitutil -type f -regex ".*\.go")
-SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go $(SPLIT_UTIL)
+SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
 
 ## we just use a single representative file for all the generated code
 REP=g/file/$(API_VERSION)/file.pb.go
@@ -56,52 +56,54 @@ ui/css/css3_lexer.go: ui/css/css3.g4
 #ui/css/css3_parser.go: ui/css/css3.g4
 #	cd css;./generate.sh
 
+build/protoc-gen-parigot: export GOCACHE = /home/parigot/.hostcache
 # protoc plugin
 TEMPLATE=$(shell find command/protoc-gen-parigot -type f -regex ".*\.tmpl")
 GENERATOR_SRC=$(shell find command/protoc-gen-parigot -type f -regex ".*\.go")
 build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 	rm -f $@
-	go build -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
 
 
+build/runner: export GOCACHE = /home/parigot/.hostcache
 # launch a deployment based on a config file with runner
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
-SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(SYS_SRC) $(SYSCALL_CLIENT_SIDE) $(LIB_SRC) apiwasm
+build/runner: $(RUNNER_SRC) $(REP) $(LIB_SRC) apiwasm
 	rm -f $@
-	go build -o $@ github.com/iansmith/parigot/command/runner
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
 
+build/parse-emscripten-wat: export GOCACHE = /home/parigot/.hostcache
 # impl of the code to parse a wat from emscripten
 PEM_SRC=$(shell find command/parse-emscripten-wat -type f -regex ".*\.go")
 build/parse-emscripten-wat: $(PEM_SRC) 
 	rm -f $@
-	go build -o $@ github.com/iansmith/parigot/command/parse-emscripten-wat
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/parse-emscripten-wat
 
 # implementation of the file service
 FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
 build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
+	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
 
 # implementation of the test service
 TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
 build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
 # queue service impl
 QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
 build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
 	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
 
 # dom service impl
 #DOM_SERVICE=$(shell find apiwasm/dom -type f -regex ".*\.go")
 #build/dom.p.wasm: $(DOM_SERVICE) $(REP) apiwasm/dom/*.go 
 #	rm -f $@
-#	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/dom
+#	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/dom
 
 # wcl compiler
 WCL_COMPILER=$(shell find ui/parser -type f -regex ".*\.go")
@@ -109,45 +111,48 @@ CSS_COMPILER=$(shell find ui/css -type f -regex ".*\.go")
 WCL_DRIVER=$(shell find ui/driver -type f -regex ".*\.go")
 PB_COMPILER=$(shell find pbmodel -type f -regex ".*\.go")
 
+build/wcl: export GOCACHE = /home/parigot/.hostcache
 build/wcl: $(WCL_COMPILER) $(CSS_COMPILER) $(WCL_DRIVER) $(PB_COMPILER) $(REP)\
 	ui/driver/template/*.tmpl helper/antlr/antlr.go\
 	ui/parser/wcl_parser.go ui/parser/wcllex_lexer.go pbmodel/protobuf3_parser.go ui/css/css3_lexer.go\
 	helper/*.go helper/antlr/*.go
 	rm -f $@
-	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/wcl
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/wcl
 
+build/pbmodel: export GOCACHE = /home/parigot/.hostcache
 ## model compiler
 build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go helper/*.go
-	$(GO_LOCAL) build  -o $@ github.com/iansmith/parigot/command/pbmodel
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/pbmodel
+
 
 # methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
 build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/runner $(METHODCALL_TEST_SVC) 
 	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 # methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
 build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
+	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 # methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
 build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
-	$(GO_CMD) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
 # sqlc for queue
 QUEUE_SQL=$(shell find apigo/queue/go_/ -type f -regex ".*\.sql")
-apiwasm/queue/go_/db.go: $(QUEUE_SQL)
+apigo/queue/go_/db.go: $(QUEUE_SQL)
 	# sql.yaml has some relative paths in it, must be in correct dir
-	cd apiwasm/queue/go_/sqlc && sqlc generate
+	cd apigo/queue/go_/sqlc && sqlc generate
 
 # build a wasm binary for the test program
 # static/t1.wasm: command/t1/mvc.go command/t1/main.go
-# 	$(GO_CMD) build -tags browser -o static/t1.wasm github.com/iansmith/parigot/command/t1
+# 	$(GO_TO_WASM) build -tags browser -o static/t1.wasm github.com/iansmith/parigot/command/t1
 
 # command/t1/nap.go:  ui/testdata/event_test.wcl ui/driver/template/go.tmpl ui/parser/*.go build/wcl 
 # 	build/wcl -o command/t1/nap.go ui/testdata/event_test.wcl
