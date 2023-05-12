@@ -9,11 +9,6 @@ type Engine interface {
 	AddSupportedFunc(ctx context.Context, pkg, name string, fn interface{})
 }
 
-type Config struct {
-	OptLevel int /* 0=normal, 1=high, 2 = low */
-	NoDebug  bool
-}
-
 type Module interface {
 	NewInstance(ctx context.Context) (Instance, error)
 }

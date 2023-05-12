@@ -32,7 +32,6 @@ type barServer struct {
 //
 
 func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, error) {
-	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for barServer.AccumulateMultiply")
 	resp := &methodcallmsg.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
@@ -54,7 +53,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	var err error
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, err = b.foo.AddMultiply(ctx, reqAdd)
+		respAdd, err = b.foo.AddMultiply(reqAdd)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +63,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 
 		/// multiply
 		reqMul.Value0 = req.GetValue()[i]
-		respMul, err = b.foo.AddMultiply(ctx, reqMul)
+		respMul, err = b.foo.AddMultiply(reqMul)
 		if err != nil {
 			return nil, err
 		}
@@ -74,8 +73,6 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	}
 	resp.Product = respMul.GetResult()
 	resp.Sum = respAdd.GetResult()
-	//b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "final tally--- sum=%d prod=%d",
-	//	resp.GetProduct(), resp.GetSum())
 	return resp, nil
 }
 

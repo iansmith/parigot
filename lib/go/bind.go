@@ -1,10 +1,10 @@
-package helper
+package lib
 
 import (
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/id"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -52,9 +52,9 @@ func BindMethodBoth(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRes
 func bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscallmsg.MethodDirection) (*syscallmsg.BindMethodResponse, error) {
 	in.Direction = dir
 	out := syscall.BindMethod(in)
-	id := lib.Unmarshal((*protosupportmsg.KernelErrorId)(out.MethodId))
-	if lib.IdRepresentsError(id.High(), id.Low()) {
-		return nil, lib.NewPerrorFromId("bind", id)
+	kid := id.Unmarshal((*protosupportmsg.KernelErrorId)(out.MethodId))
+	if id.IdRepresentsError(kid.High(), kid.Low()) {
+		return nil, id.NewPerrorFromId("bind", kid)
 	}
 	return out, nil
 }

@@ -13,6 +13,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  
+    "github.com/iansmith/parigot/id"  
     syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiwasm/syscall" 
 
@@ -105,11 +106,11 @@ func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,error) {
     if resp.GetServiceId()==nil {
         panic("service id is nil, can't create ClientSideService")
     }
-    id:=lib.Unmarshal(sid)
-    if lib.IdRepresentsError(id.High(),id.Low()) {
-        return nil, lib.NewPerrorFromId("failed to unmarshal service id",id)
+    srvid:=id.Unmarshal(sid)
+    if id.IdRepresentsError(srvid.High(),srvid.Low()) {
+        return nil, id.NewPerrorFromId("failed to unmarshal service id",srvid)
     }
-    service:=lib.Unmarshal(resp.GetServiceId())
+    service:=id.Unmarshal(resp.GetServiceId())
     cs := lib.NewClientSideService(ctx, service, "{{$svc}}Client")
     
     return &{{$svc}}Client_{
@@ -195,7 +196,7 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}()
 {{- if .OutputCodeNeeded }}
     err = resp.Result.UnmarshalTo(out)
     if err!=nil {
-        return nil,lib.NewPerrorFromError("failed to unmarshal result (generated code):",err)
+        return nil,id.NewPerrorFromError("failed to unmarshal result (generated code):",err)
     }
     return out,nil
 {{- else }} {{/* other side of output code needed */}}

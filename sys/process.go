@@ -71,7 +71,7 @@ type Process struct {
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl??
-func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext) (*Process, error) {
+func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service, ctx *DeployContext) (*Process, error) {
 
 	lastProcessId++
 	id := lastProcessId
@@ -104,7 +104,7 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	// 	ext[i] = eng.NewWasmtimeLinkage(inst)
 	// }
 	//proc.linkage = ext
-	instance, err := proc.module.NewInstance()
+	instance, err := proc.module.NewInstance(c)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	// p.argc = int32(len(p.microservice.GetArg()))
 
 	procPrint(ctx, "START", "get entry point")
-	start, err := p.instance.GetEntryPointExport()
+	start, err := p.instance.GetEntryPointExport(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -341,7 +341,7 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	procPrint(ctx, "START ", "calling start func %s", p)
 	var info interface{}
 
-	retVal, err := start.Run(p.microservice.GetArg(), info)
+	retVal, err := start.Run(ctx, p.microservice.GetArg(), info)
 	procPrint(ctx, "END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {

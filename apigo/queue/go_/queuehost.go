@@ -1,19 +1,20 @@
 package go_
 
 import (
+	"context"
 	"log"
 
 	"github.com/iansmith/parigot/eng"
 )
 
-func ParigotInit(e eng.Engine, inst eng.Instance) {
-	e.AddSupportedFunc("queue", "create_queue", wrapFunc(inst, createQueue))
-	e.AddSupportedFunc("queue", "delete_queue", wrapFunc(inst, deleteQueue))
-	e.AddSupportedFunc("queue", "length", wrapFunc(inst, length))
-	e.AddSupportedFunc("queue", "locate", wrapFunc(inst, locate))
-	e.AddSupportedFunc("queue", "mark_done", wrapFunc(inst, markDone))
-	e.AddSupportedFunc("queue", "receive", wrapFunc(inst, receive))
-	e.AddSupportedFunc("queue", "send", wrapFunc(inst, send))
+func ParigotInit(ctx context.Context, e eng.Engine, inst eng.Instance) {
+	e.AddSupportedFunc(ctx, "queue", "create_queue", wrapFunc(inst, createQueue))
+	e.AddSupportedFunc(ctx, "queue", "delete_queue", wrapFunc(inst, deleteQueue))
+	e.AddSupportedFunc(ctx, "queue", "length", wrapFunc(inst, length))
+	e.AddSupportedFunc(ctx, "queue", "locate", wrapFunc(inst, locate))
+	e.AddSupportedFunc(ctx, "queue", "mark_done", wrapFunc(inst, markDone))
+	e.AddSupportedFunc(ctx, "queue", "receive", wrapFunc(inst, receive))
+	e.AddSupportedFunc(ctx, "queue", "send", wrapFunc(inst, send))
 }
 
 func wrapFunc(i eng.Instance, fn func(eng.Instance, int32) int32) func(int32) int32 {

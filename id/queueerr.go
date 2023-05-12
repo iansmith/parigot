@@ -1,4 +1,4 @@
-package lib
+package id
 
 const (
 	// QueueNoError means just what it sounds like.  All Ids that are errors represent

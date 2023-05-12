@@ -13,7 +13,7 @@ import (
 
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -160,16 +160,16 @@ func NewKeyNSPair(k dep.DepKey, NameServer NameServer) *KeyNSPair {
 }
 
 type ServiceData struct {
-	serviceId lib.Id
+	serviceId id.Id
 	closed    bool
 	exported  bool
 	method    *sync.Map
-	//map[string]lib.Id
+	//map[string]id.Id
 	//methodIdToImpl map[string]dep.DepKey
 	key dep.DepKey
 }
 
-func (s *ServiceData) GetServiceId() lib.Id {
+func (s *ServiceData) GetServiceId() id.Id {
 	return s.serviceId
 }
 
@@ -177,7 +177,7 @@ func (s *ServiceData) GetKey() dep.DepKey {
 	return s.key
 }
 
-func NewServiceData(sid lib.Id) *ServiceData {
+func NewServiceData(sid id.Id) *ServiceData {
 	return &ServiceData{
 		serviceId: sid,
 		method:    &sync.Map{},
@@ -187,18 +187,18 @@ func NewServiceData(sid lib.Id) *ServiceData {
 
 // newServiceId is called to create a new service id.  If n.useLocalServiceId
 // then the service id's content is not random but small (increasing) int.
-func (n *NSCore) newServiceId() lib.Id {
+func (n *NSCore) newServiceId() id.Id {
 	if n.useLocalServiceId() {
 		latest := n.nextServiceCounter()
-		return lib.LocalId[*protosupportmsg.ServiceId](uint64(latest))
+		return id.LocalId[*protosupportmsg.ServiceId](uint64(latest))
 	}
 	_ = n.nextServiceCounter()
-	return lib.NewId[*protosupportmsg.ServiceId]()
+	return id.NewId[*protosupportmsg.ServiceId]()
 }
 
 // ServiceData returns the serviceData for the service that has a given ID or nil
 // if that id is not known.
-func (n *NSCore) ServiceData(serviceId lib.Id) *ServiceData {
+func (n *NSCore) ServiceData(serviceId id.Id) *ServiceData {
 	sData, ok := n.serviceRegistry.Load(serviceId.String())
 	if !ok {
 		return nil
@@ -210,16 +210,16 @@ func (n *NSCore) ServiceData(serviceId lib.Id) *ServiceData {
 // that package you want to find.  If it was found, you'll get back the serviceId
 // in the first return value and nil, "" for the other two.  If there was an error
 // you will get nil in the first parameter and an error code an an error detail.
-func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id, string) {
+func (n *NSCore) GetService(ctx context.Context, pkgPath, service string) (id.Id, id.Id, string) {
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound),
+		return nil, id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("%s package could not be found", pkgPath)
 	}
 	pData := pDataAny.(*sync.Map)
 	sDataAny, ok := pData.Load(service)
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound),
+		return nil, id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("could not find service %s in package %s", service, pkgPath)
 	}
 	sData := sDataAny.(*ServiceData)
@@ -229,22 +229,22 @@ func (n *NSCore) GetService(pkgPath, service string) (lib.Id, lib.Id, string) {
 // CloseService is used to indicate that 1) the given service will not have
 // more methods being registered to it and thus NotFound can be given for any
 // methods not know after this point and 2) that the given service exists.
-func (n *NSCore) CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *NSCore) CloseService(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	sData := n.create(ctx, key, pkgPath, service)
 	sData.closed = true
 	return nil
 }
 
 // validatePkgAndService is a utiliy to verify pkg and service name.
-func (n *NSCore) validatePkgAndService(pkgPath, service string) (*ServiceData, lib.Id) {
+func (n *NSCore) validatePkgAndService(pkgPath, service string) (*ServiceData, id.Id) {
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound)
+		return nil, id.NewKernelError(id.KernelNotFound)
 	}
 	pData := pDataAny.(*sync.Map)
 	sDataAny, ok := pData.Load(service)
 	if !ok {
-		return nil, lib.NewKernelError(lib.KernelNotFound)
+		return nil, id.NewKernelError(id.KernelNotFound)
 	}
 	sData := sDataAny.(*ServiceData)
 	return sData, nil
@@ -290,7 +290,7 @@ func (n *NSCore) DEBUG_DumpSIDTables(ctx context.Context) {
 // new service being created.  This does not the NSCore because all the
 // maps used here are sync.Map *AND* it's called from places that do hold
 // the NSCore lock.
-func (n *NSCore) CreateWithSid(ctx context.Context, key dep.DepKey, pkgPath, service string, sid lib.Id) *ServiceData {
+func (n *NSCore) CreateWithSid(ctx context.Context, key dep.DepKey, pkgPath, service string, sid id.Id) *ServiceData {
 	var pData *sync.Map
 	nscorePrint(ctx, "CreateWithSid() ", "%s on gid=%x", key.String(), GetGID())
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
@@ -323,14 +323,14 @@ func (n *NSCore) CreateWithSid(ctx context.Context, key dep.DepKey, pkgPath, ser
 // of the given pkgPath.Service.  The service must exist or a KernelNotFound error
 // wil result.  This function locks because it needs to be sure the dependency
 // graph is not changed out from under it.
-func (n *NSCore) Export(ctx context.Context, key dep.DepKey, pkgPath, service string, newSid lib.Id) lib.Id {
+func (n *NSCore) Export(ctx context.Context, key dep.DepKey, pkgPath, service string, newSid id.Id) id.Id {
 
 	nscorePrint(ctx, "EXPORT ", "process %s exports %s.%s",
 		key.String(), pkgPath, service)
 
 	// this region needs to lock because of the changes to sData which is returned
 	// above, but without the lock... so this is
-	lockRegion := func() lib.Id {
+	lockRegion := func() id.Id {
 		n.lock.Lock()
 		defer n.lock.Unlock()
 
@@ -341,7 +341,7 @@ func (n *NSCore) Export(ctx context.Context, key dep.DepKey, pkgPath, service st
 		// should we throw an error if this is not closed yet?
 
 		if sData.exported {
-			return lib.NewKernelError(lib.KernelServiceAlreadyClosedOrExported)
+			return id.NewKernelError(id.KernelServiceAlreadyClosedOrExported)
 		}
 		if newSid != nil {
 			nscorePrint(ctx, "EXPORT ", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
@@ -383,7 +383,7 @@ func (n *NSCore) lockThenGetAlreadyExported() []string {
 // Require indicates a required package that must be up (pkgPath.service) before the given
 // service (key) can start running.  This function locks the NSCore at one
 // point because it needs exclusive access to the dep graph.
-func (n *NSCore) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) lib.Id {
+func (n *NSCore) Require(ctx context.Context, key dep.DepKey, pkgPath, service string) id.Id {
 	alreadyExported := false
 	nscorePrint(ctx, "Require ", "process %s requires %s.%s",
 		key.String(), pkgPath, service)
@@ -402,7 +402,7 @@ func (n *NSCore) Require(ctx context.Context, key dep.DepKey, pkgPath, service s
 	serviceId := n.newServiceId()
 	nscorePrint(ctx, "Require ", "about to enter lock region %x", g)
 	// this func is here just so we can use defer
-	lockRegion := func(sid lib.Id) lib.Id {
+	lockRegion := func(sid id.Id) id.Id {
 		n.lock.Lock()
 		defer n.lock.Unlock()
 
@@ -432,7 +432,7 @@ func (n *NSCore) Require(ctx context.Context, key dep.DepKey, pkgPath, service s
 			})
 			if found {
 				nscorePrint(ctx, "Require ", "%s already required the service %s, error RET", key.String(), name)
-				return lib.NewKernelError(lib.KernelServiceAlreadyRequired)
+				return id.NewKernelError(id.KernelServiceAlreadyRequired)
 			}
 			nscorePrint(ctx, "Require ", "%s about to add require %s", key.String(), name)
 			node.AddRequire(name)
@@ -468,7 +468,7 @@ func (n *NSCore) RunIfReady(ctx context.Context, key dep.DepKey) []dep.DepKey {
 	// the only time things can change is when a new process calls run
 	// so we only to make sure here that we find all the eligible processes to run
 
-	n.dependencyGraph_.DumpDepgraph("RunIfReady")
+	n.dependencyGraph_.DumpDepgraph(ctx, "RunIfReady")
 	node, ok := n.dependencyGraph_.GetEdge(key)
 	if !ok {
 		nscorePrint(ctx, "RunIfReady ", "Ignoring request to check on key %s -- no edges assuming ready to run", key.String())
@@ -505,7 +505,7 @@ func (n *NSCore) RunIfReady(ctx context.Context, key dep.DepKey) []dep.DepKey {
 			// we are ready, so lets process his exports through the list of waiting processes
 			exports := candidate.Export()
 			n.dependencyGraph_.Walk(func(key string, other *dep.EdgeHolder) bool {
-				changed := other.RemoveRequire(exports, outerKey)
+				changed := other.RemoveRequire(ctx, exports, outerKey)
 				if changed {
 					newCandidates = append(newCandidates, other)
 					nscorePrint(ctx, "RunIfReady ", "candidate list changed")
@@ -587,27 +587,27 @@ func (n *NSCore) WaitingToRun() int {
 // FindOrCreateMethodId takes a given service by name (packagePath.service) and
 // either generates or finds the methodId for the given name.   This function can
 // be avoided by caching the returned method id.
-func (n *NSCore) FindOrCreateMethodId(ctx context.Context, key dep.DepKey, packagePath, service, method string) lib.Id {
+func (n *NSCore) FindOrCreateMethodId(ctx context.Context, key dep.DepKey, packagePath, service, method string) id.Id {
 	sData, err := n.validatePkgAndService(packagePath, service)
 	if err != nil && err.IsError() {
 		nscorePrint(ctx, "FindOrCreateMethodId ", "we need to create a service data for %s.%s", packagePath, service)
-		if !err.Equal(lib.NewKernelError(lib.KernelNotFound)) {
+		if !err.Equal(id.NewKernelError(id.KernelNotFound)) {
 			nscorePrint(ctx, "FindOrCreateMethodId ", "WARN unable to understand error from validatePackage() %s", err.Short())
 			return nil
 		}
 		sData = n.create(ctx, key, packagePath, service)
 	}
-	var mid lib.Id
+	var mid id.Id
 	methodAny, ok := sData.method.Load(method)
 	if !ok {
 		ct, l := mapToContent(sData.method)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "failed on method %s, %d, %+v", method, ct, l)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "we need to create a method id for %s.%s.%s", packagePath, service, method)
-		mid = lib.NewId[*protosupportmsg.MethodId]()
+		mid = id.NewId[*protosupportmsg.MethodId]()
 		sData.method.Store(method, mid)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "added method %s to sdata", mid.Short())
 	} else {
-		mid = methodAny.(lib.Id)
+		mid = methodAny.(id.Id)
 	}
 	return mid
 
@@ -624,7 +624,7 @@ func nscorePrint(ctx context.Context, method, spec string, arg ...interface{}) {
 // nil that's bad because it means that we couldn't find a reference to the call id,
 // and that should not happen.  If we return the call context we _also_ have removed
 // that cid from the mapping, since you should only do this lookup once.
-func (n *NSCore) getContextForCallId(ctx context.Context, cid lib.Id) *callContext {
+func (n *NSCore) getContextForCallId(ctx context.Context, cid id.Id) *callContext {
 	resultAny, ok := n.inFlight.LoadAndDelete(cid.String())
 	if !ok {
 		return nil // ugh, serious problem
@@ -648,7 +648,7 @@ func (n *NSCore) getContextForCallId(ctx context.Context, cid lib.Id) *callConte
 // the given call context. If the mapping already exists, this function panics
 // because that indicates that we are doing this for a second time for the same
 // call.
-func (n *NSCore) addCallContextMapping(cid lib.Id, cctx *callContext) {
+func (n *NSCore) addCallContextMapping(cid id.Id, cctx *callContext) {
 	_, ok := n.inFlight.Load(cid.String())
 	if ok {
 		panic("found already existing element in inFlight mapping for " + cid.String())
