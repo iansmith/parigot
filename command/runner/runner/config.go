@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"plugin"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -38,9 +40,12 @@ type DeployFlag struct {
 // configuration and these are checked for sanity before being returned.  Exactly one of Server, Main, and
 // Test must be set to true.
 type Microservice struct {
-	Path   string
-	Arg    []string
-	Env    []string
+	WasmPath   string
+	PluginPath string
+
+	Arg []string
+	Env []string
+
 	Server bool
 	Main   bool
 	Test   bool
@@ -49,6 +54,8 @@ type Microservice struct {
 	name   string
 	remote bool
 	module eng.Module
+
+	plug *plugin.Plugin
 }
 
 func (m *Microservice) Name() string {
@@ -74,7 +81,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 		m.remote = flag.Remote
 
 		// get rid of spaces at the end and start of strings
-		m.Path = strings.TrimSpace(m.Path)
+		m.WasmPath = strings.TrimSpace(m.WasmPath)
 		arg := make([]string, len(m.Arg))
 		for i, a := range m.Arg {
 			arg[i] = strings.TrimSpace(a)
@@ -96,21 +103,12 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 				name, m.Server, m.Test, m.Main)
 		}
 		// path sanity check
-		if m.Path == "" {
+		if m.WasmPath == "" {
 			return nil, fmt.Errorf("bad microservice configuration (%s): Path is a required field", name)
 		}
-		info, err := os.Stat(m.Path)
+		_, err := pathExists(m.name, m.WasmPath, false)
 		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				return nil, fmt.Errorf("bad microservice configuration (%s): Path (%s) does not exist",
-					name, m.Path)
-			}
-			return nil, fmt.Errorf("bad microservice configuration (%s): Path (%s): %v",
-				name, m.Path, err)
-		}
-		if info.IsDir() {
-			return nil, fmt.Errorf("bad microservice configuration (%s): Path (%s) cannot be a directory",
-				name, m.Path)
+			return nil, err
 		}
 		// sanity check env vars
 		for _, envvar := range m.Env {
@@ -134,6 +132,20 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 					m.name)
 			}
 		}
+		// load plugin if necessary
+		if !m.Server && m.PluginPath != "" {
+			return nil, fmt.Errorf("bad microservice configuration (%s): PluginPath is only allowed for microservices that are servers", m.name)
+		}
+		if m.Server && m.PluginPath != "" {
+			_, err := pathExists(m.name, m.PluginPath, true)
+			if err != nil {
+				return nil, err
+			}
+			m.plug, err = plugin.Open(m.PluginPath)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	if len(result.Microservice) == 0 {
 		return nil, fmt.Errorf("no microservices found in configuration %s", path)
@@ -151,12 +163,12 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 }
 
 func (c *DeployConfig) loadSingleModule(ctx context.Context, engine eng.Engine, m *Microservice) (eng.Module, error) {
-	mod, err := engine.NewModuleFromFile(ctx, m.Path)
+	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
-			m.name, m.Path, err)
+			m.name, m.WasmPath, err)
 	}
-	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (%s)", m.name, m.Path)
+	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (%s)", m.name, m.WasmPath)
 	return mod, nil
 }
 
@@ -213,9 +225,37 @@ func (m *Microservice) GetEnv() []string {
 func (m *Microservice) GetArg() []string {
 	return m.Arg
 }
-func (m *Microservice) GetPath() string {
-	return m.Path
+func (m *Microservice) GetWasmPath() string {
+	return m.WasmPath
+}
+func (m *Microservice) GetPluginPath() string {
+	return m.PluginPath
+}
+func (m *Microservice) GetPlugin() *plugin.Plugin {
+	return m.plug
 }
 func (m *Microservice) GetModule() eng.Module {
 	return m.module
+}
+
+func pathExists(serviceName, path string, isPlugin bool) (fs.FileInfo, error) {
+	pathType := "wasm path"
+	if isPlugin {
+		pathType = "plugin path"
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s' does not exist",
+				serviceName, pathType, path)
+		}
+		return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s': %v",
+			serviceName, pathType, path, err)
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s' cannot be a directory",
+			serviceName, pathType, path)
+
+	}
+	return info, nil
 }
