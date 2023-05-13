@@ -4,25 +4,26 @@
 # the names here have no significance, they are just for humans
 
 [microservice.foo]
-Path="build/methodcallfoo.p.wasm"
+WasmPath="build/methodcallfoo.p.wasm"
 Arg=["methodcallfoo.p.wasm"]
 Env=["PARIGOT_GOOD=bad"]
 
 [microservice.bar]
-Path="build/methodcallbar.p.wasm"
+WasmPath="build/methodcallbar.p.wasm"
 Arg=["methodcallbar.p.wasm"]
 Env=["PARIGOT_SOFT=hard"]
 
 [microservice.test]
-Path="build/test.p.wasm"
+WasmPath="build/test.p.wasm"
 Arg=["test.p.wasm"]
 
 [microservice.queue]
-Path="build/queue.p.wasm"
+WasmPath="build/queue.p.wasm"
 Arg=["queue.p.wasm"]
+PluginPath="build/queue.so"
 
 [microservice.methodcall_test]
-Path="build/methodcalltest.p.wasm"
+WasmPath="build/methodcalltest.p.wasm"
 Arg=["methodcalltest.p.wasm"]
 Env=["PARIGOT_ENV=true"]
 Test=true

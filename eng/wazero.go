@@ -125,7 +125,7 @@ func (i *wazeroInstance) GetEntryPointExport(ctx context.Context) (EntryPointExt
 }
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
-	mod, err := m.parent.r.InstantiateModule(bg, m.cm, nil)
+	mod, err := m.parent.r.InstantiateModule(bg, m.cm, wazero.NewModuleConfig().WithName(m.cm.Name()))
 	if err != nil {
 		return nil, err
 	}
