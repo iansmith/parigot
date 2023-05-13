@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -35,11 +34,7 @@ func main() {
 
 	}
 	cont := &pcontext.LogContainer{}
-
-	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, pcontext.ParigotFunc, "main")
-	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerWasm)
-	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
+	ctx := sys.SetupContextFor(cont, "main")
 	defer pcontext.Dump(cont)
 
 	// the deploy context creation also creates any needed nameservers

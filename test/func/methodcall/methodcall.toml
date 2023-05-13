@@ -13,10 +13,6 @@ Path="build/methodcallbar.p.wasm"
 Arg=["methodcallbar.p.wasm"]
 Env=["PARIGOT_SOFT=hard"]
 
-[microservice.log]
-Path="build/log.p.wasm"
-Arg=["log.p.wasm"]
-
 [microservice.test]
 Path="build/test.p.wasm"
 Arg=["test.p.wasm"]
