@@ -5,8 +5,7 @@ all: allprotos \
 	apiwasm \
 	methodcalltest \
 	sqlc \
-	plugins \
-	build/runner 
+	plugins
 	
 #static/t1.wasm
 
@@ -18,7 +17,7 @@ allprotos: g/file/$(API_VERSION)/file.pb.go
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 #commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
-commands: 	build/protoc-gen-parigot build/runner
+commands: 	build/protoc-gen-parigot build/runner build/patchreflectproto
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: apiplugin/queue/db.go
 
@@ -47,8 +46,11 @@ API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
+LIB_SRC=$(shell find lib -type f -regex ".*\.go")
+ID_SRC=$(shell find id  -regex ".*\.go")
+API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(ID_SRC)
 
-## we just use a single representative file for all the generated code
+## we just use a single representative file for all the generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
 $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot 
 	rm -rf g/*
@@ -90,12 +92,20 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 #
 # RUNNER
 #
-RUNNER_SRC=$(shell find command/runner -type f -regex "command/runner/.*\.go")
-RUNNER_RUNNER_SRC=$(shell find command/runner -type f -regex "command/runner/runner/.*\.go")
-PLUGIN_SRC=$(shell find lib -type f -regex "apiplugin/.*/.*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(RUNNER_RUNNER_SRC) plugins 
+RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
+PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
+SYS_SRC=$(shell find sys -type f -regex ".*\.go")
+build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(SYS_SRC) apiplugin/queue/db.go
 	rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
+
+#
+# patchreflectproto
+#
+PATCHRP_SRC=$(shell find command/patchreflectproto -type f -regex ".*\.go")
+build/patchreflectproto: $(PATCHRP_SRC)
+	rm -f $@
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/patchreflectproto
 
 
 #
@@ -165,19 +175,20 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 ## methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
-build/methodcalltest.p.wasm: $(METHODCALLTEST) $(SYSCALL_CLIENT_SIDE) g/file/$(API_VERSION)/file.pb.go build/runner $(METHODCALL_TEST_SVC) 
+METHODCALL_TOML=test/func/methodcall/methodcall.toml
+build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML)
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 ## methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 ## methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
-build/methodcallbar.p.wasm: $(BAR_SERVICE) g/file/$(API_VERSION)/file.pb.go test/func/methodcall/methodcall.toml $(SYSCALL_CLIENT_SIDE)
+build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 

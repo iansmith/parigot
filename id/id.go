@@ -83,7 +83,8 @@ func (i *IdBase) Short() string {
 	highBytes := int64ToByteSlice(i.h)
 	key := highBytes[7]
 	if i.IsErrorType() && !i.IsError() {
-		return fmt.Sprintf("[%c-NoErr-]", key)
+		return "[NoErr]"
+		//return fmt.Sprintf("[%c-NoErr-]", key)
 	}
 	lowBytes := int64ToByteSlice(i.l)
 	return fmt.Sprintf("[%c-%02x%02x%02x]", key, lowBytes[2], lowBytes[1], lowBytes[0])
@@ -132,7 +133,8 @@ func (i *IdBase) String() string {
 
 func (i *IdBase) IsError() bool {
 	if !i.IsErrorType() {
-		panic("IsError called on a non-error type")
+		print("------------- IS ERROR CALLED ON NO ERROR TYPE --------------\n")
+		return false
 	}
 	high := i.h & 0xffffffffffff
 	return high != 0 || i.l != 0

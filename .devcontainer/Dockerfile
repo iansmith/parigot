@@ -61,6 +61,7 @@ ENV PB_REL=""
 
 ## tinygo
 ENV TINYGO_VERSION=v0.27.0
+ENV CFLAGS="-g"
 WORKDIR /usr/local
 RUN git clone --depth 1 --branch ${TINYGO_VERSION} https://github.com/tinygo-org/tinygo.git
 WORKDIR /usr/local/tinygo
@@ -74,6 +75,9 @@ RUN git submodule update --init
 RUN make wasi-libc
 RUN make binaryen
 RUN make
+RUN chown -R parigot /usr/local/tinygo
+RUN chgrp -R parigot /usr/local/tinygo
+ENV CFLAGS=""
 
 # symlink all the single binaries in tools/bin
 RUN mkdir /home/parigot/tools/bin
