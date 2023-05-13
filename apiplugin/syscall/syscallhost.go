@@ -1,13 +1,18 @@
-package syscall
+package main
 
 import (
 	"context"
 	"log"
 
 	"github.com/iansmith/parigot/eng"
+	"github.com/iansmith/parigot/sys"
 )
 
-func ParigotInit(ctx context.Context, e eng.Engine, inst eng.Instance) {
+type syscallPlugin struct{}
+
+var ParigiotInitialize sys.ParigotInit = &syscallPlugin{}
+
+func (*syscallPlugin) Init(ctx context.Context, e eng.Engine, inst eng.Instance) bool {
 	e.AddSupportedFunc(ctx, "parigot", "locate", wrapFunc(inst, locate))
 	e.AddSupportedFunc(ctx, "parigot", "dispatch", wrapFunc(inst, dispatch))
 	e.AddSupportedFunc(ctx, "parigot", "blockUntilCall", wrapFunc(inst, blockUntilCall))
@@ -17,6 +22,7 @@ func ParigotInit(ctx context.Context, e eng.Engine, inst eng.Instance) {
 	e.AddSupportedFunc(ctx, "parigot", "return_value", wrapFunc(inst, returnValue))
 	e.AddSupportedFunc(ctx, "parigot", "require", wrapFunc(inst, require))
 	e.AddSupportedFunc(ctx, "parigot", "exit", wrapFunc(inst, exit))
+	return true
 }
 
 func wrapFunc(i eng.Instance, fn func(eng.Instance, int32) int32) func(int32) int32 {

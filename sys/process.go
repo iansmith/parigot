@@ -6,13 +6,27 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"plugin"
 	"sync"
+	"time"
 
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sys/dep"
 )
+
+// ParigotInitSymbolName is the name of the function that parigot
+// will call in a user-supplied plugin to do initialization. The
+// type of this must be ParigotInit.
+const ParigotInitSymbolName = "ParigotInitialize"
+
+// ParigotInit is the interface that plugins must meet to be
+// initialized. It is expected that they will use the supplied
+// Engine in the call to Init to register Host functions.
+type ParigotInit interface {
+	Init(ctx context.Context, e eng.Engine, i eng.Instance) bool
+}
 
 type Service interface {
 	IsServer() bool
@@ -21,8 +35,10 @@ type Service interface {
 	GetName() string
 	GetArg() []string
 	GetEnv() []string
-	GetPath() string
+	GetWasmPath() string
 	GetModule() eng.Module
+	GetPluginPath() string
+	GetPlugin() *plugin.Plugin
 }
 
 type ParigotExitCode int
@@ -84,36 +100,28 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		reachedRunBlock: false,
 		exited:          false,
 		microservice:    m,
-		path:            m.GetPath(),
+		path:            m.GetWasmPath(),
 
 		callCh: make(chan *callContext),
-		//runCh:  make(chan bool),
 	}
 	proc.key = NewDepKeyFromProcess(proc)
-
-	// l, memPtr, err := proc.checkLinkage(rt, logViewer, fileSvc, queueSvc)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if proc.memPtr == 0 && memPtr != 0 {
-	// 	proc.memPtr = memPtr
-	// }
-	// XXX WASMTIME SPECIFIC
-	//	ext := make([]eng.Extern, len(l))
-	// for i, inst := range l {
-	// 	ext[i] = eng.NewWasmtimeLinkage(inst)
-	// }
-	//proc.linkage = ext
 	instance, err := proc.module.NewInstance(c)
 	if err != nil {
 		return nil, err
 	}
 	proc.instance = instance
 
-	// memExt, err := instance.GetMemoryExport()
-	// if err != nil {
-	// 	return nil, err
-	// }
+	sym, err := m.GetPlugin().Lookup(ParigotInitSymbolName)
+
+	initFn := sym.(ParigotInit)
+	cont := &pcontext.LogContainer{}
+	initCtx := SetupContextFor(cont, "ParigiotInit")
+	ok := initFn.Init(initCtx, engine, instance)
+	if !ok {
+		pcontext.Dump(cont)
+		return nil, fmt.Errorf("unable to initialize plugin '%s'", m.GetPluginPath())
+	}
+	pcontext.Dump(cont)
 
 	return proc, nil
 }
@@ -175,87 +183,6 @@ func (p *Process) Exited() bool {
 	defer p.lock.Unlock()
 	return p.exited
 }
-
-// func (p *Process) checkLinkage(rt *Runtime, lv *logimpl.LogViewerImpl, fs *fileimpl.FileSvcImpl, queue *queueimpl.QueueSvcImpl) ([]wasmtime.AsExtern, uintptr, error) {
-
-// 	// all available funcs end up in here
-// 	//available := make(map[string]*wasmtime.Func)
-// 	//availableObj := make(map[string]wasmtime.AsExtern)
-
-// 	//addEmscriptenFuncs(p.parent, available, rt)
-// 	addSupportedFunctions(p.engine, rt)
-// 	addSplitModeFunctions(p.engine, lv, fs, queue)
-
-// 	result := uintptr(0)
-// 	//memPtr := addEmscriptenObjects(p.parent, availableObj)
-
-// 	//	_glob := make(map[string]*wasmtime.Global)
-// 	//addEmscriptenGlobals(p.parent, glob)
-
-// 	// result of checking the linkage
-// 	linkage := []wasmtime.AsExtern{}
-
-// walk all the module's imports
-// 	for _, imp := range p.module.Imports() {
-// 		n := "$$ANON$$"
-// 		if imp.Name() != nil {
-// 			n = *imp.Name()
-// 		}
-// 		importName := fmt.Sprintf("%s.%s", imp.Module(), n)
-// 		ext, ok := available[importName]
-// 		if !ok {
-// 			// // possibly a global
-// 			// g, ok := glob[importName]
-// 			// if ok {
-// 			// 	external := wasmtime.AsExtern(g)
-// 			// 	linkage = append(linkage, external)
-// 			// 	continue
-// 			// } else {
-// 			// 	// might be another type of object
-// 			// 	obj, ok := availableObj[importName]
-// 			// 	log.Printf("request for import %s, %+v  ok?%v  %v", importName, availableObj, ok, obj)
-// 			// 	if ok {
-// 			// 		log.Printf("extra link step for %s", importName)
-// 			// 		//result = memPtr
-// 			// 		linkage = append(linkage, obj)
-// 			// 		continue
-// 			// 	}
-// 			// }
-// 			return nil, 0, fmt.Errorf("unable to find linkage for %s in module %s", importName, p.path)
-// 		} else {
-// 			linkage = append(linkage, ext)
-// 		}
-// 	}
-// 	return linkage, result, nil
-//}
-
-// func addEmscriptenObjects(store *wasmtime.Store, obj map[string]wasmtime.AsExtern) uintptr {
-// 	mtype := wasmtime.NewMemoryType(320, true, 32767)
-// 	mem, err := wasmtime.NewMemory(store, mtype)
-// 	if err != nil {
-// 		panic("unable to create memory object inside wasmtime")
-// 	}
-// 	memPtr := uintptr(mem.Data(store))
-// 	obj["env.memory"] = wasmtime.AsExtern(mem)
-// 	ftype := wasmtime.NewValType(wasmtime.KindFuncref)
-// 	ttype := wasmtime.NewTableType(ftype, 6376, true, 8192)
-// 	tbl, err := wasmtime.NewTable(store, ttype, wasmtime.ValFuncref(nil))
-// 	if err != nil {
-// 		panic("unable to create table object inside wasmtime")
-// 	}
-// 	obj["env.__indirect_function_table"] = tbl
-// 	return memPtr
-// }
-
-// func addSupportedGlobals(store *wasmtime.Store, glob map[string]*wasmtime.Global) {
-// 	valType := wasmtime.NewValType(wasmtime.KindI32)
-// 	gType := wasmtime.NewGlobalType(valType, false)
-// 	g, err := wasmtime.NewGlobal(store, gType, wasmtime.ValI32(0))
-// 	if err != nil {
-// 		log.Fatalf("unable to create global " + err.Error())
-// 	}
-// 	glob["env.__memory_base"] = g
-// }
 
 func (p *Process) SetExitCode(code int) {
 	p.lock.Lock()
@@ -365,4 +292,13 @@ func procPrint(ctx context.Context, method string, spec string, arg ...interface
 	if processVerbose {
 		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method, spec, arg...)
 	}
+}
+
+func SetupContextFor(cont *pcontext.LogContainer, funcName string) context.Context {
+
+	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
+	ctx = context.WithValue(ctx, pcontext.ParigotFunc, funcName)
+	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerGo)
+	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
+	return ctx
 }

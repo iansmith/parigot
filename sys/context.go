@@ -59,11 +59,6 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 		nameserver: ns,
 	}
 
-	// supFn := NewWazeroSupportFunc(ctx, depCtx)
-	// ctx.supportFunc = wasmtimeFn
-	// addSupportedFunctions(engine, wasmtimeFn)
-	// addSplitModeFunctions(engine, wasmtimeFn)
-	panic("how do I get support functions?")
 	return depCtx, nil
 }
 
