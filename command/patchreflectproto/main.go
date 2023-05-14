@@ -93,13 +93,18 @@ func patchLine(path, value string) {
 		withQ := fmt.Sprintf("\"%s\"", value)
 		if line == "GoPackagePath: reflect.TypeOf(x{}).PkgPath()," {
 			newline := strings.Replace(line, badLine, withQ, 1)
-			log.Printf("%s-> %s", path, newline)
-			wr.WriteString(newline + "\n")
+			//log.Printf("%s-> %s", path, newline)
+			wr.WriteString("\t\t\t" + newline + "\n")
 			unchanged = false
 			continue
 		}
+		if line == "reflect \"reflect\"" {
+			continue // we delete this line, but don't change the unchanged flag
+		}
 		wr.WriteString(rawLine + "\n")
 	}
+	wr.Flush()
+
 	fp.Close()
 	out.Close()
 	if unchanged {
