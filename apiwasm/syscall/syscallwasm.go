@@ -11,6 +11,7 @@ import (
 //
 //go:wasm-module parigot
 //go:export locate
+//go:noinline
 func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 
 // Dispatch is the primary means that a caller can send an RPC message.
