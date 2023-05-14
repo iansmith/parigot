@@ -25,7 +25,7 @@ sqlc: apiplugin/queue/db.go
 # EXTRA ARGS FOR BUILDING (placed after the "go build")
 # use -x for more details from a go compiler
 #
-EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1
+EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
@@ -52,10 +52,11 @@ API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC
 
 ## we just use a single representative file for all the generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
-$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot 
+$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot build/patchreflectproto
 	rm -rf g/*
 	buf lint
 	buf generate
+	build/patchreflectproto -prefix github.com/parigot/iansmith g
 
 #
 # ANTLR
