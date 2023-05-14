@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
+	"unsafe"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 )
+
+var _ = unsafe.Sizeof([]byte{})
+
+func main() {
+
+}
 
 //go:export parigot_main
 //go:linkname parigot_main

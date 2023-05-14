@@ -25,7 +25,8 @@ sqlc: apiplugin/queue/db.go
 # EXTRA ARGS FOR BUILDING (placed after the "go build")
 # use -x for more details from a go compiler
 #
-EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x
+#EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x
+EXTRA_WASM_COMP_ARGS=-x
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
@@ -35,7 +36,7 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 #
 # GO
 #
-GO_TO_WASM=tinygo
+GO_TO_WASM=go
 GO_TO_HOST=go
 GO_TO_PLUGIN=go 
 
@@ -56,7 +57,6 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot build/patchreflectpr
 	rm -rf g/*
 	buf lint
 	buf generate
-	build/patchreflectproto -prefix github.com/parigot/iansmith g
 
 #
 # ANTLR
@@ -124,18 +124,24 @@ build/patchreflectproto: $(PATCHRP_SRC)
 
 ## client side of the file service
 FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
+build/file.p.wasm: export GOOS=js
+build/file.p.wasm: export GOARCH=wasm
 build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
 
 ## client side of the test service
 TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
+build/test.p.wasm: export GOOS=js
+build/test.p.wasm: export GOARCH=wasm
 build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
 ## client side of service impl
 QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
+build/queue.p.wasm: export GOOS=js
+build/queue.p.wasm: export GOARCH=wasm
 build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
@@ -177,18 +183,24 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
 METHODCALL_TOML=test/func/methodcall/methodcall.toml
+build/methodcalltest.p.wasm: export GOOS=js
+build/methodcalltest.p.wasm: export GOARCH=wasm
 build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML)
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 ## methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
+build/methodcallfoo.p.wasm: export GOOS=js
+build/methodcallfoo.p.wasm: export GOARCH=wasm
 build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 ## methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
+build/methodcallbar.p.wasm: export GOOS=js
+build/methodcallbar.p.wasm: export GOARCH=wasm
 build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE)
 	rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
