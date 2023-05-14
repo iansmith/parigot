@@ -9,7 +9,8 @@ require (
 	github.com/dominikbraun/graph v0.16.1
 	github.com/lucas-clemente/quic-go v0.30.0
 	github.com/tetratelabs/wazero v1.1.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.30
+	//github.com/golang/protobuf v1.3.4
 )
 
 require (

@@ -9,6 +9,7 @@ package {{ .package }}
 import (
 	"fmt"
 	"context"
+    "unsafe"
 
 {{ range $j,$i := .import -}}
 	{{$j -}}
@@ -28,7 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 
 )
-
+var _ =  unsafe.Sizeof([]byte{})
 
 {{- $info:=.info }}
 {{- range .service }}
@@ -277,8 +278,10 @@ type Simple{{$svcCamel}} struct {
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
-//go:wasm-module {{packageToGoName $pkg}}
-//go:export {{$methSnake}}
+//-- go:wasm-module {{packageToGoName $pkg}}
+//-- go:export {{$methSnake}}
+//go:linkname {{$methCamel}} {{packageToGoName $pkg}}.{{$methSnake}}
+
 {{if .InputCodeNeeded }}
 {{- if .OutputCodeNeeded }} 
 func {{$methCamel}}(*{{$iParam}}) *{{$oParam}}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"unsafe"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -12,6 +13,12 @@ import (
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
+
+var _ = unsafe.Sizeof([]byte{})
+
+func main() {
+
+}
 
 //go:export parigot_main
 //go:linkname parigot_main
