@@ -33,7 +33,7 @@ func NewPerrorFromError(msg string, err error) *perrorImpl {
 // an id that is not of an error code type or is an error code, but has
 // a value that is "no error" (IsError() returns false).
 func NewPerrorFromId(msg string, idv Id) *perrorImpl {
-	if idv.IsError() == false {
+	if !idv.IsError() {
 		panic(fmt.Sprintf("unexpected usage of id; tried to use it as an error id but it contains no error: %x,%x", idv.High(), idv.Low()))
 	}
 	return &perrorImpl{

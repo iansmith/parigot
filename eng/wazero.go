@@ -9,7 +9,6 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 const maxWasmFile = 0x1024 * 0x1024 * 0x20
@@ -23,6 +22,7 @@ type wazeroEng struct {
 type wazeroModule struct {
 	parent *wazeroEng
 	cm     wazero.CompiledModule
+	host   bool
 }
 
 type wazeroInstance struct {
@@ -54,7 +54,14 @@ func NewWaZeroEngine(ctx context.Context, conf wazero.RuntimeConfig) Engine {
 	} else {
 		e.r = wazero.NewRuntime(bg)
 	}
-	wasi_snapshot_preview1.MustInstantiate(ctx, e.r)
+
+	wasiBuilder := fakeWasiAddFunc(e)
+
+	_, err := wasiBuilder.Instantiate(ctx)
+	if err != nil {
+		log.Fatalf("failed to instantiate wasi override: %v", err)
+	}
+
 	e.builder = make(map[string]wazero.HostModuleBuilder)
 	return e
 }
@@ -123,8 +130,28 @@ func (i *wazeroInstance) GetEntryPointExport(ctx context.Context) (EntryPointExt
 
 	return epoint, nil
 }
+func (m *wazeroEng) InstantiateHostModule(ctx context.Context, pkg string) (Instance, error) {
+	b, ok := m.builder[pkg]
+	if !ok {
+		panic(fmt.Sprintf("unknown builder '%s'", pkg))
+	}
+	inst, err := b.Instantiate(ctx)
+	if err != nil {
+		log.Printf("xxx -- created instantiated host module %s", pkg)
+		return nil, err
+	}
+	log.Printf("xxx -- created instantiated host module %s", pkg)
+	mod := &wazeroModule{parent: m, host: true}
+	return &wazeroInstance{
+		parent: mod,
+		m:      inst,
+		malloc: nil,
+		free:   nil,
+	}, nil
+}
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
+
 	mod, err := m.parent.r.InstantiateModule(bg, m.cm, wazero.NewModuleConfig().WithName(m.cm.Name()))
 	if err != nil {
 		return nil, err
@@ -147,17 +174,22 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	return i, nil
 }
 
-func (e *wazeroEng) AddSupportedFunc(ctxt context.Context, pkg, name string, raw interface{}) {
+// type holder struct {
+// 	raw func(int32)
+// }
+
+// func (h *holder) Call(ctx context.Context, mod api.Module, stack []uint64) {
+//result := h.raw(api.DecodeI32(stack[0]))
+// }
+
+func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
 	mod, ok := e.builder[pkg]
 	if !ok {
+		log.Printf("xxx -- Add supported func, adding new module %s", pkg)
 		mod = e.r.NewHostModuleBuilder(pkg)
 		e.builder[pkg] = mod
 	}
-	fn := raw.(func(uint32))
-	err := mod.NewFunctionBuilder().WithFunc(fn).Export(name)
-	if err != nil {
-		panic(fmt.Sprintf("unable to create supported (host) function %s.%s: %v", pkg, name, err))
-	}
+	mod.NewFunctionBuilder().WithGoModuleFunction(api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32}, []api.ValueType{api.ValueTypeI32}).Export(name)
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {

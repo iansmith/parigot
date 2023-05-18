@@ -3,33 +3,30 @@ package main
 import (
 	"context"
 	"log"
+	"unsafe"
 
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/sys"
+
+	"github.com/tetratelabs/wazero/api"
 )
 
 type filePlugin struct{}
 
+var _ = unsafe.Sizeof([]byte{})
+
 var ParigiotInitialize sys.ParigotInit = &filePlugin{}
 
-func (*filePlugin) Init(ctx context.Context, e eng.Engine, inst eng.Instance) bool {
-	e.AddSupportedFunc(ctx, "file", "open", wrapFunc(inst, open))
-	e.AddSupportedFunc(ctx, "file", "load_testt_data", wrapFunc(inst, loadTestData))
+func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
+	e.AddSupportedFunc(ctx, "file", "open", open)
+	e.AddSupportedFunc(ctx, "file", "load_testt_data", loadTestData)
 	return true
 }
 
-func wrapFunc(i eng.Instance, fn func(eng.Instance, int32) int32) func(int32) int32 {
-	return func(x int32) int32 {
-		return fn(i, x)
-	}
+func open(ctx context.Context, m api.Module, stack []uint64) {
+	log.Printf("file.open 0x%x", stack)
 }
 
-func open(inst eng.Instance, ptr int32) int32 {
-	log.Printf("file.open 0x%x", ptr)
-	return 0
-}
-
-func loadTestData(inst eng.Instance, ptr int32) int32 {
-	log.Printf("file.dispatch 0x%x", ptr)
-	return 0
+func loadTestData(ctx context.Context, m api.Module, stack []uint64) {
+	log.Printf("file.dispatch 0x%x", stack)
 }

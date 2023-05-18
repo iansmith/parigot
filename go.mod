@@ -1,16 +1,18 @@
 module github.com/iansmith/parigot
 
-go 1.19
+go 1.20
 
 require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20230305170008-8188dc5388df
 	github.com/dominikbraun/graph v0.16.1
+	github.com/golang/protobuf v1.5.2
+	github.com/google/go-cmp v0.5.8
 	github.com/lucas-clemente/quic-go v0.30.0
 	github.com/tetratelabs/wazero v1.1.0
-	google.golang.org/protobuf v1.30
-	//github.com/golang/protobuf v1.3.4
+	google.golang.org/protobuf v1.30.0
+//github.com/golang/protobuf v1.3.4
 )
 
 require (

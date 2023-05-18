@@ -124,7 +124,7 @@ func LogFullf(ctx context.Context, level LogLevel, source Source, funcName, spec
 	}
 	result.data[i] = 0
 
-	cont := ctx.Value(ctx)
+	cont := ctx.Value(ParigotLogContainer)
 	if cont == nil {
 		log.Println(line)
 	}
@@ -166,7 +166,7 @@ func LogInternal(level LogLevel, funcName, spec string, rest ...interface{}) {
 	LogFullf(context.Background(), level, Parigot, funcName, spec, rest...)
 }
 
-func Dump(cont *LogContainer) {
+func dumpContainer(cont *LogContainer) {
 	i := cont.front
 	buf := &bytes.Buffer{}
 	for i != cont.back {
@@ -190,6 +190,7 @@ func Dump(cont *LogContainer) {
 		i = (i + 1) % MaxContainerSize
 	}
 	log.Print(buf.String())
+
 }
 
 func CurrentTime(ctx context.Context) time.Time {
@@ -199,6 +200,7 @@ func CurrentTime(ctx context.Context) time.Time {
 	}
 	return time.Now()
 }
+
 func CurrentTimeString(ctx context.Context) string {
 	return CurrentTime(ctx).Format(time.RFC822Z)
 }
@@ -210,10 +212,33 @@ func CallGo(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, ServerGo)
 }
 
-func ClientContext(cont *LogContainer, name string) context.Context {
-	ctx := context.WithValue(context.Background(), ParigotTime, time.Now())
+func newContext(orig context.Context, src Source, name string) context.Context {
+	if orig == nil {
+		orig = context.Background()
+	}
+	cont := &LogContainer{}
+	ctx := context.WithValue(orig, ParigotTime, time.Now())
 	ctx = context.WithValue(ctx, ParigotFunc, name)
-	ctx = context.WithValue(ctx, Client, ServerWasm)
+	ctx = context.WithValue(ctx, ParigotSource, src)
 	ctx = context.WithValue(ctx, ParigotLogContainer, cont)
 	return ctx
+}
+
+func ServerGoContext(ctx context.Context, funcName string) context.Context {
+	return newContext(ctx, ServerGo, funcName)
+}
+func ClientContext(ctx context.Context, funcName string) context.Context {
+	return newContext(ctx, Client, funcName)
+}
+func ServerWasmContext(ctx context.Context, funcName string) context.Context {
+	return newContext(ctx, ServerWasm, funcName)
+}
+
+func Dump(ctx context.Context) {
+	cont := ctx.Value(ParigotLogContainer)
+	if cont == nil {
+		log.Println("no log container present inside context")
+		return
+	}
+	dumpContainer(cont.(*LogContainer))
 }

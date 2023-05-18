@@ -3,9 +3,7 @@ package lib
 import (
 	"bytes"
 	"encoding/binary"
-	"flag"
 	"log"
-	"os"
 	"strings"
 	"unsafe"
 )
@@ -87,10 +85,10 @@ func computeArgvEnvp() ([]string, []string) {
 var envp, argv []string
 
 func FlagParseCreateEnv() {
-	log.Printf("xxx -- FlagParseCreateEnv()")
-	argv, envp = computeArgvEnvp()
-	os.Args = argv
-	flag.Parse()
+	// log.Printf("xxx -- FlagParseCreateEnv()")
+	// argv, envp = computeArgvEnvp()
+	// os.Args = argv
+	// flag.Parse()
 }
 
 // This is a workalike for os.Getenv()

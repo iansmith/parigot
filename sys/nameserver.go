@@ -273,9 +273,9 @@ func (l *LocalNameServer) CallService(c context.Context, key dep.DepKey, ctx *ca
 		debug.PrintStack()
 		print("xxxxxxxxxxxxxxxxxxxx\n")
 	}
-	if result.ExecErrorId != nil && id.IdRepresentsError(result.ExecErrorId.High, result.ExecErrorId.Low) {
-		panic(fmt.Sprintf("Call service found an error: %s %v ", result.ExecErrorId.String(), result.ExecError))
-	}
+	// if result.ExecErrorId != nil && id.IsError() {
+	// 	panic(fmt.Sprintf("Call service found an error: %s %v ", result.ExecErrorId.String(), result.ExecError))
+	// }
 	return result, nil, ""
 }
 

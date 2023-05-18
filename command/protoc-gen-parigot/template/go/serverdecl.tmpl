@@ -22,6 +22,7 @@ import (
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	"github.com/iansmith/parigot/apiwasm/background"
 	"github.com/iansmith/parigot/id"
+	"github.com/iansmith/parigot/apiwasm"  
 	lib "github.com/iansmith/parigot/lib/go"  
 	pcontext "github.com/iansmith/parigot/context"
 	
@@ -105,7 +106,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 		//
 		// wait for notification
 		//
-		resp := {{$svcCamelFL}}BlockUntilCall({{$svcCamelFL}}Background!=nil)
+		resp,err := {{$svcCamelFL}}BlockUntilCall({{$svcCamelFL}}Background!=nil)
 		if err != nil {
 			// error is likely local to this process
 			{{$svcCamelFL}}Print("RUN:primary for loop ", "Unable to dispatch method call: %v", err)
@@ -115,17 +116,13 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 			if {{$svcCamelFL}}Background==nil {
 				continue
 			}
-			cont:=&pcontext.LogContainer{}
-			ctx:=lib.PrepContextForServer(cont,"Background")
+			ctx:=pcontext.ServerWasmContext(context.TODO(),"Background")
 			{{$svcCamelFL}}Background.Background(ctx)
-			pcontext.Dump(cont)
+			pcontext.Dump(ctx)
 			continue
 		}
 		mid := id.Unmarshal(resp.GetMethod())
 		cid := id.Unmarshal(resp.GetCall())
-
-		//container gets printed at the bottom of this loop
-		cont:=&pcontext.LogContainer{}
 
 		//
 		// pick the method
@@ -145,7 +142,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
-			ctx:=lib.PrepContextForServer(cont,"{{$methCamelFL}}")
+			ctx:=pcontext.ServerWasmContext(context.TODO(),"{{$methCamelFL}}")
 
 {{- if .InputCodeNeeded}}
 			req := &{{$inParam}}{}
@@ -169,7 +166,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 you would have a method with no input or output, which is checked elsewhere */}}
             execError = impl.{{$methCamel}}(ctx,req)
 {{- end}}
-			pcontext.Dump(cont)
+			pcontext.Dump(ctx)
 			if execError != nil {
 				break
 			}
@@ -177,14 +174,14 @@ you would have a method with no input or output, which is checked elsewhere */}}
         }
 		//
 		// could be error, could be everything is cool
+		ctx:=pcontext.ServerWasmContext(context.TODO(),"ReturnValue")
 		a:=&anypb.Any{}
 		err=a.MarshalFrom(out) 
 		if err!=nil {
-			marshalError=fmt.Errorf("error converting response for return value")
+			pcontext.Errorf(ctx,"marshal failed:%v",err)
 		}
-		eid:=id.NoError[*protosupportmsg.KernelErrorId]()
-		if execError.Error()!="" {
-			eid=id.NewKernelError(id.KernelExecError)
+		if execError!=nil {
+			pcontext.Errorf(ctx,"exec failed:%v",execError)
 		}
 		retreq:=&syscallmsg.ReturnValueRequest{
 			Call: id.Marshal[protosupportmsg.CallId](cid),
@@ -194,13 +191,15 @@ you would have a method with no input or output, which is checked elsewhere */}}
 			MarshalError: marshalError.Error(),
 			ExecError: execError.Error(),
 			// XXX this error setup needs to be fixed properly
-			ExecErrorId: id.Marshal[protosupportmsg.BaseId](eid),
+			ExecErrorId: nil,
 		}
-		retresp:=syscall.ReturnValue(retreq)
+		retresp,err:=syscall.ReturnValue(retreq)
+		if err!=nil {
+			pcontext.Errorf(ctx, "return value failed: %v",err)
+		}
 		if retresp.ExitAfterUse {
 			os.Exit(2)
 		}
-		pcontext.Dump(cont)
 		// about to loop again
 	}
 	// wont reach here
@@ -230,12 +229,12 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	}
 	{{$methCamelFL}}Method = id.Unmarshal(resp.GetMethodId())
 {{- end }} {{/* end of rang over methods */}}
-	cont:=&pcontext.LogContainer{}
-	ctx:=lib.PrepContextForServer(cont,"Ready")
+	ctx:=pcontext.ServerWasmContext(context.TODO(),"Ready")
 	if !impl.Ready(ctx){
-		pcontext.Dump(cont)
+		pcontext.Dump(ctx)
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")
 	}
+	pcontext.Dump(ctx)
 	//var ok bool
 	{{$svcCamelFL}}Background, _ = impl.(background.Background)
 	//if !ok {
@@ -248,10 +247,9 @@ func {{$svcCamelFL}}TimedOut()  {
 	print("{{$svcCamelFL}}TimedOut()\n")
 }
 
-func {{$svcCamelFL}}BlockUntilCall(canTimeout bool) *syscallmsg.BlockUntilCallResponse {
+func {{$svcCamelFL}}BlockUntilCall(canTimeout bool) (*syscallmsg.BlockUntilCallResponse,error) {
 	req := &syscallmsg.BlockUntilCallRequest{CanTimeout:canTimeout}
-	resp:=syscall.BlockUntilCall(req)
-	return resp
+	return syscall.BlockUntilCall(req)
 }
 
 func {{$svcCamelFL}}Print(method string, spec string, arg ...interface{}) {
@@ -271,54 +269,64 @@ func {{$svcCamelFL}}Print(method string, spec string, arg ...interface{}) {
 type Simple{{$svcCamel}} struct {
 	fn func(context.Context,*Simple{{$svcCamel}}) bool
 }
-
+func NewSimple{{$svcCamel}} (fn func(context.Context, *Simple{{$svcCamel}}) bool) *Simple{{$svcCamel}} {
+	return &Simple{{$svcCamel}}{
+		fn: fn,
+	}
+}
+func (s *Simple{{$svcCamel}}) Ready(ctx context.Context) bool {
+	if s.fn != nil {
+		return s.fn(ctx, s)
+	}
+	return true
+}
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
-//-- go:wasm-module {{packageToGoName $pkg}}
-//-- go:export {{$methSnake}}
-//go:linkname {{$methCamel}} {{packageToGoName $pkg}}.{{$methSnake}}
 
-{{if .InputCodeNeeded }}
+
+//xxxgo:wasm-module {{packageToGoName $pkg}}
+//xxxgo:export {{$methSnake}}
+//xxxgo:linkname {{$methCamel}} {{packageToGoName $pkg}}.{{$methSnake}}
+// host function: {{packageToGoName $pkg}} {{$methSnake}}_
+//go:wasmimport {{packageToGoName $pkg}} {{$methSnake}}_
+func {{$methCamel}}_(int32,int32) int32
+
+// Wrapper around host function {{packageToGoName $pkg}} {{$methSnake}}_
+{{- if .InputCodeNeeded }}
 {{- if .OutputCodeNeeded }} 
-func {{$methCamel}}(*{{$iParam}}) *{{$oParam}}
+func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context, in *{{$iParam}}) (*{{$oParam}},error) {
+	out := &{{$oParam}}{}
+	err := apiwasm.WasmCallNativeInOut[*{{$iParam}}, *{{$oParam}}](in, out, {{$methCamel}}_)
 {{- else }} {{/* other side of output code needed */}}
-func {{$methCamel}}(*{{$iParam}}) 
+func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context, in *{{$iParam}}) {
+	err := apiwasm.WasmCallNativeIn[*{{$iParam}}, *{{$oParam}}](in, {{$methCamel}}_)
 {{- end }} {{/* end of if output code needed */}}
 {{- else }} {{/* other side of InputCodeNeeded */}}
-func {{$methCamel}}() *{{$oParam}}
+func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context) (*{{$oParam}},error) {
+	out := &{{$oParam}}{}
+	err := apiwasm.WasmCallNativeOut[*{{$iParam}}, *{{$oParam}}](out, {{$methCamel}}_)
+
 {{- end }}  {{/* end of InputCodeNeeded */}}
-
-
-{{if .InputCodeNeeded }}
+	if err != nil {
+		pcontext.LogFullf(ctx, pcontext.Error, pcontext.Client, "{{$methCamel}}_", "{{$methCamel}}_ failed:%v", err)
 {{- if .OutputCodeNeeded }} 
-func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context,in *{{$iParam}}) (*{{$oParam}},error) {
-	out:={{$methCamel}}(in)
-	return out, nil 
+		return nil, err
+	}
+	return out, nil
 }
-{{- else }}{{/* other need of output needed */}}
-func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context,in *{{$iParam}}) error {
-	{{$methCamel}}(in)
-	return nil
+{{- else }} {{/*other side of output code needed*/}}
+	}
 }
-{{- end }}{{/*end of if outputCodeNeeded*/}}
-{{- else }} {{/*other side of input needed */}}
-func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context)(*{{$oParam}},error) {
-	out:={{$methCamel}}()
-	return out,nil
-}
-{{- end }}{{/* end of if input needed */}}
-{{- end -}}{{- /* end of range over methods for refs*/}}
-func (s *Simple{{$svcCamel}}) Ready(ctx context.Context) bool {
-	return s.fn(ctx,s)
-}
+{{- end }}{{/* end of output code needed */}}
 
-func NewSimple{{$svcCamel}}(fn func(context.Context,*Simple{{$svcCamel}})bool) *Simple{{$svcCamel}}{
-	return &Simple{{$svcCamel}}{fn:fn}
-}
+
+{{- end }}  {{/* end range over methods */}}
+
+
 
 
 {{- end }} {{/* range over services */}}

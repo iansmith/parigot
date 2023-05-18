@@ -24,19 +24,18 @@ func main() {
 	log.Printf("xxx main of methodcall test -- 1")
 	//panic("main test")
 
-	cont := &pcontext.LogContainer{}
-	defer pcontext.Dump(cont)
-	cc := pcontext.ClientContext(cont, "main")
-	pcontext.Debugf(cc, "main", "xxx main 2222 of methodcall test")
-	methodcall.RequireFooServiceOrPanic(cc)
-	methodcall.RequireBarServiceOrPanic(cc)
+	ctx := pcontext.ClientContext(context.TODO(), "methodcall main.main")
+	defer pcontext.Dump(ctx)
+	pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
+	methodcall.RequireFooServiceOrPanic(ctx)
+	methodcall.RequireBarServiceOrPanic(ctx)
 	//test.RequireTestServiceOrPanic(bg)
-	queue.RequireQueueServiceOrPanic(cc)
+	queue.RequireQueueServiceOrPanic(ctx)
 
 	// now get handles to the services
-	methodcall.LocateBarServiceOrPanic(cc)
-	methodcall.LocateFooServiceOrPanic(cc)
-	queue.LocateQueueServiceOrPanic(cc)
+	methodcall.LocateBarServiceOrPanic(ctx)
+	methodcall.LocateFooServiceOrPanic(ctx)
+	queue.LocateQueueServiceOrPanic(ctx)
 
 	log.Printf("xxx DONE main of methodcall test")
 

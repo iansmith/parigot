@@ -16,16 +16,11 @@ import (
 	"github.com/iansmith/parigot/sys/dep"
 )
 
-// ParigotInitSymbolName is the name of the function that parigot
-// will call in a user-supplied plugin to do initialization. The
-// type of this must be ParigotInit.
-const ParigotInitSymbolName = "ParigotInitialize"
-
 // ParigotInit is the interface that plugins must meet to be
 // initialized. It is expected that they will use the supplied
 // Engine in the call to Init to register Host functions.
 type ParigotInit interface {
-	Init(ctx context.Context, e eng.Engine, i eng.Instance) bool
+	Init(ctx context.Context, e eng.Engine) bool
 }
 
 type Service interface {
@@ -39,6 +34,7 @@ type Service interface {
 	GetModule() eng.Module
 	GetPluginPath() string
 	GetPlugin() *plugin.Plugin
+	GetPluginSymbol() string
 }
 
 type ParigotExitCode int
@@ -105,25 +101,41 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		callCh: make(chan *callContext),
 	}
 	proc.key = NewDepKeyFromProcess(proc)
+
+	if m.GetPluginPath() != "" {
+		_, _, err := LoadPluginAndAddHostFunc(m.GetPluginPath(), m.GetPluginSymbol(), engine)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	instance, err := proc.module.NewInstance(c)
 	if err != nil {
 		return nil, err
 	}
 	proc.instance = instance
 
-	sym, err := m.GetPlugin().Lookup(ParigotInitSymbolName)
-
-	initFn := sym.(ParigotInit)
-	cont := &pcontext.LogContainer{}
-	initCtx := SetupContextFor(cont, "ParigiotInit")
-	ok := initFn.Init(initCtx, engine, instance)
-	if !ok {
-		pcontext.Dump(cont)
-		return nil, fmt.Errorf("unable to initialize plugin '%s'", m.GetPluginPath())
-	}
-	pcontext.Dump(cont)
-
 	return proc, nil
+}
+
+func LoadPluginAndAddHostFunc(pluginPath string, pluginSymbol string, engine eng.Engine) (*plugin.Plugin, ParigotInit, error) {
+	plug, err := plugin.Open(pluginPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
+	}
+	sym, err := plug.Lookup(pluginSymbol)
+	if err != nil {
+		return nil, nil, err
+	}
+	initFn := sym.(ParigotInit)
+	initCtx := pcontext.ServerGoContext(nil, "ParigiotInit")
+	ok := initFn.Init(initCtx, engine)
+	if !ok {
+		pcontext.Dump(initCtx)
+		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
+	}
+	pcontext.Dump(initCtx)
+	return plug, initFn, nil
 }
 
 func (p *Process) RequirementsMet() bool {
