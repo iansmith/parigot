@@ -101,13 +101,16 @@ func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,error) {
         ServiceName: "{{$svc}}",
 	}
 
-    resp:=syscall.Locate(req)
+    resp,err:=syscall.Locate(req)
+    if err!=nil {
+        return nil, err
+    }
     sid:=resp.GetServiceId()
     if resp.GetServiceId()==nil {
         panic("service id is nil, can't create ClientSideService")
     }
     srvid:=id.Unmarshal(sid)
-    if id.IdRepresentsError(srvid.High(),srvid.Low()) {
+    if srvid.IsError() {
         return nil, id.NewPerrorFromId("failed to unmarshal service id",srvid)
     }
     service:=id.Unmarshal(resp.GetServiceId())
@@ -146,7 +149,7 @@ func Export{{$svc}}OrPanic() {
     }
 }
 func Wait{{$svc}}OrPanic() {
-	_ = syscall.Run(&syscallmsg.RunRequest{Wait: true})
+	syscall.Run(&syscallmsg.RunRequest{Wait: true})
 
 }
 

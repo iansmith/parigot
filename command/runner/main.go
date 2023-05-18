@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -33,15 +34,15 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	cont := &pcontext.LogContainer{}
-	ctx := sys.SetupContextFor(cont, "main")
-	defer pcontext.Dump(cont)
+	ctx := pcontext.ServerGoContext(context.TODO(), "main")
+	defer pcontext.Dump(ctx)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
+
 	if err := deployCtx.CreateAllProcess(ctx); err != nil {
 		log.Fatalf("unable to create process: %v", err)
 	}

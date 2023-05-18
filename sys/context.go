@@ -32,11 +32,8 @@ var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
 	engine := eng.NewWaZeroEngine(ctx, nil)
+	InitializePatch(engine)
 
-	// load the images from disk and make sure they are valid modules
-	if err := conf.LoadAllModules(ctx, engine); err != nil {
-		return nil, err
-	}
 	// our notify map is shared by the nameserver
 	notifyMap := &sync.Map{}
 	processMap := &sync.Map{}
@@ -62,6 +59,10 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 	return depCtx, nil
 }
 
+func (c *DeployContext) LoadAllModules(ctx context.Context, e eng.Engine) error {
+	return c.config.LoadAllModules(ctx, e)
+}
+
 func (c *DeployContext) Process() *sync.Map {
 	return c.process
 }
@@ -70,13 +71,22 @@ func (c *DeployContext) Process() *sync.Map {
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
 func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
-	// create processes and check linkage for each user program
+	// load wasm files, implicitly checks them and converts them to binary
+	if err := c.LoadAllModules(ctx, c.engine); err != nil {
+		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
+	}
+	_, _, err := LoadPluginAndAddHostFunc(c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine)
+	if err != nil {
+		return err
+	}
+
+	if err := c.instantiateBuiltinHostFunc(ctx); err != nil {
+		return err
+	}
+
+	// create processes
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
-		mod := c.config.Module(name)
-		if mod == nil {
-			panic("unable to find (internal) module for " + name)
-		}
 		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
@@ -139,6 +149,15 @@ func (c *DeployContext) StartMain(ctx context.Context, mainProg string) (int, er
 
 func (d *DeployContext) NotifyMap() *sync.Map {
 	return d.notify
+}
+
+func (d *DeployContext) instantiateBuiltinHostFunc(ctx context.Context) error {
+	for _, name := range []string{"go", "runtime", "parigot"} {
+		if _, err := d.engine.InstantiateHostModule(ctx, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func contextPrint(ctx context.Context, level pcontext.LogLevel, method, spec string, arg ...interface{}) {

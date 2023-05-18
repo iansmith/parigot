@@ -28,14 +28,11 @@ type Id interface {
 	// StringRaw returns the same thing as string, but without the enclosing
 	// square brackets. String() is intended for humans, StringRaw() is not.
 	StringRaw() string
-	// IsError returns true if this is an error type id and there is an error.  It returns
-	// false if this is an error type id and there is no error (0 value).  If
-	// this is not an error type id, it panics.
+	// IsError returns true if the id given represents an error.
 	IsError() bool
-	// IsErrorType returns true if this represents some type of error code.
-	IsErrorType() bool
-	// ErrorCode returns the error code contained in the lower half of this id.
-	// If this is not an error type, it panics.
+	// ErrorCode returns the error code that was encoded in the id
+	// or it returns 0 for no error.  It will print warnings to the terminal
+	// in cases where the id's information is inconsistent.
 	ErrorCode() uint16
 	// Equal returns true if the two ids are of the same type and have the same number.
 	Equal(Id) bool

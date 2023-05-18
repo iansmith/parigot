@@ -211,22 +211,63 @@ func NewIdCopy(high, low uint64) Id {
 
 // IdRepresentsError checks the error bit.  We do not want errors marked
 // with the error bit (in byte 6 of high) when they have no code.
-func IdRepresentsError(high, low uint64) bool {
-	var h [8]byte
-	if high == 0 && low == 0 {
-		return false
-	}
+// func IdRepresentsError(high, low uint64) bool {
+// 	var h [8]byte
+// 	if high == 0 && low == 0 {
+// 		return false
+// 	}
 
-	binary.LittleEndian.PutUint64(h[:], high)
-	//print(fmt.Sprintf("IdRepresentsError: 0x%x, 0x%x, [%x,%x] %v\n", high, low, h[7], h[6], h[6]&1 == 1))
-	if h[6]&1 == 1 {
-		lowBits := low & 0xffff
-		if lowBits == 0 {
-			panic("badly formed error id:" + fmt.Sprintf("%x,%x", h[7], low))
+//		binary.LittleEndian.PutUint64(h[:], high)
+//		//print(fmt.Sprintf("IdRepresentsError: 0x%x, 0x%x, [%x,%x] %v\n", high, low, h[7], h[6], h[6]&1 == 1))
+//		if h[6]&1 == 1 {
+//			lowBits := low & 0xffff
+//			if lowBits == 0 {
+//				panic("badly formed error id:" + fmt.Sprintf("%x,%x", h[7], low))
+//			}
+//			return lowBits != 0
+//		}
+//		return false
+//	}
+
+// RepresentsError returns the error code that was encoded in the id
+// or it returns 0 for no error.  It will print warnings to the terminal
+// in cases where the id's information is inconsistent.
+func (i IdBase) RepresentsError() int16 {
+	var h [8]byte
+
+	binary.LittleEndian.PutUint64(h[:], i.High())
+	print(fmt.Sprintf("RepresentsError: 0x%x, 0x%x, [%x,%x] %v\n", i.High(), i.Low(), h[7], h[6], h[6]&1 == 1))
+	errorBit := h[6]&1 == 1
+	lowBits := int16(i.Low() & 0xffff)
+	marker := h[7]
+	if errorBit {
+		if marker < 32 || marker > 127 {
+			print(fmt.Sprintf("Badly formed id, error marked but type code not ascii character (%d)!", marker))
 		}
-		return lowBits != 0
+		if lowBits == 0 {
+			print("Badly formed id, error marked but no error code; assuming no error")
+			return 0
+		}
+		return lowBits
 	}
-	return false
+	if lowBits == 0 {
+		if marker < 32 || marker > 127 {
+			print(fmt.Sprintf("Badly formed id, type code not ascii character (%d)\n", marker))
+		}
+		return 0
+	}
+	if i.Low() != 0 {
+		print(fmt.Sprintf("Badly formed id, no error bit or error code but has low region data (%d,%x)\n", marker, i.Low()))
+	}
+	// we know low bits are not zero at this point
+	if marker < 32 || marker > 127 {
+		print(fmt.Sprintf("Badly formed id, error code found (%d), but no type code; returning no error\n", lowBits))
+		return 0
+	}
+	print(fmt.Sprintf("Badly formed id, error code found (%d), but no error flag; adding error flag\n", lowBits))
+	h[6] = 1 << 7
+	i.h = binary.LittleEndian.Uint64(h[:])
+	return lowBits
 }
 
 // newIdRand computes a new id for any given letter with the value drawn from the source of
