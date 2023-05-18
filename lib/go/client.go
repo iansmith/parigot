@@ -50,18 +50,15 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 		InPctx:    nil,
 		Param:     a,
 	}
-	out := syscall.Dispatch(in)
-	// xxx should be checking for error value
-	return out, nil
+	return syscall.Dispatch(in)
 }
 
 func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
 	req := syscallmsg.RunRequest{
 		Wait: true,
 	}
-	out := syscall.Run(&req)
-	// xxx should be checking for error value
-	return out, nil
+	out, err := syscall.Run(&req)
+	return out, err
 }
 
 // Require1 is a thin wrapper over syscall.Require so it's easy
@@ -75,8 +72,7 @@ func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
 	in := &syscallmsg.RequireRequest{
 		Service: []*syscallmsg.FullyQualifiedService{fqs},
 	}
-	out := syscall.Require(in)
-	return out, nil
+	return syscall.Require(in)
 }
 
 // Export1 is a thin wrapper over syscall.Export so it's easy
@@ -90,8 +86,7 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
 	in := &syscallmsg.ExportRequest{
 		Service: []*syscallmsg.FullyQualifiedService{fqs},
 	}
-	out := syscall.Export(in)
-	return out, nil
+	return syscall.Export(in)
 }
 
 // PrepContextForServer is used by the code generator to

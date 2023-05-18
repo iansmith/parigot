@@ -51,9 +51,13 @@ func BindMethodBoth(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRes
 // bindMethodByName is the implementation of all three of the Bind* calls.
 func bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscallmsg.MethodDirection) (*syscallmsg.BindMethodResponse, error) {
 	in.Direction = dir
-	out := syscall.BindMethod(in)
+	out, err := syscall.BindMethod(in)
+	if err != nil {
+		return nil, err
+	}
 	kid := id.Unmarshal((*protosupportmsg.KernelErrorId)(out.MethodId))
-	if id.IdRepresentsError(kid.High(), kid.Low()) {
+
+	if kid.IsError() {
 		return nil, id.NewPerrorFromId("bind", kid)
 	}
 	return out, nil

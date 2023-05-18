@@ -89,15 +89,16 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	pcontext.Debugf(ctx, "Ready", "myTestServer ready called")
 	test.WaitTestServiceOrPanic()
 	m.queueSvc = queue.LocateQueueServiceOrPanic(ctx)
-	qid, deets := m.findOrCreateQueue(ctx, testQueueName)
-	if qid.IsErrorType() {
-		panic("myTestServer: unable to create the test queue: " + deets)
+	qid, err := m.findOrCreateQueue(ctx, testQueueName)
+	if err != nil {
+		panic("myTestServer: unable to create the test queue: " + err.Error())
 	}
+	m.testQid = qid
 
 	return true
 }
 
-func (m *myTestServer) findOrCreateQueue(ctx context.Context, name string) (id.Id, string) {
+func (m *myTestServer) findOrCreateQueue(ctx context.Context, name string) (id.Id, error) {
 	req := queuemsg.LocateRequest{}
 	req.QueueName = testQueueName
 	resp, err := m.queueSvc.Locate(&req)
@@ -105,21 +106,18 @@ func (m *myTestServer) findOrCreateQueue(ctx context.Context, name string) (id.I
 		panic("myTestServer: ready: error in attempt to get queue by name: " + err.Error())
 	}
 	qid := id.Unmarshal(resp.Id)
-	if qid.IsErrorType() && qid.ErrorCode() != id.QueueNotFound {
-		return qid, err.Error()
-	}
-	if !qid.IsErrorType() {
-		return qid, ""
+	if qid.IsError() {
+		return nil, id.NewPerrorFromId("Unmarshal:", qid)
 	}
 	// it's a not found, so create it
 	createReq := queuemsg.CreateQueueRequest{}
 	createReq.QueueName = name
 	createResp, err := m.queueSvc.CreateQueue(&createReq)
 	if err != nil {
-		return id.NewQueueError(id.QueueInternalError), err.Error()
+		return nil, id.NewPerrorFromId("CreateQueue", id.NewQueueError(id.QueueInternalError))
 	}
 	qid = id.Unmarshal(createResp.GetId())
-	return qid, ""
+	return qid, nil
 }
 
 func (m *myTestServer) AddTestSuite(ctx context.Context, req *testmsg.AddTestSuiteRequest) (*testmsg.AddTestSuiteResponse, error) {
@@ -332,9 +330,8 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) test.U
 		ServiceName: svc,
 	}
 	print(fmt.Sprintf("xxx locate client 1\n"))
-	resp := syscall.Locate(req)
-	print(fmt.Sprintf("xxx locate client 2\n"))
-	if resp.GetServiceId() == nil {
+	resp, err := syscall.Locate(req)
+	if err != nil {
 		panic("locate failed for " + pkg + "." + svc + "\n")
 	}
 	print(fmt.Sprintf("xxx locate client 3\n"))

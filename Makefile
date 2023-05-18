@@ -25,7 +25,7 @@ sqlc: apiplugin/queue/db.go
 # EXTRA ARGS FOR BUILDING (placed after the "go build")
 # use -x for more details from a go compiler
 #
-#EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x
+#EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x -scheduler=none
 EXTRA_WASM_COMP_ARGS=-x
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
@@ -36,9 +36,9 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 #
 # GO
 #
-GO_TO_WASM=go
-GO_TO_HOST=go
-GO_TO_PLUGIN=go 
+GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21.tip GOOS=js GOARCH=wasm go1.21
+GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19
+GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19
 
 #
 # PROTOBUF FILES
@@ -96,7 +96,8 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(SYS_SRC) apiplugin/queue/db.go
+ENG_SRC=$(shell find eng -type f -regex ".*\.go")
+build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) apiplugin/queue/db.go
 	rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -124,9 +125,7 @@ build/patchreflectproto: $(PATCHRP_SRC)
 
 ## client side of the file service
 FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
-build/file.p.wasm: export GOOS=js
-build/file.p.wasm: export GOARCH=wasm
-build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
+build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
 	rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
 
@@ -232,17 +231,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN)
+build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
 	rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN)
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
 	rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN)
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)
 	rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 

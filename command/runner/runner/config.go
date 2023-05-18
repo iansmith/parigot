@@ -20,8 +20,10 @@ var deployVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 // Public fields in this struct are data that has been read from the user and has been
 // sanity checked.
 type DeployConfig struct {
-	Microservice map[string]*Microservice
-	Flag         *DeployFlag
+	Microservice     map[string]*Microservice
+	Flag             *DeployFlag
+	ParigotLibPath   string
+	ParigotLibSymbol string
 }
 
 // DeployFlag is a structure that comes from the command line passed to the runner itself.  These
@@ -40,8 +42,9 @@ type DeployFlag struct {
 // configuration and these are checked for sanity before being returned.  Exactly one of Server, Main, and
 // Test must be set to true.
 type Microservice struct {
-	WasmPath   string
-	PluginPath string
+	WasmPath     string
+	PluginPath   string
+	PluginSymbol string
 
 	Arg []string
 	Env []string
@@ -162,7 +165,11 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	return &result, nil
 }
 
-func (c *DeployConfig) loadSingleModule(ctx context.Context, engine eng.Engine, m *Microservice) (eng.Module, error) {
+func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, name string) (eng.Module, error) {
+	m, ok := c.Microservice[name]
+	if !ok {
+		panic(fmt.Sprintf("unable to find microservice with name '%s", name))
+	}
 	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
@@ -179,8 +186,8 @@ func deployPrint(ctx context.Context, ll pcontext.LogLevel, method string, spec 
 }
 
 func (c *DeployConfig) LoadAllModules(ctx context.Context, engine eng.Engine) error {
-	for _, m := range c.Microservice {
-		mod, err := c.loadSingleModule(ctx, engine, m)
+	for n, m := range c.Microservice {
+		mod, err := c.LoadSingleModule(ctx, engine, n)
 		if err != nil {
 			return err
 		}
@@ -230,6 +237,9 @@ func (m *Microservice) GetWasmPath() string {
 }
 func (m *Microservice) GetPluginPath() string {
 	return m.PluginPath
+}
+func (m *Microservice) GetPluginSymbol() string {
+	return m.PluginSymbol
 }
 func (m *Microservice) GetPlugin() *plugin.Plugin {
 	return m.plug

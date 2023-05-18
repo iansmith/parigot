@@ -1,12 +1,17 @@
 package eng
 
-import "context"
+import (
+	"context"
+
+	"github.com/tetratelabs/wazero/api"
+)
 
 type Engine interface {
 	NewModuleFromFile(ctx context.Context, path string) (Module, error)
 	// AddSupportedFunc defines a function but the type of the function def is engine specific so
 	// we have to use interface{} for the function ptr.
-	AddSupportedFunc(ctx context.Context, pkg, name string, fn interface{})
+	AddSupportedFunc(ctx context.Context, pkg, name string, fn func(context.Context, api.Module, []uint64))
+	InstantiateHostModule(ctx context.Context, pkg string) (Instance, error)
 }
 
 type Module interface {
