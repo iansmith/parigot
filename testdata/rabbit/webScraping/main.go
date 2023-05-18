@@ -77,8 +77,8 @@ func getDataFromWeb(webURL string) {
 		return
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
+	limitBody = io.LimitReader(resp.Body, 1)
+	if body, err := io.Copy(os.Stdout, limitBody); err != nil {
 		log.Printf("Error reading response body: %s\n", err)
 		return
 	}
@@ -88,5 +88,5 @@ func getDataFromWeb(webURL string) {
 		return
 	}
 
-	fmt.Printf("Successfully fetching data from %s\n", webURL)
+	fmt.Printf("Successfully fetched data from %s\n", webURL)
 }

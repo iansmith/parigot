@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	desiredMemory = 100 // The whole memory size you want to consume (in megabytes)
+	desiredMemory = 15 // The whole memory size you want to consume (in megabytes)
 )
 
 func main() {
