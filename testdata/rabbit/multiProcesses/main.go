@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	desiredMemory = 50 // The whole memory size you want to consume (in megabytes)
+	desiredMemory = 100 // The whole memory size you want to consume (in megabytes)
 )
 
 func main() {
@@ -54,8 +54,7 @@ func forkAndExec() {
 	// Start the child process
 	err = cmd.Start()
 	if err != nil {
-		fmt.Printf("Failed to start child process: %v\n", err)
-		return
+		log.Fatalf("Failed to start child process: %v\n", err)
 	}
 
 	// Print the PID of the child process
