@@ -1,8 +1,8 @@
 package main
 
 const (
-	SliceSize = 4096 * 1024 // 4096KB
-	NumNodes  = 10000       // change this to run out of memory
+	SliceSize = 100 * 1024 // 0.1 MB
+	NumNodes  = 10000      // change this to run out of memory
 )
 
 type Node struct {
