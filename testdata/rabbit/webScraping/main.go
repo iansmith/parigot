@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -10,8 +12,7 @@ import (
 func main() {
 	links := readCSV()
 	if links == nil {
-		fmt.Println("Failed to find any links.")
-		return
+		log.Fatalf("Failed to find any links.")
 	}
 
 	for _, link := range links {
@@ -26,9 +27,9 @@ func readCSV() []string {
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Println("Failed to open CSV file: ", err)
-		return nil
+		log.Fatalf("Failed to open CSV file: ", err)
 	}
+
 	defer file.Close()
 
 	// Create a new CSV reader reading from the opened file
@@ -37,8 +38,7 @@ func readCSV() []string {
 	// Read the CSV records
 	records, err := reader.ReadAll()
 	if err != nil {
-		fmt.Println("Failed to read CSV records: ", err)
-		return nil
+		log.Fatalf("Failed to read CSV records: ", err)
 	}
 
 	header := records[0]
@@ -52,8 +52,7 @@ func readCSV() []string {
 	}
 
 	if targetColumnIndex == -1 {
-		fmt.Println("Target column not found: ", targetColumn)
-		return nil
+		log.Fatalf("Target column not found: ", targetColumn)
 	}
 
 	links := make([]string, len(records)-1)
@@ -67,11 +66,27 @@ func readCSV() []string {
 func getDataFromWeb(webURL string) {
 	resp, err := http.Get(webURL)
 	if err != nil {
-		fmt.Printf("Failed to fetch %s: %s\n", webURL, err)
+		log.Printf("Failed to fetch %s: %s\n", webURL, err)
 		return
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Println("Server returned non-200 status code: ", resp.StatusCode)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading response body: %s\n", err)
+		return
+	}
+
+	if len(body) == 0 {
+		log.Println("Response body is empty.")
+		return
+	}
 
 	fmt.Printf("Successfully fetching data from %s\n", webURL)
 }

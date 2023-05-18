@@ -13,29 +13,31 @@ func main() {
 		"Go compiles quickly to machine code yet has the convenience of garbage" +
 		"collection and the power of run-time reflection."
 	// change the repeat count value to write longer data
-	longString := strings.Repeat(message, 1000000)
+	longString := strings.Repeat(message, 1000)
 	data := []byte(longString)
 
-	// try to write 2 files
 	// change this to write an unlimited number of files
-	for i := 0; i < 2; i++ {
-		writeDate(data)
+	for i := 0; i < 10000000; i++ {
+		err := writeDate(data)
+		if err != nil {
+			log.Fatalf("Disk is full!")
+		}
 	}
 
 }
 
-func writeDate(data []byte) {
+func writeDate(data []byte) error {
 	tmpfile, err := os.CreateTemp(".", "diskfiller")
-	check(err)
+	if err != nil {
+		return err
+	}
 
 	defer tmpfile.Close()
 
 	_, err = tmpfile.Write(data)
-	check(err)
-}
-
-func check(e error) {
-	if e != nil {
-		panic(e)
+	if err != nil {
+		return err
 	}
+
+	return nil
 }
