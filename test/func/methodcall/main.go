@@ -5,39 +5,41 @@ import (
 	"fmt"
 	"log"
 	"testing"
+	"time"
 
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
-	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
 var exitCode = int32(0)
 
 func main() {
-	log.Printf("before flag parse -- 1")
-	lib.FlagParseCreateEnv()
+	// log.Printf("before flag parse -- 1")
+	// lib.FlagParseCreateEnv()
 	log.Printf("xxx main of methodcall test -- 1")
 	//panic("main test")
 
 	ctx := pcontext.ClientContext(context.TODO(), "methodcall main.main")
 	defer pcontext.Dump(ctx)
-	pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
-	methodcall.RequireFooServiceOrPanic(ctx)
-	methodcall.RequireBarServiceOrPanic(ctx)
-	//test.RequireTestServiceOrPanic(bg)
-	queue.RequireQueueServiceOrPanic(ctx)
+	// pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
+	// methodcall.RequireFooServiceOrPanic(ctx)
+	// methodcall.RequireBarServiceOrPanic(ctx)
+	// //test.RequireTestServiceOrPanic(bg)
+	// queue.RequireQueueServiceOrPanic(ctx)
 
-	// now get handles to the services
-	methodcall.LocateBarServiceOrPanic(ctx)
-	methodcall.LocateFooServiceOrPanic(ctx)
-	queue.LocateQueueServiceOrPanic(ctx)
+	// // now get handles to the services
+	// methodcall.LocateBarServiceOrPanic(ctx)
+	// methodcall.LocateFooServiceOrPanic(ctx)
+	// queue.LocateQueueServiceOrPanic(ctx)
 
-	log.Printf("xxx DONE main of methodcall test")
+	for {
+		log.Printf("xxx DONE main of methodcall test")
+		time.Sleep(1 * time.Second)
+	}
 
 	test.RunUnderTestService(underTestServer)
 }
