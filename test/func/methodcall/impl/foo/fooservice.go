@@ -19,10 +19,13 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	log.Printf("xxxmain of foo")
+	print("main of fooxxx\n\n\n")
+
+	//log.Printf("xxxmain of foo")
 	// syscall.RegisterExport(parigot_main, apiwasm.NewReturnDataWithBuffer,
 	// 	apiwasm.NewString)
 	ch := make(chan struct{})
+	print("about to call wasmexport\n")
 	closure := syscall.WasmExport("example", example_)
 	log.Printf("closure1")
 	go closure(ch)

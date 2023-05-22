@@ -44,7 +44,7 @@ func main() {
 	}
 
 	if err := deployCtx.CreateAllProcess(ctx); err != nil {
-		log.Fatalf("unable to create process: %v", err)
+		log.Fatalf("unable to create process in main: %v", err)
 	}
 	main, code := deployCtx.StartServer(ctx)
 	if main == nil {

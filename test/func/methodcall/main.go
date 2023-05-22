@@ -20,7 +20,7 @@ var exitCode = int32(0)
 func main() {
 	// log.Printf("before flag parse -- 1")
 	// lib.FlagParseCreateEnv()
-	log.Printf("xxx main of methodcall test -- 1")
+	print("xxx main of methodcall test -- 1\n")
 	//panic("main test")
 
 	ctx := pcontext.ClientContext(context.TODO(), "methodcall main.main")

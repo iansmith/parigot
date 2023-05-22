@@ -102,19 +102,26 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	}
 	proc.key = NewDepKeyFromProcess(proc)
 
+	print("xxxNPFM 1\n")
+
 	if m.GetPluginPath() != "" {
+		print("xxxNPFM 1A\n")
 		_, _, err := LoadPluginAndAddHostFunc(m.GetPluginPath(), m.GetPluginSymbol(), engine)
 		if err != nil {
+			print("xxxNPFM 1A1\n")
 			return nil, err
 		}
 	}
+	print("xxxNPFM 2\n")
 
 	instance, err := proc.module.NewInstance(c)
 	if err != nil {
+		print("xxxNPFM 2A\n")
 		return nil, err
 	}
 	proc.instance = instance
 
+	print("xxxNPFM 3\n")
 	return proc, nil
 }
 
