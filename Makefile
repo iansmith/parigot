@@ -30,15 +30,17 @@ EXTRA_WASM_COMP_ARGS=
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
+CC=/usr/lib/llvm-15/bin/clang
+
 #this command can be useful if you want to run tinygo in a container but otherwise use your host machine
 #GO_TO_WASM=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
 
 #
 # GO
 #
-GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21.tip GOOS=wasip1 GOARCH=wasm go1.21
-GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19
-GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19
+GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21 GOOS=wasip1 GOARCH=wasm go1.21
+GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
+GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
 
 #
 # PROTOBUF FILES

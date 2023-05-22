@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/iansmith/parigot/id"
 	"github.com/tetratelabs/wazero/api"
-	"google.golang.org/protobuf/proto"
 )
 
 // ErrNotFound is returned when a resource was requested by name
@@ -62,7 +60,7 @@ type Instance interface {
 	//
 	// This functions NotFound if the function cannot be found inside
 	// the instance.
-	Function(ctx context.Context, name string) (FunctionExtern, error)
+	//Function(ctx context.Context, name string) (FunctionExtern, error)
 	// GetEntryPointExport returns the entry point function
 	// even if you don't know its exact name.
 	EntryPoint(ctx context.Context) (EntryPointExtern, error)
@@ -79,7 +77,7 @@ type FunctionExtern interface {
 	// function is on the guest side, but this function Call is invoked
 	// on the host side. Any error returned is related to problems
 	// on the host side.
-	Call(ctx context.Context, arg ...uint64) ([]uint64, error)
+	//Call(ctx context.Context, arg ...uint64) ([]uint64, error)
 }
 
 // MemoryExtern is a wrapper around a Wasm Memory object from an instance.
@@ -104,7 +102,7 @@ type MemoryExtern interface {
 	// It is expected that the memory returned from this function
 	// will be marked as "dont collect" for the guest GC and will
 	// be released by the host code that actually uses the result.
-	ReturnData(ctx context.Context, msg proto.Message, idOrError id.Id) (int32, error)
+	//ReturnData(ctx context.Context, msg proto.Message, idOrError id.Id) (int32, error)
 }
 
 type EntryPointExtern interface {
