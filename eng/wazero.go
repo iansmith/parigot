@@ -9,12 +9,10 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sharedconst"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"google.golang.org/protobuf/proto"
 )
 
 var _ = unsafe.Pointer(nil)
@@ -71,7 +69,9 @@ var bg = context.Background()
 // NewWazeroEngine creates a new eng.Instance that uses wazer as the
 // underlying wasm compiler/interpreter.
 func NewWaZeroEngine(ctx context.Context, conf wazero.RuntimeConfig) Engine {
-	e := &wazeroEng{}
+	e := &wazeroEng{
+		instantiated: make(map[string]api.Module),
+	}
 	if conf != nil {
 		e.r = wazero.NewRuntimeWithConfig(bg, conf)
 	} else {
@@ -128,27 +128,27 @@ func (e *wazeroExtern) Name() string {
 	return e.name
 }
 
-// Note that in wasm the name of the function can be "".
-func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExtern, error) {
-	f := e.m.ExportedFunction(name)
-	if f == nil {
-		log.Printf("unable to find exported Function %s in inst '%s' mod '%s'", name, e.Name(), e.parent.Name())
-		return nil, ErrNotFound
-	}
-	return &wazeroFunctionExtern{
-		wazeroExtern: newWazeroExtern(f.Definition().DebugName()),
-		parent:       e,
-		fn:           f,
-	}, nil
-}
+// // Note that in wasm the name of the function can be "".
+// func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExtern, error) {
+// 	f := e.m.ExportedFunction(name)
+// 	if f == nil {
+// 		log.Printf("unable to find exported Function %s in inst '%s' mod '%s'", name, e.Name(), e.parent.Name())
+// 		return nil, ErrNotFound
+// 	}
+// 	return &wazeroFunctionExtern{
+// 		wazeroExtern: newWazeroExtern(f.Definition().DebugName()),
+// 		parent:       e,
+// 		fn:           f,
+// 	}, nil
+// }
 
-func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
-	result, err := e.fn.Call(ctx, param...)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
+// func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
+// 	result, err := e.fn.Call(ctx, param...)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return result, nil
+// }
 
 // ReturnData creates a space for a protobuf return value inside the memory space of this
 // the parent instance.  This allocates space for the return value and returns
@@ -156,35 +156,35 @@ func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uin
 // for the HOST side only, meaning that some part of the process of creating
 // the space in the GUEST side failed.  You must supply at least one of
 // msg and err.
-func (e *wazeroMemoryExtern) ReturnData(ctx context.Context, msg proto.Message, err id.Id) (int32, error) {
-	if msg == nil && !err.IsError() {
-		return 0, fmt.Errorf("ReturnSpace called on %s but neither return value nor error value provided", e.Name())
-	}
-	buf, marshErr := proto.Marshal(msg)
-	if err != nil {
-		return 0, marshErr
-	}
-	l := uint64(len(buf))
-	if l == 0 && !err.IsError() {
-		return 0, fmt.Errorf("ReturnSpace called on %s but empty data value and no error value provided", e.Name())
-	}
+// func (e *wazeroMemoryExtern) ReturnData(ctx context.Context, msg proto.Message, err id.Id) (int32, error) {
+// 	if msg == nil && !err.IsError() {
+// 		return 0, fmt.Errorf("ReturnSpace called on %s but neither return value nor error value provided", e.Name())
+// 	}
+// 	buf, marshErr := proto.Marshal(msg)
+// 	if err != nil {
+// 		return 0, marshErr
+// 	}
+// 	l := uint64(len(buf))
+// 	if l == 0 && !err.IsError() {
+// 		return 0, fmt.Errorf("ReturnSpace called on %s but empty data value and no error value provided", e.Name())
+// 	}
 
-	res, callErr := e.parent.returnData.Call(ctx, l)
-	if callErr != nil {
-		return 0, fmt.Errorf("%s called on %s but call to %s failed: %v", sharedconst.ReturnDataName, e.parent.Name(), e.Name(), callErr.Error())
-	}
-	if len(res) != 1 {
-		return 0, fmt.Errorf("%s called on %s but wrong number of return values (%d)", sharedconst.ReturnDataName, e.Name(), len(res))
-	}
-	result := Util.DecodeI32(res[0])
-	if err == nil {
-		err = id.NewKernelError(id.KernelNoError)
-	}
-	// we are doing this for a 32 bit machine, hope this works
-	e.WriteUint64LittleEndian(uint32(result+sharedconst.ReturnDataIdErrOffset), err.High())
-	e.WriteUint64LittleEndian(uint32(result+sharedconst.ReturnDataIdErrOffset), err.High())
-	return result, nil
-}
+// 	res, callErr := e.parent.returnData.Call(ctx, l)
+// 	if callErr != nil {
+// 		return 0, fmt.Errorf("%s called on %s but call to %s failed: %v", sharedconst.ReturnDataName, e.parent.Name(), e.Name(), callErr.Error())
+// 	}
+// 	if len(res) != 1 {
+// 		return 0, fmt.Errorf("%s called on %s but wrong number of return values (%d)", sharedconst.ReturnDataName, e.Name(), len(res))
+// 	}
+// 	result := Util.DecodeI32(res[0])
+// 	if err == nil {
+// 		err = id.NewKernelError(id.KernelNoError)
+// 	}
+// 	// we are doing this for a 32 bit machine, hope this works
+// 	e.WriteUint64LittleEndian(uint32(result+sharedconst.ReturnDataIdErrOffset), err.High())
+// 	e.WriteUint64LittleEndian(uint32(result+sharedconst.ReturnDataIdErrOffset), err.High())
+// 	return result, nil
+// }
 
 func (e *wazeroMemoryExtern) WriteUint64LittleEndian(memoryOffset uint32, value uint64) {
 	e.m.WriteUint64Le(memoryOffset, value)
@@ -246,10 +246,15 @@ func (i *wazeroInstance) memoryExportJustOne() ([]MemoryExtern, error) {
 	if len(def) > 1 {
 		panic("parigot currently only supports one memory export, but you should file a ticket to remind us to fix that")
 	}
+	log.Printf("found memory objects xxx")
 	for k, v := range def {
 		log.Printf("xxx -- memory defs '%s',%+v", k, v)
 	}
-	single := newMemoryExtern(i.m.ExportedMemory("0"), i, "\"0\"")
+	candidate := i.m.ExportedMemory("memory")
+	if candidate == nil {
+		return nil, fmt.Errorf("can't find memory object 'memory'")
+	}
+	single := newMemoryExtern(candidate, i, "'memory'")
 	return []MemoryExtern{single}, nil
 }
 
@@ -311,9 +316,8 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 }
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
-	log.Printf("about to inst module")
-	mod, err := m.parent.r.InstantiateModule(bg, m.cm, wazero.NewModuleConfig())
-	log.Printf("done inst module: %v", err)
+	mod, err := m.parent.r.InstantiateModule(bg, m.cm,
+		wazero.NewModuleConfig().WithStartFunctions().WithName(m.Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +332,7 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	if err := i.addMemory(ctx); err != nil {
 		return nil, err
 	}
-	log.Printf("adding xxx --- new module %s", mod.Name())
+	log.Printf("adding xxx --- new module '%s'", mod.Name())
 	m.parent.instantiated[mod.Name()] = i.m
 	return i, nil
 }
@@ -355,11 +359,16 @@ func (e *wazeroEng) AddSupportedFunc_7i32_v(ctx context.Context, pkg, name strin
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	result, err := e.wazeroFunctionExtern.Call(bg, []uint64{0}...)
+
+	funcExt := e.parent.m.ExportedFunction(sharedconst.EntryPointSymbol)
+	if funcExt != nil {
+		return nil, fmt.Errorf("unable to find entry point %s", sharedconst.EntryPointSymbol)
+	}
+	result, err := funcExt.Call(bg, []uint64{0}...)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("\n\ngot a return value... ")
+	log.Printf("\n\ngot a return value from entry point... ")
 	for i, r := range result {
 		log.Printf("\tresult %02d:%x", i, r)
 	}
@@ -377,11 +386,11 @@ func (u *wazeroUtil) DecodeU32(value uint64) uint32 {
 }
 
 func (i *wazeroInstance) addInstanceInternalFunctions(ctx context.Context) error {
-	funcExt, expErr := i.Function(ctx, sharedconst.ReturnDataName)
-	if expErr != nil {
-		return expErr
-	}
-	i.returnData = funcExt.(*wazeroFunctionExtern)
+	// funcExt, expErr := i.Function(ctx, sharedconst.ReturnDataName)
+	// if expErr != nil {
+	// 	return expErr
+	// }
+	// i.returnData = funcExt.(*wazeroFunctionExtern)
 
 	// funcExt, expErr = i.Function(ctx, sharedconst.ReturnDataName)
 	// if expErr != nil {

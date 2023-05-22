@@ -75,3 +75,7 @@ func init() {
 		WasmIs32Bit = true
 	}
 }
+
+// EntryPointSymbol is what should be used to start up a ready instance.  Note that we are turning
+// off the instantiation's normal call to start so that we can control the startup and its entry point.
+const EntryPointSymbol = "_start"
