@@ -152,7 +152,7 @@ func (d *DeployContext) NotifyMap() *sync.Map {
 }
 
 func (d *DeployContext) instantiateBuiltinHostFunc(ctx context.Context) error {
-	for _, name := range []string{"go", "runtime", "parigot"} {
+	for _, name := range []string{"gojs", "parigot"} {
 		if _, err := d.engine.InstantiateHostModule(ctx, name); err != nil {
 			return err
 		}

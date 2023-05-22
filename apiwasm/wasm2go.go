@@ -5,6 +5,7 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/id"
+	"github.com/iansmith/parigot/sharedconst"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -16,10 +17,6 @@ type ReturnData struct {
 	length, ptr int32
 	idErr       [2]int64
 }
-
-// ReturnDataSizeWasm is the size of the structure ReturnData
-// in bytes on BOTH the host and the wasm side.
-const ReturnDataSize = 24
 
 // ToError takes a ReturnData object and returns either nil
 // for no error, or an error object (actually a PError) that is
@@ -96,4 +93,39 @@ func wasmCallNative[U proto.Message, V proto.Message](in proto.Message, out prot
 		return err
 	}
 	return rd.ToError("wasmCallNative failed:")
+}
+
+// This global variable is here *JUST* to thwart the GC.
+var globalPtr = make(map[uintptr][]byte)
+
+//go:export apiwasm new_return_data_with_buffer
+func NewReturnDataWithBuffer(size int32) int32 {
+	s := unsafe.Sizeof(ReturnData{})
+	off := unsafe.Offsetof(ReturnData{}.idErr)
+	if s != sharedconst.ReturnDataSize || off != sharedconst.ReturnDataSize {
+		panic(fmt.Sprintf("running on unknown wasm host, size of return data should be %d but is %d, offset of idErr should be %d but is %d ",
+			sharedconst.ReturnDataSize, s, sharedconst.ReturnDataSize, off))
+	}
+	buffer := make([]byte, size)
+	data := unsafe.SliceData(buffer)
+	rawRt := make([]byte, s)
+	rt := (*ReturnData)(unsafe.Pointer(unsafe.SliceData(rawRt)))
+	rt.length = size
+	rt.ptr = int32(uintptr(unsafe.Pointer(data)))
+	rt.idErr = [2]int64{}
+	rawRtUintptr := uintptr((unsafe.Pointer(&rawRt)))
+	bufferUintptr := uintptr((unsafe.Pointer(&buffer)))
+	globalPtr[rawRtUintptr] = rawRt
+	globalPtr[bufferUintptr] = buffer
+
+	return int32(uintptr(unsafe.Pointer(rt)))
+}
+
+//go:export apiwasm new_string
+func NewString(size int32) int32 {
+	x := make([]byte, size)
+	ptr := uintptr(unsafe.Pointer(unsafe.SliceData(x)))
+	key := uintptr(unsafe.Pointer(&x))
+	globalPtr[key] = x
+	return int32(uintptr(ptr))
 }

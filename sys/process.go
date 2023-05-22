@@ -251,7 +251,7 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	// p.argc = int32(len(p.microservice.GetArg()))
 
 	procPrint(ctx, "START", "get entry point")
-	start, err := p.instance.GetEntryPointExport(ctx)
+	start, err := p.instance.EntryPoint(ctx)
 	if err != nil {
 		panic(err)
 	}
