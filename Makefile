@@ -17,7 +17,7 @@ allprotos: g/file/$(API_VERSION)/file.pb.go
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 #commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
-commands: 	build/protoc-gen-parigot build/runner build/patchreflectproto
+commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: apiplugin/queue/db.go
 
@@ -26,7 +26,7 @@ sqlc: apiplugin/queue/db.go
 # use -x for more details from a go compiler
 #
 #EXTRA_WASM_COMP_ARGS=-target=wasi -opt=1 -x -scheduler=none
-EXTRA_WASM_COMP_ARGS=-x
+EXTRA_WASM_COMP_ARGS=
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
@@ -36,7 +36,7 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 #
 # GO
 #
-GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21.tip GOOS=js GOARCH=wasm go1.21
+GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21.tip GOOS=wasip1 GOARCH=wasm go1.21
 GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19
 GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19
 
@@ -53,8 +53,8 @@ API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC
 
 ## we just use a single representative file for all the generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
-$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot build/patchreflectproto
-	rm -rf g/*
+$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
+	@rm -rf g/*
 	buf lint
 	buf generate
 
@@ -86,7 +86,7 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot build/patchreflectpr
 TEMPLATE=$(shell find command/protoc-gen-parigot -type f -regex ".*\.tmpl")
 GENERATOR_SRC=$(shell find command/protoc-gen-parigot -type f -regex ".*\.go")
 build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
 
 
@@ -98,16 +98,16 @@ PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
 build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) apiplugin/queue/db.go
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
 #
 # patchreflectproto
 #
-PATCHRP_SRC=$(shell find command/patchreflectproto -type f -regex ".*\.go")
-build/patchreflectproto: $(PATCHRP_SRC)
-	rm -f $@
-	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/patchreflectproto
+# PATCHRP_SRC=$(shell find command/patchreflectproto -type f -regex ".*\.go")
+# build/patchreflectproto: $(PATCHRP_SRC)
+# 	rm -f $@
+# 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/patchreflectproto
 
 
 #
@@ -126,7 +126,7 @@ build/patchreflectproto: $(PATCHRP_SRC)
 ## client side of the file service
 FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
 build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
 
 ## client side of the test service
@@ -134,7 +134,7 @@ TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
 build/test.p.wasm: export GOOS=js
 build/test.p.wasm: export GOARCH=wasm
 build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
 ## client side of service impl
@@ -142,7 +142,7 @@ QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
 build/queue.p.wasm: export GOOS=js
 build/queue.p.wasm: export GOARCH=wasm
 build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
 
 ## dom service impl
@@ -185,7 +185,7 @@ METHODCALL_TOML=test/func/methodcall/methodcall.toml
 build/methodcalltest.p.wasm: export GOOS=js
 build/methodcalltest.p.wasm: export GOARCH=wasm
 build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
 ## methodcall service impl: methodcall.FooService
@@ -193,7 +193,7 @@ FOO_SERVICE=test/func/methodcall/impl/foo/*.go
 build/methodcallfoo.p.wasm: export GOOS=js
 build/methodcallfoo.p.wasm: export GOARCH=wasm
 build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 ## methodcall service impl: methodcall.BarService
@@ -201,7 +201,7 @@ BAR_SERVICE=test/func/methodcall/impl/bar/*.go
 build/methodcallbar.p.wasm: export GOOS=js
 build/methodcallbar.p.wasm: export GOARCH=wasm
 build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
 #
@@ -232,17 +232,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)
-	rm -f $@
+	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 
 #

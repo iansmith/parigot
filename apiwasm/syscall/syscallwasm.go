@@ -213,3 +213,17 @@ func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, error) {
 	}
 	return out, nil
 }
+
+// RegisterExport is how a wasm-implemented, guest function is made avaialble to be called at any time from
+// the host side.  Note that this function must be called by the same guest-side goroutine that was
+// created for WasmExport.
+//
+//go:noescape
+//go:wasmimport parigot register_export_
+func RegisterExport(nameHeader uint32, //reflect.StringHeader
+	poolHeader uint32, //*reflect.SliceHeader
+	is32Bit uint32,
+	buffer uint32, //*reflect.SliceHeader
+	exclusiveBufferSizePtr uint32, // *int32
+	flagPtr uint32, // *[2]int32
+	turnPtr uint32) // *int32

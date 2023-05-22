@@ -15,8 +15,7 @@ func main() {
 
 }
 
-//go:export parigot_main
-//go:linkname parigot_main
+//go:wasmexport parigot_main parigot_main
 func parigot_main() {
 	lib.FlagParseCreateEnv()
 
