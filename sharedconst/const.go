@@ -1,6 +1,8 @@
 package sharedconst
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 // constants in this package are ones that _MUST_ be synchronized
 // between the two go systems, HOST and GUEST.
@@ -74,6 +76,7 @@ func init() {
 	if WasmWidth == 4 {
 		WasmIs32Bit = true
 	}
+	//log.Printf("xxx init of const")
 }
 
 // EntryPointSymbol is what should be used to start up a ready instance.  Note that we are turning

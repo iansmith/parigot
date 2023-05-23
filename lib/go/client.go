@@ -2,10 +2,8 @@ package lib
 
 import (
 	"context"
-	"time"
 
 	"github.com/iansmith/parigot/apiwasm/syscall"
-	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/id"
@@ -87,16 +85,4 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
 		Service: []*syscallmsg.FullyQualifiedService{fqs},
 	}
 	return syscall.Export(in)
-}
-
-// PrepContextForServer is used by the code generator to
-// create proper contexts for any calls on the the methods
-// of the service.
-func PrepContextForServer(cont *pcontext.LogContainer, name string) context.Context {
-	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, pcontext.ParigotFunc, name)
-	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerWasm)
-	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
-	return ctx
-
 }

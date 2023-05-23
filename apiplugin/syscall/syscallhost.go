@@ -8,6 +8,7 @@ import (
 	"time"
 	"unsafe"
 
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	"github.com/iansmith/parigot/sharedconst"
@@ -58,7 +59,7 @@ func run(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("run 0x%x", stack)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("export 0x%ax", stack)
+	log.Printf("export 0x%x", stack)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("returnValue 0x%x", stack)
@@ -126,20 +127,27 @@ func registerExport(ctx context.Context, mod api.Module, param []uint64) {
 
 	mem := mod.Memory()
 	closure := func() {
-		exampleHost(uintptr(paramHeaderRaw), uintptr(bufferRaw), uintptr(exclusiveBufferSizePtrRaw), mem)
+		exampleHost(ctx, uintptr(paramHeaderRaw), uintptr(bufferRaw), uintptr(exclusiveBufferSizePtrRaw), mem)
 	}
+	// xxx just for testing... normally should keep a table that maps name to closure
 	go func(fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) {
 		time.Sleep(time.Duration(2) * time.Second)
-		callSingleGuestFunction(mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw)
+		cont := pcontext.ServerGoContext(ctx, "callSingleGuestFunction")
+		for {
+			if callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw) {
+				callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw)
+				break
+			}
+		}
 	}(closure, flagPtrRaw, turnPtrRaw, uintptr(exclusiveBufferSizePtrRaw))
 	return
 }
 
 // callSingleGuestFunction does exactly what it says.  It expects a closure in fn to actually do the call and gather result.  The other parameters
 // are so this function can use a mutual exclusion algorithm with th guest.
-func callSingleGuestFunction(mem api.Memory, fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) {
+func callSingleGuestFunction(ctx context.Context, mem api.Memory, fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) bool {
 
-	print("HOST peterson0\n")
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson0")
 	//peterson lock
 	flag0 := flagPtrRaw
 	flag1 := flagPtrRaw + sizeofGuestInt
@@ -152,7 +160,7 @@ func callSingleGuestFunction(mem api.Memory, fn func(), flagPtrRaw, turnPtrRaw, 
 	if ok := mem.WriteUint32Le(uint32(turnPtrRaw), uint32(0)); !ok {
 		panic("out of bounds write of turn ptr [1]")
 	}
-	print("HOST peterson1 ... \n")
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson1 ... \n")
 	for { // while flag[0]==true and turn==0
 		fl0, ok := mem.ReadUint32Le(uint32(flag0))
 		if !ok {
@@ -169,28 +177,28 @@ func callSingleGuestFunction(mem api.Memory, fn func(), flagPtrRaw, turnPtrRaw, 
 		break
 	}
 
-	print("HOST peterson2\n")
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson2 %x\n", uint32(exclusiveBufferSizePtrRaw))
 	// peterson critical section
 	value, ok := mem.ReadUint32Le(uint32(exclusiveBufferSizePtrRaw))
 	if !ok {
 		panic("out of bounds read of exclusive buffer")
 	}
 
-	if value != sharedconst.ParamsNotReady {
-		print("no work to do, client has not picked it up yet")
-		time.Sleep(time.Duration(1) * time.Millisecond)
+	if value != sharedconst.ParamsNotReady || fn == nil {
+		pcontext.Debugf(ctx, "callSingleGuestFunction", "no work to do, client has not picked it up yet")
+		return false
 	} else {
 		fn()
-		print("HOST peterson3B\n")
+		pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson3 -- invoked fn\n")
 
 	}
-	print("HOST peterson6\n")
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson6 -- waiting on confirm fn\n")
 	//peterson unlock
 	if ok := mem.WriteUint32Le(uint32(flag1), 0); !ok {
 		panic("unable to write peterson flag 1 back to guest")
 	}
-	print("HOST peterson7\n")
-
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson7\n")
+	return true
 }
 
 func writeParam(mem api.Memory, paramHeader uintptr, index int32, value uint64) {
@@ -241,15 +249,17 @@ func writeVariableSizedData(mem api.Memory, buffer uintptr, index int32, length 
 	return uint64(sh)
 }
 
-func exampleHost(paramHeader uintptr, buffer uintptr, exclusiveBufferSizePtrRaw uintptr, mem api.Memory) {
+func exampleHost(ctx context.Context, paramHeader uintptr, buffer uintptr, exclusiveBufferSizePtrRaw uintptr, mem api.Memory) {
 	s := "hello, parigot"
 
-	log.Printf("example host setting up params: %v", paramHeader == 0)
+	log.Printf("example host setting up params--- we have the lock!: %v", paramHeader == 0)
 	setNumberOfParameters(mem, paramHeader, uint32(3))
 	writeParam(mem, paramHeader, 0, uint64(len(s)))
 	writeParam(mem, paramHeader, 1, writeStringToVariableSizeBuffer(mem, buffer, s, 6))
 	writeParam(mem, paramHeader, 2, 42)
 	signalNumberOfParameters(mem, uint32(3), exclusiveBufferSizePtrRaw)
+	log.Printf("signaled num of params-- we have the lock: %v", 3)
+
 }
 
 func signalNumberOfParameters(mem api.Memory, num uint32, exclusiveBufferSizePtrRaw uintptr) {

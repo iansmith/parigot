@@ -19,17 +19,21 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	print("main of fooxxx\n\n\n")
+	ctx := pcontext.ServerWasmContext(context.Background(), "foo:main")
+	defer pcontext.Dump(ctx)
+
+	pcontext.Logf(ctx, pcontext.Info, "started main on")
 
 	//log.Printf("xxxmain of foo")
 	// syscall.RegisterExport(parigot_main, apiwasm.NewReturnDataWithBuffer,
 	// 	apiwasm.NewString)
 	ch := make(chan struct{})
-	print("about to call wasmexport\n")
+	pcontext.Logf(ctx, pcontext.Info, "about to call wasm export")
+	print("XXX HERE\n")
 	closure := syscall.WasmExport("example", example_)
-	log.Printf("closure1")
-	go closure(ch)
-	log.Printf("closure2")
+	pcontext.Logf(ctx, pcontext.Info, "closure1")
+	go closure(ctx, ch)
+	pcontext.Logf(ctx, pcontext.Info, "closure2")
 	for range ch {
 		log.Printf("got the signal from the closure")
 	}
