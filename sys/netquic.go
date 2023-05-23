@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/sys/dep"
-	quic "github.com/lucas-clemente/quic-go"
+	quic "github.com/quic-go/quic-go"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 

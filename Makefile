@@ -39,8 +39,8 @@ CC=/usr/lib/llvm-15/bin/clang
 # GO
 #
 GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21 GOOS=wasip1 GOARCH=wasm go1.21
-GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
-GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
+GO_TO_HOST=GOROOT=/home/parigot/deps/go1.20 go1.20
+GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.20 go1.20
 
 #
 # PROTOBUF FILES
