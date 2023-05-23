@@ -14,7 +14,7 @@ import (
 	rand2 "math/rand"
 	"time"
 
-	"github.com/lucas-clemente/quic-go"
+	"github.com/quic-go/quic-go"
 )
 
 var proto = []string{"quic-parigot-test"}

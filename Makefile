@@ -31,6 +31,9 @@ EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
 CC=/usr/lib/llvm-15/bin/clang
+CTX_SRC=$(shell find context -type f -regex ".*\.go")
+CONST_SRC=$(shell find sharedconst -type f -regex ".*\.go")
+
 
 #this command can be useful if you want to run tinygo in a container but otherwise use your host machine
 #GO_TO_WASM=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
@@ -51,7 +54,7 @@ TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
 ID_SRC=$(shell find id  -regex ".*\.go")
-API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(ID_SRC)
+API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(ID_SRC) $(CTX_SRC) $(CONST_SRC)
 
 ## we just use a single representative file for all the generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
@@ -99,7 +102,7 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) apiplugin/queue/db.go
+build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(CONST_SRC) apiplugin/queue/db.go
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -233,17 +236,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 
