@@ -1,11 +1,13 @@
 package syscall
 
 import (
+	"context"
 	"log"
 	"reflect"
 	"time"
 	"unsafe"
 
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/sharedconst"
 )
 
@@ -37,11 +39,11 @@ import (
 //
 // All of the buffer values provided to this function must only be accessed by this function
 // (and thus this goroutine).  They cannot be shared.
-func WasmExport(name string, fn func(param []uint64, buffer [][]byte) uint64) func(chan struct{}) {
+func WasmExport(name string, fn func(param []uint64, buffer [][]byte) uint64) func(context.Context, chan struct{}) {
 
 	// this is the crucial piece of information that is changed by the host side
 	petersonExclParamSize := uint32(sharedconst.ParamsNotReady)
-	petersonExclParamSizePtr := uintptr(petersonExclParamSize)
+	petersonExclParamSizePtr := uintptr(unsafe.Pointer(&petersonExclParamSize))
 
 	// for peterson algorithm
 	var flag [2]int32
@@ -92,18 +94,18 @@ func WasmExport(name string, fn func(param []uint64, buffer [][]byte) uint64) fu
 		uint32(flagPtr),
 		uint32(turnPtr))
 
-	runner := func(ch chan struct{}) {
-		wasmExportRun(ch, param, buffer, &flag, &turn, &petersonExclParamSize, fn)
+	runner := func(ctx context.Context, ch chan struct{}) {
+		wasmExportRun(ctx, ch, param, buffer, &flag, &turn, &petersonExclParamSize, fn)
 	}
 	return runner
 }
 
-func wasmExportRun(exitChan chan struct{}, param []uint64, buffer [][]byte, flag *[2]int32, turn *int32, petersonExclParamSize *uint32,
+func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, buffer [][]byte, flag *[2]int32, turn *int32, petersonExclParamSize *uint32,
 	fn func(param []uint64, buffer [][]byte) uint64) {
 	// these are some loop maintenance vars for sleeping between invocations
 	miss := 0
 	needSleep := false
-
+	pcontext.Debugf(ctx, "wasmExportRun", "arrived in run")
 	//
 	// Mainloop
 	//

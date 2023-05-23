@@ -11,6 +11,7 @@ import (
 
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/sharedconst"
 	"github.com/iansmith/parigot/sys"
 )
 
@@ -34,7 +35,7 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	ctx := pcontext.ServerGoContext(context.TODO(), "main")
+	ctx := pcontext.CallTo(pcontext.Internal(context.TODO()), "main")
 	defer pcontext.Dump(ctx)
 
 	// the deploy context creation also creates any needed nameservers
@@ -46,7 +47,8 @@ func main() {
 	if err := deployCtx.CreateAllProcess(ctx); err != nil {
 		log.Fatalf("unable to create process in main: %v", err)
 	}
-	main, code := deployCtx.StartServer(ctx)
+
+	main, code := deployCtx.StartServer(pcontext.CallTo(ctx, "StartServer"))
 	if main == nil {
 		if code != 0 {
 			log.Printf("server startup returned error code %d", code)
@@ -73,11 +75,12 @@ func main() {
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
 		if err != nil {
+			log.Printf("main of '%s' returned code of %d from %s [%v]", mainProg, code, sharedconst.EntryPointSymbol, err)
 			pcontext.Logf(ctx, pcontext.Error, "could not start main program:%v", err)
 			return
 		}
-		log.Printf("logging return code of %d from %s [%v]", code, mainProg, err)
 		if code != 0 {
+			log.Printf("main of '%s' returned code of %d from %s (no error returned)", mainProg, code, sharedconst.EntryPointSymbol)
 			pcontext.Logf(ctx, pcontext.Error, "main program '%s' exited with code %d", mainProg, code)
 			return
 		}

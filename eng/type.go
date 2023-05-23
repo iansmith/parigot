@@ -72,12 +72,15 @@ type Extern interface {
 	Name() string
 }
 
+// FunctionExtern represents an exposed function be the module.  Note that Go modules compiled by
+// the go compiler (not tinygo) only expose "_start" and nothing else.  Normally, you use
+// EntryPointExtern to access this function.
 type FunctionExtern interface {
 	// Call invokes this function with the value given. Note that this
 	// function is on the guest side, but this function Call is invoked
 	// on the host side. Any error returned is related to problems
 	// on the host side.
-	//Call(ctx context.Context, arg ...uint64) ([]uint64, error)
+	Call(ctx context.Context, arg ...uint64) ([]uint64, error)
 }
 
 // MemoryExtern is a wrapper around a Wasm Memory object from an instance.
