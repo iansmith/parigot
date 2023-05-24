@@ -33,7 +33,7 @@ var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
 
-	engine := eng.NewWaZeroEngine(ctx, wazero.NewRuntimeConfigInterpreter())
+	engine := eng.NewWaZeroEngine(ctx, wazero.NewRuntimeConfig())
 	InitializePatch(engine)
 
 	// our notify map is shared by the nameserver

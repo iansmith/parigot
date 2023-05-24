@@ -29,9 +29,6 @@ const (
 	Warn      LogLevel = 3
 	Error     LogLevel = 4
 	Fatal     LogLevel = 5
-
-	// stackTraceInternal is really for internal use only.
-	stackTraceInternal LogLevel = 6
 )
 
 func (l LogLevel) String() string {
@@ -46,10 +43,10 @@ func (l LogLevel) String() string {
 		return "WARN"
 	case Error:
 		return " ERR"
-	case stackTraceInternal:
-		return " STR"
+	case Fatal:
+		return "FATL"
 	}
-	return "FATL"
+	panic(fmt.Sprintf("unable to understand log level %d", int(l)))
 }
 
 func (l LogLevel) Integer() int {
@@ -59,12 +56,15 @@ func (l LogLevel) Integer() int {
 type Source int
 
 const (
-	UnknownS   Source = 0
-	Client     Source = 1
-	ServerGo   Source = 2
-	ServerWasm Source = 3
-	Parigot    Source = 4
-	Wazero     Source = 5
+	UnknownS           Source = 0
+	Client             Source = 1
+	ServerGo           Source = 2
+	ServerWasm         Source = 3
+	Parigot            Source = 4
+	Wazero             Source = 5
+	WasiOut            Source = 6
+	WasiErr            Source = 7
+	StackTraceInternal Source = 8
 )
 
 func (s Source) String() string {
@@ -79,8 +79,16 @@ func (s Source) String() string {
 		return "SvrWasm"
 	case Wazero:
 		return " Wazero"
+	case WasiOut:
+		return "WasiOut"
+	case WasiErr:
+		return "WasiErr"
+	case Parigot:
+		return "Parigot"
+	case StackTraceInternal:
+		return "StackTr"
 	}
-	return "Parigot"
+	panic(fmt.Sprintf("unknown source value %d", int(s)))
 }
 
 func (s Source) Integer() int {
@@ -137,7 +145,7 @@ func StackTrace(ctx context.Context, funcName string) {
 	}
 }
 
-func newContext(orig context.Context, src Source, name string) context.Context {
+func NewContextWithContainer(orig context.Context) context.Context {
 	if orig == nil {
 		orig = context.Background()
 		Errorf(orig, "the use of nil context to newContext() is discouraged")
@@ -146,8 +154,6 @@ func newContext(orig context.Context, src Source, name string) context.Context {
 	cont := newLogContainer()
 	sanity := LogContainer(cont)
 	ctx := context.WithValue(orig, ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, ParigotFunc, name)
-	ctx = context.WithValue(ctx, ParigotSource, src)
 	ctx = context.WithValue(ctx, ParigotLogContainer, sanity)
 	return ctx
 }

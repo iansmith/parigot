@@ -9,22 +9,22 @@ import (
 
 // ServerGoContext returns a new context based on ctx with source ServerGo and the given function name.
 // This should be called before entering plugins that define host functions.
-func ServerGoContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, ServerGo, funcName)
+func ServerGoContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ParigotSource, ServerGo)
 }
 
 // Client returns a new context based on ctx with source Client and the given function name.
 // This should be called before entering code that is client wasm code, like the main
 // of an application or the start of test.
-func ClientContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, Client, funcName)
+func ClientContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ParigotSource, Client)
 }
 
 // ServerWasm returns a new context based on ctx with source ServerWasm and the given function name.
 // This should be called before entering code that is the _implementation_ of a service that is
 // implemented solely in guest wasm.
-func ServerWasmContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, ServerWasm, funcName)
+func ServerWasmContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ParigotSource, ServerWasm)
 }
 
 // CurrentTime should *always* be used in both host and guest code to get the current
@@ -68,27 +68,20 @@ func Errorf(ctx context.Context, spec string, rest ...interface{}) {
 }
 
 // Debugf is a shorthand for a call to LogFull with the currently set source in ctx, and
-// log level being Debug.
-func Debugf(ctx context.Context, funcName string, spec string, rest ...interface{}) {
+// log level being Debug.  The function name is the one associated with the given ctx.
+func Debugf(ctx context.Context, spec string, rest ...interface{}) {
+	LogFullf(ctx, Debug, UnknownS, "", spec, rest...)
+}
+
+// DebugFuncf is a shorthand for a call to LogFull with the currently set source in ctx, and
+// log level being Debug.  The function name must be supplied here and overrides any function
+// name found in the ctx.
+func DebugFuncf(ctx context.Context, funcName string, spec string, rest ...interface{}) {
 	LogFullf(ctx, Debug, UnknownS, funcName, spec, rest...)
 }
 
-// ClientLogf is just like Logf except is sets the source to be client.  This is
-// useful (with no context param) because client's (like the main of an app or a test
-// entry point) usually don't have a context.
-func ClientLogf(level LogLevel, spec string, rest ...interface{}) {
-	LogFullf(context.Background(), level, Client, "", spec, rest...)
-}
-
-// ClientLogf is just like Debugf except is sets the source to be client.  This is
-// useful (with no context param) because client's (like the main of an app or a test
-// entry point) usually don't have a context.
-func ClientDebugf(funcName string, spec string, rest ...interface{}) {
-	LogFullf(context.Background(), Debug, UnknownS, funcName, spec, rest...)
-}
-
-// Internal is for internal use only.  It creates a log line attributed to Parigot.
-func Internal(ctx context.Context) context.Context {
+// InternalParigot is for internal use only.  It creates a log line attributed to Parigot.
+func InternalParigot(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, Source(Parigot))
 }
 
@@ -103,12 +96,6 @@ func CallTo(ctx context.Context, s string) context.Context {
 	return context.WithValue(ctx, ParigotFunc, s)
 }
 
-// CallTo returns a new context with the current source set to ServerGo.  This is useful
-// when calling a function defined in a plugin.
-func CallGo(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ParigotSource, ServerGo)
-}
-
 // LogFullf creates a new log line in the current log container.  This function allows all
 // the varibels to be specified or overriden.  The level parameter can be set to UnknownLL to
 // indicate the log level is not known.  The source can be set to UnknownS which indicates
@@ -119,7 +106,7 @@ func CallGo(ctx context.Context) context.Context {
 func LogFullf(ctx context.Context, level LogLevel, source Source, funcName, spec string, rest ...interface{}) {
 	detailPrefix := detailPrefix(ctx, level, source, funcName)
 	line := fmt.Sprintf(detailPrefix+spec, rest...)
-	logLine := LogLineFromString(ctx, line, source, level)
+	logLine := LogLineFromPrintf(ctx, source, level, funcName, spec, rest...)
 
 	cont := GetContainer(ctx)
 	if cont == nil {

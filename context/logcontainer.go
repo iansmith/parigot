@@ -2,9 +2,7 @@ package context
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"fmt"
 	"runtime"
 	"strings"
 	"sync"
@@ -31,14 +29,14 @@ func (c *logContainer) StackTrace(ctx context.Context, detailPrefix, header, foo
 	s := string(b[:n])
 
 	rd := strings.NewReader(s)
-	c.addLogLineNoLock(ctx, LogLineFromString(ctx, header, UnknownS, stackTraceInternal))
+	c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, header))
 	scanner := bufio.NewScanner(rd)
 	for scanner.Scan() {
 		curr := ">   " + scanner.Text()
-		c.addLogLineNoLock(ctx, LogLineFromString(ctx, curr, UnknownS, stackTraceInternal))
+		c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, curr))
 	}
 
-	c.addLogLineNoLock(ctx, LogLineFromString(ctx, footer, UnknownS, stackTraceInternal))
+	c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, header))
 }
 
 func (c *logContainer) AddLogLine(ctx context.Context, l LogLine) {
@@ -58,28 +56,11 @@ func (c *logContainer) addLogLineNoLock(ctx context.Context, l *logLine) {
 
 func (c *logContainer) Dump() {
 	i := c.back
-	buf := &bytes.Buffer{}
 	for i < c.front {
 		// put this line's data in the buffer
 		l := c.line[i]
-		lastIsCR := false
-		for k := 0; k < MaxLineLen; k++ {
-			if l.data[k] == 0 {
-				break
-			}
-			buf.WriteByte(l.data[k])
-			if l.data[k] == 10 {
-				lastIsCR = true
-			} else {
-				lastIsCR = false
-			}
-		}
-		if !lastIsCR {
-			buf.WriteString("\n")
-		}
+		l.Print()
 		i = (i + 1) % MaxContainerSize
-
-		fmt.Printf(l.color()(buf.String()))
 	}
 
 }
