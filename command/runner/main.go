@@ -35,7 +35,8 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	ctx := pcontext.CallTo(pcontext.Internal(context.TODO()), "main")
+	ctx := pcontext.NewContextWithContainer(context.Background())
+	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
 	defer pcontext.Dump(ctx)
 
 	// the deploy context creation also creates any needed nameservers

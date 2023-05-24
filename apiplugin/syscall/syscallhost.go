@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"time"
+	"runtime"
 	"unsafe"
 
 	pcontext "github.com/iansmith/parigot/context"
@@ -117,6 +117,7 @@ func readStringFromGuest(mem api.Memory, nameOffset int32) string {
 // registerExport is call by the guest to tell the host that a guest function can be run (really "started")
 // by the host when desired.
 func registerExport(ctx context.Context, mod api.Module, param []uint64) {
+	pcontext.Debugf(ctx, "registerExport", "started")
 	//nameHeaderRaw := int32(param[0])
 	paramHeaderRaw := int32(param[1])
 	//is32Bit := int32(param[2])
@@ -129,10 +130,10 @@ func registerExport(ctx context.Context, mod api.Module, param []uint64) {
 	closure := func() {
 		exampleHost(ctx, uintptr(paramHeaderRaw), uintptr(bufferRaw), uintptr(exclusiveBufferSizePtrRaw), mem)
 	}
+	pcontext.Debugf(ctx, "registerExport", "about to fork")
 	// xxx just for testing... normally should keep a table that maps name to closure
 	go func(fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) {
-		time.Sleep(time.Duration(2) * time.Second)
-		cont := pcontext.ServerGoContext(ctx, "callSingleGuestFunction")
+		cont := pcontext.CallTo(pcontext.ServerGoContext(ctx), "callSingleGuestFunction")
 		for {
 			if callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw) {
 				callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw)
@@ -153,14 +154,17 @@ func callSingleGuestFunction(ctx context.Context, mem api.Memory, fn func(), fla
 	flag1 := flagPtrRaw + sizeofGuestInt
 
 	// ptr1 = 1 b/c we want to enter crit sect
+
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "trying peterson lock(1)")
 	if ok := mem.WriteUint32Le(uint32(flag1), uint32(1)); !ok {
 		panic("out of bounds write of flag ptr 1 = 1")
 	}
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "trying peterson lock(2)")
 	// set the turn to be the guest side
 	if ok := mem.WriteUint32Le(uint32(turnPtrRaw), uint32(0)); !ok {
 		panic("out of bounds write of turn ptr [1]")
 	}
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson1 ... \n")
+	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson1 ... ")
 	for { // while flag[0]==true and turn==0
 		fl0, ok := mem.ReadUint32Le(uint32(flag0))
 		if !ok {
@@ -171,7 +175,10 @@ func callSingleGuestFunction(ctx context.Context, mem api.Memory, fn func(), fla
 		if !ok {
 			panic("unable to read the turn value from the guest system")
 		}
+		//pcontext.Debugf(ctx, "callSingleGuestFunction", "busy wait host %d,%d", fl0, turn)
+
 		if fl0 == 1 && turn == 0 {
+			runtime.Gosched()
 			continue
 		}
 		break
@@ -274,7 +281,6 @@ func setNumberOfParameters(mem api.Memory, paramHeader uintptr, num uint32) {
 		panic(fmt.Sprintf("too many parameters for guest function call (max is %d)", sharedconst.MaxExportParam))
 	}
 	// setup params for guest side
-	log.Printf("param header needed by settNumberOfParams %v", paramHeader == 0)
 	if ok := mem.WriteUint32Le(uint32(paramHeader), num); !ok {
 		panic("unable to write parameter to example guest function")
 	}

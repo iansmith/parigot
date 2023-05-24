@@ -116,7 +116,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 			if {{$svcCamelFL}}Background==nil {
 				continue
 			}
-			ctx:=pcontext.ServerWasmContext(context.TODO(),"Background")
+			ctx:=pcontext.CallTo(pcontext.ServerWasmContext(context.Background()),"Background")
 			{{$svcCamelFL}}Background.Background(ctx)
 			pcontext.Dump(ctx)
 			continue
@@ -142,7 +142,7 @@ func Run{{$svcCamel}}(impl {{$svcCamel}}Server) {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 		case mid.Equal({{$methCamelFL}}Method):
-			ctx:=pcontext.ServerWasmContext(context.TODO(),"{{$methCamelFL}}")
+			ctx:=pcontext.CallTo(pcontext.ServerWasmContext(context.Background()),"{{$methCamelFL}}")
 
 {{- if .InputCodeNeeded}}
 			req := &{{$inParam}}{}
@@ -174,7 +174,7 @@ you would have a method with no input or output, which is checked elsewhere */}}
         }
 		//
 		// could be error, could be everything is cool
-		ctx:=pcontext.ServerWasmContext(context.TODO(),"ReturnValue")
+		ctx:=pcontext.CallTo(pcontext.ServerWasmContext(context.TODO()),"ReturnValue")
 		a:=&anypb.Any{}
 		err=a.MarshalFrom(out) 
 		if err!=nil {
@@ -229,7 +229,7 @@ func {{$svcCamelFL}}Bind(impl {{$svcCamel}}Server) (string, error) {
 	}
 	{{$methCamelFL}}Method = id.Unmarshal(resp.GetMethodId())
 {{- end }} {{/* end of rang over methods */}}
-	ctx:=pcontext.ServerWasmContext(context.TODO(),"Ready")
+	ctx:=pcontext.CallTo(pcontext.ServerWasmContext(context.Background()),"Ready")
 	if !impl.Ready(ctx){
 		pcontext.Dump(ctx)
 		panic("unable to start {{$svcCamel}} because it failed Ready() check")

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"unsafe"
@@ -331,7 +332,7 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 }
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
-	fsConfig := wazero.NewFSConfig()
+	fsConfig := wazero.NewFSConfig().WithFSMount(&chanFS{}, "/parigot/")
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
@@ -431,4 +432,22 @@ func (u *wazeroUtil) DecodeU32(value uint64) uint32 {
 
 func (i *wazeroInstance) addInstanceInternalFunctions(ctx context.Context) error {
 	return nil
+}
+
+type chanFS struct {
+}
+
+func newChanFs() fs.FS {
+	return &chanFS{}
+}
+
+func (c *chanFS) Open(path string) (fs.File, error) {
+	if !fs.ValidPath(path) {
+		return nil, &fs.PathError{Err: fs.ErrNotExist}
+	}
+	log.Printf("Open: %s", path)
+	if path == "chan/example" {
+		log.Printf("Got Path!")
+	}
+	return nil, &fs.PathError{Err: fs.ErrNotExist}
 }
