@@ -2,8 +2,8 @@ package syscall
 
 import (
 	"context"
-	"log"
 	"reflect"
+	"runtime"
 	"time"
 	"unsafe"
 
@@ -109,24 +109,23 @@ func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, 
 	//
 	// Mainloop
 	//
-	print("peterson0\n")
+	pcontext.Debugf(ctx, "wasmExportRun", "entered the main loop of wasmExportRun")
 	for {
 		//peterson lock
 		(*flag)[0] = 1
 		*turn = 1
-		print("peterson1\n")
 		for (*flag)[1] == 1 && *turn == 1 {
-			//busy wait
+			runtime.Gosched()
 		}
+		pcontext.Debugf(ctx, "wasmExportRun", "we have the peterson lock (wasm)")
 
-		print("peterson2\n")
 		// peterson critical section
 		if uint32(*petersonExclParamSize) == sharedconst.ParamsNotReady {
-			print("peterson3A\n")
+			pcontext.Debugf(ctx, "wasmExportRun", "peterson 3A")
 			miss++
 			needSleep = true
 		} else {
-			print("peterson3B\n")
+			pcontext.Debugf(ctx, "wasmExportRun", "peterson 3A")
 			miss = 0
 			if uint32(*petersonExclParamSize) == sharedconst.ParamsDie {
 				exitChan <- struct{}{}
@@ -145,36 +144,33 @@ func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, 
 			// reset buffers
 			bufferHeader.Len = len(sharedconst.DynamicSizedData)
 			bufferHeader.Cap = len(sharedconst.DynamicSizedData)
-			print("peterson4\n")
+			pcontext.Debugf(ctx, "wasmExportRun", "peterson 4")
 			for i := 0; i < len(sharedconst.DynamicSizedData); i++ {
 				buffSliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&buffer[i]))
 				buffSliceHeader.Len = len(sharedconst.DynamicSizedData)
 				buffSliceHeader.Cap = len(sharedconst.DynamicSizedData)
 			}
-			print("peterson5\n")
 
 			// put the result at slot 0 of the pool
 			param[0] = result
 			*petersonExclParamSize = sharedconst.ParamsNotReady
 		}
-		print("peterson6\n")
 		//peterson unlock
 		flag[0] = 0
 		if needSleep {
-			print("peterson\n")
+			pcontext.Debugf(ctx, "wasmExportRun", "peterson unlock")
 			sleepSome(miss)
 		}
 	}
 }
 
 func sleepSome(missCount int) {
-	if missCount > len(sharedconst.SleepSeqMicro) {
+	if missCount >= len(sharedconst.SleepSeqMicro) {
 		missCount = len(sharedconst.SleepSeqMicro) - 1
 	}
 	dur := time.Duration(sharedconst.SleepSeqMicro[missCount]) * time.Microsecond
-	before := time.Now()
+	//before := time.Now()
 	time.Sleep(dur)
-	after := time.Now()
-	actual := after.Sub(before)
-	log.Printf("actual sleep time %v", actual)
+	//after := time.Now()
+	//actual := after.Sub(before)
 }

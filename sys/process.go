@@ -128,13 +128,11 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		return nil, nil, err
 	}
 	initFn := sym.(ParigotInit)
-	initCtx := pcontext.ServerGoContext(context.Background(), "ParigiotInit")
+	initCtx := pcontext.ServerGoContext(ctx)
 	ok := initFn.Init(initCtx, engine)
 	if !ok {
-		pcontext.Dump(initCtx)
 		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
 	}
-	pcontext.Dump(initCtx)
 	return plug, initFn, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"reflect"
 	"unsafe"
 
@@ -19,17 +20,24 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.ServerWasmContext(context.Background(), "foo:main")
+	ctx := pcontext.CallTo(pcontext.ServerWasmContext(context.Background()), "[foo]main")
 	defer pcontext.Dump(ctx)
+	pcontext.Logf(ctx, pcontext.Info, "started main open")
 
-	pcontext.Logf(ctx, pcontext.Info, "started main on")
+	if _, err := os.Open("/parigot/chan/example"); err != nil {
+		log.Printf("xxx err %v", err)
+		return
+	}
 
+	// pcontext.Logf(ctx, pcontext.Info, "started main on")
+	// reader := bufio.NewScanner(os.Stdout)
+	// _, _ = reader.Read(os.Stdin)
+	pcontext.Logf(ctx, pcontext.Info, "read byte")
 	//log.Printf("xxxmain of foo")
 	// syscall.RegisterExport(parigot_main, apiwasm.NewReturnDataWithBuffer,
 	// 	apiwasm.NewString)
 	ch := make(chan struct{})
 	pcontext.Logf(ctx, pcontext.Info, "about to call wasm export")
-	print("XXX HERE\n")
 	closure := syscall.WasmExport("example", example_)
 	pcontext.Logf(ctx, pcontext.Info, "closure1")
 	go closure(ctx, ch)

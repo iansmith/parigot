@@ -2,65 +2,86 @@ package context
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fatih/color"
 )
 
 type logLine struct {
-	source Source
-	level  LogLevel
-	data   [MaxLineLen]byte // c-style terminator (nul byte)
+	source         Source
+	level          LogLevel
+	funcName, spec string
+	value          []interface{}
+	data           [MaxLineLen]byte // c-style terminator (nul byte)
 }
 
 var defaultColor *color.Color
+var oppDefaultColor *color.Color
+
+var maxStrLenWithoutColor = 240 // 256 - 16
 
 func init() {
-	defaultColor = color.New(color.FgBlack)
+	defaultColor = color.New(color.FgHiBlack)
+	oppDefaultColor = color.New(color.FgHiWhite)
 	if !UseBlack {
-		defaultColor = color.New(color.FgWhite)
+		defaultColor = color.New(color.FgHiWhite)
+		oppDefaultColor = color.New(color.FgHiBlack)
+
 	}
 }
 
-func LogLineFromString(ctx context.Context, line string, src Source, lvl LogLevel) *logLine {
+func LogLineFromPrintf(ctx context.Context, src Source, lvl LogLevel, funcName, spec string, rest ...interface{}) *logLine {
 	if src == UnknownS {
 		if v := ctx.Value(ParigotSource); v != nil {
 			src = v.(Source)
 		}
 	}
-	maxWithZero := MaxLineLen - 1
-	if len(line) >= maxWithZero {
-		start := len(line) - maxWithZero
-		line = line[:start]
-	}
-	i := 0
 	result := &logLine{}
-	for i < len(line) {
-		result.data[i] = line[i]
-		i++
-	}
 	result.level = lvl
 	result.source = src
+	result.funcName = funcName
+	result.spec = spec
+	result.value = rest
 	return result
 }
 
-func (l *logLine) color() func(a ...interface{}) string {
-	if l.level == stackTraceInternal {
-		return defaultColor.Add(color.Faint).SprintFunc()
+func (ll *logLine) Print() {
+	formatted := fmt.Sprintf(ll.spec, ll.value...)
+	if len(formatted) == 0 {
+		formatted = "\n"
+	} else {
+		if len(ll.spec) > 1 && ll.spec[len(ll.spec)-1] != '\n' {
+			if formatted[len(formatted)-1] != '\n' {
+				formatted = formatted + "\n"
+			}
+		}
 	}
-	switch l.source {
+	if len(formatted) > maxStrLenWithoutColor {
+		diff := len(formatted) - maxStrLenWithoutColor
+		formatted = formatted[diff:]
+	}
+	var baseColor *color.Color
+	switch ll.source {
 	case Source(UnknownS):
-		return addLogLevelVisual(color.New(color.BgGreen), l.level).SprintFunc()
+		baseColor = oppDefaultColor
 	case Source(Client):
-		return addLogLevelVisual(color.New(color.FgGreen), l.level).SprintFunc()
+		baseColor = color.New(color.BgGreen)
 	case Source(ServerGo):
-		return addLogLevelVisual(color.New(color.FgYellow), l.level).SprintFunc()
+		baseColor = color.New(color.FgYellow)
 	case Source(ServerWasm):
-		return addLogLevelVisual(color.New(color.FgHiYellow), l.level).SprintFunc()
+		baseColor = color.New(color.FgHiYellow)
 	case Source(Parigot):
-		return addLogLevelVisual(color.New(color.FgHiCyan), l.level).SprintFunc()
+		baseColor = color.New(color.FgCyan)
+	case Source(Wazero):
+		baseColor = color.New(color.FgBlue)
+	case Source(WasiOut):
+		baseColor = defaultColor
+	case Source(WasiErr):
+		baseColor = color.New(color.FgRed)
 	}
-	panic("unable to understand source of logline")
+	baseColor.Print(formatted)
 }
+
 func addLogLevelVisual(c *color.Color, l LogLevel) *color.Color {
 	switch l {
 	case Fatal:

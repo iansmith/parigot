@@ -145,6 +145,16 @@ func NewQueueId() Id {
 	return newIdRand(queueIdLetter)
 }
 
+// NewMethodId returns a method id, initialized for use.
+func NewMethodId() Id {
+	return newIdRand(methodIdLetter)
+}
+
+// NewCallId returns a call id, initialized for use.
+func NewCallId() Id {
+	return newIdRand(callIdLetter)
+}
+
 // NewQueueMsgId returns a queue id, initialized for use.
 func NewQueueMsgId() Id {
 	return newIdRand(queueMsgLetter)
