@@ -129,11 +129,11 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 		return img, err
 	}
 
-	contents, err := img.WithExec([]string{"ls", "-l", "."}).Stdout(ctx)
-	if err != nil {
-		return img, err
-	}
-	fmt.Println(contents)
+	// contents, err := img.WithExec([]string{"ls", "-l", "."}).Stdout(ctx)
+	// if err != nil {
+	// 	return img, err
+	// }
+	// fmt.Println(contents)
 
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
