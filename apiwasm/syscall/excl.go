@@ -7,8 +7,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared"
 	pcontext "github.com/iansmith/parigot/context"
-	"github.com/iansmith/parigot/sharedconst"
 )
 
 // WasmExport makes the function provided "visible" to the host side with the given name.
@@ -42,7 +42,7 @@ import (
 func WasmExport(name string, fn func(param []uint64, buffer [][]byte) uint64) func(context.Context, chan struct{}) {
 
 	// this is the crucial piece of information that is changed by the host side
-	petersonExclParamSize := uint32(sharedconst.ParamsNotReady)
+	petersonExclParamSize := uint32(apishared.ParamsNotReady)
 	petersonExclParamSizePtr := uintptr(unsafe.Pointer(&petersonExclParamSize))
 
 	// for peterson algorithm
@@ -52,30 +52,30 @@ func WasmExport(name string, fn func(param []uint64, buffer [][]byte) uint64) fu
 	turnPtr := uintptr(unsafe.Pointer(&turn))
 
 	// setup the dynamic buffers based on the bufOffset
-	pages := make([]byte, sharedconst.PagesPerExport)
+	pages := make([]byte, apishared.PagesPerExport)
 	// all the buffers share the same underlying storage (pages)
-	buffer := make([][]byte, sharedconst.MaxExportParam)
+	buffer := make([][]byte, apishared.MaxExportParam)
 	sum := 0
 	bigHeader := (*reflect.SliceHeader)(unsafe.Pointer(&pages))
-	for i := 0; i < len(sharedconst.DynamicSizedData); i++ {
+	for i := 0; i < len(apishared.DynamicSizedData); i++ {
 		sh := (*reflect.SliceHeader)(unsafe.Pointer(&buffer[i]))
-		sh.Len = int(sharedconst.DynamicSizedData[i])
-		sh.Cap = int(sharedconst.DynamicSizedData[i])
+		sh.Len = int(apishared.DynamicSizedData[i])
+		sh.Cap = int(apishared.DynamicSizedData[i])
 		sh.Data = bigHeader.Data + uintptr(sum)
 		shData := (*byte)(unsafe.Pointer(sh.Data))
-		b := unsafe.Slice(shData, sharedconst.DynamicSizedData[i])
+		b := unsafe.Slice(shData, apishared.DynamicSizedData[i])
 		buffer[i] = b
-		sum += int(sharedconst.DynamicSizedData[i])
+		sum += int(apishared.DynamicSizedData[i])
 	}
 	bufferHeader := uintptr(unsafe.Pointer(&buffer))
 
 	// setup the params
-	param := make([]uint64, sharedconst.MaxExportParam)
+	param := make([]uint64, apishared.MaxExportParam)
 	paramHeader := uint32(uintptr(unsafe.Pointer(&param)))
 
 	is32Bit := uint32(1) //true
-	if sharedconst.WasmWidth != 4 {
-		if sharedconst.WasmWidth != 8 {
+	if apishared.WasmWidth != 4 {
+		if apishared.WasmWidth != 8 {
 			panic("unable to understand natural size of wasm implementation")
 		}
 		is32Bit = 0 //64 bit, false
@@ -120,14 +120,14 @@ func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, 
 		pcontext.Debugf(ctx, "wasmExportRun", "we have the peterson lock (wasm)")
 
 		// peterson critical section
-		if uint32(*petersonExclParamSize) == sharedconst.ParamsNotReady {
+		if uint32(*petersonExclParamSize) == apishared.ParamsNotReady {
 			pcontext.Debugf(ctx, "wasmExportRun", "peterson 3A")
 			miss++
 			needSleep = true
 		} else {
 			pcontext.Debugf(ctx, "wasmExportRun", "peterson 3A")
 			miss = 0
-			if uint32(*petersonExclParamSize) == sharedconst.ParamsDie {
+			if uint32(*petersonExclParamSize) == apishared.ParamsDie {
 				exitChan <- struct{}{}
 				return
 			}
@@ -139,21 +139,21 @@ func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, 
 			paramHeader := (*reflect.SliceHeader)(unsafe.Pointer(&param))
 			bufferHeader := (*reflect.SliceHeader)(unsafe.Pointer(&buffer))
 
-			paramHeader.Len = sharedconst.MaxExportParam
-			paramHeader.Cap = sharedconst.MaxExportParam
+			paramHeader.Len = apishared.MaxExportParam
+			paramHeader.Cap = apishared.MaxExportParam
 			// reset buffers
-			bufferHeader.Len = len(sharedconst.DynamicSizedData)
-			bufferHeader.Cap = len(sharedconst.DynamicSizedData)
+			bufferHeader.Len = len(apishared.DynamicSizedData)
+			bufferHeader.Cap = len(apishared.DynamicSizedData)
 			pcontext.Debugf(ctx, "wasmExportRun", "peterson 4")
-			for i := 0; i < len(sharedconst.DynamicSizedData); i++ {
+			for i := 0; i < len(apishared.DynamicSizedData); i++ {
 				buffSliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&buffer[i]))
-				buffSliceHeader.Len = len(sharedconst.DynamicSizedData)
-				buffSliceHeader.Cap = len(sharedconst.DynamicSizedData)
+				buffSliceHeader.Len = len(apishared.DynamicSizedData)
+				buffSliceHeader.Cap = len(apishared.DynamicSizedData)
 			}
 
 			// put the result at slot 0 of the pool
 			param[0] = result
-			*petersonExclParamSize = sharedconst.ParamsNotReady
+			*petersonExclParamSize = apishared.ParamsNotReady
 		}
 		//peterson unlock
 		flag[0] = 0
@@ -165,10 +165,10 @@ func wasmExportRun(ctx context.Context, exitChan chan struct{}, param []uint64, 
 }
 
 func sleepSome(missCount int) {
-	if missCount >= len(sharedconst.SleepSeqMicro) {
-		missCount = len(sharedconst.SleepSeqMicro) - 1
+	if missCount >= len(apishared.SleepSeqMicro) {
+		missCount = len(apishared.SleepSeqMicro) - 1
 	}
-	dur := time.Duration(sharedconst.SleepSeqMicro[missCount]) * time.Microsecond
+	dur := time.Duration(apishared.SleepSeqMicro[missCount]) * time.Microsecond
 	//before := time.Now()
 	time.Sleep(dur)
 	//after := time.Now()

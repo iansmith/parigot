@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/iansmith/parigot/apishared"
 )
 
 var UseBlack = true
@@ -14,13 +16,14 @@ type logContainer struct {
 	lock        *sync.Mutex
 	front, back int
 	line        [MaxContainerSize]*logLine
+	origin      string
 }
 
-func newLogContainer() *logContainer {
-	return &logContainer{lock: new(sync.Mutex)}
+func newLogContainer(orig string) *logContainer {
+	return &logContainer{lock: new(sync.Mutex), origin: orig}
 }
 
-func (c *logContainer) StackTrace(ctx context.Context, detailPrefix, header, footer, funcName string) {
+func (c *logContainer) StackTrace(ctx context.Context) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -28,15 +31,26 @@ func (c *logContainer) StackTrace(ctx context.Context, detailPrefix, header, foo
 	n := runtime.Stack(b, false)
 	s := string(b[:n])
 
+	fn := pullFunc(ctx, "")
+	src := PullSource(ctx, StackTraceInternal)
+
+	c.addLogLineNoLock(ctx, NewLogLine(ctx, src, Debug,
+		fn, true, ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"))
+
 	rd := strings.NewReader(s)
-	c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, header))
 	scanner := bufio.NewScanner(rd)
+
+	total := 0
 	for scanner.Scan() {
-		curr := ">   " + scanner.Text()
-		c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, curr))
+		curr := "> " + scanner.Text()
+		if total+len(curr) > apishared.ExpectedStackDumpSize {
+			break
+		}
+		c.addLogLineNoLock(ctx, NewLogLine(ctx, src, Debug, fn, true, curr))
 	}
 
-	c.addLogLineNoLock(ctx, LogLineFromPrintf(ctx, StackTraceInternal, Debug, funcName, header))
+	c.addLogLineNoLock(ctx, NewLogLine(ctx, src, Debug, fn, true,
+		"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"))
 }
 
 func (c *logContainer) AddLogLine(ctx context.Context, l LogLine) {
@@ -54,15 +68,18 @@ func (c *logContainer) addLogLineNoLock(ctx context.Context, l *logLine) {
 	}
 }
 
-func (c *logContainer) Dump() {
+func (c *logContainer) Dump(ctx context.Context) {
+	if c.front == c.back {
+		return
+	}
 	i := c.back
 	for i < c.front {
 		// put this line's data in the buffer
 		l := c.line[i]
-		l.Print()
+		l.Print(ctx)
 		i = (i + 1) % MaxContainerSize
 	}
-
+	c.back = i
 }
 
 func GetContainer(ctx context.Context) LogContainer {

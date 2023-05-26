@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apiwasm"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 
 	"github.com/iansmith/parigot/apiwasm/syscall"
@@ -19,23 +20,31 @@ import (
 
 var _ = unsafe.Sizeof([]byte{})
 
-func main() {
-	ctx := pcontext.CallTo(pcontext.ServerWasmContext(context.Background()), "[foo]main")
-	defer pcontext.Dump(ctx)
-	pcontext.Logf(ctx, pcontext.Info, "started main open")
+const pathPrefix = "/parigotvirt/"
 
-	if _, err := os.Open("/parigot/chan/example"); err != nil {
-		log.Printf("xxx err %v", err)
+func main() {
+	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
+	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[foo]main")
+	defer pcontext.Dump(ctx)
+	pcontext.Debugf(ctx, "started main open")
+	pcontext.Dump(ctx)
+	f, err := os.Create("methodcall.v1.AddMultiply")
+	defer f.Close()
+	if err != nil {
+		pcontext.Fatalf(ctx, "ERR IS ", err.Error())
 		return
 	}
-
-	// pcontext.Logf(ctx, pcontext.Info, "started main on")
-	// reader := bufio.NewScanner(os.Stdout)
-	// _, _ = reader.Read(os.Stdin)
-	pcontext.Logf(ctx, pcontext.Info, "read byte")
-	//log.Printf("xxxmain of foo")
-	// syscall.RegisterExport(parigot_main, apiwasm.NewReturnDataWithBuffer,
-	// 	apiwasm.NewString)
+	bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
+	msg := &methodcallmsg.AddMultiplyRequest{}
+	if err := bpi.NextMessage(msg); err != nil {
+		pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
+		pcontext.Dump(ctx)
+		return
+	} else {
+		pcontext.Infof(ctx, "read a bundle %+v", msg)
+		pcontext.Dump(ctx)
+		return
+	}
 	ch := make(chan struct{})
 	pcontext.Logf(ctx, pcontext.Info, "about to call wasm export")
 	closure := syscall.WasmExport("example", example_)

@@ -3,9 +3,9 @@ package sys
 import (
 	"context"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -65,6 +65,7 @@ func (l *remoteSyscall) BlockUntilCall(ctx context.Context, key dep.DepKey, canT
 }
 func sysPrint(ctx context.Context, funcName, spec string, rest ...interface{}) {
 	if sysVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, funcName, spec, rest...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, funcName,
+			spec, rest...)
 	}
 }

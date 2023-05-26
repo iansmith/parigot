@@ -17,7 +17,7 @@ import (
 var exitCode = int32(0)
 
 func main() {
-	ctx := pcontext.CallTo(pcontext.ClientContext(context.Background()), "methodcall main.main")
+	ctx := pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.ClientContext(context.Background()), "methodcalltest main"), "methodcalltest.main")
 	defer pcontext.Dump(ctx)
 	// pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
 	// methodcall.RequireFooServiceOrPanic(ctx)
@@ -31,7 +31,7 @@ func main() {
 	// queue.LocateQueueServiceOrPanic(ctx)
 
 	for {
-		pcontext.Debugf(ctx, "main", "main of methodcall test, waiting....")
+		pcontext.Debugf(ctx, "started up: main of methodcall test, waiting....")
 		time.Sleep(5 * time.Second)
 	}
 
