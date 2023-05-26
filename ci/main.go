@@ -56,7 +56,7 @@ func build(ctx context.Context) error {
 	dockerDir := client.Host().Directory("./ci/")
 
 	// initialize image fron dockerfile
-	// mount a host directory in the container at the '/src' path
+	// mount a host directory in the container at the '/workspaces/parigot' path
 	img := client.Container().Build(dockerDir).WithDirectory("/workspaces/parigot", client.Host().Directory("."),
 		dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "multibuild/", "build/"}}).WithWorkdir("/workspaces/parigot")
 
@@ -98,12 +98,6 @@ func build(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	// // File service
-	// fileService, err := findFiles("apiwasm/file", ".go")
-	// if err != nil {
-	// 	return err
-	// }
 
 	return nil
 }
