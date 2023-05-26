@@ -10,19 +10,19 @@ import (
 )
 
 const (
-	API_VERSION = "v1"
+	apiVersion = "v1"
 
-	Go2WASM   = "go1.21"
-	GO2HOST   = "go1.20.4"
-	GO2PLUGIN = "go1.20.4"
+	goToWASM   = "go1.21"
+	goToHost   = "go1.20.4"
+	goToPlugin = "go1.20.4"
 
 	// EXTRA ARGS FOR BUILDING (placed after the "go build")
 	// use -x for more details from a go compiler
-	EXTRA_HOST_ARGS = ""
+	extraHostArgs = ""
 
-	SYSCALL_CLIENT_SIDE = "apiwasm/syscall/*.go"
+	syscallClientSide = "apiwasm/syscall/*.go"
 
-	REP = "g/file/" + API_VERSION + "/file.pb.go"
+	rep = "g/file/" + apiVersion + "/file.pb.go"
 )
 
 var (
@@ -57,8 +57,14 @@ func build(ctx context.Context) error {
 
 	// initialize image fron dockerfile
 	// mount a host directory in the container at the '/workspaces/parigot' path
-	img := client.Container().Build(dockerDir).WithDirectory("/workspaces/parigot", client.Host().Directory("."),
-		dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "multibuild/", "build/"}}).WithWorkdir("/workspaces/parigot")
+	img := client.Container().
+		Build(dockerDir).
+		WithDirectory(
+			"/workspaces/parigot",
+			client.Host().Directory("."),
+			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/"}},
+		).
+		WithWorkdir("/workspaces/parigot")
 
 	// // get version execute
 	// golang := img.WithExec([]string{"go1.20.4", "version"})
@@ -104,22 +110,16 @@ func build(ctx context.Context) error {
 
 func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-		TEMPLATE=$(shell find command/protoc-gen-parigot -type f -regex ".*\.tmpl")
-		GENERATOR_SRC=$(shell find command/protoc-gen-parigot -type f -regex ".*\.go")
-		build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
-			@rm -f $@
-			$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
-	*/
+	 *	This function `buildProtocGenParigot` is derived from this Makefile code:
+	 *
+	 *	TEMPLATE=$(shell find command/protoc-gen-parigot -type f -regex ".*\.tmpl")
+	 *	GENERATOR_SRC=$(shell find command/protoc-gen-parigot -type f -regex ".*\.go")
+	 *	build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
+	 *		@rm -f $@
+	 *		$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/protoc-gen-parigot
+	 */
 
 	var err error
-	// template, err = findFilesEndWith("command/protoc-gen-parigot", ".tmpl")
-	// if err != nil {
-	// 	return img, err
-	// }
-	// eneratorSrc, err = findFilesEndWith("test", ".go")
-	// if err != nil {
-	// 	return img, err
-	// }
 	template, err = img.WithExec([]string{"bash", "-c", `find command/protoc-gen-parigot -type f -regex ".*\.tmpl"`}).Stdout(ctx)
 	if err != nil {
 		return img, err
@@ -138,23 +138,25 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
 	img = img.WithExec([]string{"rm", "-f", target})
-	img = img.WithExec([]string{GO2HOST, "build", "-o", target, packagePath})
+	img = img.WithExec([]string{goToHost, "build", "-o", target, packagePath})
 
 	return img, nil
 }
 
 func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-		API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
-		TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
-
-		## we just use a single representative file for all the generated code from
-		REP=g/file/$(API_VERSION)/file.pb.go
-		$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
-			@rm -rf g/*
-			buf lint
-			buf generate
-	*/
+	 *	This function `generateRep` is derived from this Makefile code:
+	 *
+	 *	API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
+	 *	TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
+	 *
+	 *	## we just use a single representative file for all the generated code from
+	 *	REP=g/file/$(API_VERSION)/file.pb.go
+	 *	$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
+	 *		@rm -rf g/*
+	 *		buf lint
+	 *		buf generate
+	 */
 
 	var err error
 	apiProto, err = img.WithExec([]string{"bash", "-c", `find api/proto -type f -regex ".*\.proto"`}).Stdout(ctx)
@@ -175,12 +177,13 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 
 func buildFilePWasm(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-		// client side of the file service
-		FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
-		build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
-			@rm -f $@
-			$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
-	*/
+	 *	This function `generateRep` is derived from this Makefile code:
+	 *
+	 *	FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
+	 *	build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
+	 *		@rm -f $@
+	 *		$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
+	 */
 	var err error
 	_, err = img.WithExec([]string{"bash", "-c", `find apiwasm/file -type f -regex ".*\.go"`}).Stdout(ctx)
 	if err != nil {
@@ -190,7 +193,7 @@ func buildFilePWasm(ctx context.Context, img *dagger.Container) (*dagger.Contain
 	target := "build/file.p.wasm"
 	packagePath := "github.com/iansmith/parigot/apiwasm/file"
 	img = img.WithExec([]string{"rm", "-f", target})
-	img = img.WithExec([]string{Go2WASM, "build", "-tags", `"buildvcs=false"`, "-o", target, packagePath})
+	img = img.WithExec([]string{goToWASM, "build", "-tags", `"buildvcs=false"`, "-o", target, packagePath})
 
 	return img, nil
 }
