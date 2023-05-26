@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
@@ -15,7 +16,6 @@ import (
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
-	"github.com/iansmith/parigot/id"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -268,7 +268,7 @@ func (m *myTestServer) Background(ctx context.Context) {
 		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s, retrying...", err.Error())
 		return
 	}
-	pcontext.Logf(ctx, pcontext.Info, "got test from queue %s,%s", payload.Name, payload.FuncName)
+	pcontext.Logf(ctx, pcontext.Info, false, "got test from queue %s,%s", payload.Name, payload.FuncName)
 }
 
 func (m *myTestServer) addAllTests(info *suiteInfo) {

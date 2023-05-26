@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -615,7 +615,8 @@ func (n *NSCore) FindOrCreateMethodId(ctx context.Context, key dep.DepKey, packa
 
 func nscorePrint(ctx context.Context, method, spec string, arg ...interface{}) {
 	if nscoreVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.UnknownS, method, spec, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.UnknownS, method,
+			spec, arg...)
 	}
 }
 

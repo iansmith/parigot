@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"time"
 
+	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
-	"github.com/iansmith/parigot/sharedconst"
 	"github.com/iansmith/parigot/sys"
 )
 
@@ -35,7 +36,7 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	ctx := pcontext.NewContextWithContainer(context.Background())
+	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
 	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
 	defer pcontext.Dump(ctx)
 
@@ -56,12 +57,20 @@ func main() {
 			panic("os.Exit() with code " + fmt.Sprint(code))
 		}
 	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func(context context.Context) {
+		for range c {
+			pcontext.Dump(context)
+			os.Exit(2)
+		}
+	}(ctx)
 
 	go func() {
 		var buf bytes.Buffer
 		for {
 			buf.Reset()
-			time.Sleep(15 * time.Second)
+			time.Sleep(60 * time.Second)
 			deployCtx.Process().Range(func(keyAny, valueAny any) bool {
 				key := keyAny.(string)
 				proc := valueAny.(*sys.Process)
@@ -76,18 +85,18 @@ func main() {
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
 		if err != nil {
-			log.Printf("main of '%s' returned code of %d from %s [%v]", mainProg, code, sharedconst.EntryPointSymbol, err)
+			log.Printf("main of '%s' returned code of %d from %s [%v]", mainProg, code, apishared.EntryPointSymbol, err)
 			pcontext.Logf(ctx, pcontext.Error, "could not start main program:%v", err)
 			return
 		}
 		if code != 0 {
-			log.Printf("main of '%s' returned code of %d from %s (no error returned)", mainProg, code, sharedconst.EntryPointSymbol)
 			pcontext.Logf(ctx, pcontext.Error, "main program '%s' exited with code %d", mainProg, code)
 			return
 		}
 	}
 	if len(main) > 1 {
-		pcontext.Logf(ctx, pcontext.Info, "all main programs completed successfully")
+		pcontext.Logf(ctx, pcontext.Info,
+			"all main programs completed successfully")
 	} else {
 		pcontext.Logf(ctx, pcontext.Info, "main program completed successfully")
 	}

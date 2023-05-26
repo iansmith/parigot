@@ -364,7 +364,8 @@ func (e *EdgeHolder) RemoveRequireSimple(candidate string) bool {
 }
 func depgraphPrint(ctx context.Context, method, spec string, arg ...interface{}) {
 	if depgraphVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method, spec, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method,
+			spec, arg...)
 	}
 }
 func (g *DepGraph) DumpDepgraph(ctx context.Context, method string) {

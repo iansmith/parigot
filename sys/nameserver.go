@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -302,7 +302,8 @@ func (l *LocalNameServer) BlockUntilCall(ctx context.Context, key dep.DepKey, ca
 
 func nameserverPrint(ctx context.Context, methodName string, format string, arg ...interface{}) {
 	if nameserverVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, methodName, format, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, methodName,
+			format, arg...)
 
 	}
 }

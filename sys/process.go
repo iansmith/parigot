@@ -47,7 +47,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true || envVerbose != ""
+var processVerbose = false || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -128,11 +128,13 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		return nil, nil, err
 	}
 	initFn := sym.(ParigotInit)
-	initCtx := pcontext.ServerGoContext(ctx)
+	initCtx := pcontext.NewContextWithContainer(pcontext.ServerGoContext(ctx), "LoadPluginAndAddFunc")
 	ok := initFn.Init(initCtx, engine)
 	if !ok {
+		pcontext.Dump(initCtx)
 		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
 	}
+	pcontext.Dump(initCtx)
 	return plug, initFn, nil
 }
 
@@ -263,7 +265,8 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	procPrint(ctx, "START ", "calling start func %s", p)
 	var info interface{}
 
-	retVal, err := start.Run(ctx, p.microservice.GetArg(), info)
+	runCtx := pcontext.CallTo(pcontext.ServerGoContext(ctx), "Run")
+	retVal, err := start.Run(runCtx, p.microservice.GetArg(), info)
 	procPrint(ctx, "END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {
@@ -285,7 +288,8 @@ func (p *Process) Start(ctx context.Context) (code int) {
 
 func procPrint(ctx context.Context, method string, spec string, arg ...interface{}) {
 	if processVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method, spec, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method,
+			spec, arg...)
 	}
 }
 

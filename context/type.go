@@ -3,8 +3,11 @@ package context
 import (
 	"context"
 	"fmt"
-	"log"
+	"runtime"
+	"runtime/debug"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 )
 
 const MaxLineLen = 512
@@ -18,6 +21,7 @@ const (
 	ParigotFunc         ParigotKey = "parigot_func"
 	ParigotSource       ParigotKey = "parigot_source"
 	ParigotLogContainer ParigotKey = "parigot_log_container"
+	ParigotOrigin       ParigotKey = "parigot_origin"
 )
 
 type LogLevel int
@@ -65,6 +69,7 @@ const (
 	WasiOut            Source = 6
 	WasiErr            Source = 7
 	StackTraceInternal Source = 8
+	SpewInternal       Source = 9
 )
 
 func (s Source) String() string {
@@ -87,6 +92,8 @@ func (s Source) String() string {
 		return "Parigot"
 	case StackTraceInternal:
 		return "StackTr"
+	case SpewInternal:
+		return "   Spew"
 	}
 	panic(fmt.Sprintf("unknown source value %d", int(s)))
 }
@@ -95,16 +102,22 @@ func (s Source) Integer() int {
 	return int(s)
 }
 
-func detailPrefix(ctx context.Context, level LogLevel, source Source, funcName string) string {
-	tString := CurrentTimeString(ctx)
+func detailPrefix(ctx context.Context, level LogLevel, source Source, fn string) string {
+	var tString string
+	rfc822 := true
+	// if source == UnknownS {
+	// 	source = PullSource(ctx, source)
+	// }
+	// if source == ServerWasm || source == Wazero || source == Client {
+	// 	rfc822 = false
+	// }
+	if runtime.GOOS == "wasip1" {
+		rfc822 = false
+	}
+	tString = CurrentTimeString(ctx, rfc822)
 	lString := level.String()
 	sString := source.String()
-	if source == UnknownS {
-		possibleS := ctx.Value(ParigotSource)
-		if possibleS != nil {
-			sString = possibleS.(Source).String()
-		}
-	}
+	funcName := pullFunc(ctx, fn)
 	if funcName == "" {
 		f := ctx.Value(ParigotFunc)
 		if f == nil {
@@ -118,42 +131,73 @@ func detailPrefix(ctx context.Context, level LogLevel, source Source, funcName s
 }
 
 type LogLine interface {
+	Print(context.Context)
 }
 
 type LogContainer interface {
-	StackTrace(ctx context.Context, detailPrefix, header, footer, funcName string)
+	StackTrace(ctx context.Context)
 	AddLogLine(ctx context.Context, l LogLine)
-	Dump()
+	Dump(ctx context.Context)
 }
 
 const stackBufferSize = 4096
 
-func StackTrace(ctx context.Context, funcName string) {
-	detail := fmt.Sprintf("StackTrace (%s) ", funcName)
-	header := detail + ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
-	footer := "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-	b := make([]byte, stackBufferSize) // adjust buffer size to be larger than expected stack
-	s := string(b[:stackBufferSize])
+func StackTrace(ctx context.Context) {
 	cont := GetContainer(ctx)
 	if cont == nil {
-		log.Println(header)
-		log.Print(s)
-		log.Println(footer)
-		return
+		debug.PrintStack()
 	} else {
-		cont.StackTrace(ctx, detail, header, footer, s)
+		cont.StackTrace(ctx)
+	}
+}
+func Spew(ctx context.Context, variable ...interface{}) {
+	cont := GetContainer(ctx)
+	if cont == nil {
+		spew.Dump(variable...)
+	} else {
+		s := spew.Sdump(variable)
+		Raw(ctx, SpewInternal, s)
 	}
 }
 
-func NewContextWithContainer(orig context.Context) context.Context {
+func NewContextWithContainer(orig context.Context, origin string) context.Context {
 	if orig == nil {
 		orig = context.Background()
 		Errorf(orig, "the use of nil context to newContext() is discouraged")
-		StackTrace(orig, "newContext")
+		StackTrace(orig)
 	}
-	cont := newLogContainer()
+	cont := newLogContainer(origin)
 	sanity := LogContainer(cont)
 	ctx := context.WithValue(orig, ParigotTime, time.Now())
 	ctx = context.WithValue(ctx, ParigotLogContainer, sanity)
+	ctx = context.WithValue(ctx, ParigotOrigin, origin)
 	return ctx
+}
+
+func PullSource(ctx context.Context, src Source) Source {
+	if src == UnknownS {
+		possibleS := ctx.Value(ParigotSource)
+		if possibleS != nil {
+			return possibleS.(Source)
+		}
+	}
+	return src
+}
+
+func pullFunc(ctx context.Context, fn string) string {
+	if fn == "" {
+		possibleFn := ctx.Value(ParigotFunc)
+		if possibleFn != nil {
+			return possibleFn.(string)
+		}
+	}
+	return fn
+}
+
+func PullOrigin(ctx context.Context) string {
+	o := ctx.Value(ParigotOrigin)
+	if o == nil {
+		return "!!BAD ORIGIN!!"
+	}
+	return o.(string)
 }

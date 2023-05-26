@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/fatih/color"
 )
@@ -13,6 +14,9 @@ type logLine struct {
 	funcName, spec string
 	value          []interface{}
 	data           [MaxLineLen]byte // c-style terminator (nul byte)
+	raw            bool
+	lock           *sync.Mutex
+	prevCtx        context.Context
 }
 
 var defaultColor *color.Color
@@ -30,35 +34,45 @@ func init() {
 	}
 }
 
-func LogLineFromPrintf(ctx context.Context, src Source, lvl LogLevel, funcName, spec string, rest ...interface{}) *logLine {
-	if src == UnknownS {
-		if v := ctx.Value(ParigotSource); v != nil {
-			src = v.(Source)
-		}
-	}
+func NewLogLine(ctx context.Context, src Source, lvl LogLevel, funcName string,
+	raw bool, spec string, rest ...interface{}) *logLine {
+	src = PullSource(ctx, UnknownS)
 	result := &logLine{}
 	result.level = lvl
 	result.source = src
-	result.funcName = funcName
+	result.funcName = pullFunc(ctx, funcName)
+	result.raw = raw
 	result.spec = spec
+	result.lock = new(sync.Mutex)
 	result.value = rest
+	result.prevCtx = ctx
 	return result
 }
 
-func (ll *logLine) Print() {
-	formatted := fmt.Sprintf(ll.spec, ll.value...)
-	if len(formatted) == 0 {
-		formatted = "\n"
+func (ll *logLine) Print(ctx context.Context) {
+	ll.lock.Lock()
+	defer ll.lock.Unlock()
+
+	var line string
+	if ll.raw {
+		line += ll.spec
 	} else {
-		if len(ll.spec) > 1 && ll.spec[len(ll.spec)-1] != '\n' {
-			if formatted[len(formatted)-1] != '\n' {
-				formatted = formatted + "\n"
+		prefix := detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		if ll.spec == "" {
+			line = fmt.Sprintf("%s", ll.value[0])
+		} else {
+			if len(ll.spec) == 0 {
+				line = "\n"
+			} else {
+				line = fmt.Sprintf(ll.spec, ll.value...)
+				line += "\n"
+			}
+			if len(line) > maxStrLenWithoutColor {
+				diff := len(line) - maxStrLenWithoutColor
+				line = line[diff:]
 			}
 		}
-	}
-	if len(formatted) > maxStrLenWithoutColor {
-		diff := len(formatted) - maxStrLenWithoutColor
-		formatted = formatted[diff:]
+		line = prefix + line
 	}
 	var baseColor *color.Color
 	switch ll.source {
@@ -79,7 +93,10 @@ func (ll *logLine) Print() {
 	case Source(WasiErr):
 		baseColor = color.New(color.FgRed)
 	}
-	baseColor.Print(formatted)
+	mod := addLogLevelVisual(baseColor, ll.level)
+	str := mod.SprintfFunc()(line)
+	fmt.Print(str)
+	//mod.Print(line)
 }
 
 func addLogLevelVisual(c *color.Color, l LogLevel) *color.Color {
