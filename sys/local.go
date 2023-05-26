@@ -3,8 +3,8 @@ package sys
 import (
 	"context"
 
+	"github.com/iansmith/parigot/apishared/id"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 )
 

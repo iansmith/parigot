@@ -8,10 +8,10 @@ import (
 	"runtime"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/sharedconst"
 
 	"github.com/tetratelabs/wazero/api"
 	"google.golang.org/protobuf/proto"
@@ -117,6 +117,7 @@ func readStringFromGuest(mem api.Memory, nameOffset int32) string {
 // registerExport is call by the guest to tell the host that a guest function can be run (really "started")
 // by the host when desired.
 func registerExport(ctx context.Context, mod api.Module, param []uint64) {
+	ctx = pcontext.NewContextWithContainer(ctx, "registerExport")
 	pcontext.Debugf(ctx, "registerExport", "started")
 	//nameHeaderRaw := int32(param[0])
 	paramHeaderRaw := int32(param[1])
@@ -141,6 +142,7 @@ func registerExport(ctx context.Context, mod api.Module, param []uint64) {
 			}
 		}
 	}(closure, flagPtrRaw, turnPtrRaw, uintptr(exclusiveBufferSizePtrRaw))
+	pcontext.Dump(ctx)
 	return
 }
 
@@ -191,7 +193,7 @@ func callSingleGuestFunction(ctx context.Context, mem api.Memory, fn func(), fla
 		panic("out of bounds read of exclusive buffer")
 	}
 
-	if value != sharedconst.ParamsNotReady || fn == nil {
+	if value != apishared.ParamsNotReady || fn == nil {
 		pcontext.Debugf(ctx, "callSingleGuestFunction", "no work to do, client has not picked it up yet")
 		return false
 	} else {
@@ -225,14 +227,14 @@ const sizeofGuestUint64 = 8
 // the data is truncated to fit.  This latter policy is probably best for things like human readable strings. It returns a value
 // suitable for use a parameter that points to the slice that has been altered.
 func writeVariableSizedData(mem api.Memory, buffer uintptr, index int32, length uint32, data *byte, abortTooLarge bool) uint64 {
-	if length > uint32(sharedconst.DynamicSizedData[index]) {
+	if length > uint32(apishared.DynamicSizedData[index]) {
 		if abortTooLarge {
 			msg := fmt.Sprintf("size of data (%d) is larger than size of variable sized buffer (%d) at index (%d)",
-				length, sharedconst.DynamicSizedData[index], index)
+				length, apishared.DynamicSizedData[index], index)
 			panic(msg)
 		}
 		// truncate
-		length = uint32(sharedconst.DynamicSizedData[index])
+		length = uint32(apishared.DynamicSizedData[index])
 	}
 	//get element slice, index * sizeof(sh)
 	sh := buffer + uintptr(index*sizeofGuestSliceHeader)
@@ -277,8 +279,8 @@ func signalNumberOfParameters(mem api.Memory, num uint32, exclusiveBufferSizePtr
 }
 
 func setNumberOfParameters(mem api.Memory, paramHeader uintptr, num uint32) {
-	if num >= sharedconst.MaxExportParam {
-		panic(fmt.Sprintf("too many parameters for guest function call (max is %d)", sharedconst.MaxExportParam))
+	if num >= apishared.MaxExportParam {
+		panic(fmt.Sprintf("too many parameters for guest function call (max is %d)", apishared.MaxExportParam))
 	}
 	// setup params for guest side
 	if ok := mem.WriteUint32Le(uint32(paramHeader), num); !ok {

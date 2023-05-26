@@ -2,7 +2,6 @@ package context
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 )
@@ -25,6 +24,11 @@ func ClientContext(ctx context.Context) context.Context {
 // implemented solely in guest wasm.
 func ServerWasmContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, ServerWasm)
+}
+
+// WazeroContext returns a context that has the source sent to Wazero.
+func WazeroContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ParigotSource, Wazero)
 }
 
 // CurrentTime should *always* be used in both host and guest code to get the current
@@ -53,24 +57,48 @@ func Dump(ctx context.Context) {
 		log.Println("no log container present inside context")
 		return
 	}
-	cont.Dump()
+	cont.Dump(ctx)
 }
 
 // Logf is a shorthand for a call to LogFull with the currently set source in ctx.
 func Logf(ctx context.Context, level LogLevel, spec string, rest ...interface{}) {
-	LogFullf(ctx, level, UnknownS, "", spec, rest...)
+	LogFullf(ctx, level, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
+		spec, rest...)
+}
+
+// Raw creates a new log line with no prefix other than the source.
+// This should be used when dumping lines of text to the logger
+// such as stack traces, lines from stdout, etc.  Most users
+// will never need this function.
+func Raw(ctx context.Context, src Source, line string) {
+	addToContainerOrPrint(ctx, NewLogLine(ctx, PullSource(ctx, src), Debug, pullFunc(ctx, ""), true, line))
+}
+
+// Fatalf is a shorthand for a call to LogFull with the currently set source in ctx.
+func Fatalf(ctx context.Context, spec string, rest ...interface{}) {
+	LogFullf(ctx, Fatal, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
+		spec, rest...)
 }
 
 // Errorf is a shorthand for a call to LogFull with the currently set source in ctx, and
 // log level being Error.
 func Errorf(ctx context.Context, spec string, rest ...interface{}) {
-	LogFullf(ctx, Error, UnknownS, "", spec, rest...)
+	LogFullf(ctx, Error, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
+		spec, rest...)
 }
 
 // Debugf is a shorthand for a call to LogFull with the currently set source in ctx, and
 // log level being Debug.  The function name is the one associated with the given ctx.
 func Debugf(ctx context.Context, spec string, rest ...interface{}) {
-	LogFullf(ctx, Debug, UnknownS, "", spec, rest...)
+	LogFullf(ctx, Debug, PullSource(ctx, UnknownS),
+		pullFunc(ctx, ""), spec, rest...)
+}
+
+// Infof is a shorthand for a call to LogFull with the currently set source in ctx, and
+// log level being Infof.  The function name is the one associated with the given ctx.
+func Infof(ctx context.Context, spec string, rest ...interface{}) {
+	LogFullf(ctx, Debug, PullSource(ctx, UnknownS),
+		pullFunc(ctx, ""), spec, rest...)
 }
 
 // DebugFuncf is a shorthand for a call to LogFull with the currently set source in ctx, and
@@ -87,8 +115,11 @@ func InternalParigot(ctx context.Context) context.Context {
 
 // CurrentTimeString is a wrapper around CurrentTime that returns a string representation
 // of the current time in a standard form (RFC822Z).
-func CurrentTimeString(ctx context.Context) string {
-	return CurrentTime(ctx).Format(time.RFC822Z)
+func CurrentTimeString(ctx context.Context, rfc822 bool) string {
+	if rfc822 {
+		return CurrentTime(ctx).Format(time.RFC822Z)
+	}
+	return CurrentTime(ctx).Format(time.Kitchen)
 }
 
 // CallTo returns a new context with the current function updated to s.
@@ -103,16 +134,27 @@ func CallTo(ctx context.Context, s string) context.Context {
 // that is contained in the context ctx. The funcName can be "" to indicate that the caller
 // is willing to accept whatever value (if any) is inside the current context.  The spec and
 // rest arguments work like fmt.Printf().
-func LogFullf(ctx context.Context, level LogLevel, source Source, funcName, spec string, rest ...interface{}) {
-	detailPrefix := detailPrefix(ctx, level, source, funcName)
-	line := fmt.Sprintf(detailPrefix+spec, rest...)
-	logLine := LogLineFromPrintf(ctx, source, level, funcName, spec, rest...)
+func LogFullf(ctx context.Context, level LogLevel, source Source,
+	funcName string, spec string, rest ...interface{}) {
+	logLine := NewLogLine(ctx, source, level, funcName,
+		false, spec, rest...)
 
+	addToContainerOrPrint(ctx, logLine)
+}
+
+func addToContainerOrPrint(ctx context.Context, line LogLine) {
 	cont := GetContainer(ctx)
 	if cont == nil {
-		log.Println(line)
+		line.Print(ctx)
 		return
 	}
 	container := cont.(*logContainer)
-	container.AddLogLine(ctx, logLine)
+	container.AddLogLine(ctx, line)
+}
+
+// SourceContext lets you build a context that contains any source value.  Most user
+// code will be better off using GoWasmContext() or similar. This is only
+// useful when the source is a variable.
+func SourceContext(ctx context.Context, source Source) context.Context {
+	return context.WithValue(ctx, ParigotSource, source)
 }

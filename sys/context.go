@@ -23,7 +23,7 @@ type DeployContext struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration
@@ -34,7 +34,6 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
 
 	engine := eng.NewWaZeroEngine(ctx, wazero.NewRuntimeConfig())
-	InitializePatch(engine)
 
 	// our notify map is shared by the nameserver
 	notifyMap := &sync.Map{}
@@ -154,7 +153,7 @@ func (d *DeployContext) NotifyMap() *sync.Map {
 }
 
 func (d *DeployContext) instantiateBuiltinHostFunc(ctx context.Context) error {
-	for _, name := range []string{"gojs", "parigot"} {
+	for _, name := range []string{"parigot"} {
 		if _, err := d.engine.InstantiateHostModule(ctx, name); err != nil {
 			return err
 		}

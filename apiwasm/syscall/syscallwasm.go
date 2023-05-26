@@ -3,7 +3,6 @@ package syscall
 import (
 	"fmt"
 
-	"github.com/iansmith/parigot/apiwasm"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -50,7 +49,7 @@ type syscallPtrOut interface {
 func Locate_(int32, int32) int32
 func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
 	out := &syscallmsg.LocateResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.LocateRequest, *syscallmsg.LocateResponse](in, out, Locate_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +70,7 @@ func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
 func Dispatch_(int32, int32) int32
 func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, error) {
 	out := &syscallmsg.DispatchResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.DispatchRequest, *syscallmsg.DispatchResponse](in, out, Dispatch_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +89,7 @@ func BlockUntilCall_(int32, int32) int32
 
 func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error) {
 	out := &syscallmsg.BlockUntilCallResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.BlockUntilCallRequest, *syscallmsg.BlockUntilCallResponse](in, out, BlockUntilCall_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +109,7 @@ func BindMethod_(int32, int32) int32
 
 func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
 	out := &syscallmsg.BindMethodResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.BindMethodRequest, *syscallmsg.BindMethodResponse](in, out, BindMethod_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +129,7 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 func Run_(int32, int32) int32
 func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 	out := &syscallmsg.RunResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.RunRequest, *syscallmsg.RunResponse](in, Run_)
+	err := error(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Run_ failed:%v", err)
 	}
@@ -149,7 +148,7 @@ func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 func Export_(int32, int32) int32
 func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
 	out := &syscallmsg.ExportResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.ExportRequest, *syscallmsg.ExportResponse](in, Export_)
+	err := error(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Export_ failed:%v", err)
 	}
@@ -169,7 +168,7 @@ func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
 func ReturnValue_(int32, int32) int32
 func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error) {
 	out := &syscallmsg.ReturnValueResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.ReturnValueRequest, *syscallmsg.ReturnValueResponse](in, out, ReturnValue_)
+	err := error(nil)
 	if err != nil {
 		return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
 	}
@@ -188,7 +187,7 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 func Require_(int32, int32) int32
 func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error) {
 	out := &syscallmsg.RequireResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.RequireRequest, *syscallmsg.RequireResponse](in, Require_)
+	err := error(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Require_ failed:%v", err)
 	}
@@ -205,9 +204,10 @@ func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error)
 //xxxgo:export exit
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
+
 func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, error) {
 	out := &syscallmsg.ExitResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.ExitRequest, *syscallmsg.ExitResponse](in, out, Require_)
+	err := error(nil)
 	if err != nil {
 		return nil, fmt.Errorf("Exit_ failed:%v", err)
 	}
