@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"math"
 	"os"
 	"reflect"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 
-	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -36,7 +34,8 @@ func main() {
 	}
 	bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
 	msg := &methodcallmsg.AddMultiplyRequest{}
-	if err := bpi.NextMessage(msg); err != nil {
+	errId := id.NewKernelError(id.KernelNoError)
+	if err := bpi.ReadProto(msg, &errId); err != nil {
 		pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
 		pcontext.Dump(ctx)
 		return
@@ -45,16 +44,6 @@ func main() {
 		pcontext.Dump(ctx)
 		return
 	}
-	ch := make(chan struct{})
-	pcontext.Logf(ctx, pcontext.Info, "about to call wasm export")
-	closure := syscall.WasmExport("example", example_)
-	pcontext.Logf(ctx, pcontext.Info, "closure1")
-	go closure(ctx, ch)
-	pcontext.Logf(ctx, pcontext.Info, "closure2")
-	for range ch {
-		log.Printf("got the signal from the closure")
-	}
-
 }
 
 // example is a function that is an example of a function to be exported. From the standpoint of example,
@@ -116,11 +105,12 @@ func readStringFromVariableBuffer(buffer [][]byte, index int, length int) string
 func parigot_main(argv []string, envp map[string]string) {
 	//lib.FlagParseCreateEnv()
 	panic("here")
-	bg := context.Background()
+	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
+	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
 	methodcall.ExportFooServiceOrPanic()
-	methodcall.RequireFooServiceOrPanic(bg)
+	methodcall.RequireFooServiceOrPanic(ctx)
 	s := &fooServer{}
-	methodcall.RunFooService(s)
+	methodcall.RunFooService(ctx, s)
 }
 
 // this type better implement methodcall.v1.FooService
@@ -132,7 +122,7 @@ type fooServer struct {
 // defined in foo.proto.
 //
 
-func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMultiplyRequest) (*methodcallmsg.AddMultiplyResponse, error) {
+func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMultiplyRequest) (*methodcallmsg.AddMultiplyResponse, id.Id) {
 	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.AddMultiply")
 	resp := &methodcallmsg.AddMultiplyResponse{}
 	if req.IsAdd {
@@ -143,7 +133,7 @@ func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMulti
 	return resp, nil
 }
 
-func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequenceResponse, error) {
+func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequenceResponse, id.Id) {
 	pcontext.Debugf(ctx, "LucasSequence", "received call for fooServer.LucasSequence")
 	resp := &methodcallmsg.LucasSequenceResponse{}
 	seq := make([]int32, const_.LucasSize) // -2 because first two are given
@@ -157,11 +147,11 @@ func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequ
 }
 
 // Newton-Raphson method, terms values beyond about 4 are silly
-func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiRequest) error {
+func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiRequest) id.Id {
 	pcontext.Debugf(ctx, "WritePi", "received call for fooServer.AddMultiply")
 
 	if req.GetTerms() < 1 {
-		return fmt.Errorf("number of terms in WritePi must be a positive integer")
+		return id.NewFooError(id.FooErrBadTerms)
 	}
 	runningTotal := 3.0 // k==0 term
 

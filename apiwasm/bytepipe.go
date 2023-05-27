@@ -2,16 +2,18 @@ package apiwasm
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"google.golang.org/protobuf/proto"
 )
 
 type BytePipeIn[T proto.Message] struct {
 	rd       io.Reader
-	ch       chan T
 	syncLost bool
 	ctx      context.Context
 }
@@ -22,23 +24,27 @@ var ErrTooLarge = errors.New("input to read is to large")
 var ErrSyncLost = errors.New("unable to find message boundaries")
 var ErrPipeClosed = errors.New("pipe is closed")
 var ErrUnmarshal = errors.New("unable to unmarshal msg from input ")
+var ErrMarshal = errors.New("unable to marshal msg for output ")
 var ErrTimeout = errors.New("unable to read next byte of input, timeout expired")
 var ErrUnexpectNum = errors.New("byte read is not a hex digit")
+var ErrSignalExit = errors.New("you should shut down")
 
 var timeoutInMillis = 50
+
+type nilableProto interface {
+	proto.Message
+	comparable
+}
 
 // NewBytePipeIn creates a new bytePipeIn that reads on the given reader.
 // NewBytePipeIn creates a goroutine so that the rest of the bytePipeIn
 // can use channels to read the bytes and do timeouts.
-func NewBytePipeIn[T proto.Message](ctx context.Context, rd io.Reader) *BytePipeIn[T] {
-	bpi := &BytePipeIn[T]{rd: rd, ctx: ctx, ch: make(chan T)}
+func NewBytePipeIn[T nilableProto](ctx context.Context, rd io.Reader) *BytePipeIn[T] {
+	bpi := &BytePipeIn[T]{rd: rd, ctx: ctx}
 	return bpi
 }
 
-func (b *BytePipeIn[T]) Chan() chan T {
-	return b.ch
-}
-func (b *BytePipeIn[T]) NextMessage(msg T) error {
+func (b *BytePipeIn[T]) ReadProto(msg T, errId *id.Id) error {
 
 	if b.syncLost == true {
 		b.syncLost = false
@@ -51,24 +57,29 @@ func (b *BytePipeIn[T]) NextMessage(msg T) error {
 
 	var err error
 	sizeBuf := make([]byte, 4)
-	c := []byte{0}
-	// first step is to block waiting for the first byte, can wait forever
-	for i := 0; i < 4; i++ {
-		n, err := b.rd.Read(c)
-		if err != nil || n != 1 {
-			return b.lostSync(err)
-		}
-		sizeBuf[i] = c[0]
+	if err := readConstantSize(b.ctx, b.rd, 5, sizeBuf); err != nil {
+		return err
 	}
-	ctx := pcontext.ServerWasmContext(b.ctx)
-	size, err := b.toInt(pcontext.CallTo(ctx, "toInt"), sizeBuf)
+	ctx := pcontext.CallTo(b.ctx, "toInt")
+	size, err := b.toInt(ctx, sizeBuf)
 	if err != nil {
 		return b.lostSync(err)
+	}
+	if size == 0xffff {
+		return ErrSignalExit
+	}
+
+	isErr := false
+	if size&0x8000 != 0 {
+		isErr = true
+		size &= 0x7fff
+		msg = *new(T) //compilicated way of saying nil
 	}
 
 	if size >= maxProtobufSizeInBytes {
 		return b.lostSync(ErrTooLarge)
 	}
+	c := make([]byte, 1)
 	_, err = b.rd.Read(c)
 	if err != nil {
 		return err
@@ -76,20 +87,18 @@ func (b *BytePipeIn[T]) NextMessage(msg T) error {
 	if c[0] != 32 {
 		return b.lostSync(err)
 	}
-	pcontext.Logf(b.ctx, pcontext.Info, "space value %d", c[0])
 	if size == 0 {
 		return nil
 	}
 	pcontext.Infof(b.ctx, "reading next payload, size is %d", size)
 
-	count := 0
 	result := make([]byte, size)
-	for count < size {
-		rd, err := b.rd.Read(result[count:])
-		if err != nil {
-			return err
-		}
-		count += rd
+	if isErr {
+		hi := binary.LittleEndian.Uint64(result)
+		lo := binary.LittleEndian.Uint64(result[8:])
+		id := id.NewIdCopy(hi, lo)
+		*errId = id
+		return nil
 	}
 	err = proto.Unmarshal(result, msg)
 	if err != nil {
@@ -153,4 +162,65 @@ func (b *BytePipeIn[T]) lostSync(err error) error {
 		return err
 	}
 	return ErrSyncLost
+}
+
+// NewBytePipeOut creates a new BytePipeOut that writes on the given writer.
+func NewBytePipeOut[T nilableProto](ctx context.Context, wr io.Writer) *BytePipeOut[T] {
+	bpi := &BytePipeOut[T]{wr: wr, ctx: ctx}
+	return bpi
+}
+
+type BytePipeOut[T nilableProto] struct {
+	wr  io.Writer
+	ctx context.Context
+}
+
+func (b *BytePipeOut[T]) WriteProto(resp T, errId id.Id) error {
+	if resp == *new(T) { // test for nil
+		out := make([]byte, 16)
+		binary.LittleEndian.PutUint64(out, errId.High())
+		binary.LittleEndian.PutUint64(out[8:], errId.Low())
+		if err := writeConstantSize(b.ctx, b.wr, true, 16, out); err != nil {
+			return err
+		}
+		return nil
+	}
+	buf, err := proto.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	if err := writeConstantSize(b.ctx, b.wr, false, int32(len(buf)), buf); err != nil {
+		return err
+	}
+	return nil
+}
+
+func readConstantSize(ctx context.Context, rd io.Reader, size int32, buf []byte) error {
+	count := int32(0)
+	for count < size {
+		rd, err := rd.Read(buf[count:])
+		if err != nil {
+			return err
+		}
+		count += int32(rd)
+	}
+	return nil
+}
+
+func writeConstantSize(ctx context.Context, wr io.Writer, errorBit bool, size int32, buf []byte) error {
+	sizeInBytes := size
+	if errorBit {
+		sizeInBytes |= 0x8000
+	}
+	str := fmt.Sprintf("%04x ", sizeInBytes)
+
+	count := int32(0)
+	for count < size {
+		n, err := wr.Write([]byte(str)[count:])
+		if err != nil {
+			return err
+		}
+		count += int32(n)
+	}
+	return nil
 }
