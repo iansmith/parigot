@@ -4,6 +4,8 @@ import (
 	"context"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared/id"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
@@ -20,12 +22,13 @@ func main() {
 //go:linkname parigot_main
 func parigot_main() {
 	lib.FlagParseCreateEnv()
+	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
+	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
 
-	bg := context.Background()
 	methodcall.ExportBarServiceOrPanic()
-	methodcall.RequireFooServiceOrPanic(bg)
+	methodcall.RequireFooServiceOrPanic(ctx)
 	s := &barServer{}
-	methodcall.RunBarService(s)
+	methodcall.RunBarService(ctx, s)
 }
 
 // this type better implement methodcall.v1.BarService
@@ -38,7 +41,7 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, error) {
+func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, id.Id) {
 	resp := &methodcallmsg.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
@@ -57,12 +60,12 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	reqMul.Value1 = 1 // identity to start
 
 	var respAdd, respMul *methodcallmsg.AddMultiplyResponse
-	var err error
+	var errId id.Id
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, err = b.foo.AddMultiply(reqAdd)
-		if err != nil {
-			return nil, err
+		respAdd, errId = b.foo.AddMultiply(reqAdd)
+		if errId.IsError() {
+			return nil, errId
 		}
 		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD (%d,%d) iteration #%d, result add %d",
 		// 	reqAdd.GetValue0(), reqAdd.GetValue1(), i, respAdd.Result)
@@ -70,9 +73,9 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 
 		/// multiply
 		reqMul.Value0 = req.GetValue()[i]
-		respMul, err = b.foo.AddMultiply(reqMul)
-		if err != nil {
-			return nil, err
+		respMul, errId = b.foo.AddMultiply(reqMul)
+		if errId.IsError() {
+			return nil, errId
 		}
 		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "MUL (%d,%d) iteration #%d, result mul %d",
 		// 	reqMul.GetValue0(), reqMul.GetValue1(), i, respMul.Result)

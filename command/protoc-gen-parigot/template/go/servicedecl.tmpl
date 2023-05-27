@@ -37,12 +37,6 @@ import(
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
 
-{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
-{{- if eq false $genTest }}
-    // skipping {{.}}, not in test mode
-    {{- continue }}
-{{- end}}
-
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
@@ -54,7 +48,7 @@ type {{$svcCamel}} interface {
     {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, error) // xxxx
+    (*{{$oParam}}, id.Id) // xxxx
 {{- else -}}
     error
 {{- end -}} {{/* end of output code needed for declaration */}}
@@ -75,9 +69,9 @@ type {{$svcCamel}}Client interface {
     {{$methCamel}}() 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, error) // xxxx
+    (*{{$oParam}}, id.Id)
 {{- else -}}
-    error
+    id.Id
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
@@ -95,30 +89,31 @@ type {{$svcCamel}}Client_ struct {
 var required{{$svc}} bool
 
 // Locate finds a reference to the client interface of {{$svc}}.  
-func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,error) {
+func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,id.Id) {
 	req := &syscallmsg.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
 
-    resp,err:=syscall.Locate(req)
-    if err!=nil {
-        return nil, err
+    resp,errId:=syscall.Locate(req)
+    if errId.IsError() {
+        return nil, errId
     }
     sid:=resp.GetServiceId()
     if resp.GetServiceId()==nil {
         panic("service id is nil, can't create ClientSideService")
     }
+
     srvid:=id.Unmarshal(sid)
     if srvid.IsError() {
-        return nil, id.NewPerrorFromId("failed to unmarshal service id",srvid)
+        return nil,srvid
     }
     service:=id.Unmarshal(resp.GetServiceId())
     cs := lib.NewClientSideService(ctx, service, "{{$svc}}Client")
     
     return &{{$svc}}Client_{
         ClientSideService: cs,
-    }, nil
+    }, id.NewKernelError(id.KernelNoError)
 }
 
 func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
@@ -129,7 +124,7 @@ func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
     result, err:=Locate{{$svc}}(ctx)
 
     if err!=nil {
-        panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+        panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     return result
 }
@@ -137,15 +132,15 @@ func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
 func Require{{$svc}}OrPanic(ctx context.Context) {
     _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
     if err!=nil {
-        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     required{{$svc}}=true
 }
 
 func Export{{$svc}}OrPanic() {
     _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
-    if err!=nil {
-        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    if err.IsError() {
+        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
 }
 func Wait{{$svc}}OrPanic() {
@@ -163,11 +158,6 @@ func Wait{{$svc}}OrPanic() {
 {{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
-{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
-{{- if eq false $genTest }}
-    // skipping {{.}}, not in test mode
-    {{- continue }}
-{{- end}}
 
 {{- if .InputCodeNeeded -}}
 func (i *{{$svcCamel}}Client_) {{$methCamel}}(in {{$inParam}}) 
@@ -175,9 +165,9 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}(in {{$inParam}})
 func (i *{{$svcCamel}}Client_) {{$methCamel}}() 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, error) {
+    ({{$outParam}}, id.Id) {
 {{- else -}}
-    error {
+    id.Id {
 {{- end -}} {{/* end of output code needed for declaration */}}
 
 {{- if .OutputCodeNeeded }}
@@ -195,15 +185,14 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}()
         return err
     }
 {{ end }} {{/* end of output code needed for return */}}
-
 {{- if .OutputCodeNeeded }}
-    err = resp.Result.UnmarshalTo(out)
-    if err!=nil {
-        return nil,id.NewPerrorFromError("failed to unmarshal result (generated code):",err)
+    unmarsh := resp.Result.UnmarshalTo(out)
+    if unmarsh!=nil {
+        return nil,id.NewKernelError(id.KernelNoError)
     }
-    return out,nil
+    return out,id.NewKernelError(id.KernelNoError)
 {{- else }} {{/* other side of output code needed */}}
-    return nil
+    return id.NewKernelError(id.KernelNoError)
 {{- end }} {{/* output code needed */}}
 }
 {{end}} {{/*ranging over methods*/}}

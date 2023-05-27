@@ -29,13 +29,13 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, id.Id) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, id.NewPerrorFromError("unable to convert param for dispatch into Any", err)
+			return nil, id.NewKernelError(id.KernelEncodeError)
 		}
 	}
 	if c.svc == nil {
@@ -51,7 +51,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	return syscall.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
+func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.Id) {
 	req := syscallmsg.RunRequest{
 		Wait: true,
 	}
@@ -62,7 +62,7 @@ func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
+func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.Id) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -76,7 +76,7 @@ func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
+func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.Id) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
