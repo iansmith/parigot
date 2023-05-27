@@ -3,6 +3,7 @@ package syscall
 import (
 	"fmt"
 
+	"github.com/iansmith/parigot/apishared/id"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -43,17 +44,15 @@ type syscallPtrOut interface {
 //
 // func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export locate
 //go:wasmimport parigot locate_
 func Locate_(int32, int32) int32
-func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
+func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Id) {
 	out := &syscallmsg.LocateResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return out, id.NewKernelError(id.KernelNoError)
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -64,16 +63,14 @@ func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
 // if the error parameter is nil, the Dispatch() occurred successfully.
 // This is code that runs on the WASM side.
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export dispatch
 //go:wasmimport parigot dispatch_
 func Dispatch_(int32, int32) int32
-func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, error) {
+func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.Id) {
 	out := &syscallmsg.DispatchResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return out, nil
 }
 
@@ -123,16 +120,14 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 //
 // func Run(*syscallmsg.RunRequest) *syscallmsg.RunResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export run
 //go:wasmimport parigot run_
 func Run_(int32, int32) int32
-func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
+func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.Id) {
 	out := &syscallmsg.RunResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, fmt.Errorf("Run_ failed:%v", err)
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Run_ failed:%v", err)
+	// }
 	return out, nil
 }
 
@@ -140,18 +135,14 @@ func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
 // This is not needed by most user code that will use queue.ExportQueueServiceOrPanic()
 // to export itself as the queue service.
 //
-// func Export(*syscallmsg.ExportRequest) (*syscallmsg.ExportResponse,error)
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export export
 //go:wasmimport parigot export_
 func Export_(int32, int32) int32
-func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
+func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Id) {
 	out := &syscallmsg.ExportResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, fmt.Errorf("Export_ failed:%v", err)
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Export_ failed:%v", err)
+	// }
 	return out, nil
 }
 
@@ -160,18 +151,14 @@ func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
 // from the caller.  User code will typically use the wrappers around
 // this that make the method calls looking synchronous.
 //
-// func ReturnValue(*syscallmsg.ReturnValueRequest) *syscallmsg.ReturnValueResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export return_value
 //go:wasmimport parigot return_value_
 func ReturnValue_(int32, int32) int32
-func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error) {
+func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, id.Id) {
 	out := &syscallmsg.ReturnValueResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
+	// }
 	return out, nil
 }
 
@@ -179,18 +166,14 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 // This is not needed by most user code that will use queue.ImpleQueueServiceOrPanic()
 // to import the queue service.
 //
-// func Require(*syscallmsg.RequireRequest) *syscallmsg.RequireResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export require
 //go:wasmimport parigot require_
 func Require_(int32, int32) int32
-func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error) {
+func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.Id) {
 	out := &syscallmsg.RequireResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, fmt.Errorf("Require_ failed:%v", err)
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Require_ failed:%v", err)
+	// }
 	return out, nil
 }
 
@@ -198,10 +181,6 @@ func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error)
 // the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
 // will marke it dead and so forth.
 //
-// func Exit(*syscallmsg.ExitRequest) *syscallmsg.ExitResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export exit
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
 
@@ -213,17 +192,3 @@ func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, error) {
 	}
 	return out, nil
 }
-
-// RegisterExport is how a wasm-implemented, guest function is made avaialble to be called at any time from
-// the host side.  Note that this function must be called by the same guest-side goroutine that was
-// created for WasmExport.
-//
-//go:noescape
-//go:wasmimport parigot register_export_
-func RegisterExport(nameHeader uint32, //reflect.StringHeader
-	poolHeader uint32, //*reflect.SliceHeader
-	is32Bit uint32,
-	buffer uint32, //*reflect.SliceHeader
-	exclusiveBufferSizePtr uint32, // *int32
-	flagPtr uint32, // *[2]int32
-	turnPtr uint32) // *int32

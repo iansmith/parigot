@@ -133,6 +133,7 @@ func (i *IdBase) IsError() bool {
 		print("------------- IS ERROR CALLED ON NO ERROR TYPE --------------\n")
 		return false
 	}
+	// and with bytes 0-5 turned on
 	high := i.h & 0xffffffffffff
 	return high != 0 || i.l != 0
 }
