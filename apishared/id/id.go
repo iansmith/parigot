@@ -3,8 +3,11 @@ package id
 import (
 	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"unsafe"
+
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 )
 
 // Id is a type representing a global identifier in parigot.  They are composed of
@@ -161,4 +164,83 @@ func idBaseFromConst(i uint64, isErrType bool, letter byte) *IdBase {
 		h: binary.LittleEndian.Uint64(buf),
 		l: i,
 	}
+}
+
+//
+// ID ROOT
+//
+
+type IdInterface interface {
+	ShortString() string
+	Letter() byte
+	IsError() bool
+}
+
+type IdRoot[T IdInterface] struct {
+	high, low uint64
+}
+
+func NewIdRoot[T IdInterface](t T) IdRoot[T] {
+	high := rand.Uint64()
+	low := rand.Uint64()
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(high))
+	buf[7] = t.Letter()
+	buf[6] = 0 // no low order bitset
+	high = binary.LittleEndian.Uint64(buf)
+	id := IdRoot[T]{
+		high: high,
+		low:  low,
+	}
+	return id
+}
+
+func ZeroValue[T IdInterface](t T) IdRoot[T] {
+	buf := make([]byte, 0)
+	binary.LittleEndian.PutUint64(buf, uint64(0xffffffffffff))
+	buf[7] = t.Letter()
+	if t.IsError() {
+		buf[6] = 0x80
+	}
+	h := binary.LittleEndian.Uint64(buf)
+	l := uint64(0xffffffffffffffff)
+	return IdRoot[T]{high: h, low: l}
+}
+
+func NewIdRootError[T IdInterface](t T, code IdRootErrorCode) IdRoot[T] {
+	high := uint64(0)
+	low := uint64(code)
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, high)
+	buf[7] = t.Letter()
+	buf[6] = 0 & 0x80
+	high = binary.LittleEndian.Uint64(buf)
+	id := IdRoot[T]{
+		high: high,
+		low:  low,
+	}
+	return id
+}
+
+func UnmarshalProtobuf[T IdInterface](t T, msg *protosupportmsg.BaseId) (IdRoot[T], IdErr) {
+	h := msg.GetHigh()
+	l := msg.GetLow()
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, h)
+	if buf[7] != t.Letter() {
+		return IdRoot[T]{0, 0}, NewIdErr(IdErrTypeMismatch)
+	}
+	if buf[7] == 0 {
+		return IdRoot[T]{0, 0}, NewIdErr(IdErrNoType)
+	}
+	return IdRoot[T]{h, l}, NoIdErr
+}
+
+func MarshalProtobuf[T IdInterface](t IdRoot[T]) *protosupportmsg.BaseId {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, t.high)
+	h := binary.LittleEndian.Uint64(buf)
+	binary.LittleEndian.PutUint64(buf, t.low)
+	l := binary.LittleEndian.Uint64(buf)
+	return &protosupportmsg.BaseId{High: h, Low: l}
 }
