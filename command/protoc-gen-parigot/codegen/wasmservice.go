@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -89,16 +90,19 @@ func (w *WasmService) GetWasmServiceErrId() string {
 		return w.wasmServiceErrId
 	}
 
-	cand, ok := isWasmServiceErrId(w.ServiceDescriptorProto.GetOptions().String())
-	if !ok {
+	if w.ServiceDescriptorProto.GetOptions() == nil {
 		pkg := w.GetGoPackage()
 		part := strings.Split(pkg, ";")
 		if len(part) != 2 {
 			panic(fmt.Sprintf("unable to understand pkg name from protobuf file: %s", pkg))
 		}
-		cand = strings.ToUpper(part[1][0:1]) + part[1][1:] + "ErrId"
+		cand := strings.ToUpper(part[1][0:1]) + part[1][1:] + "ErrId"
+		w.wasmServiceErrId = cand
+		return cand
 	}
+	cand, ok := isWasmServiceErrId(w.ServiceDescriptorProto.GetOptions().String())
 	w.wasmServiceErrId = cand
+	log.Printf("found an option! candidate is %s, ok is %v", cand, ok)
 	return cand
 }
 

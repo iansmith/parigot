@@ -61,6 +61,11 @@ func UnmarshalMethodId(b *protosupportmsg.IdRaw) (MethodId, IdErr) {
 	return MethodId(fid), NoIdErr
 }
 
+func NewMethodId() MethodId {
+	idroot := NewIdRoot[defMethod]()
+	return MethodId(idroot)
+}
+
 //
 // End Boilerplate for Method
 //

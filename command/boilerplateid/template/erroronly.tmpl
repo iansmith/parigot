@@ -10,6 +10,7 @@ import (
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+    "github.com/tetratelabs/wazero/api"
 )
 //
 //  Begin Boilerplate for {{.errorName}}
@@ -71,6 +72,15 @@ func (f {{.errorName}}Id) IsError() bool{
 func New{{.errorName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.errorName}}Id {
 	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[def{{.errorName}}](in)) //xx
 }
+func (f {{.errorName}}Id) WriteGuestLe(mem api.Memory, offset uint32) bool {
+    return {{.errorCast}}.WriteGuestLe(mem,offset)
+}
+func (f {{.errorName}}Id) MustWriteGuestLe(mem api.Memory, offset uint32) {
+    if !{{.errorCast}}.WriteGuestLe(mem,offset){
+        panic("cannot write error code to guest memory, giving up")
+    }
+}
+
 //
 // End Boilerplate for {{.errorName}}
 //

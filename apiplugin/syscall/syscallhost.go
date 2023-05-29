@@ -2,19 +2,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"reflect"
-	"runtime"
-	"unsafe"
 
 	"github.com/iansmith/parigot/apishared"
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
-	"google.golang.org/protobuf/proto"
 )
 
 type syscallPlugin struct{}
@@ -35,14 +31,14 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "require_", require)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
-	e.AddSupportedFunc_7i32_v(ctx, "parigot", "register_export_", registerExport)
 
-	currentEng = e
 	return true
 }
 
 func locate(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("locate %s 0x%x", m.Name(), stack)
+	log.Printf("locate %s 0=0x%x, 1=0x%x", m.Name(), stack[0], stack[1])
+	stack[0] = 82
+	return
 }
 
 func dispatch(ctx context.Context, m api.Module, stack []uint64) {
@@ -65,29 +61,29 @@ func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("returnValue 0x%x", stack)
 }
 
-func require(ctx context.Context, m api.Module, stack []uint64) {
-	instance, err := currentEng.InstanceByName(ctx, m.Name())
-	log.Printf("XXX>>> %s:require got %p, %v", m.Name(), instance, err)
-	if err != nil {
-		panic(fmt.Sprintf("attempt to find module that called require failed, module is: %s", m.Name()))
+func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.KernelErrId {
+	pcontext.Debugf(ctx, "got a call to require impl")
+	fqn := req.GetService()
+	for _, fullyQualified := range fqn {
+		_, ok := SData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		if !ok {
+			pcontext.Errorf(ctx, "expected to be able to establish service %s.%s but failed",
+				fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		} else {
+			pcontext.Infof(ctx, "created service %s.%s", fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		}
 	}
-	length := eng.Util.DecodeU32(stack[0])
-	ptr := eng.Util.DecodeU32(stack[1])
-	memList, err := instance.Memory(ctx)
-	if err != nil {
-		panic(fmt.Sprintf("retreiving memory object from instance failed: %v ", err))
-	}
-	mem := memList[0]
-	rawPb, err := mem.ReadBytes(ptr, length)
-	if err != nil {
-		panic(fmt.Sprintf("retreiving guest bytes of memory failed: %v ", err))
-	}
-	in := &syscallmsg.LocateRequest{}
-	if err := proto.Unmarshal(rawPb, in); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal guest data: %v", err))
-	}
-	log.Printf("got the sent data in require! %s,%s", in.PackageName, in.ServiceName)
+	return id.KernelErrIdNoErr
 }
+
+func require(ctx context.Context, m api.Module, stack []uint64) {
+	pcontext.Debugf(ctx, "xxx -- required received %04x, %04x, %04x, %04x", stack[0], stack[1], stack[2], stack[3])
+	req := &syscallmsg.RequireRequest{}
+	resp := (*syscallmsg.RequireResponse)(nil)
+	invokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
+	return
+}
+
 func exit(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("exit 0x%x", stack)
 	panic("exit called ")
@@ -98,7 +94,7 @@ func readStringFromGuest(mem api.Memory, nameOffset int32) string {
 	if !ok {
 		panic("unable to read the length of a string from the guest")
 	}
-	data := uint32(nameOffset + sizeofGuestInt)
+	data := uint32(nameOffset + apishared.WasmWidth)
 	ptr, ok := mem.ReadUint32Le(data)
 	if !ok {
 		panic("unable to read the data pointer of a string from the guest")
@@ -112,191 +108,4 @@ func readStringFromGuest(mem api.Memory, nameOffset int32) string {
 		result[int(i)] = b
 	}
 	return string(result)
-}
-
-// registerExport is call by the guest to tell the host that a guest function can be run (really "started")
-// by the host when desired.
-func registerExport(ctx context.Context, mod api.Module, param []uint64) {
-	ctx = pcontext.NewContextWithContainer(ctx, "registerExport")
-	pcontext.Debugf(ctx, "registerExport", "started")
-	//nameHeaderRaw := int32(param[0])
-	paramHeaderRaw := int32(param[1])
-	//is32Bit := int32(param[2])
-	bufferRaw := int32(param[3])
-	exclusiveBufferSizePtrRaw := uint32(param[4])
-	flagPtrRaw := uintptr(int32(param[5]))
-	turnPtrRaw := uintptr(int32(param[6]))
-
-	mem := mod.Memory()
-	closure := func() {
-		exampleHost(ctx, uintptr(paramHeaderRaw), uintptr(bufferRaw), uintptr(exclusiveBufferSizePtrRaw), mem)
-	}
-	pcontext.Debugf(ctx, "registerExport", "about to fork")
-	// xxx just for testing... normally should keep a table that maps name to closure
-	go func(fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) {
-		cont := pcontext.CallTo(pcontext.ServerGoContext(ctx), "callSingleGuestFunction")
-		for {
-			if callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw) {
-				callSingleGuestFunction(cont, mem, fn, flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw)
-				break
-			}
-		}
-	}(closure, flagPtrRaw, turnPtrRaw, uintptr(exclusiveBufferSizePtrRaw))
-	pcontext.Dump(ctx)
-	return
-}
-
-// callSingleGuestFunction does exactly what it says.  It expects a closure in fn to actually do the call and gather result.  The other parameters
-// are so this function can use a mutual exclusion algorithm with th guest.
-func callSingleGuestFunction(ctx context.Context, mem api.Memory, fn func(), flagPtrRaw, turnPtrRaw, exclusiveBufferSizePtrRaw uintptr) bool {
-
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson0")
-	//peterson lock
-	flag0 := flagPtrRaw
-	flag1 := flagPtrRaw + sizeofGuestInt
-
-	// ptr1 = 1 b/c we want to enter crit sect
-
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "trying peterson lock(1)")
-	if ok := mem.WriteUint32Le(uint32(flag1), uint32(1)); !ok {
-		panic("out of bounds write of flag ptr 1 = 1")
-	}
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "trying peterson lock(2)")
-	// set the turn to be the guest side
-	if ok := mem.WriteUint32Le(uint32(turnPtrRaw), uint32(0)); !ok {
-		panic("out of bounds write of turn ptr [1]")
-	}
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson1 ... ")
-	for { // while flag[0]==true and turn==0
-		fl0, ok := mem.ReadUint32Le(uint32(flag0))
-		if !ok {
-			panic("unable to read the flag[0] value from the guest system")
-		}
-
-		turn, ok := mem.ReadUint32Le(uint32(turnPtrRaw))
-		if !ok {
-			panic("unable to read the turn value from the guest system")
-		}
-		//pcontext.Debugf(ctx, "callSingleGuestFunction", "busy wait host %d,%d", fl0, turn)
-
-		if fl0 == 1 && turn == 0 {
-			runtime.Gosched()
-			continue
-		}
-		break
-	}
-
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson2 %x\n", uint32(exclusiveBufferSizePtrRaw))
-	// peterson critical section
-	value, ok := mem.ReadUint32Le(uint32(exclusiveBufferSizePtrRaw))
-	if !ok {
-		panic("out of bounds read of exclusive buffer")
-	}
-
-	if value != apishared.ParamsNotReady || fn == nil {
-		pcontext.Debugf(ctx, "callSingleGuestFunction", "no work to do, client has not picked it up yet")
-		return false
-	} else {
-		fn()
-		pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson3 -- invoked fn\n")
-
-	}
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson6 -- waiting on confirm fn\n")
-	//peterson unlock
-	if ok := mem.WriteUint32Le(uint32(flag1), 0); !ok {
-		panic("unable to write peterson flag 1 back to guest")
-	}
-	pcontext.Debugf(ctx, "callSingleGuestFunction", "HOST peterson7\n")
-	return true
-}
-
-func writeParam(mem api.Memory, paramHeader uintptr, index int32, value uint64) {
-	if ok := mem.WriteUint64Le(uint32(paramHeader+(uintptr(index)*sizeofGuestUint64)), value); !ok {
-		panic(fmt.Sprintf("unable to write guest parameter int param slice (%d)\n", index))
-	}
-}
-
-const sizeofGuestInt = 4
-const sizeofGuestSliceHeader = 12
-const sizeofGuestByte = 1
-const sizeofGuestUint64 = 8
-
-// writeVariableSized data copies the data pointed to by data, with length length into the slice at index index inside buffer. Buffer is an
-// slice of []byte. If the data is too large to fit in the buffer chosen by index, abortTooLarge is consulted.  If abortTooLarge is
-// true, then the program panics.  This is appropriate for sending data that must be received in full. If abortTooLarge is false,
-// the data is truncated to fit.  This latter policy is probably best for things like human readable strings. It returns a value
-// suitable for use a parameter that points to the slice that has been altered.
-func writeVariableSizedData(mem api.Memory, buffer uintptr, index int32, length uint32, data *byte, abortTooLarge bool) uint64 {
-	if length > uint32(apishared.DynamicSizedData[index]) {
-		if abortTooLarge {
-			msg := fmt.Sprintf("size of data (%d) is larger than size of variable sized buffer (%d) at index (%d)",
-				length, apishared.DynamicSizedData[index], index)
-			panic(msg)
-		}
-		// truncate
-		length = uint32(apishared.DynamicSizedData[index])
-	}
-	//get element slice, index * sizeof(sh)
-	sh := buffer + uintptr(index*sizeofGuestSliceHeader)
-	// write len
-	if ok := mem.WriteUint32Le(uint32(sh), length); !ok {
-		panic("unable to write data int len field of variable buffer, out of bounds")
-	}
-	// write cap
-	if ok := mem.WriteUint32Le(uint32(sh+sizeofGuestInt), length); !ok {
-		panic("unable to write data int cap field of variable buffer, out of bounds")
-	}
-	// data pointer
-	destArea := uint32(sh + (2 * sizeofGuestInt))
-	for i := uint32(0); i < length; i++ {
-		dest := destArea + (i * sizeofGuestByte)
-		source := (*byte)(unsafe.Pointer((uintptr(unsafe.Pointer(data)) + (uintptr(i) * sizeofGuestByte))))
-		if ok := mem.WriteByte(dest, *source); !ok {
-			panic("unable to write variable sized data, during data copy out of bounds")
-		}
-	}
-	return uint64(sh)
-}
-
-func exampleHost(ctx context.Context, paramHeader uintptr, buffer uintptr, exclusiveBufferSizePtrRaw uintptr, mem api.Memory) {
-	s := "hello, parigot"
-
-	log.Printf("example host setting up params--- we have the lock!: %v", paramHeader == 0)
-	setNumberOfParameters(mem, paramHeader, uint32(3))
-	writeParam(mem, paramHeader, 0, uint64(len(s)))
-	writeParam(mem, paramHeader, 1, writeStringToVariableSizeBuffer(mem, buffer, s, 6))
-	writeParam(mem, paramHeader, 2, 42)
-	signalNumberOfParameters(mem, uint32(3), exclusiveBufferSizePtrRaw)
-	log.Printf("signaled num of params-- we have the lock: %v", 3)
-
-}
-
-func signalNumberOfParameters(mem api.Memory, num uint32, exclusiveBufferSizePtrRaw uintptr) {
-	if ok := mem.WriteUint32Le(uint32(exclusiveBufferSizePtrRaw), num); !ok {
-		panic("signal number of params, out of bounds")
-	}
-
-}
-
-func setNumberOfParameters(mem api.Memory, paramHeader uintptr, num uint32) {
-	if num >= apishared.MaxExportParam {
-		panic(fmt.Sprintf("too many parameters for guest function call (max is %d)", apishared.MaxExportParam))
-	}
-	// setup params for guest side
-	if ok := mem.WriteUint32Le(uint32(paramHeader), num); !ok {
-		panic("unable to write parameter to example guest function")
-	}
-	// setup params for guest side
-	if ok := mem.WriteUint32Le(uint32(paramHeader+sizeofGuestUint64), num); !ok {
-		panic("unable to write parameter to example guest function")
-	}
-}
-
-// writeStringToVariableSizeBuffer is a convenience wrapper for writeVariableSizedData that handles putting a string into
-// one of the variable sized buffers.
-func writeStringToVariableSizeBuffer(mem api.Memory, buffer uintptr, s string, index int32) uint64 {
-	strHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	sData := (*byte)(unsafe.Pointer(strHeader.Data))
-	l := uint32(len(s))
-	return writeVariableSizedData(mem, buffer, index, l, sData, false)
 }

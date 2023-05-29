@@ -61,6 +61,11 @@ func UnmarshalCallId(b *protosupportmsg.IdRaw) (CallId, IdErr) {
 	return CallId(fid), NoIdErr
 }
 
+func NewCallId() CallId {
+	idroot := NewIdRoot[defCall]()
+	return CallId(idroot)
+}
+
 //
 // End Boilerplate for Call
 //

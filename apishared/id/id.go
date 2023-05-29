@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	"github.com/tetratelabs/wazero/api"
 )
 
 // Id is a type representing a global identifier in parigot.  They are composed of
@@ -285,6 +286,10 @@ func (i IdRoot[T]) Short() string {
 	return fmt.Sprintf("[%s-%02x%02x%02x]", t.ShortString(), low[2], low[1], low[0])
 }
 
+func (i IdRoot[T]) WriteGuestLe(mem api.Memory, offset uint32) bool {
+	return IdRaw(i).WriteGuestLe(mem, offset)
+}
+
 func (i IdRoot[T]) String() string {
 	var t T
 	highByte := i.Raw().HighLE()
@@ -389,6 +394,18 @@ func (r IdRaw) IsError() bool {
 		return false
 	}
 	if buf[0] == 0 && buf[1] == 0 {
+		return false
+	}
+	return true
+}
+
+// WriteGuestLe is a function that copies this into a memory space pointed to by
+// by the offset into memory mem.
+func (r IdRaw) WriteGuestLe(mem api.Memory, offset uint32) bool {
+	if !mem.WriteUint64Le(offset, r.high) {
+		return false
+	}
+	if !mem.WriteUint64Le(offset+8, r.low) {
 		return false
 	}
 	return true
