@@ -373,8 +373,12 @@ func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string,
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
-	e.addSupportFuncAnyType(ctx, pkg, name, api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32, api.ValueTypeI32}, []api.ValueType{api.ValueTypeI32})
+	e.addSupportedFunc_i32i32i32i32_v(ctx, pkg, name, api.GoModuleFunc(raw))
 }
+func (e *wazeroEng) addSupportedFunc_i32i32i32i32_v(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
+	e.addSupportFuncAnyType(ctx, pkg, name, api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}, nil)
+}
+
 func (e *wazeroEng) AddSupportedFunc_i32_v(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
 	e.addSupportFuncAnyType(ctx, pkg, name, api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32}, nil)
 }

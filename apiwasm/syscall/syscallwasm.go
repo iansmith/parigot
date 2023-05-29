@@ -1,38 +1,61 @@
 package syscall
 
 import (
-	"github.com/iansmith/parigot/apishared/id"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"reflect"
+	"unsafe"
 
+	"github.com/iansmith/parigot/apishared"
+	"github.com/iansmith/parigot/apishared/id"
 	"google.golang.org/protobuf/proto"
+
+	//"github.com/iansmith/parigot/apiwasm"
+
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	//"google.golang.org/protobuf/proto"
 )
 
-// xxx possibly dead now?
-type syscallPtrIn interface {
-	proto.Message
-	*syscallmsg.LocateRequest |
-		*syscallmsg.DispatchRequest |
-		*syscallmsg.BlockUntilCallRequest |
-		*syscallmsg.BindMethodRequest |
-		*syscallmsg.RunRequest |
-		*syscallmsg.RequireRequest |
-		*syscallmsg.ExportRequest |
-		*syscallmsg.ReturnValueRequest |
-		*syscallmsg.ExitRequest
+func unwindLenAndPtr(ret uint64) (uint32, uint32) {
+	len64 := ret
+	len64 >>= 32
+	len32 := uint32(len64)
+	ptr64 := ret
+	ptr64 &= 0xffffffff
+	ptr32 := uint32(ptr64)
+	return len32, ptr32
 }
 
-// xxx possibly dead now?
-type syscallPtrOut interface {
-	proto.Message
-	*syscallmsg.LocateResponse |
-		*syscallmsg.DispatchResponse |
-		*syscallmsg.BlockUntilCallResponse |
-		*syscallmsg.BindMethodResponse |
-		*syscallmsg.RunResponse |
-		*syscallmsg.RequireResponse |
-		*syscallmsg.ExportResponse |
-		*syscallmsg.ReturnValueResponse |
-		*syscallmsg.ExitResponse
+// clientSide does the marshalling and unmarshalling needed to read the T given,
+// write the U given, and return the KernelErrId properly. It does these
+// manipulations so you can call a lower level function that is implemented by
+// the host.
+func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32, int32, int32)) (U, id.KernelErrId) {
+	var outErr id.KernelErrId
+	outProtoPtr := u
+	outErrPtr := &outErr
+	var nilU U
+	buf, err := proto.Marshal(t)
+	if err != nil {
+		return nilU, id.NewKernelErrId(id.KernelMarshalFailed)
+	}
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	length := int32(len(buf))
+	req := int32(sh.Data)
+	val := reflect.ValueOf(u)
+	if val.Kind() != reflect.Ptr {
+		panic("client side of syscall passed a proto.Message that is not a pointer")
+	}
+	outBuf := make([]byte, apishared.GuestReceiveBufferSize)
+	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
+	out := int32(sh.Data)
+	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
+	fn(length, req, out, errPtr)
+	if outErr.IsError() {
+		return nilU, outErr
+	}
+	if err := proto.Unmarshal(outBuf, u); err != nil {
+		outErr = id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+	}
+	return outProtoPtr, id.KernelErrIdNoErr
 }
 
 // Locate is the means of aquiring a handle to a particular service.
@@ -43,14 +66,10 @@ type syscallPtrOut interface {
 // func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 //
 //go:wasmimport parigot locate_
-func Locate_(int32, int32) int32
-func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
-	out := &syscallmsg.LocateResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return out, id.KernelErrIdNoErr
+func Locate_(int32, int32, int32, int32)
+func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
+	outProtoPtr := &syscallmsg.LocateResponse{}
+	return clientSide(inPtr, outProtoPtr, Locate_)
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -97,8 +116,6 @@ func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUnti
 //
 // func BindMethod(*syscallmsg.BindMethodRequest) *syscallmsg.BindMethodResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export bindMethod
 //go:wasmimport parigot bind_method_
 func BindMethod_(int32, int32) int32
 
@@ -165,14 +182,11 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 // to import the queue service.
 //
 //go:wasmimport parigot require_
-func Require_(int32, int32) int32
-func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.Id) {
-	out := &syscallmsg.RequireResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Require_ failed:%v", err)
-	// }
-	return out, nil
+func Require_(int32, int32, int32, int32)
+func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
+	print("xxxx GOT TO CLIENT SIDE REQUIRE\n")
+	outProtoPtr := &syscallmsg.RequireResponse{}
+	return clientSide(inPtr, outProtoPtr, Require_)
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing

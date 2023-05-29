@@ -105,12 +105,6 @@ func (s Source) Integer() int {
 func detailPrefix(ctx context.Context, level LogLevel, source Source, fn string) string {
 	var tString string
 	rfc822 := true
-	// if source == UnknownS {
-	// 	source = PullSource(ctx, source)
-	// }
-	// if source == ServerWasm || source == Wazero || source == Client {
-	// 	rfc822 = false
-	// }
 	if runtime.GOOS == "wasip1" {
 		rfc822 = false
 	}
@@ -118,16 +112,8 @@ func detailPrefix(ctx context.Context, level LogLevel, source Source, fn string)
 	lString := level.String()
 	sString := source.String()
 	funcName := pullFunc(ctx, fn)
-	if funcName == "" {
-		f := ctx.Value(ParigotFunc)
-		if f == nil {
-			funcName = "[-unknown-]"
-		} else {
-			funcName = f.(string)
-		}
-	}
 
-	return fmt.Sprintf("%s:%s:%s:%-16s", tString, lString, sString, funcName)
+	return fmt.Sprintf("%s:%s:%s:%s>> ", tString, lString, sString, funcName)
 }
 
 type LogLine interface {

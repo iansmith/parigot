@@ -81,4 +81,12 @@ const (
 	// KernelClosedErr indicates that that object is now closed.  This is used
 	// as a signal when writing data between the guest and host.
 	KernelClosedErr
+	// KernelGuestReadFailed indicates that we did not successfully read
+	// from guest memory. This is usually caused by the address read at being
+	// out of bounds.
+	KernelGuestReadFailed
+	// KernelGuestWriteFailed indicates that we did not successfully write
+	// to guest memory. This is usually caused by the address written at being
+	// out of bounds.
+	KernelGuestWriteFailed
 )

@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"testing"
-	"time"
 
 	pcontext "github.com/iansmith/parigot/context"
 	methg "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
+	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
@@ -24,23 +24,18 @@ func manufactureContext(name string) context.Context {
 func main() {
 	ctx := manufactureContext("[methodcall]main")
 	defer pcontext.Dump(ctx)
-	// pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
-	// methg.RequireFooServiceOrPanic(ctx)
+	pcontext.Debugf(ctx, "main methodcall test")
+
+	methg.RequireFooServiceOrPanic(pcontext.CallTo(ctx, "Require"))
+	pcontext.Debugf(ctx, "main methodcall test2")
+	test.RequireTestServiceOrPanic(ctx)
+	queue.RequireQueueServiceOrPanic(ctx)
 	// methg.RequireBarServiceOrPanic(ctx)
-	// //test.RequireTestServiceOrPanic(bg)
-	// queue.RequireQueueServiceOrPanic(ctx)
 
-	// // now get handles to the services
-	// methg.LocateBarServiceOrPanic(ctx)
-	// methg.LocateFooServiceOrPanic(ctx)
-	// queue.LocateQueueServiceOrPanic(ctx)
+	pcontext.Debugf(ctx, "got three requires done")
+	return
 
-	for {
-		pcontext.Debugf(ctx, "started up: main of methodcall test, waiting....")
-		time.Sleep(5 * time.Second)
-	}
-
-	test.RunUnderTestService(ctx, underTestServer)
+	//test.RunUnderTestService(ctx, underTestServer)
 }
 
 // TestAddMulitply is a test of a function that has both input and output.

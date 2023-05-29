@@ -61,7 +61,7 @@ func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.KernelErrId) {
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.Id) {
+func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.KernelErrId) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
