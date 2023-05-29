@@ -5,7 +5,6 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -13,11 +12,11 @@ import (
 )
 
 type ClientSideService struct {
-	svc    id.Id
+	svc    id.ServiceId
 	caller string
 }
 
-func NewClientSideService(ctx context.Context, id id.Id, caller string) *ClientSideService {
+func NewClientSideService(ctx context.Context, id id.ServiceId, caller string) *ClientSideService {
 	return &ClientSideService{
 		svc:    id,
 		caller: caller,
@@ -29,20 +28,20 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, id.Id) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, id.KernelErrId) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, id.NewKernelError(id.KernelEncodeError)
+			return nil, id.KernelErrIdNoErr
 		}
 	}
-	if c.svc == nil {
+	if c.svc.IsZeroValue() {
 		panic("cannot dispatch to a nil service! client side service field 'svc' is nil")
 	}
 	in := &syscallmsg.DispatchRequest{
-		ServiceId: id.Marshal[protosupportmsg.ServiceId](c.svc),
+		ServiceId: c.svc.Marshal(),
 		Caller:    c.caller,
 		Method:    method,
 		InPctx:    nil,
@@ -51,12 +50,12 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	return syscall.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.Id) {
+func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.KernelErrId) {
 	req := syscallmsg.RunRequest{
 		Wait: true,
 	}
 	out, err := syscall.Run(&req)
-	return out, err
+	return out, id.NewKernelErrIdFromRaw(err)
 }
 
 // Require1 is a thin wrapper over syscall.Require so it's easy

@@ -1,12 +1,13 @@
-package id
+package main
+
+import (
+	"github.com/iansmith/parigot/g/file/v1"
+)
 
 const (
-	// FileNoError means just what it sounds like.  All Ids that are errors represent
-	// no error as 0.
-	FileNoError FileErrorCode = 0
 	// FileBadPath means that the given path (filename) is not valid.
-	FileBadPath FileErrorCode = 1
+	FileBadPath file.FileErrIdCode = iota + file.FileErrIdGuestStart
 	// FileNotFound means that the given path could point to a file (it is valid)
 	// but the path given could not be found on the filesystem.
-	FileNotFound FileErrorCode = 2
+	FileNotFound
 )

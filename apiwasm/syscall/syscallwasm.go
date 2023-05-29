@@ -1,8 +1,6 @@
 package syscall
 
 import (
-	"fmt"
-
 	"github.com/iansmith/parigot/apishared/id"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
@@ -46,13 +44,13 @@ type syscallPtrOut interface {
 //
 //go:wasmimport parigot locate_
 func Locate_(int32, int32) int32
-func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Id) {
+func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
 	out := &syscallmsg.LocateResponse{}
 	// err := error(nil)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	return out, id.NewKernelError(id.KernelNoError)
+	return out, id.KernelErrIdNoErr
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -65,13 +63,13 @@ func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Id) {
 //
 //go:wasmimport parigot dispatch_
 func Dispatch_(int32, int32) int32
-func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.Id) {
+func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.KernelErrId) {
 	out := &syscallmsg.DispatchResponse{}
 	// err := error(nil)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	return out, nil
+	return out, id.KernelErrIdNoErr
 }
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
@@ -122,13 +120,13 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 //
 //go:wasmimport parigot run_
 func Run_(int32, int32) int32
-func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.Id) {
+func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.IdRaw) {
 	out := &syscallmsg.RunResponse{}
 	// err := error(nil)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Run_ failed:%v", err)
 	// }
-	return out, nil
+	return out, id.KernelErrIdNoErr.Raw()
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -184,11 +182,11 @@ func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.Id)
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
 
-func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, error) {
+func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
 	out := &syscallmsg.ExitResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, fmt.Errorf("Exit_ failed:%v", err)
-	}
-	return out, nil
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, //fmt.Errorf("Exit_ failed:%v", err)
+	// }
+	return out, id.KernelErrIdNoErr.Raw()
 }

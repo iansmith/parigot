@@ -29,8 +29,6 @@ var ErrTimeout = errors.New("unable to read next byte of input, timeout expired"
 var ErrUnexpectNum = errors.New("byte read is not a hex digit")
 var ErrSignalExit = errors.New("you should shut down")
 
-var timeoutInMillis = 50
-
 type nilableProto interface {
 	proto.Message
 	comparable
@@ -44,9 +42,9 @@ func NewBytePipeIn[T nilableProto](ctx context.Context, rd io.Reader) *BytePipeI
 	return bpi
 }
 
-func (b *BytePipeIn[T]) ReadProto(msg T, errId *id.Id) error {
+func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *id.IdRaw) error {
 
-	if b.syncLost == true {
+	if b.syncLost {
 		b.syncLost = false
 		b.rd = nil
 		return ErrSyncLost
@@ -96,8 +94,8 @@ func (b *BytePipeIn[T]) ReadProto(msg T, errId *id.Id) error {
 	if isErr {
 		hi := binary.LittleEndian.Uint64(result)
 		lo := binary.LittleEndian.Uint64(result[8:])
-		id := id.NewIdCopy(hi, lo)
-		*errId = id
+		id := id.NewRawId(hi, lo)
+		*errIdPtr = id
 		return nil
 	}
 	err = proto.Unmarshal(result, msg)
@@ -175,12 +173,14 @@ type BytePipeOut[T nilableProto] struct {
 	ctx context.Context
 }
 
-func (b *BytePipeOut[T]) WriteProto(resp T, errId id.Id) error {
+func (b *BytePipeOut[T]) WriteProto(resp T, errId id.IdRaw) error {
 	if resp == *new(T) { // test for nil
-		out := make([]byte, 16)
-		binary.LittleEndian.PutUint64(out, errId.High())
-		binary.LittleEndian.PutUint64(out[8:], errId.Low())
-		if err := writeConstantSize(b.ctx, b.wr, true, 16, out); err != nil {
+		bufHigh := errId.HighLE()
+		bufLow := errId.LowLE()
+		allBuf := make([]byte, 16)
+		copy(allBuf[:8], bufHigh)
+		copy(allBuf[8:], bufLow)
+		if err := writeConstantSize(b.ctx, b.wr, true, 8, allBuf); err != nil {
 			return err
 		}
 		return nil

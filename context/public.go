@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"log"
+	"runtime"
 	"time"
 )
 
@@ -157,4 +158,12 @@ func addToContainerOrPrint(ctx context.Context, line LogLine) {
 // useful when the source is a variable.
 func SourceContext(ctx context.Context, source Source) context.Context {
 	return context.WithValue(ctx, ParigotSource, source)
+}
+
+func PullLineAndFile(ctx context.Context) {
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		log.Fatalf("failed to read caller")
+	}
+	log.Printf("xxx --- %s:%d", file, line)
 }

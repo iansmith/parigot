@@ -1,0 +1,68 @@
+package {{.pkg}}
+
+//
+// DO NOT EDIT.  This file was machine genarted by boilerplateid for {{.primaryName}}Id
+//
+
+import (
+{{if .idNoImport }}
+{{else}}	
+    "github.com/iansmith/parigot/apishared/id"
+{{end}}
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+)
+//
+//  Begin Boilerplate for {{.primaryName}}
+//
+
+type {{.primaryName}}Code {{.idPkg}}IdRootErrorCode
+const {{.primaryName}}NoError {{.primaryName}}Code = 0
+type def{{.primaryName}} struct{}
+
+func (f def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
+func (f def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
+func (f def{{.primaryName}}) IsError() bool       { return true }
+
+type {{.primaryName}}Id {{.idPkg}}IdRoot[def{{.primaryName}}]
+
+
+func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
+	return {{.primaryName}}Id(New{{.idPkg}}IdRootFromRaw[def{{.primaryName}}](in))
+}
+
+func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
+	return {{.idPkg}}MarshalProtobuf({{.primaryCast}})
+}
+func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
+	return {{.primaryName}}Id({{.idPkg}}ZeroValue[def{{.primaryName}}]())
+}
+func (f {{.primaryName}}Id) Raw() {{.idPkg}}IdRaw {
+	return {{.primaryCast}}.Raw()
+}
+func (f {{.primaryName}}Id) Equal(other {{.primaryName}}Id) bool{
+	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[def{{.primaryName}}](other))
+}
+func (f {{.primaryName}}Id) String() string{
+	return {{.primaryCast}}.String()
+}
+func (f {{.primaryName}}Id) Short() string{
+	return {{.primaryCast}}.Short()
+}
+func (f {{.primaryName}}Id) IsError() bool{
+	return {{.primaryCast}}.IsError()
+}
+func (f {{.primaryName}}Id) IsZeroValue() bool{
+	return {{.primaryCast}}.IsZeroValue()
+}
+
+func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
+	fid, err := {{.idPkg}}UnmarshalProtobuf[def{{.primaryName}}](b)
+	if err.IsError() {
+		return ZeroValue{{.primaryName}}Id(), err
+	}
+	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
+}
+
+//
+// End Boilerplate for {{.primaryName}}
+//

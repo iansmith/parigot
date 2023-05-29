@@ -34,7 +34,7 @@ func main() {
 	}
 	bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
 	msg := &methodcallmsg.AddMultiplyRequest{}
-	errId := id.NewKernelError(id.KernelNoError)
+	errId := id.KernelErrIdNoErr.Raw() // just for the space
 	if err := bpi.ReadProto(msg, &errId); err != nil {
 		pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
 		pcontext.Dump(ctx)
@@ -122,7 +122,7 @@ type fooServer struct {
 // defined in foo.proto.
 //
 
-func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMultiplyRequest) (*methodcallmsg.AddMultiplyResponse, id.Id) {
+func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMultiplyRequest) (*methodcallmsg.AddMultiplyResponse, methodcall.MethodcallErrId) {
 	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.AddMultiply")
 	resp := &methodcallmsg.AddMultiplyResponse{}
 	if req.IsAdd {
@@ -130,10 +130,10 @@ func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMulti
 	} else {
 		resp.Result = req.Value0 * req.Value1
 	}
-	return resp, nil
+	return resp, methodcall.MethodcallErrIdNoErr
 }
 
-func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequenceResponse, id.Id) {
+func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequenceResponse, methodcall.MethodcallErrId) {
 	pcontext.Debugf(ctx, "LucasSequence", "received call for fooServer.LucasSequence")
 	resp := &methodcallmsg.LucasSequenceResponse{}
 	seq := make([]int32, const_.LucasSize) // -2 because first two are given
@@ -143,15 +143,15 @@ func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequ
 		seq[i] = seq[i-1] + seq[i-2]
 	}
 	resp.Sequence = seq
-	return resp, nil
+	return resp, methodcall.MethodcallErrIdNoErr
 }
 
 // Newton-Raphson method, terms values beyond about 4 are silly
-func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiRequest) id.Id {
+func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiRequest) methodcall.MethodcallErrId {
 	pcontext.Debugf(ctx, "WritePi", "received call for fooServer.AddMultiply")
 
 	if req.GetTerms() < 1 {
-		return id.NewFooError(id.FooErrBadTerms)
+		return methodcall.NewMethodcallErrId(MethodcallErrIdBadTerms)
 	}
 	runningTotal := 3.0 // k==0 term
 
@@ -159,7 +159,7 @@ func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiReque
 		runningTotal = runningTotal - math.Tan(runningTotal)
 	}
 	pcontext.Debugf(ctx, "WritePi", "%f", runningTotal)
-	return nil
+	return methodcall.ZeroValueMethodcallErrId()
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
