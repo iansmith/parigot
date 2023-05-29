@@ -4,9 +4,9 @@ import (
 	"context"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/v1"
+	methodg "github.com/iansmith/parigot/g/methodcall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
@@ -25,10 +25,10 @@ func parigot_main() {
 	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
 	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
 
-	methodcall.ExportBarServiceOrPanic()
-	methodcall.RequireFooServiceOrPanic(ctx)
+	methodg.ExportBarServiceOrPanic()
+	methodg.RequireFooServiceOrPanic(ctx)
 	s := &barServer{}
-	methodcall.RunBarService(ctx, s)
+	methodg.RunBarService(ctx, s)
 }
 
 // this type better implement methodcall.v1.BarService
@@ -41,12 +41,12 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, id.Id) {
+func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, methodg.MethodcallErrId) {
 	resp := &methodcallmsg.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
 		resp.Sum = 0
-		return resp, nil
+		return resp, methodg.MethodcallErrIdNoErr
 	}
 
 	reqAdd := &methodcallmsg.AddMultiplyRequest{
@@ -60,10 +60,10 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	reqMul.Value1 = 1 // identity to start
 
 	var respAdd, respMul *methodcallmsg.AddMultiplyResponse
-	var errId id.Id
+	var errId methodg.MethodcallErrId
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, errId = b.foo.AddMultiply(reqAdd)
+		respAdd, errId = b.foo.AddMultiply(ctx, reqAdd)
 		if errId.IsError() {
 			return nil, errId
 		}
@@ -73,7 +73,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 
 		/// multiply
 		reqMul.Value0 = req.GetValue()[i]
-		respMul, errId = b.foo.AddMultiply(reqMul)
+		respMul, errId = b.foo.AddMultiply(ctx, reqMul)
 		if errId.IsError() {
 			return nil, errId
 		}
@@ -83,14 +83,14 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	}
 	resp.Product = respMul.GetResult()
 	resp.Sum = respAdd.GetResult()
-	return resp, nil
+	return resp, methodg.MethodcallErrIdNoErr
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (b *barServer) Ready(ctx context.Context) bool {
-	methodcall.WaitBarServiceOrPanic()
+	methodg.WaitBarServiceOrPanic()
 	b.foo = methodcall.LocateFooServiceOrPanic(ctx)
 	return true
 }

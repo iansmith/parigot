@@ -30,7 +30,7 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
 API_WASM_SRC=apiwasm/*
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_WASM_SRC)
+API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_WASM_SRC) $(API_ID)
 
 
 CC=/usr/lib/llvm-15/bin/clang
@@ -54,7 +54,7 @@ GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
-## we just use a single representative file for all the generated code from
+## we just use a single representative file for all the protobuf generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
 $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	@rm -rf g/*
@@ -100,7 +100,8 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apiplugin/queue/db.go
+build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/kernelerrid.go apiwasm/bytepipeid.go apishared/id/serviceid.go \
+	apishared/id/methodid.go apiplugin/queue/db.go
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -126,25 +127,54 @@ build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC
 # CLIENT SIDE OF API
 #
 
+## generate some id cruft for a couple of types built by parigot
+API_ID=apishared/id/kernelerrid.go \
+apiwasm/bytepipeid.go \
+apishared/id/serviceid.go \
+	apishared/id/methodid.go \
+	apishared/id/callid.go \
+	g/queue/v1/queueid.go \
+	g/file/v1/fileid.go \
+	g/test/v1/testid.go \
+	g/methodcall/v1/methodcallid.go
+apishared/id/kernelerrid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -i -e id KernelErr k errkern > apishared/id/kernelerrid.go	
+apishared/id/serviceid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Service s svc > apishared/id/serviceid.go	
+apishared/id/methodid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Method m method > apishared/id/methodid.go	
+apishared/id/callid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Call c call > apishared/id/callid.go	
+apiwasm/bytepipeid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -e apiwasm BytePipeErr b errbytep > apiwasm/bytepipeid.go	
+
+#id cruft
+g/file/v1/fileid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go file File FileErr f file F errfile > g/file/v1/fileid.go
+
 ## client side of the file service
 FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
-build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
+build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/file/v1/fileid.go $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/file
 
+#id cruft
+g/test/v1/testid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl 
+	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go test Test TestErr t \\test T errtest > g/test/v1/testid.go
+
 ## client side of the test service
 TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
-build/test.p.wasm: export GOOS=js
-build/test.p.wasm: export GOARCH=wasm
-build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
+build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/test/v1/testid.go $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
+#id cruft
+g/queue/v1/queueid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
+	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go queue Queue QueueErr q queue Q errqueue > g/queue/v1/queueid.go
+
 ## client side of service impl
 QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
-build/queue.p.wasm: export GOOS=js
-build/queue.p.wasm: export GOARCH=wasm
-build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
+build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)  g/queue/v1/queueid.go $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
 
@@ -181,29 +211,27 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 #
 # METHODCALL TEST
 #
+g/methodcall/v1/methodcallid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/idanderr.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go methodcall Methodcall MethodcallErr m methcall M errmeth > g/methodcall/v1/methodid.go
+
 ## methodcall test code
 METHODCALLTEST=test/func/methodcall/*.go
 METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
 METHODCALL_TOML=test/func/methodcall/methodcall.toml
-build/methodcalltest.p.wasm: export GOOS=js
-build/methodcalltest.p.wasm: export GOARCH=wasm
-build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML)
+build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML) g/methodcall/v1/methodcallid.go
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
+
 ## methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: export GOOS=js
-build/methodcallfoo.p.wasm: export GOARCH=wasm
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE)
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go
 	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 
 ## methodcall service impl: methodcall.BarService
 BAR_SERVICE=test/func/methodcall/impl/bar/*.go
-build/methodcallbar.p.wasm: export GOOS=js
-build/methodcallbar.p.wasm: export GOARCH=wasm
-build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE)
+build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
@@ -306,7 +334,16 @@ protoclean:
 	rm -rf g/*
 	rm -f apiplugin/queue/db.go apiplugin/queue/models.go apiplugin/queue/query.sql.go
 
+.PHONY: idclean
+idclean: 
+	rm -f g/file/v1/filewasmid.go \
+	g/file/v1/queuewasmid.go \
+	g/test/v1/testwasmid.go \
+	g/methdcall/v1/foowasmid.go \
+	apiwasm/bytepipe.id \
+	$(API_ID)
+
 .PHONY: clean
-clean: protoclean parserclean
+clean: protoclean parserclean idclean
 	rm -f build/* static/t1.wasm
 

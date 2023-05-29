@@ -12,17 +12,6 @@ import (
 
 var _ = unsafe.Sizeof([]byte{})
 
-const (
-	// NoError means just what it sounds like.  All Ids that are errors represent
-	// no error as 0.
-	NoError FileErrCode = 0
-	// BadPath means that the given path (filename) is not valid.
-	BadPath FileErrCode = 1
-	// NotFound means that the given path could point to a file (it is valid)
-	// but the path given could not be found on the current filesystem.
-	NotFound FileErrCode = 2
-)
-
 func main() {
 
 }

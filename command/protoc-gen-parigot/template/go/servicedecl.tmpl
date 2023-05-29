@@ -13,6 +13,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  
+    pcontext "github.com/iansmith/parigot/context"  
     "github.com/iansmith/parigot/apishared/id"  
     syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiwasm/syscall" 
@@ -30,6 +31,7 @@ import(
 
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 //
 // {{$svcCamel}} from {{$file}}
@@ -48,14 +50,14 @@ type {{$svcCamel}} interface {
     {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, id.Id) // xxxx
+    (*{{$oParam}}, {{$errId}}) 
 {{- else -}}
-    error
+    {{$errId}}
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
 
-// Client Side Interface (has no context.Context)
+// Client Side Interface
 type {{$svcCamel}}Client interface {
 {{- range .GetWasmMethod}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
@@ -64,14 +66,14 @@ type {{$svcCamel}}Client interface {
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 {{- if .InputCodeNeeded }}
-    {{$methCamel}}(in *{{$iParam}}) 
+    {{$methCamel}}(ctx context.Context, in *{{$iParam}}) 
 {{- else }} 
-    {{$methCamel}}() 
+    {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, id.Id)
+    (*{{$oParam}}, {{$errId}})
 {{- else -}}
-    id.Id
+    {{$errId}}
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
@@ -82,6 +84,7 @@ type {{$svcCamel}}Client interface {
 {{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
+{{ $errId:=.GetWasmServiceErrId }}
 
 type {{$svcCamel}}Client_ struct {
     *lib.ClientSideService
@@ -89,31 +92,25 @@ type {{$svcCamel}}Client_ struct {
 var required{{$svc}} bool
 
 // Locate finds a reference to the client interface of {{$svc}}.  
-func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,id.Id) {
+func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,{{$errId}}) {
 	req := &syscallmsg.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
 
     resp,errId:=syscall.Locate(req)
-    if errId.IsError() {
-        return nil, errId
+    if errId.IsError() { 
+        return nil, New{{$errId}}({{$errId}}Code(1))
     }
-    sid:=resp.GetServiceId()
-    if resp.GetServiceId()==nil {
-        panic("service id is nil, can't create ClientSideService")
-    }
-
-    srvid:=id.Unmarshal(sid)
-    if srvid.IsError() {
-        return nil,srvid
-    }
-    service:=id.Unmarshal(resp.GetServiceId())
-    cs := lib.NewClientSideService(ctx, service, "{{$svc}}Client")
-    
+    serviceId, idErr:=id.UnmarshalServiceId(resp.GetServiceId())
+    if idErr.IsError() {
+        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %v",idErr.Short())
+        return nil, New{{$errId}}({{$errId}}Code(2))
+    }    
+    cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
     return &{{$svc}}Client_{
         ClientSideService: cs,
-    }, id.NewKernelError(id.KernelNoError)
+    },{{$errId}}NoErr
 }
 
 func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
@@ -123,7 +120,7 @@ func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
 
     result, err:=Locate{{$svc}}(ctx)
 
-    if err!=nil {
+    if err.IsError() {
         panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     return result
@@ -131,7 +128,7 @@ func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
 
 func Require{{$svc}}OrPanic(ctx context.Context) {
     _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
-    if err!=nil {
+    if err.IsError() {
         panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     required{{$svc}}=true
@@ -160,14 +157,14 @@ func Wait{{$svc}}OrPanic() {
 
 
 {{- if .InputCodeNeeded -}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}(in {{$inParam}}) 
+func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
 {{- else -}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}() 
+func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context) 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, id.Id) {
+    ({{$outParam}}, {{$errId}}) {
 {{- else -}}
-    id.Id {
+    {{$errId}} {
 {{- end -}} {{/* end of output code needed for declaration */}}
 
 {{- if .OutputCodeNeeded }}
@@ -177,22 +174,24 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}()
     _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
 {{ end }} {{/* end of output code needed for dispatch call */}}
 
-    if err!=nil {
+    if err.IsError(){
 {{- if .OutputCodeNeeded }}
-        return nil, err
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
+        return nil, New{{$errId}}({{$errId}}DispatchError)
     }
 {{- else }}
-        return err
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
+        return  New{{$errId}}({{$errId}}DispatchError)
     }
 {{ end }} {{/* end of output code needed for return */}}
 {{- if .OutputCodeNeeded }}
     unmarsh := resp.Result.UnmarshalTo(out)
     if unmarsh!=nil {
-        return nil,id.NewKernelError(id.KernelNoError)
+        return nil,New{{$errId}}({{$errId}}UnmarshalError)
     }
-    return out,id.NewKernelError(id.KernelNoError)
+    return out,{{$errId}}NoErr
 {{- else }} {{/* other side of output code needed */}}
-    return id.NewKernelError(id.KernelNoError)
+    return {{$errId}}NoErr
 {{- end }} {{/* output code needed */}}
 }
 {{end}} {{/*ranging over methods*/}}

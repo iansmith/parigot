@@ -13,7 +13,6 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	"github.com/iansmith/parigot/sys/dep"
 )
 
@@ -189,11 +188,11 @@ func NewServiceData(sid id.Id) *ServiceData {
 // then the service id's content is not random but small (increasing) int.
 func (n *NSCore) newServiceId() id.Id {
 	if n.useLocalServiceId() {
-		latest := n.nextServiceCounter()
-		return id.LocalId[*protosupportmsg.ServiceId](uint64(latest))
+		//latest := n.nextServiceCounter()
+		return nil //XXX WAS id.LocalId[*protosupportmsg.ServiceId](uint64(latest))
 	}
 	_ = n.nextServiceCounter()
-	return id.NewId[*protosupportmsg.ServiceId]()
+	return nil //XXX WAS id.NewId[*protosupportmsg.ServiceId]()
 }
 
 // ServiceData returns the serviceData for the service that has a given ID or nil
@@ -213,13 +212,13 @@ func (n *NSCore) ServiceData(serviceId id.Id) *ServiceData {
 func (n *NSCore) GetService(ctx context.Context, pkgPath, service string) (id.Id, id.Id, string) {
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
-		return nil, id.NewKernelError(id.KernelNotFound),
+		return nil, nil, //XXX WAS id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("%s package could not be found", pkgPath)
 	}
 	pData := pDataAny.(*sync.Map)
 	sDataAny, ok := pData.Load(service)
 	if !ok {
-		return nil, id.NewKernelError(id.KernelNotFound),
+		return nil, nil, // XXX WAS id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("could not find service %s in package %s", service, pkgPath)
 	}
 	sData := sDataAny.(*ServiceData)
@@ -239,12 +238,12 @@ func (n *NSCore) CloseService(ctx context.Context, key dep.DepKey, pkgPath, serv
 func (n *NSCore) validatePkgAndService(pkgPath, service string) (*ServiceData, id.Id) {
 	pDataAny, ok := n.packageRegistry.Load(pkgPath)
 	if !ok {
-		return nil, id.NewKernelError(id.KernelNotFound)
+		return nil, nil //XXX WAS id.NewKernelError(id.KernelNotFound)
 	}
 	pData := pDataAny.(*sync.Map)
 	sDataAny, ok := pData.Load(service)
 	if !ok {
-		return nil, id.NewKernelError(id.KernelNotFound)
+		return nil, nil //XXX WAS id.NewKernelError(id.KernelNotFound)
 	}
 	sData := sDataAny.(*ServiceData)
 	return sData, nil
@@ -341,7 +340,7 @@ func (n *NSCore) Export(ctx context.Context, key dep.DepKey, pkgPath, service st
 		// should we throw an error if this is not closed yet?
 
 		if sData.exported {
-			return id.NewKernelError(id.KernelServiceAlreadyClosedOrExported)
+			return nil //XXX WAS id.NewKernelError(id.KernelServiceAlreadyClosedOrExported)
 		}
 		if newSid != nil {
 			nscorePrint(ctx, "EXPORT ", "rewriting the sid of the service, now that it is exported: %s", newSid.Short())
@@ -432,7 +431,7 @@ func (n *NSCore) Require(ctx context.Context, key dep.DepKey, pkgPath, service s
 			})
 			if found {
 				nscorePrint(ctx, "Require ", "%s already required the service %s, error RET", key.String(), name)
-				return id.NewKernelError(id.KernelServiceAlreadyRequired)
+				return nil //XXX WAS id.NewKernelError(id.KernelServiceAlreadyRequired)
 			}
 			nscorePrint(ctx, "Require ", "%s about to add require %s", key.String(), name)
 			node.AddRequire(name)
@@ -591,7 +590,7 @@ func (n *NSCore) FindOrCreateMethodId(ctx context.Context, key dep.DepKey, packa
 	sData, err := n.validatePkgAndService(packagePath, service)
 	if err != nil && err.IsError() {
 		nscorePrint(ctx, "FindOrCreateMethodId ", "we need to create a service data for %s.%s", packagePath, service)
-		if !err.Equal(id.NewKernelError(id.KernelNotFound)) {
+		if !err.Equal( /* XXX WAS id.NewKernelError(id.KernelNotFound)*/ nil) {
 			nscorePrint(ctx, "FindOrCreateMethodId ", "WARN unable to understand error from validatePackage() %s", err.Short())
 			return nil
 		}
@@ -603,7 +602,7 @@ func (n *NSCore) FindOrCreateMethodId(ctx context.Context, key dep.DepKey, packa
 		ct, l := mapToContent(sData.method)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "failed on method %s, %d, %+v", method, ct, l)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "we need to create a method id for %s.%s.%s", packagePath, service, method)
-		mid = id.NewId[*protosupportmsg.MethodId]()
+		mid = nil //XXX WAS id.NewId[*protosupportmsg.MethodId]()
 		sData.method.Store(method, mid)
 		nscorePrint(ctx, "FindOrCreateMethodId ", "added method %s to sdata", mid.Short())
 	} else {

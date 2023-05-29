@@ -166,21 +166,34 @@ func idBaseFromConst(i uint64, isErrType bool, letter byte) *IdBase {
 	}
 }
 
-//
-// ID ROOT
-//
+// ID RAW
+type IdRaw struct {
+	high, low uint64
+}
 
-type IdInterface interface {
+type idNameInfo interface {
 	ShortString() string
 	Letter() byte
 	IsError() bool
 }
 
-type IdRoot[T IdInterface] struct {
+type ErrIdResponse interface {
+	IsError() bool
+	Short() string
+	String() string
+	Raw() IdRaw
+}
+
+//
+// ID ROOT
+//
+
+type IdRoot[T idNameInfo] struct {
 	high, low uint64
 }
 
-func NewIdRoot[T IdInterface](t T) IdRoot[T] {
+func NewIdRoot[T idNameInfo]() IdRoot[T] {
+	var t T
 	high := rand.Uint64()
 	low := rand.Uint64()
 	buf := make([]byte, 8)
@@ -194,9 +207,12 @@ func NewIdRoot[T IdInterface](t T) IdRoot[T] {
 	}
 	return id
 }
-
-func ZeroValue[T IdInterface](t T) IdRoot[T] {
-	buf := make([]byte, 0)
+func NewIdRootFromRaw[T idNameInfo](r IdRaw) IdRoot[T] {
+	return IdRoot[T]{high: r.high, low: r.low}
+}
+func ZeroValue[T idNameInfo]() IdRoot[T] {
+	var t T
+	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, uint64(0xffffffffffff))
 	buf[7] = t.Letter()
 	if t.IsError() {
@@ -207,7 +223,8 @@ func ZeroValue[T IdInterface](t T) IdRoot[T] {
 	return IdRoot[T]{high: h, low: l}
 }
 
-func NewIdRootError[T IdInterface](t T, code IdRootErrorCode) IdRoot[T] {
+func NewIdRootError[T idNameInfo](code IdRootErrorCode) IdRoot[T] {
+	var t T
 	high := uint64(0)
 	low := uint64(code)
 	buf := make([]byte, 8)
@@ -222,7 +239,8 @@ func NewIdRootError[T IdInterface](t T, code IdRootErrorCode) IdRoot[T] {
 	return id
 }
 
-func UnmarshalProtobuf[T IdInterface](t T, msg *protosupportmsg.BaseId) (IdRoot[T], IdErr) {
+func UnmarshalProtobuf[T idNameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdErr) {
+	var t T
 	h := msg.GetHigh()
 	l := msg.GetLow()
 	buf := make([]byte, 8)
@@ -233,14 +251,145 @@ func UnmarshalProtobuf[T IdInterface](t T, msg *protosupportmsg.BaseId) (IdRoot[
 	if buf[7] == 0 {
 		return IdRoot[T]{0, 0}, NewIdErr(IdErrNoType)
 	}
-	return IdRoot[T]{h, l}, NoIdErr
+	return UnmarshalRaw[T](IdRaw{high: h, low: l})
 }
 
-func MarshalProtobuf[T IdInterface](t IdRoot[T]) *protosupportmsg.BaseId {
+func UnmarshalRaw[T idNameInfo](r IdRaw) (IdRoot[T], IdErr) {
+	return IdRoot[T](r), NoIdErr
+}
+
+func MarshalProtobuf[T idNameInfo](i IdRoot[T]) *protosupportmsg.IdRaw {
 	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, t.high)
+	binary.LittleEndian.PutUint64(buf, i.high)
 	h := binary.LittleEndian.Uint64(buf)
-	binary.LittleEndian.PutUint64(buf, t.low)
+	binary.LittleEndian.PutUint64(buf, i.low)
 	l := binary.LittleEndian.Uint64(buf)
-	return &protosupportmsg.BaseId{High: h, Low: l}
+	return &protosupportmsg.IdRaw{High: h, Low: l}
+}
+
+func (i IdRoot[T]) Short() string {
+	var t T
+	raw := i.Raw()
+	low := raw.LowLE()
+	high := raw.HighLE()
+
+	if i.IsZeroValue() {
+		return fmt.Sprintf("[%s-zero]", t.ShortString())
+	}
+	if high[6]&0x80 != 0 {
+		if high[0] == 0 && high[1] == 0 {
+			return fmt.Sprintf("[%s-NoErr]", t.ShortString())
+		}
+		return fmt.Sprintf("[%s-%02x%02x%02x%02x]", low[3], low[2], low[1], low[0])
+	}
+	return fmt.Sprintf("[%s-%02x%02x%02x]", t.ShortString(), low[2], low[1], low[0])
+}
+
+func (i IdRoot[T]) String() string {
+	var t T
+	highByte := i.Raw().HighLE()
+	highByte[6] &= 0x80 //high bit is true for an error type
+	two := (i.high >> 32) & 0xffff
+	four := i.high & 0xffffffff
+
+	lowPart := make([]uint16, 4)
+	lowPart[3] = uint16(i.low & 0xffff)
+	lowPart[2] = uint16((i.low >> 16) & 0xffff)
+	lowPart[1] = uint16((i.low >> 32) & 0xffff)
+	lowPart[0] = uint16((i.low >> 48) & 0xffff)
+
+	return fmt.Sprintf("%s-%04x-%08x:%04x-%04x-%04x-%04x", t.ShortString(), two, four,
+		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
+
+}
+
+func (i IdRoot[T]) Raw() IdRaw {
+	return Raw(i)
+}
+
+func (i IdRoot[T]) Equal(other IdRoot[T]) bool {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, i.high)
+	if i.IsZeroValue() || other.IsZeroValue() {
+		return false // can't be compared to anything
+	}
+	return i.high == other.high && i.low == other.low
+}
+func (i IdRoot[T]) IsError() bool {
+	return i.Raw().IsError()
+}
+
+func (i IdRoot[T]) IsZeroValue() bool {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, i.high)
+	for i := 0; i < 6; i++ {
+		if buf[i] != 0xff {
+			return false
+		}
+	}
+	return i.low == 0xffffffffffffffff
+}
+
+func Raw[T idNameInfo](i IdRoot[T]) IdRaw {
+	return IdRaw(i)
+}
+
+// NewRawId is dangerous in that it performs no checks about the validity of the
+// data provided. Its use is discourage.  It usually needed when interacting
+// with networking code since at the network, you simply receive 16 bytes of
+// data and you need to turn it back into an id of some sort. The given bytes
+// will be converted to LittleEndian.
+func NewRawId(h, l uint64) IdRaw {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, h)
+	hle := binary.LittleEndian.Uint64(buf)
+	binary.LittleEndian.PutUint64(buf, l)
+	lle := binary.LittleEndian.Uint64(buf)
+	return IdRaw{high: hle, low: lle}
+}
+
+func (r IdRaw) LowLE() []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(r.low))
+	return buf
+}
+func (r IdRaw) HighLE() []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(r.high))
+	return buf
+}
+
+// String applied to an IdRaw not generally recommended.  It is far better to call it on an
+// instance IdRoot[T] because that print out things nicely.  This is really
+// only useful when you *dont* know the type, such as when you have read it off
+// the wire.
+func (r IdRaw) String() string {
+	highByte := r.HighLE()
+	key := highByte[7]
+	highByte[6] &= 0x80 //high bit is true for an error type
+	two := (r.high >> 32) & 0xffff
+	four := r.high & 0xffffffff
+
+	lowPart := make([]uint64, 4)
+	lowPart[3] = r.low & 0xffff
+	lowPart[2] = (r.low >> 16) & 0xffff
+	lowPart[1] = (r.low >> 32) & 0xffff
+	lowPart[0] = (r.low >> 48) & 0xffff
+
+	return fmt.Sprintf("%c-%04x-%08x:%04x-%04x-%04x-%04x", key, two, four,
+		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
+}
+
+// IsError tests if this object 1) has the error mark set (byte 6 of high), so it is an error
+// type and 2, that in the low order 2 bytes of low non zero.
+func (r IdRaw) IsError() bool {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(r.high))
+	if buf[6]&0x80 == 0 {
+		return false
+	}
+	if buf[0] == 0 && buf[1] == 0 {
+		return false
+	}
+	return true
 }
