@@ -36,6 +36,7 @@ var _ =  unsafe.Sizeof([]byte{})
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId }}
 var {{$svcCamel}}fsName = "/parigotvirt"
 
 //
@@ -55,9 +56,9 @@ type {{$svcCamel}}Server interface {
 	{{$methCamel}}(ctx context.Context) 
 {{- end }} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, id.Id)
+    (*{{$oParam}}, {{$errId}})
 {{- else -}}
-    id.Id
+    {{$errId}}
 {{- end}} {{/* end of output code needed */}}
 {{- end}} {{/* end of range over methods */}}
 	Ready(ctx context.Context) bool
@@ -66,6 +67,7 @@ type {{$svcCamel}}Server interface {
 
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 {{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
 {{- $svcLowerNoService:=toLowerNoService .GetWasmServiceName }}
@@ -73,7 +75,7 @@ type {{$svcCamel}}Server interface {
 func Run{{$svcCamel}}(ctx context.Context, impl {{$svcCamel}}Server) {
 	// wait until all the go routines are done
 	var wg sync.WaitGroup
-	err:={{$svcCamelFL}}Bind(ctx,impl,wg)
+	err:={{$svcCamelFL}}Bind(ctx,impl,&wg)
 	if err!=nil {
 		pcontext.Errorf(ctx,"error returned from {{$svcCamel}}Bind:%v", err)
 		return
@@ -82,10 +84,10 @@ func Run{{$svcCamel}}(ctx context.Context, impl {{$svcCamel}}Server) {
 }
 
 
-func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg sync.WaitGroup)  error {
+func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.WaitGroup)  error {
 	var fp io.Reader
 	var err error
-	var errId id.Id
+	var errId id.ErrIdResponse
 
 {{- range .GetWasmMethod}}
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
@@ -112,13 +114,13 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg sync.W
 		return  err
 	}
 {{- if eq $dir "Both" }}
-	go func(c context.Context, rd io.Reader, wr io.Writer, impl {{$svcCamel}}Server, wg sync.WaitGroup) {
+	go func(c context.Context, rd io.Reader, wr io.Writer, impl {{$svcCamel}}Server, wg *sync.WaitGroup) {
 		wg.Add(1)
 		for {
 			var msg {{$iParam}}
 			bpi := apiwasm.NewBytePipeIn[*{{$iParam}}](ctx, rd)
 			bpo := apiwasm.NewBytePipeOut[*{{$oParam}}](ctx, wr)
-			errIdResult:=id.Unmarshal(id.NoKernelError())
+			errIdResult:=id.KernelErrIdNoErr.Raw() // just to create an empty space
 			err =bpi.ReadProto(&msg,&errIdResult)
 			if err!=nil {
 				if err==apiwasm.ErrSignalExit{
@@ -127,17 +129,21 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg sync.W
 				pcontext.Fatalf(c,"error in '{{.ProtoPackage}}.{{$methCamel}}' reading next message: %v",err)
 				break
 			}
+			if errIdResult.IsError() {
+				pcontext.Errorf(c,"error id received (%s),not calling '{{.ProtoPackage}}.{{$methCamel}}'",errIdResult.String())
+				continue
+			}
 			pcontext.Infof(c,"Read in a new request of type: %s","{{$iParam}}")
 			var resp *{{$oParam}}
 			resp, errId = impl.{{$methCamel}}(c, &msg)
 			if errId.IsError() {
-				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %v",errId)				
-				if err:=bpo.WriteProto(nil,errId); err!=nil {
+				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %v",errId.Short())				
+				if err:=bpo.WriteProto(nil,errId.Raw()); err!=nil {
 					pcontext.Errorf(c,"Error writing errId response in {{$methCamel}}: %v",err)
 				}
 				continue
 			}
-			if err:=bpo.WriteProto(resp,errId); err!=nil {
+			if err:=bpo.WriteProto(resp,errId.Raw()); err!=nil {
 				pcontext.Errorf(c,"Error writing proto response in {{$methCamel}}: %v",err)
 				continue
 			}
@@ -164,6 +170,9 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg sync.W
 {{- $pkgFL:=toSnakeCaseFirstUpper $goname }}
 {{- $svc:=toSnakeCase .GetWasmServiceName }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId }}
+
+
 type Simple{{$svcCamel}} struct {
 	ctx context.Context
 	readyFunc func(context.Context,*Simple{{$svcCamel}}) bool
@@ -180,14 +189,13 @@ func NewSimple{{$svcCamel}} (ctx context.Context, fn func(context.Context,*Simpl
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
-// host function: {{packageToGoName $pkg}} {{$methSnake}}_
 //go:wasmimport {{packageToGoName $pkg}} {{$methSnake}}_
 func {{$methCamel}}_(int32,int32) int32
 
 // Wrapper around host function {{packageToGoName $pkg}} {{$methSnake}}_
 {{- if .InputCodeNeeded }}
 {{- if .OutputCodeNeeded }} 
-func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context, in *{{$iParam}}) (*{{$oParam}},id.Id) {
+func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context, in *{{$iParam}}) (*{{$oParam}},{{$errId}}) {
 	out := &{{$oParam}}{}
 	//err := apiwasm.WasmCallNativeInOut[*{{$iParam}}, *{{$oParam}}](in, out, {{$methCamel}}_)
 {{- else }} {{/* other side of output code needed */}}
@@ -195,16 +203,16 @@ func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context, in *{{$iParam}
 	//err := apiwasm.WasmCallNativeIn[*{{$iParam}}, *{{$oParam}}](in, {{$methCamel}}_)
 {{- end }} {{/* end of if output code needed */}}
 {{- else }} {{/* other side of InputCodeNeeded */}}
-func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context) (*{{$oParam}},id.Id) {
+func (s *Simple{{$svcCamel}}) {{$methCamel}}(ctx context.Context) (*{{$oParam}},{{$errId}}) {
 	out := &{{$oParam}}{}
 	//err := apiwasm.WasmCallNativeOut[*{{$iParam}}, *{{$oParam}}](out, {{$methCamel}}_)
 {{- end }}  {{/* end of InputCodeNeeded */}}
 //	if err != nil {
 //		pcontext.LogFullf(ctx, pcontext.Error, pcontext.Client, "{{$methCamel}}_", "{{$methCamel}}_ failed:%v", err)
 {{- if .OutputCodeNeeded }} 
-//		return nil, err
+//		return nil, {{$errId}}NoErr
 //	}
-	return out, nil
+	return out, {{$errId}}NoErr
 }
 {{- else }} {{/*other side of output code needed*/}}
 //	}

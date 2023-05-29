@@ -17,7 +17,7 @@ const (
 type IdErr = IdRoot[IdErrorIdDef]
 
 func NewIdErr(code IdRootErrorCode) IdErr {
-	return NewIdRootError(IdErrorIdDef{}, code)
+	return NewIdRootError[IdErrorIdDef](code)
 }
 
 var NoIdErr = NewIdErr(IdNoError)

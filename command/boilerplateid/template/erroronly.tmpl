@@ -1,0 +1,76 @@
+package {{.pkg}}
+
+//
+// DO NOT EDIT.  This file was machine genarted by boilerplateid for {{.errorName}}Id
+//
+
+import (
+{{if .idNoImport }}
+{{else}}	
+    "github.com/iansmith/parigot/apishared/id"
+{{end}}
+	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+)
+//
+//  Begin Boilerplate for {{.errorName}}
+//
+
+type {{.errorName}}IdCode uint16
+const {{.errorName}}IdNoError {{.errorName}}IdCode = 0
+const {{.errorName}}IdLocateError {{.errorName}}IdCode = 1
+const {{.errorName}}IdUnmarshalError {{.errorName}}IdCode = 2
+const {{.errorName}}IdDispatchError {{.errorName}}IdCode = 3
+const {{.errorName}}IdGuestStart {{.errorName}}IdCode = 4
+type def{{.errorName}} struct{}
+
+func (f def{{.errorName}}) ShortString() string { return "{{.errorShortName}}" }
+func (f def{{.errorName}}) Letter() byte        { return {{.errorLetter}} } 
+func (f def{{.errorName}}) IsError() bool       { return true }
+
+type {{.errorName}}Id {{.idPkg}}IdRoot[def{{.errorName}}]
+
+// NoErr is a convenience for referring to an errorId that is
+// "everything is ok".
+var {{.errorName}}IdNoErr = New{{.errorName}}Id({{.errorName}}IdNoError)
+
+func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
+    high2:=uint64(def{{.errorName}}{}.Letter())
+    high2 <<= 8
+    high2 |= 0x80
+    high:=high2<<48
+    low4:=uint16(code)
+    low:=uint64(low4)
+    root:={{.idPkg}}NewIdRootFromRaw[def{{.errorName}}]({{.idPkg}}NewRawId(high,low))
+    return {{.errorName}}Id(root)
+}
+
+func (f {{.errorName}}Id) Marshal() *protosupportmsg.IdRaw {
+	return {{.idPkg}}MarshalProtobuf({{.errorCast}})
+}
+func ZeroValue{{.errorName}}Id() {{.errorName}}Id {
+	return {{.errorName}}Id({{.idPkg}}ZeroValue[def{{.errorName}}]())
+}
+func (f {{.errorName}}Id) Raw() {{.idPkg}}IdRaw {
+	return {{.errorCast}}.Raw()
+}
+func (f {{.errorName}}Id) Equal(other {{.errorName}}Id) bool{
+	return {{.errorCast}}.Equal({{.idPkg}}IdRoot[def{{.errorName}}](other))
+}
+func (f {{.errorName}}Id) String() string{
+	return {{.errorCast}}.String()
+}
+func (f {{.errorName}}Id) Short() string{
+	return {{.errorCast}}.Short()
+}
+func (f {{.errorName}}Id) IsZeroValue() bool{
+	return {{.errorCast}}.IsZeroValue()
+}
+func (f {{.errorName}}Id) IsError() bool{
+	return {{.errorCast}}.IsError()
+}
+func New{{.errorName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.errorName}}Id {
+	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[def{{.errorName}}](in)) //xx
+}
+//
+// End Boilerplate for {{.errorName}}
+//

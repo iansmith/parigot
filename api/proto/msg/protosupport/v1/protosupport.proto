@@ -5,6 +5,11 @@ package msg.protosupport.v1;
 option go_package="github.com/iansmith/parigot/g/msg/protosupport/v1;protosupportmsg";
 
 
+message IdRaw {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
 // BaseId is the "real" type for all the named Id types.  The named types provide just a bit of sugar
 // when in used in protobuf definitions so it is clear what _type_ of Id is being used.  BaseId should
 // never be used itself, use the Id type that is more specific so folks using your message structure

@@ -11,13 +11,15 @@ message LocateRequest {
 }
 
 // LocateResponse hands back the service Id of the package_name and service_name supplied in the request.
+// A service id can be thought of as a (hostname,port) pair that defines which
+// service's "location".
 message LocateResponse {
-    msg.protosupport.v1.ServiceId service_id = 1;
+    msg.protosupport.v1.IdRaw service_id = 1;
 }
 
 // DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
 message DispatchRequest {
-    msg.protosupport.v1.ServiceId service_id = 1; 
+    msg.protosupport.v1.IdRaw service_id = 1; 
     string method = 2;
     string caller = 3;
     msg.protosupport.v1.Pctx in_pctx = 4;
@@ -29,8 +31,8 @@ message DispatchRequest {
 message DispatchResponse {
     msg.protosupport.v1.Pctx out_pctx = 1;
     google.protobuf.Any result = 2; // again, there is a nested response object but we don't know its type
-    msg.protosupport.v1.CallId call_id = 3;
-    msg.protosupport.v1.MethodId method_id = 4;
+    msg.protosupport.v1.IdRaw call_id = 3;
+    msg.protosupport.v1.IdRaw method_id = 4;
 }
 
 message ReturnValueRequest{

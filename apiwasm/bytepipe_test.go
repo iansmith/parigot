@@ -10,7 +10,7 @@ import (
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
-	"github.com/iansmith/parigot/id"
+	"github.com/iansmith/parigot/apishared/id"
 	"google.golang.org/protobuf/proto"
 )
 
