@@ -39,9 +39,9 @@ func optionsToMap(s string) map[string]string {
 		if strings.TrimSpace(opt) == "" {
 			continue
 		}
-		assign := strings.Split(opt, ":")
+		assign := strings.Split(opt, ";")
 		if len(assign) != 2 {
-			log.Printf("unable to understand option: %s ", opt)
+			log.Printf("unable to understand option: %s from %s %s", opt, s, parts[0])
 			continue
 		}
 		k := assign[0]

@@ -1,16 +1,14 @@
 API_VERSION=v1
 
-all: allprotos \
-	commands \
+all: commands \
 	apiwasm \
 	methodcalltest \
-	sqlc \
-	plugins
+	sqlc 
 	
 #
 # GROUPS OF TARGETS
 #
-allprotos: g/file/$(API_VERSION)/file.pb.go 
+protos: g/file/$(API_VERSION)/file.pb.go 
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
 apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 #commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
@@ -97,11 +95,10 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 # RUNNER
 #
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
-PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/kernelerrid.go apiwasm/bytepipeid.go apishared/id/serviceid.go \
-	apishared/id/methodid.go apiplugin/queue/db.go
+build/runner:  build/file.so build/queue.so build/syscall.so $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/kernelerrid.go apiwasm/bytepipeid.go apishared/id/serviceid.go \
+	apishared/id/methodid.go 
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -129,14 +126,15 @@ build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC
 
 ## generate some id cruft for a couple of types built by parigot
 API_ID=apishared/id/kernelerrid.go \
-apiwasm/bytepipeid.go \
-apishared/id/serviceid.go \
+	apiwasm/bytepipeid.go \
+	apishared/id/serviceid.go \
 	apishared/id/methodid.go \
 	apishared/id/callid.go \
 	g/queue/v1/queueid.go \
 	g/file/v1/fileid.go \
 	g/test/v1/testid.go \
-	g/methodcall/v1/methodcallid.go
+	g/methodcall/v1/methodcallid.go 
+
 apishared/id/kernelerrid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -e id KernelErr k errkern > apishared/id/kernelerrid.go	
 apishared/id/serviceid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
@@ -212,13 +210,13 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 # METHODCALL TEST
 #
 g/methodcall/v1/methodcallid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/idanderr.tmpl
-	$(GO_TO_HOST) run command/boilerplateid/main.go methodcall Methodcall MethodcallErr m methcall M errmeth > g/methodcall/v1/methodid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go methodcall Methodcall MethodcallErr m methcall M errmeth > g/methodcall/v1/methodcallid.go
 
 ## methodcall test code
-METHODCALLTEST=test/func/methodcall/*.go
-METHODCALL_TEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
+METHODCALLTEST_SRC=test/func/methodcall/*.go
+METHODCALLTEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
 METHODCALL_TOML=test/func/methodcall/methodcall.toml
-build/methodcalltest.p.wasm: $(METHODCALLTEST) $(API_CLIENT_SIDE) $(METHODCALL_TEST_SVC) $(METHODCALL_TOML) g/methodcall/v1/methodcallid.go
+build/methodcalltest.p.wasm: $(METHODCALLTEST_SRC) $(API_CLIENT_SIDE) $(METHODCALLTEST_SVC) $(METHODCALL_TOML) g/methodcall/v1/methodcallid.go
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
 
@@ -262,17 +260,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
+build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/queue/db.go
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 

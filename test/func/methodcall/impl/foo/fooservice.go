@@ -21,7 +21,7 @@ var _ = unsafe.Sizeof([]byte{})
 const pathPrefix = "/parigotvirt/"
 
 func main() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
+	ctx := pcontext.NewContextWithContainer(context.Background(), "[fooservice]main")
 	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[foo]main")
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "started main open")

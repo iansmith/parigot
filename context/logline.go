@@ -55,7 +55,7 @@ func (ll *logLine) Print(ctx context.Context) {
 
 	var line string
 	if ll.raw {
-		line += ll.spec
+		line = fmt.Sprintf(" %s", ll.spec)
 	} else {
 		prefix := detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
 		if ll.spec == "" {

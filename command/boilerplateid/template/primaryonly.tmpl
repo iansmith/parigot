@@ -63,6 +63,11 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
 }
 
+func New{{.primaryName}}Id() {{.primaryName}}Id {
+	idroot := {{.idPkg}}NewIdRoot[def{{.primaryName}}]()
+	return {{.primaryName}}Id(idroot)
+}
+
 //
 // End Boilerplate for {{.primaryName}}
 //
