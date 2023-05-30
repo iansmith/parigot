@@ -26,11 +26,12 @@ const testQueueName = "test_queue"
 
 func main() {
 	lib.FlagParseCreateEnv()
+	ctx := pcontext.CallTo(pcontext.ServerWasmContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 
-	ctx := pcontext.ClientContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
+	myId := testg.MustRegisterTestService(ctx)
 	// The queue we will use
-	queueg.RequireQueueServiceOrPanic(context.Background())
-	testg.ExportTestServiceOrPanic()
+	queueg.MustRequireQueueService(ctx, myId)
+	testg.MustExportTestService(ctx)
 	testg.RunTestService(ctx, &myTestServer{})
 }
 
@@ -90,7 +91,7 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 
 	pcontext.Debugf(ctx, "Ready", "myTestServer ready called")
 	test.WaitTestServiceOrPanic()
-	m.queueSvc = queueg.LocateQueueServiceOrPanic(ctx)
+	m.queueSvc = queueg.MustLocateQueueService(ctx)
 	qid, err := m.findOrCreateQueue(ctx, testQueueName)
 	if err.IsError() {
 		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID ", err.Short())

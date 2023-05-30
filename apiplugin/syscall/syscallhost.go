@@ -29,7 +29,7 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "export_", export)
 	e.AddSupportedFunc(ctx, "parigot", "return_value_", returnValue)
 	e.AddSupportedFunc(ctx, "parigot", "require_", require)
-	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
+	e.AddSupportedFunc(ctx, "parigot", "register_", register)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
 
 	return true
@@ -55,32 +55,70 @@ func run(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("run 0x%x", stack)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("export 0x%x", stack)
+	req := &syscallmsg.ExportRequest{}
+	resp := (*syscallmsg.ExportResponse)(nil)
+	invokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("returnValue 0x%x", stack)
 }
+func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.KernelErrId {
+	for _, fullyQualified := range req.GetService() {
+		sid, ok := depData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		if !ok {
+			pcontext.Infof(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
+				fullyQualified.GetService(), sid.Short())
+		}
+		pcontext.Infof(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
+			fullyQualified.GetService(), sid.Short())
+		if depData.Export(sid.Id()) == nil {
+			return id.NewKernelErrId(id.KernelNotFound)
+		}
+	}
+	return id.KernelErrIdNoErr
+
+}
+
+func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.KernelErrId {
+	svc, _ := depData.SetService(req.Fqs.GetPackagePath(), req.Fqs.GetService())
+	resp.Id = svc.Id().Marshal()
+	return id.KernelErrIdNoErr
+}
 
 func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.KernelErrId {
-	pcontext.Debugf(ctx, "got a call to require impl")
-	fqn := req.GetService()
+	src, idErr := id.UnmarshalServiceId(req.GetSource())
+	if idErr.IsError() {
+		pcontext.Errorf(ctx, "unable to unmrarshal the service id in a require request: %s", idErr.Short())
+		// xxx this isn't a great error because the problem is really an Id error
+		return id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+	}
+	fqn := req.GetDest()
 	for _, fullyQualified := range fqn {
-		_, ok := SData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		if !ok {
-			pcontext.Errorf(ctx, "expected to be able to establish service %s.%s but failed",
-				fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		} else {
-			pcontext.Infof(ctx, "created service %s.%s", fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		dest, _ := depData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
+			fullyQualified.GetService(), dest.Short())
+
+		if !depData.Import(src, dest.Id()) {
+			return id.NewKernelErrId(id.KernelNotFound)
 		}
 	}
 	return id.KernelErrIdNoErr
 }
+func manufactureSyscallContext(ctx context.Context, funcName string) context.Context {
+	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "manufactureSyscallContext")), funcName)
+}
 
 func require(ctx context.Context, m api.Module, stack []uint64) {
-	pcontext.Debugf(ctx, "xxx -- required received %04x, %04x, %04x, %04x", stack[0], stack[1], stack[2], stack[3])
 	req := &syscallmsg.RequireRequest{}
 	resp := (*syscallmsg.RequireResponse)(nil)
 	invokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
+	return
+}
+
+func register(ctx context.Context, m api.Module, stack []uint64) {
+	req := &syscallmsg.RegisterRequest{}
+	resp := &syscallmsg.RegisterResponse{}
+	invokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
 	return
 }
 

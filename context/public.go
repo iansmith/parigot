@@ -2,22 +2,37 @@ package context
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
+	_ "time/tzdata"
 )
+
+// XXX Should be passed in the config or someting like that
+var localTimeZone *time.Location
+
+func init() {
+	var err error
+	localTimeZone, err = time.LoadLocation("America/New_York")
+	if err != nil {
+		log.Printf("unable to load time zone: %s", err.Error())
+	}
+}
 
 // ServerGoContext returns a new context based on ctx with source ServerGo and the given function name.
 // This should be called before entering plugins that define host functions.
 func ServerGoContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ParigotSource, ServerGo)
+	return context.WithValue(ctx, ParigotSource, HostGo)
 }
 
 // Client returns a new context based on ctx with source Client and the given function name.
 // This should be called before entering code that is client wasm code, like the main
 // of an application or the start of test.
 func ClientContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ParigotSource, Client)
+	return context.WithValue(ctx, ParigotSource, Guest)
 }
 
 // ServerWasm returns a new context based on ctx with source ServerWasm and the given function name.
@@ -38,7 +53,13 @@ func WazeroContext(ctx context.Context) context.Context {
 func CurrentTime(ctx context.Context) time.Time {
 	t := ctx.Value(ParigotTime)
 	if t != nil && !t.(time.Time).IsZero() {
+		if localTimeZone != nil {
+			return t.(time.Time).In(localTimeZone)
+		}
 		return t.(time.Time)
+	}
+	if localTimeZone != nil {
+		return time.Now().In(localTimeZone)
 	}
 	return time.Now()
 }
@@ -98,7 +119,7 @@ func Debugf(ctx context.Context, spec string, rest ...interface{}) {
 // Infof is a shorthand for a call to LogFull with the currently set source in ctx, and
 // log level being Infof.  The function name is the one associated with the given ctx.
 func Infof(ctx context.Context, spec string, rest ...interface{}) {
-	LogFullf(ctx, Debug, PullSource(ctx, UnknownS),
+	LogFullf(ctx, Info, PullSource(ctx, UnknownS),
 		pullFunc(ctx, ""), spec, rest...)
 }
 
@@ -118,7 +139,7 @@ func InternalParigot(ctx context.Context) context.Context {
 // of the current time in a standard form (RFC822Z).
 func CurrentTimeString(ctx context.Context, rfc822 bool) string {
 	if rfc822 {
-		return CurrentTime(ctx).Format(time.RFC822Z)
+		return CurrentTime(ctx).Format(time.RFC822)
 	}
 	return CurrentTime(ctx).Format(time.Kitchen)
 }
@@ -160,10 +181,16 @@ func SourceContext(ctx context.Context, source Source) context.Context {
 	return context.WithValue(ctx, ParigotSource, source)
 }
 
-func PullLineAndFile(ctx context.Context) {
-	_, file, line, ok := runtime.Caller(1)
+func pullLineAndFile(ctx context.Context) string {
+	_, file, line, ok := runtime.Caller(4)
 	if !ok {
-		log.Fatalf("failed to read caller")
+		return "(unknown)"
 	}
-	log.Printf("xxx --- %s:%d", file, line)
+	part := strings.Split(file, "/")
+	if len(part) > 1 {
+		part = part[len(part)-2:]
+	}
+	file = filepath.Join(part...)
+
+	return fmt.Sprintf("(%s:%d)", file, line)
 }

@@ -13,8 +13,8 @@ type logLine struct {
 	level          LogLevel
 	funcName, spec string
 	value          []interface{}
-	data           [MaxLineLen]byte // c-style terminator (nul byte)
 	raw            bool
+	fileLine       string
 	lock           *sync.Mutex
 	prevCtx        context.Context
 }
@@ -36,11 +36,14 @@ func init() {
 
 func NewLogLine(ctx context.Context, src Source, lvl LogLevel, funcName string,
 	raw bool, spec string, rest ...interface{}) *logLine {
-	src = PullSource(ctx, UnknownS)
+	if src == UnknownS {
+		src = PullSource(ctx, UnknownS)
+	}
 	result := &logLine{}
 	result.level = lvl
 	result.source = src
 	result.funcName = pullFunc(ctx, funcName)
+	result.fileLine = pullLineAndFile(ctx)
 	result.raw = raw
 	result.spec = spec
 	result.lock = new(sync.Mutex)
@@ -48,16 +51,30 @@ func NewLogLine(ctx context.Context, src Source, lvl LogLevel, funcName string,
 	result.prevCtx = ctx
 	return result
 }
-
+func isLineReader(src Source) bool {
+	return src == GuestErr || src == GuestOut || src == Wazero
+}
 func (ll *logLine) Print(ctx context.Context) {
 	ll.lock.Lock()
 	defer ll.lock.Unlock()
 
 	var line string
 	if ll.raw {
-		line = fmt.Sprintf(" %s", ll.spec)
+		if ll.level == Debug && !isLineReader(ll.source) {
+			line = fmt.Sprintf("%s%s", ll.fileLine, ll.spec)
+		} else {
+			line = fmt.Sprintf(" %s", ll.spec)
+		}
 	} else {
-		prefix := detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		var prefix string
+		if ll.level == Fatal {
+			prefix = ll.fileLine + detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		} else if (ll.source != GuestErr && ll.source != GuestOut && ll.source != Wazero) && ll.level == Debug {
+			prefix = ll.fileLine + detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		} else {
+			prefix = detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+
+		}
 		if ll.spec == "" {
 			line = fmt.Sprintf("%s", ll.value[0])
 		} else {
@@ -78,9 +95,9 @@ func (ll *logLine) Print(ctx context.Context) {
 	switch ll.source {
 	case Source(UnknownS):
 		baseColor = oppDefaultColor
-	case Source(Client):
+	case Source(Guest):
 		baseColor = color.New(color.BgGreen)
-	case Source(ServerGo):
+	case Source(HostGo):
 		baseColor = color.New(color.FgYellow)
 	case Source(ServerWasm):
 		baseColor = color.New(color.FgHiYellow)
@@ -88,9 +105,9 @@ func (ll *logLine) Print(ctx context.Context) {
 		baseColor = color.New(color.FgCyan)
 	case Source(Wazero):
 		baseColor = color.New(color.FgBlue)
-	case Source(WasiOut):
+	case Source(GuestOut):
 		baseColor = defaultColor
-	case Source(WasiErr):
+	case Source(GuestErr):
 		baseColor = color.New(color.FgRed)
 	}
 	mod := addLogLevelVisual(baseColor, ll.level)
@@ -107,8 +124,8 @@ func addLogLevelVisual(c *color.Color, l LogLevel) *color.Color {
 		return c.Add(color.ReverseVideo)
 	case Warn:
 		return c.Add(color.Underline)
-	case Debug:
-		return c.Add(color.Faint)
+		// case Debug:
+		// 	return c.Add(color.Faint)
 	}
 	return c
 }
