@@ -334,8 +334,8 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
-		WithStdout(newRawLineReader(rawLineContext, pcontext.WasiOut)).
-		WithStderr(newRawLineReader(rawLineContext, pcontext.WasiErr)).
+		WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
+		WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
 		WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
 		WithRandSource(rand.Reader).
 		WithFSConfig(fsConfig).
@@ -373,10 +373,10 @@ func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string,
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
-	e.addSupportedFunc_i32i32i32i32_v(ctx, pkg, name, api.GoModuleFunc(raw))
+	e.addSupportedFunc_i32i32i32i32_i64(ctx, pkg, name, api.GoModuleFunc(raw))
 }
-func (e *wazeroEng) addSupportedFunc_i32i32i32i32_v(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
-	e.addSupportFuncAnyType(ctx, pkg, name, api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}, nil)
+func (e *wazeroEng) addSupportedFunc_i32i32i32i32_i64(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
+	e.addSupportFuncAnyType(ctx, pkg, name, api.GoModuleFunc(raw), []api.ValueType{api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}, []api.ValueType{api.ValueTypeI64})
 }
 
 func (e *wazeroEng) AddSupportedFunc_i32_v(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
@@ -408,7 +408,6 @@ func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra i
 	}(ctx, AsyncInteraction)
 	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.ClientContext(ctx), "call of run()"))
 	if err != nil {
-		log.Printf("result %+v, err %v", result, err)
 		return nil, err
 	}
 	pcontext.Debugf(ctx, "Run", "got a return value from entry point... ")

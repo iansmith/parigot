@@ -92,7 +92,8 @@ message ExportResponse {
 }
 
 message RequireRequest {
-  repeated FullyQualifiedService service = 1;
+  repeated FullyQualifiedService dest = 1;
+  msg.protosupport.v1.IdRaw source = 2;
 }
 
 message RequireResponse {
@@ -114,4 +115,15 @@ message ExitRequest {
 
 message ExitResponse{
   int32 code = 1;
+}
+
+// Register informs the kernel you are one of the known services
+// that can be accessed.  Clients use this so they can participate
+// in the dependency graph for startup order.
+message RegisterRequest {
+    FullyQualifiedService fqs=1;
+}
+
+message RegisterResponse {
+    msg.protosupport.v1.IdRaw id =1;
 }

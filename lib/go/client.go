@@ -5,6 +5,7 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
+	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -61,13 +62,14 @@ func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.KernelErrId) {
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.KernelErrId) {
+func Require1(pkg, name string, source id.ServiceId) (*syscallmsg.RequireResponse, id.KernelErrId) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
 	in := &syscallmsg.RequireRequest{
-		Service: []*syscallmsg.FullyQualifiedService{fqs},
+		Dest:   []*syscallmsg.FullyQualifiedService{fqs},
+		Source: source.Marshal(),
 	}
 	return syscall.Require(in)
 }
@@ -75,7 +77,7 @@ func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.KernelErrId) {
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.Id) {
+func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.KernelErrId) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -84,4 +86,28 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.Id) {
 		Service: []*syscallmsg.FullyQualifiedService{fqs},
 	}
 	return syscall.Export(in)
+}
+
+// MustRegister should be used by the "main" function of a client
+// program.  The name provided here should not matter to any other
+// service.  If you need it to be refenced by others, you should
+// be using Register(), Import(), Export(), Require(), etc.
+func MustRegister(ctx context.Context, pkg, name string) id.ServiceId {
+	req := &syscallmsg.RegisterRequest{}
+	fqs := &syscallmsg.FullyQualifiedService{
+		PackagePath: pkg,
+		Service:     name,
+	}
+	req.Fqs = fqs
+	resp, err := syscall.Register(req)
+	if err.IsError() {
+		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name, err.Short())
+		panic("registration error")
+	}
+	sid, errId := id.UnmarshalServiceId(resp.GetId())
+	if errId.IsError() {
+		pcontext.Fatalf(ctx, "unable to unmarshal service id for %s.%s: %s", pkg, name, err.Short())
+		panic("registration error")
+	}
+	return sid
 }

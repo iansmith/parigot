@@ -20,9 +20,9 @@ func main() {
 func parigot_main() {
 	lib.FlagParseCreateEnv()
 
-	ctx := pcontext.ClientContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
+	ctx := pcontext.ServerWasmContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
 
-	queue.ExportQueueServiceOrPanic()
+	queue.MustExportQueueService(ctx)
 	s := queue.NewSimpleQueueService(ctx, ready)
 	queue.RunQueueService(ctx, s)
 }

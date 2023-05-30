@@ -25,7 +25,13 @@ func main() {
 	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[foo]main")
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "started main open")
-	pcontext.Dump(ctx)
+	myId := methodcall.MustRegisterFooService(ctx)
+	pcontext.Debugf(ctx, "about o doo export of foo")
+	methodcall.MustExportFooService(ctx)
+	methodcall.MustRequireFooService(ctx, myId)
+	s := &fooServer{}
+	methodcall.RunFooService(ctx, s)
+
 	f, err := os.Create("methodcall.v1.AddMultiply")
 	defer f.Close()
 	if err != nil {
@@ -104,13 +110,6 @@ func readStringFromVariableBuffer(buffer [][]byte, index int, length int) string
 //go:linkname parigot_main
 func parigot_main(argv []string, envp map[string]string) {
 	//lib.FlagParseCreateEnv()
-	panic("here")
-	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
-	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
-	methodcall.ExportFooServiceOrPanic()
-	methodcall.RequireFooServiceOrPanic(ctx)
-	s := &fooServer{}
-	methodcall.RunFooService(ctx, s)
 }
 
 // this type better implement methodcall.v1.FooService

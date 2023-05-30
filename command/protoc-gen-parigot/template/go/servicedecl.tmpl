@@ -113,7 +113,7 @@ func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,{{$errId}}) {
     },{{$errId}}NoErr
 }
 
-func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
+func MustLocate{{$svc}}(ctx context.Context) {{$svcCamel}}Client {
     if !required{{$svc}} {
         panic("call of Locate{{$svc}}OrPanic without previous call to Require{{$svc}}OrPanic")
     }
@@ -126,17 +126,46 @@ func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
     return result
 }
 
-func Require{{$svc}}OrPanic(ctx context.Context) {
-    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
+func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
+    req := &syscallmsg.RegisterRequest{}
+	fqs := &syscallmsg.FullyQualifiedService{
+		PackagePath: "{{.ProtoPackage}}",
+		Service:     "{{$svc}}",
+	}
+	req.Fqs = fqs
+	resp, err := syscall.Register(req)
     if err.IsError() {
+        return id.ZeroValueServiceId(), err
+    }
+    sid, idErr:=id.UnmarshalServiceId(resp.Id)
+    if idErr.IsError() {
+        return id.ZeroValueServiceId(),	id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+    }
+    return sid,id.KernelErrIdNoErr
+}
+
+func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
+    sid, err:=Register{{$svc}}(ctx)
+    if err.IsError() {
+        pcontext.Fatalf(ctx,"unable to register %s.%s","{{.ProtoPackage}}","{{$svc}}")
+        panic("unable to register "+"{{$svc}}")
+    }
+    return sid
+}
+
+func MustRequire{{$svc}}(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}",sid)
+    if err.IsError() {
+        pcontext.Fatalf(ctx,"unable to require %s.%s","{{.ProtoPackage}}","{{$svc}}")
         panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     required{{$svc}}=true
 }
 
-func Export{{$svc}}OrPanic() {
+func MustExport{{$svc}}(ctx context.Context) {
     _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
     if err.IsError() {
+        pcontext.Fatalf(ctx, "unable to require %s.%s","{{.ProtoPackage}}","{{$svc}}")
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
 }

@@ -10,6 +10,7 @@ import (
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
@@ -20,16 +21,15 @@ const TestRegexpFail test.TestErrIdCode = test.TestErrIdGuestStart
 func manufactureContext(name string) context.Context {
 	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.ClientContext(context.Background()), name), name)
 }
-
 func main() {
 	ctx := manufactureContext("[methodcall]main")
 	defer pcontext.Dump(ctx)
-	pcontext.Debugf(ctx, "main methodcall test")
+	pcontext.Debugf(ctx, "program started")
 
-	methg.RequireFooServiceOrPanic(pcontext.CallTo(ctx, "Require"))
-	pcontext.Debugf(ctx, "main methodcall test2")
-	test.RequireTestServiceOrPanic(ctx)
-	queue.RequireQueueServiceOrPanic(ctx)
+	myServiceId := lib.MustRegister(ctx, "[CLiENT]", "main") //name doesnt' really matter
+	methg.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
+	test.MustRequireTestService(ctx, myServiceId)
+	queue.MustRequireQueueService(ctx, myServiceId)
 	// methg.RequireBarServiceOrPanic(ctx)
 
 	pcontext.Debugf(ctx, "got three requires done")
@@ -148,9 +148,9 @@ type myUnderTestServer struct {
 }
 
 func (m *myUnderTestServer) Ready(ctx context.Context) bool {
-	m.foo = methg.LocateFooServiceOrPanic(ctx)
-	m.bar = methg.LocateBarServiceOrPanic(ctx)
-	m.testSvc = test.LocateTestServiceOrPanic(ctx)
+	m.foo = methg.MustLocateFooService(ctx)
+	m.bar = methg.MustLocateBarService(ctx)
+	m.testSvc = test.MustLocateTestService(ctx)
 	if err := m.setupTests(ctx); err.IsError() {
 		pcontext.Logf(ctx, pcontext.Error, "test setup failed:", err)
 		return false

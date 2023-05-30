@@ -33,6 +33,7 @@ const (
 // of the proto file and parses into a map.  Note that you can have file options
 // service options, field options, etc.
 func optionsToMap(s string) map[string]string {
+
 	parts := strings.Split(s, " ")
 	result := make(map[string]string)
 	for _, opt := range parts {

@@ -6,11 +6,11 @@ import (
 
 	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
-	"google.golang.org/protobuf/proto"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	//"github.com/iansmith/parigot/apiwasm"
 
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	"google.golang.org/protobuf/proto"
 	//"google.golang.org/protobuf/proto"
 )
 
@@ -28,11 +28,12 @@ func unwindLenAndPtr(ret uint64) (uint32, uint32) {
 // write the U given, and return the KernelErrId properly. It does these
 // manipulations so you can call a lower level function that is implemented by
 // the host.
-func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32, int32, int32)) (U, id.KernelErrId) {
+func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.KernelErrId) {
 	var outErr id.KernelErrId
 	outProtoPtr := u
 	outErrPtr := &outErr
 	var nilU U
+
 	buf, err := proto.Marshal(t)
 	if err != nil {
 		return nilU, id.NewKernelErrId(id.KernelMarshalFailed)
@@ -44,15 +45,23 @@ func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32
 	if val.Kind() != reflect.Ptr {
 		panic("client side of syscall passed a proto.Message that is not a pointer")
 	}
+
 	outBuf := make([]byte, apishared.GuestReceiveBufferSize)
 	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
 	out := int32(sh.Data)
 	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
-	fn(length, req, out, errPtr)
+
+	wrapped := fn(length, req, out, errPtr)
 	if outErr.IsError() {
 		return nilU, outErr
 	}
-	if err := proto.Unmarshal(outBuf, u); err != nil {
+	l, ptr := unwindLenAndPtr(uint64(wrapped))
+
+	if int32(ptr) != out { //sanity
+		panic("mismatched pointers in host call/return")
+	}
+
+	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
 		outErr = id.NewKernelErrId(id.KernelErrIdUnmarshalError)
 	}
 	return outProtoPtr, id.KernelErrIdNoErr
@@ -66,7 +75,7 @@ func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32
 // func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 //
 //go:wasmimport parigot locate_
-func Locate_(int32, int32, int32, int32)
+func Locate_(int32, int32, int32, int32) int64
 func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
 	outProtoPtr := &syscallmsg.LocateResponse{}
 	return clientSide(inPtr, outProtoPtr, Locate_)
@@ -96,8 +105,6 @@ func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.
 //
 // func BlockUntilCall(*syscallmsg.BlockUntilCallRequest) *syscallmsg.BlockUntilCallResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export blockUntilCall
 //go:wasmimport parigot block_until_call_
 func BlockUntilCall_(int32, int32) int32
 
@@ -151,14 +158,10 @@ func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.IdRaw) {
 // to export itself as the queue service.
 //
 //go:wasmimport parigot export_
-func Export_(int32, int32) int32
-func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Id) {
-	out := &syscallmsg.ExportResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Export_ failed:%v", err)
-	// }
-	return out, nil
+func Export_(int32, int32, int32, int32) int64
+func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.KernelErrId) {
+	outProtoPtr := &syscallmsg.ExportResponse{}
+	return clientSide(inPtr, outProtoPtr, Require_)
 }
 
 // ReturnValue is not a call that user code should be using. It is the
@@ -182,9 +185,8 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 // to import the queue service.
 //
 //go:wasmimport parigot require_
-func Require_(int32, int32, int32, int32)
+func Require_(int32, int32, int32, int32) int64
 func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
-	print("xxxx GOT TO CLIENT SIDE REQUIRE\n")
 	outProtoPtr := &syscallmsg.RequireResponse{}
 	return clientSide(inPtr, outProtoPtr, Require_)
 }
@@ -195,7 +197,6 @@ func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.
 //
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
-
 func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
 	out := &syscallmsg.ExitResponse{}
 	// err := error(nil)
@@ -203,4 +204,16 @@ func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
 	// 	return nil, //fmt.Errorf("Exit_ failed:%v", err)
 	// }
 	return out, id.KernelErrIdNoErr.Raw()
+}
+
+// Register should be called before any other services are
+// Required, Exported, or Located.
+//
+//go:wasmimport parigot register_
+func Register_(int32, int32, int32, int32) int64
+
+func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, id.KernelErrId) {
+	outProtoPtr := &syscallmsg.RegisterResponse{}
+	rr, kid := clientSide(inPtr, outProtoPtr, Register_)
+	return rr, kid
 }
