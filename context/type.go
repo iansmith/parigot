@@ -61,13 +61,13 @@ type Source int
 
 const (
 	UnknownS           Source = 0
-	Client             Source = 1
-	ServerGo           Source = 2
+	Guest              Source = 1
+	HostGo             Source = 2
 	ServerWasm         Source = 3
 	Parigot            Source = 4
 	Wazero             Source = 5
-	WasiOut            Source = 6
-	WasiErr            Source = 7
+	GuestOut           Source = 6
+	GuestErr           Source = 7
 	StackTraceInternal Source = 8
 	SpewInternal       Source = 9
 )
@@ -76,18 +76,18 @@ func (s Source) String() string {
 	switch s {
 	case UnknownS:
 		return "-------"
-	case Client:
-		return " Client"
-	case ServerGo:
-		return "  SrvGo"
+	case Guest:
+		return "  Guest"
+	case HostGo:
+		return " HostGo"
 	case ServerWasm:
 		return "SvrWasm"
 	case Wazero:
 		return " Wazero"
-	case WasiOut:
-		return "WasiOut"
-	case WasiErr:
-		return "WasiErr"
+	case GuestOut:
+		return " GstOut"
+	case GuestErr:
+		return " GstErr"
 	case Parigot:
 		return "Parigot"
 	case StackTraceInternal:

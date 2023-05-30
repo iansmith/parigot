@@ -27,9 +27,6 @@ func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, 
 		stack[0] = NoReturnedStruct
 		return true
 	}
-	if resp == nil {
-		return true
-	}
 	buf, err := proto.Marshal(resp)
 	if err != nil {
 		e := id.NewKernelErrId(id.KernelMarshalFailed)
@@ -75,14 +72,14 @@ func pullRequestFromStack(ctx context.Context, m api.Module, req proto.Message, 
 
 func invokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, syscallName string, m api.Module, stack []uint64,
 	fn func(context.Context, T, U) id.KernelErrId, t T, u U) {
-	currCtx := pcontext.CallTo(pcontext.ServerGoContext(ctx), syscallName)
-	pcontext.Infof(currCtx, "syscall received (%T %T)", t, u)
+	currCtx := manufactureSyscallContext(ctx, syscallName)
 	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
 		return
 	}
-	pcontext.Spew(ctx, t)
+
 	kerr := fn(currCtx, t, u)
 	if !pushResponseToStack(currCtx, m, u, kerr, stack) {
 		panic("unable to push response back to guest memory")
 	}
+	pcontext.Dump(currCtx)
 }

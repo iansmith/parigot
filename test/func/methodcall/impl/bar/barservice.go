@@ -7,7 +7,6 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 	methodg "github.com/iansmith/parigot/g/methodcall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 )
@@ -15,18 +14,12 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-
-}
-
-//go:export parigot_main
-//go:linkname parigot_main
-func parigot_main() {
-	lib.FlagParseCreateEnv()
 	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
 	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
 
-	methodg.ExportBarServiceOrPanic()
-	methodg.RequireFooServiceOrPanic(ctx)
+	myId := methodg.MustRegisterBarService(ctx)
+	methodg.MustExportBarService(ctx)
+	methodg.MustRequireFooService(ctx, myId)
 	s := &barServer{}
 	methodg.RunBarService(ctx, s)
 }
@@ -91,6 +84,6 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 // services are ready.
 func (b *barServer) Ready(ctx context.Context) bool {
 	methodg.WaitBarServiceOrPanic()
-	b.foo = methodcall.LocateFooServiceOrPanic(ctx)
+	b.foo = methodcall.MustLocateFooService(ctx)
 	return true
 }
