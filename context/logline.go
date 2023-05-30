@@ -99,14 +99,12 @@ func (ll *logLine) Print(ctx context.Context) {
 		baseColor = color.New(color.BgGreen)
 	case Source(HostGo):
 		baseColor = color.New(color.FgYellow)
-	case Source(ServerWasm):
-		baseColor = color.New(color.FgHiYellow)
 	case Source(Parigot):
 		baseColor = color.New(color.FgCyan)
 	case Source(Wazero):
 		baseColor = color.New(color.FgBlue)
 	case Source(GuestOut):
-		baseColor = defaultColor
+		baseColor = color.New(color.FgHiBlue)
 	case Source(GuestErr):
 		baseColor = color.New(color.FgRed)
 	}

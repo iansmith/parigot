@@ -1,57 +1,18 @@
 package main
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"github.com/dominikbraun/graph"
 	"github.com/iansmith/parigot/apishared/id"
+	pcontext "github.com/iansmith/parigot/context"
 )
 
 var depData = newSyscallDataImpl()
 
 var runWaitTimeout = time.Duration(10) * time.Second
-
-type Service interface {
-	Id() id.ServiceId
-	Name() string
-	Package() string
-	Short() string
-	String() string
-	RunRequested() bool
-	Exported() bool
-	Run() bool
-}
-
-type SyscallData interface {
-	//ServiceByName looks up a service and returns it based on the
-	//values package_ and name.  If this returns nil, the service could
-	//not be found.
-	ServiceByName(package_, name string) Service
-	//ServiceById looks up a service and returns it based on the
-	//value sid.  If this returns nil, the service could
-	//not be found.
-	ServiceById(id.ServiceId) Service
-	//ServiceByIdString looks up a service based on the printed representation
-	//of the service id.  If the service cannot be found ServiceByIdString
-	//returns nil.
-	ServiceByIdString(string) Service
-	// SetService puts a service into SyscallData.  This should only be
-	// called once for each package_ and name pair. It returns the
-	// ServiceId for the service named, creating a new one if necessary.
-	// If the bool result is false, then the pair already existed and
-	// we made no changes to it.
-	SetService(package_, name string) (Service, bool)
-	// Export finds a service by the given sid and then marks that
-	// service as being exported. This function returns nil if
-	// there is no such service.
-	Export(svc id.ServiceId) Service
-	// Import introduces a dendency between the sourge and dest
-	// services. Thus,  dest must be running before source can run.
-	// This function returns false if the services cannot be found
-	// or the introduction of this edge would produce a cyle.
-	Import(src, dest id.ServiceId) bool
-}
 
 //
 // serviceImpl
@@ -62,16 +23,19 @@ type serviceImpl struct {
 	id        id.ServiceId
 	runReady  bool
 	exported  bool
+	started   bool
+	parent    *syscallDataImpl
 	runCh     chan struct{}
 	lock      *sync.Mutex
 }
 
-func newServiceImpl(pkg, name string, sid id.ServiceId) *serviceImpl {
+func newServiceImpl(pkg, name string, sid id.ServiceId, parent *syscallDataImpl) *serviceImpl {
 	result := &serviceImpl{
 		pkg:      pkg,
 		name:     name,
 		id:       sid,
 		runReady: false,
+		parent:   parent,
 		lock:     new(sync.Mutex),
 		runCh:    make(chan struct{}),
 	}
@@ -118,31 +82,32 @@ func (s *serviceImpl) Exported() bool {
 	return s.exported
 }
 
-func (s *serviceImpl) Run() bool {
+func (s *serviceImpl) Run(ctx context.Context) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.runReady = true
-	return s.waitToRun()
+	return s.waitToRun(ctx)
 }
 
-func (s *serviceImpl) canRun() bool {
+func (s *serviceImpl) canRun(ctx context.Context) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.Exported() && s.RunRequested()
+	return s.Exported() && s.RunRequested() && s.parent.checkNodesBehindForReadyNoLock(ctx, s.String())
 }
 
 // waitToRun waits until the timeout expires or until it receives a wake
 // up call and a check for the ability to run successfully is made. It returns
 // false if it is returning because of a timeout. Note that this function
 // does not lock so that other things can proceed concurrently.
-func (s *serviceImpl) waitToRun() bool {
-	if s.canRun() {
+func (s *serviceImpl) waitToRun(ctx context.Context) bool {
+	if s.canRun(ctx) {
 		return true
 	}
 	for {
 		select {
 		case <-s.runCh:
-			if s.canRun() {
+			if s.canRun(ctx) {
+				s.started = true
 				return true
 			}
 		case <-time.After(1 * time.Minute):
@@ -169,6 +134,13 @@ func (s *serviceImpl) Short() string {
 	return s.id.Short()
 }
 
+func (s *serviceImpl) Started() bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.started
+}
+
 //
 // syscallDataImpl
 //
@@ -192,11 +164,11 @@ func newSyscallDataImpl() *syscallDataImpl {
 	return impl
 }
 
-func (s *syscallDataImpl) SetService(package_, name string) (Service, bool) {
+func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string) (Service, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	svc := s.serviceByNameNoLock(package_, name)
+	svc := s.serviceByNameNoLock(ctx, package_, name)
 	if svc != nil {
 		return svc, false
 	}
@@ -206,7 +178,8 @@ func (s *syscallDataImpl) SetService(package_, name string) (Service, bool) {
 		nmap = make(map[string]Service)
 		s.packageNameToServiceNameMap[package_] = nmap
 	}
-	result := newServiceImpl(package_, name, svcId)
+	result := newServiceImpl(package_, name, svcId, s)
+
 	nmap[name] = result
 	s.sidStringToService[result.String()] = result
 	s.depGraph.AddVertex(result.String())
@@ -214,12 +187,12 @@ func (s *syscallDataImpl) SetService(package_, name string) (Service, bool) {
 
 }
 
-func (s *syscallDataImpl) ServiceByName(package_, name string) Service {
+func (s *syscallDataImpl) ServiceByName(ctx context.Context, package_, name string) Service {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.serviceByNameNoLock(package_, name)
+	return s.serviceByNameNoLock(ctx, package_, name)
 }
-func (s *syscallDataImpl) serviceByNameNoLock(package_, name string) Service {
+func (s *syscallDataImpl) serviceByNameNoLock(ctx context.Context, package_, name string) Service {
 
 	nameMap, ok := s.packageNameToServiceNameMap[package_]
 	if !ok {
@@ -232,10 +205,10 @@ func (s *syscallDataImpl) serviceByNameNoLock(package_, name string) Service {
 	return svc
 }
 
-func (s *syscallDataImpl) ServiceById(sid id.ServiceId) Service {
-	return s.ServiceByIdString(sid.String())
+func (s *syscallDataImpl) ServiceById(ctx context.Context, sid id.ServiceId) Service {
+	return s.ServiceByIdString(ctx, sid.String())
 }
-func (s *syscallDataImpl) serviceByIdStringNoLock(sid string) Service {
+func (s *syscallDataImpl) serviceByIdStringNoLock(ctx context.Context, sid string) Service {
 	svc, ok := s.sidStringToService[sid]
 	if !ok {
 		return nil
@@ -243,45 +216,128 @@ func (s *syscallDataImpl) serviceByIdStringNoLock(sid string) Service {
 	return svc
 }
 
-func (s *syscallDataImpl) ServiceByIdString(sid string) Service {
+func (s *syscallDataImpl) ServiceByIdString(ctx context.Context, sid string) Service {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	return s.serviceByIdStringNoLock(sid)
+	return s.serviceByIdStringNoLock(ctx, sid)
 }
 
-func (s *syscallDataImpl) Export(svcId id.ServiceId) Service {
+func (s *syscallDataImpl) Export(ctx context.Context, svcId id.ServiceId) Service {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	svc := s.serviceByIdStringNoLock(svcId.String())
+	svc := s.serviceByIdStringNoLock(ctx, svcId.String())
 	if svc == nil {
 		return nil
 	}
 	svc.(*serviceImpl).export()
-	s.notifyNodedBehindNoLock(svc.String())
+	pcontext.Infof(ctx, "export completed, service %s", svc.Short())
+	if svc.(*serviceImpl).canRun(ctx) {
+
+	}
 	return svc
 }
 
-func (s *syscallDataImpl) notifyNodedBehindNoLock(svcid string) {
-	topo, _ := graph.TopologicalSort(s.depGraph)
-	for _, str := range topo {
-		svc := s.ServiceByIdString(str)
-		if svcid == svc.String() {
-			break
-		}
-		svc.(*serviceImpl).wakeUp()
-	}
-}
-
-func (s *syscallDataImpl) Import(src, dest id.ServiceId) bool {
+// topoSort does a topological sort of all the nodes we currently know about.
+// This function asserts the lock to ensure that while the topo algorihtm is
+// running no part of the graph is disturbed.  It returns what I HOPE is a copy
+// of the content of the graph vertices.
+func (s *syscallDataImpl) topoSort() []string {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	serviceSource := s.serviceByIdStringNoLock(src.String())
+	topo, _ := graph.TopologicalSort(s.depGraph)
+	return topo
+}
+
+// notifyNodesBehindForReadyNoLock walks the topologically ordered vertices, looking for any nodes
+// that are predecessors of the given node and notifying them to check their status for running.
+// This returns false only when the service cannot be found.
+func (s *syscallDataImpl) notifyNodesBehindForReadyNoLock(ctx context.Context, svcid string) bool {
+	topo := s.topoSort()                        // locks
+	if s.ServiceByIdString(ctx, svcid) == nil { //locks
+		return false
+	}
+	for _, str := range topo {
+		if str == svcid {
+			pcontext.Debugf(ctx, "covered all predecessors of %s", svcid)
+			return true
+		}
+		svc := s.ServiceByIdString(ctx, str)
+		if svc == nil {
+			pcontext.Fatalf(ctx, "internal error trying to notify nodes to check their can run status, can't find  "+str)
+			panic("internal error trying to notify nodes to check their can run status, can't find  " + str)
+		}
+		svc.(*serviceImpl).wakeUp()
+	}
+	return true
+}
+
+// checkNodesBehindForReadyNoLock walks the topologically ordered vertices, looking for any nodes
+// that are predecessors of the given node and testing to see if they are started. If not
+// we return false.  If all the predecessorys are started, then we return true.  If the
+// serviceId cannot be found, we return true.
+func (s *syscallDataImpl) checkNodesBehindForReadyNoLock(ctx context.Context, svcid string) bool {
+
+	topo := s.topoSort()                        // locks
+	if s.ServiceByIdString(ctx, svcid) == nil { //locks
+		return true
+	}
+	success := true
+	for _, str := range topo {
+		if str == svcid {
+			pcontext.Debugf(ctx, "%s is now ready to run", svcid)
+			return success
+		}
+		svc := s.ServiceByIdString(ctx, str) //locks
+		if svc == nil {
+			panic("unable to walk the dep graph looking for predeessors, a predecessor could not be found: " + str)
+		}
+		if svc.Exported() && svc.RunRequested() && svc.Started() {
+			continue
+		}
+		return false
+	}
+	panic("did not find id " + svcid + " in the list of vertices")
+}
+
+// notifyNodesInFrontNoLock walks the topologically ordered vertices, looking for any nodes
+// that have satisfied dependencies and are net yet running. It returns false only if the svcid
+// cannot be found.
+func (s *syscallDataImpl) checkNodesInFrontNoLock(ctx context.Context, svcid string) bool {
+	topo := s.topoSort()
+	foundSelf := false
+	for _, str := range topo {
+		svc := s.ServiceByIdString(ctx, str)
+		if svc == nil {
+			return false
+		}
+		if svcid == svc.String() {
+			foundSelf = true
+			continue
+		}
+		if !foundSelf {
+			continue
+		}
+		if svc.Started() {
+			continue
+		}
+		pcontext.Infof(ctx, "notifying service %s to check its ready state", svc.Short())
+		// wake em up
+		svc.(*serviceImpl).wakeUp()
+	}
+	return true
+}
+
+func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) bool {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	serviceSource := s.serviceByIdStringNoLock(ctx, src.String())
 	if serviceSource == nil {
 		return false
 	}
-	serviceDest := s.serviceByIdStringNoLock(dest.String())
+	serviceDest := s.serviceByIdStringNoLock(ctx, dest.String())
 	if serviceDest == nil {
 		return false
 	}
@@ -299,4 +355,14 @@ func (s *syscallDataImpl) Import(src, dest id.ServiceId) bool {
 	default:
 		panic("unexpected graph error in dependency graph:" + err.Error())
 	}
+}
+
+// Run blocks the caller on a particular service being ready to run.  Note that
+// function does not assert the lock.
+func (s *syscallDataImpl) Run(ctx context.Context, sid id.ServiceId) bool {
+	service := s.ServiceById(ctx, sid)
+	if service == nil {
+		return false
+	}
+	return service.Run(ctx)
 }

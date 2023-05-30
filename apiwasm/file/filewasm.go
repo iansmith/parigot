@@ -11,7 +11,7 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.ClientContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
+	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
 	file.MustRegisterFileService(ctx)
 	s := file.NewSimpleFileService(ctx, ready)
 	file.RunFileService(ctx, s)

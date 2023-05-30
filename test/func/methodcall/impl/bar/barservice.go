@@ -15,7 +15,7 @@ var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
-	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[bar]main")
+	ctx = pcontext.CallTo(pcontext.GuestContext(ctx), "[bar]main")
 
 	myId := methodg.MustRegisterBarService(ctx)
 	methodg.MustExportBarService(ctx)

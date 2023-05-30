@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"math"
-	"os"
 	"reflect"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	"github.com/iansmith/parigot/g/methodcall/v1"
 
 	pcontext "github.com/iansmith/parigot/context"
@@ -22,34 +19,33 @@ const pathPrefix = "/parigotvirt/"
 
 func main() {
 	ctx := pcontext.NewContextWithContainer(context.Background(), "[fooservice]main")
-	ctx = pcontext.CallTo(pcontext.ServerWasmContext(ctx), "[foo]main")
+	ctx = pcontext.CallTo(pcontext.GuestContext(ctx), "[foo]main")
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "started main open")
 	myId := methodcall.MustRegisterFooService(ctx)
-	pcontext.Debugf(ctx, "about o doo export of foo")
 	methodcall.MustExportFooService(ctx)
-	methodcall.MustRequireFooService(ctx, myId)
-	s := &fooServer{}
+	pcontext.Debugf(ctx, "finished exported from foo, who is %s", myId.Short())
+	s := &methodcall.SimpleFooService{}
 	methodcall.RunFooService(ctx, s)
 
-	f, err := os.Create("methodcall.v1.AddMultiply")
-	defer f.Close()
-	if err != nil {
-		pcontext.Fatalf(ctx, "ERR IS ", err.Error())
-		return
-	}
-	bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
-	msg := &methodcallmsg.AddMultiplyRequest{}
-	errId := id.KernelErrIdNoErr.Raw() // just for the space
-	if err := bpi.ReadProto(msg, &errId); err != nil {
-		pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
-		pcontext.Dump(ctx)
-		return
-	} else {
-		pcontext.Infof(ctx, "read a bundle %+v", msg)
-		pcontext.Dump(ctx)
-		return
-	}
+	// f, err := os.Create("methodcall.v1.AddMultiply")
+	// defer f.Close()
+	// if err != nil {
+	// 	pcontext.Fatalf(ctx, "ERR IS ", err.Error())
+	// 	return
+	// }
+	// bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
+	// msg := &methodcallmsg.AddMultiplyRequest{}
+	// errId := id.KernelErrIdNoErr.Raw() // just for the space
+	// if err := bpi.ReadProto(msg, &errId); err != nil {
+	// 	pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
+	// 	pcontext.Dump(ctx)
+	// 	return
+	// } else {
+	// 	pcontext.Infof(ctx, "read a bundle %+v", msg)
+	// 	pcontext.Dump(ctx)
+	// 	return
+	// }
 }
 
 // example is a function that is an example of a function to be exported. From the standpoint of example,
@@ -156,8 +152,9 @@ func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiReque
 
 	for k := 1; k <= int(req.GetTerms()); k++ {
 		runningTotal = runningTotal - math.Tan(runningTotal)
+		pcontext.Debugf(ctx, "WritePi", "%f", runningTotal)
 	}
-	pcontext.Debugf(ctx, "WritePi", "%f", runningTotal)
+	pcontext.Infof(ctx, "WritePi result:", "%f", runningTotal)
 	return methodcall.ZeroValueMethodcallErrId()
 }
 
