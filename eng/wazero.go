@@ -406,7 +406,7 @@ func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra i
 		}
 		pcontext.Dump(rawLineContext)
 	}(ctx, AsyncInteraction)
-	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.ClientContext(ctx), "call of run()"))
+	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.GuestContext(ctx), "call of run()"))
 	if err != nil {
 		return nil, err
 	}

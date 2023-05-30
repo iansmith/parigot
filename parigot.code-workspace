@@ -15,6 +15,7 @@
 		"go.survey.prompt": false,
 		"go.goroot": "",
 		"workbench.sideBar.location": "left",
+		"search.useIgnoreFiles": false,
 	},
 	"launch": {
 		"version": "0.2.0",

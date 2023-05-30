@@ -4,9 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	methg "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
+	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
@@ -19,7 +21,7 @@ var exitCode = int32(0)
 const TestRegexpFail test.TestErrIdCode = test.TestErrIdGuestStart
 
 func manufactureContext(name string) context.Context {
-	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.ClientContext(context.Background()), name), name)
+	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(context.Background()), name), name)
 }
 func main() {
 	ctx := manufactureContext("[methodcall]main")
@@ -27,12 +29,22 @@ func main() {
 	pcontext.Debugf(ctx, "program started")
 
 	myServiceId := lib.MustRegister(ctx, "[CLiENT]", "main") //name doesnt' really matter
+	pcontext.Debugf(ctx, "got my service id %s", myServiceId.Short())
 	methg.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
+	pcontext.Debugf(ctx, "fineshed requiring foo")
 	test.MustRequireTestService(ctx, myServiceId)
+	pcontext.Debugf(ctx, "fineshed requiring test")
 	queue.MustRequireQueueService(ctx, myServiceId)
-	// methg.RequireBarServiceOrPanic(ctx)
+	pcontext.Debugf(ctx, "fineshed requiring queue")
 
-	pcontext.Debugf(ctx, "got three requires done")
+	// methg.RequireBarServicegiOrPanic(ctx)
+
+	req := syscallmsg.RunRequest{Wait: true}
+	_, err := syscall.Run(&req)
+	if err.IsError() {
+		pcontext.Fatalf(ctx, "unable to start running, err was %s", err.Short())
+	}
+	pcontext.Debugf(ctx, "got three requires  ---- done")
 	return
 
 	//test.RunUnderTestService(ctx, underTestServer)

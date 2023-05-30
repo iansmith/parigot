@@ -26,7 +26,7 @@ const testQueueName = "test_queue"
 
 func main() {
 	lib.FlagParseCreateEnv()
-	ctx := pcontext.CallTo(pcontext.ServerWasmContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
+	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 
 	myId := testg.MustRegisterTestService(ctx)
 	// The queue we will use

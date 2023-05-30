@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
@@ -35,6 +34,71 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	return true
 }
 
+//
+// Syscall host implementations
+//
+
+func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.KernelErrId {
+	for _, fullyQualified := range req.GetService() {
+		sid, ok := depData.SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		if !ok {
+			pcontext.Debugf(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
+				fullyQualified.GetService(), sid.Short())
+		}
+		pcontext.Debugf(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
+			fullyQualified.GetService(), sid.Short())
+		if depData.Export(ctx, sid.Id()) == nil {
+			return id.NewKernelErrId(id.KernelNotFound)
+		}
+	}
+	return id.KernelErrIdNoErr
+
+}
+func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrId {
+	pcontext.Errorf(ctx, "unable to unmrarshal the service id in a require request: %s", ierr.Short())
+	// xxx this isn't a great error because the problem is really an Id error
+	return id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+
+}
+
+func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.RunResponse) id.KernelErrId {
+	sid, idErr := id.UnmarshalServiceId(req.GetServiceId())
+	if idErr.IsError() {
+		returnKernelErrorForIdErr(ctx, idErr)
+	}
+	depData.Run(ctx, sid)
+	return id.KernelErrIdNoErr
+}
+
+func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.KernelErrId {
+	svc, _ := depData.SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService())
+	resp.Id = svc.Id().Marshal()
+	return id.KernelErrIdNoErr
+}
+
+func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.KernelErrId {
+	src, idErr := id.UnmarshalServiceId(req.GetSource())
+	if idErr.IsError() {
+		returnKernelErrorForIdErr(ctx, idErr)
+	}
+	fqn := req.GetDest()
+	for _, fullyQualified := range fqn {
+		dest, ok := depData.SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		if ok {
+			pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
+				fullyQualified.GetService(), dest.Short())
+		}
+		if !depData.Import(ctx, src, dest.Id()) {
+			return id.NewKernelErrId(id.KernelNotFound)
+		}
+	}
+	return id.KernelErrIdNoErr
+}
+
+//
+// Syscall marshal/unmarshal for each system call
+//
+
 func locate(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("locate %s 0=0x%x, 1=0x%x", m.Name(), stack[0], stack[1])
 	stack[0] = 82
@@ -52,7 +116,9 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("bindMethod 0x%x", stack)
 }
 func run(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("run 0x%x", stack)
+	req := &syscallmsg.RunRequest{}
+	resp := (*syscallmsg.RunResponse)(nil)
+	invokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.ExportRequest{}
@@ -61,51 +127,6 @@ func export(ctx context.Context, m api.Module, stack []uint64) {
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("returnValue 0x%x", stack)
-}
-func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.KernelErrId {
-	for _, fullyQualified := range req.GetService() {
-		sid, ok := depData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		if !ok {
-			pcontext.Infof(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
-				fullyQualified.GetService(), sid.Short())
-		}
-		pcontext.Infof(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
-			fullyQualified.GetService(), sid.Short())
-		if depData.Export(sid.Id()) == nil {
-			return id.NewKernelErrId(id.KernelNotFound)
-		}
-	}
-	return id.KernelErrIdNoErr
-
-}
-
-func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.KernelErrId {
-	svc, _ := depData.SetService(req.Fqs.GetPackagePath(), req.Fqs.GetService())
-	resp.Id = svc.Id().Marshal()
-	return id.KernelErrIdNoErr
-}
-
-func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.KernelErrId {
-	src, idErr := id.UnmarshalServiceId(req.GetSource())
-	if idErr.IsError() {
-		pcontext.Errorf(ctx, "unable to unmrarshal the service id in a require request: %s", idErr.Short())
-		// xxx this isn't a great error because the problem is really an Id error
-		return id.NewKernelErrId(id.KernelErrIdUnmarshalError)
-	}
-	fqn := req.GetDest()
-	for _, fullyQualified := range fqn {
-		dest, _ := depData.SetService(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
-			fullyQualified.GetService(), dest.Short())
-
-		if !depData.Import(src, dest.Id()) {
-			return id.NewKernelErrId(id.KernelNotFound)
-		}
-	}
-	return id.KernelErrIdNoErr
-}
-func manufactureSyscallContext(ctx context.Context, funcName string) context.Context {
-	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "manufactureSyscallContext")), funcName)
 }
 
 func require(ctx context.Context, m api.Module, stack []uint64) {
@@ -127,23 +148,10 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 	panic("exit called ")
 }
 
-func readStringFromGuest(mem api.Memory, nameOffset int32) string {
-	l, ok := mem.ReadUint32Le(uint32(nameOffset))
-	if !ok {
-		panic("unable to read the length of a string from the guest")
-	}
-	data := uint32(nameOffset + apishared.WasmWidth)
-	ptr, ok := mem.ReadUint32Le(data)
-	if !ok {
-		panic("unable to read the data pointer of a string from the guest")
-	}
-	result := make([]byte, int(l))
-	for i := uint32(0); i < l; i++ {
-		b, ok := mem.ReadByte(ptr + i)
-		if !ok {
-			panic("unable to read the data of a string from the guest")
-		}
-		result[int(i)] = b
-	}
-	return string(result)
+//
+// Util
+//
+
+func manufactureSyscallContext(ctx context.Context, funcName string) context.Context {
+	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "manufactureSyscallContext")), funcName)
 }

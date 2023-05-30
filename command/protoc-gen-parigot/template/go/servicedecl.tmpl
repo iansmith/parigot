@@ -188,6 +188,7 @@ func Wait{{$svc}}OrPanic() {
 {{- if .InputCodeNeeded -}}
 func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
 {{- else -}}
+// ouch {{.InputCodeNeeded}} {{.OutputCodeNeeded}}
 func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context) 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
