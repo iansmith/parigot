@@ -43,8 +43,8 @@ SHARED_SRC=$(shell find apishared -type f -regex ".*\.go")
 # GO
 #
 GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21 GOOS=wasip1 GOARCH=wasm go1.21
-GO_TO_HOST=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
-GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
+GO_TO_HOST=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
+GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
 
 #
 # PROTOBUF FILES
