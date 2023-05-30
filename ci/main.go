@@ -13,12 +13,13 @@ const (
 	apiVersion = "v1"
 
 	goToWASM   = "go1.21"
-	goToHost   = "go1.20.4"
-	goToPlugin = "go1.20.4"
+	goToHost   = "go1.19.9"
+	goToPlugin = "go1.19.9"
 
 	// EXTRA ARGS FOR BUILDING (placed after the "go build")
 	// use -x for more details from a go compiler
-	extraHostArgs = ""
+	extraWASMCompArgs = ""
+	extraHostArgs     = ""
 
 	syscallClientSide = "apiwasm/syscall/*.go"
 
@@ -26,6 +27,19 @@ const (
 )
 
 var (
+	// go environment variables
+	goEnvVarsWASM = map[string]string{
+		"GOROOT": "/home/parigot/deps/go1.21",
+		"GOOS":   "wasip1",
+		"GOARCH": "wasm",
+	}
+	goEnvVarsHost = map[string]string{
+		"GOROOT": "/home/parigot/deps/go1.19.9",
+	}
+	goEnvVarsPlugin = map[string]string{
+		"GOROOT": "/home/parigot/deps/go1.19.9",
+	}
+
 	// protobuf files
 	apiProto  string
 	testProto string
@@ -64,41 +78,16 @@ func build(ctx context.Context) error {
 			client.Host().Directory("."),
 			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/"}},
 		).
-		WithWorkdir("/workspaces/parigot")
+		WithWorkdir("/workspaces/parigot").
+		WithUser("root")
 
-	// // get version execute
-	// golang := img.WithExec([]string{"go1.20.4", "version"})
-	// version, err := golang.Stdout(ctx)
-	// if err != nil {
-	// 	return err
-	// }
-	// fmt.Println("Hello from Dagger ", version)
-
-	// // get files in the working directory
-	// contents, err := img.WithExec([]string{"ls", "/src"}).Stdout(ctx)
-	// if err != nil {
-	// 	return (err)
-	// }
-	// fmt.Println(contents)
-
-	img, err = buildProtocGenParigot(ctx, img)
-	if err != nil {
-		return err
-	}
-
-	img, err = generateRep(ctx, img)
-	if err != nil {
-		return err
-	}
-
-	img, err = buildFilePWasm(ctx, img)
-	if err != nil {
+	// build client side of api
+	if img, err = buildClientSideOfApi(ctx, img); err != nil {
 		return err
 	}
 
 	// get reference to build output directory in container
 	output := img.Directory("build")
-
 	// write contents of container build/ directory to the host
 	_, err = output.Export(ctx, "build")
 	if err != nil {
@@ -106,6 +95,45 @@ func build(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func buildClientSideOfApi(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	// set up HOST env variables
+	for key, value := range goEnvVarsHost {
+		img = img.WithEnvVariable(key, value)
+	}
+	img, err := buildProtocGenParigot(ctx, img)
+	if err != nil {
+		return img, err
+	}
+	img, err = generateRep(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	// set up WASM env variables
+	for key, value := range goEnvVarsWASM {
+		img = img.WithEnvVariable(key, value)
+	}
+
+	img, err = buildFilePWasm(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	// change environment variable
+	img = img.WithEnvVariable("GOOS", "js")
+
+	img, err = buildTestPWasm(ctx, img)
+	if err != nil {
+		return img, err
+	}
+	img, err = buildQueuePWasm(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	return img, nil
 }
 
 func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
@@ -128,12 +156,6 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 	if err != nil {
 		return img, err
 	}
-
-	// contents, err := img.WithExec([]string{"ls", "-l", "."}).Stdout(ctx)
-	// if err != nil {
-	// 	return img, err
-	// }
-	// fmt.Println(contents)
 
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
@@ -169,15 +191,17 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	}
 
 	img = img.WithExec([]string{"rm", "-rf", "g/*"})
-	img = img.WithExec([]string{"buf", "lint"})
-	img = img.WithExec([]string{"buf", "generate"})
+	// switch user from root to parigot to be able to use buf package
+	img = img.WithUser("parigot").WithExec([]string{"buf", "lint"})
+	// switch user back to root
+	img = img.WithExec([]string{"buf", "generate"}).WithUser("root")
 
 	return img, nil
 }
 
 func buildFilePWasm(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-	 *	This function `generateRep` is derived from this Makefile code:
+	 *	This function `buildFilePWasm` is derived from this Makefile code:
 	 *
 	 *	FILE_SERVICE=$(shell find apiwasm/file -type f -regex ".*\.go")
 	 *	build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
@@ -198,17 +222,52 @@ func buildFilePWasm(ctx context.Context, img *dagger.Container) (*dagger.Contain
 	return img, nil
 }
 
-// func findFilesEndWith(path string, suffix string) ([]string, error) {
-// 	var files []string
-// 	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-// 		if err != nil {
-// 			log.Fatal(err)
-// 		}
-// 		if !d.IsDir() && strings.HasSuffix(d.Name(), suffix) {
-// 			files = append(files, path)
-// 		}
-// 		return nil
-// 	})
-// 	fmt.Println(files)
-// 	return files, err
-// }
+func buildTestPWasm(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function `buildTestPWasm` is derived from this Makefile code:
+	 *
+	 *	TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
+	 *	build/test.p.wasm: export GOOS=js
+	 *	build/test.p.wasm: export GOARCH=wasm
+	 *	build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
+	 *		@rm -f $@
+	 *		$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
+	 */
+	var err error
+	_, err = img.WithExec([]string{"bash", "-c", `find apiwasm/test -type f -regex ".*\.go"`}).Stdout(ctx)
+	if err != nil {
+		return img, err
+	}
+
+	target := "build/test.p.wasm"
+	packagePath := "github.com/iansmith/parigot/apiwasm/test"
+	img = img.WithExec([]string{"rm", "-f", target})
+	img = img.WithExec([]string{goToWASM, "build", "-tags", `"buildvcs=false"`, "-o", target, packagePath})
+
+	return img, nil
+}
+
+func buildQueuePWasm(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function `buildQueuePWasm` is derived from this Makefile code:
+	 *
+	 *	QUEUE_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
+	 *	build/queue.p.wasm: export GOOS=js
+	 *	build/queue.p.wasm: export GOARCH=wasm
+	 *	build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
+	 *		@rm -f $@
+	 *		$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
+	 */
+	var err error
+	_, err = img.WithExec([]string{"bash", "-c", `find apiwasm/queue -type f -regex ".*\.go"`}).Stdout(ctx)
+	if err != nil {
+		return img, err
+	}
+
+	target := "build/queue.p.wasm"
+	packagePath := "github.com/iansmith/parigot/apiwasm/queue"
+	img = img.WithExec([]string{"rm", "-f", target})
+	img = img.WithExec([]string{goToWASM, "build", "-tags", `"buildvcs=false"`, "-o", target, packagePath})
+
+	return img, nil
+}

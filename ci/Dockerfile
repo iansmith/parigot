@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 #RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update --fix-missing
-RUN apt-get install -y wget git g++ xz-utils curl file sudo
+RUN apt-get install -y wget git g++ xz-utils curl file sudo 
 # cmake ninja-build python3 nano \
 #     hugo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg \
 # 	clang-15 wabt
@@ -16,7 +16,7 @@ RUN mkdir /home/parigot/tmp
 WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## golang version
-ENV GOLANG_VERSION_HOST="1.20.4"
+ENV GOLANG_VERSION_HOST="1.19.9"
 ## wasmtime version
 ENV WASMTIME_VERSION=8.0.1
 
