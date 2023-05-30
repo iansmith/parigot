@@ -1,244 +1,129 @@
 package context
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"log"
-	"time"
+	"sync"
+
+	"github.com/fatih/color"
 )
 
-const MaxLineLen = 512
-const MaxContainerSize = 256
+type logLine struct {
+	source         Source
+	level          LogLevel
+	funcName, spec string
+	value          []interface{}
+	raw            bool
+	fileLine       string
+	lock           *sync.Mutex
+	prevCtx        context.Context
+}
 
-type ParigotKey string
+var defaultColor *color.Color
+var oppDefaultColor *color.Color
 
-const (
-	ParigotTime         ParigotKey = "parigot_time"
-	ParigotFunc         ParigotKey = "parigot_func"
-	ParigotSource       ParigotKey = "parigot_source"
-	ParigotLogContainer ParigotKey = "parigot_log_container"
-)
+var maxStrLenWithoutColor = 240 // 256 - 16
 
-type LogLevel int
+func init() {
+	defaultColor = color.New(color.FgHiBlack)
+	oppDefaultColor = color.New(color.FgHiWhite)
+	if !UseBlack {
+		defaultColor = color.New(color.FgHiWhite)
+		oppDefaultColor = color.New(color.FgHiBlack)
 
-const (
-	UnknownLL LogLevel = 0
-	Debug     LogLevel = 1
-	Info      LogLevel = 2
-	Warn      LogLevel = 3
-	Error     LogLevel = 4
-	Fatal     LogLevel = 5
-)
-
-func (l LogLevel) String() string {
-	switch l {
-	case UnknownLL:
-		return "----"
-	case Debug:
-		return "DEBG"
-	case Info:
-		return "INFO"
-	case Warn:
-		return "WARN"
-	case Error:
-		return " ERR"
 	}
-	return "FATL"
 }
 
-func (l LogLevel) Integer() int {
-	return int(l)
-}
-
-type Source int
-
-const (
-	UnknownS   Source = 0
-	Client     Source = 1
-	ServerGo   Source = 2
-	ServerWasm Source = 3
-	Parigot    Source = 4
-)
-
-func (s Source) String() string {
-	switch s {
-	case UnknownS:
-		return "------"
-	case Client:
-		return "Client"
-	case ServerGo:
-		return "ServGo"
-	case ServerWasm:
-		return "SvWasm"
+func NewLogLine(ctx context.Context, src Source, lvl LogLevel, funcName string,
+	raw bool, spec string, rest ...interface{}) *logLine {
+	if src == UnknownS {
+		src = PullSource(ctx, UnknownS)
 	}
-	return "Prigot"
+	result := &logLine{}
+	result.level = lvl
+	result.source = src
+	result.funcName = pullFunc(ctx, funcName)
+	result.fileLine = pullLineAndFile(ctx)
+	result.raw = raw
+	result.spec = spec
+	result.lock = new(sync.Mutex)
+	result.value = rest
+	result.prevCtx = ctx
+	return result
 }
-
-func (s Source) Integer() int {
-	return int(s)
+func isLineReader(src Source) bool {
+	return src == GuestErr || src == GuestOut || src == Wazero
 }
+func (ll *logLine) Print(ctx context.Context) {
+	ll.lock.Lock()
+	defer ll.lock.Unlock()
 
-type LogLine struct {
-	data [MaxLineLen]byte // c-style terminator (nul byte)
-}
-
-type LogContainer struct {
-	front, back int
-	line        [MaxContainerSize]*LogLine
-}
-
-func LogFullf(ctx context.Context, level LogLevel, source Source, funcName, spec string, rest ...interface{}) {
-	tString := CurrentTimeString(ctx)
-	lString := level.String()
-	sString := source.String()
-	if source == UnknownS {
-		possibleS := ctx.Value(ParigotSource)
-		if possibleS != nil {
-			sString = possibleS.(Source).String()
-		}
-	}
-	if funcName == "" {
-		f := ctx.Value(ParigotFunc)
-		if f == nil {
-			funcName = "[-unknown-]"
+	var line string
+	if ll.raw {
+		if ll.level == Debug && !isLineReader(ll.source) {
+			line = fmt.Sprintf("%s%s", ll.fileLine, ll.spec)
 		} else {
-			funcName = f.(string)
+			line = fmt.Sprintf(" %s", ll.spec)
 		}
-	}
+	} else {
+		var prefix string
+		if ll.level == Fatal {
+			prefix = ll.fileLine + detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		} else if (ll.source != GuestErr && ll.source != GuestOut && ll.source != Wazero) && ll.level == Debug {
+			prefix = ll.fileLine + detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
+		} else {
+			prefix = detailPrefix(ll.prevCtx, ll.level, ll.source, ll.funcName)
 
-	detailSpec := fmt.Sprintf("%s:%s:%s:%-32s:%s", tString, lString, sString, funcName, spec)
-	line := fmt.Sprintf(detailSpec, rest...)
-
-	maxWithZero := MaxLineLen - 1
-	if len(line) >= maxWithZero {
-		start := len(line) - maxWithZero
-		line = line[:start]
-	}
-	i := 0
-
-	result := &LogLine{}
-	for i < len(line) {
-		result.data[i] = line[i]
-		i++
-	}
-	result.data[i] = 0
-
-	cont := ctx.Value(ParigotLogContainer)
-	if cont == nil {
-		log.Println(line)
-	}
-
-	container := cont.(*LogContainer)
-	container.line[container.front] = result
-	container.front = (container.front + 1) % MaxContainerSize
-	container.front %= MaxContainerSize
-	if container.front == container.back {
-		container.back = (container.back + 1) % MaxContainerSize
-	}
-}
-
-func Logf(ctx context.Context, level LogLevel, spec string, rest ...interface{}) {
-	LogFullf(ctx, level, UnknownS, "", spec, rest...)
-}
-func Errorf(ctx context.Context, spec string, rest ...interface{}) {
-	LogFullf(ctx, Error, UnknownS, "", spec, rest...)
-}
-func Debugf(ctx context.Context, funcName string, spec string, rest ...interface{}) {
-	LogFullf(ctx, Debug, UnknownS, funcName, spec, rest...)
-}
-
-// ClientLogf is just like Logf except is sets the source to be client.  This is
-// useful (with no context param) because client's usually don't have a context.
-func ClientLogf(level LogLevel, spec string, rest ...interface{}) {
-	LogFullf(context.Background(), level, Client, "", spec, rest...)
-}
-
-// ClientLogf is just like Debugf except is sets the source to be client.  This is
-// useful (with no context param) because client's usually don't have a context.
-func ClientDebugf(funcName string, spec string, rest ...interface{}) {
-	LogFullf(context.Background(), Debug, UnknownS, funcName, spec, rest...)
-}
-
-// LogInternal is for internal use only.  It creates a log line attributed
-// to Parigot.
-func LogInternal(level LogLevel, funcName, spec string, rest ...interface{}) {
-	LogFullf(context.Background(), level, Parigot, funcName, spec, rest...)
-}
-
-func dumpContainer(cont *LogContainer) {
-	i := cont.front
-	buf := &bytes.Buffer{}
-	for i != cont.back {
-		// put this line's data in the buffer
-		l := cont.line[i]
-		lastIsCR := false
-		for k := 0; k < MaxLineLen; k++ {
-			if l.data[k] == 0 {
-				break
-			}
-			buf.WriteByte(l.data[k])
-			if l.data[k] == 10 {
-				lastIsCR = true
+		}
+		if ll.spec == "" {
+			line = fmt.Sprintf("%s", ll.value[0])
+		} else {
+			if len(ll.spec) == 0 {
+				line = "\n"
 			} else {
-				lastIsCR = false
+				line = fmt.Sprintf(ll.spec, ll.value...)
+				line += "\n"
+			}
+			if len(line) > maxStrLenWithoutColor {
+				diff := len(line) - maxStrLenWithoutColor
+				line = line[diff:]
 			}
 		}
-		if !lastIsCR {
-			buf.WriteString("\n")
-		}
-		i = (i + 1) % MaxContainerSize
+		line = prefix + line
 	}
-	log.Print(buf.String())
-
-}
-
-func CurrentTime(ctx context.Context) time.Time {
-	t := ctx.Value(ParigotTime)
-	if t != nil && !t.(time.Time).IsZero() {
-		return t.(time.Time)
+	var baseColor *color.Color
+	switch ll.source {
+	case Source(UnknownS):
+		baseColor = oppDefaultColor
+	case Source(Guest):
+		baseColor = color.New(color.BgGreen)
+	case Source(HostGo):
+		baseColor = color.New(color.FgYellow)
+	case Source(Parigot):
+		baseColor = color.New(color.FgCyan)
+	case Source(Wazero):
+		baseColor = color.New(color.FgBlue)
+	case Source(GuestOut):
+		baseColor = color.New(color.FgHiBlue)
+	case Source(GuestErr):
+		baseColor = color.New(color.FgRed)
 	}
-	return time.Now()
+	mod := addLogLevelVisual(baseColor, ll.level)
+	str := mod.SprintfFunc()(line)
+	fmt.Print(str)
+	//mod.Print(line)
 }
 
-func CurrentTimeString(ctx context.Context) string {
-	return CurrentTime(ctx).Format(time.RFC822Z)
-}
-
-func CallTo(ctx context.Context, s string) context.Context {
-	return context.WithValue(ctx, ParigotFunc, s)
-}
-func CallGo(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ParigotSource, ServerGo)
-}
-
-func newContext(orig context.Context, src Source, name string) context.Context {
-	if orig == nil {
-		orig = context.Background()
+func addLogLevelVisual(c *color.Color, l LogLevel) *color.Color {
+	switch l {
+	case Fatal:
+		return c.Add(color.BlinkSlow)
+	case Error:
+		return c.Add(color.ReverseVideo)
+	case Warn:
+		return c.Add(color.Underline)
+		// case Debug:
+		// 	return c.Add(color.Faint)
 	}
-	cont := &LogContainer{}
-	ctx := context.WithValue(orig, ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, ParigotFunc, name)
-	ctx = context.WithValue(ctx, ParigotSource, src)
-	ctx = context.WithValue(ctx, ParigotLogContainer, cont)
-	return ctx
-}
-
-func ServerGoContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, ServerGo, funcName)
-}
-func ClientContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, Client, funcName)
-}
-func ServerWasmContext(ctx context.Context, funcName string) context.Context {
-	return newContext(ctx, ServerWasm, funcName)
-}
-
-func Dump(ctx context.Context) {
-	cont := ctx.Value(ParigotLogContainer)
-	if cont == nil {
-		log.Println("no log container present inside context")
-		return
-	}
-	dumpContainer(cont.(*LogContainer))
+	return c
 }

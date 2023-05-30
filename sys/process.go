@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"plugin"
 	"sync"
-	"time"
 
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
@@ -48,7 +47,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = true || envVerbose != ""
+var processVerbose = false || envVerbose != ""
 
 var lastProcessId = 7
 
@@ -102,30 +101,24 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	}
 	proc.key = NewDepKeyFromProcess(proc)
 
-	print("xxxNPFM 1\n")
-
 	if m.GetPluginPath() != "" {
-		print("xxxNPFM 1A\n")
-		_, _, err := LoadPluginAndAddHostFunc(m.GetPluginPath(), m.GetPluginSymbol(), engine)
+		_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
+			m.GetPluginPath(), m.GetPluginSymbol(), engine)
 		if err != nil {
-			print("xxxNPFM 1A1\n")
 			return nil, err
 		}
 	}
-	print("xxxNPFM 2\n")
 
-	instance, err := proc.module.NewInstance(c)
+	instance, err := proc.module.NewInstance(pcontext.CallTo(c, "NewInstance"))
 	if err != nil {
-		print("xxxNPFM 2A\n")
 		return nil, err
 	}
 	proc.instance = instance
 
-	print("xxxNPFM 3\n")
 	return proc, nil
 }
 
-func LoadPluginAndAddHostFunc(pluginPath string, pluginSymbol string, engine eng.Engine) (*plugin.Plugin, ParigotInit, error) {
+func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine) (*plugin.Plugin, ParigotInit, error) {
 	plug, err := plugin.Open(pluginPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
@@ -135,7 +128,7 @@ func LoadPluginAndAddHostFunc(pluginPath string, pluginSymbol string, engine eng
 		return nil, nil, err
 	}
 	initFn := sym.(ParigotInit)
-	initCtx := pcontext.ServerGoContext(nil, "ParigiotInit")
+	initCtx := pcontext.NewContextWithContainer(pcontext.ServerGoContext(ctx), "LoadPluginAndAddFunc")
 	ok := initFn.Init(initCtx, engine)
 	if !ok {
 		pcontext.Dump(initCtx)
@@ -156,7 +149,6 @@ func (p *Process) IsServer() bool {
 func (p *Process) Exit() {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	panic("xxx exit() xxx")
 	log.Printf("process %s exiting\n", p)
 	p.exited = true
 }
@@ -242,20 +234,6 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	procPrint(ctx, "START ", "start process: %s", p)
 	var err error
 	procPrint(ctx, "START ", "start of args  %+v", p.microservice.GetArg())
-	// startOfArgs := wasmStartAddr + int32(0)
-	// if p == nil {
-	// 	panic("process is nil!")
-	// }
-	// p.lock.Lock()
-	// defer p.lock.Unlock()
-
-	// procPrint("START ", "get buffer from args and env  %s", p)
-	// p.argvBuffer, p.argv, err = GetBufferFromArgsAndEnv(p.microservice, startOfArgs)
-	// if err != nil {
-	// 	code = int(ExitCodeArgsTooLarge)
-	// 	return
-	// }
-	// p.argc = int32(len(p.microservice.GetArg()))
 
 	procPrint(ctx, "START", "get entry point")
 	start, err := p.instance.EntryPoint(ctx)
@@ -287,7 +265,8 @@ func (p *Process) Start(ctx context.Context) (code int) {
 	procPrint(ctx, "START ", "calling start func %s", p)
 	var info interface{}
 
-	retVal, err := start.Run(ctx, p.microservice.GetArg(), info)
+	runCtx := pcontext.CallTo(pcontext.ServerGoContext(ctx), "Run")
+	retVal, err := start.Run(runCtx, p.microservice.GetArg(), info)
 	procPrint(ctx, "END ", "process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	if err != nil {
@@ -309,15 +288,16 @@ func (p *Process) Start(ctx context.Context) (code int) {
 
 func procPrint(ctx context.Context, method string, spec string, arg ...interface{}) {
 	if processVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method, spec, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, method,
+			spec, arg...)
 	}
 }
 
-func SetupContextFor(cont *pcontext.LogContainer, funcName string) context.Context {
+// func SetupContextFor(cont *pcontext.LogContainer, funcName string) context.Context {
 
-	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, pcontext.ParigotFunc, funcName)
-	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerGo)
-	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
-	return ctx
-}
+// 	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
+// 	ctx = context.WithValue(ctx, pcontext.ParigotFunc, funcName)
+// 	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerGo)
+// 	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
+// 	return ctx
+// }

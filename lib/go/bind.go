@@ -2,9 +2,7 @@ package lib
 
 import (
 	"github.com/iansmith/parigot/apiwasm/syscall"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -55,10 +53,11 @@ func bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscallmsg.MethodDir
 	if err != nil {
 		return nil, err
 	}
-	kid := id.Unmarshal((*protosupportmsg.KernelErrorId)(out.MethodId))
+	// XXX FIX ME
+	// kid := nil //XXX id.Unmarshal((*protosupportmsg.KernelErrorId)(out.MethodId))
 
-	if kid.IsError() {
-		return nil, id.NewPerrorFromId("bind", kid)
-	}
+	// if kid.IsError() {
+	// 	return nil, id.NewPerrorFromId("bind", kid)
+	// }
 	return out, nil
 }

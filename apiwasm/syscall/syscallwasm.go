@@ -1,40 +1,81 @@
 package syscall
 
 import (
-	"fmt"
+	"context"
+	"reflect"
+	"unsafe"
 
-	"github.com/iansmith/parigot/apiwasm"
+	"github.com/iansmith/parigot/apishared"
+	"github.com/iansmith/parigot/apishared/id"
+	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
+	//"github.com/iansmith/parigot/apiwasm"
+
 	"google.golang.org/protobuf/proto"
+	//"google.golang.org/protobuf/proto"
 )
 
-// xxx possibly dead now?
-type syscallPtrIn interface {
-	proto.Message
-	*syscallmsg.LocateRequest |
-		*syscallmsg.DispatchRequest |
-		*syscallmsg.BlockUntilCallRequest |
-		*syscallmsg.BindMethodRequest |
-		*syscallmsg.RunRequest |
-		*syscallmsg.RequireRequest |
-		*syscallmsg.ExportRequest |
-		*syscallmsg.ReturnValueRequest |
-		*syscallmsg.ExitRequest
+func unwindLenAndPtr(ret uint64) (uint32, uint32) {
+	len64 := ret
+	len64 >>= 32
+	len32 := uint32(len64)
+	ptr64 := ret
+	ptr64 &= 0xffffffff
+	ptr32 := uint32(ptr64)
+	return len32, ptr32
 }
 
-// xxx possibly dead now?
-type syscallPtrOut interface {
-	proto.Message
-	*syscallmsg.LocateResponse |
-		*syscallmsg.DispatchResponse |
-		*syscallmsg.BlockUntilCallResponse |
-		*syscallmsg.BindMethodResponse |
-		*syscallmsg.RunResponse |
-		*syscallmsg.RequireResponse |
-		*syscallmsg.ExportResponse |
-		*syscallmsg.ReturnValueResponse |
-		*syscallmsg.ExitResponse
+// clientSide does the marshalling and unmarshalling needed to read the T given,
+// write the U given, and return the KernelErrId properly. It does these
+// manipulations so you can call a lower level function that is implemented by
+// the host.
+func clientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.KernelErrId) {
+	var outErr id.KernelErrId
+	outProtoPtr := u
+	outErrPtr := &outErr
+	var nilU U
+
+	buf, err := proto.Marshal(t)
+	if err != nil {
+		return nilU, id.NewKernelErrId(id.KernelMarshalFailed)
+	}
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	length := int32(len(buf))
+	req := int32(sh.Data)
+	val := reflect.ValueOf(u)
+	if val.Kind() != reflect.Ptr {
+		panic("client side of syscall passed a proto.Message that is not a pointer")
+	}
+
+	outBuf := make([]byte, apishared.GuestReceiveBufferSize)
+	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
+	out := int32(sh.Data)
+	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
+	wrapped := fn(length, req, out, errPtr)
+	if outErr.IsError() {
+		return nilU, outErr
+	}
+	l, ptr := unwindLenAndPtr(uint64(wrapped))
+
+	if int32(ptr) != out { //sanity
+		panic("mismatched pointers in host call/return")
+	}
+	if unsafe.Pointer(asPtr(u)) == nil {
+		return u, id.KernelErrIdNoErr
+	}
+	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
+		outErr = id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+	}
+	return outProtoPtr, id.KernelErrIdNoErr
+}
+
+func asPtr[T proto.Message](t T) uintptr {
+	val := reflect.ValueOf(t)
+	if val.Kind() != reflect.Pointer {
+		panic("should never call the standard processing of a client side syscall with a value, always use a pointer")
+	}
+	return val.Pointer()
 }
 
 // Locate is the means of aquiring a handle to a particular service.
@@ -44,17 +85,14 @@ type syscallPtrOut interface {
 //
 // func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export locate
 //go:wasmimport parigot locate_
-func Locate_(int32, int32) int32
-func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
-	out := &syscallmsg.LocateResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.LocateRequest, *syscallmsg.LocateResponse](in, out, Locate_)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+func Locate_(int32, int32, int32, int32) int64
+func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
+	outProtoPtr := &syscallmsg.LocateResponse{}
+	ctx := manufactureContext("[syscall]Locate")
+	defer pcontext.Dump(ctx)
+
+	return clientSide(ctx, inPtr, outProtoPtr, Locate_)
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -65,17 +103,23 @@ func Locate(in *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, error) {
 // if the error parameter is nil, the Dispatch() occurred successfully.
 // This is code that runs on the WASM side.
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export dispatch
 //go:wasmimport parigot dispatch_
 func Dispatch_(int32, int32) int32
-func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, error) {
+func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.KernelErrId) {
 	out := &syscallmsg.DispatchResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.DispatchRequest, *syscallmsg.DispatchResponse](in, out, Dispatch_)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return out, id.KernelErrIdNoErr
+}
+
+// manufacture context is used to setup the context for a given state that makes sense for this
+// side of the wire.
+func manufactureContext(fn string) context.Context {
+	result := pcontext.NewContextWithContainer(context.Background(), fn)
+	result = pcontext.GuestContext(result)
+	return pcontext.CallTo(result, fn)
 }
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
@@ -83,14 +127,12 @@ func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, err
 //
 // func BlockUntilCall(*syscallmsg.BlockUntilCallRequest) *syscallmsg.BlockUntilCallResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export blockUntilCall
 //go:wasmimport parigot block_until_call_
 func BlockUntilCall_(int32, int32) int32
 
 func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error) {
 	out := &syscallmsg.BlockUntilCallResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.BlockUntilCallRequest, *syscallmsg.BlockUntilCallResponse](in, out, BlockUntilCall_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -103,57 +145,43 @@ func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUnti
 //
 // func BindMethod(*syscallmsg.BindMethodRequest) *syscallmsg.BindMethodResponse
 //
-//xxxgo:wasm-module parigot
-//xxxgo:export bindMethod
 //go:wasmimport parigot bind_method_
 func BindMethod_(int32, int32) int32
 
 func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
 	out := &syscallmsg.BindMethodResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.BindMethodRequest, *syscallmsg.BindMethodResponse](in, out, BindMethod_)
+	err := error(nil)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Run is a request to start running. Note that this may not return
-// immediately and may fail entirely.  For most user code this is not
-// used because user code usually uses file.WaitFileServiceOrPanic() to
+// Run is starts a service (or a guest application) running. Note that
+// this may not return immediately and may fail entirely.  For most user
+// code this is not used because user code usually uses file.MustFileServiceRun() to
 // block service File until it is cleared to run.
 //
-// func Run(*syscallmsg.RunRequest) *syscallmsg.RunResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export run
 //go:wasmimport parigot run_
-func Run_(int32, int32) int32
-func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, error) {
-	out := &syscallmsg.RunResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.RunRequest, *syscallmsg.RunResponse](in, Run_)
-	if err != nil {
-		return nil, fmt.Errorf("Run_ failed:%v", err)
-	}
-	return out, nil
+func Run_(int32, int32, int32, int32) int64
+func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId) {
+	outProtoPtr := (*syscallmsg.RunResponse)(nil)
+	ctx := manufactureContext("[syscall]Run")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Run_)
 }
 
 // Export is a declaration that a service implements a particular interface.
 // This is not needed by most user code that will use queue.ExportQueueServiceOrPanic()
 // to export itself as the queue service.
 //
-// func Export(*syscallmsg.ExportRequest) (*syscallmsg.ExportResponse,error)
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export export
 //go:wasmimport parigot export_
-func Export_(int32, int32) int32
-func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
-	out := &syscallmsg.ExportResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.ExportRequest, *syscallmsg.ExportResponse](in, Export_)
-	if err != nil {
-		return nil, fmt.Errorf("Export_ failed:%v", err)
-	}
-	return out, nil
+func Export_(int32, int32, int32, int32) int64
+func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.KernelErrId) {
+	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
+	ctx := manufactureContext("[syscall]Export")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Require_)
 }
 
 // ReturnValue is not a call that user code should be using. It is the
@@ -161,18 +189,14 @@ func Export(in *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, error) {
 // from the caller.  User code will typically use the wrappers around
 // this that make the method calls looking synchronous.
 //
-// func ReturnValue(*syscallmsg.ReturnValueRequest) *syscallmsg.ReturnValueResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export return_value
 //go:wasmimport parigot return_value_
 func ReturnValue_(int32, int32) int32
-func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, error) {
+func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, id.Id) {
 	out := &syscallmsg.ReturnValueResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.ReturnValueRequest, *syscallmsg.ReturnValueResponse](in, out, ReturnValue_)
-	if err != nil {
-		return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
-	}
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
+	// }
 	return out, nil
 }
 
@@ -180,50 +204,40 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 // This is not needed by most user code that will use queue.ImpleQueueServiceOrPanic()
 // to import the queue service.
 //
-// func Require(*syscallmsg.RequireRequest) *syscallmsg.RequireResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export require
 //go:wasmimport parigot require_
-func Require_(int32, int32) int32
-func Require(in *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, error) {
-	out := &syscallmsg.RequireResponse{}
-	err := apiwasm.WasmCallNativeIn[*syscallmsg.RequireRequest, *syscallmsg.RequireResponse](in, Require_)
-	if err != nil {
-		return nil, fmt.Errorf("Require_ failed:%v", err)
-	}
-	return out, nil
+func Require_(int32, int32, int32, int32) int64
+func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
+	outProtoPtr := (*syscallmsg.RequireResponse)(nil)
+	ctx := manufactureContext("[syscall]Require")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Require_)
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
 // the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
 // will marke it dead and so forth.
 //
-// func Exit(*syscallmsg.ExitRequest) *syscallmsg.ExitResponse
-//
-//xxxgo:wasm-module parigot
-//xxxgo:export exit
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
-func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, error) {
+func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
 	out := &syscallmsg.ExitResponse{}
-	err := apiwasm.WasmCallNativeInOut[*syscallmsg.ExitRequest, *syscallmsg.ExitResponse](in, out, Require_)
-	if err != nil {
-		return nil, fmt.Errorf("Exit_ failed:%v", err)
-	}
-	return out, nil
+	// err := error(nil)
+	// if err != nil {
+	// 	return nil, //fmt.Errorf("Exit_ failed:%v", err)
+	// }
+	return out, id.KernelErrIdNoErr.Raw()
 }
 
-// RegisterExport is how a wasm-implemented, guest function is made avaialble to be called at any time from
-// the host side.  Note that this function must be called by the same guest-side goroutine that was
-// created for WasmExport.
+// Register should be called before any other services are
+// Required, Exported, or Located.
 //
-//go:noescape
-//go:wasmimport parigot register_export_
-func RegisterExport(nameHeader uint32, //reflect.StringHeader
-	poolHeader uint32, //*reflect.SliceHeader
-	is32Bit uint32,
-	buffer uint32, //*reflect.SliceHeader
-	exclusiveBufferSizePtr uint32, // *int32
-	flagPtr uint32, // *[2]int32
-	turnPtr uint32) // *int32
+//go:wasmimport parigot register_
+func Register_(int32, int32, int32, int32) int64
+
+func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, id.KernelErrId) {
+	outProtoPtr := &syscallmsg.RegisterResponse{}
+	ctx := manufactureContext("[syscall]Register")
+	defer pcontext.Dump(ctx)
+	rr, kid := clientSide(ctx, inPtr, outProtoPtr, Register_)
+	return rr, kid
+}

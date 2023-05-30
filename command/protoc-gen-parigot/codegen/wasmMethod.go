@@ -50,6 +50,7 @@ func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	fullName := m.GetFullName()
 	parts := strings.Split(fullName, ".")
 	formattedName := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
+	log.Printf("xxx -- import For Message --- %+v, %s", parts, formattedName)
 	if len(parts) > 2 {
 		return fmt.Sprintf("github.com/iansmith/parigot/g/%s", strings.Join(parts[:len(parts)-1], "/"))
 	}

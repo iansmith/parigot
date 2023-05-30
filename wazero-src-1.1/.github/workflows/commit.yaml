@@ -1,0 +1,203 @@
+name: Test
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:  # ignore docs as they are built with Netlify.
+      - '**/*.md'
+      - 'site/**'
+      - 'netlify.toml'
+  push:
+    branches: [main]
+    paths-ignore:  # ignore docs as they are built with Netlify.
+      - '**/*.md'
+      - 'site/**'
+      - 'netlify.toml'
+
+env:  # Update this prior to requiring a higher minor version in go.mod
+  GO_VERSION: "1.20"  # 1.xx == latest patch of 1.xx
+
+defaults:
+  run:  # use bash for all operating systems unless overridden
+    shell: bash
+
+concurrency:
+  # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-using-concurrency-to-cancel-any-in-progress-job-or-run
+  group: ${{ github.ref }}-${{ github.workflow }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Pre-commit check
+    # wabt requires a later version of libc than what's installed on ubuntu-22.04.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install latest wast2json
+        run: |  # Needed for build.spectest. wabt includes wast2json.
+          wabt_version=1.0.32
+          wabt_url=https://github.com/WebAssembly/wabt/releases/download/${wabt_version}/wabt-${wabt_version}-ubuntu.tar.gz
+          curl -sSL ${wabt_url} | tar --strip-components 2 -C /usr/local/bin -xzf - wabt-${wabt_version}/bin/wast2json
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:  # not cache: true as we also need to cache golint
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+            ~/go/pkg/mod
+            ~/go/bin
+          key: check-${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum', 'Makefile') }}
+
+      - run: make check
+
+      - run: make build.spectest
+
+  test_amd64:
+    name: amd64, ${{ matrix.os }}, Go-${{ matrix.go-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # don't fail fast as sometimes failures are arch/OS specific
+      matrix:  # Use versions consistent with wazero's Go support policy.
+        os: [ubuntu-22.04, macos-12, windows-2022]
+        go-version:
+          - "1.20"  # Current Go version
+          - "1.18"  # Floor Go version of wazero (current - 2)
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      # Run -race could be really slow without -short, so run them together on this workflow.
+      # Since -short is not added in the scratch tests, all the tests are run in CI in practice.
+      - run: make test go_test_options='-timeout 10m -race -short'
+
+      - name: "Generate coverage report"  # only once (not per OS)
+        if: runner.os == 'Linux'
+        run: make coverage
+
+      - name: "Upload coverage report"  # only on main push and only once (not per OS)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && runner.os == 'Linux'
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: bash <(curl -s https://codecov.io/bash)
+
+  test_scratch:
+    name: ${{ matrix.arch }}, Linux (scratch), Go-${{ matrix.go-version }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false  # don't fail fast as sometimes failures are arch/OS specific
+      matrix:  # Use versions consistent with wazero's Go support policy.
+        go-version:
+          - "1.20"  # Current Go version
+          - "1.18"  # Floor Go version of wazero (current - 2)
+        arch:
+          - "amd64"
+          - "arm64"
+          - "riscv64"
+
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+
+      - name: Build test binaries
+        # Exclude benchmarks as we don't run those in Docker
+        run: |
+          go list -f '{{.Dir}}' ./... | egrep -v '(bench|vs|spectest)' | xargs -Ipkg go test pkg -c -o pkg.test
+          go build -o wazerocli ./cmd/wazero
+        env:
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+
+      - name: Set up QEMU
+        if: ${{ matrix.arch != 'amd64' }}
+        uses: docker/setup-qemu-action@v2
+        with:  # Avoid docker.io rate-limits; built with internal-images.yml
+          image: ghcr.io/tetratelabs/wazero/internal-binfmt
+          platforms: ${{ matrix.arch }}
+
+      - name: Build scratch container
+        run: |
+          echo 'FROM scratch' >> Dockerfile
+          echo 'CMD ["/test"]' >> Dockerfile
+          docker buildx build -t wazero:test --platform linux/${{ matrix.arch }} .
+
+      - name: Run built test binaries
+        # This runs all tests compiled above in sequence. Note: This mounts /tmp to allow t.TempDir() in tests.
+        run: find . -name "*.test" | xargs -Itestbin docker run --platform linux/${{ matrix.arch }} -v $(pwd)/testbin:/test -v $(pwd)/wazerocli:/wazero -e WAZEROCLI=/wazero --tmpfs /tmp --rm -t wazero:test
+
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-22.04
+
+    steps:
+      # Unlike the other CGO libraries, WasmEdge requires offline installation.
+      - name: Install WasmEdge
+        run: |
+          wget -qO- https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | sudo bash -s -- -p /usr/local -v ${WASMEDGE_VERSION}
+        # The version here is coupled to internal/integration_test/go.mod, but it
+        # isn't always the same as sometimes the Go layer has a broken release.
+        env:
+          WASMEDGE_VERSION: 0.11.2
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - run: make bench.check
+
+  # This ensures that internal/integration_test/fuzz is runnable, and is not intended to
+  # run full-length fuzzing while trying to find low-hanging frontend bugs.
+  fuzz:
+    name: Minimal Fuzzing
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          # Cache corpus and artifacts so that we don't start from scratch but rather with a meaningful corpus
+          # in the subsequent CI jobs.
+          path: |
+            ~/.cargo
+            ~/.cache/go-build
+            ~/go/pkg/mod
+            ~/.rustup/toolchains/
+            internal/integration_test/fuzz/target
+            internal/integration_test/fuzz/fuzz/artifacts
+            internal/integration_test/fuzz/fuzz/corpus
+          key: build-fuzzer-${{ runner.os }}-go-${{ env.GO_VERSION }}-${{ hashFiles('**/go.sum', 'Makefile', '**/Cargo.lock', '**/Cargo.toml', '**/*.rs') }}
+
+      # Fuzzer requires nightly rustc.
+      - run: rustup default nightly
+      - run: cargo install cargo-fuzz
+        if: steps.cache.outputs.cache-hit != 'true'
+      # Run fuzzing only for a minute, not a full-length intensive one, but 60 seconds seems enough to find minor "front-end"
+      # bugs which might exist in binary parser, validation, or instantiation phase while not pressuring CI jobs.
+      - run: make fuzz fuzz_timeout_seconds=60
+        if: ${{ github.event_name  == 'pull_request' }}
+      # Run a bit longer on main branch push!
+      - run: make fuzz fuzz_timeout_seconds=180
+        if: ${{ github.event_name  == 'push' }}

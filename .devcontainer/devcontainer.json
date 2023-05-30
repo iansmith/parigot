@@ -15,7 +15,7 @@
 		//"--cap-add=SYS_PTRACE",
 		//"--security-opt",
 		//"seccomp=unconfined",
-		//"-v/Users/iansmith/parigot/socket:/var/run/parigot:rw",
+		"-v/Users/iansmith/parigot/wazero-src-1.1:/home/parigot/wazero-src-1.1:rw"
 		//"--add-host=host.docker.internal:host-gateway"
 	],
 	// Configure tool-specific properties.
@@ -43,5 +43,9 @@
 	"features": {
 		"git": "os-provided"
 	},
-	"postCreateCommand": "go version"
+	"postCreateCommand": "go version",
+	"mounts": [
+		"source=/Users/iansmith/parigot/wazero-src-1.1,target=/home/parigot/src,type=bind,consistency=cached"
+	]
+	
 }

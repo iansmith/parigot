@@ -1,6 +1,10 @@
 package codegen
 
 import (
+	"fmt"
+	"log"
+	"strings"
+
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -10,6 +14,7 @@ import (
 type WasmService struct {
 	*descriptorpb.ServiceDescriptorProto
 	wasmServiceName      string
+	wasmServiceErrId     string
 	parent               *descriptorpb.FileDescriptorProto
 	method               []*WasmMethod
 	lang                 LanguageText
@@ -71,6 +76,34 @@ func (w *WasmService) GetWasmServiceName() string {
 	}
 	w.wasmServiceName = removeQuotes(w.wasmServiceName)
 	return w.wasmServiceName
+}
+
+// GetWasmServiceName looks through the data structure given that represents the
+// original protobuf structure trying to fin constructs like this:
+//
+//	service Foo {
+//	   option (parigot.wasm_service_err_id) = "MyErrId";
+//
+// If no such construction is found, it returns the golang package name.
+func (w *WasmService) GetWasmServiceErrId() string {
+	if w.wasmServiceErrId != "" {
+		return w.wasmServiceErrId
+	}
+
+	if w.ServiceDescriptorProto.GetOptions() == nil {
+		pkg := w.GetGoPackage()
+		part := strings.Split(pkg, ";")
+		if len(part) != 2 {
+			panic(fmt.Sprintf("unable to understand pkg name from protobuf file: %s", pkg))
+		}
+		cand := strings.ToUpper(part[1][0:1]) + part[1][1:] + "ErrId"
+		w.wasmServiceErrId = cand
+		return cand
+	}
+	cand, ok := isWasmServiceErrId(w.ServiceDescriptorProto.GetOptions().String())
+	w.wasmServiceErrId = cand
+	log.Printf("found an option! candidate is %s, ok is %v", cand, ok)
+	return cand
 }
 
 // GetWasmMethod returns all the wasm methods contained inside this service.

@@ -13,7 +13,8 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  
-    "github.com/iansmith/parigot/id"  
+    pcontext "github.com/iansmith/parigot/context"  
+    "github.com/iansmith/parigot/apishared/id"  
     syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiwasm/syscall" 
 
@@ -30,18 +31,13 @@ import(
 
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 //
 // {{$svcCamel}} from {{$file}}
 //
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
-
-{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
-{{- if eq false $genTest }}
-    // skipping {{.}}, not in test mode
-    {{- continue }}
-{{- end}}
 
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
@@ -54,14 +50,14 @@ type {{$svcCamel}} interface {
     {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, error) // xxxx
+    (*{{$oParam}}, {{$errId}}) 
 {{- else -}}
-    error
+    {{$errId}}
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
 
-// Client Side Interface (has no context.Context)
+// Client Side Interface
 type {{$svcCamel}}Client interface {
 {{- range .GetWasmMethod}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
@@ -70,14 +66,14 @@ type {{$svcCamel}}Client interface {
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 {{- if .InputCodeNeeded }}
-    {{$methCamel}}(in *{{$iParam}}) 
+    {{$methCamel}}(ctx context.Context, in *{{$iParam}}) 
 {{- else }} 
-    {{$methCamel}}() 
+    {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
 {{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, error) // xxxx
+    (*{{$oParam}}, {{$errId}})
 {{- else -}}
-    error
+    {{$errId}}
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
@@ -88,6 +84,7 @@ type {{$svcCamel}}Client interface {
 {{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
+{{ $errId:=.GetWasmServiceErrId }}
 
 type {{$svcCamel}}Client_ struct {
     *lib.ClientSideService
@@ -95,57 +92,81 @@ type {{$svcCamel}}Client_ struct {
 var required{{$svc}} bool
 
 // Locate finds a reference to the client interface of {{$svc}}.  
-func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,error) {
+func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,{{$errId}}) {
 	req := &syscallmsg.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
 	}
 
-    resp,err:=syscall.Locate(req)
-    if err!=nil {
-        return nil, err
+    resp,errId:=syscall.Locate(req)
+    if errId.IsError() { 
+        return nil, New{{$errId}}({{$errId}}Code(1))
     }
-    sid:=resp.GetServiceId()
-    if resp.GetServiceId()==nil {
-        panic("service id is nil, can't create ClientSideService")
-    }
-    srvid:=id.Unmarshal(sid)
-    if srvid.IsError() {
-        return nil, id.NewPerrorFromId("failed to unmarshal service id",srvid)
-    }
-    service:=id.Unmarshal(resp.GetServiceId())
-    cs := lib.NewClientSideService(ctx, service, "{{$svc}}Client")
-    
+    serviceId, idErr:=id.UnmarshalServiceId(resp.GetServiceId())
+    if idErr.IsError() {
+        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %v",idErr.Short())
+        return nil, New{{$errId}}({{$errId}}Code(2))
+    }    
+    cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
     return &{{$svc}}Client_{
         ClientSideService: cs,
-    }, nil
+    },{{$errId}}NoErr
 }
 
-func Locate{{$svc}}OrPanic(ctx context.Context) {{$svcCamel}}Client {
+func MustLocate{{$svc}}(ctx context.Context) {{$svcCamel}}Client {
     if !required{{$svc}} {
         panic("call of Locate{{$svc}}OrPanic without previous call to Require{{$svc}}OrPanic")
     }
 
     result, err:=Locate{{$svc}}(ctx)
 
-    if err!=nil {
-        panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    if err.IsError() {
+        panic("unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     return result
 }
 
-func Require{{$svc}}OrPanic(ctx context.Context) {
-    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}")
-    if err!=nil {
-        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
+    req := &syscallmsg.RegisterRequest{}
+	fqs := &syscallmsg.FullyQualifiedService{
+		PackagePath: "{{.ProtoPackage}}",
+		Service:     "{{$svc}}",
+	}
+	req.Fqs = fqs
+	resp, err := syscall.Register(req)
+    if err.IsError() {
+        return id.ZeroValueServiceId(), err
+    }
+    sid, idErr:=id.UnmarshalServiceId(resp.Id)
+    if idErr.IsError() {
+        return id.ZeroValueServiceId(),	id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+    }
+    return sid,id.KernelErrIdNoErr
+}
+
+func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
+    sid, err:=Register{{$svc}}(ctx)
+    if err.IsError() {
+        pcontext.Fatalf(ctx,"unable to register %s.%s","{{.ProtoPackage}}","{{$svc}}")
+        panic("unable to register "+"{{$svc}}")
+    }
+    return sid
+}
+
+func MustRequire{{$svc}}(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}",sid)
+    if err.IsError() {
+        pcontext.Fatalf(ctx,"unable to require %s.%s","{{.ProtoPackage}}","{{$svc}}")
+        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
     required{{$svc}}=true
 }
 
-func Export{{$svc}}OrPanic() {
+func MustExport{{$svc}}(ctx context.Context) {
     _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
-    if err!=nil {
-        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Error())
+    if err.IsError() {
+        pcontext.Fatalf(ctx, "unable to require %s.%s","{{.ProtoPackage}}","{{$svc}}")
+        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
 }
 func Wait{{$svc}}OrPanic() {
@@ -163,21 +184,17 @@ func Wait{{$svc}}OrPanic() {
 {{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
 
-{{- $genTest:=call .FuncChoice.GenMethodPossibleTest . }}
-{{- if eq false $genTest }}
-    // skipping {{.}}, not in test mode
-    {{- continue }}
-{{- end}}
 
 {{- if .InputCodeNeeded -}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}(in {{$inParam}}) 
+func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
 {{- else -}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}() 
+// ouch {{.InputCodeNeeded}} {{.OutputCodeNeeded}}
+func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context) 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, error) {
+    ({{$outParam}}, {{$errId}}) {
 {{- else -}}
-    error {
+    {{$errId}} {
 {{- end -}} {{/* end of output code needed for declaration */}}
 
 {{- if .OutputCodeNeeded }}
@@ -187,23 +204,24 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}()
     _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
 {{ end }} {{/* end of output code needed for dispatch call */}}
 
-    if err!=nil {
+    if err.IsError(){
 {{- if .OutputCodeNeeded }}
-        return nil, err
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
+        return nil, New{{$errId}}({{$errId}}DispatchError)
     }
 {{- else }}
-        return err
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
+        return  New{{$errId}}({{$errId}}DispatchError)
     }
 {{ end }} {{/* end of output code needed for return */}}
-
 {{- if .OutputCodeNeeded }}
-    err = resp.Result.UnmarshalTo(out)
-    if err!=nil {
-        return nil,id.NewPerrorFromError("failed to unmarshal result (generated code):",err)
+    unmarsh := resp.Result.UnmarshalTo(out)
+    if unmarsh!=nil {
+        return nil,New{{$errId}}({{$errId}}UnmarshalError)
     }
-    return out,nil
+    return out,{{$errId}}NoErr
 {{- else }} {{/* other side of output code needed */}}
-    return nil
+    return {{$errId}}NoErr
 {{- end }} {{/* output code needed */}}
 }
 {{end}} {{/*ranging over methods*/}}

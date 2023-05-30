@@ -22,27 +22,27 @@ const (
 	methodOptionPullParams = "543211"
 	methodOptionPullOutput = "543213"
 
-	messageOptionNoPackage = "543211"
-
 	// if these flags are used in conjunction with a command line flag the generator should output
 	// code for the test methods mentioned in the service defintion.
 	serviceOptionServiceTest = "543215"
 	methodOptionMethodTest   = "543216"
+	serviceOptionErrId       = "543217"
 )
 
 // options to map converts the text string that is the options for a given level
 // of the proto file and parses into a map.  Note that you can have file options
 // service options, field options, etc.
 func optionsToMap(s string) map[string]string {
+
 	parts := strings.Split(s, " ")
 	result := make(map[string]string)
 	for _, opt := range parts {
 		if strings.TrimSpace(opt) == "" {
 			continue
 		}
-		assign := strings.Split(opt, ":")
+		assign := strings.Split(opt, ";")
 		if len(assign) != 2 {
-			log.Printf("unable to understand option: %s ", opt)
+			log.Printf("unable to understand option: %s from %s %s", opt, s, parts[0])
 			continue
 		}
 		k := assign[0]
@@ -82,6 +82,11 @@ func isStringOptionPresent(s, target string) (string, bool) {
 // isWasmServiceName looks for the option wasm_service_name inside the given string.
 func isWasmServiceName(s string) (string, bool) {
 	return isStringOptionPresent(s, serviceOptionForWasmName)
+}
+
+// isWasmServiceErrId looks for the option wasm_err_id inside the given string.
+func isWasmServiceErrId(s string) (string, bool) {
+	return isStringOptionPresent(s, serviceOptionErrId)
 }
 
 // isWasmMessageName looks for the option wasm_message_name inside the given string.

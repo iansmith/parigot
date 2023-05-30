@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 	"github.com/iansmith/parigot/sys/dep"
 
 	"google.golang.org/protobuf/types/known/anypb"
@@ -98,12 +98,12 @@ func (n *LocalNameServer) FindMethodByName(ctx context.Context, caller dep.DepKe
 	// we are NOT holding the lock here
 	sData := n.ServiceData(serviceId)
 	if sData == nil {
-		return nil, id.NewKernelError(id.KernelNotFound),
+		return nil, nil, //XXXX WAS id.NewKernelErrId(id.KernelNotFound),
 			fmt.Sprintf("could not find service for %s", serviceId.String())
 	}
 	mid, ok := sData.method.Load(name)
 	if !ok {
-		return nil, id.NewKernelError(id.KernelNotFound),
+		return nil, nil, // XXX WAS id.NewKernelError(id.KernelNotFound),
 			fmt.Sprintf("could not find method %s on service %s", name, serviceId.String())
 	}
 	cc := &callContext{
@@ -111,7 +111,7 @@ func (n *LocalNameServer) FindMethodByName(ctx context.Context, caller dep.DepKe
 		sid:    serviceId,
 		mid:    mid.(id.Id),
 		respCh: make(chan *syscallmsg.ReturnValueRequest),
-		cid:    id.NewId[*protosupportmsg.CallId](),
+		cid:    nil, //XXX WAS id.NewId[*protosupportmsg.CallId](),
 		sender: caller,
 		target: sData.key,
 	}
@@ -302,7 +302,8 @@ func (l *LocalNameServer) BlockUntilCall(ctx context.Context, key dep.DepKey, ca
 
 func nameserverPrint(ctx context.Context, methodName string, format string, arg ...interface{}) {
 	if nameserverVerbose {
-		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, methodName, format, arg...)
+		pcontext.LogFullf(ctx, pcontext.Debug, pcontext.Parigot, methodName,
+			format, arg...)
 
 	}
 }

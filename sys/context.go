@@ -9,6 +9,7 @@ import (
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
+	"github.com/tetratelabs/wazero"
 )
 
 // A DeployContext represents a deployment during the process of starting it up.
@@ -22,7 +23,7 @@ type DeployContext struct {
 }
 
 // Flip this flag for more detailed output from the runner.
-var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // NewDeployContext returns a new, initialized DeployContext object or an error.
 // This function can be thought of as the bridge between the configuration
@@ -31,8 +32,8 @@ var runnerVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 // processes and start them running.
 func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
-	engine := eng.NewWaZeroEngine(ctx, nil)
-	InitializePatch(engine)
+
+	engine := eng.NewWaZeroEngine(ctx, wazero.NewRuntimeConfig())
 
 	// our notify map is shared by the nameserver
 	notifyMap := &sync.Map{}
@@ -75,7 +76,7 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 	if err := c.LoadAllModules(ctx, c.engine); err != nil {
 		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
 	}
-	_, _, err := LoadPluginAndAddHostFunc(c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine)
+	_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"), c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine)
 	if err != nil {
 		return err
 	}
@@ -117,9 +118,9 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			contextPrint(ctx, pcontext.Debug, "StartingServer", "StartProcess creating goroutine for server process '%s'", name)
+			pcontext.Logf(ctx, pcontext.Info, "StartProcess creating goroutine for server process '%s'", name)
 			go func(p *Process, serverProcessName string) {
-				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for %s starting", serverProcessName)
+				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for '%s' starting", serverProcessName)
 				code := p.Start(ctx)
 				contextPrint(ctx, pcontext.Debug, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
@@ -152,7 +153,7 @@ func (d *DeployContext) NotifyMap() *sync.Map {
 }
 
 func (d *DeployContext) instantiateBuiltinHostFunc(ctx context.Context) error {
-	for _, name := range []string{"gojs", "parigot"} {
+	for _, name := range []string{"parigot"} {
 		if _, err := d.engine.InstantiateHostModule(ctx, name); err != nil {
 			return err
 		}
