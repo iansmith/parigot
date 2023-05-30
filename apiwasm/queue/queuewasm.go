@@ -4,6 +4,7 @@ import (
 	"context"
 	"unsafe"
 
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/queue/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 )
@@ -19,9 +20,11 @@ func main() {
 func parigot_main() {
 	lib.FlagParseCreateEnv()
 
+	ctx := pcontext.ClientContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
+
 	queue.ExportQueueServiceOrPanic()
-	s := queue.NewSimpleQueueService(ready)
-	queue.RunQueueService(s)
+	s := queue.NewSimpleQueueService(ctx, ready)
+	queue.RunQueueService(ctx, s)
 }
 
 func ready(ctx context.Context, _ *queue.SimpleQueueService) bool {

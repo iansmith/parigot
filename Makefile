@@ -7,9 +7,6 @@ all: allprotos \
 	sqlc \
 	plugins
 	
-#static/t1.wasm
-
-
 #
 # GROUPS OF TARGETS
 #
@@ -30,7 +27,16 @@ EXTRA_WASM_COMP_ARGS=
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
+SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
+API_WASM_SRC=apiwasm/*
+LIB_SRC=$(shell find lib -type f -regex ".*\.go")
+API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_WASM_SRC)
+
+
 CC=/usr/lib/llvm-15/bin/clang
+CTX_SRC=$(shell find context -type f -regex ".*\.go")
+SHARED_SRC=$(shell find apishared -type f -regex ".*\.go")
+
 
 #this command can be useful if you want to run tinygo in a container but otherwise use your host machine
 #GO_TO_WASM=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
@@ -47,11 +53,6 @@ GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.19.9 go1.19.9
 #
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
-
-SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
-LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-ID_SRC=$(shell find id  -regex ".*\.go")
-API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(ID_SRC)
 
 ## we just use a single representative file for all the generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
@@ -99,7 +100,7 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 PLUGIN_SRC=$(shell find apiplugin -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
-build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) apiplugin/queue/db.go
+build/runner: $(RUNNER_SRC) $(REP) $(PLUGIN_SRC) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apiplugin/queue/db.go
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -135,7 +136,7 @@ build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
 TEST_SERVICE=$(shell find apiwasm/test -type f -regex ".*\.go")
 build/test.p.wasm: export GOOS=js
 build/test.p.wasm: export GOARCH=wasm
-build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)
+build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) 
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/test
 
@@ -233,17 +234,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/queue.so: $(QUEUE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 

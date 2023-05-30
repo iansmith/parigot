@@ -2,13 +2,11 @@ package lib
 
 import (
 	"context"
-	"time"
 
+	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
-	pcontext "github.com/iansmith/parigot/context"
 	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/id"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -31,13 +29,13 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, error) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, id.Id) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, id.NewPerrorFromError("unable to convert param for dispatch into Any", err)
+			return nil, id.NewKernelError(id.KernelEncodeError)
 		}
 	}
 	if c.svc == nil {
@@ -53,7 +51,7 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	return syscall.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
+func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.Id) {
 	req := syscallmsg.RunRequest{
 		Wait: true,
 	}
@@ -64,7 +62,7 @@ func (c *ClientSideService) Run() (*syscallmsg.RunResponse, error) {
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
+func Require1(pkg, name string) (*syscallmsg.RequireResponse, id.Id) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -78,7 +76,7 @@ func Require1(pkg, name string) (*syscallmsg.RequireResponse, error) {
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
+func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.Id) {
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -87,16 +85,4 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, error) {
 		Service: []*syscallmsg.FullyQualifiedService{fqs},
 	}
 	return syscall.Export(in)
-}
-
-// PrepContextForServer is used by the code generator to
-// create proper contexts for any calls on the the methods
-// of the service.
-func PrepContextForServer(cont *pcontext.LogContainer, name string) context.Context {
-	ctx := context.WithValue(context.Background(), pcontext.ParigotTime, time.Now())
-	ctx = context.WithValue(ctx, pcontext.ParigotFunc, name)
-	ctx = context.WithValue(ctx, pcontext.ParigotSource, pcontext.ServerWasm)
-	ctx = context.WithValue(ctx, pcontext.ParigotLogContainer, cont)
-	return ctx
-
 }

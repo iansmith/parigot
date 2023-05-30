@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -18,12 +17,7 @@ import (
 var exitCode = int32(0)
 
 func main() {
-	// log.Printf("before flag parse -- 1")
-	// lib.FlagParseCreateEnv()
-	print("xxx main of methodcall test -- 1\n")
-	//panic("main test")
-
-	ctx := pcontext.ClientContext(context.TODO(), "methodcall main.main")
+	ctx := pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.ClientContext(context.Background()), "methodcalltest main"), "methodcalltest.main")
 	defer pcontext.Dump(ctx)
 	// pcontext.Debugf(ctx, "main", "xxx main 2222 of methodcall test")
 	// methodcall.RequireFooServiceOrPanic(ctx)
@@ -37,8 +31,8 @@ func main() {
 	// queue.LocateQueueServiceOrPanic(ctx)
 
 	for {
-		log.Printf("xxx DONE main of methodcall test")
-		time.Sleep(1 * time.Second)
+		pcontext.Debugf(ctx, "started up: main of methodcall test, waiting....")
+		time.Sleep(5 * time.Second)
 	}
 
 	test.RunUnderTestService(underTestServer)
@@ -155,7 +149,7 @@ func (m *myUnderTestServer) Ready(ctx context.Context) bool {
 	m.bar = methodcall.LocateBarServiceOrPanic(ctx)
 	m.testSvc = test.LocateTestServiceOrPanic(ctx)
 	if err := m.setupTests(ctx); err != nil {
-		pcontext.ClientLogf(pcontext.Error, "test setup failed:", err)
+		pcontext.Logf(ctx, pcontext.Error, "test setup failed:", err)
 		return false
 	}
 	return true
