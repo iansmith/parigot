@@ -1,11 +1,13 @@
 package syscall
 
 import (
+	"context"
 	"reflect"
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
+	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 
 	//"github.com/iansmith/parigot/apiwasm"
@@ -28,7 +30,7 @@ func unwindLenAndPtr(ret uint64) (uint32, uint32) {
 // write the U given, and return the KernelErrId properly. It does these
 // manipulations so you can call a lower level function that is implemented by
 // the host.
-func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.KernelErrId) {
+func clientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.KernelErrId) {
 	var outErr id.KernelErrId
 	outProtoPtr := u
 	outErrPtr := &outErr
@@ -50,7 +52,6 @@ func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32
 	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
 	out := int32(sh.Data)
 	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
-
 	wrapped := fn(length, req, out, errPtr)
 	if outErr.IsError() {
 		return nilU, outErr
@@ -60,11 +61,21 @@ func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32
 	if int32(ptr) != out { //sanity
 		panic("mismatched pointers in host call/return")
 	}
-
+	if unsafe.Pointer(asPtr(u)) == nil {
+		return u, id.KernelErrIdNoErr
+	}
 	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
 		outErr = id.NewKernelErrId(id.KernelErrIdUnmarshalError)
 	}
 	return outProtoPtr, id.KernelErrIdNoErr
+}
+
+func asPtr[T proto.Message](t T) uintptr {
+	val := reflect.ValueOf(t)
+	if val.Kind() != reflect.Pointer {
+		panic("should never call the standard processing of a client side syscall with a value, always use a pointer")
+	}
+	return val.Pointer()
 }
 
 // Locate is the means of aquiring a handle to a particular service.
@@ -78,7 +89,10 @@ func clientSide[T proto.Message, U proto.Message](t T, u U, fn func(int32, int32
 func Locate_(int32, int32, int32, int32) int64
 func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
 	outProtoPtr := &syscallmsg.LocateResponse{}
-	return clientSide(inPtr, outProtoPtr, Locate_)
+	ctx := manufactureContext("[syscall]Locate")
+	defer pcontext.Dump(ctx)
+
+	return clientSide(ctx, inPtr, outProtoPtr, Locate_)
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -98,6 +112,14 @@ func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.
 	// 	return nil, err
 	// }
 	return out, id.KernelErrIdNoErr
+}
+
+// manufacture context is used to setup the context for a given state that makes sense for this
+// side of the wire.
+func manufactureContext(fn string) context.Context {
+	result := pcontext.NewContextWithContainer(context.Background(), fn)
+	result = pcontext.GuestContext(result)
+	return pcontext.CallTo(result, fn)
 }
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
@@ -135,22 +157,18 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 	return out, nil
 }
 
-// Run is a request to start running. Note that this may not return
-// immediately and may fail entirely.  For most user code this is not
-// used because user code usually uses file.WaitFileServiceOrPanic() to
+// Run is starts a service (or a guest application) running. Note that
+// this may not return immediately and may fail entirely.  For most user
+// code this is not used because user code usually uses file.MustFileServiceRun() to
 // block service File until it is cleared to run.
 //
-// func Run(*syscallmsg.RunRequest) *syscallmsg.RunResponse
-//
 //go:wasmimport parigot run_
-func Run_(int32, int32) int32
-func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.IdRaw) {
-	out := &syscallmsg.RunResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Run_ failed:%v", err)
-	// }
-	return out, id.KernelErrIdNoErr.Raw()
+func Run_(int32, int32, int32, int32) int64
+func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId) {
+	outProtoPtr := (*syscallmsg.RunResponse)(nil)
+	ctx := manufactureContext("[syscall]Run")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Run_)
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -160,8 +178,10 @@ func Run(in *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.IdRaw) {
 //go:wasmimport parigot export_
 func Export_(int32, int32, int32, int32) int64
 func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.KernelErrId) {
-	outProtoPtr := &syscallmsg.ExportResponse{}
-	return clientSide(inPtr, outProtoPtr, Require_)
+	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
+	ctx := manufactureContext("[syscall]Export")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Require_)
 }
 
 // ReturnValue is not a call that user code should be using. It is the
@@ -187,8 +207,10 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 //go:wasmimport parigot require_
 func Require_(int32, int32, int32, int32) int64
 func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
-	outProtoPtr := &syscallmsg.RequireResponse{}
-	return clientSide(inPtr, outProtoPtr, Require_)
+	outProtoPtr := (*syscallmsg.RequireResponse)(nil)
+	ctx := manufactureContext("[syscall]Require")
+	defer pcontext.Dump(ctx)
+	return clientSide(ctx, inPtr, outProtoPtr, Require_)
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
@@ -214,6 +236,8 @@ func Register_(int32, int32, int32, int32) int64
 
 func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, id.KernelErrId) {
 	outProtoPtr := &syscallmsg.RegisterResponse{}
-	rr, kid := clientSide(inPtr, outProtoPtr, Register_)
+	ctx := manufactureContext("[syscall]Register")
+	defer pcontext.Dump(ctx)
+	rr, kid := clientSide(ctx, inPtr, outProtoPtr, Register_)
 	return rr, kid
 }

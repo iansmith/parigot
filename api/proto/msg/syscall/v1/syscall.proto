@@ -101,6 +101,7 @@ message RequireResponse {
 
 message RunRequest {
   bool wait = 1;
+  msg.protosupport.v1.IdRaw service_id = 2;
 }
 
 message RunResponse {

@@ -63,7 +63,6 @@ const (
 	UnknownS           Source = 0
 	Guest              Source = 1
 	HostGo             Source = 2
-	ServerWasm         Source = 3
 	Parigot            Source = 4
 	Wazero             Source = 5
 	GuestOut           Source = 6
@@ -80,8 +79,6 @@ func (s Source) String() string {
 		return "  Guest"
 	case HostGo:
 		return " HostGo"
-	case ServerWasm:
-		return "SvrWasm"
 	case Wazero:
 		return " Wazero"
 	case GuestOut:

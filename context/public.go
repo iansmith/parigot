@@ -28,18 +28,11 @@ func ServerGoContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, HostGo)
 }
 
-// Client returns a new context based on ctx with source Client and the given function name.
+// GuestContext returns a new context based on ctx with source Guest and the given function name.
 // This should be called before entering code that is client wasm code, like the main
 // of an application or the start of test.
-func ClientContext(ctx context.Context) context.Context {
+func GuestContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ParigotSource, Guest)
-}
-
-// ServerWasm returns a new context based on ctx with source ServerWasm and the given function name.
-// This should be called before entering code that is the _implementation_ of a service that is
-// implemented solely in guest wasm.
-func ServerWasmContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ParigotSource, ServerWasm)
 }
 
 // WazeroContext returns a context that has the source sent to Wazero.
