@@ -95,6 +95,14 @@ func (s Source) String() string {
 	panic(fmt.Sprintf("unknown source value %d", int(s)))
 }
 
+type EncodedLogLine struct {
+	Source   Source   `json:"source"`
+	Level    LogLevel `json:"level"`
+	FuncName string   `json:"funcName"`
+	Spec     string   `json:"spec"`
+	FileLine string   `json:"fileLine"`
+}
+
 func (s Source) Integer() int {
 	return int(s)
 }

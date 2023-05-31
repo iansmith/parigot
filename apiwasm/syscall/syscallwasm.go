@@ -24,7 +24,7 @@ func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Ker
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
-	lr, errIdRaw := apiwasm.ClientSide[*syscallmsg.LocateRequest, *syscallmsg.LocateResponse](ctx, inPtr, outProtoPtr, Locate_)
+	lr, errIdRaw := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	kerr := id.KernelErrId(errIdRaw)
 	return lr, kerr
 }
