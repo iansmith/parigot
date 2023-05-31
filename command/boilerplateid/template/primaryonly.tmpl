@@ -17,30 +17,30 @@ import (
 
 type {{.primaryName}}Code {{.idPkg}}IdRootErrorCode
 const {{.primaryName}}NoError {{.primaryName}}Code = 0
-type def{{.primaryName}} struct{}
+type Def{{.primaryName}} struct{}
 
-func (f def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
-func (f def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
-func (f def{{.primaryName}}) IsError() bool       { return true }
+func (f Def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
+func (f Def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
+func (f Def{{.primaryName}}) IsError() bool       { return true }
 
-type {{.primaryName}}Id {{.idPkg}}IdRoot[def{{.primaryName}}]
+type {{.primaryName}}Id {{.idPkg}}IdRoot[Def{{.primaryName}}]
 
 
 func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
-	return {{.primaryName}}Id(New{{.idPkg}}IdRootFromRaw[def{{.primaryName}}](in))
+	return {{.primaryName}}Id(New{{.idPkg}}IdRootFromRaw[Def{{.primaryName}}](in))
 }
 
 func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.primaryCast}})
 }
 func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}ZeroValue[def{{.primaryName}}]())
+	return {{.primaryName}}Id({{.idPkg}}ZeroValue[Def{{.primaryName}}]())
 }
 func (f {{.primaryName}}Id) Raw() {{.idPkg}}IdRaw {
 	return {{.primaryCast}}.Raw()
 }
 func (f {{.primaryName}}Id) Equal(other {{.primaryName}}Id) bool{
-	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[def{{.primaryName}}](other))
+	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[Def{{.primaryName}}](other))
 }
 func (f {{.primaryName}}Id) String() string{
 	return {{.primaryCast}}.String()
@@ -56,7 +56,7 @@ func (f {{.primaryName}}Id) IsZeroValue() bool{
 }
 
 func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
-	fid, err := {{.idPkg}}UnmarshalProtobuf[def{{.primaryName}}](b)
+	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
 	if err.IsError() {
 		return ZeroValue{{.primaryName}}Id(), err
 	}
@@ -64,7 +64,7 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 }
 
 func New{{.primaryName}}Id() {{.primaryName}}Id {
-	idroot := {{.idPkg}}NewIdRoot[def{{.primaryName}}]()
+	idroot := {{.idPkg}}NewIdRoot[Def{{.primaryName}}]()
 	return {{.primaryName}}Id(idroot)
 }
 

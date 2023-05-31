@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
@@ -38,7 +39,7 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 // Syscall host implementations
 //
 
-func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.KernelErrId {
+func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
 	for _, fullyQualified := range req.GetService() {
 		sid, ok := depData.SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
 		if !ok {
@@ -48,10 +49,10 @@ func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscal
 		pcontext.Debugf(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
 			fullyQualified.GetService(), sid.Short())
 		if depData.Export(ctx, sid.Id()) == nil {
-			return id.NewKernelErrId(id.KernelNotFound)
+			return id.NewKernelErrId(id.KernelNotFound).Raw()
 		}
 	}
-	return id.KernelErrIdNoErr
+	return id.KernelErrIdNoErr.Raw()
 
 }
 func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrId {
@@ -61,22 +62,22 @@ func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrI
 
 }
 
-func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.RunResponse) id.KernelErrId {
+func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.RunResponse) id.IdRaw {
 	sid, idErr := id.UnmarshalServiceId(req.GetServiceId())
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
 	}
 	depData.Run(ctx, sid)
-	return id.KernelErrIdNoErr
+	return id.KernelErrIdNoErr.Raw()
 }
 
-func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.KernelErrId {
+func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
 	svc, _ := depData.SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService())
 	resp.Id = svc.Id().Marshal()
-	return id.KernelErrIdNoErr
+	return id.KernelErrIdNoErr.Raw()
 }
 
-func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.KernelErrId {
+func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.IdRaw {
 	src, idErr := id.UnmarshalServiceId(req.GetSource())
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
@@ -89,10 +90,10 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 				fullyQualified.GetService(), dest.Short())
 		}
 		if !depData.Import(ctx, src, dest.Id()) {
-			return id.NewKernelErrId(id.KernelNotFound)
+			return id.NewKernelErrId(id.KernelNotFound).Raw()
 		}
 	}
-	return id.KernelErrIdNoErr
+	return id.KernelErrIdNoErr.Raw()
 }
 
 //
@@ -118,12 +119,12 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 func run(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.RunRequest{}
 	resp := (*syscallmsg.RunResponse)(nil)
-	invokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.ExportRequest{}
 	resp := (*syscallmsg.ExportResponse)(nil)
-	invokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("returnValue 0x%x", stack)
@@ -132,26 +133,18 @@ func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 func require(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.RequireRequest{}
 	resp := (*syscallmsg.RequireResponse)(nil)
-	invokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
 	return
 }
 
 func register(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.RegisterRequest{}
 	resp := &syscallmsg.RegisterResponse{}
-	invokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
 	return
 }
 
 func exit(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("exit 0x%x", stack)
 	panic("exit called ")
-}
-
-//
-// Util
-//
-
-func manufactureSyscallContext(ctx context.Context, funcName string) context.Context {
-	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "manufactureSyscallContext")), funcName)
 }

@@ -1,4 +1,4 @@
-package main
+package apiplugin
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
+
 	"github.com/tetratelabs/wazero/api"
 	"google.golang.org/protobuf/proto"
 )
@@ -20,10 +21,11 @@ func windUpLenAndPtr(length, ptr uint32) uint64 {
 	return length64 | ptr64
 }
 
-func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, kerr id.KernelErrId, stack []uint64) bool {
+func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, kerr id.IdRaw, stack []uint64) bool {
 	kerrPtr := eng.Util.DecodeU32(stack[3])
 	if kerr.IsError() {
-		kerr.MustWriteGuestLe(m.Memory(), kerrPtr)
+		kid := id.NewKernelErrId(2)
+		kid.MustWriteGuestLe(m.Memory(), kerrPtr)
 		stack[0] = NoReturnedStruct
 		return true
 	}
@@ -70,9 +72,9 @@ func pullRequestFromStack(ctx context.Context, m api.Module, req proto.Message, 
 	return true
 }
 
-func invokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, syscallName string, m api.Module, stack []uint64,
-	fn func(context.Context, T, U) id.KernelErrId, t T, u U) {
-	currCtx := manufactureSyscallContext(ctx, syscallName)
+func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, name string, m api.Module, stack []uint64,
+	fn func(context.Context, T, U) id.IdRaw, t T, u U) {
+	currCtx := ManufactureHostContext(ctx, name)
 	defer pcontext.Dump(currCtx)
 
 	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
@@ -83,4 +85,8 @@ func invokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 	if !pushResponseToStack(currCtx, m, u, kerr, stack) {
 		panic("unable to push response back to guest memory")
 	}
+}
+
+func ManufactureHostContext(ctx context.Context, funcName string) context.Context {
+	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "ManufactureHostContext")), funcName)
 }

@@ -15,46 +15,46 @@ import (
 
 type MethodCode IdRootErrorCode
 const MethodNoError MethodCode = 0
-type defMethod struct{}
+type DefMethod struct{}
 
-func (f defMethod) ShortString() string { return "method" }
-func (f defMethod) Letter() byte        { return 0x6d } 
-func (f defMethod) IsError() bool       { return true }
+func (f DefMethod) ShortString() string { return "method" }
+func (f DefMethod) Letter() byte        { return 0x6d } 
+func (f DefMethod) IsError() bool       { return true }
 
-type MethodId IdRoot[defMethod]
+type MethodId IdRoot[DefMethod]
 
 
 func NewMethodIdFromRaw(in IdRaw) MethodId {
-	return MethodId(NewIdRootFromRaw[defMethod](in))
+	return MethodId(NewIdRootFromRaw[DefMethod](in))
 }
 
 func (f MethodId) Marshal() *protosupportmsg.IdRaw {
-	return MarshalProtobuf(IdRoot[defMethod](f))
+	return MarshalProtobuf(IdRoot[DefMethod](f))
 }
 func ZeroValueMethodId() MethodId {
-	return MethodId(ZeroValue[defMethod]())
+	return MethodId(ZeroValue[DefMethod]())
 }
 func (f MethodId) Raw() IdRaw {
-	return IdRoot[defMethod](f).Raw()
+	return IdRoot[DefMethod](f).Raw()
 }
 func (f MethodId) Equal(other MethodId) bool{
-	return IdRoot[defMethod](f).Equal(IdRoot[defMethod](other))
+	return IdRoot[DefMethod](f).Equal(IdRoot[DefMethod](other))
 }
 func (f MethodId) String() string{
-	return IdRoot[defMethod](f).String()
+	return IdRoot[DefMethod](f).String()
 }
 func (f MethodId) Short() string{
-	return IdRoot[defMethod](f).Short()
+	return IdRoot[DefMethod](f).Short()
 }
 func (f MethodId) IsError() bool{
-	return IdRoot[defMethod](f).IsError()
+	return IdRoot[DefMethod](f).IsError()
 }
 func (f MethodId) IsZeroValue() bool{
-	return IdRoot[defMethod](f).IsZeroValue()
+	return IdRoot[DefMethod](f).IsZeroValue()
 }
 
 func UnmarshalMethodId(b *protosupportmsg.IdRaw) (MethodId, IdErr) {
-	fid, err := UnmarshalProtobuf[defMethod](b)
+	fid, err := UnmarshalProtobuf[DefMethod](b)
 	if err.IsError() {
 		return ZeroValueMethodId(), err
 	}
@@ -62,7 +62,7 @@ func UnmarshalMethodId(b *protosupportmsg.IdRaw) (MethodId, IdErr) {
 }
 
 func NewMethodId() MethodId {
-	idroot := NewIdRoot[defMethod]()
+	idroot := NewIdRoot[DefMethod]()
 	return MethodId(idroot)
 }
 

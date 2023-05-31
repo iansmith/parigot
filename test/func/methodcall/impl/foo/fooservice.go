@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"math"
-	"reflect"
 	"unsafe"
 
 	"github.com/iansmith/parigot/g/methodcall/v1"
@@ -25,87 +24,7 @@ func main() {
 	myId := methodcall.MustRegisterFooService(ctx)
 	methodcall.MustExportFooService(ctx)
 	pcontext.Debugf(ctx, "finished exported from foo, who is %s", myId.Short())
-	s := &methodcall.SimpleFooService{}
-	methodcall.RunFooService(ctx, s)
-
-	// f, err := os.Create("methodcall.v1.AddMultiply")
-	// defer f.Close()
-	// if err != nil {
-	// 	pcontext.Fatalf(ctx, "ERR IS ", err.Error())
-	// 	return
-	// }
-	// bpi := apiwasm.NewBytePipeIn[*methodcallmsg.AddMultiplyRequest](ctx, f)
-	// msg := &methodcallmsg.AddMultiplyRequest{}
-	// errId := id.KernelErrIdNoErr.Raw() // just for the space
-	// if err := bpi.ReadProto(msg, &errId); err != nil {
-	// 	pcontext.Fatalf(ctx, "error pulling message:  %s", err.Error())
-	// 	pcontext.Dump(ctx)
-	// 	return
-	// } else {
-	// 	pcontext.Infof(ctx, "read a bundle %+v", msg)
-	// 	pcontext.Dump(ctx)
-	// 	return
-	// }
-}
-
-// example is a function that is an example of a function to be exported. From the standpoint of example,
-// it receives this call and performs its return in the normal way.  It is running on the goroutine
-// that was used to call WasmExport.
-func example(s string, i int) int {
-	print("example called with parameters '", s, "' and ", i, "\n")
-	return len(s) + i //don't make i too big!
-}
-
-// example_ is an example wrapper function that understand how to translate the uint64s and dynamic
-// buffers provided to it into the proper parameters for the function it wraps.  In this example,
-// it pulls the string data and and length from parameters 0 and 1, and another integer from parameter 2.
-// The string value is housed in buf[6], just because we can.  Only the caller and this wrapper
-// have to know how the params and variable data are encoded.
-// param[0] = string length
-// param[1] = pointer to string (variable buffer 6)
-//
-//	WasmExport("example", example_, [][]byte{s})
-func example_(raw []uint64, buffer [][]byte) uint64 {
-
-	// sanity check
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buffer[6]))
-
-	if uint32(raw[0]) != uint32(sh.Len) {
-		panic("bad encoding in example (arg 1 len != buffer 6 len)")
-	}
-	if uint64(uintptr(unsafe.Pointer(sh))) != raw[1] {
-		panic("bad encoding in example (arg 1 data != buffer 6 data)")
-	}
-	careful := readStringFromVariableBuffer(buffer, 6, int(raw[0]))
-
-	//try it more direct way, note this way makes no copy of the data!
-	//so the string is "gone" after this call returns... don't make a copy of it!
-	aggressive := string(buffer[6])
-	if aggressive != careful {
-		panic("bad encoding for example (aggressive not the same as careful)")
-	}
-	i := int(raw[3])
-	rawReturn := example(careful, i)
-	ret := uint64(rawReturn)
-	return ret
-}
-
-func readStringFromVariableBuffer(buffer [][]byte, index int, length int) string {
-	// have to make a copy because str is immutable
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buffer[index]))
-	source := (*byte)(unsafe.Pointer(sh.Data))
-	copyBuf := make([]byte, length)
-	for i := 0; i < length; i++ {
-		bp := (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(source)) + uintptr(i)*unsafe.Sizeof(byte(0))))
-		copyBuf[i] = *bp
-	}
-	return string(copyBuf)
-}
-
-//go:export parigot_main
-//go:linkname parigot_main
-func parigot_main(argv []string, envp map[string]string) {
-	//lib.FlagParseCreateEnv()
+	methodcall.RunFooService(ctx, &fooServer{})
 }
 
 // this type better implement methodcall.v1.FooService

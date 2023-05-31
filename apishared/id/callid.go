@@ -15,46 +15,46 @@ import (
 
 type CallCode IdRootErrorCode
 const CallNoError CallCode = 0
-type defCall struct{}
+type DefCall struct{}
 
-func (f defCall) ShortString() string { return "call" }
-func (f defCall) Letter() byte        { return 0x63 } 
-func (f defCall) IsError() bool       { return true }
+func (f DefCall) ShortString() string { return "call" }
+func (f DefCall) Letter() byte        { return 0x63 } 
+func (f DefCall) IsError() bool       { return true }
 
-type CallId IdRoot[defCall]
+type CallId IdRoot[DefCall]
 
 
 func NewCallIdFromRaw(in IdRaw) CallId {
-	return CallId(NewIdRootFromRaw[defCall](in))
+	return CallId(NewIdRootFromRaw[DefCall](in))
 }
 
 func (f CallId) Marshal() *protosupportmsg.IdRaw {
-	return MarshalProtobuf(IdRoot[defCall](f))
+	return MarshalProtobuf(IdRoot[DefCall](f))
 }
 func ZeroValueCallId() CallId {
-	return CallId(ZeroValue[defCall]())
+	return CallId(ZeroValue[DefCall]())
 }
 func (f CallId) Raw() IdRaw {
-	return IdRoot[defCall](f).Raw()
+	return IdRoot[DefCall](f).Raw()
 }
 func (f CallId) Equal(other CallId) bool{
-	return IdRoot[defCall](f).Equal(IdRoot[defCall](other))
+	return IdRoot[DefCall](f).Equal(IdRoot[DefCall](other))
 }
 func (f CallId) String() string{
-	return IdRoot[defCall](f).String()
+	return IdRoot[DefCall](f).String()
 }
 func (f CallId) Short() string{
-	return IdRoot[defCall](f).Short()
+	return IdRoot[DefCall](f).Short()
 }
 func (f CallId) IsError() bool{
-	return IdRoot[defCall](f).IsError()
+	return IdRoot[DefCall](f).IsError()
 }
 func (f CallId) IsZeroValue() bool{
-	return IdRoot[defCall](f).IsZeroValue()
+	return IdRoot[DefCall](f).IsZeroValue()
 }
 
 func UnmarshalCallId(b *protosupportmsg.IdRaw) (CallId, IdErr) {
-	fid, err := UnmarshalProtobuf[defCall](b)
+	fid, err := UnmarshalProtobuf[DefCall](b)
 	if err.IsError() {
 		return ZeroValueCallId(), err
 	}
@@ -62,7 +62,7 @@ func UnmarshalCallId(b *protosupportmsg.IdRaw) (CallId, IdErr) {
 }
 
 func NewCallId() CallId {
-	idroot := NewIdRoot[defCall]()
+	idroot := NewIdRoot[DefCall]()
 	return CallId(idroot)
 }
 

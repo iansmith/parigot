@@ -52,19 +52,6 @@ type IdBase struct {
 	h, l uint64
 }
 
-// func newIdBaseFromKnown(high uint64, low uint64, isError bool, letter byte) {
-// 	base := &IdBase{
-// 		h: high,
-// 		l: low,
-// 	}
-// 	highBytes := int64ToByteSlice(base.h)
-// 	highBytes[7] = letter
-// 	highBytes[6] = 0
-// 	if isError {
-// 		highBytes[6] = 1
-// 	}
-// }
-
 func int64ToByteSlice(i uint64) []byte {
 	x := (uintptr)(unsafe.Pointer(&i))
 	sh := reflect.SliceHeader{
@@ -172,7 +159,7 @@ type IdRaw struct {
 	high, low uint64
 }
 
-type idNameInfo interface {
+type NameInfo interface {
 	ShortString() string
 	Letter() byte
 	IsError() bool
@@ -189,11 +176,11 @@ type ErrIdResponse interface {
 // ID ROOT
 //
 
-type IdRoot[T idNameInfo] struct {
+type IdRoot[T NameInfo] struct {
 	high, low uint64
 }
 
-func NewIdRoot[T idNameInfo]() IdRoot[T] {
+func NewIdRoot[T NameInfo]() IdRoot[T] {
 	var t T
 	high := rand.Uint64()
 	low := rand.Uint64()
@@ -208,10 +195,10 @@ func NewIdRoot[T idNameInfo]() IdRoot[T] {
 	}
 	return id
 }
-func NewIdRootFromRaw[T idNameInfo](r IdRaw) IdRoot[T] {
+func NewIdRootFromRaw[T NameInfo](r IdRaw) IdRoot[T] {
 	return IdRoot[T]{high: r.high, low: r.low}
 }
-func ZeroValue[T idNameInfo]() IdRoot[T] {
+func ZeroValue[T NameInfo]() IdRoot[T] {
 	var t T
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, uint64(0xffffffffffff))
@@ -224,7 +211,7 @@ func ZeroValue[T idNameInfo]() IdRoot[T] {
 	return IdRoot[T]{high: h, low: l}
 }
 
-func NewIdRootError[T idNameInfo](code IdRootErrorCode) IdRoot[T] {
+func NewIdRootError[T NameInfo](code IdRootErrorCode) IdRoot[T] {
 	var t T
 	high := uint64(0)
 	low := uint64(code)
@@ -240,7 +227,7 @@ func NewIdRootError[T idNameInfo](code IdRootErrorCode) IdRoot[T] {
 	return id
 }
 
-func UnmarshalProtobuf[T idNameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdErr) {
+func UnmarshalProtobuf[T NameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdErr) {
 	var t T
 	h := msg.GetHigh()
 	l := msg.GetLow()
@@ -255,11 +242,11 @@ func UnmarshalProtobuf[T idNameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdE
 	return UnmarshalRaw[T](IdRaw{high: h, low: l})
 }
 
-func UnmarshalRaw[T idNameInfo](r IdRaw) (IdRoot[T], IdErr) {
+func UnmarshalRaw[T NameInfo](r IdRaw) (IdRoot[T], IdErr) {
 	return IdRoot[T](r), NoIdErr
 }
 
-func MarshalProtobuf[T idNameInfo](i IdRoot[T]) *protosupportmsg.IdRaw {
+func MarshalProtobuf[T NameInfo](i IdRoot[T]) *protosupportmsg.IdRaw {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, i.high)
 	h := binary.LittleEndian.Uint64(buf)
@@ -281,13 +268,14 @@ func (i IdRoot[T]) Short() string {
 		if high[0] == 0 && high[1] == 0 {
 			return fmt.Sprintf("[%s-NoErr]", t.ShortString())
 		}
-		return fmt.Sprintf("[%s-%02x%02x%02x%02x]", low[3], low[2], low[1], low[0])
+		return fmt.Sprintf("[%s-%02x%02x%02x%02x]", t.ShortString(), low[3], low[2], low[1], low[0])
 	}
 	return fmt.Sprintf("[%s-%02x%02x%02x]", t.ShortString(), low[2], low[1], low[0])
 }
 
-func (i IdRoot[T]) WriteGuestLe(mem api.Memory, offset uint32) bool {
-	return IdRaw(i).WriteGuestLe(mem, offset)
+func (i IdRoot[V]) WriteGuestLe(mem api.Memory, offset uint32) bool {
+	raw := i.Raw()
+	return raw.WriteGuestLe(mem, offset)
 }
 
 func (i IdRoot[T]) String() string {
@@ -335,7 +323,7 @@ func (i IdRoot[T]) IsZeroValue() bool {
 	return i.low == 0xffffffffffffffff
 }
 
-func Raw[T idNameInfo](i IdRoot[T]) IdRaw {
+func Raw[T NameInfo](i IdRoot[T]) IdRaw {
 	return IdRaw(i)
 }
 
