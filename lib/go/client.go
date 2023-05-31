@@ -2,7 +2,6 @@ package lib
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
@@ -75,9 +74,7 @@ func Require1(pkg, name string, source id.ServiceId) (*syscallmsg.RequireRespons
 		Dest:   []*syscallmsg.FullyQualifiedService{fqs},
 		Source: source.Marshal(),
 	}
-	print(fmt.Sprintf("reached require1 for %s.%s from %s\n", pkg, name, source.Short()))
 	resp, err := syscall.Require(in)
-	print(fmt.Sprintf("response to require for %s.%s from %s -- %v\n", pkg, name, source.Short(), err.IsError()))
 	return resp, err
 }
 

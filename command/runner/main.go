@@ -8,9 +8,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"time"
 
-	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/sys"
@@ -31,6 +31,12 @@ func main() {
 		TestMode: *testMode,
 		Remote:   *remote,
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
+			debug.PrintStack()
+		}
+	}()
 	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
@@ -84,15 +90,12 @@ func main() {
 
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
-		if err != nil {
-			log.Printf("main of '%s' returned code of %d from %s [%v]", mainProg, code, apishared.EntryPointSymbol, err)
-			pcontext.Logf(ctx, pcontext.Error, "could not start main program:%v", err)
-			return
+		if code == 253 {
+			pcontext.Fatalf(ctx, "host side code failed (usually a panic) in execution of  program %s", mainProg)
+		} else if code != 0 {
+			pcontext.Infof(ctx, "main exited from %s with code %d and error %s", mainProg, code, fmt.Sprint(err))
 		}
-		if code != 0 {
-			pcontext.Logf(ctx, pcontext.Error, "main program '%s' exited with code %d", mainProg, code)
-			return
-		}
+		return
 	}
 	if len(main) > 1 {
 		pcontext.Logf(ctx, pcontext.Info,

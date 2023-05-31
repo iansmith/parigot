@@ -134,6 +134,7 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		pcontext.Dump(initCtx)
 		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
 	}
+	pcontext.Debugf(initCtx, "loaded plugin: %s", pluginPath)
 	pcontext.Dump(initCtx)
 	return plug, initFn, nil
 }

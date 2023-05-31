@@ -75,8 +75,12 @@ func pullRequestFromStack(ctx context.Context, m api.Module, req proto.Message, 
 func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, name string, m api.Module, stack []uint64,
 	fn func(context.Context, T, U) id.IdRaw, t T, u U) {
 	currCtx := ManufactureHostContext(ctx, name)
-	defer pcontext.Dump(currCtx)
-
+	defer func() {
+		if r := recover(); r != nil {
+			pcontext.Fatalf(currCtx, "host side panic from inside function %s: %v", name, r)
+		}
+		pcontext.Dump(currCtx)
+	}()
 	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
 		return
 	}
