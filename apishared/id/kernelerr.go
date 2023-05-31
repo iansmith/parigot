@@ -59,9 +59,6 @@ const (
 	// KernelExecError means that we received a response from the implenter of a particular
 	// service's function and the execution of that function failed.
 	KernelExecError
-	// KernelBadId means received something from your code that was supposed to be an error and
-	// it did not have the proper mark on it (IsErrorType()).
-	KernelBadId
 	// KernelDependencyFailure means that the dependency infrastructure has failed.  This is different
 	// than when a user creates bad set of depedencies (KernelDependencyCycle).
 	KernelDependencyFailure
@@ -89,4 +86,8 @@ const (
 	// to guest memory. This is usually caused by the address written at being
 	// out of bounds.
 	KernelGuestWriteFailed
+	// KernelBadId indicates that you passed a zero value of a
+	// into a system call.  This usually means that you did not
+	// properly initialize a protobuf.
+	KernelBadId
 )

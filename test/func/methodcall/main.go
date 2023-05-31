@@ -30,12 +30,6 @@ func main() {
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "program started")
 
-	defer func() {
-		if r := recover(); r != nil {
-			print("XXXX defer of main called with recover", r, "\n")
-		}
-		print("XXXX defer of main called with no recover\n")
-	}()
 	myServiceId := lib.MustRegister(ctx, "[ClIENT]methodcall", "main") //name doesnt' really matter
 	pcontext.Debugf(ctx, "got my service id %s", myServiceId.Short())
 	gmeth.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
@@ -44,6 +38,9 @@ func main() {
 	pcontext.Debugf(ctx, "fineshed requiring test")
 	queue.MustRequireQueueService(ctx, myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring queue")
+
+	syscall.MustSatisfyWait(ctx, myServiceId)
+	pcontext.Debugf(ctx, "fineshed wait satisfy")
 
 	// methg.RequireBarServicegiOrPanic(ctx)
 

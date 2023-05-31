@@ -85,6 +85,7 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 		return
 	}
 
+	pcontext.Debugf(currCtx, "---SYSCALLl: %s", name)
 	kerr := fn(currCtx, t, u)
 	if !pushResponseToStack(currCtx, m, u, kerr, stack) {
 		panic("unable to push response back to guest memory")
