@@ -22,42 +22,42 @@ const {{.errorName}}IdLocateError {{.errorName}}IdCode = 1
 const {{.errorName}}IdUnmarshalError {{.errorName}}IdCode = 2
 const {{.errorName}}IdDispatchError {{.errorName}}IdCode = 3
 const {{.errorName}}IdGuestStart {{.errorName}}IdCode = 4
-type def{{.primaryName}} struct{}
+type Def{{.primaryName}} struct{}
 
-func (f def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
-func (f def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
-func (f def{{.primaryName}}) IsError() bool       { return false }
+func (f Def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
+func (f Def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
+func (f Def{{.primaryName}}) IsError() bool       { return false }
 
-type {{.primaryName}}Id id.IdRoot[def{{.primaryName}}]
+type {{.primaryName}}Id id.IdRoot[Def{{.primaryName}}]
 
-type def{{.errorName}} struct{}
+type Def{{.errorName}} struct{}
 
-func (f def{{.errorName}}) ShortString() string { return "{{.errorShortName}}" }
-func (f def{{.errorName}}) Letter() byte        { return {{.errorLetter}} } 
-func (f def{{.errorName}}) IsError() bool       { return true }
+func (f Def{{.errorName}}) ShortString() string { return "{{.errorShortName}}" }
+func (f Def{{.errorName}}) Letter() byte        { return {{.errorLetter}} } 
+func (f Def{{.errorName}}) IsError() bool       { return true }
 
-type {{.errorName}}Id id.IdRoot[def{{.errorName}}]
+type {{.errorName}}Id id.IdRoot[Def{{.errorName}}]
 
 // {{.errorName}}IdNoErr is a convenience for referring to an errorId that is
 // "everything is ok".
 var {{.errorName}}IdNoErr = New{{.errorName}}Id({{.errorName}}IdNoError)
 
 func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
-    high2:=uint64(def{{.errorName}}{}.Letter())
+    high2:=uint64(Def{{.errorName}}{}.Letter())
     high2 <<= 8
     high2 |= 0x80
     high:=high2<<48
     low4:=uint16(code)
     low:=uint64(low4)
-    root:={{.idPkg}}NewIdRootFromRaw[def{{.errorName}}]({{.idPkg}}NewRawId(high,low))
+    root:={{.idPkg}}NewIdRootFromRaw[Def{{.errorName}}]({{.idPkg}}NewRawId(high,low))
     return {{.errorName}}Id(root)
 }
 
 func New{{.errorName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.errorName}}Id {
-	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[def{{.errorName}}](in))
+	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.errorName}}](in))
 }
 func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[def{{.primaryName}}](in))
+	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.primaryName}}](in))
 }
 
 func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
@@ -67,10 +67,10 @@ func (f {{.errorName}}Id) Marshal() *protosupportmsg.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.errorCast}})
 }
 func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}ZeroValue[def{{.primaryName}}]())
+	return {{.primaryName}}Id({{.idPkg}}ZeroValue[Def{{.primaryName}}]())
 }
 func ZeroValue{{.errorName}}Id() {{.errorName}}Id {
-	return {{.errorName}}Id({{.idPkg}}ZeroValue[def{{.errorName}}]())
+	return {{.errorName}}Id({{.idPkg}}ZeroValue[Def{{.errorName}}]())
 }
 func (f {{.errorName}}Id) Raw() {{.idPkg}}IdRaw {
 	return {{.errorCast}}.Raw()
@@ -79,11 +79,11 @@ func (f {{.primaryName}}Id) Raw() {{.idPkg}}IdRaw {
 	return {{.primaryCast}}.Raw()
 }
 func (f {{.errorName}}Id) Equal(other {{.errorName}}Id) bool{
-	return {{.errorCast}}.Equal({{.idPkg}}IdRoot[def{{.errorName}}](other))
+	return {{.errorCast}}.Equal({{.idPkg}}IdRoot[Def{{.errorName}}](other))
 }
 
 func (f {{.primaryName}}Id) Equal(other {{.primaryName}}Id) bool{
-	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[def{{.primaryName}}](other))
+	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[Def{{.primaryName}}](other))
 }
 
 func (f {{.primaryName}}Id) String() string{
@@ -112,7 +112,7 @@ func (f {{.primaryName}}Id) IsZeroValue() bool{
 }
 
 func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
-	fid, err := {{.idPkg}}UnmarshalProtobuf[def{{.primaryName}}](b)
+	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
 	if err.IsError() {
 		return ZeroValue{{.primaryName}}Id(), err
 	}
@@ -120,7 +120,7 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 }
 
 func Unmarshal{{.primaryName}}IdErr(b *protosupportmsg.IdRaw) ({{.errorName}}Id, {{.idPkg}}IdErr) {
-	fid, err := {{.idPkg}}UnmarshalProtobuf[def{{.errorName}}](b)
+	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.errorName}}](b)
 	if err != {{.idPkg}}NoIdErr {
 		return ZeroValue{{.errorName}}Id(), err
 	}
@@ -128,7 +128,7 @@ func Unmarshal{{.primaryName}}IdErr(b *protosupportmsg.IdRaw) ({{.errorName}}Id,
 }
 
 func New{{.primaryName}}Id() {{.primaryName}}Id {
-	idroot := {{.idPkg}}NewIdRoot[def{{.primaryName}}]()
+	idroot := {{.idPkg}}NewIdRoot[Def{{.primaryName}}]()
 	return {{.primaryName}}Id(idroot)
 }
 func (f {{.errorName}}Id) WriteGuestLe(mem api.Memory, offset uint32) bool {

@@ -56,28 +56,6 @@ type {{$svcCamel}} interface {
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
-
-// Client Side Interface
-type {{$svcCamel}}Client interface {
-{{- range .GetWasmMethod}}
-{{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
-{{- if .InputCodeNeeded }}
-    {{$methCamel}}(ctx context.Context, in *{{$iParam}}) 
-{{- else }} 
-    {{$methCamel}}(ctx context.Context) 
-{{- end -}} 
-{{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, {{$errId}})
-{{- else -}}
-    {{$errId}}
-{{- end -}} {{/* end of output code needed for declaration */}}
-{{- end }} {{/* end of range over methods */}}
-}
-
 {{- end}} {{/* closes service, the interface stuff*/}}
 
 {{- range .service }}
@@ -86,6 +64,7 @@ type {{$svcCamel}}Client interface {
 {{ $svcCamel:=.GetWasmServiceName }}
 {{ $errId:=.GetWasmServiceErrId }}
 
+type {{$svcCamel}}Client {{$svcCamel}}
 type {{$svcCamel}}Client_ struct {
     *lib.ClientSideService
 }

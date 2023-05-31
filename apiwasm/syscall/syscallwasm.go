@@ -2,81 +2,13 @@ package syscall
 
 import (
 	"context"
-	"reflect"
-	"unsafe"
 
-	"github.com/iansmith/parigot/apishared"
+	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-
-	//"github.com/iansmith/parigot/apiwasm"
-
-	"google.golang.org/protobuf/proto"
-	//"google.golang.org/protobuf/proto"
 )
-
-func unwindLenAndPtr(ret uint64) (uint32, uint32) {
-	len64 := ret
-	len64 >>= 32
-	len32 := uint32(len64)
-	ptr64 := ret
-	ptr64 &= 0xffffffff
-	ptr32 := uint32(ptr64)
-	return len32, ptr32
-}
-
-// clientSide does the marshalling and unmarshalling needed to read the T given,
-// write the U given, and return the KernelErrId properly. It does these
-// manipulations so you can call a lower level function that is implemented by
-// the host.
-func clientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.KernelErrId) {
-	var outErr id.KernelErrId
-	outProtoPtr := u
-	outErrPtr := &outErr
-	var nilU U
-
-	buf, err := proto.Marshal(t)
-	if err != nil {
-		return nilU, id.NewKernelErrId(id.KernelMarshalFailed)
-	}
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	length := int32(len(buf))
-	req := int32(sh.Data)
-	val := reflect.ValueOf(u)
-	if val.Kind() != reflect.Ptr {
-		panic("client side of syscall passed a proto.Message that is not a pointer")
-	}
-
-	outBuf := make([]byte, apishared.GuestReceiveBufferSize)
-	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
-	out := int32(sh.Data)
-	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
-	wrapped := fn(length, req, out, errPtr)
-	if outErr.IsError() {
-		return nilU, outErr
-	}
-	l, ptr := unwindLenAndPtr(uint64(wrapped))
-
-	if int32(ptr) != out { //sanity
-		panic("mismatched pointers in host call/return")
-	}
-	if unsafe.Pointer(asPtr(u)) == nil {
-		return u, id.KernelErrIdNoErr
-	}
-	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
-		outErr = id.NewKernelErrId(id.KernelErrIdUnmarshalError)
-	}
-	return outProtoPtr, id.KernelErrIdNoErr
-}
-
-func asPtr[T proto.Message](t T) uintptr {
-	val := reflect.ValueOf(t)
-	if val.Kind() != reflect.Pointer {
-		panic("should never call the standard processing of a client side syscall with a value, always use a pointer")
-	}
-	return val.Pointer()
-}
 
 // Locate is the means of aquiring a handle to a particular service.
 // Most users will not want this interface, but rather will use the
@@ -89,10 +21,12 @@ func asPtr[T proto.Message](t T) uintptr {
 func Locate_(int32, int32, int32, int32) int64
 func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
 	outProtoPtr := &syscallmsg.LocateResponse{}
-	ctx := manufactureContext("[syscall]Locate")
+	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
-	return clientSide(ctx, inPtr, outProtoPtr, Locate_)
+	lr, errIdRaw := apiwasm.ClientSide[*syscallmsg.LocateRequest, *syscallmsg.LocateResponse](ctx, inPtr, outProtoPtr, Locate_)
+	kerr := id.KernelErrId(errIdRaw)
+	return lr, kerr
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -112,14 +46,6 @@ func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.
 	// 	return nil, err
 	// }
 	return out, id.KernelErrIdNoErr
-}
-
-// manufacture context is used to setup the context for a given state that makes sense for this
-// side of the wire.
-func manufactureContext(fn string) context.Context {
-	result := pcontext.NewContextWithContainer(context.Background(), fn)
-	result = pcontext.GuestContext(result)
-	return pcontext.CallTo(result, fn)
 }
 
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
@@ -166,9 +92,10 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 func Run_(int32, int32, int32, int32) int64
 func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId) {
 	outProtoPtr := (*syscallmsg.RunResponse)(nil)
-	ctx := manufactureContext("[syscall]Run")
+	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
-	return clientSide(ctx, inPtr, outProtoPtr, Run_)
+	rr, err := apiwasm.ClientSide[*syscallmsg.RunRequest, *syscallmsg.RunResponse](ctx, inPtr, outProtoPtr, Run_)
+	return rr, id.KernelErrId(err)
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -179,9 +106,10 @@ func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId)
 func Export_(int32, int32, int32, int32) int64
 func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.KernelErrId) {
 	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
-	ctx := manufactureContext("[syscall]Export")
+	ctx := apiwasm.ManufactureGuestContext("[syscall]Export")
 	defer pcontext.Dump(ctx)
-	return clientSide(ctx, inPtr, outProtoPtr, Require_)
+	er, err := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	return er, id.KernelErrId(err)
 }
 
 // ReturnValue is not a call that user code should be using. It is the
@@ -208,9 +136,10 @@ func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResp
 func Require_(int32, int32, int32, int32) int64
 func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
 	outProtoPtr := (*syscallmsg.RequireResponse)(nil)
-	ctx := manufactureContext("[syscall]Require")
+	ctx := apiwasm.ManufactureGuestContext("[syscall]Require")
 	defer pcontext.Dump(ctx)
-	return clientSide(ctx, inPtr, outProtoPtr, Require_)
+	rr, err := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	return rr, id.KernelErrId((err))
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
@@ -236,8 +165,8 @@ func Register_(int32, int32, int32, int32) int64
 
 func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, id.KernelErrId) {
 	outProtoPtr := &syscallmsg.RegisterResponse{}
-	ctx := manufactureContext("[syscall]Register")
+	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]Register")
 	defer pcontext.Dump(ctx)
-	rr, kid := clientSide(ctx, inPtr, outProtoPtr, Register_)
-	return rr, kid
+	rr, kid := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
+	return rr, id.KernelErrId(kid)
 }

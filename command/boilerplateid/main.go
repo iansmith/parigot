@@ -95,18 +95,18 @@ func executeTemplate(name string, dot map[string]interface{}, genPrimary, genErr
 	if idNoImport {
 		dot["idPkg"] = ""
 		if genPrimary {
-			dot["primaryCast"] = fmt.Sprintf("IdRoot[def%s](f)", dot["primaryName"].(string))
+			dot["primaryCast"] = fmt.Sprintf("IdRoot[Def%s](f)", dot["primaryName"].(string))
 		}
 		if genError {
-			dot["errorCast"] = fmt.Sprintf("IdRoot[def%s](f)", dot["errorName"].(string))
+			dot["errorCast"] = fmt.Sprintf("IdRoot[Def%s](f)", dot["errorName"].(string))
 		}
 	} else {
 		dot["idPkg"] = "id."
 		if genPrimary {
-			dot["primaryCast"] = fmt.Sprintf("id.IdRoot[def%s](f)", dot["primaryName"].(string))
+			dot["primaryCast"] = fmt.Sprintf("id.IdRoot[Def%s](f)", dot["primaryName"].(string))
 		}
 		if genError {
-			dot["errorCast"] = fmt.Sprintf("id.IdRoot[def%s](f)", dot["errorName"].(string))
+			dot["errorCast"] = fmt.Sprintf("id.IdRoot[Def%s](f)", dot["errorName"].(string))
 		}
 	}
 	templ, err := template.ParseFS(templateFS, name)
