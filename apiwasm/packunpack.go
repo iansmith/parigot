@@ -2,6 +2,7 @@ package apiwasm
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"unsafe"
 
@@ -23,8 +24,9 @@ func ManufactureGuestContext(fn string) context.Context {
 // ClientSide does the marshalling and unmarshalling needed to read the T given,
 // write the U given, and return the KernelErrId properly. It does these
 // manipulations so you can call a lower level function that is implemented by
-// the host.
-func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (U, id.IdRaw) {
+// the host. The final bool is a meta indicator about if we detected a crash and
+// the client side of the program should exit.
+func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (outU U, outId id.IdRaw, signal bool) {
 	var outErr id.IdRaw
 	outProtoPtr := u
 	outErrPtr := &outErr
@@ -32,7 +34,7 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 
 	buf, err := proto.Marshal(t)
 	if err != nil {
-		return nilU, id.NewKernelErrId(id.KernelMarshalFailed).Raw()
+		return nilU, id.NewKernelErrId(id.KernelMarshalFailed).Raw(), false
 	}
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	length := int32(len(buf))
@@ -46,25 +48,31 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	sh = (*reflect.SliceHeader)(unsafe.Pointer(&outBuf))
 	out := int32(sh.Data)
 	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
+	defer func() {
+		if r := recover(); r != nil {
+			pcontext.Fatalf(ctx, "guest side trapped a host side panic: %s ", fmt.Sprint(r))
+			signal = true
+		}
+	}()
 	wrapped := fn(length, req, out, errPtr)
 	if outErr.IsError() {
-		return nilU, outErr
+		return nilU, outErr, false
 	}
 	l, ptr := unwindLenAndPtr(uint64(wrapped))
 
 	if int32(ptr) != out { //sanity
-		panic("mismatched pointers in host call/return")
+		panic(fmt.Sprintf("mismatched pointers in host call/return %x, %x", ptr, out))
 	}
 	if unsafe.Pointer(asPtr(u)) == nil {
 		myId := id.KernelErrIdNoErr.Raw()
 
-		return u, myId
+		return u, myId, false
 	}
 	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
 		myId := id.NewKernelErrId((2))
 		outErr = myId.Raw()
 	}
-	return outProtoPtr, id.NewKernelErrId((0)).Raw()
+	return outProtoPtr, id.NewKernelErrId((0)).Raw(), false
 }
 
 func asPtr[T proto.Message](t T) uintptr {

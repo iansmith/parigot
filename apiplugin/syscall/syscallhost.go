@@ -41,14 +41,14 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 
 func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
 	for _, fullyQualified := range req.GetService() {
-		sid, ok := depData.SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		sid, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
 		if !ok {
 			pcontext.Debugf(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
 				fullyQualified.GetService(), sid.Short())
 		}
 		pcontext.Debugf(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
 			fullyQualified.GetService(), sid.Short())
-		if depData.Export(ctx, sid.Id()) == nil {
+		if depData().Export(ctx, sid.Id()) == nil {
 			return id.NewKernelErrId(id.KernelNotFound).Raw()
 		}
 	}
@@ -67,12 +67,12 @@ func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.R
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
 	}
-	depData.Run(ctx, sid)
+	depData().Run(ctx, sid)
 	return id.KernelErrIdNoErr.Raw()
 }
 
 func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
-	svc, _ := depData.SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService())
+	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService())
 	resp.Id = svc.Id().Marshal()
 	return id.KernelErrIdNoErr.Raw()
 }
@@ -84,12 +84,12 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 	}
 	fqn := req.GetDest()
 	for _, fullyQualified := range fqn {
-		dest, ok := depData.SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		dest, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
 		if ok {
 			pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
 				fullyQualified.GetService(), dest.Short())
 		}
-		if !depData.Import(ctx, src, dest.Id()) {
+		if !depData().Import(ctx, src, dest.Id()) {
 			return id.NewKernelErrId(id.KernelNotFound).Raw()
 		}
 	}

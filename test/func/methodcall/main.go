@@ -1,3 +1,5 @@
+//go:build wasip1
+
 package main
 
 import (
@@ -6,7 +8,7 @@ import (
 
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	methg "github.com/iansmith/parigot/g/methodcall/v1"
+	gmeth "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
@@ -28,9 +30,15 @@ func main() {
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "program started")
 
-	myServiceId := lib.MustRegister(ctx, "[CLiENT]", "main") //name doesnt' really matter
+	defer func() {
+		if r := recover(); r != nil {
+			print("XXXX defer of main called with recover", r, "\n")
+		}
+		print("XXXX defer of main called with no recover\n")
+	}()
+	myServiceId := lib.MustRegister(ctx, "[ClIENT]methodcall", "main") //name doesnt' really matter
 	pcontext.Debugf(ctx, "got my service id %s", myServiceId.Short())
-	methg.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
+	gmeth.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring foo")
 	test.MustRequireTestService(ctx, myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring test")
@@ -155,13 +163,13 @@ var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
 	testSvc test.TestServiceClient
-	foo     methg.FooServiceClient
-	bar     methg.BarServiceClient
+	foo     gmeth.FooServiceClient
+	bar     gmeth.BarServiceClient
 }
 
 func (m *myUnderTestServer) Ready(ctx context.Context) bool {
-	m.foo = methg.MustLocateFooService(ctx)
-	m.bar = methg.MustLocateBarService(ctx)
+	m.foo = gmeth.MustLocateFooService(ctx)
+	m.bar = gmeth.MustLocateBarService(ctx)
 	m.testSvc = test.MustLocateTestService(ctx)
 	if err := m.setupTests(ctx); err.IsError() {
 		pcontext.Logf(ctx, pcontext.Error, "test setup failed:", err)

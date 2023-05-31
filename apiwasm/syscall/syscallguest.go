@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"context"
+	"os"
 
 	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
@@ -24,7 +25,10 @@ func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Ker
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
-	lr, errIdRaw := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+	lr, errIdRaw, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+	if signal {
+		os.Exit(1)
+	}
 	kerr := id.KernelErrId(errIdRaw)
 	return lr, kerr
 }
@@ -94,7 +98,11 @@ func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId)
 	outProtoPtr := (*syscallmsg.RunResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
-	rr, err := apiwasm.ClientSide[*syscallmsg.RunRequest, *syscallmsg.RunResponse](ctx, inPtr, outProtoPtr, Run_)
+	rr, err, signal := apiwasm.ClientSide[*syscallmsg.RunRequest, *syscallmsg.RunResponse](ctx, inPtr, outProtoPtr, Run_)
+	if signal {
+		os.Exit(1)
+	}
+
 	return rr, id.KernelErrId(err)
 }
 
@@ -108,7 +116,10 @@ func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Ker
 	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Export")
 	defer pcontext.Dump(ctx)
-	er, err := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	if signal {
+		os.Exit(1)
+	}
 	return er, id.KernelErrId(err)
 }
 
@@ -138,7 +149,10 @@ func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.
 	outProtoPtr := (*syscallmsg.RequireResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Require")
 	defer pcontext.Dump(ctx)
-	rr, err := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	rr, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	if signal {
+		os.Exit(1)
+	}
 	return rr, id.KernelErrId((err))
 }
 
@@ -167,6 +181,9 @@ func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, 
 	outProtoPtr := &syscallmsg.RegisterResponse{}
 	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]Register")
 	defer pcontext.Dump(ctx)
-	rr, kid := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
+	rr, kid, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
+	if signal {
+		os.Exit(1)
+	}
 	return rr, id.KernelErrId(kid)
 }

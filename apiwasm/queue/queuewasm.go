@@ -15,6 +15,7 @@ var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
+	gqueue.MustRegisterQueueService(ctx)
 	gqueue.MustExportQueueService(ctx)
 	gqueue.RunQueueService(ctx, &myQueueSvc{})
 }

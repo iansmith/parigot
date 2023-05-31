@@ -30,7 +30,6 @@ func main() {
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 
 	myId := gtest.MustRegisterTestService(ctx)
-	// The queue we will use
 	queueg.MustRequireQueueService(ctx, myId)
 	gtest.MustExportTestService(ctx)
 	gtest.RunTestService(ctx, &myTestServer{})

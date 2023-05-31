@@ -10,7 +10,14 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 )
 
-var depData = newSyscallDataImpl()
+var _depData *syscallDataImpl
+
+func depData() *syscallDataImpl {
+	if _depData == nil {
+		_depData = newSyscallDataImpl()
+	}
+	return _depData
+}
 
 var runWaitTimeout = time.Duration(10) * time.Second
 
@@ -170,6 +177,8 @@ func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string)
 
 	svc := s.serviceByNameNoLock(ctx, package_, name)
 	if svc != nil {
+		pcontext.Debugf(ctx, "set service did not create new service %s.%s => %s",
+			package_, name, svc.Short())
 		return svc, false
 	}
 	svcId := id.NewServiceId()
@@ -183,6 +192,12 @@ func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string)
 	nmap[name] = result
 	s.sidStringToService[result.String()] = result
 	s.depGraph.AddVertex(result.String())
+	if result != nil {
+		pcontext.Debugf(ctx, "set service created new service %s.%s => %s (%s)",
+			package_, name, svc.Short(), result.String())
+	} else {
+		pcontext.Errorf(ctx, "result of set service is nil?")
+	}
 	return result, true
 
 }
@@ -343,12 +358,15 @@ func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) bo
 	}
 	err := s.depGraph.AddEdge(serviceSource.String(), serviceDest.String())
 	if err == nil {
+		pcontext.Debugf(ctx, "Import succeeded from %s -> %s", src.Short(), dest.Short())
 		return true
 	}
 	switch err {
 	case graph.ErrEdgeCreatesCycle:
 		return false
 	case graph.ErrEdgeAlreadyExists:
+		pcontext.Debugf(ctx, "Import already existed from %s -> %s", src.Short(), dest.Short())
+
 		return true
 	case graph.ErrEdgeNotFound:
 		panic("internal error in dependency graph construction")
