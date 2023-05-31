@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
@@ -34,7 +33,6 @@ func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
-			debug.PrintStack()
 		}
 	}()
 	config, err := runner.Parse(flag.Arg(0), flg)
@@ -90,13 +88,16 @@ func main() {
 
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
-		if code == 253 {
-			pcontext.Fatalf(ctx, "host side code failed (usually a panic) in execution of  program %s", mainProg)
+		if code == 253 && err == nil {
+			pcontext.Fatalf(ctx, "host side code failed (usually a panic) in execution of  program %s (code %d)", mainProg, code)
 		} else if code != 0 {
-			pcontext.Infof(ctx, "main exited from %s with code %d and error %s", mainProg, code, fmt.Sprint(err))
+			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
+		} else {
+			pcontext.Infof(ctx, "program %s finished (code %d, error is not nil %v)", mainProg, code, err == nil)
 		}
 		return
 	}
+	pcontext.Dump(ctx)
 	if len(main) > 1 {
 		pcontext.Logf(ctx, pcontext.Info,
 			"all main programs completed successfully")

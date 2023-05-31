@@ -34,9 +34,13 @@ type SyscallData interface {
 	// SetService puts a service into SyscallData.  This should only be
 	// called once for each package_ and name pair. It returns the
 	// ServiceId for the service named, creating a new one if necessary.
+	// The client flag should be set to true only when the requesting
+	// party is a client.  All services should pass false here.  This
+	// flag effectively means that the requester (package_,name) does not
+	// to export their service to be ready to run.
 	// If the bool result is false, then the pair already existed and
 	// we made no changes to it.
-	SetService(ctx context.Context, package_, name string) (Service, bool)
+	SetService(ctx context.Context, package_, name string, client bool) (Service, bool)
 	// Export finds a service by the given sid and then marks that
 	// service as being exported. This function returns nil if
 	// there is no such service.

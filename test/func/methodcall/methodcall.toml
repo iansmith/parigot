@@ -10,20 +10,20 @@ WasmPath="build/methodcallfoo.p.wasm"
 Arg=["methodcallfoo.p.wasm"]
 Env=["PARIGOT_GOOD=bad"]
 
-#[microservice.bar]
-#WasmPath="build/methodcallbar.p.wasm"
-#Arg=["methodcallbar.p.wasm"]
-#Env=["PARIGOT_SOFT=hard"]
+[microservice.bar]
+WasmPath="build/methodcallbar.p.wasm"
+Arg=["methodcallbar.p.wasm"]
+Env=["PARIGOT_SOFT=hard"]
 
-# [microservice.test]
-# WasmPath="build/test.p.wasm"
-# Arg=["test.p.wasm"]
+[microservice.test]
+WasmPath="build/test.p.wasm"
+Arg=["test.p.wasm"]
 
-# [microservice.queue]
-# WasmPath="build/queue.p.wasm"
-# Arg=["queue.p.wasm"]
-# PluginPath="build/queue.so"
-# PluginSymbol="ParigotInitialize"
+[microservice.queue]
+WasmPath="build/queue.p.wasm"
+Arg=["queue.p.wasm"]
+PluginPath="build/queue.so"
+PluginSymbol="ParigotInitialize"
 
 [microservice.methodcall_test]
 WasmPath="build/methodcalltest.p.wasm"

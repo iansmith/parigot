@@ -30,7 +30,7 @@ func main() {
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "program started")
 
-	myServiceId := lib.MustRegister(ctx, "[ClIENT]methodcall", "main") //name doesnt' really matter
+	myServiceId := lib.MustRegisterClient(ctx)
 	pcontext.Debugf(ctx, "got my service id %s", myServiceId.Short())
 	gmeth.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring foo")

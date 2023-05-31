@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,6 +27,11 @@ var runWaitTimeout = time.Duration(10) * time.Second
 // serviceImpl
 //
 
+// The default lock discipline for this type is that you should call a method
+// on this type when the lock is unlocked.  The methods you can call when you
+// DO have the lock are demarcated by the NoLock suffix. Any function that
+// does assert the lock should make sure to release it before returning.
+
 type serviceImpl struct {
 	pkg, name string
 	id        id.ServiceId
@@ -36,13 +43,14 @@ type serviceImpl struct {
 	lock      *sync.Mutex
 }
 
-func newServiceImpl(pkg, name string, sid id.ServiceId, parent *syscallDataImpl) *serviceImpl {
+func newServiceImpl(pkg, name string, sid id.ServiceId, parent *syscallDataImpl, isClient bool) *serviceImpl {
 	result := &serviceImpl{
 		pkg:      pkg,
 		name:     name,
 		id:       sid,
 		runReady: false,
 		parent:   parent,
+		exported: isClient,
 		lock:     new(sync.Mutex),
 		runCh:    make(chan struct{}),
 	}
@@ -90,16 +98,25 @@ func (s *serviceImpl) Exported() bool {
 }
 
 func (s *serviceImpl) Run(ctx context.Context) bool {
+	// slightly tricky with the lock
 	s.lock.Lock()
-	defer s.lock.Unlock()
 	s.runReady = true
+	s.lock.Unlock()
 	return s.waitToRun(ctx)
 }
 
 func (s *serviceImpl) canRun(ctx context.Context) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	return s.Exported() && s.RunRequested() && s.parent.checkNodesBehindForReadyNoLock(ctx, s.String())
+	if !s.Exported() {
+		return false
+	}
+	if !s.RunRequested() {
+		return false
+	}
+	depCheck := s.parent.checkNodesBehindForReady(ctx, s.String())
+	if depCheck {
+		print("YAY!!!! dependency check succeeded : ", s.Short(), "\n")
+	}
+	return depCheck
 }
 
 // waitToRun waits until the timeout expires or until it receives a wake
@@ -110,14 +127,17 @@ func (s *serviceImpl) waitToRun(ctx context.Context) bool {
 	if s.canRun(ctx) {
 		return true
 	}
+	print("Timeout loop started...\n")
 	for {
 		select {
 		case <-s.runCh:
 			if s.canRun(ctx) {
+				s.lock.Lock()
 				s.started = true
+				s.lock.Unlock()
 				return true
 			}
-		case <-time.After(1 * time.Minute):
+		case <-time.After(5 * time.Second):
 			return false
 		}
 	}
@@ -152,6 +172,11 @@ func (s *serviceImpl) Started() bool {
 // syscallDataImpl
 //
 
+// The default lock discipline for this type is that you should call a method
+// on this type when the lock is unlocked.  The methods you can call when you
+// DO have the lock are demarcated by the NoLock suffix. Any function that
+// does assert the lock should make sure to release it before returning.
+
 type syscallDataImpl struct {
 	sidStringToService          map[string]Service
 	packageNameToServiceNameMap map[string]map[string]Service
@@ -171,23 +196,24 @@ func newSyscallDataImpl() *syscallDataImpl {
 	return impl
 }
 
-func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string) (Service, bool) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string, client bool) (Service, bool) {
 
-	svc := s.serviceByNameNoLock(ctx, package_, name)
+	svc := s.ServiceByName(ctx, package_, name)
 	if svc != nil {
 		pcontext.Debugf(ctx, "set service did not create new service %s.%s => %s",
 			package_, name, svc.Short())
 		return svc, false
 	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	svcId := id.NewServiceId()
 	nmap, ok := s.packageNameToServiceNameMap[package_]
 	if !ok {
 		nmap = make(map[string]Service)
 		s.packageNameToServiceNameMap[package_] = nmap
 	}
-	result := newServiceImpl(package_, name, svcId, s)
+	result := newServiceImpl(package_, name, svcId, s, client)
 
 	nmap[name] = result
 	s.sidStringToService[result.String()] = result
@@ -207,6 +233,7 @@ func (s *syscallDataImpl) ServiceByName(ctx context.Context, package_, name stri
 	defer s.lock.Unlock()
 	return s.serviceByNameNoLock(ctx, package_, name)
 }
+
 func (s *syscallDataImpl) serviceByNameNoLock(ctx context.Context, package_, name string) Service {
 
 	nameMap, ok := s.packageNameToServiceNameMap[package_]
@@ -238,17 +265,15 @@ func (s *syscallDataImpl) ServiceByIdString(ctx context.Context, sid string) Ser
 }
 
 func (s *syscallDataImpl) Export(ctx context.Context, svcId id.ServiceId) Service {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	svc := s.serviceByIdStringNoLock(ctx, svcId.String())
+	svc := s.ServiceByIdString(ctx, svcId.String())
 	if svc == nil {
 		return nil
 	}
+
 	svc.(*serviceImpl).export()
 	pcontext.Infof(ctx, "export completed, service %s", svc.Short())
 	if svc.(*serviceImpl).canRun(ctx) {
-
+		print("WE CAN RUN OUR SERVICE " + svc.Short() + "\n")
 	}
 	return svc
 }
@@ -257,19 +282,33 @@ func (s *syscallDataImpl) Export(ctx context.Context, svcId id.ServiceId) Servic
 // This function asserts the lock to ensure that while the topo algorihtm is
 // running no part of the graph is disturbed.  It returns what I HOPE is a copy
 // of the content of the graph vertices.
-func (s *syscallDataImpl) topoSort() []string {
+func (s *syscallDataImpl) topoSort(ctx context.Context) []string {
 	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	topo, _ := graph.TopologicalSort(s.depGraph)
-	return topo
+	result, err := graph.TopologicalSort(s.depGraph)
+	if err != nil {
+		panic("topolical sort could not be generated: " + err.Error())
+	}
+	s.lock.Unlock()
+	buf := &bytes.Buffer{}
+	for i := 0; i < len(result); i++ {
+		item := result[i]
+		svc := s.ServiceByIdString(ctx, item)
+		if svc.Started() {
+			buf.WriteString(fmt.Sprintf("\t%s:RUNNING", svc.Short()))
+		} else {
+			buf.WriteString(fmt.Sprintf("\t%s:exported:%v,runReq:%v\n", svc.Short(), svc.Exported(), svc.RunRequested()))
+		}
+	}
+	print("topo sort is\n")
+	print(buf.String())
+	return result
 }
 
-// notifyNodesBehindForReadyNoLock walks the topologically ordered vertices, looking for any nodes
+// notifyNodesBehind walks the topologically ordered vertices, looking for any nodes
 // that are predecessors of the given node and notifying them to check their status for running.
 // This returns false only when the service cannot be found.
-func (s *syscallDataImpl) notifyNodesBehindForReadyNoLock(ctx context.Context, svcid string) bool {
-	topo := s.topoSort()                        // locks
+func (s *syscallDataImpl) notifyNodesBehindForReady(ctx context.Context, svcid string) bool {
+	topo := s.topoSort(ctx)                     // locks
 	if s.ServiceByIdString(ctx, svcid) == nil { //locks
 		return false
 	}
@@ -285,16 +324,15 @@ func (s *syscallDataImpl) notifyNodesBehindForReadyNoLock(ctx context.Context, s
 		}
 		svc.(*serviceImpl).wakeUp()
 	}
-	return true
+	panic("did not find id " + svcid + " in the list of vertices")
 }
 
-// checkNodesBehindForReadyNoLock walks the topologically ordered vertices, looking for any nodes
+// checkNodesBehindForReady walks the topologically ordered vertices, looking for any nodes
 // that are predecessors of the given node and testing to see if they are started. If not
 // we return false.  If all the predecessorys are started, then we return true.  If the
 // serviceId cannot be found, we return true.
-func (s *syscallDataImpl) checkNodesBehindForReadyNoLock(ctx context.Context, svcid string) bool {
-
-	topo := s.topoSort()                        // locks
+func (s *syscallDataImpl) checkNodesBehindForReady(ctx context.Context, svcid string) bool {
+	topo := s.topoSort(ctx)                     // locks
 	if s.ServiceByIdString(ctx, svcid) == nil { //locks
 		return true
 	}
@@ -319,8 +357,8 @@ func (s *syscallDataImpl) checkNodesBehindForReadyNoLock(ctx context.Context, sv
 // notifyNodesInFrontNoLock walks the topologically ordered vertices, looking for any nodes
 // that have satisfied dependencies and are net yet running. It returns false only if the svcid
 // cannot be found.
-func (s *syscallDataImpl) checkNodesInFrontNoLock(ctx context.Context, svcid string) bool {
-	topo := s.topoSort()
+func (s *syscallDataImpl) checkNodesInFront(ctx context.Context, svcid string) bool {
+	topo := s.topoSort(ctx)
 	foundSelf := false
 	for _, str := range topo {
 		svc := s.ServiceByIdString(ctx, str)
@@ -345,17 +383,18 @@ func (s *syscallDataImpl) checkNodesInFrontNoLock(ctx context.Context, svcid str
 }
 
 func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) bool {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 
-	serviceSource := s.serviceByIdStringNoLock(ctx, src.String())
+	serviceSource := s.ServiceByIdString(ctx, src.String())
 	if serviceSource == nil {
 		return false
 	}
-	serviceDest := s.serviceByIdStringNoLock(ctx, dest.String())
+	serviceDest := s.ServiceByIdString(ctx, dest.String())
 	if serviceDest == nil {
 		return false
 	}
+	// lock for the graph
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	err := s.depGraph.AddEdge(serviceSource.String(), serviceDest.String())
 	if err == nil {
 		pcontext.Debugf(ctx, "Import succeeded from %s -> %s", src.Short(), dest.Short())

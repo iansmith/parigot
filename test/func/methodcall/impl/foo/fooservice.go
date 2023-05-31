@@ -7,9 +7,8 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/iansmith/parigot/g/methodcall/v1"
-
 	pcontext "github.com/iansmith/parigot/context"
+	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
@@ -83,7 +82,5 @@ func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiReque
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (f *fooServer) Ready(ctx context.Context) bool {
-	methodcall.WaitFooServiceOrPanic()
-
 	return true
 }

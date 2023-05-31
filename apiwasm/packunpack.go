@@ -54,6 +54,7 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 			signal = true
 		}
 	}()
+
 	wrapped := fn(length, req, out, errPtr)
 	if outErr.IsError() {
 		return nilU, outErr, false

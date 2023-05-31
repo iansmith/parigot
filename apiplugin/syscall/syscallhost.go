@@ -41,7 +41,7 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 
 func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
 	for _, fullyQualified := range req.GetService() {
-		sid, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		sid, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 		if !ok {
 			pcontext.Debugf(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
 				fullyQualified.GetService(), sid.Short())
@@ -72,7 +72,7 @@ func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.R
 }
 
 func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
-	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService())
+	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.Id = svc.Id().Marshal()
 	return id.KernelErrIdNoErr.Raw()
 }
@@ -84,7 +84,7 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 	}
 	fqn := req.GetDest()
 	for _, fullyQualified := range fqn {
-		dest, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		dest, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 		if ok {
 			pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
 				fullyQualified.GetService(), dest.Short())
@@ -117,11 +117,21 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("bindMethod 0x%x", stack)
 }
 func run(ctx context.Context, m api.Module, stack []uint64) {
+	defer func() {
+		if r := recover(); r != nil {
+			print("FOUND RECOVERE ", r, "\n")
+		}
+	}()
 	req := &syscallmsg.RunRequest{}
 	resp := (*syscallmsg.RunResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
+	defer func() {
+		if r := recover(); r != nil {
+			print("FOUND RECOVERE ", r, "\n")
+		}
+	}()
 	req := &syscallmsg.ExportRequest{}
 	resp := (*syscallmsg.ExportResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
@@ -131,6 +141,11 @@ func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func require(ctx context.Context, m api.Module, stack []uint64) {
+	defer func() {
+		if r := recover(); r != nil {
+			print("FOUND RECOVERE ", r, "\n")
+		}
+	}()
 	req := &syscallmsg.RequireRequest{}
 	resp := (*syscallmsg.RequireResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
@@ -138,6 +153,11 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func register(ctx context.Context, m api.Module, stack []uint64) {
+	defer func() {
+		if r := recover(); r != nil {
+			print("FOUND RECOVERE ", r, "\n")
+		}
+	}()
 	req := &syscallmsg.RegisterRequest{}
 	resp := &syscallmsg.RegisterResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)

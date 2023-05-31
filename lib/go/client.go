@@ -2,6 +2,8 @@ package lib
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
@@ -92,17 +94,25 @@ func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.KernelErrId) {
 	return syscall.Export(in)
 }
 
-// MustRegister should be used by the "main" function of a client
-// program.  The name provided here should not matter to any other
-// service.  If you need it to be refenced by others, you should
-// be using Register(), Import(), Export(), Require(), etc.
-func MustRegister(ctx context.Context, pkg, name string) id.ServiceId {
+// MustRegisterClient should be used by the "main" function of a client
+// program that is not service itself, in other words it is a client only.
+// If you are a service, you should use the automagically generated code
+// MustRegister<BLAH>().
+func MustRegisterClient(ctx context.Context) id.ServiceId {
+	pkg := "Client"
+	name := fmt.Sprintf("program%03d", rand.Intn(999))
+	sid := register(ctx, pkg, name, true)
+	return sid
+}
+
+func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId {
 	req := &syscallmsg.RegisterRequest{}
 	fqs := &syscallmsg.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
 	req.Fqs = fqs
+	req.IsClient = isClient
 	resp, err := syscall.Register(req)
 	if err.IsError() {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name, err.Short())
@@ -114,4 +124,5 @@ func MustRegister(ctx context.Context, pkg, name string) id.ServiceId {
 		panic("registration error")
 	}
 	return sid
+
 }
