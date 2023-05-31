@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/iansmith/parigot/apiplugin"
@@ -98,7 +99,15 @@ func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId)
 	outProtoPtr := (*syscallmsg.RunResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
-	rr, err, signal := apiwasm.ClientSide[*syscallmsg.RunRequest, *syscallmsg.RunResponse](ctx, inPtr, outProtoPtr, Run_)
+	sid, iid := id.UnmarshalServiceId(inPtr.GetServiceId())
+	if iid.IsError() {
+		panic("unable to unmarshal a service Id in Run")
+	}
+	if id.ZeroValueServiceId().Equal(sid) {
+		return nil, id.NewKernelErrId(id.KernelBadId)
+	}
+	rr, err, signal :=
+		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Run_)
 	if signal {
 		os.Exit(1)
 	}
@@ -186,4 +195,19 @@ func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, 
 		os.Exit(1)
 	}
 	return rr, id.KernelErrId(kid)
+}
+
+// MustSatisfyWait is a convenience wrapper around creating a RunRequest and
+// using the Run syscall.  MustSatisfyWait is a better name for what goes on
+// in the course of a Run() call.
+func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
+	req := &syscallmsg.RunRequest{
+		Wait:      true,
+		ServiceId: sid.Marshal(),
+	}
+	pcontext.Debugf(ctx, "about to call run .............. %s", sid.Short())
+	_, err := Run(req)
+	if err.IsError() {
+		panic(fmt.Sprintf("failed to run successfully:%s", err.Short()))
+	}
 }

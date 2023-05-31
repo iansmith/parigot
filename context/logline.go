@@ -3,6 +3,8 @@ package context
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/fatih/color"
@@ -23,6 +25,26 @@ var defaultColor *color.Color
 var oppDefaultColor *color.Color
 
 var maxStrLenWithoutColor = 240 // 256 - 16
+
+var envVarLogLevelMin LogLevel
+
+func init() {
+	value, ok := os.LookupEnv("PARIGOT_LOG_MIN")
+	if !ok {
+		envVarLogLevelMin = Debug
+	}
+	switch strings.ToLower(value) {
+	case "info":
+		envVarLogLevelMin = Info
+	case "warn":
+		envVarLogLevelMin = Warn
+	case "error":
+		envVarLogLevelMin = Error
+	case "Fatal":
+		envVarLogLevelMin = Fatal
+	}
+	envVarLogLevelMin = Debug
+}
 
 func init() {
 	defaultColor = color.New(color.FgHiBlack)
@@ -57,6 +79,11 @@ func isLineReader(src Source) bool {
 func (ll *logLine) Print(ctx context.Context) {
 	ll.lock.Lock()
 	defer ll.lock.Unlock()
+
+	//check env var
+	if int(envVarLogLevelMin) > int(ll.level) {
+		return
+	}
 
 	var line string
 	if ll.raw {

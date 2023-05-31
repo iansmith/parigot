@@ -194,7 +194,7 @@ func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string)
 	s.depGraph.AddVertex(result.String())
 	if result != nil {
 		pcontext.Debugf(ctx, "set service created new service %s.%s => %s (%s)",
-			package_, name, svc.Short(), result.String())
+			package_, name, result.Short(), result.String())
 	} else {
 		pcontext.Errorf(ctx, "result of set service is nil?")
 	}
