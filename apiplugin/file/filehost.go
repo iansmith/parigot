@@ -39,7 +39,7 @@ func loadTestDataImpl(ctx context.Context, in *filemsg.LoadTestDataRequest, out 
 func open(ctx context.Context, m api.Module, stack []uint64) {
 	req := &filemsg.OpenRequest{}
 	resp := &filemsg.OpenResponse{}
-	apiplugin.InvokeImplFromStack[*filemsg.OpenRequest, *filemsg.OpenResponse](ctx, "[file]open", m, stack, openImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[file]open", m, stack, openImpl, req, resp)
 	return
 
 }
@@ -48,6 +48,6 @@ func loadTestData(ctx context.Context, m api.Module, stack []uint64) {
 	// xxxx should be pointing at the plugin code for load test data ,not open
 	req := &filemsg.LoadTestDataRequest{}
 	resp := &filemsg.LoadTestDataResponse{}
-	apiplugin.InvokeImplFromStack[*filemsg.OpenRequest, *filemsg.OpenResponse](ctx, "[file]loadTestData", m, stack, loadTestDataImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[file]loadTestData", m, stack, loadTestDataImpl, req, resp)
 	return
 }

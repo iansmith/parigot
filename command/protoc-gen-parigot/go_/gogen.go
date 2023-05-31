@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	serviceDecl = "template/go/servicedecl.tmpl"
-	serverDecl  = "template/go/serverdecl.tmpl"
+	serviceDeclTemplate = "template/go/servicedecl.tmpl"
+	serverDeclTemplate  = "template/go/server.tmpl"
 )
 
 type GoGen struct {
@@ -36,7 +36,7 @@ func (g *GoGen) ResultName() []string {
 }
 
 func (g *GoGen) TemplateName() []string {
-	return []string{serviceDecl, serverDecl}
+	return []string{serviceDeclTemplate, serverDeclTemplate}
 }
 func (g *GoGen) FuncMap() template.FuncMap {
 	return nil

@@ -1,12 +1,14 @@
+//go:build wasip1
+
 package main
 
 import (
 	"context"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/file/v1"
+	gfile "github.com/iansmith/parigot/g/file/v1"
 	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
 )
 
@@ -14,9 +16,9 @@ var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
-	file.MustRegisterFileService(ctx)
-	s := file.NewWrapFileService(ctx, myImpl)
-	file.RunFileService(ctx, s)
+	gfile.MustRegisterFileService(ctx)
+	gfile.MustExportFileService(ctx)
+	gfile.RunFileService(ctx, &myFileSvc{})
 }
 
 type myFileSvc struct{}
@@ -29,19 +31,19 @@ func (f *myFileSvc) Ready(ctx context.Context) bool {
 }
 
 func (f *myFileSvc) Open(ctx context.Context, in *filemsg.OpenRequest) (*filemsg.OpenResponse, file.FileErrId) {
-	outProtoPtr := &filemsg.OpenResponse{}
-	defer pcontext.Dump(ctx)
-	return apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Run_)
+	return gfile.OpenHost(in)
 }
 
 func (f *myFileSvc) Create(ctx context.Context, in *filemsg.CreateRequest) (*filemsg.CreateResponse, file.FileErrId) {
+	return gfile.CreateHost(in)
 
 }
 
 func (f *myFileSvc) Close(ctx context.Context, in *filemsg.CloseRequest) (*filemsg.CloseResponse, file.FileErrId) {
-
+	return gfile.CloseHost(in)
 }
 
 func (f *myFileSvc) LoadTestData(ctx context.Context, in *filemsg.LoadTestDataRequest) (*filemsg.LoadTestDataResponse, file.FileErrId) {
+	return gfile.LoadTestDataHost(in)
 
 }

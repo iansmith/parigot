@@ -11,8 +11,10 @@ import (
 // Simple aliases to constants in the syscall package for portability with
 // platforms which do not have them (e.g. windows)
 const (
-	O_DIRECTORY = syscall.O_DIRECTORY
-	O_NOFOLLOW  = syscall.O_NOFOLLOW
+	O_DIRECTORY = 16384
+	//O_DIRECTORY = syscall.O_DIRECTORY
+	//O_NOFOLLOW = syscall.O_NOFOLLOW
+	O_NOFOLLOW = 32768
 )
 
 // OpenFile is like os.OpenFile except it returns syscall.Errno. A zero

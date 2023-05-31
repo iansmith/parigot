@@ -79,7 +79,7 @@ func (a *AsyncClientInteraction) Close(ff wazero.FauxFile) syscall.Errno {
 	if found == nil {
 		pcontext.Fatalf(a.origCtx, ErrNotOpen.Error())
 		pcontext.Dump(a.origCtx)
-		return syscall.EBADFD
+		return syscall.ENOTEMPTY
 	}
 	pcontext.Dump(a.origCtx)
 	return 0
