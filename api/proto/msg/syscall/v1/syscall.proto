@@ -123,6 +123,7 @@ message ExitResponse{
 // in the dependency graph for startup order.
 message RegisterRequest {
     FullyQualifiedService fqs=1;
+    bool is_client = 2;
 }
 
 message RegisterResponse {

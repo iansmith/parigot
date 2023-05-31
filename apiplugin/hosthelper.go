@@ -84,7 +84,6 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
 		return
 	}
-
 	pcontext.Debugf(currCtx, "---SYSCALLl: %s", name)
 	kerr := fn(currCtx, t, u)
 	if !pushResponseToStack(currCtx, m, u, kerr, stack) {

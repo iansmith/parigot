@@ -28,11 +28,12 @@ const testQueueName = "test_queue"
 func main() {
 	lib.FlagParseCreateEnv()
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
-
 	myId := gtest.MustRegisterTestService(ctx)
 	queueg.MustRequireQueueService(ctx, myId)
 	gtest.MustExportTestService(ctx)
 	gtest.RunTestService(ctx, &myTestServer{})
+	gtest.MustWaitSatisfiedTestService(myId)
+
 }
 
 type myTestServer struct {
@@ -90,7 +91,6 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	m.suiteExec = make(map[string]string)
 
 	pcontext.Debugf(ctx, "Ready", "myTestServer ready called")
-	gtest.WaitTestServiceOrPanic()
 	m.queueSvc = queueg.MustLocateQueueService(ctx)
 	qid, err := m.findOrCreateQueue(ctx, testQueueName)
 	if err.IsError() {

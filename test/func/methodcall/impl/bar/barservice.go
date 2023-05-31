@@ -1,3 +1,5 @@
+//go:build wasip1
+
 package main
 
 import (
@@ -20,8 +22,10 @@ func main() {
 	myId := methodg.MustRegisterBarService(ctx)
 	methodg.MustExportBarService(ctx)
 	methodg.MustRequireFooService(ctx, myId)
-	s := &barServer{}
-	methodg.RunBarService(ctx, s)
+	methodg.MustWaitSatisfiedBarService(myId)
+	b := &barServer{}
+	b.foo = methodcall.MustLocateFooService(ctx)
+	methodg.RunBarService(ctx, b)
 }
 
 // this type better implement methodcall.v1.BarService
@@ -83,7 +87,5 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 // Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
 // services are ready.
 func (b *barServer) Ready(ctx context.Context) bool {
-	methodg.WaitBarServiceOrPanic()
-	b.foo = methodcall.MustLocateFooService(ctx)
 	return true
 }

@@ -114,6 +114,8 @@ func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
 		Service:     "{{$svc}}",
 	}
 	req.Fqs = fqs
+    req.IsClient = false
+
 	resp, err := syscall.Register(req)
     if err.IsError() {
         return id.ZeroValueServiceId(), err
@@ -124,7 +126,6 @@ func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
     }
     return sid,id.KernelErrIdNoErr
 }
-
 func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
     sid, err:=Register{{$svc}}(ctx)
     if err.IsError() {
@@ -150,8 +151,9 @@ func MustExport{{$svc}}(ctx context.Context) {
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Short())
     }
 }
-func Wait{{$svc}}OrPanic() {
-	syscall.Run(&syscallmsg.RunRequest{Wait: true})
+func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
+    s:=sid.Marshal()
+	syscall.Run(&syscallmsg.RunRequest{Wait: true, ServiceId:s })
 
 }
 
