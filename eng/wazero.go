@@ -345,6 +345,7 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 
 	mod, err := m.parent.r.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
+		print("ERR IS ", err.Error(), "\n")
 		return nil, err
 	}
 	i := &wazeroInstance{
@@ -373,6 +374,7 @@ func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string,
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
+	pcontext.Debugf(ctx, "added host function: pkg %s, name %s", pkg, name)
 	e.addSupportedFunc_i32i32i32i32_i64(ctx, pkg, name, api.GoModuleFunc(raw))
 }
 func (e *wazeroEng) addSupportedFunc_i32i32i32i32_i64(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {

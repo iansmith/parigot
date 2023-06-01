@@ -170,12 +170,14 @@ func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, 
 	if !ok {
 		panic(fmt.Sprintf("unable to find microservice with name '%s", name))
 	}
+	pcontext.Debugf(ctx, "start load module %s", m.WasmPath)
 	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath)
 	if err != nil {
+		pcontext.Errorf(ctx, "new module failed to create from file %s: %v", m.WasmPath, err.Error())
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
 			m.name, m.WasmPath, err)
 	}
-	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (%s)", m.name, m.WasmPath)
+	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (with plugin: %s)", m.name, m.WasmPath)
 	return mod, nil
 }
 

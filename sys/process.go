@@ -103,7 +103,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 
 	if m.GetPluginPath() != "" {
 		_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
-			m.GetPluginPath(), m.GetPluginSymbol(), engine)
+			m.GetPluginPath(), m.GetPluginSymbol(), engine, m.GetName())
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +118,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	return proc, nil
 }
 
-func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine) (*plugin.Plugin, ParigotInit, error) {
+func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, name string) (*plugin.Plugin, ParigotInit, error) {
 	plug, err := plugin.Open(pluginPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
@@ -135,6 +135,11 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
 	}
 	pcontext.Debugf(initCtx, "loaded plugin: %s", pluginPath)
+	if _, err := engine.InstantiateHostModule(ctx, name); err != nil {
+		return nil, nil, err
+	}
+	pcontext.Debugf(initCtx, "instantiated host plugin: %s", pluginPath)
+
 	pcontext.Dump(initCtx)
 	return plug, initFn, nil
 }
