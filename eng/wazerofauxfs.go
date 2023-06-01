@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"sync"
 	"syscall"
 
 	pcontext "github.com/iansmith/parigot/context"
@@ -13,59 +14,75 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var ErrNotOpen = errors.New("attempt to close file that is not open")
+var (
+	ErrNotOpen       = errors.New("attempt to close file that is not open")
+	ErrAlreadyExists = errors.New("attempt create a file that is already opened by others")
+)
 
 // faux fs
 type AsyncClientInteraction struct {
-	openFauxFile map[string][]wazero.FauxFile
+	openFauxFile sync.Map
 	origCtx      context.Context
 }
 
 func NewAsyncClientInteraction(ctx context.Context) *AsyncClientInteraction {
 	a := &AsyncClientInteraction{
-		openFauxFile: make(map[string][]wazero.FauxFile),
+		openFauxFile: sync.Map{},
 		origCtx:      ctx,
 	}
-	a.openFauxFile["bind"] = nil
+
+	a.openFauxFile.Store("bind", []wazero.FauxFile{})
 	return a
 }
 
 func (a *AsyncClientInteraction) String() string {
 	return "asyncClientInteraction"
 }
+
 func (a *AsyncClientInteraction) Check(path string) bool {
-	_, ok := a.openFauxFile[path]
-	return ok
+	_, ok := a.openFauxFile.Load(path)
+	return !ok
 }
 
 // faux file
 func (a *AsyncClientInteraction) Create(path string, advisoryRead, advisoryWrite bool) (wazero.FauxFile, syscall.Errno) {
-	result, ok := a.openFauxFile[path]
+	ctx := pcontext.CallTo(a.origCtx, "Close")
+	result, ok := a.openFauxFile.Load(path)
 	if !ok {
-		a.openFauxFile[path] = []wazero.FauxFile{}
+		a.openFauxFile.Store(path, []wazero.FauxFile{})
 		result = []wazero.FauxFile{}
+	} else {
+		if len(result.([]wazero.FauxFile)) != 0 {
+			pcontext.Errorf(ctx, ErrAlreadyExists.Error())
+			pcontext.Dump(ctx)
+			return nil, syscall.EACCES
+		}
 	}
 	entry := NewAsyncClientInteractionEntry(a, path, advisoryRead, advisoryWrite)
-	result = append(result, entry)
-	a.openFauxFile[path] = result
+	list := result.([]wazero.FauxFile)
+	list = append(list, entry)
+	a.openFauxFile.Store(path, result)
 	return entry, 0
 }
 
 func (a *AsyncClientInteraction) Close(ff wazero.FauxFile) syscall.Errno {
-	list, ok := a.openFauxFile[ff.Path()]
+	ctx := pcontext.CallTo(a.origCtx, "Close")
+
+	ret, ok := a.openFauxFile.Load(ff.Path())
 	if !ok {
-		pcontext.Fatalf(a.origCtx, ErrNotOpen.Error())
-		pcontext.Dump(a.origCtx)
+		pcontext.Errorf(ctx, ErrNotOpen.Error())
+		pcontext.Dump(ctx)
 		return syscall.ENOENT
 	}
+	list := ret.([]wazero.FauxFile)
 	var found wazero.FauxFile
 	for i, elem := range list {
 		if elem == ff {
 			if len(list) == 1 {
-				a.openFauxFile[ff.Path()] = nil
+				a.openFauxFile.Store(ff.Path(), nil)
 			} else if len(list)-1 == i {
 				if i == 0 {
-					a.openFauxFile[ff.Path()] = nil
+					a.openFauxFile.Store(ff.Path(), nil)
 				} else {
 					list = list[:i]
 				}
@@ -77,22 +94,24 @@ func (a *AsyncClientInteraction) Close(ff wazero.FauxFile) syscall.Errno {
 		}
 	}
 	if found == nil {
-		pcontext.Fatalf(a.origCtx, ErrNotOpen.Error())
-		pcontext.Dump(a.origCtx)
-		return syscall.ENOTEMPTY
+		pcontext.Errorf(ctx, ErrNotOpen.Error())
+		pcontext.Dump(ctx)
+		return syscall.ENOENT
 	}
-	pcontext.Dump(a.origCtx)
+	pcontext.Dump(ctx)
 	return 0
 }
 func (a *AsyncClientInteraction) Open(path string, read, write bool) (wazero.FauxFile, syscall.Errno) {
-	list, ok := a.openFauxFile[path]
+	raw, ok := a.openFauxFile.Load(path)
+	var list = []wazero.FauxFile{}
 	if !ok {
-		list = []wazero.FauxFile{}
-		a.openFauxFile[path] = list
+		a.openFauxFile.Store(path, list)
+	} else {
+		list = raw.([]wazero.FauxFile)
 	}
 	ff := NewAsyncClientInteractionEntry(a, path, read, write)
 	list = append(list, ff)
-	a.openFauxFile[path] = list
+	a.openFauxFile.Store(path, list)
 	return ff, 0
 }
 
@@ -131,28 +150,37 @@ func (a *AsyncClientInteractionEntry) Write(buf []byte) (int, error) {
 	return a.toHost.Write(buf)
 }
 func (a *AsyncClientInteractionEntry) Close() error {
+	ctx := pcontext.CallTo(a.parent.origCtx, "Close")
+
 	if err := a.toGuest.Close(); err != nil {
-		pcontext.Dump(a.parent.origCtx)
+		pcontext.Dump(ctx)
 		return err
 	}
-	pcontext.Dump(a.parent.origCtx)
+	pcontext.Dump(ctx)
 	return a.guestReader.Close()
 }
 
 func (a *AsyncClientInteraction) Send(path string, m proto.Message) error {
 	ctx := pcontext.CallTo(a.origCtx, "Send")
-	openedFile := a.openFauxFile[path]
+	raw, ok := a.openFauxFile.Load(path)
+	if !ok {
+		pcontext.Errorf(ctx, ErrNotOpen.Error()+":"+path)
+		pcontext.Dump(ctx)
+		return ErrNotFound
+	}
+	openedFile := raw.([]wazero.FauxFile)
 	numOpen := len(openedFile)
 	if numOpen == 0 {
 		return fmt.Errorf("Send failed because file '%s' is not open", path)
 	}
 	choice := openedFile[rand.Intn(numOpen)].(*AsyncClientInteractionEntry)
+	pcontext.Infof(ctx, "only writing to one listener on %s", choice.Path())
 	flat, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
 	s := fmt.Sprintf("%04x ", len(flat))
-	pcontext.Debugf(a.origCtx, "SENDING: %s to %p", s, choice)
+	pcontext.Debugf(ctx, "SENDING: %s to %p", s, choice)
 	transformed := []byte(s)
 
 	n, err := choice.injectToGuest.Write(transformed)

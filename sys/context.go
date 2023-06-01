@@ -72,17 +72,17 @@ func (c *DeployContext) Process() *sync.Map {
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
 func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
-	// load wasm files, implicitly checks them and converts them to binary
-	if err := c.LoadAllModules(ctx, c.engine); err != nil {
-		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
-	}
-	_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"), c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine)
+	_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"), c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")
 	if err != nil {
 		return err
 	}
 
-	if err := c.instantiateBuiltinHostFunc(ctx); err != nil {
-		return err
+	// if err := c.instantiateBuiltinHostFunc(ctx); err != nil {
+	// 	return err
+	// }
+	// load wasm files, implicitly checks them and converts them to binary
+	if err := c.LoadAllModules(ctx, c.engine); err != nil {
+		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
 	}
 
 	// create processes

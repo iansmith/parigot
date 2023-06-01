@@ -14,13 +14,13 @@ type queuePlugin struct{}
 var ParigotInitialize = queuePlugin{}
 
 func (*queuePlugin) Init(ctx context.Context, e eng.Engine) bool {
-	e.AddSupportedFunc(ctx, "queue", "create_queue", createQueueHost)
-	e.AddSupportedFunc(ctx, "queue", "delete_queue", deleteQueueHost)
-	e.AddSupportedFunc(ctx, "queue", "length", lengthHost)
-	e.AddSupportedFunc(ctx, "queue", "locate", locateHost)
-	e.AddSupportedFunc(ctx, "queue", "mark_done", markDoneHost)
-	e.AddSupportedFunc(ctx, "queue", "receive", receiveHost)
-	e.AddSupportedFunc(ctx, "queue", "send", sendHost)
+	e.AddSupportedFunc(ctx, "queue", "create_queue_", createQueueHost)
+	e.AddSupportedFunc(ctx, "queue", "delete_queue_", deleteQueueHost)
+	e.AddSupportedFunc(ctx, "queue", "length_", lengthHost)
+	e.AddSupportedFunc(ctx, "queue", "locate_", locateHost)
+	e.AddSupportedFunc(ctx, "queue", "mark_done_", markDoneHost)
+	e.AddSupportedFunc(ctx, "queue", "receive_", receiveHost)
+	e.AddSupportedFunc(ctx, "queue", "send_", sendHost)
 	return true
 }
 
