@@ -15,5 +15,6 @@ const (
 	// a message a nil payload.  Payloads are mandatory and senders are optional.
 	QueueNoPayload
 	// QueueNotFound means that the Queue name requested could not be found.
+	// This the queue equivalent of 404.
 	QueueNotFound
 )

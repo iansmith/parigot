@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared"
@@ -50,6 +51,8 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
 	defer func() {
 		if r := recover(); r != nil {
+			print("trapped host side panic:", r, "\n")
+			debug.PrintStack()
 			pcontext.Fatalf(ctx, "guest side trapped a host side panic: %s ", fmt.Sprint(r))
 			signal = true
 		}
@@ -60,9 +63,12 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 		return nilU, outErr, false
 	}
 	l, ptr := unwindLenAndPtr(uint64(wrapped))
-
+	// print(fmt.Sprintf("UNWIND LEN PTR %16x %08x,%08x, %T, %T\n", uint64(wrapped), l, ptr, t, u))
+	// if ptr < 0xff {
+	// 	debug.PrintStack()
+	// }
 	if int32(ptr) != out { //sanity
-		panic(fmt.Sprintf("mismatched pointers in host call/return %x, %x", ptr, out))
+		print(fmt.Sprintf("WARNING! mismatched pointers in host call/return %x, %x\n", ptr, out))
 	}
 	if unsafe.Pointer(asPtr(u)) == nil {
 		myId := id.KernelErrIdNoErr.Raw()

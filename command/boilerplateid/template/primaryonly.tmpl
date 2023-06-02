@@ -27,7 +27,7 @@ type {{.primaryName}}Id {{.idPkg}}IdRoot[Def{{.primaryName}}]
 
 
 func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
-	return {{.primaryName}}Id(New{{.idPkg}}IdRootFromRaw[Def{{.primaryName}}](in))
+	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.primaryName}}](in))
 }
 
 func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
@@ -54,6 +54,16 @@ func (f {{.primaryName}}Id) IsError() bool{
 func (f {{.primaryName}}Id) IsZeroValue() bool{
 	return {{.primaryCast}}.IsZeroValue()
 }
+func (f {{.primaryName}}Id) IsEmptyValue() bool{
+	return {{.primaryCast}}.IsEmptyValue()
+}
+
+func (f {{.primaryName}}Id) High() uint64{
+	return {{.primaryCast}}.High()
+}
+func (f {{.primaryName}}Id) Low() uint64{
+	return {{.primaryCast}}.Low()
+}
 
 func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
 	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
@@ -63,10 +73,19 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
 }
 
+func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}Id{
+	result, err:=Unmarshal{{.primaryName}}Id(b)
+	if err.IsError() {
+		panic("unable to unmarshal {{.primaryName}}Id from raw value: "+err.String())
+	}
+	return result
+}
+
 func New{{.primaryName}}Id() {{.primaryName}}Id {
 	idroot := {{.idPkg}}NewIdRoot[Def{{.primaryName}}]()
 	return {{.primaryName}}Id(idroot)
 }
+
 
 //
 // End Boilerplate for {{.primaryName}}

@@ -62,7 +62,6 @@ func CheckVarName(fname string, id *Ident, local, param []*PFormal, parent Scope
 	copy.Col = id.ColumnNumber
 	result := CheckLocalAndParam(fname, id, local, param, parent)
 	if result == nil {
-		//log.Printf("xxx -- checklocalandparam failed %s", id.String())
 		log.Printf("use of unknown variable '%s' at %s", id.String(), e.String())
 	}
 	return result
@@ -101,7 +100,6 @@ func CheckAllItems(fname string, item []TextItem, local, param []*PFormal, paren
 		formal := CheckVarName(fname, ref.Id, local, param, parent, e)
 		if formal != nil {
 			if strings.Contains(ref.Id.String(), ":") {
-				//log.Printf("xxx -- check var name?? formal=%s, %v, %s", formal.Name, formal.Type.String(), formal.Message.Name)
 				e := &ErrorLoc{
 					Filename: filename,
 					Line:     ref.Id.LineNumber,

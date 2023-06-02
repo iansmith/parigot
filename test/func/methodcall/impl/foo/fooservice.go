@@ -1,5 +1,3 @@
-//go:build wasip1
-
 package main
 
 import (
@@ -24,7 +22,7 @@ func main() {
 	pcontext.Debugf(ctx, "started main open")
 	myId := methodcall.MustRegisterFooService(ctx)
 	methodcall.MustExportFooService(ctx)
-	pcontext.Debugf(ctx, "finished exported from foo, who is %s", myId.Short())
+	pcontext.Debugf(ctx, "finished export of foo, service id %s", myId.Short())
 	methodcall.RunFooService(ctx, &fooServer{})
 }
 

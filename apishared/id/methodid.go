@@ -52,6 +52,16 @@ func (f MethodId) IsError() bool{
 func (f MethodId) IsZeroValue() bool{
 	return IdRoot[DefMethod](f).IsZeroValue()
 }
+func (f MethodId) IsEmptyValue() bool{
+	return IdRoot[DefMethod](f).IsEmptyValue()
+}
+
+func (f MethodId) High() uint64{
+	return IdRoot[DefMethod](f).High()
+}
+func (f MethodId) Low() uint64{
+	return IdRoot[DefMethod](f).Low()
+}
 
 func UnmarshalMethodId(b *protosupportmsg.IdRaw) (MethodId, IdErr) {
 	fid, err := UnmarshalProtobuf[DefMethod](b)
@@ -61,10 +71,19 @@ func UnmarshalMethodId(b *protosupportmsg.IdRaw) (MethodId, IdErr) {
 	return MethodId(fid), NoIdErr
 }
 
+func MustUnmarshalMethodId(b *protosupportmsg.IdRaw) MethodId{
+	result, err:=UnmarshalMethodId(b)
+	if err.IsError() {
+		panic("unable to unmarshal MethodId from raw value: "+err.String())
+	}
+	return result
+}
+
 func NewMethodId() MethodId {
 	idroot := NewIdRoot[DefMethod]()
 	return MethodId(idroot)
 }
+
 
 //
 // End Boilerplate for Method

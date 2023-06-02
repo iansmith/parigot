@@ -39,18 +39,19 @@ func (a *AsyncClientInteraction) String() string {
 	return "asyncClientInteraction"
 }
 
-func (a *AsyncClientInteraction) Check(path string) bool {
+func (a *AsyncClientInteraction) Exists(path string) bool {
 	_, ok := a.openFauxFile.Load(path)
-	return !ok
+	return ok
 }
 
 // faux file
 func (a *AsyncClientInteraction) Create(path string, advisoryRead, advisoryWrite bool) (wazero.FauxFile, syscall.Errno) {
-	ctx := pcontext.CallTo(a.origCtx, "Close")
+	ctx := pcontext.CallTo(a.origCtx, "Create")
 	result, ok := a.openFauxFile.Load(path)
 	if !ok {
 		a.openFauxFile.Store(path, []wazero.FauxFile{})
 		result = []wazero.FauxFile{}
+		pcontext.Debugf(ctx, "created new path %s", path)
 	} else {
 		if len(result.([]wazero.FauxFile)) != 0 {
 			pcontext.Errorf(ctx, ErrAlreadyExists.Error())
@@ -62,6 +63,7 @@ func (a *AsyncClientInteraction) Create(path string, advisoryRead, advisoryWrite
 	list := result.([]wazero.FauxFile)
 	list = append(list, entry)
 	a.openFauxFile.Store(path, result)
+	pcontext.Dump(ctx)
 	return entry, 0
 }
 
@@ -102,7 +104,11 @@ func (a *AsyncClientInteraction) Close(ff wazero.FauxFile) syscall.Errno {
 	return 0
 }
 func (a *AsyncClientInteraction) Open(path string, read, write bool) (wazero.FauxFile, syscall.Errno) {
+	ctx := pcontext.CallTo(a.origCtx, "Open")
+
 	raw, ok := a.openFauxFile.Load(path)
+	pcontext.Debugf(ctx, "open %s: raw %+v, and ok %v", path, raw, ok)
+
 	var list = []wazero.FauxFile{}
 	if !ok {
 		a.openFauxFile.Store(path, list)

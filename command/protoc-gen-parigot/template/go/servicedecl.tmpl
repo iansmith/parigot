@@ -80,14 +80,17 @@ func Locate{{$svc}}(ctx context.Context) ({{$svcCamel}}Client,{{$errId}}) {
 	}
 
     resp,errId:=syscall.Locate(req)
+
     if errId.IsError() { 
         return nil, New{{$errId}}({{$errId}}Code(1))
     }
     serviceId, idErr:=id.UnmarshalServiceId(resp.GetServiceId())
+
     if idErr.IsError() {
         pcontext.Errorf(ctx,"UnmarshalServiceId failed: %v",idErr.Short())
         return nil, New{{$errId}}({{$errId}}Code(2))
     }    
+
     cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
     return &{{$svc}}Client_{
         ClientSideService: cs,

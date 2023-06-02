@@ -71,6 +71,16 @@ func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.R
 	return id.KernelErrIdNoErr.Raw()
 }
 
+func locateImpl(ctx context.Context, req *syscallmsg.LocateRequest, resp *syscallmsg.LocateResponse) id.IdRaw {
+	svc, ok := depData().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
+	if ok {
+		return id.IdRaw(id.NewKernelErrId(id.KernelNotFound))
+	}
+	svcId := svc.Id()
+	resp.ServiceId = svcId.Marshal()
+	return id.IdRaw(id.KernelErrIdNoErr)
+}
+
 func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
 	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.Id = svc.Id().Marshal()
@@ -101,9 +111,14 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 //
 
 func locate(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("locate %s 0=0x%x, 1=0x%x", m.Name(), stack[0], stack[1])
-	stack[0] = 82
-	return
+	defer func() {
+		if r := recover(); r != nil {
+			print("Trapped a panic in locate ", r, "\n")
+		}
+	}()
+	req := &syscallmsg.LocateRequest{}
+	resp := &syscallmsg.LocateResponse{}
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
 func dispatch(ctx context.Context, m api.Module, stack []uint64) {
@@ -119,7 +134,7 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 func run(ctx context.Context, m api.Module, stack []uint64) {
 	defer func() {
 		if r := recover(); r != nil {
-			print("FOUND RECOVERE ", r, "\n")
+			print("Trapped a panic in run ", r, "\n")
 		}
 	}()
 	req := &syscallmsg.RunRequest{}
@@ -129,7 +144,7 @@ func run(ctx context.Context, m api.Module, stack []uint64) {
 func export(ctx context.Context, m api.Module, stack []uint64) {
 	defer func() {
 		if r := recover(); r != nil {
-			print("FOUND RECOVERE ", r, "\n")
+			print("trapped recover in export", r, "\n")
 		}
 	}()
 	req := &syscallmsg.ExportRequest{}

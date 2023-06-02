@@ -3,6 +3,7 @@ module github.com/iansmith/parigot
 go 1.21
 
 replace github.com/tetratelabs/wazero v1.1.0 => ./wazero-src-1.1
+
 require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
@@ -16,12 +17,17 @@ require (
 )
 
 require (
+	github.com/kisielk/godepgraph v0.0.0-20221115040737-2d0831789458 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+)
+
+require (
 	dagger.io/dagger v0.6.3
 	fyne.io/systray v1.10.1-0.20221115204952-d16a6177e6f1 // indirect
 	github.com/Khan/genqlient v0.5.0 // indirect
 	github.com/adrg/xdg v0.4.0 // indirect
 	github.com/benoitkugler/textlayout v0.3.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/fredbi/uri v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
@@ -45,15 +51,12 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.3.2 // indirect
 	github.com/quic-go/qtls-go1-20 v0.2.2 // indirect
-	github.com/quic-go/quic-go v0.34.0
 	github.com/srwiley/oksvg v0.0.0-20220731023508-a61f04f16b76 // indirect
 	github.com/srwiley/rasterx v0.0.0-20210519020934-456a8d69b780 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.1 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
-	golang.org/x/crypto v0.4.0 // indirect
-	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/image v0.0.0-20220601225756-64ec528b34cd // indirect

@@ -1,5 +1,3 @@
-//go:build wasip1
-
 package main
 
 import (
@@ -90,7 +88,7 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
 
-	pcontext.Debugf(ctx, "Ready", "myTestServer ready called")
+	pcontext.Debugf(ctx, "myTestServer ready called")
 	m.queueSvc = queueg.MustLocateQueueService(ctx)
 	qid, err := m.findOrCreateQueue(ctx, testQueueName)
 	if err.IsError() {

@@ -81,6 +81,10 @@ func (f {{.errorName}}Id) MustWriteGuestLe(mem api.Memory, offset uint32) {
         panic("cannot write error code to guest memory, giving up")
     }
 }
+func (f {{.errorName}}Id) ErrorCode() {{.errorName}}IdCode{
+	return {{.errorName}}IdCode(f.ErrorCode())
+}
+
 
 //
 // End Boilerplate for {{.errorName}}

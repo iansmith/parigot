@@ -170,7 +170,6 @@ func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, 
 	if !ok {
 		panic(fmt.Sprintf("unable to find microservice with name '%s", name))
 	}
-	pcontext.Debugf(ctx, "start load module %s", m.WasmPath)
 	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath)
 	if err != nil {
 		pcontext.Errorf(ctx, "new module failed to create from file %s: %v", m.WasmPath, err.Error())

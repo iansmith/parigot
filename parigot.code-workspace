@@ -16,6 +16,12 @@
 		"go.goroot": "",
 		"workbench.sideBar.location": "left",
 		"search.useIgnoreFiles": false,
+		"search.exclude": {
+			".devcontainer/**": true,
+			"site/**": true,
+			"wazero-src-1.1": true
+		},
+		"search.decorations.colors": true,
 	},
 	"launch": {
 		"version": "0.2.0",
