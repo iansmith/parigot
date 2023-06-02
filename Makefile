@@ -98,7 +98,7 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
 PLUGIN= build/queue.so build/file.so build/syscall.so
-build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/*.go apiwasm/*.go apiplugin/*
+build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/*.go apiwasm/*.go apiplugin/* wazero-src-1.1/fauxfd.go
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -131,6 +131,8 @@ API_ID=apishared/id/kernelerrid.go \
 	apishared/id/methodid.go \
 	apishared/id/callid.go \
 	g/queue/v1/queueid.go \
+	g/queue/v1/rowid.go \
+	g/queue/v1/queuemsgid.go \
 	g/file/v1/fileid.go \
 	g/test/v1/testid.go \
 	g/methodcall/v1/methodcallid.go 
@@ -169,10 +171,14 @@ build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/test/v1/testi
 #id cruft
 g/queue/v1/queueid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
 	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go queue Queue QueueErr q queue Q errqueue > g/queue/v1/queueid.go
+g/queue/v1/rowid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
+	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p queue Row r row > g/queue/v1/rowid.go
+g/queue/v1/queuemsgid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
+	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p queue QueueMsg m msg > g/queue/v1/queuemsgid.go
 
 ## client side of service impl
 QUEUE_SERVICE=$(shell find apiwasm/queue -type f -regex ".*\.go")
-build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE)  g/queue/v1/queueid.go $(API_ID)
+build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/apiwasm/queue
 
@@ -260,17 +266,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/queue/db.go build/syscall.so
+build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/queue/db.go build/syscall.so  wazero-src-1.1/fauxfd.go
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) build/syscall.so
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) build/syscall.so  wazero-src-1.1/fauxfd.go
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/*.go
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/*.go  wazero-src-1.1/fauxfd.go
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
 
@@ -338,6 +344,9 @@ idclean:
 	g/file/v1/queuewasmid.go \
 	g/test/v1/testwasmid.go \
 	g/methdcall/v1/foowasmid.go \
+	g/queue/v1/queueid.go \
+	g/queue/v1/queuemsgid.go \
+	g/queue/v1/queuerowid.go \
 	apiwasm/bytepipe.id \
 	$(API_ID)
 

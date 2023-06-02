@@ -92,6 +92,13 @@ func (f {{.primaryName}}Id) String() string{
 func (f {{.primaryName}}Id) Short() string{
 	return {{.primaryCast}}.Short()
 }
+func (f {{.primaryName}}Id) High() uint64{
+	return {{.primaryCast}}.High()
+}
+func (f {{.primaryName}}Id) Low() uint64{
+	return {{.primaryCast}}.Low()
+}
+
 func (f {{.errorName}}Id) String() string{
 	return {{.primaryCast}}.String()
 }
@@ -110,6 +117,12 @@ func (f {{.errorName}}Id) IsZeroValue() bool{
 func (f {{.primaryName}}Id) IsZeroValue() bool{
 	return {{.primaryCast}}.IsZeroValue()
 }
+func (f {{.primaryName}}Id) IsEmptyValue() bool{
+	return {{.primaryCast}}.IsEmptyValue()
+}
+func (f {{.errorName}}Id) ErrorCode() {{.errorName}}IdCode{
+	return {{.errorName}}IdCode(f.ErrorCode())
+}
 
 func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
 	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
@@ -117,6 +130,13 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 		return ZeroValue{{.primaryName}}Id(), err
 	}
 	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
+}
+func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}Id{
+	result, err:=Unmarshal{{.primaryName}}Id(b)
+	if err.IsError() {
+		panic("unable to unmarshal {{.primaryName}}Id from raw value: "+err.String())
+	}
+	return result
 }
 
 func Unmarshal{{.primaryName}}IdErr(b *protosupportmsg.IdRaw) ({{.errorName}}Id, {{.idPkg}}IdErr) {

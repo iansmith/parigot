@@ -90,4 +90,7 @@ const (
 	// into a system call.  This usually means that you did not
 	// properly initialize a protobuf.
 	KernelBadId
+	// KernelReadyFailedindicates that the service that was trying
+	// to start aborted by returning false from Ready().
+	KernelNotReady
 )

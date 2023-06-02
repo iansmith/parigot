@@ -1,5 +1,3 @@
-//go:build wasip1
-
 package main
 
 import (
@@ -10,7 +8,6 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	gmeth "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
@@ -40,16 +37,11 @@ func main() {
 	pcontext.Debugf(ctx, "fineshed requiring queue")
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
-	pcontext.Debugf(ctx, "fineshed wait satisfy")
+	pcontext.Debugf(ctx, "finished wait satisfy")
 
 	// methg.RequireBarServicegiOrPanic(ctx)
 
-	req := syscallmsg.RunRequest{Wait: true}
-	_, err := syscall.Run(&req)
-	if err.IsError() {
-		pcontext.Fatalf(ctx, "unable to start running, err was %s", err.Short())
-	}
-	pcontext.Debugf(ctx, "got three requires  ---- done")
+	pcontext.Debugf(ctx, "got three requires  and satified ---- done")
 	return
 
 	//test.RunUnderTestService(ctx, underTestServer)

@@ -2,6 +2,7 @@ package apiplugin
 
 import (
 	"context"
+	"runtime/debug"
 
 	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
@@ -18,6 +19,9 @@ func windUpLenAndPtr(length, ptr uint32) uint64 {
 	ptr64 := uint64(ptr)
 	length64 := uint64(length)
 	length64 <<= 32
+	if ptr < 0xff {
+		debug.PrintStack()
+	}
 	return length64 | ptr64
 }
 
@@ -84,7 +88,6 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
 		return
 	}
-	pcontext.Debugf(currCtx, "---SYSCALLl: %s", name)
 	kerr := fn(currCtx, t, u)
 	if !pushResponseToStack(currCtx, m, u, kerr, stack) {
 		panic("unable to push response back to guest memory")

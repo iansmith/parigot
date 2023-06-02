@@ -31,7 +31,7 @@ service QueueService {
     // message Ids you have processed.
     rpc MarkDone(msg.queue.v1.MarkDoneRequest) returns (msg.queue.v1.MarkDoneResponse);
 
-    // Length returns the approximate number of items in the queue.
+// Length returns the approximate number of items in the queue.
     rpc Length(msg.queue.v1.LengthRequest) returns (msg.queue.v1.LengthResponse);
 
     // Send a message for later delivery.

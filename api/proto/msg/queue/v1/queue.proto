@@ -85,7 +85,7 @@ message MarkDoneRequest {
 
 // MarkDone returns the list of unmodified (not marked done) messages 
 // remaining. In the normal case, this will be empty.  If there was an error
-// trying to mark items as done, it returns the error out of band and
+// trying to mark items as done, it returns the error and 
 // puts the unmarked elements in the list unmodified
 message MarkDoneResponse {
     msg.protosupport.v1.IdRaw id = 1;
@@ -116,4 +116,5 @@ message SendRequest {
 message SendResponse {
     repeated msg.protosupport.v1.IdRaw succeed = 1;
     repeated QueueMsg fail = 2;
+    msg.protosupport.v1.IdRaw failed_on = 3;
 }

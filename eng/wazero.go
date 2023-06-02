@@ -156,47 +156,11 @@ func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExt
 func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
 	result, err := e.fn.Call(ctx, param...)
 	if err != nil {
+		pcontext.Errorf(ctx, "call returned an err >>> %s", err.Error())
 		return nil, err
 	}
 	return result, nil
 }
-
-// ReturnData creates a space for a protobuf return value inside the memory space of this
-// the parent instance.  This allocates space for the return value and returns
-// a pointer to the space as an int32. The error return here is
-// for the HOST side only, meaning that some part of the process of creating
-// the space in the GUEST side failed.  You must supply at least one of
-// msg and err.
-// func (e *wazeroMemoryExtern) ReturnData(ctx context.Context, msg proto.Message, err id.Id) (int32, error) {
-// 	if msg == nil && !err.IsError() {
-// 		return 0, fmt.Errorf("ReturnSpace called on %s but neither return value nor error value provided", e.Name())
-// 	}
-// 	buf, marshErr := proto.Marshal(msg)
-// 	if err != nil {
-// 		return 0, marshErr
-// 	}
-// 	l := uint64(len(buf))
-// 	if l == 0 && !err.IsError() {
-// 		return 0, fmt.Errorf("ReturnSpace called on %s but empty data value and no error value provided", e.Name())
-// 	}
-
-// 	res, callErr := e.parent.returnData.Call(ctx, l)
-// 	if callErr != nil {
-// 		return 0, fmt.Errorf("%s called on %s but call to %s failed: %v", apishared.ReturnDataName, e.parent.Name(), e.Name(), callErr.Error())
-// 	}
-// 	if len(res) != 1 {
-// 		return 0, fmt.Errorf("%s called on %s but wrong number of return values (%d)", apishared.ReturnDataName, e.Name(), len(res))
-// 	}
-// 	result := Util.DecodeI32(res[0])
-// 	if err == nil {
-// 		err = id.NewKernelError(id.KernelNoError)
-// 	}
-// 	// we are doing this for a 32 bit machine, hope this works
-// 	e.WriteUint64LittleEndian(uint32(result+apishared.ReturnDataIdErrOffset), err.High())
-// 	e.WriteUint64LittleEndian(uint32(result+apishared.ReturnDataIdErrOffset), err.High())
-// 	return result, nil
-// }
-
 func (e *wazeroMemoryExtern) WriteUint64LittleEndian(memoryOffset uint32, value uint64) {
 	e.m.WriteUint64Le(memoryOffset, value)
 }
@@ -374,7 +338,6 @@ func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string,
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
-	pcontext.Debugf(ctx, "added host function: pkg %s, name %s", pkg, name)
 	e.addSupportedFunc_i32i32i32i32_i64(ctx, pkg, name, api.GoModuleFunc(raw))
 }
 func (e *wazeroEng) addSupportedFunc_i32i32i32i32_i64(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
@@ -407,6 +370,7 @@ func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra i
 			pcontext.Errorf(c, "unable to push bundle: %v", err)
 		}
 		pcontext.Dump(rawLineContext)
+		pcontext.Dump(AsyncInteraction.origCtx)
 	}(ctx, AsyncInteraction)
 	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.GuestContext(ctx), "call of run()"))
 	if err != nil {
@@ -417,6 +381,7 @@ func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra i
 		pcontext.Debugf(ctx, "Run", "result %02d:%x", i, r)
 	}
 	pcontext.Dump(rawLineContext)
+	pcontext.Dump(AsyncInteraction.origCtx)
 	return nil, nil
 }
 

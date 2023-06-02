@@ -165,13 +165,6 @@ type NameInfo interface {
 	IsError() bool
 }
 
-type ErrIdResponse interface {
-	IsError() bool
-	Short() string
-	String() string
-	Raw() IdRaw
-}
-
 //
 // ID ROOT
 //
@@ -196,8 +189,29 @@ func NewIdRoot[T NameInfo]() IdRoot[T] {
 	return id
 }
 func NewIdRootFromRaw[T NameInfo](r IdRaw) IdRoot[T] {
-	return IdRoot[T]{high: r.high, low: r.low}
+	return IdRoot[T](r)
 }
+
+// NewRawId is dangerous in that it performs no checks about the validity of the
+// data provided. Its use is discouraged.  It usually needed when interacting
+// with networking code or when you must carefully choose id values for interacting
+// with other systems (like a database). E.g. The Queue service uses a database to
+// hold it's queue records, and so it forces the low order 64 bits to be the row id
+// of the queue in question.
+func NewIdTyped[T NameInfo](h, l uint64) IdRoot[T] {
+	var t T
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, h)
+	buf[7] = t.Letter()
+	buf[6] = 0 // no low order bitset
+	if t.IsError() {
+		buf[6] = 0x80
+	}
+	upper := binary.LittleEndian.Uint64(buf)
+	upper |= (h & 0xffffffffffff)
+	return IdRoot[T](NewRawId(upper, l))
+}
+
 func ZeroValue[T NameInfo]() IdRoot[T] {
 	var t T
 	buf := make([]byte, 8)
@@ -225,6 +239,11 @@ func NewIdRootError[T NameInfo](code IdRootErrorCode) IdRoot[T] {
 		low:  low,
 	}
 	return id
+}
+
+func (f IdRoot[T]) ErrorCode() uint16 {
+	low := f.Low() & 0xffff
+	return uint16(low)
 }
 
 func UnmarshalProtobuf[T NameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdErr) {
@@ -264,6 +283,9 @@ func (i IdRoot[T]) Short() string {
 	if i.IsZeroValue() {
 		return fmt.Sprintf("[%s-zero]", t.ShortString())
 	}
+	if i.IsEmptyValue() {
+		return fmt.Sprintf("[%s-empty]", t.ShortString())
+	}
 	if high[6]&0x80 != 0 {
 		if high[0] == 0 && high[1] == 0 {
 			return fmt.Sprintf("[%s-NoErr]", t.ShortString())
@@ -280,20 +302,18 @@ func (i IdRoot[V]) WriteGuestLe(mem api.Memory, offset uint32) bool {
 
 func (i IdRoot[T]) String() string {
 	var t T
-	highByte := i.Raw().HighLE()
-	highByte[6] &= 0x80 //high bit is true for an error type
-	two := (i.high >> 32) & 0xffff
-	four := i.high & 0xffffffff
+	twohigh := (i.high >> 32) & 0xffff
+	fourlow := (i.high) & 0xffffffff
 
-	lowPart := make([]uint16, 4)
-	lowPart[3] = uint16(i.low & 0xffff)
-	lowPart[2] = uint16((i.low >> 16) & 0xffff)
-	lowPart[1] = uint16((i.low >> 32) & 0xffff)
-	lowPart[0] = uint16((i.low >> 48) & 0xffff)
+	lowPart := make([]uint32, 4)
+	lowPart[3] = uint32(i.low & 0xffffff)
+	lowPart[2] = uint32((i.low >> 24) & 0xff)
+	lowPart[1] = uint32((i.low >> 32) & 0xffff)
+	lowPart[0] = uint32((i.low >> 48) & 0xffff)
 
-	return fmt.Sprintf("%s-%04x-%08x:%04x-%04x-%04x-%04x", t.ShortString(), two, four,
+	return fmt.Sprintf("%s-%04x-%08x:%04x-%04x-%02x-%06x",
+		t.ShortString(), twohigh, fourlow,
 		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
-
 }
 
 func (i IdRoot[T]) Raw() IdRaw {
@@ -312,6 +332,33 @@ func (i IdRoot[T]) IsError() bool {
 	return i.Raw().IsError()
 }
 
+// IsEmptyValue tells you if the given id is actually just full of zeros in
+// the 14 data bytes.  This almost means that the caller gave you a bad it, since
+// the chance of all 14 data bytes is very low, and vastly lower than somebody
+// treating a KernelNoErr as an id value.
+func (i IdRoot[T]) IsEmptyValue() bool {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, i.high)
+	for i := 0; i < 6; i++ {
+		if buf[i] != 0 {
+			return false
+		}
+	}
+	return i.low == 0
+}
+
+// Use of High() is not recommended for user code.  It returns the
+// high 8 bytes of the 128bit id.
+func (i IdRoot[T]) High() uint64 {
+	return i.Raw().High()
+}
+
+// Use of Low() is not recommended for user code.  It returns the
+// low 8 bytes of the 128bit id.
+func (i IdRoot[T]) Low() uint64 {
+	return i.Raw().Low()
+}
+
 func (i IdRoot[T]) IsZeroValue() bool {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, i.high)
@@ -328,7 +375,7 @@ func Raw[T NameInfo](i IdRoot[T]) IdRaw {
 }
 
 // NewRawId is dangerous in that it performs no checks about the validity of the
-// data provided. Its use is discourage.  It usually needed when interacting
+// data provided. Its use is discouraged.  It usually needed when interacting
 // with networking code since at the network, you simply receive 16 bytes of
 // data and you need to turn it back into an id of some sort. The given bytes
 // will be converted to LittleEndian.
@@ -355,22 +402,25 @@ func (r IdRaw) HighLE() []byte {
 // String applied to an IdRaw not generally recommended.  It is far better to call it on an
 // instance IdRoot[T] because that print out things nicely.  This is really
 // only useful when you *dont* know the type, such as when you have read it off
-// the wire.
-func (r IdRaw) String() string {
-	highByte := r.HighLE()
-	key := highByte[7]
-	highByte[6] &= 0x80 //high bit is true for an error type
-	two := (r.high >> 32) & 0xffff
-	four := r.high & 0xffffffff
+// the wire and are debugging.
+func (i IdRaw) String() string {
+	return "raw-128bit"
+}
 
-	lowPart := make([]uint64, 4)
-	lowPart[3] = r.low & 0xffff
-	lowPart[2] = (r.low >> 16) & 0xffff
-	lowPart[1] = (r.low >> 32) & 0xffff
-	lowPart[0] = (r.low >> 48) & 0xffff
+// Use of Low() is not recommended.  It returns the low bytes (8) of the 128 bit value.
+// The only real need for this if you are dealing with a storage mechanism
+// (like a database) that cannot handle 128 bit values, but you want to store
+// the the id in two parrts, low and high.
+func (i IdRaw) Low() uint64 {
+	return i.low
+}
 
-	return fmt.Sprintf("%c-%04x-%08x:%04x-%04x-%04x-%04x", key, two, four,
-		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
+// Use of High() is not recommended.  It returns the high bytes (8) of the 128 bit value.
+// The only real need for this if you are dealing with a storage mechanism
+// (like a database) that cannot handle 128 bit values, but you want to store
+// the the id in two parrts, low and high.
+func (i IdRaw) High() uint64 {
+	return i.high
 }
 
 // IsError tests if this object 1) has the error mark set (byte 6 of high), so it is an error

@@ -11,7 +11,7 @@ import (
 
 type FauxFs interface {
 	String() string
-	Check(path string) bool
+	Exists(path string) bool
 	Open(path string, read, write bool) (FauxFile, syscall.Errno)
 	Create(path string, canRead, canWrite bool) (FauxFile, syscall.Errno)
 	Close(f FauxFile) syscall.Errno
@@ -83,9 +83,10 @@ func (f *fauxFs) OpenFile(path string, flag int, perm fs.FileMode) (fs.File, sys
 	}
 
 	if flag&os.O_CREATE != 0 {
-		if f.provider.Check(path) {
+		if f.provider.Exists(path) {
 			return nil, syscall.EEXIST
 		}
+		//print(fmt.Sprintf("In wazero.fauxfd, open file %s: flag %x, filemode %o, (create?%v, exists?%v)\n", path, flag, perm, flag&os.O_CREATE != 0, f.provider.Exists(path)))
 
 		unixBits := perm.Perm()
 		owner := unixBits & 0700
@@ -104,6 +105,7 @@ func (f *fauxFs) OpenFile(path string, flag int, perm fs.FileMode) (fs.File, sys
 		if writeBit != 0 {
 			canRead = true
 		}
+
 		fd, err := f.provider.Create(path, canRead, canWrite)
 		if err != 0 {
 			return nil, err
