@@ -21,6 +21,12 @@ INSERT INTO parigot_test_queue (
 )
 RETURNING *;
 
+-- name: TestNameExists :one
+SELECT count(*)
+FROM parigot_test_queue
+WHERE name = ?
+;
+
 -- name: Length :one
 SELECT count(*) FROM parigot_test_message 
 WHERE queue_key = ? AND marked_done IS NULL;

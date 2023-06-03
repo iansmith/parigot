@@ -69,6 +69,7 @@ const (
 	GuestErr           Source = 7
 	StackTraceInternal Source = 8
 	SpewInternal       Source = 9
+	DevNull            Source = 10
 )
 
 func (s Source) String() string {
@@ -91,6 +92,8 @@ func (s Source) String() string {
 		return "StackTr"
 	case SpewInternal:
 		return "   Spew"
+	case DevNull:
+		return "DevNull"
 	}
 	panic(fmt.Sprintf("unknown source value %d", int(s)))
 }
@@ -122,6 +125,7 @@ func detailPrefix(ctx context.Context, level LogLevel, source Source, fn string)
 }
 
 type LogLine interface {
+	IsDevNull() bool
 	Print(context.Context)
 }
 
@@ -149,6 +153,10 @@ func Spew(ctx context.Context, variable ...interface{}) {
 		s := spew.Sdump(variable)
 		Raw(ctx, SpewInternal, s)
 	}
+}
+
+func DevNullContext(orig context.Context) context.Context {
+	return SourceContext(orig, DevNull)
 }
 
 func NewContextWithContainer(orig context.Context, origin string) context.Context {

@@ -120,8 +120,9 @@ func (f {{.primaryName}}Id) IsZeroValue() bool{
 func (f {{.primaryName}}Id) IsEmptyValue() bool{
 	return {{.primaryCast}}.IsEmptyValue()
 }
+
 func (f {{.errorName}}Id) ErrorCode() {{.errorName}}IdCode{
-	return {{.errorName}}IdCode(f.ErrorCode())
+	return {{.errorName}}IdCode({{.idPkg}}IdRoot[Def{{.errorName}}](f).ErrorCode())
 }
 
 func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {

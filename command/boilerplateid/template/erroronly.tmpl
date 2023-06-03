@@ -82,7 +82,7 @@ func (f {{.errorName}}Id) MustWriteGuestLe(mem api.Memory, offset uint32) {
     }
 }
 func (f {{.errorName}}Id) ErrorCode() {{.errorName}}IdCode{
-	return {{.errorName}}IdCode(f.ErrorCode())
+	return {{.errorName}}IdCode({{.idPkg}}IdRoot[Def{{.errorName}}](f).ErrorCode())
 }
 
 

@@ -159,6 +159,9 @@ func LogFullf(ctx context.Context, level LogLevel, source Source,
 
 func addToContainerOrPrint(ctx context.Context, line LogLine) {
 	cont := GetContainer(ctx)
+	if line.IsDevNull() {
+		return
+	}
 	if cont == nil {
 		line.Print(ctx)
 		return
