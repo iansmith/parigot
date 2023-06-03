@@ -141,6 +141,10 @@ func (ll *logLine) Print(ctx context.Context) {
 	//mod.Print(line)
 }
 
+func (ll *logLine) IsDevNull() bool {
+	return ll.source == DevNull
+}
+
 func addLogLevelVisual(c *color.Color, l LogLevel) *color.Color {
 	switch l {
 	case Fatal:

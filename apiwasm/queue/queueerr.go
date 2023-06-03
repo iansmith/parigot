@@ -17,4 +17,6 @@ const (
 	// QueueNotFound means that the Queue name requested could not be found.
 	// This the queue equivalent of 404.
 	QueueNotFound
+	// QueueAlreadyExists means that the Queue name is already in use.
+	QueueAlreadyExists
 )

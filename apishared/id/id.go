@@ -404,7 +404,18 @@ func (r IdRaw) HighLE() []byte {
 // only useful when you *dont* know the type, such as when you have read it off
 // the wire and are debugging.
 func (i IdRaw) String() string {
-	return "raw-128bit"
+	fourhigh := (i.high >> 32) & 0xffffffff
+	fourlow := (i.high) & 0xffffffff
+
+	lowPart := make([]uint32, 4)
+	lowPart[3] = uint32(i.low & 0xffffff)
+	lowPart[2] = uint32((i.low >> 24) & 0xff)
+	lowPart[1] = uint32((i.low >> 32) & 0xffff)
+	lowPart[0] = uint32((i.low >> 48) & 0xffff)
+
+	return fmt.Sprintf("%s-%08x-%08x:%04x-%04x-%02x-%06x",
+		"raw", fourhigh, fourlow,
+		lowPart[0], lowPart[1], lowPart[2], lowPart[3])
 }
 
 // Use of Low() is not recommended.  It returns the low bytes (8) of the 128 bit value.
@@ -431,7 +442,7 @@ func (r IdRaw) IsError() bool {
 	if buf[6]&0x80 == 0 {
 		return false
 	}
-	if buf[0] == 0 && buf[1] == 0 {
+	if r.low&0xffff == 0 {
 		return false
 	}
 	return true
