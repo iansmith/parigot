@@ -14,40 +14,51 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
+// make sure edit the makefile so you can have FileId and FileErrId, just like queue
+
 type filePlugin struct{}
 
 var _ = unsafe.Sizeof([]byte{})
 
 var ParigiotInitialize sys.ParigotInit = &filePlugin{}
 
+// RULE: All files opened by a user program have to have a
+// RULE: pathname that looks like /app/...  also, any
+// RULE: use of . or .. in the path is not allowed.
+
+// You may want to look at the utilities in filepath and
+// strings.Split(). You can ignore  os.FileSeparator, we
+// always assume the separator in filenames is /
+
+// this should contain all the internal things you need to
+// track of... path, readers, writers, etc.  Make sure to include
+// a lastAccessTime that is derived from our context package
+// via CurrentTime()... later on we will be expiring entries
+// in fileDataCache
+
+type myFileInfo struct{}
+
+// for now, create a map of FileId -> to myFileInfo
+//var fileDataCache = make(map[Fileid])*myFileInfo
+
 func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
-	e.AddSupportedFunc(ctx, "file", "open_", open)
-	e.AddSupportedFunc(ctx, "file", "load_test_data_", loadTestData)
+	e.AddSupportedFunc(ctx, "file", "open_", open) // this should call the "wrapper"
 	return true
 }
 
-// true native implementation of open
+// true native implementation of open... assume this is read only
 func openImpl(ctx context.Context, in *filemsg.OpenRequest, out *filemsg.OpenResponse) id.IdRaw {
+	// use Os
 	return file.FileErrIdNoErr.Raw()
 }
 
-// true native implementation of load test data
-func loadTestDataImpl(ctx context.Context, in *filemsg.LoadTestDataRequest, out *filemsg.LoadTestDataResponse) id.IdRaw {
-	return file.FileErrIdNoErr.Raw()
-}
-
+// the wrappers always look like this.. notice where openImpl is in this function
 func open(ctx context.Context, m api.Module, stack []uint64) {
 	req := &filemsg.OpenRequest{}
 	resp := &filemsg.OpenResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[file]open", m, stack, openImpl, req, resp)
-	return
-
 }
 
-func loadTestData(ctx context.Context, m api.Module, stack []uint64) {
-	// xxxx should be pointing at the plugin code for load test data ,not open
-	req := &filemsg.LoadTestDataRequest{}
-	resp := &filemsg.LoadTestDataResponse{}
-	apiplugin.InvokeImplFromStack(ctx, "[file]loadTestData", m, stack, loadTestDataImpl, req, resp)
-	return
-}
+//  add two more functions: create and close.  Create is
+// like open, but WRITE only.  Close frees up items from the
+// table fileDataCache
