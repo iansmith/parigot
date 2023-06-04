@@ -369,20 +369,28 @@ func (q *queueSvcImpl) markDone(ctx context.Context, req *queuemsg.MarkDoneReque
 	if errId.IsError() {
 		return errId.Raw()
 	}
+	last := -1
 	// should be inside a transaction: xxx fixme(iansmith)
-	for _, m := range req.Msg {
+	for i, m := range req.Msg {
 		mid := queue.MustUnmarshalQueueMsgId(m)
 		p := MarkDoneParams{
 			QueueKey: sql.NullInt64{Int64: int64(rowId.Low()), Valid: true},
 			IDLow:    sql.NullInt64{Int64: int64(mid.Low()), Valid: true},
 			IDHigh:   sql.NullInt64{Int64: int64(mid.High()), Valid: true},
 		}
-		err := q.queries.MarkDone(context.Background(), p)
+		err := q.queries.MarkDone(ctx, p)
 		if err != nil {
 			pcontext.Errorf(ctx, "failed mark done: on queue:%s: %s", qid.Short(), err.Error())
-			return internalErr.Raw()
+			last = i
+			break
 		}
 	}
+	if last == -1 || len(req.Msg) == 0 { //everything went through went through
+		resp.Unmodified = nil
+	} else {
+		resp.Unmodified = req.Msg[last:]
+	}
+	resp.Id = qid.Marshal()
 	return queue.QueueErrIdNoErr.Raw()
 }
 
@@ -430,11 +438,11 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queuemsg.ReceiveRequest
 	}
 	resultMsg, err := q.queries.RetrieveMessage(context.Background(), p)
 	if err != nil {
-		pcontext.Errorf(ctx, "error trying retreive messages in send on queue %s: %s", qid.Short(), errId.Short())
+		pcontext.Errorf(ctx, "error trying retreive messages in send on queue %s: %s (db error:%s)", qid.Short(), errId.Short(), err.Error())
 		return internalErr.Raw()
 	}
 	if len(resultMsg) == 0 {
-		resp.Id = req.GetId()
+		resp.Id = qid.Marshal()
 		resp.Message = nil
 		return queue.QueueErrIdNoErr.Raw()
 	}
@@ -504,7 +512,7 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queuemsg.ReceiveRequest
 			return internalErr.Raw()
 		}
 	}
-	resp.Id = req.GetId()
+	resp.Id = qid.Marshal()
 	resp.Message = resultList
 	return queue.QueueErrIdNoErr.Raw()
 }

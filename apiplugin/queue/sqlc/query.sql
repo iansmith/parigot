@@ -60,7 +60,9 @@ RETURNING *;
 SELECT parigot_test_message.*
 FROM parigot_test_queue,parigot_test_queue_id_to_key
 INNER JOIN parigot_test_message on parigot_test_message.queue_key = parigot_test_queue_id_to_key.queue_key
-WHERE parigot_test_queue_id_to_key.id_high =? AND parigot_test_queue_id_to_key.id_low = ? 
+WHERE parigot_test_queue_id_to_key.id_high =? AND 
+  parigot_test_queue_id_to_key.id_low = ? AND 
+  parigot_test_message.marked_done IS NULL
 ORDER BY parigot_test_message.original_sent
 LIMIT 3;
 

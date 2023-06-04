@@ -81,6 +81,11 @@ func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}I
 	return result
 }
 
+func New{{.primaryName}}IdFromProto(in *protosupportmsg.IdRaw) {{.primaryName}}Id {
+	raw:=MustUnmarshal{{.primaryName}}Id(in)
+	return {{.primaryName}}Id(raw)
+}
+
 func New{{.primaryName}}Id() {{.primaryName}}Id {
 	idroot := {{.idPkg}}NewIdRoot[Def{{.primaryName}}]()
 	return {{.primaryName}}Id(idroot)

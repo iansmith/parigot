@@ -79,6 +79,11 @@ func MustUnmarshalCallId(b *protosupportmsg.IdRaw) CallId{
 	return result
 }
 
+func NewCallIdFromProto(in *protosupportmsg.IdRaw) CallId {
+	raw:=MustUnmarshalCallId(in)
+	return CallId(raw)
+}
+
 func NewCallId() CallId {
 	idroot := NewIdRoot[DefCall]()
 	return CallId(idroot)

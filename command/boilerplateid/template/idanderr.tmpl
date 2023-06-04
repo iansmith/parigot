@@ -56,8 +56,9 @@ func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
 func New{{.errorName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.errorName}}Id {
 	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.errorName}}](in))
 }
-func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.primaryName}}](in))
+func New{{.primaryName}}IdFromProto(in *protosupportmsg.IdRaw) {{.primaryName}}Id {
+	raw:=MustUnmarshal{{.primaryName}}Id(in)
+	return {{.primaryName}}Id(raw)
 }
 
 func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
