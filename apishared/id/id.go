@@ -320,6 +320,10 @@ func (i IdRoot[T]) Raw() IdRaw {
 	return Raw(i)
 }
 
+type IdEqualer interface {
+	EqualId(other IdEqualer) bool
+}
+
 func (i IdRoot[T]) Equal(other IdRoot[T]) bool {
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, i.high)

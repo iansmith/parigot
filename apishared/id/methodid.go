@@ -79,6 +79,11 @@ func MustUnmarshalMethodId(b *protosupportmsg.IdRaw) MethodId{
 	return result
 }
 
+func NewMethodIdFromProto(in *protosupportmsg.IdRaw) MethodId {
+	raw:=MustUnmarshalMethodId(in)
+	return MethodId(raw)
+}
+
 func NewMethodId() MethodId {
 	idroot := NewIdRoot[DefMethod]()
 	return MethodId(idroot)
