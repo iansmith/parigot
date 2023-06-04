@@ -15,6 +15,9 @@ import (
 )
 
 // make sure edit the makefile so you can have FileId and FileErrId, just like queue
+// you'll need to pick the short names and letters for them... I would
+// recommend f for FileId and F for FileErrId, but you can choose
+// others if you want.
 
 type filePlugin struct{}
 
