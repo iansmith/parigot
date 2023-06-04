@@ -4,6 +4,7 @@ import (
 	"github.com/iansmith/parigot/g/file/v1"
 )
 
+// add to this list as necessary
 const (
 	// FileBadPath means that the given path (filename) is not valid.
 	FileBadPath file.FileErrIdCode = iota + file.FileErrIdGuestStart
