@@ -120,6 +120,13 @@ func build(ctx context.Context) error {
 		return err
 	}
 
+	// export g dir to host
+	output = img.Directory("g")
+	_, err = output.Export(ctx, "g")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
