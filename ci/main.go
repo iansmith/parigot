@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"dagger.io/dagger"
 )
@@ -75,7 +76,7 @@ func build(ctx context.Context) error {
 		WithDirectory(
 			"/workspaces/parigot",
 			client.Host().Directory("."),
-			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/", "g/", "tmp/"}},
+			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/", "g/"}},
 		).
 		WithWorkdir("/workspaces/parigot").
 		WithUser("root")
@@ -96,7 +97,15 @@ func build(ctx context.Context) error {
 		return err
 	}
 
+	time.Sleep(time.Second * 10)
+
 	img, err = buildPlugins(ctx, img)
+	if err != nil {
+		return err
+	}
+
+	// build client side of api
+	img, err = buildClientSideOfAPIs(ctx, img)
 	if err != nil {
 		return err
 	}
@@ -106,23 +115,10 @@ func build(ctx context.Context) error {
 	// 	return err
 	// }
 
-	// // build client side of api
-	// img, err = buildClientSideOfAPIs(ctx, img)
-	// if err != nil {
-	// 	return err
-	// }
-
 	// get reference to build output directory in container
 	output := img.Directory("build")
 	// write contents of container build/ directory to the host
 	_, err = output.Export(ctx, "build")
-	if err != nil {
-		return err
-	}
-
-	// export g dir to host
-	output = img.Directory("g")
-	_, err = output.Export(ctx, "g")
 	if err != nil {
 		return err
 	}
@@ -196,12 +192,36 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	if !exist {
 		log.Fatalf("There are no such files *.go in the directory apiplugin")
 	}
+	// check wazero-src-1.1/fauxfd.go
+	exist, _ = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	if !exist {
+		log.Fatalf("There are no such file: wazero-src-1.1/fauxfd.go")
+	}
+
+	// apiplugin/queue/db.go
+	img, err := sqlcForQueue(ctx, img)
+	if err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 20)
 
 	// build/syscall.so
 	dir := "apiplugin/syscall"
 	target := "build/syscall.so"
 	packagePath := "github.com/iansmith/parigot/apiplugin/syscall"
-	img, err := buildAPlugin(ctx, img, dir, target, packagePath)
+	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
+	if err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 20)
+
+	// build/queue.so
+	dir = "apiplugin/queue"
+	target = "build/queue.so"
+	packagePath = "github.com/iansmith/parigot/apiplugin/queue"
+	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
@@ -210,21 +230,6 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	dir = "apiplugin/file"
 	target = "build/file.so"
 	packagePath = "github.com/iansmith/parigot/apiplugin/file"
-	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
-	if err != nil {
-		return img, err
-	}
-
-	// apiplugin/queue/db.go
-	img, err = sqlcForQueue(ctx, img)
-	if err != nil {
-		return img, err
-	}
-
-	// build/queue.so
-	dir = "apiplugin/queue"
-	target = "build/queue.so"
-	packagePath = "github.com/iansmith/parigot/apiplugin/queue"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
@@ -306,12 +311,16 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	}
 
 	img = img.WithExec([]string{"rm", "-rf", "g/*"})
-	// switch user from root to parigot to be able to use buf package
-	// img = img.WithUser("parigot").WithExec([]string{"buf", "lint"})
-	// switch user back to root
-	// img = img.WithExec([]string{"buf", "generate"}).WithUser("root")
 	img = img.WithExec([]string{"buf", "lint"})
 	img = img.WithExec([]string{"buf", "generate"})
+
+	// export g dir to host
+	output := img.Directory("g")
+	_, err := output.Export(ctx, "g")
+	if err != nil {
+		return img, err
+	}
+
 	return img, nil
 }
 
@@ -342,24 +351,36 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	if img, err := generateIdFile(ctx, img, target, kernelCmd); err != nil {
 		return img, err
 	}
+
+	time.Sleep(time.Second * 10)
+
+	target = "apiwasm/bytepipeid.go"
+	bytepipCmd := append(goCmd, "-e", "apiwasm", "BytePipeErr", "b", "errbytep")
+	if img, err := generateIdFile(ctx, img, target, bytepipCmd); err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 10)
+
 	target = "apishared/id/serviceid.go"
 	serviceCmd := append(goCmd, "-i", "-p", "id", "Service", "s", "svc")
 	if img, err := generateIdFile(ctx, img, target, serviceCmd); err != nil {
 		return img, err
 	}
+
+	time.Sleep(time.Second * 10)
+
 	target = "apishared/id/methodid.go"
 	methodCmd := append(goCmd, "-i", "-p", "id", "Method", "m", "method")
 	if img, err := generateIdFile(ctx, img, target, methodCmd); err != nil {
 		return img, err
 	}
+
+	time.Sleep(time.Second * 10)
+
 	target = "apishared/id/callid.go"
 	callCmd := append(goCmd, "-i", "-p", "id", "Call", "c", "call")
 	if img, err := generateIdFile(ctx, img, target, callCmd); err != nil {
-		return img, err
-	}
-	target = "apiwasm/bytepipeid.go"
-	bytepipCmd := append(goCmd, "-e", "apiwasm", "BytePipeErr", "b", "errbytep")
-	if img, err := generateIdFile(ctx, img, target, bytepipCmd); err != nil {
 		return img, err
 	}
 
@@ -369,20 +390,43 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 		return img, err
 	}
 
-	// id cruft for client side of service
+	time.Sleep(time.Second * 10)
+
+	target = "g/queue/v1/queueid.go"
+	queueCmd := append(goCmd, "queue", "Queue", "QueueErr", "q", "queue", "Q", "errqueue")
+	if img, err := generateIdFile(ctx, img, target, queueCmd); err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 10)
+
+	target = "g/queue/v1/rowid.go"
+	rowCmd := append(goCmd, "-p", "queue", "Row", "r", "row")
+	if img, err := generateIdFile(ctx, img, target, rowCmd); err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 10)
+
+	target = "g/queue/v1/queuemsgid.go"
+	queuemsgCmd := append(goCmd, "-p", "queue", "QueueMsg", "m", "msg")
+	if img, err := generateIdFile(ctx, img, target, queuemsgCmd); err != nil {
+		return img, err
+	}
+
+	time.Sleep(time.Second * 10)
+
 	target = "g/file/v1/fileid.go"
 	fileCmd := append(goCmd, "file", "File", "FileErr", "f", "file", "F", "errfile")
 	if img, err := generateIdFile(ctx, img, target, fileCmd); err != nil {
 		return img, err
 	}
+
+	time.Sleep(time.Second * 10)
+
 	target = "g/test/v1/testid.go"
 	testCmd := append(goCmd, "test", "Test", "TestErr", "t", "\\test", "T", "errtest")
 	if img, err := generateIdFile(ctx, img, target, testCmd); err != nil {
-		return img, err
-	}
-	target = "g/queue/v1/queueid.go"
-	queueCmd := append(goCmd, "queue", "Queue", "QueueErr", "q", "queue", "Q", "errqueue")
-	if img, err := generateIdFile(ctx, img, target, queueCmd); err != nil {
 		return img, err
 	}
 
