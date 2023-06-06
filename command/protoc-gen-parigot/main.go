@@ -155,6 +155,7 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
 		for lang, generator := range generatorMap {
+			log.Printf("xxxx lang is %s", lang)
 			codegen.Collect(info, generator.LanguageText())
 			if info.Contains(desc.GetName()) {
 				// inject this desc into the finder

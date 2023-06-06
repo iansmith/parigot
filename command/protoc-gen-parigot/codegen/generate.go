@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"strings"
 	"text/template"
@@ -117,6 +118,17 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		for _, m := range result.GetAllMessageByName(f) {
 			w := NewWasmMessage(result.GetFileByName(f), m, lang, result)
 			result.RegisterMessage(w)
+		}
+	}
+	et := result.GetEnumType()
+	log.Printf("number of enums in file %s: %d", pr.GetName(), len(et))
+	for _, e := range et {
+		for _, name := range e.ReservedName {
+			log.Printf("type %s=>name %s", *e.Name, name)
+		}
+		for _, range_ := range e.GetReservedRange() {
+			log.Printf("type %s=>range [%d,%d]", *e.Name, range_.GetStart(), range_.GetEnd())
+
 		}
 	}
 
