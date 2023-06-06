@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -50,7 +51,7 @@ var (
 
 func main() {
 	if err := build(context.Background()); err != nil {
-		log.Fatalf("Cannot build dagger pipeline %v\n", err)
+		log.Fatalf("Cannot build dagger pipeline: %v\n", err)
 	}
 }
 
@@ -102,12 +103,12 @@ func build(ctx context.Context) error {
 		return err
 	}
 
-	img, err = buildClientSideOfAPIs(ctx, img)
+	img, err = buildRunner(ctx, img)
 	if err != nil {
 		return err
 	}
 
-	img, err = buildRunner(ctx, img)
+	img, err = buildClientSideOfAPIs(ctx, img)
 	if err != nil {
 		return err
 	}
@@ -127,25 +128,25 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	/*
 	 *	This function is to build runner
 	 */
-	exist, _ := findFilesWithSuffixRecursively("command/runner", ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory command/runner and its subdirectories")
+	_, err := findFilesWithSuffixRecursively("command/runner", ".go")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern("apishared/id/*.go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory apishared/id")
+	_, err = findFilesWithPattern("apishared/id/*.go")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern("apiwasm/*.go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory apiwasm")
+	_, err = findFilesWithPattern("apiwasm/*.go")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern("apiplugin/*")
-	if !exist {
-		log.Fatalf("There is no such file: apiplugin/*")
+	_, err = findFilesWithPattern("apiplugin/*")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
-	if !exist {
-		log.Fatalf("There is no such file: wazero-src-1.1/fauxfd.go")
+	_, err = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	if err != nil {
+		return img, err
 	}
 
 	// set up HOST env variables
@@ -171,44 +172,45 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	/*
 	 *	This function is to build plugins
 	 */
+
 	// set up Plugin env variables
 	for key, value := range goEnvVarsPlugin {
 		img = img.WithEnvVariable(key, value)
 	}
 
 	// SYS_SRC
-	exist, _ := findFilesWithSuffixRecursively("sys", ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory sys and its subdirectories")
+	_, err := findFilesWithSuffixRecursively("sys", ".go")
+	if err != nil {
+		return img, err
 	}
 	// ENG_SRC
-	exist, _ = findFilesWithSuffixRecursively("eng", ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory eng and its subdirectories")
+	_, err = findFilesWithSuffixRecursively("eng", ".go")
+	if err != nil {
+		return img, err
 	}
 	// CTX_SRC
-	exist, _ = findFilesWithSuffixRecursively("context", ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory context and its subdirectories")
+	_, err = findFilesWithSuffixRecursively("context", ".go")
+	if err != nil {
+		return img, err
 	}
 	// SHARED_SRC
-	exist, _ = findFilesWithSuffixRecursively("apishared", ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory apishared and its subdirectories")
+	_, err = findFilesWithSuffixRecursively("apishared", ".go")
+	if err != nil {
+		return img, err
 	}
 	// check apiplugin/*.go
-	exist, _ = findFilesWithPattern("apiplugin/*.go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory apiplugin")
+	_, err = findFilesWithPattern("apiplugin/*.go")
+	if err != nil {
+		return img, err
 	}
 	// check wazero-src-1.1/fauxfd.go
-	exist, _ = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
-	if !exist {
-		log.Fatalf("There are no such file: wazero-src-1.1/fauxfd.go")
+	_, err = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	if err != nil {
+		return img, err
 	}
 
 	// apiplugin/queue/db.go
-	img, err := sqlcForQueue(ctx, img)
+	img, err = sqlcForQueue(ctx, img)
 	if err != nil {
 		return img, err
 	}
@@ -249,9 +251,9 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	 *		build/queue.p.wasm
 	 */
 	syscallClientSide := "apiwasm/syscall/*.go"
-	exist, _ := findFilesWithPattern(syscallClientSide)
-	if !exist {
-		log.Fatalf("There are no such files %s", syscallClientSide)
+	_, err := findFilesWithPattern(syscallClientSide)
+	if err != nil {
+		return img, err
 	}
 
 	// set up WASM env variables
@@ -263,7 +265,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	dir := "apiwasm/file"
 	target := "build/file.p.wasm"
 	packagePath := "github.com/iansmith/parigot/apiwasm/file"
-	img, err := buildAClientService(ctx, img, dir, target, packagePath)
+	img, err = buildAClientService(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
@@ -292,24 +294,30 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 	 *	This function is to build protoc-gen-parigot
 	 */
 	dir := "command/protoc-gen-parigot"
-	exist, _ := findFilesWithSuffixRecursively(dir, ".tmpl")
-	if !exist {
-		log.Fatalf("There are no such files *.tmpl in the directory %s and its subdirectories", dir)
+	_, err := findFilesWithSuffixRecursively(dir, ".tmpl")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithSuffixRecursively(dir, ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", dir)
+	_, err = findFilesWithSuffixRecursively(dir, ".go")
+	if err != nil {
+		return img, err
 	}
 
 	// set up HOST env variables
 	for key, value := range goEnvVarsHost {
 		img = img.WithEnvVariable(key, value)
 	}
-
+	// set extra arguments
+	goCmd := []string{goToHost, "build"}
+	for _, arg := range extraHostArgs {
+		goCmd = append(goCmd, arg)
+	}
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
+	goCmd = append(goCmd, "-o", target, packagePath)
+
 	img = img.WithExec([]string{"rm", "-f", target}).
-		WithExec([]string{goToHost, "build", "-o", target, packagePath})
+		WithExec(goCmd)
 
 	return img, nil
 }
@@ -318,13 +326,13 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	/*
 	 *	generate a single representative file for all the protobuf generated code
 	 */
-	exist, _ := findFilesWithSuffixRecursively("api/proto", ".proto")
-	if !exist {
-		log.Fatalf("There are no such files *.proto in the directory api/proto and its subdirectories")
+	_, err := findFilesWithSuffixRecursively("api/proto", ".proto")
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithSuffixRecursively("test", ".proto")
-	if !exist {
-		log.Fatalf("There are no such files *.proto in the directory test and its subdirectories")
+	_, err = findFilesWithSuffixRecursively("test", ".proto")
+	if err != nil {
+		return img, err
 	}
 
 	img = img.WithExec([]string{"rm", "-rf", "g/*"}).
@@ -333,7 +341,7 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 
 	// export g dir to host
 	output := img.Directory("g")
-	_, err := output.Export(ctx, "g")
+	_, err = output.Export(ctx, "g")
 	if err != nil {
 		return img, err
 	}
@@ -355,22 +363,22 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	boilerplateid := "command/boilerplateid/main.go"
 	goCmd := []string{goToHost, "run", boilerplateid}
 
-	exist, _ := findFilesWithPattern(apiID)
-	if !exist {
-		log.Fatalf("There are no such file: %s", apiID)
+	_, err := findFilesWithPattern(apiID)
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern(boilerplateid)
-	if !exist {
-		log.Fatalf("There are no such file: %s", boilerplateid)
+	_, err = findFilesWithPattern(boilerplateid)
+	if err != nil {
+		return img, err
 	}
-	exist, _ = findFilesWithPattern("command/boilerplateid/template/*.tmpl")
-	if !exist {
-		log.Fatalf("There are no such files *.tmpl in the directory command/boilerplateid/template")
+	_, err = findFilesWithPattern("command/boilerplateid/template/*.tmpl")
+	if err != nil {
+		return img, err
 	}
 
 	target := "apishared/id/kernelerrid.go"
 	kernelCmd := append(goCmd, "-i", "-e", "id", "KernelErr", "k", "errkern")
-	img, err := generateIdFile(ctx, img, target, kernelCmd)
+	img, err = generateIdFile(ctx, img, target, kernelCmd)
 	if err != nil {
 		return img, err
 	}
@@ -432,9 +440,9 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 
 	// methodcall
 	file := "command/boilerplateid/template/idanderr.tmpl"
-	exist, _ = findFilesWithPattern(file)
-	if !exist {
-		log.Fatalf("There are no such file: %s", file)
+	_, err = findFilesWithPattern(file)
+	if err != nil {
+		return img, err
 	}
 	target = "g/methodcall/v1/methodcallid.go"
 	methodcallCmd := append(goCmd, "methodcall", "Methodcall", "MethodcallErr", "m", "methodcall", "M", "errmeth")
@@ -476,9 +484,9 @@ func buildAPlugin(ctx context.Context, img *dagger.Container, fileDir string, ta
 	/*
 	 *	A helper function for func buildPlugins
 	 */
-	exist, _ := findFilesWithSuffixRecursively(fileDir, ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", fileDir)
+	_, err := findFilesWithSuffixRecursively(fileDir, ".go")
+	if err != nil {
+		return img, err
 	}
 
 	img = img.WithExec([]string{"rm", "-f", target})
@@ -497,9 +505,9 @@ func buildAClientService(ctx context.Context, img *dagger.Container, fileDir str
 	/*
 	 *	A helper function for func buildClientSideOfAPIs
 	 */
-	exist, _ := findFilesWithSuffixRecursively(fileDir, ".go")
-	if !exist {
-		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", fileDir)
+	_, err := findFilesWithSuffixRecursively(fileDir, ".go")
+	if err != nil {
+		return img, err
 	}
 
 	img = img.WithExec([]string{"rm", "-f", target})
@@ -519,17 +527,17 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 	 *	This function is to generate sqlc for queue: apiplugin/queue/db.go
 	 */
 	dir := "apiplugin/queue"
-	exist, _ := findFilesWithSuffixRecursively(dir, ".sql")
-	if !exist {
-		log.Fatalf("There are no such files *.sql in the directory %s and its subdirectories", dir)
+	_, err := findFilesWithSuffixRecursively(dir, ".sql")
+	if err != nil {
+		return img, err
 	}
 	yamlName := dir + "/sqlc/sqlc.yaml"
-	exist, _ = findFilesWithPattern(yamlName)
-	if !exist {
-		log.Fatalf("There are no such file: %s", yamlName)
+	_, err = findFilesWithPattern(yamlName)
+	if err != nil {
+		return img, err
 	}
 
-	img, err := img.WithWorkdir("apiplugin/queue/sqlc").
+	img, err = img.WithWorkdir("apiplugin/queue/sqlc").
 		WithExec([]string{"sqlc", "generate"}).
 		WithWorkdir("/workspaces/parigot").Sync(ctx)
 	if err != nil {
@@ -547,12 +555,14 @@ func findFilesWithSuffixRecursively(path string, suffix string) (bool, error) {
 	exist := false
 	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			log.Fatalf("Cannot find such files: %s", err)
+			file := filepath.Join(path, suffix)
+			return errors.New(file + " does not exist")
 		}
 		if !d.IsDir() && strings.HasSuffix(d.Name(), suffix) {
 			exist = true
 		}
 		return nil
+
 	})
 
 	return exist, err
@@ -566,11 +576,13 @@ func findFilesWithPattern(pattern string) (bool, error) {
 	files, err := filepath.Glob(pattern)
 	exist := false
 	if err != nil {
-		log.Fatalf("Cannot find such files %s: %s", pattern, err)
+		return exist, err
+	}
+	if len(files) == 0 {
+		return exist, errors.New(pattern + " does not exist")
 	}
 
-	if len(files) != 0 {
-		exist = true
-	}
+	exist = true
+
 	return exist, nil
 }
