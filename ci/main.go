@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"dagger.io/dagger"
 )
@@ -81,13 +80,14 @@ func build(ctx context.Context) error {
 		WithWorkdir("/workspaces/parigot").
 		WithUser("root")
 
-	// set up HOST env variables
-	for key, value := range goEnvVarsHost {
-		img = img.WithEnvVariable(key, value)
-	}
-
 	// build/protoc-gen-parigot
 	img, err = buildProtocGenParigot(ctx, img)
+	if err != nil {
+		return err
+	}
+
+	// generate rep
+	img, err = generateRep(ctx, img)
 	if err != nil {
 		return err
 	}
@@ -97,23 +97,20 @@ func build(ctx context.Context) error {
 		return err
 	}
 
-	time.Sleep(time.Second * 10)
-
 	img, err = buildPlugins(ctx, img)
 	if err != nil {
 		return err
 	}
 
-	// build client side of api
 	img, err = buildClientSideOfAPIs(ctx, img)
 	if err != nil {
 		return err
 	}
 
-	// img, err = buildRunner(ctx, img)
-	// if err != nil {
-	// 	return err
-	// }
+	img, err = buildRunner(ctx, img)
+	if err != nil {
+		return err
+	}
 
 	// get reference to build output directory in container
 	output := img.Directory("build")
@@ -128,7 +125,7 @@ func build(ctx context.Context) error {
 
 func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-	 *	This function is to build/runner
+	 *	This function is to build runner
 	 */
 	exist, _ := findFilesWithSuffixRecursively("command/runner", ".go")
 	if !exist {
@@ -146,6 +143,15 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	if !exist {
 		log.Fatalf("There is no such file: apiplugin/*")
 	}
+	exist, _ = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	if !exist {
+		log.Fatalf("There is no such file: wazero-src-1.1/fauxfd.go")
+	}
+
+	// set up HOST env variables
+	for key, value := range goEnvVarsHost {
+		img = img.WithEnvVariable(key, value)
+	}
 
 	target := "build/runner"
 	packagePath := "github.com/iansmith/parigot/command/runner"
@@ -162,6 +168,9 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 }
 
 func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function is to build plugins
+	 */
 	// set up Plugin env variables
 	for key, value := range goEnvVarsPlugin {
 		img = img.WithEnvVariable(key, value)
@@ -204,8 +213,6 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 		return img, err
 	}
 
-	time.Sleep(time.Second * 20)
-
 	// build/syscall.so
 	dir := "apiplugin/syscall"
 	target := "build/syscall.so"
@@ -214,9 +221,6 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 20)
-
 	// build/queue.so
 	dir = "apiplugin/queue"
 	target = "build/queue.so"
@@ -225,7 +229,6 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	if err != nil {
 		return img, err
 	}
-
 	// build/file.so
 	dir = "apiplugin/file"
 	target = "build/file.so"
@@ -239,6 +242,12 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 }
 
 func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function is to build some client side of APIs:
+	 *		build/file.p.wasm,
+	 *		build/test.p.wasm,
+	 *		build/queue.p.wasm
+	 */
 	syscallClientSide := "apiwasm/syscall/*.go"
 	exist, _ := findFilesWithPattern(syscallClientSide)
 	if !exist {
@@ -279,6 +288,9 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 }
 
 func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function is to build protoc-gen-parigot
+	 */
 	dir := "command/protoc-gen-parigot"
 	exist, _ := findFilesWithSuffixRecursively(dir, ".tmpl")
 	if !exist {
@@ -289,10 +301,15 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", dir)
 	}
 
+	// set up HOST env variables
+	for key, value := range goEnvVarsHost {
+		img = img.WithEnvVariable(key, value)
+	}
+
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
-	img = img.WithExec([]string{"rm", "-f", target})
-	img = img.WithExec([]string{goToHost, "build", "-o", target, packagePath})
+	img = img.WithExec([]string{"rm", "-f", target}).
+		WithExec([]string{goToHost, "build", "-o", target, packagePath})
 
 	return img, nil
 }
@@ -310,9 +327,9 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 		log.Fatalf("There are no such files *.proto in the directory test and its subdirectories")
 	}
 
-	img = img.WithExec([]string{"rm", "-rf", "g/*"})
-	img = img.WithExec([]string{"buf", "lint"})
-	img = img.WithExec([]string{"buf", "generate"})
+	img = img.WithExec([]string{"rm", "-rf", "g/*"}).
+		WithExec([]string{"buf", "lint"}).
+		WithExec([]string{"buf", "generate"})
 
 	// export g dir to host
 	output := img.Directory("g")
@@ -326,8 +343,13 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 
 func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
-	 *	This function is to generate some id cruft for a couple of types built by parigot
-	 *
+	 *	This function is to generate some id cruft for a couple of types built by parigot:
+	 *		apishared/id/kernelerrid.go,	apiwasm/bytepipeid.go
+	 *		apishared/id/serviceid.go,		apishared/id/methodid.go
+	 *		apishared/id/callid.go,			g/queue/v1/queueid.go,
+	 *		g/queue/v1/rowid.go,			g/queue/v1/queuemsgid.go,
+	 *		g/file/v1/fileid.go,			g/test/v1/testid.go,
+	 *		g/methodcall/v1/methodcallid.go
 	 */
 	apiID := "apishared/id/id.go"
 	boilerplateid := "command/boilerplateid/main.go"
@@ -348,85 +370,63 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 
 	target := "apishared/id/kernelerrid.go"
 	kernelCmd := append(goCmd, "-i", "-e", "id", "KernelErr", "k", "errkern")
-	if img, err := generateIdFile(ctx, img, target, kernelCmd); err != nil {
+	img, err := generateIdFile(ctx, img, target, kernelCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "apiwasm/bytepipeid.go"
 	bytepipCmd := append(goCmd, "-e", "apiwasm", "BytePipeErr", "b", "errbytep")
-	if img, err := generateIdFile(ctx, img, target, bytepipCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, bytepipCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "apishared/id/serviceid.go"
 	serviceCmd := append(goCmd, "-i", "-p", "id", "Service", "s", "svc")
-	if img, err := generateIdFile(ctx, img, target, serviceCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, serviceCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "apishared/id/methodid.go"
 	methodCmd := append(goCmd, "-i", "-p", "id", "Method", "m", "method")
-	if img, err := generateIdFile(ctx, img, target, methodCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, methodCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "apishared/id/callid.go"
 	callCmd := append(goCmd, "-i", "-p", "id", "Call", "c", "call")
-	if img, err := generateIdFile(ctx, img, target, callCmd); err != nil {
-		return img, err
-	}
-
-	// generate rep
-	img, err := generateRep(ctx, img)
+	img, err = generateIdFile(ctx, img, target, callCmd)
 	if err != nil {
 		return img, err
 	}
 
-	time.Sleep(time.Second * 10)
-
 	target = "g/queue/v1/queueid.go"
 	queueCmd := append(goCmd, "queue", "Queue", "QueueErr", "q", "queue", "Q", "errqueue")
-	if img, err := generateIdFile(ctx, img, target, queueCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, queueCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "g/queue/v1/rowid.go"
 	rowCmd := append(goCmd, "-p", "queue", "Row", "r", "row")
-	if img, err := generateIdFile(ctx, img, target, rowCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, rowCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "g/queue/v1/queuemsgid.go"
 	queuemsgCmd := append(goCmd, "-p", "queue", "QueueMsg", "m", "msg")
-	if img, err := generateIdFile(ctx, img, target, queuemsgCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, queuemsgCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "g/file/v1/fileid.go"
 	fileCmd := append(goCmd, "file", "File", "FileErr", "f", "file", "F", "errfile")
-	if img, err := generateIdFile(ctx, img, target, fileCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, fileCmd)
+	if err != nil {
 		return img, err
 	}
-
-	time.Sleep(time.Second * 10)
-
 	target = "g/test/v1/testid.go"
 	testCmd := append(goCmd, "test", "Test", "TestErr", "t", "\\test", "T", "errtest")
-	if img, err := generateIdFile(ctx, img, target, testCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, testCmd)
+	if err != nil {
 		return img, err
 	}
 
@@ -438,7 +438,8 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	}
 	target = "g/methodcall/v1/methodcallid.go"
 	methodcallCmd := append(goCmd, "methodcall", "Methodcall", "MethodcallErr", "m", "methodcall", "M", "errmeth")
-	if img, err := generateIdFile(ctx, img, target, methodcallCmd); err != nil {
+	img, err = generateIdFile(ctx, img, target, methodcallCmd)
+	if err != nil {
 		return img, err
 	}
 
@@ -446,6 +447,9 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 }
 
 func generateIdFile(ctx context.Context, img *dagger.Container, filePath string, goCmd []string) (*dagger.Container, error) {
+	/*
+	 *	A helper function for func generateApiID
+	 */
 	fileContent, err := img.WithExec(goCmd).Stdout(ctx)
 	if err != nil {
 		return img, err
@@ -469,6 +473,9 @@ func generateIdFile(ctx context.Context, img *dagger.Container, filePath string,
 }
 
 func buildAPlugin(ctx context.Context, img *dagger.Container, fileDir string, target string, packagePath string) (*dagger.Container, error) {
+	/*
+	 *	A helper function for func buildPlugins
+	 */
 	exist, _ := findFilesWithSuffixRecursively(fileDir, ".go")
 	if !exist {
 		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", fileDir)
@@ -487,6 +494,9 @@ func buildAPlugin(ctx context.Context, img *dagger.Container, fileDir string, ta
 }
 
 func buildAClientService(ctx context.Context, img *dagger.Container, fileDir string, target string, packagePath string) (*dagger.Container, error) {
+	/*
+	 *	A helper function for func buildClientSideOfAPIs
+	 */
 	exist, _ := findFilesWithSuffixRecursively(fileDir, ".go")
 	if !exist {
 		log.Fatalf("There are no such files *.go in the directory %s and its subdirectories", fileDir)
@@ -505,6 +515,9 @@ func buildAClientService(ctx context.Context, img *dagger.Container, fileDir str
 }
 
 func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
+	/*
+	 *	This function is to generate sqlc for queue: apiplugin/queue/db.go
+	 */
 	dir := "apiplugin/queue"
 	exist, _ := findFilesWithSuffixRecursively(dir, ".sql")
 	if !exist {
@@ -516,14 +529,21 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 		log.Fatalf("There are no such file: %s", yamlName)
 	}
 
-	img = img.WithWorkdir("apiplugin/queue/sqlc").
+	img, err := img.WithWorkdir("apiplugin/queue/sqlc").
 		WithExec([]string{"sqlc", "generate"}).
-		WithWorkdir("/workspaces/parigot")
+		WithWorkdir("/workspaces/parigot").Sync(ctx)
+	if err != nil {
+		return img, err
+	}
 
 	return img, nil
 }
 
 func findFilesWithSuffixRecursively(path string, suffix string) (bool, error) {
+	/*
+	 *	This is a helper function that recursively finds all files in the
+	 *	current folder and subfolders based on their suffix names
+	 */
 	exist := false
 	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -538,32 +558,11 @@ func findFilesWithSuffixRecursively(path string, suffix string) (bool, error) {
 	return exist, err
 }
 
-// func findFilesWithSuffix(dir, suffix string) (bool, error) {
-// 	exist := false
-
-// 	files, err := os.ReadDir(dir)
-// 	if err != nil {
-// 		return exist, err
-// 	}
-
-// 	for _, file := range files {
-// 		if !file.IsDir() && filepath.Ext(file.Name()) == suffix {
-// 			exist = true
-// 			break
-// 		}
-// 	}
-// 	return exist, nil
-// }
-
-// func findFileWithName(filename string) (bool, error) {
-// 	info, err := os.Stat(filename)
-// 	if os.IsNotExist(err) {
-// 		return false, err
-// 	}
-// 	return !info.IsDir(), nil
-// }
-
 func findFilesWithPattern(pattern string) (bool, error) {
+	/*
+	 *	This is a helper function that finds all files based on
+	 *	wildcard matching
+	 */
 	files, err := filepath.Glob(pattern)
 	exist := false
 	if err != nil {
