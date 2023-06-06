@@ -7,12 +7,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 	"unsafe"
 
 	apishared "github.com/iansmith/parigot/apishared"
 	pcontext "github.com/iansmith/parigot/context"
-	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
@@ -115,7 +113,7 @@ func (w *wazeroModule) Name() string {
 func (e *wazeroEng) InstanceByName(ctx context.Context, name string) (Instance, error) {
 	mod, ok := e.instantiated[name]
 	if !ok {
-		log.Printf("unable to find instance %s (%d entries)", name, len(e.instantiated))
+		pcontext.Errorf(ctx, "unable to find instance %s (%d entries)", name, len(e.instantiated))
 		return nil, ErrNotFound
 	}
 	inst := &wazeroInstance{
@@ -324,7 +322,6 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 		return nil, err
 	}
 	m.parent.instantiated[mod.Name()] = i.m
-	pcontext.Logf(ctx, pcontext.Info, "instantiated WASM module '%s'", m.Name())
 	return i, nil
 }
 
@@ -358,20 +355,20 @@ func wazeroContext(ctx context.Context) context.Context {
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	go func(c context.Context, a *AsyncClientInteraction) {
-		time.Sleep(time.Duration(1) * time.Second)
-		c = pcontext.ServerGoContext(pcontext.CallTo(c, "Send(fake)"))
-		err := a.Send("methodcall.v1.AddMultiply", &methodcallmsg.AddMultiplyRequest{
-			Value0: 27,
-			Value1: 918,
-			IsAdd:  true,
-		})
-		if err != nil {
-			pcontext.Errorf(c, "unable to push bundle: %v", err)
-		}
-		pcontext.Dump(rawLineContext)
-		pcontext.Dump(AsyncInteraction.origCtx)
-	}(ctx, AsyncInteraction)
+	// go func(c context.Context, a *AsyncClientInteraction) {
+	// 	time.Sleep(time.Duration(1) * time.Second)
+	// 	c = pcontext.ServerGoContext(pcontext.CallTo(c, "Send(fake)"))
+	// 	err := a.Send("methodcall.v1.AddMultiply", &methodcallmsg.AddMultiplyRequest{
+	// 		Value0: 27,
+	// 		Value1: 918,
+	// 		IsAdd:  true,
+	// 	})
+	// 	if err != nil {
+	// 		pcontext.Errorf(c, "unable to push bundle: %v", err)
+	// 	}
+	// 	pcontext.Dump(rawLineContext)
+	// 	pcontext.Dump(AsyncInteraction.origCtx)
+	// }(ctx, AsyncInteraction)
 	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.GuestContext(ctx), "call of run()"))
 	if err != nil {
 		return nil, err

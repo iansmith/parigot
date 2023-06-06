@@ -15,11 +15,10 @@ import (
 // A DeployContext represents a deployment during the process of starting it up.
 // A context holds the processes that are used by other parts of the system.
 type DeployContext struct {
-	config     *runner.DeployConfig
-	engine     eng.Engine
-	notify     *sync.Map
-	process    *sync.Map
-	nameserver NameServer
+	config  *runner.DeployConfig
+	engine  eng.Engine
+	notify  *sync.Map
+	process *sync.Map
 }
 
 // Flip this flag for more detailed output from the runner.
@@ -38,23 +37,12 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 	// our notify map is shared by the nameserver
 	notifyMap := &sync.Map{}
 	processMap := &sync.Map{}
-	var ns NameServer
-	if !conf.Flag.Remote {
-		raw := NewLocalNameServer(notifyMap)
-		raw.NSCore = NewNSCore(true)
-		ns = raw
-		// xxx FIX ME! evil hack
-		LocalNS = raw
-	} else {
-		panic("not implemented yet, remote nameserever start up")
-	}
 
 	depCtx := &DeployContext{
-		config:     conf,
-		engine:     engine,
-		process:    processMap,
-		notify:     notifyMap,
-		nameserver: ns,
+		config:  conf,
+		engine:  engine,
+		process: processMap,
+		notify:  notifyMap,
 	}
 
 	return depCtx, nil
@@ -118,7 +106,6 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		}
 		name := f.Name()
 		if f.Server {
-			pcontext.Logf(ctx, pcontext.Info, "StartProcess creating goroutine for server process '%s'", name)
 			go func(p *Process, serverProcessName string) {
 				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for '%s' starting", serverProcessName)
 				code := p.Start(ctx)

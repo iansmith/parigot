@@ -28,7 +28,7 @@ func windUpLenAndPtr(length, ptr uint32) uint64 {
 func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, kerr id.IdRaw, stack []uint64) bool {
 	kerrPtr := eng.Util.DecodeU32(stack[3])
 	if kerr.IsError() {
-		kid := id.NewKernelErrId(2)
+		kid := id.NewKernelErrIdFromRaw(kerr)
 		kid.MustWriteGuestLe(m.Memory(), kerrPtr)
 		stack[0] = NoReturnedStruct
 		return true

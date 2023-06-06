@@ -41,13 +41,8 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 
 func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
 	for _, fullyQualified := range req.GetService() {
-		sid, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
-		if !ok {
-			pcontext.Debugf(ctx, "created new service because of export %s.%s", fullyQualified.GetPackagePath(),
-				fullyQualified.GetService(), sid.Short())
-		}
-		pcontext.Debugf(ctx, "exported service id %s.%s => %s", fullyQualified.GetPackagePath(),
-			fullyQualified.GetService(), sid.Short())
+		sid, _ := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+
 		if depData().Export(ctx, sid.Id()) == nil {
 			return id.NewKernelErrId(id.KernelNotFound).Raw()
 		}
@@ -56,7 +51,7 @@ func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscal
 
 }
 func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrId {
-	pcontext.Errorf(ctx, "unable to unmrarshal the service id in a require request: %s", ierr.Short())
+	pcontext.Errorf(ctx, "unable to unmarshal the service id in a require request: %s", ierr.Short())
 	// xxx this isn't a great error because the problem is really an Id error
 	return id.NewKernelErrId(id.KernelErrIdUnmarshalError)
 
@@ -67,16 +62,25 @@ func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.R
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
 	}
-	depData().Run(ctx, sid)
+	if !depData().Run(ctx, sid) {
+		return id.IdRaw(id.NewKernelErrId(id.KernelDependencyCycle))
+	}
 	return id.KernelErrIdNoErr.Raw()
 }
 
 func locateImpl(ctx context.Context, req *syscallmsg.LocateRequest, resp *syscallmsg.LocateResponse) id.IdRaw {
+	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.MustUnmarshalServiceId(req.CalledBy),
+		req.GetPackageName()+"."+req.GetServiceName())
 	svc, ok := depData().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
-		return id.IdRaw(id.NewKernelErrId(id.KernelNotFound))
+		return id.NewKernelErrId(id.KernelNotFound).Raw()
+	}
+	calledBy := id.MustUnmarshalServiceId(req.CalledBy)
+	if !depData().PathExists(ctx, calledBy.String(), svc.String()) {
+		return id.NewKernelErrId(id.KernelNotRequired).Raw()
 	}
 	svcId := svc.Id()
+	pcontext.Debugf(ctx, "at end of locate, we are returning %s", svcId.Short())
 	resp.ServiceId = svcId.Marshal()
 	return id.IdRaw(id.KernelErrIdNoErr)
 }
@@ -99,8 +103,10 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 			pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
 				fullyQualified.GetService(), dest.Short())
 		}
-		if !depData().Import(ctx, src, dest.Id()) {
-			return id.NewKernelErrId(id.KernelNotFound).Raw()
+		kerr := depData().Import(ctx, src, dest.Id())
+		if kerr.IsError() {
+			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr.ErrorCode())
+			return kerr.Raw()
 		}
 	}
 	return id.KernelErrIdNoErr.Raw()
@@ -164,7 +170,7 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.RequireRequest{}
 	resp := (*syscallmsg.RequireResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
-	return
+
 }
 
 func register(ctx context.Context, m api.Module, stack []uint64) {
@@ -176,7 +182,7 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscallmsg.RegisterRequest{}
 	resp := &syscallmsg.RegisterResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
-	return
+
 }
 
 func exit(ctx context.Context, m api.Module, stack []uint64) {

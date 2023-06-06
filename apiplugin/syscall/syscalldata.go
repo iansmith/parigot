@@ -1,14 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/dominikbraun/graph"
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/yourbasic/graph"
 )
 
 var _depData *syscallDataImpl
@@ -19,8 +20,6 @@ func depData() *syscallDataImpl {
 	}
 	return _depData
 }
-
-var runWaitTimeout = time.Duration(10) * time.Second
 
 //
 // serviceImpl
@@ -58,7 +57,8 @@ func newServiceImpl(pkg, name string, sid id.ServiceId, parent *syscallDataImpl,
 }
 
 // wakeUp causes a send on the servicImpl's runCh and thus check to see
-// if it can run now.
+// if it can run now.  This method IS in use, even if VSCode seems confused
+// about that.
 func (s *serviceImpl) wakeUp() {
 	print("attempting wakeup for ", s.name, "\n")
 	s.runCh <- struct{}{}
@@ -112,10 +112,8 @@ func (s *serviceImpl) canRun(ctx context.Context) bool {
 	if !s.RunRequested() {
 		return false
 	}
+	pcontext.Debugf(ctx, "trying to see if %s [%s] can run now ", s.Short(), s.Name())
 	depCheck := s.parent.checkNodesBehindForReady(ctx, s.String())
-	if depCheck {
-		pcontext.Debugf(ctx, "dependency check succeeded : short=%s, name=%s", s.Short(), s.Name())
-	}
 	return depCheck
 }
 
@@ -125,10 +123,10 @@ func (s *serviceImpl) canRun(ctx context.Context) bool {
 // does not lock so that other things can proceed concurrently.
 func (s *serviceImpl) waitToRun(ctx context.Context) bool {
 	if s.canRun(ctx) {
-		print("waitToRun immediate: ", s.name, "\n")
+		pcontext.Debugf(ctx, "%s is immediately ready to run", s.name)
 		return true
 	}
-	print("Timeout loop started for ", s.name, "\n")
+	pcontext.Debugf(ctx, "Timeout loop started for %s", s.Name())
 	for {
 		select {
 		case <-s.runCh:
@@ -181,17 +179,19 @@ func (s *serviceImpl) Started() bool {
 type syscallDataImpl struct {
 	sidStringToService          map[string]Service
 	packageNameToServiceNameMap map[string]map[string]Service
-	depGraph                    graph.Graph[string, string]
+	depGraph                    *graph.Mutable
+	vertexName                  map[string]int
 	lock                        *sync.Mutex
 }
 
 func newSyscallDataImpl() *syscallDataImpl {
-	g := graph.New(graph.StringHash, graph.Directed(), graph.PreventCycles())
+	g := graph.New(0)
 	impl := &syscallDataImpl{
 		sidStringToService:          make(map[string]Service),
 		packageNameToServiceNameMap: make(map[string]map[string]Service),
 		depGraph:                    g,
 		lock:                        new(sync.Mutex),
+		vertexName:                  make(map[string]int),
 	}
 	_ = SyscallData(impl)
 	return impl
@@ -221,16 +221,17 @@ func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string,
 
 	nmap[name] = result
 	s.sidStringToService[result.String()] = result
-	s.depGraph.AddVertex(result.String())
+	if !s.addVertex(ctx, result.String()) {
+		return nil, false
+	}
 	if result != nil {
 		if result.id.IsEmptyValue() || result.id.IsZeroValue() {
-			print("Service Id error, bad id returned from syscall data!\n")
+			pcontext.Errorf(ctx, "Service Id error, bad id returned from syscall data")
 		}
-		pcontext.Debugf(ctx, "set service created new service %s.%s => %s (%s)",
-			package_, name, result.Short(), result.String())
 	} else {
 		pcontext.Errorf(ctx, "result of set service is nil?")
 	}
+	pcontext.Debugf(ctx, "created service via SetService: %s [%s]", result.id.Short(), result.Name())
 	return result, true
 
 }
@@ -278,9 +279,9 @@ func (s *syscallDataImpl) Export(ctx context.Context, svcId id.ServiceId) Servic
 	}
 
 	svc.(*serviceImpl).export()
-	pcontext.Infof(ctx, "export completed, service %s", svc.Short())
 	if svc.(*serviceImpl).canRun(ctx) {
-		print("WE CAN RUN OUR SERVICE " + svc.Short() + "\n")
+		s.notifyNodesBehindForReady(ctx, svc.String())
+		pcontext.Debugf(ctx, "service %s [%s] is ready to run due to export", svc.Short(), svc.Name())
 	}
 	return svc
 }
@@ -291,29 +292,21 @@ func (s *syscallDataImpl) Export(ctx context.Context, svcId id.ServiceId) Servic
 // of the content of the graph vertices.
 func (s *syscallDataImpl) topoSort(ctx context.Context) []string {
 	s.lock.Lock()
-	result, err := graph.TopologicalSort(s.depGraph)
-	if err != nil {
-		s.lock.Unlock()
-		panic("topolical sort could not be generated: " + err.Error())
+	defer s.lock.Unlock()
+
+	result, ok := graph.TopSort(s.depGraph)
+	if !ok {
+		panic("topolical sort could not be generated, likely it has a cycle")
 	}
-	s.lock.Unlock()
-	// buf := &bytes.Buffer{}
-	// for i := 0; i < len(result); i++ {
-	// 	item := result[i]
-	// 	svc := s.ServiceByIdString(ctx, item)
-	// 	if svc == nil {
-	// 		print("can't find the item.................... %s\n", item)
-	// 	}
-	// 	buf.WriteString(fmt.Sprintf("checking to see if svc %s is ready", item))
-	// 	if svc.Started() {
-	// 		buf.WriteString(fmt.Sprintf("\t%s:RUNNING", svc.Short()))
-	// 	} else {
-	// 		buf.WriteString(fmt.Sprintf("\t%s:exported:%v,runReq:%v\n", svc.Short(), svc.Exported(), svc.RunRequested()))
-	// 	}
-	// }
-	// print("topo sort is\n")
-	// print(buf.String())
-	return result
+	name := make([]string, len(result))
+	for i, v := range result {
+		str, ok := reverseMap(s.vertexName, v)
+		if !ok {
+			panic("badly formed dependency graph, cant find vertex:" + fmt.Sprint(v))
+		}
+		name[len(result)-1-i] = str
+	}
+	return name
 }
 
 // notifyNodesBehind walks the topologically ordered vertices, looking for any nodes
@@ -348,32 +341,29 @@ func (s *syscallDataImpl) checkNodesBehindForReady(ctx context.Context, svcid st
 	if s.ServiceByIdString(ctx, svcid) == nil { //locks
 		return true
 	}
+	pcontext.Debugf(ctx, "topo: %+v", topo)
 	success := true
-	print("looking for nodes before ", svcid, "\n")
 	for _, str := range topo {
-		print(fmt.Sprintf("current %s, looking for %s\n", str, svcid))
-
+		pcontext.Debugf(ctx, "topo entry: %s", str)
 		if str == svcid {
-			pcontext.Debugf(ctx, "%s is now ready to run", svcid)
+			pcontext.Debugf(ctx, "topo success")
 			return success
 		}
 		svc := s.ServiceByIdString(ctx, str) //locks
 		if svc == nil {
-			print("unable to walk the dep graph looking for predeessors, a predecessor could not be found: " + str + "\n")
 			panic("unable to walk the dep graph looking for predeessors, a predecessor could not be found: " + str)
 		}
 		if svc.Exported() && svc.RunRequested() && svc.Started() {
-			print(fmt.Sprintf("service %s is running already\n", str))
+			pcontext.Debugf(ctx, "  -- check completed %s [%s]", svc.Short(), svc.Name())
 			continue
 		}
-		print("node is not ready  ", svcid, " and so ", svcid, "is not ready\n")
+		pcontext.Debugf(ctx, "topo failure")
 		return false
 	}
-	print("did not find " + svcid + "\n")
 	panic("did not find id " + svcid + " in the list of vertices")
 }
 
-// notifyNodesInFrontNoLock walks the topologically ordered vertices, looking for any nodes
+// checkNodesInFront walks the topologically ordered vertices, looking for any nodes
 // that have satisfied dependencies and are net yet running. It returns false only if the svcid
 // cannot be found.
 func (s *syscallDataImpl) checkNodesInFront(ctx context.Context, svcid string) bool {
@@ -401,36 +391,95 @@ func (s *syscallDataImpl) checkNodesInFront(ctx context.Context, svcid string) b
 	return true
 }
 
-func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) bool {
+// Import adds a node in the dependency graph between src and dest.
+// It returns a kerr if either the source or dest cannot be found; it
+// returns a kerr if the new edge would create a cycle.
+func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) id.KernelErrId {
 
 	serviceSource := s.ServiceByIdString(ctx, src.String())
 	if serviceSource == nil {
-		return false
+		return id.NewKernelErrId(id.KernelNotFound)
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())
 	if serviceDest == nil {
-		return false
+		return id.NewKernelErrId(id.KernelNotFound)
 	}
+	srcString := serviceSource.String()
+	destString := serviceDest.String()
 	// lock for the graph
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	err := s.depGraph.AddEdge(serviceSource.String(), serviceDest.String())
-	if err == nil {
-		pcontext.Debugf(ctx, "Import succeeded from %s -> %s", src.Short(), dest.Short())
-		return true
+	if !graph.Acyclic(s.depGraph) {
+		panic("graph is already cyclic, some previous edge was added without checking")
 	}
-	switch err {
-	case graph.ErrEdgeCreatesCycle:
-		return false
-	case graph.ErrEdgeAlreadyExists:
-		pcontext.Debugf(ctx, "Import already existed from %s -> %s", src.Short(), dest.Short())
+	ok := s.addEdge(ctx, srcString, destString)
+	if !ok {
+		return id.NewKernelErrId(id.KernelNotFound)
+	}
+	if !graph.Acyclic(s.depGraph) {
+		pcontext.Errorf(ctx, "acyclic check failed, removing %s->%s",
+			src.Short(), dest.Short())
+		// remove the edge so no cycles
+		s.removeEdge(ctx, s.vertexName[srcString], s.vertexName[destString])
+		// no need to check these again for existence, remove edge would not have worked
+		srcV := s.vertexName[srcString]
+		destV := s.vertexName[destString]
+		path, _ := graph.ShortestPath(s.depGraph, destV, srcV)
+		buf := &bytes.Buffer{}
+		// discover the cycle
+		for _, vertex := range path {
+			n, bool := reverseMap(s.vertexName, vertex)
+			if !bool {
+				panic("badly formed graph in doing cycle calculation")
+			}
+			buf.WriteString(n + "\n")
+		}
+		pcontext.Debugf(ctx, "cycle:\n%s", buf.String())
+		return id.NewKernelErrId(id.KernelDependencyCycle)
 
-		return true
-	case graph.ErrEdgeNotFound:
-		panic("internal error in dependency graph construction")
-	default:
-		panic("unexpected graph error in dependency graph:" + err.Error())
 	}
+	return id.KernelErrIdNoErr
+}
+
+func (s *syscallDataImpl) removeEdge(ctx context.Context, v, u int) {
+	s.depGraph.Delete(v, u)
+}
+func (s *syscallDataImpl) addVertex(ctx context.Context, name string) bool {
+	prevOrder := s.depGraph.Order()
+	newG := graph.New(prevOrder + 1)
+	for v := 0; v < prevOrder; v++ {
+		s.depGraph.Visit(v, func(w int, _ int64) bool {
+			newG.Add(v, w)
+			return false
+		})
+	}
+	s.depGraph = newG
+
+	_, ok := s.vertexName[name]
+	if ok {
+		pcontext.Errorf(ctx, "attempt to add vertext %s ignored, vertex already in graph", name)
+		return true
+	}
+	s.vertexName[name] = prevOrder
+	return true
+}
+
+func (s *syscallDataImpl) addEdge(ctx context.Context, src, dest string) bool {
+	srcV, srcOk := s.vertexName[src]
+	destV, destOk := s.vertexName[dest]
+	if !srcOk || !destOk {
+		text := "neither are graph vertices"
+		if srcOk && !destOk {
+			text = "destination not a graph vertex"
+		}
+		if !srcOk && destOk {
+			text = "source not a graph vertex"
+		}
+		pcontext.Errorf(ctx, "attempt to create edge (%s,%s) rejected, %s", src, dest, text)
+		return false
+	}
+	s.depGraph.Add(srcV, destV)
+	return true
 }
 
 // Run blocks the caller on a particular service being ready to run.  Note that
@@ -441,4 +490,49 @@ func (s *syscallDataImpl) Run(ctx context.Context, sid id.ServiceId) bool {
 		return false
 	}
 	return service.Run(ctx)
+}
+
+// PathExists returns true if there is a path from src to dest
+// following dependency edges.  Not that this implies that a
+// service source requiring foo, and service foo requiring bar, will
+// return true for a call for PathExists(source,bar).
+// This means that carefully crafted require's that know the
+// depgraph of other services will work, but seems unnecessary.
+func (s *syscallDataImpl) PathExists(ctx context.Context, src, dest string) bool {
+
+	// lock for the graph
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	data := DFS(s.depGraph)
+	destV, ok := s.vertexName[dest]
+	if !ok {
+		pcontext.Errorf(ctx, "unable find vertex, %s, can't check for path existence", dest)
+	}
+	curr := destV
+	for curr != -1 {
+		cand, ok := reverseMap(s.vertexName, curr)
+		if !ok {
+			panic("badly formed dependency graph, can't find " + fmt.Sprint(curr))
+		}
+		// msg := ""
+		// if cand == src {
+		// 	msg = ":WINNER!"
+		// }
+		//pcontext.Debugf(ctx, "current is %s%s", cand, msg)
+		if cand == src {
+			return true
+		}
+		curr = data.Prev[curr]
+	}
+	pcontext.Errorf(ctx, "import but no require: %s -> %s", src, dest)
+	return false
+}
+
+func reverseMap(dep map[string]int, i int) (string, bool) {
+	for k, v := range dep {
+		if v == i {
+			return k, true
+		}
+	}
+	return "", false
 }

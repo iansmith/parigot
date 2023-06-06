@@ -1,6 +1,8 @@
 package apishared
 
 import (
+	"hash/crc32"
+	"time"
 	"unsafe"
 )
 
@@ -42,3 +44,12 @@ const SocketName = "logviewer.sock"
 // ExpectedStackDumpSize is used to allocate space so that stack trace
 // can be placed in it, then read back line by line.
 const ExpectedStackDumpSize = 4096 * 2
+
+const FrontMatterSize = 12
+const TrailerSize = 4
+const WriteTimeout = 100 * time.Millisecond
+const ReadTimeout = 100 * time.Millisecond
+const LongReadTimeout = 500 * time.Millisecond
+
+var KoopmanTable = crc32.MakeTable(crc32.Koopman)
+var ReadBufferSize = 8192

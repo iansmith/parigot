@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/iansmith/parigot/apishared"
+
 	"github.com/iansmith/parigot/sys/dep"
 	quic "github.com/quic-go/quic-go"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -112,7 +114,7 @@ func (q *QuicListener) waitForRequests(stream quic.Stream, remote net.Addr) {
 	for {
 		quicListenerPrint("WAITFORREQ", "about to read from stream (%v), remote=%s, chan=%p",
 			stream.StreamID(), remote.String(), q.ch)
-		a, err := NetReceive(stream, readTimeout)
+		a, err := NetReceive(stream, apishared.ReadTimeout)
 		quicListenerPrint("WAITFORREQ", "read from stream (%v), err? %v", stream.StreamID(), err != nil)
 		if err != nil {
 			quicListenerPrint("WAITFORREQ", "error receiving: %v, closing stream", err)
@@ -122,7 +124,7 @@ func (q *QuicListener) waitForRequests(stream quic.Stream, remote net.Addr) {
 		quicListenerPrint("WAITFORREQ", "got to net result construction in listener: %s, (stream %v)", a.TypeUrl, stream.StreamID())
 		nr := NetResult{}
 		nr.SetData(a)
-		nr.SetKey(NewDepKeyFromAddr(remote.String()))
+		//nr.SetKey(NewDepKeyFromAddr(remote.String()))
 		nr.SetRespChan(make(chan *anypb.Any))
 		quicListenerPrint("WAITFORREQ", "sending through channel: %s, sending to %p", a.TypeUrl, q.ch)
 		q.ch <- &nr
@@ -190,7 +192,7 @@ func (q *quicCaller) run() {
 			nr.respCh <- nil
 			continue
 		}
-		a, err = NetReceive(stream, longReadTimeout)
+		a, err = NetReceive(stream, apishared.LongReadTimeout)
 		if err != nil {
 			quicCallerPrint("RUN ", "unable to read stream, aborting call, error = %v", err)
 			stream.Close()

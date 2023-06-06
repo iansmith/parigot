@@ -89,7 +89,7 @@ func main() {
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
 		if code == 253 && err == nil {
-			pcontext.Fatalf(ctx, "host side code failed (usually a panic) in execution of  program %s (code %d)", mainProg, code)
+			pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
 		} else if code != 0 {
 			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
 		} else {

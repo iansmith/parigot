@@ -26,12 +26,17 @@ func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Ker
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
-	lr, errIdRaw, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+	lr, errIdRaw, signal :=
+		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+	kerr := id.NewKernelErrIdFromRaw(errIdRaw)
 	if signal {
 		os.Exit(1)
 	}
-	kerr := id.KernelErrId(errIdRaw)
-	return lr, kerr
+	if kerr.IsError() {
+		return nil, kerr
+
+	}
+	return lr, id.KernelErrIdNoErr
 }
 
 // Dispatch is the primary means that a caller can send an RPC message.
@@ -125,7 +130,7 @@ func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Ker
 	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Export")
 	defer pcontext.Dump(ctx)
-	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Export_)
 	if signal {
 		os.Exit(1)
 	}
@@ -138,15 +143,15 @@ func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Ker
 // this that make the method calls looking synchronous.
 //
 //go:wasmimport parigot return_value_
-func ReturnValue_(int32, int32) int32
-func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, id.Id) {
-	out := &syscallmsg.ReturnValueResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
-	// }
-	return out, nil
-}
+// func ReturnValue_(int32, int32) int32
+// func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, id.Id) {
+// 	out := &syscallmsg.ReturnValueResponse{}
+// 	// err := error(nil)
+// 	// if err != nil {
+// 	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
+// 	// }
+// 	return out, nil
+// }
 
 // Require is a declaration that a service needs a particular interface.
 // This is not needed by most user code that will use queue.ImpleQueueServiceOrPanic()
@@ -159,10 +164,12 @@ func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Require")
 	defer pcontext.Dump(ctx)
 	rr, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
+	kerr := id.NewKernelErrIdFromRaw((err))
 	if signal {
 		os.Exit(1)
 	}
-	return rr, id.KernelErrId((err))
+
+	return rr, kerr
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
@@ -205,7 +212,7 @@ func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
 		Wait:      true,
 		ServiceId: sid.Marshal(),
 	}
-	pcontext.Debugf(ctx, "about to call run .............. %s", sid.Short())
+	pcontext.Debugf(ctx, "about to call satisy wait .............. %s", sid.Short())
 	_, err := Run(req)
 	if err.IsError() {
 		panic(fmt.Sprintf("failed to run successfully:%s", err.Short()))
