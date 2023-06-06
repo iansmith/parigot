@@ -2,28 +2,34 @@ package main
 
 import (
 	"context"
+	"os"
 	"unsafe"
 
 	pcontext "github.com/iansmith/parigot/context"
-	"github.com/iansmith/parigot/g/methodcall/v1"
-	methodg "github.com/iansmith/parigot/g/methodcall/v1"
 
+	apiwasm "github.com/iansmith/parigot/apiwasm"
+
+	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "fooservice:main")
-	ctx = pcontext.CallTo(pcontext.GuestContext(ctx), "[bar]main")
+	ctx := apiwasm.ManufactureGuestContext("[barservice]main")
+	defer func() {
+		pcontext.Dump(ctx)
+		pcontext.Debugf(ctx, "trapped a panic in the guest side")
+		os.Exit(1)
+	}()
 
-	myId := methodg.MustRegisterBarService(ctx)
-	methodg.MustExportBarService(ctx)
-	methodg.MustRequireFooService(ctx, myId)
-	methodg.MustWaitSatisfiedBarService(myId)
+	myId := methodcall.MustRegisterBarService(ctx)
+	methodcall.MustExportBarService(ctx)
+	methodcall.MustRequireFooService(ctx, myId)
+	methodcall.MustWaitSatisfiedBarService(myId)
 	b := &barServer{}
-	b.foo = methodcall.MustLocateFooService(ctx)
-	methodg.RunBarService(ctx, b)
+	b.foo = methodcall.MustLocateFooService(ctx, myId)
+	methodcall.RunBarService(ctx, b)
 }
 
 // this type better implement methodcall.v1.BarService
@@ -36,12 +42,13 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse, methodg.MethodcallErrId) {
+func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse,
+	methodcall.MethodcallErrId) {
 	resp := &methodcallmsg.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
 		resp.Sum = 0
-		return resp, methodg.MethodcallErrIdNoErr
+		return resp, methodcall.MethodcallErrIdNoErr
 	}
 
 	reqAdd := &methodcallmsg.AddMultiplyRequest{
@@ -55,7 +62,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	reqMul.Value1 = 1 // identity to start
 
 	var respAdd, respMul *methodcallmsg.AddMultiplyResponse
-	var errId methodg.MethodcallErrId
+	var errId methodcall.MethodcallErrId
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
 		respAdd, errId = b.foo.AddMultiply(ctx, reqAdd)
@@ -78,7 +85,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.Accumulat
 	}
 	resp.Product = respMul.GetResult()
 	resp.Sum = respAdd.GetResult()
-	return resp, methodg.MethodcallErrIdNoErr
+	return resp, methodcall.MethodcallErrIdNoErr
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.

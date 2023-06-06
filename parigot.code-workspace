@@ -22,6 +22,7 @@
 			"wazero-src-1.1": true
 		},
 		"search.decorations.colors": true,
+		"go.buildTags": "wasip1",
 	},
 	"launch": {
 		"version": "0.2.0",

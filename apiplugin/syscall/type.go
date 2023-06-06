@@ -47,11 +47,15 @@ type SyscallData interface {
 	Export(ctx context.Context, svc id.ServiceId) Service
 	// Import introduces a dendency between the sourge and dest
 	// services. Thus,  dest must be running before source can run.
-	// This function returns false if the services cannot be found
-	// or the introduction of this edge would produce a cyle.
-	Import(ctx context.Context, src, dest id.ServiceId) bool
+	// This function returns a kernel error in two primary cases.
+	// 1. one of the src or destination could not be found.  2. The
+	// newly introduced edge would create a cycle.
+	Import(ctx context.Context, src, dest id.ServiceId) id.KernelErrId
 	// Run blocks the caller until all the prerequistes have been
 	// launched.  It returns false if it returned because of
 	// a timeout or the service id cannot be found, otherwise true.
 	Run(context.Context, id.ServiceId) bool
+	// PathExists returns true if there is a sequence of dependency
+	// graph vertices that eventually leads from source to target.
+	PathExists(ctx context.Context, source, target string) bool
 }

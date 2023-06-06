@@ -12,7 +12,6 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/sys/dep"
 )
 
 // ParigotInit is the interface that plugins must meet to be
@@ -47,7 +46,7 @@ const (
 )
 
 // Flip this switch to see debug messages from the process.
-var processVerbose = false || envVerbose != ""
+var processVerbose = false
 
 var lastProcessId = 7
 
@@ -62,7 +61,6 @@ type Process struct {
 	engine   eng.Engine
 
 	microservice Service
-	key          dep.DepKey
 
 	requirementsMet bool
 	reachedRunBlock bool
@@ -99,7 +97,6 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 
 		callCh: make(chan *callContext),
 	}
-	proc.key = NewDepKeyFromProcess(proc)
 
 	if m.GetPluginPath() != "" {
 		_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
@@ -134,11 +131,9 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		pcontext.Dump(initCtx)
 		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
 	}
-	pcontext.Debugf(initCtx, "loaded plugin: %s", pluginPath)
 	if _, err := engine.InstantiateHostModule(ctx, name); err != nil {
 		return nil, nil, err
 	}
-	pcontext.Debugf(initCtx, "instantiated host plugin: %s", pluginPath)
 
 	pcontext.Dump(initCtx)
 	return plug, initFn, nil

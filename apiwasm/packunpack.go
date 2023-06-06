@@ -51,33 +51,42 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	errPtr := int32(uintptr(unsafe.Pointer(outErrPtr)))
 	defer func() {
 		if r := recover(); r != nil {
-			print("trapped host side panic:", r, "\n")
+			print("---------------\n")
+			print("trapped panic:", r, "\n")
 			debug.PrintStack()
-			pcontext.Fatalf(ctx, "guest side trapped a host side panic: %s ", fmt.Sprint(r))
+			print("---------------\n")
 			signal = true
 		}
 	}()
 
 	wrapped := fn(length, req, out, errPtr)
 	if outErr.IsError() {
+		kerr := id.NewKernelErrIdFromRaw(outErr)
+		pcontext.Errorf(ctx, "client side returned error %s", kerr.Short())
+		pcontext.Dump(ctx)
 		return nilU, outErr, false
 	}
 	l, ptr := unwindLenAndPtr(uint64(wrapped))
-	// print(fmt.Sprintf("UNWIND LEN PTR %16x %08x,%08x, %T, %T\n", uint64(wrapped), l, ptr, t, u))
-	// if ptr < 0xff {
-	// 	debug.PrintStack()
-	// }
+	if ptr < 0xff {
+		debug.PrintStack()
+	}
 	if int32(ptr) != out { //sanity
 		print(fmt.Sprintf("WARNING! mismatched pointers in host call/return %x, %x\n", ptr, out))
 	}
 	if unsafe.Pointer(asPtr(u)) == nil {
 		myId := id.KernelErrIdNoErr.Raw()
-
 		return u, myId, false
 	}
-	if err := proto.Unmarshal(outBuf[:l], u); err != nil {
-		myId := id.NewKernelErrId((2))
-		outErr = myId.Raw()
+	if l == 0 {
+		return nilU, id.KernelErrIdNoErr.Raw(), false
+
+	}
+	if l > 0 {
+		if err := proto.Unmarshal(outBuf[:l], u); err != nil {
+			print(fmt.Sprintf("found the source of a 2 -- %d, %s", l, err.Error()))
+			myId := id.NewKernelErrId((2))
+			outErr = myId.Raw()
+		}
 	}
 	return outProtoPtr, id.NewKernelErrId((0)).Raw(), false
 }

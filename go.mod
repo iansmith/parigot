@@ -19,6 +19,7 @@ require (
 require (
 	github.com/kisielk/godepgraph v0.0.0-20221115040737-2d0831789458 // indirect
 	github.com/mattn/go-sqlite3 v1.14.17 // indirect
+	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 // indirect
 )
 
 require (

@@ -21,8 +21,9 @@ func main() {
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "started main open")
 	myId := methodcall.MustRegisterFooService(ctx)
+	methodcall.MustRequireBarService(ctx, myId)
 	methodcall.MustExportFooService(ctx)
-	pcontext.Debugf(ctx, "finished export of foo, service id %s", myId.Short())
+	methodcall.MustWaitSatisfiedFooService(myId)
 	methodcall.RunFooService(ctx, &fooServer{})
 }
 

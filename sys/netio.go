@@ -12,6 +12,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/iansmith/parigot/apishared"
+
 	quic "github.com/quic-go/quic-go"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -28,18 +30,18 @@ func NetSend(any *anypb.Any, stream quic.Stream) error {
 		return err
 	}
 	netioPrint("NETSEND ", " outgoing type is %s", any.TypeUrl)
-	full := make([]byte, frontMatterSize+trailerSize+len(buf))
-	copy(full[frontMatterSize:frontMatterSize+len(buf)], buf[:])
-	attention := uint64(magicStringOfBytes)
+	full := make([]byte, apishared.FrontMatterSize+apishared.TrailerSize+len(buf))
+	copy(full[apishared.FrontMatterSize:apishared.FrontMatterSize+len(buf)], buf[:])
+	attention := uint64(apishared.MagicStringOfBytes)
 	binary.LittleEndian.PutUint64(full[0:8], attention)
 	l := uint32(len(buf))
 	binary.LittleEndian.PutUint32(full[8:12], l)
-	result := crc32.Checksum(full[:frontMatterSize+len(buf)], koopmanTable)
-	binary.LittleEndian.PutUint32(full[frontMatterSize+len(buf):], result)
-	stream.SetWriteDeadline(time.Now().Add(writeTimeout))
+	result := crc32.Checksum(full[:apishared.FrontMatterSize+len(buf)], apishared.KoopmanTable)
+	binary.LittleEndian.PutUint32(full[apishared.FrontMatterSize+len(buf):], result)
+	stream.SetWriteDeadline(time.Now().Add(apishared.WriteTimeout))
 
 	pos := 0
-	for pos < len(full)-frontMatterSize-trailerSize {
+	for pos < len(full)-apishared.FrontMatterSize-apishared.TrailerSize {
 		written, err := stream.Write(full[pos:])
 		if err != nil {
 			return err
@@ -51,11 +53,11 @@ func NetSend(any *anypb.Any, stream quic.Stream) error {
 }
 
 func NetReceive(stream quic.Stream, timeout time.Duration) (*anypb.Any, error) {
-	readBuffer := make([]byte, readBufferSize)
+	readBuffer := make([]byte, apishared.ReadBufferSize)
 	stream.SetReadDeadline(time.Now().Add(timeout))
 	pos := 0
-	for pos < frontMatterSize {
-		read, err := stream.Read(readBuffer[pos:frontMatterSize])
+	for pos < apishared.FrontMatterSize {
+		read, err := stream.Read(readBuffer[pos:apishared.FrontMatterSize])
 		if err != nil {
 			return nil, err
 		}
@@ -63,16 +65,16 @@ func NetReceive(stream quic.Stream, timeout time.Duration) (*anypb.Any, error) {
 	}
 	netioPrint("NETRECEIVE ", "read start buffer of size %d", pos)
 	val := binary.LittleEndian.Uint64(readBuffer[0:8])
-	if val != magicStringOfBytes {
+	if val != apishared.MagicStringOfBytes {
 		return nil, fmt.Errorf("unexpected prefix on bundle, must have lost sync")
 	}
 	sentLen := binary.LittleEndian.Uint32(readBuffer[8:12])
-	if sentLen > uint32(readBufferSize) {
-		return nil, fmt.Errorf("read packet was of size %d, but only had %d bytes to store the data", sentLen, readBufferSize)
+	if sentLen > uint32(apishared.ReadBufferSize) {
+		return nil, fmt.Errorf("read packet was of size %d, but only had %d bytes to store the data", sentLen, apishared.ReadBufferSize)
 	}
 	netioPrint("NETRECEIVE ", "read size info %d", sentLen)
-	for pos < frontMatterSize+trailerSize+int(sentLen) {
-		read, err := stream.Read(readBuffer[pos : frontMatterSize+int(sentLen)+trailerSize])
+	for pos < apishared.FrontMatterSize+apishared.TrailerSize+int(sentLen) {
+		read, err := stream.Read(readBuffer[pos : apishared.FrontMatterSize+int(sentLen)+apishared.TrailerSize])
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +83,7 @@ func NetReceive(stream quic.Stream, timeout time.Duration) (*anypb.Any, error) {
 	netioPrint("NETRECEIVE ", "completed read with size of  %d", pos)
 
 	a := anypb.Any{}
-	err := proto.Unmarshal(readBuffer[frontMatterSize:frontMatterSize+int(sentLen)], &a)
+	err := proto.Unmarshal(readBuffer[apishared.FrontMatterSize:apishared.FrontMatterSize+int(sentLen)], &a)
 	if err != nil {
 		return nil, err
 	}

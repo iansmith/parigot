@@ -93,4 +93,7 @@ const (
 	// KernelReadyFailedindicates that the service that was trying
 	// to start aborted by returning false from Ready().
 	KernelNotReady
+	// KernelNotRequired that a service has tried to locate a service
+	// that it did not require.
+	KernelNotRequired
 )

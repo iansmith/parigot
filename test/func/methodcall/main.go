@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"os"
 	"testing"
 
+	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	gmeth "github.com/iansmith/parigot/g/methodcall/v1"
+	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
-	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -22,29 +23,38 @@ const TestRegexpFail test.TestErrIdCode = test.TestErrIdGuestStart
 func manufactureContext(name string) context.Context {
 	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(context.Background()), name), name)
 }
+
+var myServiceId id.ServiceId
+var foo methodcall.FooServiceClient
+var bar methodcall.BarServiceClient
+
 func main() {
 	ctx := manufactureContext("[methodcall]main")
-	defer pcontext.Dump(ctx)
+	defer func() {
+		pcontext.Dump(ctx)
+		pcontext.Debugf(ctx, "trapped a panic in the guest side")
+		os.Exit(1)
+	}()
 	pcontext.Debugf(ctx, "program started")
 
-	myServiceId := lib.MustRegisterClient(ctx)
-	pcontext.Debugf(ctx, "got my service id %s", myServiceId.Short())
-	gmeth.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
+	myServiceId = lib.MustRegisterClient(ctx)
+	methodcall.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring foo")
 	test.MustRequireTestService(ctx, myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring test")
-	queue.MustRequireQueueService(ctx, myServiceId)
-	pcontext.Debugf(ctx, "fineshed requiring queue")
+	methodcall.MustRequireBarService(ctx, myServiceId)
+	pcontext.Debugf(ctx, "fineshed requiring bar")
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
 	pcontext.Debugf(ctx, "finished wait satisfy")
 
-	// methg.RequireBarServicegiOrPanic(ctx)
+	underTestServer.testSvc = test.MustLocateTestService(ctx, myServiceId)
+	underTestServer.foo = methodcall.MustLocateFooService(ctx, myServiceId)
+	underTestServer.bar = methodcall.MustLocateBarService(ctx, myServiceId)
 
-	pcontext.Debugf(ctx, "got three requires  and satified ---- done")
-	return
+	pcontext.Debugf(ctx, "methodcall.main: got three locates  and satified all requires")
 
-	//test.RunUnderTestService(ctx, underTestServer)
+	test.RunUnderTestService(ctx, underTestServer)
 }
 
 // TestAddMulitply is a test of a function that has both input and output.
@@ -152,16 +162,16 @@ var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
 	testSvc test.TestServiceClient
-	foo     gmeth.FooServiceClient
-	bar     gmeth.BarServiceClient
+	foo     methodcall.FooServiceClient
+	bar     methodcall.BarServiceClient
 }
 
 func (m *myUnderTestServer) Ready(ctx context.Context) bool {
-	m.foo = gmeth.MustLocateFooService(ctx)
-	m.bar = gmeth.MustLocateBarService(ctx)
-	m.testSvc = test.MustLocateTestService(ctx)
+	m.foo = methodcall.MustLocateFooService(ctx, myServiceId)
+	m.bar = methodcall.MustLocateBarService(ctx, myServiceId)
+	m.testSvc = test.MustLocateTestService(ctx, myServiceId)
 	if err := m.setupTests(ctx); err.IsError() {
-		pcontext.Logf(ctx, pcontext.Error, "test setup failed:", err)
+		pcontext.Logf(ctx, pcontext.Error, "test setup failed:%s", err.Short())
 		return false
 	}
 	return true

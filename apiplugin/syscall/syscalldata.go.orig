@@ -113,9 +113,6 @@ func (s *serviceImpl) canRun(ctx context.Context) bool {
 		return false
 	}
 	depCheck := s.parent.checkNodesBehindForReady(ctx, s.String())
-	if depCheck {
-		print("YAY!!!! dependency check succeeded : ", s.Short(), "\n")
-	}
 	return depCheck
 }
 
@@ -216,10 +213,7 @@ func (s *syscallDataImpl) SetService(ctx context.Context, package_, name string,
 	nmap[name] = result
 	s.sidStringToService[result.String()] = result
 	s.depGraph.AddVertex(result.String())
-	if result != nil {
-		pcontext.Debugf(ctx, "set service created new service %s.%s => %s (%s)",
-			package_, name, result.Short(), result.String())
-	} else {
+	if result == nil {
 		pcontext.Errorf(ctx, "result of set service is nil?")
 	}
 	return result, true

@@ -51,7 +51,6 @@ func (a *AsyncClientInteraction) Create(path string, advisoryRead, advisoryWrite
 	if !ok {
 		a.openFauxFile.Store(path, []wazero.FauxFile{})
 		result = []wazero.FauxFile{}
-		pcontext.Debugf(ctx, "created new path %s", path)
 	} else {
 		if len(result.([]wazero.FauxFile)) != 0 {
 			pcontext.Errorf(ctx, ErrAlreadyExists.Error())
