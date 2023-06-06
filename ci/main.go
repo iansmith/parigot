@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
+
+	fs "github.com/iansmith/parigot/ci/util"
 
 	"dagger.io/dagger"
 )
@@ -128,23 +126,23 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	/*
 	 *	This function is to build runner
 	 */
-	_, err := findFilesWithSuffixRecursively("command/runner", ".go")
+	_, err := fs.FindFilesWithSuffixRecursively("command/runner", ".go")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern("apishared/id/*.go")
+	_, err = fs.FindFilesWithPattern("apishared/id/*.go")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern("apiwasm/*.go")
+	_, err = fs.FindFilesWithPattern("apiwasm/*.go")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern("apiplugin/*")
+	_, err = fs.FindFilesWithPattern("apiplugin/*")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	_, err = fs.FindFilesWithPattern("wazero-src-1.1/fauxfd.go")
 	if err != nil {
 		return img, err
 	}
@@ -179,32 +177,32 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	}
 
 	// SYS_SRC
-	_, err := findFilesWithSuffixRecursively("sys", ".go")
+	_, err := fs.FindFilesWithSuffixRecursively("sys", ".go")
 	if err != nil {
 		return img, err
 	}
 	// ENG_SRC
-	_, err = findFilesWithSuffixRecursively("eng", ".go")
+	_, err = fs.FindFilesWithSuffixRecursively("eng", ".go")
 	if err != nil {
 		return img, err
 	}
 	// CTX_SRC
-	_, err = findFilesWithSuffixRecursively("context", ".go")
+	_, err = fs.FindFilesWithSuffixRecursively("context", ".go")
 	if err != nil {
 		return img, err
 	}
 	// SHARED_SRC
-	_, err = findFilesWithSuffixRecursively("apishared", ".go")
+	_, err = fs.FindFilesWithSuffixRecursively("apishared", ".go")
 	if err != nil {
 		return img, err
 	}
 	// check apiplugin/*.go
-	_, err = findFilesWithPattern("apiplugin/*.go")
+	_, err = fs.FindFilesWithPattern("apiplugin/*.go")
 	if err != nil {
 		return img, err
 	}
 	// check wazero-src-1.1/fauxfd.go
-	_, err = findFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	_, err = fs.FindFilesWithPattern("wazero-src-1.1/fauxfd.go")
 	if err != nil {
 		return img, err
 	}
@@ -251,7 +249,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	 *		build/queue.p.wasm
 	 */
 	syscallClientSide := "apiwasm/syscall/*.go"
-	_, err := findFilesWithPattern(syscallClientSide)
+	_, err := fs.FindFilesWithPattern(syscallClientSide)
 	if err != nil {
 		return img, err
 	}
@@ -294,11 +292,11 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 	 *	This function is to build protoc-gen-parigot
 	 */
 	dir := "command/protoc-gen-parigot"
-	_, err := findFilesWithSuffixRecursively(dir, ".tmpl")
+	_, err := fs.FindFilesWithSuffixRecursively(dir, ".tmpl")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithSuffixRecursively(dir, ".go")
+	_, err = fs.FindFilesWithSuffixRecursively(dir, ".go")
 	if err != nil {
 		return img, err
 	}
@@ -326,11 +324,11 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	/*
 	 *	generate a single representative file for all the protobuf generated code
 	 */
-	_, err := findFilesWithSuffixRecursively("api/proto", ".proto")
+	_, err := fs.FindFilesWithSuffixRecursively("api/proto", ".proto")
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithSuffixRecursively("test", ".proto")
+	_, err = fs.FindFilesWithSuffixRecursively("test", ".proto")
 	if err != nil {
 		return img, err
 	}
@@ -363,15 +361,15 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	boilerplateid := "command/boilerplateid/main.go"
 	goCmd := []string{goToHost, "run", boilerplateid}
 
-	_, err := findFilesWithPattern(apiID)
+	_, err := fs.FindFilesWithPattern(apiID)
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern(boilerplateid)
+	_, err = fs.FindFilesWithPattern(boilerplateid)
 	if err != nil {
 		return img, err
 	}
-	_, err = findFilesWithPattern("command/boilerplateid/template/*.tmpl")
+	_, err = fs.FindFilesWithPattern("command/boilerplateid/template/*.tmpl")
 	if err != nil {
 		return img, err
 	}
@@ -440,7 +438,7 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 
 	// methodcall
 	file := "command/boilerplateid/template/idanderr.tmpl"
-	_, err = findFilesWithPattern(file)
+	_, err = fs.FindFilesWithPattern(file)
 	if err != nil {
 		return img, err
 	}
@@ -484,7 +482,7 @@ func buildAPlugin(ctx context.Context, img *dagger.Container, fileDir string, ta
 	/*
 	 *	A helper function for func buildPlugins
 	 */
-	_, err := findFilesWithSuffixRecursively(fileDir, ".go")
+	_, err := fs.FindFilesWithSuffixRecursively(fileDir, ".go")
 	if err != nil {
 		return img, err
 	}
@@ -505,7 +503,7 @@ func buildAClientService(ctx context.Context, img *dagger.Container, fileDir str
 	/*
 	 *	A helper function for func buildClientSideOfAPIs
 	 */
-	_, err := findFilesWithSuffixRecursively(fileDir, ".go")
+	_, err := fs.FindFilesWithSuffixRecursively(fileDir, ".go")
 	if err != nil {
 		return img, err
 	}
@@ -527,12 +525,12 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 	 *	This function is to generate sqlc for queue: apiplugin/queue/db.go
 	 */
 	dir := "apiplugin/queue"
-	_, err := findFilesWithSuffixRecursively(dir, ".sql")
+	_, err := fs.FindFilesWithSuffixRecursively(dir, ".sql")
 	if err != nil {
 		return img, err
 	}
 	yamlName := dir + "/sqlc/sqlc.yaml"
-	_, err = findFilesWithPattern(yamlName)
+	_, err = fs.FindFilesWithPattern(yamlName)
 	if err != nil {
 		return img, err
 	}
@@ -545,44 +543,4 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 	}
 
 	return img, nil
-}
-
-func findFilesWithSuffixRecursively(path string, suffix string) (bool, error) {
-	/*
-	 *	This is a helper function that recursively finds all files in the
-	 *	current folder and subfolders based on their suffix names
-	 */
-	exist := false
-	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			file := filepath.Join(path, suffix)
-			return errors.New(file + " does not exist")
-		}
-		if !d.IsDir() && strings.HasSuffix(d.Name(), suffix) {
-			exist = true
-		}
-		return nil
-
-	})
-
-	return exist, err
-}
-
-func findFilesWithPattern(pattern string) (bool, error) {
-	/*
-	 *	This is a helper function that finds all files based on
-	 *	wildcard matching
-	 */
-	files, err := filepath.Glob(pattern)
-	exist := false
-	if err != nil {
-		return exist, err
-	}
-	if len(files) == 0 {
-		return exist, errors.New(pattern + " does not exist")
-	}
-
-	exist = true
-
-	return exist, nil
 }
