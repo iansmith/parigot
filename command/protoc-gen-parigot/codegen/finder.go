@@ -16,21 +16,27 @@ type Finder interface {
 	FindServiceByName(protoPkg string, messageName string) *WasmService
 	AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage)
 	AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService)
+	AddEnumType(wasmName, protoPackage, goPackage string, enum *WasmEnumType)
+	AddEnumValue(wasmName, protoPackage, goPackage string, enum *WasmEnumValue)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
 	GoPackageOption(service []*WasmService) (string, error)
 	Service() []*WasmService
 	Message() []*WasmMessage
+	Enum() []*WasmEnumType
 }
 
 type SimpleFinder struct {
-	message map[*MessageRecord]*WasmMessage
-	service map[*ServiceRecord]*WasmService
+	message   map[*MessageRecord]*WasmMessage
+	service   map[*ServiceRecord]*WasmService
+	enumType  map[*EnumTypeRecord]*WasmEnumType
+	enumValue map[*EnumValueRecord]*WasmEnumValue
 }
 
 func NewSimpleFinder() *SimpleFinder {
 	return &SimpleFinder{
-		service: make(map[*ServiceRecord]*WasmService),
-		message: make(map[*MessageRecord]*WasmMessage),
+		service:  make(map[*ServiceRecord]*WasmService),
+		message:  make(map[*MessageRecord]*WasmMessage),
+		enumType: make(map[*EnumTypeRecord]*WasmEnumType),
 	}
 }
 func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
@@ -76,6 +82,27 @@ func (s *SimpleFinder) AddServiceType(wasmName, protoPackage, goPackage string, 
 
 	}
 	s.service[rec] = service
+}
+
+func (s *SimpleFinder) AddEnumType(wasmName, protoPackage, goPackage string, enum *WasmEnumType) {
+	rec := NewEnumTypeRecord(wasmName, protoPackage, goPackage, enum)
+	if verbose {
+		if rec.protoPackage != "google.protobuf" && rec.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
+			log.Printf("adding service type %s", rec.String())
+		}
+
+	}
+	s.enumType[rec] = enum
+}
+func (s *SimpleFinder) AddEnumValue(wasmName, protoPackage, goPackage string, type_ *EnumTypeRecord, start, end int, enumValue *WasmEnumValue) {
+	rec := NewEnumValueRecord(wasmName, protoPackage, protoPackage, type_, start, end)
+	if verbose {
+		if rec.protoPackage != "google.protobuf" && rec.goPackage != "google.golang.org/protobuf/types/descriptorpb)" {
+			log.Printf("adding service type %s", rec.String())
+		}
+
+	}
+	s.enumValue[rec] = enumValue
 }
 
 func (s *SimpleFinder) Message() []*WasmMessage {
@@ -236,8 +263,7 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *Wasm
 
 }
 
-func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto,
-	lang LanguageText) {
+func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto, lang LanguageText) {
 	for _, m := range pr.GetMessageType() {
 		msg := NewWasmMessage(pr, m, lang, f)
 		f.AddMessageType(m.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), msg)
@@ -246,5 +272,14 @@ func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto,
 		svc := NewWasmService(pr, s, lang, f)
 		log.Printf("xxxx-->> adding %s,%s,%s => %s", s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc.GetWasmServiceName())
 		f.AddServiceType(s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
+	}
+	for _, e := range pr.GetEnumType() {
+		eType := NewWasmEnumType(pr, e, lang, f)
+		f.AddEnumType(eType.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), eType)
+		for _, v := range e.Value {
+			eValue := NewWasmEnumValue(pr, v, lang, f, eType)
+			eType.AddChild(eValue)
+			f.AddEnumValue(eValue.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), eValue)
+		}
 	}
 }
