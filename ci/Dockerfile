@@ -1,10 +1,17 @@
 FROM ubuntu:22.04
 #RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update --fix-missing
-RUN apt-get install -y wget git g++ xz-utils curl file sudo 
+RUN apt-get install -y wget git g++ xz-utils curl file sudo clang
 # cmake ninja-build python3 nano \
 #     hugo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg \
 # 	clang-15 wabt
+
+# clang-15 will fail when building plugins, error shows:
+# go: downloading golang.org/x/sys v0.6.0
+# runtime/cgo
+# cgo: C compiler "/usr/bin/clang" not found: exec: "/usr/bin/clang": stat /usr/bin/clang: no such file or directory
+
+
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -16,7 +23,7 @@ RUN mkdir /home/parigot/tmp
 WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## golang version
-ENV GOLANG_VERSION_HOST="1.19.9"
+ENV GOLANG_VERSION_HOST="1.20.4"
 ## wasmtime version
 ENV WASMTIME_VERSION=8.0.1
 
@@ -156,7 +163,7 @@ RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-g
 #RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
 #RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
-RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@1.17
+RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@v1.17
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
@@ -165,7 +172,6 @@ RUN go${GOLANG_VERSION_HOST} install github.com/kyleconroy/sqlc/cmd/sqlc@latest
 
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
-# ENV PATH="/workspaces/parigot/build:${PATH}"
 
 # RUN mkdir ~/.ssh
 # RUN chmod 700 ~/.ssh
