@@ -119,6 +119,9 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 	fileToSvc := make(map[string][]*descriptorpb.ServiceDescriptorProto)
 	fileToMsg := make(map[string][]*descriptorpb.DescriptorProto)
 	nameToFile := make(map[string]*descriptorpb.FileDescriptorProto)
+	enumType := make(map[string][]*descriptorpb.EnumDescriptorProto)
+	enumTypeToValue := make(map[string][]*descriptorpb.EnumValueDescriptorProto)
+
 	for _, desc := range genReq.GetProtoFile() {
 		nameToFile[desc.GetName()] = desc
 		isGen := isGenerate(desc.GetName(), genReq)
@@ -150,17 +153,32 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 			fileToMsg[desc.GetName()] = allMsg
 		}
 	}
-	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg)
+	for _, fileDesc := range genReq.GetProtoFile() {
+		for _, enum := range fileDesc.GetEnumType() {
+			if !codegen.IsEnumMarkedParigot(enum.GetOptions().String()) {
+				continue
+			}
+			log.Printf("xxx -- enum %s", enum.GetName())
+			enumType[enum.GetName()] = append(enumType[enum.GetName()], enum)
+			for _, val := range enum.GetValue() {
+				log.Printf("xxx -- value %s, %d,%d", val.GetName(), val.GetNumber(), val.GetNumber())
+				enumTypeToValue[enum.GetName()] = append(enumTypeToValue[enum.GetName()], val)
+			}
 
+		}
+	}
+	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
 		for lang, generator := range generatorMap {
-			log.Printf("xxxx lang is %s", lang)
 			codegen.Collect(info, generator.LanguageText())
 			if info.Contains(desc.GetName()) {
 				// inject this desc into the finder
 				// skip it? only if no services and no messages xxx will break enums
-				if len(info.GetAllServiceByName(desc.GetName())) == 0 {
+				nSvc := len(info.GetAllServiceByName(desc.GetName()))
+				nMsg := len(info.GetAllMessageByName(desc.GetName()))
+				nEnum := len(info.GetAllEnumByName(desc.GetName()))
+				if nSvc == 0 && nMsg == 0 && nEnum == 0 {
 					continue
 				}
 				// load up templates

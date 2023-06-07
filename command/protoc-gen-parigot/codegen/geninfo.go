@@ -8,11 +8,13 @@ import (
 )
 
 type GenInfo struct {
-	request    *pluginpb.CodeGeneratorRequest
-	nameToFile map[string]*descriptorpb.FileDescriptorProto
-	nameToSvc  map[string][]*descriptorpb.ServiceDescriptorProto
-	nameToMsg  map[string][]*descriptorpb.DescriptorProto
-	finder     *SimpleFinder
+	request         *pluginpb.CodeGeneratorRequest
+	nameToFile      map[string]*descriptorpb.FileDescriptorProto
+	nameToSvc       map[string][]*descriptorpb.ServiceDescriptorProto
+	nameToMsg       map[string][]*descriptorpb.DescriptorProto
+	nameToEnumType  map[string][]*descriptorpb.EnumDescriptorProto
+	nameToEnumValue map[string][]*descriptorpb.EnumValueDescriptorProto
+	finder          *SimpleFinder
 }
 
 func NewGenInfo() *GenInfo {
@@ -193,7 +195,7 @@ type EnumTypeRecord struct {
 	protoPackage string
 	goPackage    string
 	wasmName     string
-	parent       *EnumValueRecord
+	_            *EnumValueRecord
 }
 
 func (m *MessageRecord) WasmName() string {
@@ -226,7 +228,7 @@ func NewEnumTypeRecord(wasmEnumName, protoPackage, goPackage string, wasmEnumTyp
 func NewEnumValueRecord(wasmEnumValue string, packageName string, goPackage string, parent *EnumTypeRecord, start, end int) *EnumValueRecord {
 	v := &EnumValueRecord{
 		parent:       parent,
-		name:         wasmEnumValue,
+		wasmName:     wasmEnumValue,
 		protoPackage: packageName,
 		goPackage:    goPackage,
 		range_end:    end,
@@ -260,6 +262,9 @@ func (g *GenInfo) GetAllServiceByName(generatedFile string) []*descriptorpb.Serv
 func (g *GenInfo) GetAllMessageByName(generatedFile string) []*descriptorpb.DescriptorProto {
 	return g.nameToMsg[generatedFile]
 }
+func (g *GenInfo) GetAllEnumByName(generatedFile string) []*descriptorpb.EnumDescriptorProto {
+	return g.nameToEnumType[generatedFile]
+}
 
 func (g *GenInfo) GoPackageOption(service []*WasmService) (string, error) {
 	return g.finder.GoPackageOption(service)
@@ -269,6 +274,11 @@ func (g *GenInfo) FindServiceByName(protoPackage, name string) *WasmService {
 	//xxx fixme this stinks
 	hackyName := fmt.Sprintf(".%s.%s", protoPackage, name)
 	return g.finder.FindServiceByName(protoPackage, hackyName)
+}
+
+func (g *GenInfo) FindEnumByName(protoPackage, name string) *WasmEnumType {
+	//xxx fixme this stinks
+	return g.finder.FindEnumTypeByName(protoPackage, name)
 }
 
 func (g *GenInfo) FindMessageByName(protoPackage string, name string) *WasmMessage {
@@ -289,11 +299,15 @@ func (g *GenInfo) AddressingNameFromMessage(currentPkg string, message *WasmMess
 func (g *GenInfo) SetReqAndFileMappings(request *pluginpb.CodeGeneratorRequest,
 	n map[string]*descriptorpb.FileDescriptorProto,
 	s map[string][]*descriptorpb.ServiceDescriptorProto,
-	m map[string][]*descriptorpb.DescriptorProto) {
+	m map[string][]*descriptorpb.DescriptorProto,
+	et map[string][]*descriptorpb.EnumDescriptorProto,
+	ev map[string][]*descriptorpb.EnumValueDescriptorProto) {
 	g.request = request
 	g.nameToFile = n
 	g.nameToSvc = s
 	g.nameToMsg = m
+	g.nameToEnumType = et
+	g.nameToEnumValue = ev
 }
 
 // GetAllFileName returns the list of string (keys in the two maps) that are visible to this genInfo.
@@ -315,11 +329,14 @@ func (g *GenInfo) Contains(name string) bool {
 }
 
 // enum info
-func (g *GenInfo) AddEnumType(w *WasmEnumType) {
-	g.finder.AddEnumType(w.GetName(), w.GetProtoPackage(), w.GetGoPackage(), w)
+func (g *GenInfo) AddEnumType(name, pbPkg, goPkg string, w *WasmEnumType) {
+	g.finder.AddEnumType(name, pbPkg, goPkg, w)
 }
 
-func (g *GenInfo) AddEnumValue(w *WasmEnumValue, parent *WasmEnumType) {
-	g.finder.AddEnumValue(w.GetName(), parent.GetProtoPackage(), parent.GetProtoPackage(),
-		parent, w)
+func (g *GenInfo) AddEnumValue(name, pbPkg, goPkg string, parent *EnumTypeRecord, s, e int, w *WasmEnumValue) {
+	g.finder.AddEnumValue(name, pbPkg, goPkg,
+		parent, s, e, w)
+}
+func (g *GenInfo) Enum() []*WasmEnumType {
+	return g.finder.Enum()
 }

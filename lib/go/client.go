@@ -47,7 +47,6 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 		ServiceId: c.svc.Marshal(),
 		Caller:    c.caller,
 		Method:    method,
-		InPctx:    nil,
 		Param:     a,
 	}
 	return syscall.Dispatch(in)

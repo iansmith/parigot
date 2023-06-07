@@ -5,7 +5,7 @@ import "msg/queue/v1/queue.proto";
 
 // QueueService supports a reliable source of messages.  Messages
 // may be delivered out of order or delivered multiple times.
-service QueueService {
+service QueueService {    
     // CreateQueue creates a new named queue.   This is useful primarily in preparing
     // for a deployment, not during normal execution.  See LocateQueue to find an already
     // existing queue.

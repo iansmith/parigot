@@ -13,7 +13,7 @@ message Tag {
 // the DOM service. When these are returned the children
 // in the child list do NOT have their children filled in.
 message Element {
-    msg.protosupport.v1.ElementId parigot_id = 1;
+    msg.protosupport.v1.IdRaw parigot_id = 1;
     Tag tag = 2;
     // text is the innerText property of an HTMLElement, not the lower level DOM element
     string text = 3;   
@@ -38,7 +38,7 @@ message ElementByIdResponse {
 // multiple matching elements (and there should not be) you will receive
 // a response that includes only the first match.
 message ElementByEitherIdRequest {
-    msg.protosupport.v1.ElementId parigot_id = 1;
+    msg.protosupport.v1.IdRaw parigot_id = 1;
     string id =2;
 }
 
@@ -54,7 +54,7 @@ message ElementByEitherIdResponse {
 // You must supply one of id and parigot_id but not both.
 message SetChildRequest {
     string id = 1;
-    msg.protosupport.v1.ElementId parigot_id = 2;
+    msg.protosupport.v1.IdRaw parigot_id = 2;
     repeated Element child = 3;
 }
 
