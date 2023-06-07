@@ -4,13 +4,6 @@ option go_package="g/msg/syscall/v1;syscallmsg";
 import "msg/protosupport/v1/protosupport.proto";
 import "google/protobuf/any.proto";
 
-enum KernelErr{
-    option (msg.protosupport.v1.parigot_error) = true;
-    KERNEL_ERR_NOERR = 0;
-    KERNEL_ERR_BADTHING = 1;
-    KERNEL_ERR_AWFULTHING = 2;
-}
-
 // LocateRequest is a read from the kernel of the service id associated with a package, service pair.
 message LocateRequest {
     string package_name = 1;

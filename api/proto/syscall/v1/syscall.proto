@@ -1,0 +1,27 @@
+syntax = "proto3";
+package syscall.v1;
+option go_package="g/syscall/v1;syscallmsg";
+import "msg/protosupport/v1/protosupport.proto";
+
+
+// The syscall package does not have a "service" because the calls
+// made against the kernel of parigot.  If you made a kernel interface
+// how would you Locate it without needing a kernel?
+
+// This file defines some error constants for each of the
+// built-in (kernel) types.  These are errors that intended to
+// be compared against when receiving an error value. The first
+// test of the error value is `IsError()` and if that is true
+// you can use `ErrorCode()` to get a Uint16 that is the error
+// code.  You can compare it to values in these enums at your
+// discretion.  
+//
+// All of the kernel calls return KernelErr as the error code
+// inside a KernelErrId.
+
+enum KernelErr{
+    option (msg.protosupport.v1.parigot_error) = true;
+    NoErr = 0;
+    BadThing = 1;
+    AwfulThing = 2;
+};

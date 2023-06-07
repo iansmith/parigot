@@ -276,7 +276,7 @@ func (g *GenInfo) FindServiceByName(protoPackage, name string) *WasmService {
 	return g.finder.FindServiceByName(protoPackage, hackyName)
 }
 
-func (g *GenInfo) FindEnumByName(protoPackage, name string) *WasmEnumType {
+func (g *GenInfo) FindEnumTypeByName(protoPackage, name string) *WasmEnumType {
 	//xxx fixme this stinks
 	return g.finder.FindEnumTypeByName(protoPackage, name)
 }

@@ -25,6 +25,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
 	for _, toGen := range info.request.FileToGenerate {
+		log.Printf("xxx -- processing %s", info.GetFileByName(toGen).GetName())
 		for i, n := range g.TemplateName() {
 			// if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
 			// 	continue
@@ -59,7 +60,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 			enumType := []*WasmEnumType{}
 			for _, et := range info.GetAllEnumByName(toGen) {
 				desc := info.GetFileByName(toGen)
-				w := info.FindEnumByName(desc.GetPackage(), et.GetName())
+				w := info.FindEnumTypeByName(desc.GetPackage(), et.GetName())
 				if w == nil {
 					log.Printf("missed on findEnumByName %s.%s", desc.GetPackage(), et.GetName())
 				} else {
@@ -67,7 +68,10 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				}
 			}
 			if len(wasmService) == 0 {
-				log.Printf("warning: no services found in %s")
+				path := info.GetFileByName(toGen).GetName()
+				et := info.GetAllEnumByName(path)
+				log.Printf("warning: no services found in %s (%d)", path,
+					len(et))
 				// we don't need to do anything, go plugin will do it
 				continue
 			}
@@ -76,13 +80,13 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				return nil, err
 			}
 			data := map[string]interface{}{
-				"file":    toGen,
-				"req":     info.GetRequest(),
-				"info":    info,
-				"package": pkg,
-				"import":  imp,
-				"service": wasmService,
-				"enum":    enumType,
+				"file":     toGen,
+				"req":      info.GetRequest(),
+				"info":     info,
+				"package":  pkg,
+				"import":   imp,
+				"service":  wasmService,
+				"enumType": enumType,
 			}
 			err = executeTemplate(f, t, n, data)
 			if err != nil {
