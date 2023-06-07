@@ -5,7 +5,8 @@ import "msg/protosupport/v1/protosupport.proto";
 import "google/protobuf/any.proto";
 
 enum KernelErr{
-    KERNEL_ERR_UNSPECIFIED = 0;
+    option (msg.protosupport.v1.parigot_error) = true;
+    KERNEL_ERR_NOERR = 0;
     KERNEL_ERR_BADTHING = 1;
     KERNEL_ERR_AWFULTHING = 2;
 }
@@ -30,27 +31,24 @@ message DispatchRequest {
     msg.protosupport.v1.IdRaw service_id = 1; 
     string method = 2;
     string caller = 3;
-    msg.protosupport.v1.Pctx in_pctx = 4;
-    google.protobuf.Any  param = 5;  // inside is another Request object, but we don't know its type
+    google.protobuf.Any  param = 4;  // inside is another Request object, but we don't know its type
 }
 
 // DispatchResponse sent by the server back to a client. It contains the return results generated
 // by the implementation of the method.  Note that errors are propagated elsewhere.
 message DispatchResponse {
-    msg.protosupport.v1.Pctx out_pctx = 1;
-    google.protobuf.Any result = 2; // again, there is a nested response object but we don't know its type
-    msg.protosupport.v1.IdRaw call_id = 3;
-    msg.protosupport.v1.IdRaw method_id = 4;
+    google.protobuf.Any result = 1; // again, there is a nested response object but we don't know its type
+    msg.protosupport.v1.IdRaw call_id = 2;
+    msg.protosupport.v1.IdRaw method_id = 3;
 }
 
 message ReturnValueRequest{
-  msg.protosupport.v1.CallId call = 1;
-  msg.protosupport.v1.MethodId method = 2;
+  msg.protosupport.v1.IdRaw call = 1;
+  msg.protosupport.v1.IdRaw method = 2;
   google.protobuf.Any result = 3;
-  msg.protosupport.v1.Pctx pctx = 4;
-  string marshal_error = 5;
+  string marshal_error = 4;
   string exec_error = 6;
-  msg.protosupport.v1.BaseId exec_error_id = 7; 
+  msg.protosupport.v1.IdRaw exec_error_id = 7; 
 }
 
 message ReturnValueResponse {
@@ -63,10 +61,9 @@ message BlockUntilCallRequest{
 
 message BlockUntilCallResponse{
   google.protobuf.Any param = 1;
-  msg.protosupport.v1.Pctx pctx = 2;
-  msg.protosupport.v1.MethodId method = 3;
-  msg.protosupport.v1.CallId call = 4;
-  bool timed_out = 5;
+  msg.protosupport.v1.IdRaw method = 2;
+  msg.protosupport.v1.IdRaw call = 3;
+  bool timed_out = 4;
 }
 
 enum MethodDirection {
@@ -84,7 +81,7 @@ message BindMethodRequest  {
 }
 
 message BindMethodResponse {
-  msg.protosupport.v1.MethodId method_id = 1;
+  msg.protosupport.v1.IdRaw method_id = 1;
 }
 
 message FullyQualifiedService {

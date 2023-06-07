@@ -14,10 +14,11 @@ const verbose = false
 type Finder interface {
 	FindMessageByName(protoPkg string, messageName string) *WasmMessage
 	FindServiceByName(protoPkg string, messageName string) *WasmService
+	FindEnumTypeByName(protoPkg string, messageName string) *WasmEnumType
 	AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage)
 	AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService)
 	AddEnumType(wasmName, protoPackage, goPackage string, enum *WasmEnumType)
-	AddEnumValue(wasmName, protoPackage, goPackage string, enum *WasmEnumValue)
+	AddEnumValue(wasmName, protoPackage, goPackage string, type_ *EnumTypeRecord, s, e int, enum *WasmEnumValue)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
 	GoPackageOption(service []*WasmService) (string, error)
 	Service() []*WasmService
@@ -38,6 +39,16 @@ func NewSimpleFinder() *SimpleFinder {
 		message:  make(map[*MessageRecord]*WasmMessage),
 		enumType: make(map[*EnumTypeRecord]*WasmEnumType),
 	}
+}
+func (s *SimpleFinder) Enum() []*WasmEnumType {
+	n := len(s.enumType)
+	result := make([]*WasmEnumType, n)
+	count := 0
+	for _, v := range s.enumType {
+		result[count] = v
+		count++
+	}
+	return result
 }
 func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
 	pkg := ""
@@ -232,6 +243,17 @@ func nameToJustServiceOrMessage(name string) string {
 	}
 	return part[len(part)-1]
 }
+
+func (s *SimpleFinder) FindEnumTypeByName(protoPackage string, name string) *WasmEnumType {
+	for candidate, et := range s.enumType {
+		log.Printf("xxx -- compare '%s' to '%s' for enum", candidate.protoPackage, et.GetProtoPackage())
+		if candidate.protoPackage == protoPackage {
+			log.Printf("got a match on the enum type")
+		}
+	}
+	return nil
+}
+
 func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *WasmService {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) {
@@ -269,17 +291,20 @@ func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto, lang
 		f.AddMessageType(m.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), msg)
 	}
 	for _, s := range pr.GetService() {
+		log.Printf("xxxx %s: %v", s.GetName(), isServiceMarkedParigot(s.Options.String()))
 		svc := NewWasmService(pr, s, lang, f)
 		log.Printf("xxxx-->> adding %s,%s,%s => %s", s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc.GetWasmServiceName())
 		f.AddServiceType(s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
 	}
 	for _, e := range pr.GetEnumType() {
 		eType := NewWasmEnumType(pr, e, lang, f)
+		log.Printf("xxxx %s: %v", e.GetName(), isServiceMarkedParigot(e.Options.String()))
+		rec := NewEnumTypeRecord(*eType.Name, pr.GetPackage(), pr.Options.GetGoPackage(), eType)
 		f.AddEnumType(eType.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), eType)
 		for _, v := range e.Value {
 			eValue := NewWasmEnumValue(pr, v, lang, f, eType)
 			eType.AddChild(eValue)
-			f.AddEnumValue(eValue.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), eValue)
+			f.AddEnumValue(eValue.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), rec, int(v.GetNumber()), int(v.GetNumber()), eValue)
 		}
 	}
 }

@@ -69,10 +69,6 @@ func (w *WasmMethod) AddImportsNeeded(imp map[string]struct{}) {
 	w.addImportForOutput(w.CGOutput().GetCGType().CompositeType(), imp)
 }
 
-func (w *WasmMethod) HasNoPackageOption() bool {
-	return w.parent.HasNoPackageOption()
-}
-
 func (w *WasmMethod) HasAbiCallOption() bool {
 	return w.abiCall
 }

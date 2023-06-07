@@ -60,7 +60,7 @@ message StartResponse {
 message ComparisonResult {
   string name = 1;
   string error_message = 2;
-  msg.protosupport.v1.KernelErrorId error_id = 3;
+  msg.protosupport.v1.IdRaw error_id = 3;
   bool success = 4;
 }
 

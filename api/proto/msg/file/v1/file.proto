@@ -13,20 +13,20 @@ message OpenRequest {
 }
 
 message CloseRequest {
-  msg.protosupport.v1.FileId id = 1;
+  msg.protosupport.v1.IdRaw id = 1;
 }
 
 message CreateResponse {
     string path = 1;
     // This id might contain an error value.
-    msg.protosupport.v1.FileId id = 2;
+    msg.protosupport.v1.IdRaw id = 2;
     bool truncated = 3;
 }
 
 message OpenResponse {
     string path = 1;
     // This id might contain an error value.
-    msg.protosupport.v1.FileId id = 2;
+    msg.protosupport.v1.IdRaw id = 2;
 }
 
 // CloseResponse is not empty because it can return an error. However, there is no
@@ -34,7 +34,7 @@ message OpenResponse {
 // to the system operators.
 message CloseResponse {
   // This will be NoError or some error code, not a handle to an open file.
-  msg.protosupport.v1.FileId id = 1;
+  msg.protosupport.v1.IdRaw id = 1;
 }
 
 // LoadTestDataRequest loads the contents of given directory from the _host_ file system into the /app directory

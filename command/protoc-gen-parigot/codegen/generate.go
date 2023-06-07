@@ -56,7 +56,18 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				}
 				wasmService = append(wasmService, w)
 			}
+			enumType := []*WasmEnumType{}
+			for _, et := range info.GetAllEnumByName(toGen) {
+				desc := info.GetFileByName(toGen)
+				w := info.FindEnumByName(desc.GetPackage(), et.GetName())
+				if w == nil {
+					log.Printf("missed on findEnumByName %s.%s", desc.GetPackage(), et.GetName())
+				} else {
+					log.Printf("found the enum entry %s.%s", desc.GetPackage(), et.GetName())
+				}
+			}
 			if len(wasmService) == 0 {
+				log.Printf("warning: no services found in %s")
 				// we don't need to do anything, go plugin will do it
 				continue
 			}
@@ -71,6 +82,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				"package": pkg,
 				"import":  imp,
 				"service": wasmService,
+				"enum":    enumType,
 			}
 			err = executeTemplate(f, t, n, data)
 			if err != nil {
@@ -100,35 +112,24 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 	for _, f := range file {
 		allSvc := result.GetService(f)
 		for _, svc := range allSvc {
-			w := NewWasmService(result.GetFileByName(f), svc, lang, result)
+			w := NewWasmService(result.GetFileByName(f), svc, lang, result.finder)
 			result.RegisterService(w)
 		}
 	}
-
-	// for _, f:=result.request.FileToGenerate {
-	// 	w:=NewWasmService(result.)
-	// }
-	//we are going to generate the file in result so make sure everything is registered
-	// for i, s := range result..GetService() {
-	// 	log.Printf("about to create an reg new wasm service [%d]: %s", i, s.GetName())
-	// 	w := NewWasmService(result.file, s, lang, result)
-	// 	result.RegisterService(w)
-	// }
 	for _, f := range file {
 		for _, m := range result.GetAllMessageByName(f) {
-			w := NewWasmMessage(result.GetFileByName(f), m, lang, result)
+			w := NewWasmMessage(result.GetFileByName(f), m, lang, result.finder)
 			result.RegisterMessage(w)
 		}
 	}
-	et := result.GetEnumType()
-	log.Printf("number of enums in file %s: %d", pr.GetName(), len(et))
-	for _, e := range et {
+	et := result.finder.enumType
+	for typeName, e := range et {
 		for _, name := range e.ReservedName {
-			log.Printf("type %s=>name %s", *e.Name, name)
-		}
-		for _, range_ := range e.GetReservedRange() {
-			log.Printf("type %s=>range [%d,%d]", *e.Name, range_.GetStart(), range_.GetEnd())
+			log.Printf("type %s=>name %s (%s)", typeName, name, e.parent.GetName())
+			for _, rg := range e.child {
+				log.Printf("value %s=>range [%d,%d]", *rg.Name, rg.start, rg.end)
 
+			}
 		}
 	}
 
@@ -151,15 +152,3 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 	}
 	return result
 }
-
-// func matchService(toGen string, fd []*descriptorpb.FileDescriptorProto) []*descriptorpb.ServiceDescriptorProto {
-// 	for _, protofile := range fd {
-// 		fdName := protofile.GetName()
-// 		svcs := protofile.GetService()
-// 		log.Printf("xxx match service considering match of %s to %s", toGen, fdName)
-// 		if toGen == fdName {
-// 			return svcs
-// 		}
-// 	}
-// 	return nil
-// }

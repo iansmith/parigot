@@ -8,19 +8,17 @@ import "google/protobuf/any.proto";
 // is made.  
 
 message RPCRequest {
-	msg.protosupport.v1.Pctx pctx = 1;
 	google.protobuf.Any param = 2; 
-	msg.protosupport.v1.ServiceId service_id= 3;
-	msg.protosupport.v1.CallId call_id = 4;
+	msg.protosupport.v1.IdRaw service_id= 3;
+	msg.protosupport.v1.IdRaw call_id = 4;
 	// if you supply method_id, it takes precedence over the string
-	msg.protosupport.v1.MethodId method_id = 5;
+	msg.protosupport.v1.IdRaw method_id = 5;
 	string method_name = 6;
 	string sender = 7;
 }
 message RPCResponse {
-	msg.protosupport.v1.Pctx pctx = 1;
-	google.protobuf.Any result = 2; 
-	msg.protosupport.v1.CallId call_id = 3;
-	msg.protosupport.v1.MethodId method_id = 4; // so you can cache it for later
-	msg.protosupport.v1.KernelErrorId kerr_id = 5;
+	google.protobuf.Any result = 1; 
+	msg.protosupport.v1.IdRaw call_id = 2;
+	msg.protosupport.v1.IdRaw method_id = 3; // so you can cache it for later
+	msg.protosupport.v1.IdRaw kerr_id = 4;
 }

@@ -14,7 +14,6 @@ type WasmMessage struct {
 	field           []*WasmField
 	lang            LanguageText
 	finder          Finder
-	noPackage       bool
 	inputTo         *WasmMethod
 	outputFrom      *WasmMethod
 }
@@ -87,10 +86,6 @@ func (m *WasmMessage) GetParent() *descriptorpb.FileDescriptorProto {
 }
 func (m *WasmMessage) GetFullName() string {
 	return m.GetParent().GetPackage() + "." + m.GetWasmMessageName()
-}
-
-func (m *WasmMessage) HasNoPackageOption() bool {
-	return m.noPackage
 }
 
 func (m *WasmMessage) NotGoogleMessage() bool {
