@@ -11,7 +11,7 @@ import (
 
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
 // ParigotInit is the interface that plugins must meet to be
@@ -250,8 +250,8 @@ func (p *Process) Start(ctx context.Context) (code int) {
 			log.Printf("flush")
 
 			procPrint(ctx, "START ******** ", "INSIDE defer %s, %+v", proc, r)
-			e, ok := r.(*syscallmsg.ExitRequest)
-			procPrint(ctx, "Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscallmsg.ExitRequest), ok)
+			e, ok := r.(*syscall.ExitRequest)
+			procPrint(ctx, "Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscall.ExitRequest), ok)
 			if ok {
 				code = int(e.GetCode())
 				proc.SetExitCode(code)

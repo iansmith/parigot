@@ -17,8 +17,8 @@ import(
     lib "github.com/iansmith/parigot/lib/go"  
     pcontext "github.com/iansmith/parigot/context"  
     "github.com/iansmith/parigot/apishared/id"  
-    syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
-    "github.com/iansmith/parigot/apiwasm/syscall" 
+    syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    syscallguest "github.com/iansmith/parigot/apiwasm/syscall" 
 
 
 {{/* this special case for log.Log kinda stinks */}}
@@ -73,13 +73,13 @@ type {{$svcCamel}}Client_ struct {
 
 // Locate finds a reference to the client interface of {{$svc}}.  
 func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,id.KernelErrId) {
-	req := &syscallmsg.LocateRequest{
+	req := &syscall.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
         CalledBy: sid.Marshal(),
 	}
 
-    resp,errId:=syscall.Locate(req)
+    resp,errId:=syscallguest.Locate(req)
     print("locate ","{{.ProtoPackage}} ","{{$svc}}"," sid ",sid.String()," result ",resp," error ",errId.String(),"\n")
     if errId.IsError() { 
         pcontext.Errorf(ctx,"UnmarshalServiceId failed: %v",errId.Short())
@@ -111,15 +111,15 @@ func MustLocate{{$svc}}(ctx context.Context, sid id.ServiceId) {{$svcCamel}}Clie
 }
 
 func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
-    req := &syscallmsg.RegisterRequest{}
-	fqs := &syscallmsg.FullyQualifiedService{
+    req := &syscall.RegisterRequest{}
+	fqs := &syscall.FullyQualifiedService{
 		PackagePath: "{{.ProtoPackage}}",
 		Service:     "{{$svc}}",
 	}
 	req.Fqs = fqs
     req.IsClient = false
 
-	resp, err := syscall.Register(req)
+	resp, err := syscallguest.Register(req)
     if err.IsError() {
         return id.ZeroValueServiceId(), err
     }
@@ -159,7 +159,7 @@ func MustExport{{$svc}}(ctx context.Context) {
 }
 func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
     s:=sid.Marshal()
-	syscall.Run(&syscallmsg.RunRequest{Wait: true, ServiceId:s })
+	syscallguest.Run(&syscall.RunRequest{Wait: true, ServiceId:s })
 
 }
 
