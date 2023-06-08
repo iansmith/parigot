@@ -14,6 +14,8 @@ import (
 // var msgRegex = regexp.MustCompile(`(.*\/g\/msg\/)([[:alpha][[:alphanum]]*)(\/v[[:digit]]+)`)
 var msgRegex = regexp.MustCompile(`(.*g/msg/)([[:alpha:]][[:alnum:]]*)(/v[0-9]+)$`)
 
+var fileSeen = make(map[string]struct{})
+
 // BasicGenerate is the primary code generation driver. Language-specific code
 // (in generator.Generate()) is called and that code typically does some setup and
 // then calls into this code, passing itself as the g.  This function expects the
@@ -25,7 +27,15 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
 	for _, toGen := range info.request.FileToGenerate {
-		log.Printf("xxx -- processing %s", info.GetFileByName(toGen).GetName())
+		fname := info.GetFileByName(toGen).GetName()
+		_, ok := fileSeen[fname]
+		if ok {
+			continue
+		} else {
+			fileSeen[fname] = struct{}{}
+		}
+		log.Printf("xxx -- processing %s  ---- ", fname)
+
 		for i, n := range g.TemplateName() {
 			// if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
 			// 	continue
@@ -57,36 +67,31 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				}
 				wasmService = append(wasmService, w)
 			}
-			enumType := []*WasmEnumType{}
-			for _, et := range info.GetAllEnumByName(toGen) {
+			wasmMessage := []*WasmMessage{}
+			for _, pb := range info.GetAllMessageByName(toGen) {
 				desc := info.GetFileByName(toGen)
-				w := info.FindEnumTypeByName(desc.GetPackage(), et.GetName())
+				pbPkg := desc.GetPackage()
+				w := info.FindMessageByName(pbPkg, pb.GetName())
 				if w == nil {
-					log.Printf("missed on findEnumByName %s.%s", desc.GetPackage(), et.GetName())
-				} else {
-					log.Printf("found the enum entry %s.%s", desc.GetPackage(), et.GetName())
+					panic(fmt.Sprintf("can't find service %s", toGen))
 				}
+				wasmMessage = append(wasmMessage, w)
 			}
+
 			if len(wasmService) == 0 {
-				path := info.GetFileByName(toGen).GetName()
-				et := info.GetAllEnumByName(path)
-				log.Printf("warning: no services found in %s (%d)", path,
-					len(et))
-				// we don't need to do anything, go plugin will do it
 				continue
 			}
-			pkg, err := info.GoPackageOption(wasmService)
+			pkg, err := info.GoPackageOption(wasmService, wasmMessage)
 			if err != nil {
 				return nil, err
 			}
 			data := map[string]interface{}{
-				"file":     toGen,
-				"req":      info.GetRequest(),
-				"info":     info,
-				"package":  pkg,
-				"import":   imp,
-				"service":  wasmService,
-				"enumType": enumType,
+				"file":    toGen,
+				"req":     info.GetRequest(),
+				"info":    info,
+				"package": pkg,
+				"import":  imp,
+				"service": wasmService,
 			}
 			err = executeTemplate(f, t, n, data)
 			if err != nil {

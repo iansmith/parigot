@@ -9,7 +9,7 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
 // Locate is the means of aquiring a handle to a particular service.
@@ -17,12 +17,12 @@ import (
 // auto generated method LocateFooOrPanic() for getting an initial
 // handle the Foo service.
 //
-// func Locate(*syscallmsg.LocateRequest) *syscallmsg.LocateResponse
+// func Locate(*syscall.LocateRequest) *syscall.LocateResponse
 //
 //go:wasmimport parigot locate_
 func Locate_(int32, int32, int32, int32) int64
-func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.KernelErrId) {
-	outProtoPtr := &syscallmsg.LocateResponse{}
+func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, id.KernelErrId) {
+	outProtoPtr := &syscall.LocateResponse{}
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
@@ -49,8 +49,8 @@ func Locate(inPtr *syscallmsg.LocateRequest) (*syscallmsg.LocateResponse, id.Ker
 //
 //go:wasmimport parigot dispatch_
 func Dispatch_(int32, int32) int32
-func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.KernelErrId) {
-	out := &syscallmsg.DispatchResponse{}
+func Dispatch(in *syscall.DispatchRequest) (*syscall.DispatchResponse, id.KernelErrId) {
+	out := &syscall.DispatchResponse{}
 	// err := error(nil)
 	// if err != nil {
 	// 	return nil, err
@@ -61,13 +61,13 @@ func Dispatch(in *syscallmsg.DispatchRequest) (*syscallmsg.DispatchResponse, id.
 // BlockUntilCall is used to block a process until a request is received from another process.  Even when
 // all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
 //
-// func BlockUntilCall(*syscallmsg.BlockUntilCallRequest) *syscallmsg.BlockUntilCallResponse
+// func BlockUntilCall(*syscall.BlockUntilCallRequest) *syscall.BlockUntilCallResponse
 //
 //go:wasmimport parigot block_until_call_
 func BlockUntilCall_(int32, int32) int32
 
-func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUntilCallResponse, error) {
-	out := &syscallmsg.BlockUntilCallResponse{}
+func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error) {
+	out := &syscall.BlockUntilCallResponse{}
 	err := error(nil)
 	if err != nil {
 		return nil, err
@@ -79,13 +79,13 @@ func BlockUntilCall(in *syscallmsg.BlockUntilCallRequest) (*syscallmsg.BlockUnti
 // a given method id. This is normally not needed by user code because the
 // generated code for any service will call this automatically.
 //
-// func BindMethod(*syscallmsg.BindMethodRequest) *syscallmsg.BindMethodResponse
+// func BindMethod(*syscall.BindMethodRequest) *syscall.BindMethodResponse
 //
 //go:wasmimport parigot bind_method_
 func BindMethod_(int32, int32) int32
 
-func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
-	out := &syscallmsg.BindMethodResponse{}
+func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
+	out := &syscall.BindMethodResponse{}
 	err := error(nil)
 	if err != nil {
 		return nil, err
@@ -100,8 +100,8 @@ func BindMethod(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodRespons
 //
 //go:wasmimport parigot run_
 func Run_(int32, int32, int32, int32) int64
-func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId) {
-	outProtoPtr := (*syscallmsg.RunResponse)(nil)
+func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, id.KernelErrId) {
+	outProtoPtr := (*syscall.RunResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
 	sid, iid := id.UnmarshalServiceId(inPtr.GetServiceId())
@@ -126,8 +126,8 @@ func Run(inPtr *syscallmsg.RunRequest) (*syscallmsg.RunResponse, id.KernelErrId)
 //
 //go:wasmimport parigot export_
 func Export_(int32, int32, int32, int32) int64
-func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.KernelErrId) {
-	outProtoPtr := (*syscallmsg.ExportResponse)(nil)
+func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, id.KernelErrId) {
+	outProtoPtr := (*syscall.ExportResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Export")
 	defer pcontext.Dump(ctx)
 	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Export_)
@@ -144,8 +144,8 @@ func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Ker
 //
 //go:wasmimport parigot return_value_
 // func ReturnValue_(int32, int32) int32
-// func ReturnValue(in *syscallmsg.ReturnValueRequest) (*syscallmsg.ReturnValueResponse, id.Id) {
-// 	out := &syscallmsg.ReturnValueResponse{}
+// func ReturnValue(in *syscall.ReturnValueRequest) (*syscall.ReturnValueResponse, id.Id) {
+// 	out := &syscall.ReturnValueResponse{}
 // 	// err := error(nil)
 // 	// if err != nil {
 // 	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
@@ -159,8 +159,8 @@ func Export(inPtr *syscallmsg.ExportRequest) (*syscallmsg.ExportResponse, id.Ker
 //
 //go:wasmimport parigot require_
 func Require_(int32, int32, int32, int32) int64
-func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.KernelErrId) {
-	outProtoPtr := (*syscallmsg.RequireResponse)(nil)
+func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, id.KernelErrId) {
+	outProtoPtr := (*syscall.RequireResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Require")
 	defer pcontext.Dump(ctx)
 	rr, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
@@ -178,8 +178,8 @@ func Require(inPtr *syscallmsg.RequireRequest) (*syscallmsg.RequireResponse, id.
 //
 //go:wasmimport parigot exit
 func Exit_(int32, int32) int32
-func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
-	out := &syscallmsg.ExitResponse{}
+func Exit(in *syscall.ExitRequest) (*syscall.ExitResponse, id.IdRaw) {
+	out := &syscall.ExitResponse{}
 	// err := error(nil)
 	// if err != nil {
 	// 	return nil, //fmt.Errorf("Exit_ failed:%v", err)
@@ -193,8 +193,8 @@ func Exit(in *syscallmsg.ExitRequest) (*syscallmsg.ExitResponse, id.IdRaw) {
 //go:wasmimport parigot register_
 func Register_(int32, int32, int32, int32) int64
 
-func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, id.KernelErrId) {
-	outProtoPtr := &syscallmsg.RegisterResponse{}
+func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, id.KernelErrId) {
+	outProtoPtr := &syscall.RegisterResponse{}
 	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]Register")
 	defer pcontext.Dump(ctx)
 	rr, kid, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
@@ -208,7 +208,7 @@ func Register(inPtr *syscallmsg.RegisterRequest) (*syscallmsg.RegisterResponse, 
 // using the Run syscall.  MustSatisfyWait is a better name for what goes on
 // in the course of a Run() call.
 func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
-	req := &syscallmsg.RunRequest{
+	req := &syscall.RunRequest{
 		Wait:      true,
 		ServiceId: sid.Marshal(),
 	}

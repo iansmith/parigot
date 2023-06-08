@@ -266,8 +266,8 @@ func (g *GenInfo) GetAllEnumByName(generatedFile string) []*descriptorpb.EnumDes
 	return g.nameToEnumType[generatedFile]
 }
 
-func (g *GenInfo) GoPackageOption(service []*WasmService) (string, error) {
-	return g.finder.GoPackageOption(service)
+func (g *GenInfo) GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error) {
+	return g.finder.GoPackageOption(service, message)
 }
 
 func (g *GenInfo) FindServiceByName(protoPackage, name string) *WasmService {

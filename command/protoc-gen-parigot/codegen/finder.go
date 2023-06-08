@@ -20,7 +20,7 @@ type Finder interface {
 	AddEnumType(wasmName, protoPackage, goPackage string, enum *WasmEnumType)
 	AddEnumValue(wasmName, protoPackage, goPackage string, type_ *EnumTypeRecord, s, e int, enum *WasmEnumValue)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
-	GoPackageOption(service []*WasmService) (string, error)
+	GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error)
 	Service() []*WasmService
 	Message() []*WasmMessage
 	Enum() []*WasmEnumType
@@ -50,17 +50,19 @@ func (s *SimpleFinder) Enum() []*WasmEnumType {
 	}
 	return result
 }
-func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
+func (s *SimpleFinder) GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error) {
 	pkg := ""
 	for _, svc := range service {
 		for sr, m := range s.service {
 			if m == svc {
-				//print(fmt.Sprintf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr))
+				// log.Printf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr)
 				// if pkg != "" && pkg != sr.goPackage {
 				// 	return "", fmt.Errorf("service '%s':mismatched go packages in go_option: '%s' and '%s'",
 				// 		svc.GetName(), pkg, sr.goPackage)
 				// }
 				part := strings.Split(sr.goPackage, ";")
+				//log.Printf("\t%+v, %s", part, part[1])
+
 				if len(part) != 2 {
 					return "", fmt.Errorf("service %s: cannot understand go package option '%s'",
 						svc.GetName(), sr.goPackage)
@@ -68,6 +70,19 @@ func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
 				pkg = part[1]
 			}
 		}
+	}
+	if len(service) == 0 {
+		for _, msg := range message {
+			//log.Printf("%s?%s", msg.GetName(), msg.GetGoPackage())
+			raw := msg.GetGoPackage()
+			part := strings.Split(raw, ";")
+			if len(part) == 2 {
+				pkg = part[1]
+			}
+		}
+	}
+	if pkg == "" {
+		panic("no package")
 	}
 	return pkg, nil
 }

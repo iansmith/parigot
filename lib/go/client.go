@@ -6,9 +6,9 @@ import (
 	"math/rand"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm/syscall"
+	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -31,7 +31,7 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscallmsg.DispatchResponse, id.KernelErrId) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscall.DispatchResponse, id.KernelErrId) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
@@ -43,20 +43,20 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	if c.svc.IsZeroValue() {
 		panic("cannot dispatch to a nil service! client side service field 'svc' is nil")
 	}
-	in := &syscallmsg.DispatchRequest{
+	in := &syscall.DispatchRequest{
 		ServiceId: c.svc.Marshal(),
 		Caller:    c.caller,
 		Method:    method,
 		Param:     a,
 	}
-	return syscall.Dispatch(in)
+	return syscallguest.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.KernelErrId) {
-	req := syscallmsg.RunRequest{
+func (c *ClientSideService) Run() (*syscall.RunResponse, id.KernelErrId) {
+	req := syscall.RunRequest{
 		Wait: true,
 	}
-	out, err := syscall.Run(&req)
+	out, err := syscallguest.Run(&req)
 	if err.IsError() {
 		return nil, err
 	}
@@ -66,31 +66,31 @@ func (c *ClientSideService) Run() (*syscallmsg.RunResponse, id.KernelErrId) {
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string, source id.ServiceId) (*syscallmsg.RequireResponse, id.KernelErrId) {
-	fqs := &syscallmsg.FullyQualifiedService{
+func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, id.KernelErrId) {
+	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
-	in := &syscallmsg.RequireRequest{
-		Dest:   []*syscallmsg.FullyQualifiedService{fqs},
+	in := &syscall.RequireRequest{
+		Dest:   []*syscall.FullyQualifiedService{fqs},
 		Source: source.Marshal(),
 	}
-	resp, err := syscall.Require(in)
+	resp, err := syscallguest.Require(in)
 	return resp, err
 }
 
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscallmsg.ExportResponse, id.KernelErrId) {
-	fqs := &syscallmsg.FullyQualifiedService{
+func Export1(pkg, name string) (*syscall.ExportResponse, id.KernelErrId) {
+	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
-	in := &syscallmsg.ExportRequest{
-		Service: []*syscallmsg.FullyQualifiedService{fqs},
+	in := &syscall.ExportRequest{
+		Service: []*syscall.FullyQualifiedService{fqs},
 	}
-	resp, kerr := syscall.Export(in)
+	resp, kerr := syscallguest.Export(in)
 	return resp, kerr
 }
 
@@ -107,14 +107,14 @@ func MustRegisterClient(ctx context.Context) id.ServiceId {
 }
 
 func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId {
-	req := &syscallmsg.RegisterRequest{}
-	fqs := &syscallmsg.FullyQualifiedService{
+	req := &syscall.RegisterRequest{}
+	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
 	req.Fqs = fqs
 	req.IsClient = isClient
-	resp, err := syscall.Register(req)
+	resp, err := syscallguest.Register(req)
 	if err.IsError() {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name, err.Short())
 		panic("registration error")

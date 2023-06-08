@@ -9,12 +9,13 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
-	"github.com/iansmith/parigot/apiwasm/syscall"
+	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
 	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
+
 	queueg "github.com/iansmith/parigot/g/queue/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -315,12 +316,12 @@ func splitPkgAndService(s string) (string, string) {
 
 func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.UnderTestServiceClient, test.TestErrId) {
 	pcontext.Debugf(ctx, "xxx locate test pkg=%s svc=%s\n", pkg, svc)
-	req := &syscallmsg.LocateRequest{
+	req := &syscall.LocateRequest{
 		PackageName: pkg,
 		ServiceName: svc,
 	}
 	pcontext.Debugf(ctx, "xxx locate client 1")
-	resp, err := syscall.Locate(req)
+	resp, err := syscallguest.Locate(req)
 	if err.IsError() {
 		pcontext.Errorf(ctx, "locate failed for %s.%s", pkg, svc)
 		return nil, test.NewTestErrId(TestErrorServiceNotFound)

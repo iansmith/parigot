@@ -153,20 +153,6 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 			fileToMsg[desc.GetName()] = allMsg
 		}
 	}
-	for _, fileDesc := range genReq.GetProtoFile() {
-		for _, enum := range fileDesc.GetEnumType() {
-			if !codegen.IsEnumMarkedParigot(enum.GetOptions().String()) {
-				continue
-			}
-			log.Printf("xxx -- enum %s", enum.GetName())
-			enumType[enum.GetName()] = append(enumType[enum.GetName()], enum)
-			for _, val := range enum.GetValue() {
-				log.Printf("xxx -- value %s, %d,%d", val.GetName(), val.GetNumber(), val.GetNumber())
-				enumTypeToValue[enum.GetName()] = append(enumTypeToValue[enum.GetName()], val)
-			}
-
-		}
-	}
 	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {

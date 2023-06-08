@@ -3,7 +3,6 @@ import "google/protobuf/descriptor.proto";
 package msg.protosupport.v1;
 option go_package="github.com/iansmith/parigot/g/msg/protosupport/v1;protosupportmsg";
 
-
 message IdRaw {
   uint64 high = 1;
   uint64 low = 2;

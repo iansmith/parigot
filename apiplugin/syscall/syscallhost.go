@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -39,7 +39,7 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 // Syscall host implementations
 //
 
-func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
+func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) id.IdRaw {
 	for _, fullyQualified := range req.GetService() {
 		sid, _ := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
@@ -57,7 +57,7 @@ func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrI
 
 }
 
-func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.RunResponse) id.IdRaw {
+func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResponse) id.IdRaw {
 	sid, idErr := id.UnmarshalServiceId(req.GetServiceId())
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
@@ -68,7 +68,7 @@ func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.R
 	return id.KernelErrIdNoErr.Raw()
 }
 
-func locateImpl(ctx context.Context, req *syscallmsg.LocateRequest, resp *syscallmsg.LocateResponse) id.IdRaw {
+func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) id.IdRaw {
 	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.MustUnmarshalServiceId(req.CalledBy),
 		req.GetPackageName()+"."+req.GetServiceName())
 	svc, ok := depData().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
@@ -85,13 +85,13 @@ func locateImpl(ctx context.Context, req *syscallmsg.LocateRequest, resp *syscal
 	return id.IdRaw(id.KernelErrIdNoErr)
 }
 
-func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
+func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) id.IdRaw {
 	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.Id = svc.Id().Marshal()
 	return id.KernelErrIdNoErr.Raw()
 }
 
-func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.IdRaw {
+func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) id.IdRaw {
 	src, idErr := id.UnmarshalServiceId(req.GetSource())
 	if idErr.IsError() {
 		returnKernelErrorForIdErr(ctx, idErr)
@@ -122,8 +122,8 @@ func locate(ctx context.Context, m api.Module, stack []uint64) {
 			print("Trapped a panic in locate ", r, "\n")
 		}
 	}()
-	req := &syscallmsg.LocateRequest{}
-	resp := &syscallmsg.LocateResponse{}
+	req := &syscall.LocateRequest{}
+	resp := &syscall.LocateResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
@@ -143,8 +143,8 @@ func run(ctx context.Context, m api.Module, stack []uint64) {
 			print("Trapped a panic in run ", r, "\n")
 		}
 	}()
-	req := &syscallmsg.RunRequest{}
-	resp := (*syscallmsg.RunResponse)(nil)
+	req := &syscall.RunRequest{}
+	resp := (*syscall.RunResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
@@ -153,8 +153,8 @@ func export(ctx context.Context, m api.Module, stack []uint64) {
 			print("trapped recover in export", r, "\n")
 		}
 	}()
-	req := &syscallmsg.ExportRequest{}
-	resp := (*syscallmsg.ExportResponse)(nil)
+	req := &syscall.ExportRequest{}
+	resp := (*syscall.ExportResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
@@ -167,8 +167,8 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 			print("FOUND RECOVERE ", r, "\n")
 		}
 	}()
-	req := &syscallmsg.RequireRequest{}
-	resp := (*syscallmsg.RequireResponse)(nil)
+	req := &syscall.RequireRequest{}
+	resp := (*syscall.RequireResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
 
 }
@@ -179,8 +179,8 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 			print("FOUND RECOVERE ", r, "\n")
 		}
 	}()
-	req := &syscallmsg.RegisterRequest{}
-	resp := &syscallmsg.RegisterResponse{}
+	req := &syscall.RegisterRequest{}
+	resp := &syscall.RegisterResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
 
 }
