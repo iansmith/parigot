@@ -12,7 +12,6 @@ import (
 	"github.com/iansmith/parigot/g/log/v1"
 	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
 	logmsg "github.com/iansmith/parigot/g/msg/log/v1"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
 	pbsys "github.com/iansmith/parigot/g/msg/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"google.golang.org/protobuf/proto"

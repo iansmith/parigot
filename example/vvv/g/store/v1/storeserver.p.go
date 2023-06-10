@@ -12,10 +12,10 @@ storemsg "example/vvv/g/msg/store/v1"
 
 	os "os"
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-	"github.com/iansmith/parigot/g/msg/protosupport/v1"
-	"github.com/iansmith/parigot/g/msg/syscall/v1"
-	"github.com/iansmith/parigot/apiimpl/syscall"
-	"github.com/iansmith/parigot/apiimpl/background"
+	"github.com/iansmith/parigot/g/protosupport/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/apiwasm/syscall"
+	"github.com/iansmith/parigot/apiwasm/background"
 	lib "github.com/iansmith/parigot/lib/go"
 	
 	"google.golang.org/protobuf/proto"
@@ -28,10 +28,10 @@ storemsg "example/vvv/g/msg/store/v1"
 
 type StoreServiceServer interface {
 
-	MediaTypesInStock(pctx *protosupportmsg.Pctx)(proto.Message, error) 
-	BestOfAllTime(pctx *protosupportmsg.Pctx, in proto.Message)(proto.Message, error) 
-	Revenue(pctx *protosupportmsg.Pctx, in proto.Message)(proto.Message, error) 
-	SoldItem(pctx *protosupportmsg.Pctx, in proto.Message)error  
+	MediaTypesInStock(pctx *protosupport.Pctx)(proto.Message, error) 
+	BestOfAllTime(pctx *protosupport.Pctx, in proto.Message)(proto.Message, error) 
+	Revenue(pctx *protosupport.Pctx, in proto.Message)(proto.Message, error) 
+	SoldItem(pctx *protosupport.Pctx, in proto.Message)error  
 	Ready() bool
 } 
 

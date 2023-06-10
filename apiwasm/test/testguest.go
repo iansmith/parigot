@@ -11,8 +11,6 @@ import (
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
-	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
@@ -56,7 +54,7 @@ type suiteInfo struct {
 	funcName     []string
 }
 
-func newSuiteInfo(req *testmsg.AddTestSuiteRequest) ([]*suiteInfo, test.TestErrId) {
+func newSuiteInfo(req *test.AddTestSuiteRequest) ([]*suiteInfo, test.TestErrId) {
 	infoList := []*suiteInfo{}
 
 	for _, suite := range req.GetSuite() {
@@ -103,7 +101,7 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	return true
 }
 
-func (m *myTestServer) AddTestSuite(ctx context.Context, req *testmsg.AddTestSuiteRequest) (*testmsg.AddTestSuiteResponse, test.TestErrId) {
+func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) (*test.AddTestSuiteResponse, test.TestErrId) {
 
 	infoList, err := newSuiteInfo(req)
 	if err.IsError() { // really should not happen
@@ -135,7 +133,7 @@ func (m *myTestServer) AddTestSuite(ctx context.Context, req *testmsg.AddTestSui
 		}
 	}
 
-	resp := &testmsg.AddTestSuiteResponse{
+	resp := &test.AddTestSuiteResponse{
 		Succeeded: success,
 	}
 	pcontext.Debugf(ctx, "", "addSuiteResp.Succeeded:%#v", resp.Succeeded)
@@ -152,7 +150,7 @@ func contains(list []string, cand string) bool {
 	return false
 }
 
-func (m *myTestServer) Start(ctx context.Context, req *testmsg.StartRequest) (*testmsg.StartResponse, test.TestErrId) {
+func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test.StartResponse, test.TestErrId) {
 	var regexpFail bool
 	var suiteString, nameString string
 	var err error
@@ -178,7 +176,7 @@ func (m *myTestServer) Start(ctx context.Context, req *testmsg.StartRequest) (*t
 		}
 	}
 	if regexpFail {
-		return &testmsg.StartResponse{
+		return &test.StartResponse{
 			RegexFailed: regexpFail,
 		}, test.NewTestErrId(TestErrorrRegexpFailed)
 	}
@@ -224,7 +222,7 @@ func (m *myTestServer) Start(ctx context.Context, req *testmsg.StartRequest) (*t
 			m.addAllTests(pcontext.CallTo(ctx, "addAlTests"), suite)
 		}
 	}
-	resp := &testmsg.StartResponse{
+	resp := &test.StartResponse{
 		NumTest: int32(count),
 	}
 	return resp, test.TestErrIdNoErr
@@ -233,7 +231,7 @@ func (m *myTestServer) Background(ctx context.Context) {
 	if !m.started {
 		return
 	}
-	req := queuemsg.ReceiveRequest{
+	req := queue.ReceiveRequest{
 		Id:           m.testQid.Marshal(),
 		MessageLimit: 1,
 	}
@@ -244,7 +242,7 @@ func (m *myTestServer) Background(ctx context.Context) {
 	}
 	msg := resp.Message[0]
 	aload := msg.GetPayload()
-	payload := testmsg.QueuePayload{}
+	payload := test.QueuePayload{}
 	unmarsh := aload.UnmarshalTo(&payload)
 	if err.IsError() {
 		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s, retrying...", unmarsh.Error())
@@ -292,7 +290,7 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 	}
 	pcontext.Debugf(ctx, "run tests4, got a client")
 	resp, err :=
-		client.Exec(ctx, &testmsg.ExecRequest{
+		client.Exec(ctx, &test.ExecRequest{
 			Package: pkg,
 			Service: svc,
 			Name:    part[len(part)-1],
@@ -341,10 +339,10 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.
 
 // makeSendRequest creates a SendRequest and all the internal objects required
 // make it work correctly in the test queue.
-func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName string) (*queuemsg.SendRequest, test.TestErrId) {
+func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName string) (*queue.SendRequest, test.TestErrId) {
 
 	qidM := qid.Marshal()
-	payload := testmsg.QueuePayload{
+	payload := test.QueuePayload{
 		Name:     name,
 		FuncName: funcName,
 	}
@@ -353,13 +351,13 @@ func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName str
 		pcontext.Errorf(ctx, "unable to marshal payload creating send request: %s", err.Error())
 		return nil, test.NewTestErrId(TestErrorMarshaling)
 	}
-	msg := queuemsg.QueueMsg{
+	msg := queue.QueueMsg{
 		Payload: &a,
 		Id:      nil,
 	}
-	req := queuemsg.SendRequest{
+	req := queue.SendRequest{
 		Id:  qidM,
-		Msg: []*queuemsg.QueueMsg{&msg},
+		Msg: []*queue.QueueMsg{&msg},
 	}
 	return &req, test.TestErrIdNoErr
 }

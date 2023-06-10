@@ -1,7 +1,7 @@
 syntax = "proto3";
 package syscall.v1;
 option go_package="g/syscall/v1;syscallmsg";
-import "msg/protosupport/v1/protosupport.proto";
+import "protosupport/v1/protosupport.proto";
 import "google/protobuf/any.proto"; 
 
 // The syscall package does not have a "service" because these are
@@ -21,7 +21,7 @@ import "google/protobuf/any.proto";
 // inside a KernelErrId.
 
 enum KernelErr{
-    option (msg.protosupport.v1.parigot_error) = true;
+    option (protosupport.v1.parigot_error) = true;
     NoErr = 0;
     BadThing = 1;
     AwfulThing = 2;
@@ -32,7 +32,7 @@ enum KernelErr{
 message LocateRequest {
     string package_name = 1;
     string service_name = 2;
-    msg.protosupport.v1.IdRaw called_by = 3; 
+    protosupport.v1.IdRaw called_by = 3; 
 
 }
 
@@ -40,12 +40,12 @@ message LocateRequest {
 // A service id can be thought of as a (hostname,port) pair that defines which
 // service's "location".
 message LocateResponse {
-    msg.protosupport.v1.IdRaw service_id = 1;
+    protosupport.v1.IdRaw service_id = 1;
 }
 
 // DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
 message DispatchRequest {
-    msg.protosupport.v1.IdRaw service_id = 1; 
+    protosupport.v1.IdRaw service_id = 1; 
     string method = 2;
     string caller = 3;
     google.protobuf.Any  param = 4;  // inside is another Request object, but we don't know its type
@@ -55,17 +55,17 @@ message DispatchRequest {
 // by the implementation of the method.  Note that errors are propagated elsewhere.
 message DispatchResponse {
     google.protobuf.Any result = 1; // again, there is a nested response object but we don't know its type
-    msg.protosupport.v1.IdRaw call_id = 2;
-    msg.protosupport.v1.IdRaw method_id = 3;
+    protosupport.v1.IdRaw call_id = 2;
+    protosupport.v1.IdRaw method_id = 3;
 }
 
 message ReturnValueRequest{
-  msg.protosupport.v1.IdRaw call = 1;
-  msg.protosupport.v1.IdRaw method = 2;
+  protosupport.v1.IdRaw call = 1;
+  protosupport.v1.IdRaw method = 2;
   google.protobuf.Any result = 3;
   string marshal_error = 4;
   string exec_error = 6;
-  msg.protosupport.v1.IdRaw exec_error_id = 7; 
+  protosupport.v1.IdRaw exec_error_id = 7; 
 }
 
 message ReturnValueResponse {
@@ -78,8 +78,8 @@ message BlockUntilCallRequest{
 
 message BlockUntilCallResponse{
   google.protobuf.Any param = 1;
-  msg.protosupport.v1.IdRaw method = 2;
-  msg.protosupport.v1.IdRaw call = 3;
+  protosupport.v1.IdRaw method = 2;
+  protosupport.v1.IdRaw call = 3;
   bool timed_out = 4;
 }
 
@@ -98,7 +98,7 @@ message BindMethodRequest  {
 }
 
 message BindMethodResponse {
-  msg.protosupport.v1.IdRaw method_id = 1;
+  protosupport.v1.IdRaw method_id = 1;
 }
 
 message FullyQualifiedService {
@@ -115,7 +115,7 @@ message ExportResponse {
 
 message RequireRequest {
   repeated FullyQualifiedService dest = 1;
-  msg.protosupport.v1.IdRaw source = 2;
+  protosupport.v1.IdRaw source = 2;
 }
 
 message RequireResponse {
@@ -123,7 +123,7 @@ message RequireResponse {
 
 message RunRequest {
   bool wait = 1;
-  msg.protosupport.v1.IdRaw service_id = 2;
+  protosupport.v1.IdRaw service_id = 2;
 }
 
 message RunResponse {
@@ -149,5 +149,5 @@ message RegisterRequest {
 }
 
 message RegisterResponse {
-    msg.protosupport.v1.IdRaw id =1;
+    protosupport.v1.IdRaw id =1;
 }

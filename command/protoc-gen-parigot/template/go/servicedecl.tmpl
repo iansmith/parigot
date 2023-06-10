@@ -5,11 +5,14 @@
 
 package {{ .package }}
 {{ $file:=.file}}
+{{ $package:=.package}}
 import(
     "context"
 
 {{- range $j,$i := .import }}
+{{ if ne $j "" }}
     {{$j}}
+{{ end }}
 {{- end}} {{/* imports */}}
 {{- $info:=.info }}
 
@@ -44,8 +47,8 @@ type {{$svcCamel}} interface {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- $iParam:=.InputParam.CGType.String $package}}
+{{- $oParam:=.OutputParam.CGType.String $package}}
 {{- if .InputCodeNeeded }}
     {{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }} 

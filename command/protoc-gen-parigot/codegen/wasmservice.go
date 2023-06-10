@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -123,19 +124,18 @@ func (s *WasmService) AlwaysPullOutput() bool {
 
 func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	for _, m := range s.GetWasmMethod() {
+		log.Printf("wasm method %s needs %+v", m.GetName(), imp)
 		m.AddImportsNeeded(imp)
 	}
-	//if s.kernel {
-	//	return
-	//}
-	//imp["github.com/iansmith/parigot/lib"] = struct{}{}
-	//imp["google.golang.org/protobuf/proto"] = struct{}{}
-	//imp["fmt"] = struct{}{}
 }
 
 func (s *WasmService) Collect() {
 	s.method = make([]*WasmMethod, len(s.GetMethod()))
 	for j, m := range s.GetMethod() {
 		s.method[j] = NewWasmMethod(m, s)
+		opt, ok := isStringOptionPresent(m.GetOptions().String(), parigotOptionForHostFuncName)
+		if ok {
+			s.method[j].HostFuncName = opt
+		}
 	}
 }

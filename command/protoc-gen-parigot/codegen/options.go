@@ -13,9 +13,9 @@ const (
 	methodOptionForWasmName  = "543210"
 	fieldOptionForWasmName   = "543210"
 
-	parigotOptionForService = "543211"
-	parigotOptionForMessage = "543211"
-	parigotOptionForEnum    = "543211"
+	parigotOptionForEnum = "543211"
+
+	parigotOptionForHostFuncName = "543212"
 
 	// serviceOptionNoPackage        = "543211"
 	// serviceOptionAlwaysPullParams = "543212"

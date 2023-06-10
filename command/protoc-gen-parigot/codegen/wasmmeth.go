@@ -17,6 +17,7 @@ type WasmMethod struct {
 	parent         *WasmService
 	input          *InputParam
 	output         *OutputParam
+	HostFuncName   string
 	// these values doesn't matter if your parent service has the "always"
 	// version of it set
 	pullParameters bool
@@ -49,8 +50,9 @@ func (w *WasmMethod) IsTest() bool {
 func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	fullName := m.GetFullName()
 	parts := strings.Split(fullName, ".")
+	addr := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
+	log.Printf("importForMessage: addr=%s => fullname=%s", addr, fullName)
 	formattedName := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
-	log.Printf("xxx -- import For Message --- %+v, %s", parts, formattedName)
 	if len(parts) > 2 {
 		return fmt.Sprintf("github.com/iansmith/parigot/g/%s", strings.Join(parts[:len(parts)-1], "/"))
 	}
