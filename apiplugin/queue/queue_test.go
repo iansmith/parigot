@@ -239,7 +239,7 @@ func TestLocateManyMessages(t *testing.T) {
 // helpers
 //
 
-func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg string, errorExpected bool, errorCode uint16) {
+func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg string, errorExpected bool, errorCode int32) {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	delReq := &queue.DeleteQueueRequest{}
@@ -266,7 +266,7 @@ func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg str
 
 }
 
-func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode uint16) queue.QueueId {
+func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode int32) queue.QueueId {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	t.Helper()

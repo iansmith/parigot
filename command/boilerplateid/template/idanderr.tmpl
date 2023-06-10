@@ -16,12 +16,6 @@ import (
 //  Begin Boilerplate for {{.primaryName}} and {{.errorName}}
 //
 
-type {{.errorName}}IdCode uint16
-const {{.errorName}}IdNoError {{.errorName}}IdCode = 0
-const {{.errorName}}IdLocateError {{.errorName}}IdCode = 1
-const {{.errorName}}IdUnmarshalError {{.errorName}}IdCode = 2
-const {{.errorName}}IdDispatchError {{.errorName}}IdCode = 3
-const {{.errorName}}IdGuestStart {{.errorName}}IdCode = 4
 type Def{{.primaryName}} struct{}
 
 func (f Def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
@@ -47,7 +41,7 @@ func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
     high2 <<= 8
     high2 |= 0x80
     high:=high2<<48
-    low4:=uint16(code)
+    low4:=int32(code)
     low:=uint64(low4)
     root:={{.idPkg}}NewIdRootFromRaw[Def{{.errorName}}]({{.idPkg}}NewRawId(high,low))
     return {{.errorName}}Id(root)

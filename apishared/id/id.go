@@ -96,9 +96,9 @@ func NewIdRootError[T NameInfo](code IdRootErrorCode) IdRoot[T] {
 	return id
 }
 
-func (f IdRoot[T]) ErrorCode() uint16 {
-	low := f.Low() & 0xffff
-	return uint16(low)
+func (f IdRoot[T]) ErrorCode() int32 {
+	low := f.Low() & 0xffffffff
+	return int32(low)
 }
 
 func UnmarshalProtobuf[T NameInfo](msg *protosupportmsg.IdRaw) (IdRoot[T], IdErr) {

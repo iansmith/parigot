@@ -6,25 +6,129 @@ import "google/protobuf/any.proto";
 
 // The syscall package does not have a "service" because these are
 // _function_  calls made against the kernel of parigot.  
-// If you made a kernel service, how would you Locate it without 
+// If you made such a kernel service, how would you Locate it without 
 // needing a kernel?
 
 // This file defines some error constants for each of the
 // built-in (kernel) types.  These are errors that intended to
 // be compared against when receiving an error value. The first
 // test of the error value is `IsError()` and if that is true
-// you can use `ErrorCode()` to get a Uint16 that is the error
+// you can use `ErrorCode()` to get a int32 that is the error
 // code.  You can compare it to values in these enums at your
 // discretion.  
 //
 // All of the kernel calls return KernelErr as the error code
-// inside a KernelErrId.
+// inside a KernelErrId.  Error codes can be converted to and from
+// strings with the maps KernelErr_value and KernelErr_name.
 
 enum KernelErr{
     option (protosupport.v1.parigot_error) = true;
-    NoErr = 0;
-    BadThing = 1;
-    AwfulThing = 2;
+    NoError = 0;
+    // LocateError is return when the kernel cannot find the requested
+    // service, given by a package name and service name pair.
+    LocateError = 1;
+    // UnmarshalFailed is used to indicate that in unmarshaling
+    // a request or result, the protobuf layer returned an error.
+    UnmarshalFailed = 2;
+    // IdDispatch means that a dispatch call failed due to an
+    // MethodId or ServiceId was not found.
+    IdDispatch = 3;
+    // NamespaceExhausted is returned when the kernel can no
+	  // along accept additional packages, services, or methods.  This is used
+	  // primarily to thwart attempts at DOS attacks.
+	  NamespaceExhausted = 4;
+  	// NotFound means that a package, service, or method that was requested
+	  // could not be found.
+	  NotFound = 5;
+  	// DataTooLarge means that the size of some part of method call was bigger
+	  // than the buffer allocated to receive it.  This could be a problem either on 
+    // the call side or the return side.
+	  DataTooLarge = 6;
+	  // Marshal means that a marshal of a protobuf has failed.  
+	  MarshalFailed = 7;
+	  // CallerUnavailable means that the kernel could not find the original caller
+	  // that requested the computation for which results have been provided.  
+    // It is most likely because the caller was killed, exited or timed out.
+	  CallerUnavailable = 8;
+	  // KernelServiceAlreadyClosedOrExported means that some process has already
+    // reported the service in question as closed or has already expressed that it is
+	  // exporting (implementing this service).  This is very likely a case where there
+	  // are two servers that think they are or should be implementing the same service.
+	  ServiceAlreadyClosedOrExported = 9;
+	  // ServiceAlreadyRequired means that this same process has already
+	  // required the given service.
+	  ServiceAlreadyRequired = 10;
+	  // DependencyCycle means that no deterministic startup ordering
+	  // exists for the set of exports and requires in use.  In other words,
+	  // you must refactor your program so that you do not have a cyle to make
+	  // it come up cleanly.
+	  DependencyCycle = 11;
+	  // NetworkFailed means that we successfully connected to the nameserver, but failed
+	  // during the communication process itself.
+    NetworkFailed = 12;
+	  // NetworkConnectionLost means that our internal connection to the remote nameserver
+	  // was either still working but has lost "sync" in the protocol or the connection has
+	  // become entirely broken.  The kernel will close the connection to remote nameserver
+	  // and reestablish it after this error.
+	  NetworkConnectionLost = 13;
+	  // DataTooSmall means that the kernel was speaking some protocol with a remote server,
+	  // such as a remote nameserver, and data read from the remote said was smaller than the protocol
+	  // dictated, e.g. it did not contain a checksum after a data block.
+	  DataTooSmall = 14;
+	  // ConnectionFailed means that the attempt to open a connection to a remote
+	  // service has failed to connect.
+	  KernelConnectionFailed = 15;
+	  // NSRetryFailed means that we tried twice to reach the nameserver with
+	  // the given request, but both times could not do so.
+	  NSRetryFailed = 16;
+	  // DecodeError indicates that an attempt to extract a protobuf object
+	  // from an encoded set of bytes has failed.  Typically, this means that
+	  // the encoder was not called.
+	  DecodeError = 17;
+	  // ExecError means that we received a response from the implenter of a particular
+	  // service's function and the execution of that function failed.
+	  ExecError = 18;
+	  // DependencyFailure means that the dependency infrastructure has failed.  This is different
+	  // than when a user creates bad set of depedencies (KernelDependencyCycle). This
+    // an internal to the kernel error.
+	  KernelDependencyFailure = 19;
+	  // AbortRequest indicates that the program that receives this error
+	  // should exit because the nameserver has asked it to do so.  This
+	  // means that some _other_ program has failed to start correctly, so this
+	  // deployment cannot succeed.
+	  AbortRequest = 20;
+	  // ExitRequested indicates that the program that receives this error
+	  // should exit because the nameserver permitted it to do so.  This is not really
+	  // an "error" but rather an indication that the caller who requested the
+	  // exit may do so immediately.
+	  ExitRequested = 21;
+	  // EncodeError indicates that an attempt encode a protobuf
+	  // with header and CRC has failed.
+	  EncodeError = 22;
+	  // ClosedErr indicates that that object is now closed.  This is used
+	  // as a signal when writing data between the guest and host.
+	  ClosedErr = 23;
+	  // GuestReadFailed indicates that we did not successfully read
+	  // from guest memory. This is usually caused by the proposed address 
+    // to read from being out of bounds.
+	  GuestReadFailed = 24;
+	  // GuestWriteFailed indicates that we did not successfully write
+	  // to guest memory. This is usually caused by the proposed address 
+    // for writing to being out of bounds.
+	  GuestWriteFailed = 25;
+	  // BadId indicates that you passed the zero value or the empty value of a
+    // an id type into a system call.  This usually means that you did not 
+    // properly initialize a protobuf.
+	  BadId = 26;
+	  // ReadyFailedindicates that the service that was trying
+	  // to start was aborted because it returned false from Ready().
+    // Usually this error indicates that the program has no way to
+    // continue running.
+	  NotReady = 27;
+	  // NotRequired that a service has tried to Locate() another service
+	  // that that the first service did not Require() previously.
+	  NotRequired = 28;
+
 };
 
 
