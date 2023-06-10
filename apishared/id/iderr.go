@@ -6,7 +6,7 @@ func (f IdErrorIdDef) ShortString() string { return "!!err!!" }
 func (f IdErrorIdDef) Letter() byte        { return 0x21 } //!
 func (f IdErrorIdDef) IsError() bool       { return true }
 
-type IdRootErrorCode uint16
+type IdRootErrorCode int32
 
 const (
 	IdNoError         IdRootErrorCode = 0
