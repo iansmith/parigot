@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	protosupportmsg "github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/tetratelabs/wazero/api"
 )
 

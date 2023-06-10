@@ -5,12 +5,9 @@ import (
 	"os"
 	"unsafe"
 
-	pcontext "github.com/iansmith/parigot/context"
-
 	apiwasm "github.com/iansmith/parigot/apiwasm"
-
+	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
-	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -42,26 +39,26 @@ type barServer struct {
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(ctx context.Context, req *methodcallmsg.AccumulateRequest) (*methodcallmsg.AccumulateResponse,
+func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRequest) (*methodcall.AccumulateResponse,
 	methodcall.MethodcallErrId) {
-	resp := &methodcallmsg.AccumulateResponse{}
+	resp := &methodcall.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
 		resp.Sum = 0
 		return resp, methodcall.MethodcallErrIdNoErr
 	}
 
-	reqAdd := &methodcallmsg.AddMultiplyRequest{
+	reqAdd := &methodcall.AddMultiplyRequest{
 		IsAdd: true,
 	}
-	reqMul := &methodcallmsg.AddMultiplyRequest{
+	reqMul := &methodcall.AddMultiplyRequest{
 		IsAdd: false,
 	}
 
 	reqAdd.Value1 = 0 //identity to start
 	reqMul.Value1 = 1 // identity to start
 
-	var respAdd, respMul *methodcallmsg.AddMultiplyResponse
+	var respAdd, respMul *methodcall.AddMultiplyResponse
 	var errId methodcall.MethodcallErrId
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]

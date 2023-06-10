@@ -38,10 +38,10 @@ var {{$svcCamel}}fsName = "/parigotvirt"
 //
 
 type {{$svcCamel}}Server interface {
-{{range .GetWasmMethod }}
+{{- range .GetWasmMethod }}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- $iParam:=.InputParam.CGType.String $package}}
+{{- $oParam:=.OutputParam.CGType.String $package}}
 {{- if .InputCodeNeeded }}
 	{{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }}
@@ -97,6 +97,7 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 
 //
 // {{.ProtoPackage}}.{{$methCamel}}
+// {{.GetName}} '{{.WasmMethodName}}' '{{.HostFuncName}}'
 //
 {{- if eq $dir "Both" }}
 	fp, err=os.OpenFile("{{.ProtoPackage}}.{{$methCamel}}",os.O_CREATE | os.O_RDWR, 0600)
@@ -269,13 +270,21 @@ func NewWrap{{$svcCamel}} (ctx context.Context, impl {{$svcCamel}}Server) *Wrap{
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
+{{- $hostFuncName:= $methCamel}}
+{{- $hostFuncNameSnake:= $methSnake}}
+{{- if ne .HostFuncName ""}} 
+{{- $hostFuncName = .HostFuncName}}
+{{- $hostFuncNameSnake = toSnakeCase .HostFuncName}}
+{{- end }} {{/* end of if host func option used */}}
+
 // If you want to implement part of your server in host cost you should call 
 // {{$methCamel}}Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you 
 // implement everything on the guest side).
-//go:wasmimport {{packageToGoName $pkg}} {{$methSnake}}_
-func {{$methCamel}}_(int32,int32,int32,int32) int64
-func {{$methCamel}}Host(inPtr *{{$iParam}}) (*{{$oParam}}, {{$errId}}) {
+//
+//go:wasmimport {{packageToGoName $pkg}} {{$hostFuncNameSnake}}_
+func {{$hostFuncName}}_(int32,int32,int32,int32) int64
+func {{$hostFuncName}}Host(inPtr *{{$iParam}}) (*{{$oParam}}, {{$errId}}) {
 	outProtoPtr := (*{{$oParam}})(nil)
 	ctx := apiwasm.ManufactureGuestContext("[{{$svcCamel}}]{{$methCamel}}")
 	defer pcontext.Dump(ctx)

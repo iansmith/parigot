@@ -9,8 +9,6 @@ import (
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
-	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
-	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -60,7 +58,7 @@ func main() {
 // TestAddMulitply is a test of a function that has both input and output.
 func (m *myUnderTestServer) TestAddMultiply(ctx context.Context, t *testing.T) {
 	fn := func(t *testing.T, value0, value1, sum, product int32) {
-		req := &methodcallmsg.AddMultiplyRequest{
+		req := &methodcall.AddMultiplyRequest{
 			Value0: value0,
 			Value1: value1,
 			IsAdd:  true,
@@ -104,7 +102,7 @@ func (m *myUnderTestServer) TestAccumulate(t *testing.T) {
 	fn := func(t *testing.T, sum, prod int32, rest ...int32) {
 		ctx := manufactureContext("TestAccumulate")
 
-		req := methodcallmsg.AccumulateRequest{
+		req := methodcall.AccumulateRequest{
 			Value: rest,
 		}
 		resp, err := m.bar.Accumulate(ctx, &req)
@@ -176,17 +174,17 @@ func (m *myUnderTestServer) Ready(ctx context.Context) bool {
 	}
 	return true
 }
-func (m *myUnderTestServer) Exec(ctx context.Context, req *testmsg.ExecRequest) (*testmsg.ExecResponse, test.TestErrId) {
+func (m *myUnderTestServer) Exec(ctx context.Context, req *test.ExecRequest) (*test.ExecResponse, test.TestErrId) {
 	pcontext.Debugf(ctx, "Exec", "got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName())
-	resp := &testmsg.ExecResponse{}
+	resp := &test.ExecResponse{}
 	return resp, test.TestErrIdNoErr
 }
 
 func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErrId {
 	pcontext.Debugf(ctx, "setupTests", "setup tests reached")
 
-	addReq := &testmsg.AddTestSuiteRequest{
-		Suite: []*testmsg.SuiteInfo{
+	addReq := &test.AddTestSuiteRequest{
+		Suite: []*test.SuiteInfo{
 			{
 				PackagePath:  "methodcall",
 				Service:      "Main",
@@ -202,7 +200,7 @@ func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErrId {
 		return err
 	}
 	pcontext.Logf(ctx, pcontext.Info, "AddTestSuite success: %+v", resp.Succeeded)
-	startResp, err := m.testSvc.Start(ctx, &testmsg.StartRequest{})
+	startResp, err := m.testSvc.Start(ctx, &test.StartRequest{})
 	if err.IsError() {
 		pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%v", err)
 		return err

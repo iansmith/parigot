@@ -7,7 +7,6 @@ import (
 
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
-	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
@@ -36,9 +35,9 @@ type fooServer struct {
 // defined in foo.proto.
 //
 
-func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMultiplyRequest) (*methodcallmsg.AddMultiplyResponse, methodcall.MethodcallErrId) {
+func (f *fooServer) AddMultiply(ctx context.Context, req *methodcall.AddMultiplyRequest) (*methodcall.AddMultiplyResponse, methodcall.MethodcallErrId) {
 	//f.log(pctx, pblog.LogLevel_LOG_LEVEL_DEBUG, "received call for fooServer.AddMultiply")
-	resp := &methodcallmsg.AddMultiplyResponse{}
+	resp := &methodcall.AddMultiplyResponse{}
 	if req.IsAdd {
 		resp.Result = req.Value0 + req.Value1
 	} else {
@@ -47,9 +46,9 @@ func (f *fooServer) AddMultiply(ctx context.Context, req *methodcallmsg.AddMulti
 	return resp, methodcall.MethodcallErrIdNoErr
 }
 
-func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequenceResponse, methodcall.MethodcallErrId) {
+func (f *fooServer) LucasSequence(ctx context.Context) (*methodcall.LucasSequenceResponse, methodcall.MethodcallErrId) {
 	pcontext.Debugf(ctx, "LucasSequence", "received call for fooServer.LucasSequence")
-	resp := &methodcallmsg.LucasSequenceResponse{}
+	resp := &methodcall.LucasSequenceResponse{}
 	seq := make([]int32, const_.LucasSize) // -2 because first two are given
 	seq[0] = 2
 	seq[1] = 1
@@ -61,7 +60,7 @@ func (f *fooServer) LucasSequence(ctx context.Context) (*methodcallmsg.LucasSequ
 }
 
 // Newton-Raphson method, terms values beyond about 4 are silly
-func (f *fooServer) WritePi(ctx context.Context, req *methodcallmsg.WritePiRequest) methodcall.MethodcallErrId {
+func (f *fooServer) WritePi(ctx context.Context, req *methodcall.WritePiRequest) methodcall.MethodcallErrId {
 	pcontext.Debugf(ctx, "WritePi", "received call for fooServer.AddMultiply")
 
 	if req.GetTerms() < 1 {

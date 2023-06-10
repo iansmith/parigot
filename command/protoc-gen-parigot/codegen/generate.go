@@ -3,16 +3,11 @@ package codegen
 import (
 	"fmt"
 	"io"
-	"log"
-	"regexp"
 	"strings"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/util"
 )
-
-// var msgRegex = regexp.MustCompile(`(.*\/g\/msg\/)([[:alpha][[:alphanum]]*)(\/v[[:digit]]+)`)
-var msgRegex = regexp.MustCompile(`(.*g/msg/)([[:alpha:]][[:alnum:]]*)(/v[0-9]+)$`)
 
 var fileSeen = make(map[string]struct{})
 
@@ -34,24 +29,13 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 		} else {
 			fileSeen[fname] = struct{}{}
 		}
-		log.Printf("xxx -- processing %s  ---- ", fname)
-
 		for i, n := range g.TemplateName() {
-			// if len(info.GetFile().GetService()) == 0 && len(info.GetFile().GetMessageType()) == 0 {
-			// 	continue
-			// }
 			//gather imports
 			imp := make(map[string]struct{})
 			for _, dep := range info.GetFileByName(toGen).GetDependency() {
-				importPrefix := ""
-				if msgRegex.MatchString(impToPkg[dep]) {
-					match := msgRegex.FindStringSubmatch(impToPkg[dep])
-					if len(match) != 4 {
-						panic(fmt.Sprintf("unable to understand import match result: %+v", match))
-					}
-					importPrefix = match[2] + "msg " // convention
+				if !IsIgnoredPackage(dep) {
+					imp["\""+impToPkg[dep]+"\""] = struct{}{}
 				}
-				imp[importPrefix+"\""+impToPkg[dep]+"\""] = struct{}{}
 			}
 			if !strings.HasSuffix(toGen, ".proto") {
 				panic(fmt.Sprintf("unable to understand protocol buffer file with name %s, does not end in .proto", toGen))
@@ -104,6 +88,16 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 
 }
 
+func IsIgnoredPackage(s string) bool {
+	switch s {
+	case "google.golang.org/protobuf/types/known/anypb",
+		"google.golang.org/protobuf/types/known/timestamppb",
+		"github.com/iansmith/parigot/g/protosupport/v1":
+		return false
+	}
+	return true
+}
+
 // executeTemplate actually runs a template and makes sure errors are collected.
 // The w value in most cases is an instance of *util.Outfile.
 func executeTemplate(w io.Writer, t *template.Template, name string, data map[string]interface{}) error {
@@ -131,16 +125,6 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 			result.RegisterMessage(w)
 		}
 	}
-	et := result.finder.enumType
-	for typeName, e := range et {
-		for _, name := range e.ReservedName {
-			log.Printf("type %s=>name %s (%s)", typeName, name, e.parent.GetName())
-			for _, rg := range e.child {
-				log.Printf("value %s=>range [%d,%d]", *rg.Name, rg.start, rg.end)
-
-			}
-		}
-	}
 
 	//
 	// Now we have the basic stuff in place we need put things in place that
@@ -151,11 +135,18 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		for _, m := range s.GetWasmMethod() {
 			in := newInputParam(m)
 			out := newOutputParam(m)
+
+			hostFuncName := ""
+			opt, ok := isStringOptionPresent(m.GetOptions().String(), parigotOptionForHostFuncName)
+			if ok {
+				hostFuncName = strings.ReplaceAll(opt, "\"", "")
+			}
 			result.AddMessageType(in.GetTypeName(), m.ProtoPackage(), m.GoPackage(), in.CGType().CompositeType())
 			result.AddMessageType(out.GetTypeName(), m.ProtoPackage(), m.GoPackage(), out.GetCGType().CompositeType())
 			out.lang = lang
 			m.input = in
 			m.output = out
+			m.HostFuncName = hostFuncName
 			m.MarkInputOutputMessages()
 		}
 	}

@@ -55,6 +55,9 @@ func main() {
 		if index := strings.LastIndex(pkg, ";"); index != -1 {
 			pkg = pkg[:index]
 		}
+		if codegen.IsIgnoredPackage(pkg) {
+			continue
+		}
 		importToPackageMap[f.GetName()] = pkg
 	}
 	resp := pluginpb.CodeGeneratorResponse{
@@ -113,7 +116,6 @@ func isGenerate(fullName string, genReq *pluginpb.CodeGeneratorRequest) bool {
 // about the languages being used.  those get set at the point we compute genMap
 func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
-
 	// compute the set of descriptors that will need to be generated... have to do this firest because
 	// there can be multiple protos in the same package
 	fileToSvc := make(map[string][]*descriptorpb.ServiceDescriptorProto)
@@ -160,11 +162,9 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 			codegen.Collect(info, generator.LanguageText())
 			if info.Contains(desc.GetName()) {
 				// inject this desc into the finder
-				// skip it? only if no services and no messages xxx will break enums
 				nSvc := len(info.GetAllServiceByName(desc.GetName()))
 				nMsg := len(info.GetAllMessageByName(desc.GetName()))
-				nEnum := len(info.GetAllEnumByName(desc.GetName()))
-				if nSvc == 0 && nMsg == 0 && nEnum == 0 {
+				if nSvc == 0 && nMsg == 0 {
 					continue
 				}
 				// load up templates

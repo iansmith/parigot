@@ -9,7 +9,7 @@ import (
 {{else}}	
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
 )
 //
 //  Begin Boilerplate for {{.primaryName}}
@@ -30,7 +30,7 @@ func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
 	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.primaryName}}](in))
 }
 
-func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
+func (f {{.primaryName}}Id) Marshal() *protosupport.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.primaryCast}})
 }
 func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
@@ -65,7 +65,7 @@ func (f {{.primaryName}}Id) Low() uint64{
 	return {{.primaryCast}}.Low()
 }
 
-func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
+func Unmarshal{{.primaryName}}Id(b *protosupport.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
 	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
 	if err.IsError() {
 		return ZeroValue{{.primaryName}}Id(), err
@@ -73,7 +73,7 @@ func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, 
 	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
 }
 
-func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}Id{
+func MustUnmarshal{{.primaryName}}Id(b *protosupport.IdRaw) {{.primaryName}}Id{
 	result, err:=Unmarshal{{.primaryName}}Id(b)
 	if err.IsError() {
 		panic("unable to unmarshal {{.primaryName}}Id from raw value: "+err.String())
@@ -81,7 +81,7 @@ func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}I
 	return result
 }
 
-func New{{.primaryName}}IdFromProto(in *protosupportmsg.IdRaw) {{.primaryName}}Id {
+func New{{.primaryName}}IdFromProto(in *protosupport.IdRaw) {{.primaryName}}Id {
 	raw:=MustUnmarshal{{.primaryName}}Id(in)
 	return {{.primaryName}}Id(raw)
 }

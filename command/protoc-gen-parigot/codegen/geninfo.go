@@ -91,6 +91,7 @@ func newInputParam(parent *WasmMethod) *InputParam {
 		lang:   parent.Language(),
 	}
 	result.cgType = NewCGTypeFromInput(result, parent, parent.ProtoPackage())
+
 	return result
 }
 
@@ -184,20 +185,6 @@ type MessageRecord struct {
 	goPackage    string
 }
 
-type EnumValueRecord struct {
-	parent                 *EnumTypeRecord
-	wasmName               string
-	protoPackage           string
-	goPackage              string
-	range_end, range_start int
-}
-type EnumTypeRecord struct {
-	protoPackage string
-	goPackage    string
-	wasmName     string
-	_            *EnumValueRecord
-}
-
 func (m *MessageRecord) WasmName() string {
 	return m.msg
 }
@@ -217,37 +204,12 @@ func NewServiceRecord(wasmName, protoPackage, goPackage string) *ServiceRecord {
 		goPackage:    goPackage,
 	}
 }
-func NewEnumTypeRecord(wasmEnumName, protoPackage, goPackage string, wasmEnumType *WasmEnumType) *EnumTypeRecord {
-	return &EnumTypeRecord{
-		protoPackage: protoPackage,
-		goPackage:    goPackage,
-		wasmName:     wasmEnumName,
-	}
-}
-
-func NewEnumValueRecord(wasmEnumValue string, packageName string, goPackage string, parent *EnumTypeRecord, start, end int) *EnumValueRecord {
-	v := &EnumValueRecord{
-		parent:       parent,
-		wasmName:     wasmEnumValue,
-		protoPackage: packageName,
-		goPackage:    goPackage,
-		range_end:    end,
-		range_start:  start,
-	}
-	return v
-}
 
 func (m *MessageRecord) String() string {
 	return fmt.Sprintf("MessageRec(%s,%s,%s)", m.WasmName(), m.protoPackage, m.goPackage)
 }
 func (m *ServiceRecord) String() string {
 	return fmt.Sprintf("ServiceRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
-}
-func (m *EnumTypeRecord) String() string {
-	return fmt.Sprintf("EnumType(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
-}
-func (m *EnumValueRecord) String() string {
-	return fmt.Sprintf("EnumValue(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
 }
 func (g *GenInfo) RegisterService(w *WasmService) {
 	g.finder.AddServiceType(w.GetWasmServiceName(), w.ProtoPackage(), w.GetGoPackage(), w)
@@ -262,9 +224,6 @@ func (g *GenInfo) GetAllServiceByName(generatedFile string) []*descriptorpb.Serv
 func (g *GenInfo) GetAllMessageByName(generatedFile string) []*descriptorpb.DescriptorProto {
 	return g.nameToMsg[generatedFile]
 }
-func (g *GenInfo) GetAllEnumByName(generatedFile string) []*descriptorpb.EnumDescriptorProto {
-	return g.nameToEnumType[generatedFile]
-}
 
 func (g *GenInfo) GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error) {
 	return g.finder.GoPackageOption(service, message)
@@ -274,11 +233,6 @@ func (g *GenInfo) FindServiceByName(protoPackage, name string) *WasmService {
 	//xxx fixme this stinks
 	hackyName := fmt.Sprintf(".%s.%s", protoPackage, name)
 	return g.finder.FindServiceByName(protoPackage, hackyName)
-}
-
-func (g *GenInfo) FindEnumTypeByName(protoPackage, name string) *WasmEnumType {
-	//xxx fixme this stinks
-	return g.finder.FindEnumTypeByName(protoPackage, name)
 }
 
 func (g *GenInfo) FindMessageByName(protoPackage string, name string) *WasmMessage {
@@ -326,17 +280,4 @@ func (g *GenInfo) GetFileByName(name string) *descriptorpb.FileDescriptorProto {
 func (g *GenInfo) Contains(name string) bool {
 	_, ok := g.nameToFile[name]
 	return ok
-}
-
-// enum info
-func (g *GenInfo) AddEnumType(name, pbPkg, goPkg string, w *WasmEnumType) {
-	g.finder.AddEnumType(name, pbPkg, goPkg, w)
-}
-
-func (g *GenInfo) AddEnumValue(name, pbPkg, goPkg string, parent *EnumTypeRecord, s, e int, w *WasmEnumValue) {
-	g.finder.AddEnumValue(name, pbPkg, goPkg,
-		parent, s, e, w)
-}
-func (g *GenInfo) Enum() []*WasmEnumType {
-	return g.finder.Enum()
 }

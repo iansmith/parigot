@@ -9,7 +9,7 @@ import (
 {{else}}	
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
     "github.com/tetratelabs/wazero/api"
 )
 //
@@ -46,7 +46,7 @@ func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
     return {{.errorName}}Id(root)
 }
 
-func (f {{.errorName}}Id) Marshal() *protosupportmsg.IdRaw {
+func (f {{.errorName}}Id) Marshal() *protosupport.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.errorCast}})
 }
 func ZeroValue{{.errorName}}Id() {{.errorName}}Id {

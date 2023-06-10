@@ -10,7 +10,7 @@ import (
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
 	"github.com/tetratelabs/wazero/api"
-    protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+    protosupport "github.com/iansmith/parigot/g/protosupport/v1"
 )
 //
 //  Begin Boilerplate for {{.primaryName}} and {{.errorName}}
@@ -56,15 +56,15 @@ func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
 func New{{.errorName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.errorName}}Id {
 	return {{.errorName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.errorName}}](in))
 }
-func New{{.primaryName}}IdFromProto(in *protosupportmsg.IdRaw) {{.primaryName}}Id {
+func New{{.primaryName}}IdFromProto(in *protosupport.IdRaw) {{.primaryName}}Id {
 	raw:=MustUnmarshal{{.primaryName}}Id(in)
 	return {{.primaryName}}Id(raw)
 }
 
-func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
+func (f {{.primaryName}}Id) Marshal() *protosupport.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.primaryCast}})
 }
-func (f {{.errorName}}Id) Marshal() *protosupportmsg.IdRaw {
+func (f {{.errorName}}Id) Marshal() *protosupport.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.errorCast}})
 }
 func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
@@ -126,14 +126,14 @@ func (f {{.errorName}}Id) ErrorCode() {{.errorName}}IdCode{
 	return {{.errorName}}IdCode({{.idPkg}}IdRoot[Def{{.errorName}}](f).ErrorCode())
 }
 
-func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
+func Unmarshal{{.primaryName}}Id(b *protosupport.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
 	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
 	if err.IsError() {
 		return ZeroValue{{.primaryName}}Id(), err
 	}
 	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
 }
-func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}Id{
+func MustUnmarshal{{.primaryName}}Id(b *protosupport.IdRaw) {{.primaryName}}Id{
 	result, err:=Unmarshal{{.primaryName}}Id(b)
 	if err.IsError() {
 		panic("unable to unmarshal {{.primaryName}}Id from raw value: "+err.String())
@@ -141,7 +141,7 @@ func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}I
 	return result
 }
 
-func Unmarshal{{.primaryName}}IdErr(b *protosupportmsg.IdRaw) ({{.errorName}}Id, {{.idPkg}}IdErr) {
+func Unmarshal{{.primaryName}}IdErr(b *protosupport.IdRaw) ({{.errorName}}Id, {{.idPkg}}IdErr) {
 	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.errorName}}](b)
 	if err != {{.idPkg}}NoIdErr {
 		return ZeroValue{{.errorName}}Id(), err

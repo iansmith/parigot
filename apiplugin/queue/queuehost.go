@@ -10,8 +10,7 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
+	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 
 	"github.com/tetratelabs/wazero/api"
@@ -78,49 +77,49 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 }
 
 func createQueueHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.CreateQueueRequest{}
-	resp := &queuemsg.CreateQueueResponse{}
+	req := &queue.CreateQueueRequest{}
+	resp := &queue.CreateQueueResponse{}
 
 	hostBase(ctx, "Create",
 		queueSvc.create, m, stack, req, resp)
 }
 
 func deleteQueueHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.DeleteQueueRequest{}
-	resp := &queuemsg.DeleteQueueResponse{}
+	req := &queue.DeleteQueueRequest{}
+	resp := &queue.DeleteQueueResponse{}
 
 	hostBase(ctx, "Delete", queueSvc.delete, m, stack, req, resp)
 }
 func lengthHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.LengthRequest{}
-	resp := &queuemsg.LengthResponse{}
+	req := &queue.LengthRequest{}
+	resp := &queue.LengthResponse{}
 
 	hostBase(ctx, "Length", queueSvc.length,
 		m, stack, req, resp)
 }
 func locateHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.LocateRequest{}
-	resp := &queuemsg.LocateResponse{}
+	req := &queue.LocateRequest{}
+	resp := &queue.LocateResponse{}
 
 	hostBase(ctx, "Locate", queueSvc.locate,
 		m, stack, req, resp)
 }
 func markDoneHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.MarkDoneRequest{}
-	resp := &queuemsg.MarkDoneResponse{}
+	req := &queue.MarkDoneRequest{}
+	resp := &queue.MarkDoneResponse{}
 
 	hostBase(ctx, "MarkDone", queueSvc.markDone, m, stack, req, resp)
 }
 func sendHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.SendRequest{}
-	resp := &queuemsg.SendResponse{}
+	req := &queue.SendRequest{}
+	resp := &queue.SendResponse{}
 
 	hostBase(ctx, "Send", queueSvc.send, m, stack,
 		req, resp)
 }
 func receiveHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &queuemsg.ReceiveRequest{}
-	resp := &queuemsg.ReceiveResponse{}
+	req := &queue.ReceiveRequest{}
+	resp := &queue.ReceiveResponse{}
 
 	hostBase(ctx, "Receive", queueSvc.receive, m, stack,
 		req, resp)
@@ -159,8 +158,8 @@ func (q *queueSvcImpl) validateName(name string) bool {
 
 // create is separate from the "real" call of
 // createHost so it is easy to test.
-func (q *queueSvcImpl) create(ctx context.Context, req *queuemsg.CreateQueueRequest,
-	resp *queuemsg.CreateQueueResponse) id.IdRaw {
+func (q *queueSvcImpl) create(ctx context.Context, req *queue.CreateQueueRequest,
+	resp *queue.CreateQueueResponse) id.IdRaw {
 
 	if !q.validateName(req.GetQueueName()) {
 		pcontext.Errorf(ctx, "queue name is not valid: '%s'", req.GetQueueName())
@@ -196,8 +195,8 @@ func (q *queueSvcImpl) create(ctx context.Context, req *queuemsg.CreateQueueRequ
 // delete is separate from the "real" call of
 // deleteHost so it is easy to test.  The return value
 // will be an QueueErrId.
-func (q *queueSvcImpl) delete(ctx context.Context, req *queuemsg.DeleteQueueRequest,
-	resp *queuemsg.DeleteQueueResponse) id.IdRaw {
+func (q *queueSvcImpl) delete(ctx context.Context, req *queue.DeleteQueueRequest,
+	resp *queue.DeleteQueueResponse) id.IdRaw {
 
 	qid := queue.MustUnmarshalQueueId(req.Id)
 
@@ -258,7 +257,7 @@ func (q *queueSvcImpl) testNameExists(ctx context.Context, name string) id.IdRaw
 // it returns the successfully sent and failed messages. If you are
 // trying to send many messages, be sure to look at these two lists
 // because partial failure is possible.
-func (q *queueSvcImpl) send(ctx context.Context, req *queuemsg.SendRequest, resp *queuemsg.SendResponse) id.IdRaw {
+func (q *queueSvcImpl) send(ctx context.Context, req *queue.SendRequest, resp *queue.SendResponse) id.IdRaw {
 
 	qid := queue.MustUnmarshalQueueId(req.GetId())
 
@@ -266,11 +265,11 @@ func (q *queueSvcImpl) send(ctx context.Context, req *queuemsg.SendRequest, resp
 	if err.IsError() {
 		return err.Raw()
 	}
-	succeed := []*protosupportmsg.IdRaw{}
-	fail := []*queuemsg.QueueMsg{}
+	succeed := []*protosupport.IdRaw{}
+	fail := []*queue.QueueMsg{}
 
 	alreadyFailed := false
-	var failedOn *protosupportmsg.IdRaw
+	var failedOn *protosupport.IdRaw
 
 	for _, current := range req.GetMsg() {
 		if alreadyFailed {
@@ -331,7 +330,7 @@ func (q *queueSvcImpl) send(ctx context.Context, req *queuemsg.SendRequest, resp
 // lengthHost so it is easy to test.  If there was an error you'll
 // get a QueueErrId.  If there was no error, the response
 // object will have the apporimate length of the queue requested.
-func (q *queueSvcImpl) length(ctx context.Context, req *queuemsg.LengthRequest, resp *queuemsg.LengthResponse) id.IdRaw {
+func (q *queueSvcImpl) length(ctx context.Context, req *queue.LengthRequest, resp *queue.LengthResponse) id.IdRaw {
 
 	qid := queue.MustUnmarshalQueueId(req.GetId())
 	rowId, err := q.getRowidForId(ctx, qid)
@@ -359,7 +358,7 @@ func (q *queueSvcImpl) length(ctx context.Context, req *queuemsg.LengthRequest, 
 // even if that implies an error was generated.  If you must process a
 // message for more time than a single call, you'll need to hold state in
 // a database or similar so you can resume processing at the right point.
-func (q *queueSvcImpl) markDone(ctx context.Context, req *queuemsg.MarkDoneRequest, resp *queuemsg.MarkDoneResponse) id.IdRaw {
+func (q *queueSvcImpl) markDone(ctx context.Context, req *queue.MarkDoneRequest, resp *queue.MarkDoneResponse) id.IdRaw {
 
 	// xxx fixme(iansmith) sqlc doesn't seem to understand UPDATE FROM so I have
 	// xxx to do this in two steps.  It's not really dangerous because the
@@ -398,7 +397,7 @@ func (q *queueSvcImpl) markDone(ctx context.Context, req *queuemsg.MarkDoneReque
 // locateHost so it is easy to test.   If there was an error you'll
 // get the QueueErrId, typically NotFound.  If things
 // are ok, this returns the queue id for a given name in the response.
-func (q queueSvcImpl) locate(ctx context.Context, req *queuemsg.LocateRequest, resp *queuemsg.LocateResponse) id.IdRaw {
+func (q queueSvcImpl) locate(ctx context.Context, req *queue.LocateRequest, resp *queue.LocateResponse) id.IdRaw {
 	row, err := q.queries.Locate(ctx, req.QueueName)
 	if err != nil {
 		pcontext.Errorf(ctx, "error trying to locate queue %s: %s", req.QueueName, err.Error())
@@ -423,7 +422,7 @@ func (q queueSvcImpl) locate(ctx context.Context, req *queuemsg.LocateRequest, r
 // order sent, although this is not guaranteed.  Just retreiving messages is not
 // enough to fully process them, you need to use markDone() to indicate that the
 // item can be removed from the queue.
-func (q *queueSvcImpl) receive(ctx context.Context, req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) id.IdRaw {
+func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, resp *queue.ReceiveResponse) id.IdRaw {
 	qid := queue.MustUnmarshalQueueId(req.GetId())
 	// we have to do this because we can't do UPDATE FROM in the sql queries with sqlc
 	rowId, errId := q.getRowidForId(ctx, qid)
@@ -456,7 +455,7 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queuemsg.ReceiveRequest
 	if len(resultMsg) < max {
 		max = len(resultMsg)
 	}
-	resultList := make([]*queuemsg.QueueMsg, max)
+	resultList := make([]*queue.QueueMsg, max)
 	n := max
 	if len(resultMsg) < max {
 		n = len(resultMsg)
@@ -490,7 +489,7 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queuemsg.ReceiveRequest
 		}
 
 		messageId := queue.NewQueueMsgIdFromRaw(id.NewRawId(uint64(result.IDHigh.Int64), uint64(result.IDLow.Int64)))
-		m := queuemsg.QueueMsg{
+		m := queue.QueueMsg{
 			Id:           req.GetId(),
 			MsgId:        messageId.Marshal(),
 			ReceiveCount: int32(result.ReceivedCount.Int64),
