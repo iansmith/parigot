@@ -17,9 +17,8 @@ import "google/protobuf/any.proto";
 // code.  You can compare it to values in these enums at your
 // discretion.  
 //
-// All of the kernel calls return KernelErr as the error code
-// inside a KernelErrId.  Error codes can be converted to and from
-// strings with the maps KernelErr_value and KernelErr_name.
+// All of the kernel calls return KernelErr as the error code.
+// Error codes can be converted to and from strings with the maps KernelErr_value and KernelErr_name.
 
 enum KernelErr{
     option (protosupport.v1.parigot_error) = true;
