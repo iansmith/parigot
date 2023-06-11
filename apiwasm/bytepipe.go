@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"google.golang.org/protobuf/proto"
 )
@@ -42,7 +41,7 @@ func NewBytePipeIn[T nilableProto](ctx context.Context, rd io.Reader) *BytePipeI
 	return bpi
 }
 
-func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *id.IdRaw) error {
+func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *int32) error {
 
 	if b.syncLost {
 		b.syncLost = false
@@ -92,10 +91,8 @@ func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *id.IdRaw) error {
 
 	result := make([]byte, size)
 	if isErr {
-		hi := binary.LittleEndian.Uint64(result)
-		lo := binary.LittleEndian.Uint64(result[8:])
-		id := id.NewRawId(hi, lo)
-		*errIdPtr = id
+		rez := binary.LittleEndian.Uint32(result)
+		*errIdPtr = int32(rez)
 		return nil
 	}
 	err = proto.Unmarshal(result, msg)
@@ -173,21 +170,18 @@ type BytePipeOut[T nilableProto] struct {
 	ctx context.Context
 }
 
-func (b *BytePipeOut[T]) WriteProto(resp T, errId id.IdRaw) error {
+func (b *BytePipeOut[T]) WriteProto(resp T, err int32) error {
 	if resp == *new(T) { // test for nil
-		bufHigh := errId.HighLE()
-		bufLow := errId.LowLE()
-		allBuf := make([]byte, 16)
-		copy(allBuf[:8], bufHigh)
-		copy(allBuf[8:], bufLow)
-		if err := writeConstantSize(b.ctx, b.wr, true, 8, allBuf); err != nil {
+		buf := make([]byte, 4)
+		binary.LittleEndian.PutUint32(buf, uint32(err))
+		if err := writeConstantSize(b.ctx, b.wr, true, 4, buf); err != nil {
 			return err
 		}
 		return nil
 	}
-	buf, err := proto.Marshal(resp)
-	if err != nil {
-		return err
+	buf, merr := proto.Marshal(resp)
+	if merr != nil {
+		return merr
 	}
 	if err := writeConstantSize(b.ctx, b.wr, false, int32(len(buf)), buf); err != nil {
 		return err

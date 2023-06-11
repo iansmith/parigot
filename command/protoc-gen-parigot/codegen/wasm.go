@@ -19,11 +19,11 @@ func NewWasmMethod(desc *descriptorpb.MethodDescriptorProto, w *WasmService) *Wa
 		log.Fatalf("method data missing: name='%s', inputType='%s', outputType='%s'",
 			desc.GetName(), desc.GetInputType(), desc.GetOutputType())
 	}
-	if meth.GetOptions() != nil {
-		meth.pullParameters = pullParamsOption(meth.GetOptions().String())
-		meth.pullOutput = pullOutputOption(meth.GetOptions().String())
-		meth.isTest = hasMethodTestOption(meth.GetOptions().String())
-	}
+	// if meth.GetOptions() != nil {
+	// 	meth.pullParameters = pullParamsOption(meth.GetOptions().String())
+	// 	meth.pullOutput = pullOutputOption(meth.GetOptions().String())
+	// 	meth.isTest = hasMethodTestOption(meth.GetOptions().String())
+	// }
 	return meth
 }
 func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorpb.DescriptorProto,
@@ -36,14 +36,16 @@ func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorp
 		lang:            lang,
 		finder:          finder,
 	}
-	if message.GetOptions() != nil {
-		m.noPackage = hasNoPackageOption(message.GetOptions().String())
-	}
 	return m
 }
 
 func NewWasmService(file *descriptorpb.FileDescriptorProto,
 	service *descriptorpb.ServiceDescriptorProto, lang LanguageText, finder Finder) *WasmService {
+
+	errIdName, ok := isStringOptionPresent(service.GetOptions().String(), parigotOptionForErrorIdName)
+	if !ok {
+		errIdName = ""
+	}
 	s := &WasmService{
 		ServiceDescriptorProto: service,
 		wasmServiceName:        "",
@@ -51,13 +53,14 @@ func NewWasmService(file *descriptorpb.FileDescriptorProto,
 		method:                 []*WasmMethod{},
 		lang:                   lang,
 		finder:                 finder,
+		errorIdName:            errIdName,
 	}
 	if service.GetOptions() != nil {
-		s.alwaysPullParameters = alwaysPullParamsOption(service.GetOptions().String())
-		s.alwaysPullOutput = alwaysPullOutputOption(service.GetOptions().String())
-		s.noPackage = hasNoPackageOption(service.GetOptions().String())
-		s.kernel = hasKernelOption(service.GetOptions().String())
-		s.isTest = hasServiceTestOption(service.GetOptions().String())
+		// s.alwaysPullParameters = alwaysPullParamsOption(service.GetOptions().String())
+		// s.alwaysPullOutput = alwaysPullOutputOption(service.GetOptions().String())
+		// s.noPackage = hasNoPackageOption(service.GetOptions().String())
+		// s.kernel = hasKernelOption(service.GetOptions().String())
+		// s.isTest = hasServiceTestOption(service.GetOptions().String())
 	}
 	return s
 }

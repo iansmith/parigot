@@ -23,6 +23,8 @@
 		},
 		"search.decorations.colors": true,
 		"go.buildTags": "wasip1",
+		"editor.insertSpaces": false,
+		"workbench.editor.closeEmptyGroups": false,
 	},
 	"launch": {
 		"version": "0.2.0",

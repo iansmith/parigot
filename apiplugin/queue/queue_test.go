@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	pcontext "github.com/iansmith/parigot/context"
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -62,13 +60,13 @@ func TestQueueHappyPath(t *testing.T) {
 	// send a test message
 	senderValue := true
 	msg := testCreateMessage(t, senderValue, payloadString, qid)
-	sendReq := &queuemsg.SendRequest{
+	sendReq := &queue.SendRequest{
 		Id: qid.Marshal(),
-		Msg: []*queuemsg.QueueMsg{
+		Msg: []*queue.QueueMsg{
 			msg,
 		},
 	}
-	sendResp := &queuemsg.SendResponse{}
+	sendResp := &queue.SendResponse{}
 	errId := svc.send(ctx, sendReq, sendResp)
 	if errId.IsError() {
 		t.Errorf("unable to send message")
@@ -84,11 +82,11 @@ func TestQueueHappyPath(t *testing.T) {
 		t.FailNow()
 	}
 	// receive a message
-	receiveReq := &queuemsg.ReceiveRequest{
+	receiveReq := &queue.ReceiveRequest{
 		Id:           qid.Marshal(),
 		MessageLimit: 1,
 	}
-	receiveResp := &queuemsg.ReceiveResponse{}
+	receiveResp := &queue.ReceiveResponse{}
 	receiveMessageNoError(t, svc, ctx, receiveReq, receiveResp)
 	receivedOneCheckContent(t, ctx, qid, savedMid, svc, senderValue, payloadString)
 
@@ -129,13 +127,13 @@ func TestLocateManyMessages(t *testing.T) {
 	payload := make([]string, 10)
 	md := make([]queue.QueueMsgId, 10)
 
-	message := make([]*queuemsg.QueueMsg, 10)
+	message := make([]*queue.QueueMsg, 10)
 	for i := 0; i < 10; i++ {
 		payload[i] = fmt.Sprintf("[i=%d]", i)
 		message[i] = testCreateMessage(t, senderValue, payload[i], qid)
 	}
-	req := queuemsg.SendRequest{}
-	resp := queuemsg.SendResponse{}
+	req := queue.SendRequest{}
+	resp := queue.SendResponse{}
 	req.Msg = message
 	req.Id = qid.Marshal()
 
@@ -156,10 +154,10 @@ func TestLocateManyMessages(t *testing.T) {
 	//
 	// switch to receive side
 	//
-	locRequest := queuemsg.LocateRequest{
+	locRequest := queue.LocateRequest{
 		QueueName: queueNameInTest,
 	}
-	locResponse := queuemsg.LocateResponse{}
+	locResponse := queue.LocateResponse{}
 	rawErr = svc.locate(ctx, &locRequest, &locResponse)
 	qErr = queue.NewQueueErrIdFromRaw((rawErr))
 	if qErr.IsError() {
@@ -170,8 +168,8 @@ func TestLocateManyMessages(t *testing.T) {
 		t.Errorf("mismatched ids from create (%s) and locate (%s)", qid.Short(), locId.Short())
 	}
 	for i := 0; i < 9; i += 3 {
-		rcvReq := &queuemsg.ReceiveRequest{}
-		rcvResp := &queuemsg.ReceiveResponse{}
+		rcvReq := &queue.ReceiveRequest{}
+		rcvResp := &queue.ReceiveResponse{}
 		rcvReq.Id = locId.Marshal()
 		rcvReq.MessageLimit = 3
 		rawErr := svc.receive(ctx, rcvReq, rcvResp)
@@ -182,7 +180,7 @@ func TestLocateManyMessages(t *testing.T) {
 		if len(rcvResp.GetMessage()) != 3 {
 			t.Errorf("could not retrieve 3 messages successfully (sent %d)", len(rcvResp.GetMessage()))
 		}
-		dead := []*protosupportmsg.IdRaw{}
+		dead := []*proto.IdRaw{}
 		num := 3
 		if len(rcvResp.Message) < 3 {
 			t.Logf("warning, expected to get three elements back from the queue, but got %d", len(rcvResp.Message))
@@ -211,8 +209,8 @@ func TestLocateManyMessages(t *testing.T) {
 			}
 		}
 		//mark this iteration done
-		mdReq := queuemsg.MarkDoneRequest{}
-		mdResp := queuemsg.MarkDoneResponse{}
+		mdReq := queue.MarkDoneRequest{}
+		mdResp := queue.MarkDoneResponse{}
 		mdReq.Msg = dead
 		mdReq.Id = locId.Marshal()
 		rawErr = svc.markDone(ctx, &mdReq, &mdResp)
@@ -241,11 +239,11 @@ func TestLocateManyMessages(t *testing.T) {
 // helpers
 //
 
-func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg string, errorExpected bool, errorCode uint16) {
+func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg string, errorExpected bool, errorCode int32) {
 	ctx := pcontext.DevNullContext(context.Background())
 
-	delReq := &queuemsg.DeleteQueueRequest{}
-	delResp := &queuemsg.DeleteQueueResponse{}
+	delReq := &queue.DeleteQueueRequest{}
+	delResp := &queue.DeleteQueueResponse{}
 	delReq.Id = qid.Marshal()
 	err := svc.delete(ctx, delReq, delResp)
 	qerr := queue.NewQueueErrIdFromRaw(err)
@@ -268,13 +266,13 @@ func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg str
 
 }
 
-func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode uint16) queue.QueueId {
+func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode int32) queue.QueueId {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	t.Helper()
-	creat := &queuemsg.CreateQueueRequest{}
+	creat := &queue.CreateQueueRequest{}
 	creat.QueueName = name
-	resp := &queuemsg.CreateQueueResponse{}
+	resp := &queue.CreateQueueResponse{}
 	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, creat, resp))
 	if errorExpected {
 		if !err.IsError() {
@@ -299,9 +297,9 @@ func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 	t.Helper()
 	ctx := pcontext.DevNullContext(context.Background())
 
-	creat := &queuemsg.CreateQueueRequest{}
+	creat := &queue.CreateQueueRequest{}
 	creat.QueueName = queueNameInTest
-	resp := &queuemsg.CreateQueueResponse{}
+	resp := &queue.CreateQueueResponse{}
 	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, creat, resp))
 	if err.IsError() {
 		t.Errorf("expected queue to be created")
@@ -313,10 +311,10 @@ func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 func testQueueLen(t *testing.T, svc *queueSvcImpl, qid queue.QueueId) int {
 	ctx := pcontext.DevNullContext(context.Background())
 
-	req := &queuemsg.LengthRequest{
+	req := &queue.LengthRequest{
 		Id: qid.Marshal(),
 	}
-	resp := &queuemsg.LengthResponse{}
+	resp := &queue.LengthResponse{}
 	rawErr := svc.length(ctx, req, resp)
 	err := queue.NewQueueErrIdFromRaw(rawErr)
 	if err.IsError() {
@@ -326,7 +324,7 @@ func testQueueLen(t *testing.T, svc *queueSvcImpl, qid queue.QueueId) int {
 	return int(resp.GetLength())
 }
 
-func testCreateMessage(t *testing.T, senderValue bool, payloadValue string, qid queue.QueueId) *queuemsg.QueueMsg {
+func testCreateMessage(t *testing.T, senderValue bool, payloadValue string, qid queue.QueueId) *queue.QueueMsg {
 	sender, err := anypb.New(wrapperspb.Bool(senderValue))
 	if err != nil {
 		t.Errorf("unable to create sender protobuf because of error in marshal: %s", err.Error())
@@ -337,7 +335,7 @@ func testCreateMessage(t *testing.T, senderValue bool, payloadValue string, qid 
 		t.Errorf("unable to create payload protobuf because of error in marshal: %s", err.Error())
 		t.FailNow()
 	}
-	msg := &queuemsg.QueueMsg{
+	msg := &queue.QueueMsg{
 		Id:           qid.Marshal(),
 		MsgId:        nil, // filled in by send
 		ReceiveCount: 0,
@@ -352,11 +350,11 @@ func testCreateMessage(t *testing.T, senderValue bool, payloadValue string, qid 
 func receivedOneCheckContent(t *testing.T, ctx context.Context, qid queue.QueueId,
 	mid queue.QueueMsgId, svc *queueSvcImpl, sendValue bool, payloadValue string) {
 	// receive a message
-	receiveReq := &queuemsg.ReceiveRequest{
+	receiveReq := &queue.ReceiveRequest{
 		Id:           qid.Marshal(),
 		MessageLimit: 1,
 	}
-	receiveResp := &queuemsg.ReceiveResponse{}
+	receiveResp := &queue.ReceiveResponse{}
 	rawId := svc.receive(ctx, receiveReq, receiveResp)
 	qerr := queue.NewQueueErrIdFromRaw(rawId)
 	if qerr.IsError() {
@@ -398,7 +396,7 @@ func receivedOneCheckContent(t *testing.T, ctx context.Context, qid queue.QueueI
 }
 
 func receiveMessageNoError(t *testing.T, svc *queueSvcImpl, ctx context.Context,
-	req *queuemsg.ReceiveRequest, resp *queuemsg.ReceiveResponse) {
+	req *queue.ReceiveRequest, resp *queue.ReceiveResponse) {
 	errId := svc.receive(ctx, req, resp)
 	if errId.IsError() {
 		t.Errorf("unable to receive message")
@@ -406,10 +404,10 @@ func receiveMessageNoError(t *testing.T, svc *queueSvcImpl, ctx context.Context,
 }
 
 func testMarkdone(t *testing.T, ctx context.Context, svc *queueSvcImpl, qid queue.QueueId, savedMid queue.QueueMsgId) {
-	mdReq := &queuemsg.MarkDoneRequest{}
-	mdResp := &queuemsg.MarkDoneResponse{}
+	mdReq := &queue.MarkDoneRequest{}
+	mdResp := &queue.MarkDoneResponse{}
 	mdReq.Id = qid.Marshal()
-	mdReq.Msg = []*protosupportmsg.IdRaw{savedMid.Marshal()}
+	mdReq.Msg = []*proto.IdRaw{savedMid.Marshal()}
 
 	rawErr := svc.markDone(ctx, mdReq, mdResp)
 	qErr := queue.NewQueueErrIdFromRaw(rawErr)

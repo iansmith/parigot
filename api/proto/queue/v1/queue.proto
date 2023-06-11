@@ -1,39 +1,186 @@
 syntax ="proto3";
 package queue.v1;
 option go_package="github.com/iansmith/parigot/g/queue/v1;queue";
-import "msg/queue/v1/queue.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "protosupport/v1/protosupport.proto";
 
-// QueueService supports a reliable source of messages.  Messages
+
+// Queue supports a reliable source of messages.  Messages
 // may be delivered out of order or delivered multiple times.
-service QueueService {
+service Queue {    
     // CreateQueue creates a new named queue.   This is useful primarily in preparing
     // for a deployment, not during normal execution.  See LocateQueue to find an already
     // existing queue.
-    rpc CreateQueue(msg.queue.v1.CreateQueueRequest) returns (msg.queue.v1.CreateQueueResponse);
+    rpc CreateQueue(CreateQueueRequest) returns (CreateQueueResponse);
 
     // Locate finds the named queue and returns the id.
-    rpc Locate(msg.queue.v1.LocateRequest) returns (msg.queue.v1.LocateResponse);
+    rpc Locate(LocateRequest) returns (LocateResponse);
 
     // DeleteQueue deletes a named queue.  This request will return a specific error code
     // if the queue does not exist.
-    rpc DeleteQueue(msg.queue.v1.DeleteQueueRequest) returns (msg.queue.v1.DeleteQueueResponse);
+    rpc DeleteQueue(DeleteQueueRequest) returns (DeleteQueueResponse);
 
     // Receive a queued message.  Just receiving a message does not imply
     // that it is fully processed.  You need to call delete or the message will
     // be redelivered at a future point.  Messages are not guaranteed
     // to be received in the order sent.  If there are no messages ready,
     // the response will be returned with a nil message.
-    rpc Receive(msg.queue.v1.ReceiveRequest) returns (msg.queue.v1.ReceiveResponse);
+    rpc Receive(ReceiveRequest) returns (ReceiveResponse);
 
     // Mark a message as done and delete.  This should only be done _after_
     // the processing is completed.  If you are worried about idempotentency
     // in your processing,you will need to keep a record of which 
     // message Ids you have processed.
-    rpc MarkDone(msg.queue.v1.MarkDoneRequest) returns (msg.queue.v1.MarkDoneResponse);
+    rpc MarkDone(MarkDoneRequest) returns (MarkDoneResponse);
 
 // Length returns the approximate number of items in the queue.
-    rpc Length(msg.queue.v1.LengthRequest) returns (msg.queue.v1.LengthResponse);
+    rpc Length(LengthRequest) returns (LengthResponse);
 
     // Send a message for later delivery.
-    rpc Send(msg.queue.v1.SendRequest) returns (msg.queue.v1.SendResponse);
+    rpc Send(SendRequest) returns (SendResponse);
+}
+
+
+
+// Create creates a queue or returns an error.  Note that this is usually used
+// only once to set up the operating environment.
+message CreateQueueRequest {
+    string queue_name = 1;
+}
+
+// CreateQueueResponse returns the queue just created.
+// Errors are passed back out of band.
+message CreateQueueResponse {
+    protosupport.v1.IdRaw id = 1;
+}
+
+// LocateRequest is request to access a given queue.
+message LocateRequest {
+    string queue_name = 1;
+}
+
+// LocateResponse returns the queue id corresponding to the name
+// provided.  It returns errors out of band.
+message LocateResponse {
+    protosupport.v1.IdRaw id = 1;
+}
+
+// Delete queue deletes a queue and returns the queue id deleted, or sends
+// an error out of band.
+message DeleteQueueRequest {
+    protosupport.v1.IdRaw id = 1;
+}
+
+// DeleteQueueResponse returns the (now invalid) queue id of what
+// was just deleted.
+message DeleteQueueResponse {
+    protosupport.v1.IdRaw id = 1;
+}
+
+// Receive pulls the available messages from the queue and returns
+// them.  Note that if multiple copies of the caller exist, the 
+// caller must be prepared to receive the same message multiple
+// times.
+message ReceiveRequest {
+    protosupport.v1.IdRaw id = 1;
+    // it is expected that you can process all received messages inside the time limit
+    int32 message_limit = 2; // 1 is usually the right choice here
+}
+
+// Receive response hands the caller a list of messages to 
+// process. If you need to return an error, do so out of band.
+message ReceiveResponse {
+    protosupport.v1.IdRaw id = 1;
+    repeated QueueMsg message = 2;
+}
+
+// QueueMsg represents an object returned by a call to Receive.
+message QueueMsg {
+    protosupport.v1.IdRaw id = 1;
+    protosupport.v1.IdRaw msg_id = 2;
+    // ReceiveCount is an approximation of the number of times
+    // this messages has been delivered before this delivery.
+    int32 receive_count = 3;
+    // ReceiveTime is an approximation to the first time the message was received.
+    // If the message has never been received before, this will be the zero value.
+    google.protobuf.Timestamp  received = 4;
+    // sender may be any type (or nil) at the discretion of sender
+    google.protobuf.Any sender = 5;
+    // when the message was sent
+    google.protobuf.Timestamp  sent = 6;
+    // payload must be a serialized protobuf object
+    google.protobuf.Any payload = 7;
+}
+
+// MarkDone request indicates that the caller has finished processing
+// each message in 
+message MarkDoneRequest {
+    protosupport.v1.IdRaw id = 1;
+    repeated protosupport.v1.IdRaw msg = 2;
+}
+
+// MarkDone returns the list of unmodified (not marked done) messages 
+// remaining. In the normal case, this will be empty.  If there was an error
+// trying to mark items as done, it returns the error and 
+// puts the unmarked elements in the list unmodified
+message MarkDoneResponse {
+    protosupport.v1.IdRaw id = 1;
+    repeated protosupport.v1.IdRaw unmodified = 2;
+}
+
+// Length requests and approximation of the number of elements in the queue 
+message LengthRequest {
+    protosupport.v1.IdRaw id = 1;
+}
+
+// LengthResponse returns the queue id identifying the queue we 
+// computed the length for.
+message LengthResponse {
+    protosupport.v1.IdRaw id = 1;
+    int64 length = 2;
+}
+
+// Send requests enqueues the queue messages provided.
+message SendRequest {
+    protosupport.v1.IdRaw id = 1;
+    repeated QueueMsg msg = 2;
+}
+
+// If the queue msg id is an error then we are using the error_detail_msg to
+// return the value.  Note that the message id you provide here will
+// changed once we send you the success notification using your id.
+message SendResponse {
+    repeated protosupport.v1.IdRaw succeed = 1;
+    repeated QueueMsg fail = 2;
+    protosupport.v1.IdRaw failed_on = 3;
+}
+
+enum QueueErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; // mandatory
+    UnmarshalError = 2; //mandatory
+
+    // InvalidName means that the given queue name is a not a valid
+	// identifier.  Identifiers must contain only ascii alphanumeric characters
+	// and the symbols ".", ",","_" and "-".  The first letter of a queue name
+	// must be an alphabetic character.
+	InvalidName = 3;
+	// InternalError means that the queue's implementation (not the values)
+	// passed to it) is the problem.  This is roughly a 500 not a 401.
+    // This is usually caused by a problem with the internal
+    // database used to store the queue items.
+	InternalError=4;
+	// NoPayload is an error that means that an attempt was made to create
+	// a message a nil payload.  Payloads are mandatory and senders are optional.
+	NoPayload=5;
+	// NotFound means that the Queue name requested could not be found.
+	// This the queue equivalent of 404.
+	NotFound=6;
+	//AlreadyExists means that the Queue name is already in use.
+	AlreadyExists=7;
+	//Unmarshal error means that we could not use the protobuf
+    //unmarshal successfully for a payload or sender.
+	UnmarshalFailed=8;
 }

@@ -20,9 +20,9 @@ import (
 {{- end}} {{/* imports */}}
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm"  
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	
 )
 var _ =  unsafe.Sizeof([]byte{})
@@ -38,10 +38,10 @@ var {{$svcCamel}}fsName = "/parigotvirt"
 //
 
 type {{$svcCamel}}Server interface {
-{{range .GetWasmMethod }}
+{{- range .GetWasmMethod }}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- $iParam:=.InputParam.CGType.String $package}}
+{{- $oParam:=.OutputParam.CGType.String $package}}
 {{- if .InputCodeNeeded }}
 	{{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }}
@@ -74,15 +74,16 @@ func Run{{$svcCamel}}(ctx context.Context, impl {{$svcCamel}}Server) {
 	// wait until all the go routines are done
 	var wg sync.WaitGroup
 	err:={{$svcCamelFL}}Bind(ctx,impl,&wg)
-	if err.IsError() {
-		pcontext.Errorf(ctx,"error returned from {{$svcCamel}}Bind:%v", err)
+	if err!=0{
+		pcontext.Errorf(ctx,"error returned from {{$svcCamel}}Bind:%d",
+			err)
 		return
 	}
 
 	wg.Wait()			
 }
 
-func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.WaitGroup)  id.KernelErrId {
+func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.WaitGroup)  syscall.KernelErr {
 	var fp io.Reader
 	var err error
 
@@ -93,7 +94,7 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
-{{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded false false .}}
 
 //
 // {{.ProtoPackage}}.{{$methCamel}}
@@ -109,12 +110,12 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 {{- end }} {{/* end of Both */}}
 	if err!=nil {
 		pcontext.Errorf(ctx,"Unable to open '{{.ProtoPackage}}.{{$methCamel}}', open failed:%s",err.Error())
-		return  id.NewKernelErrId(id.KernelNotFound)
+		return  syscall.KernelErr_NotFound
 	}
 	if !impl.Ready(ctx){
 		pcontext.Errorf(ctx,"Unable to start {{.ProtoPackage}}.{{$methCamel}}, Ready returned false")
 		pcontext.Dump(ctx)
-		return id.NewKernelErrId(id.KernelNotReady)
+		return syscall.KernelErr_NotReady
 	}
 {{- if eq $dir "Both" }}
 	go func(c context.Context, rd io.Reader, wr io.Writer, impl {{$svcCamel}}Server, wg *sync.WaitGroup) {
@@ -131,8 +132,8 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 			bpi := apiwasm.NewBytePipeIn[*{{$iParam}}](ctx, rd)
 			bpo := apiwasm.NewBytePipeOut[*{{$oParam}}](ctx, wr)
 
-			var idRaw id.IdRaw
-			err =bpi.ReadProto(&msg,&idRaw)
+			var errValue int32
+			err =bpi.ReadProto(&msg,&errValue)
 			if err!=nil {
 				if err==apiwasm.ErrSignalExit{
 					break
@@ -140,22 +141,21 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 				pcontext.Fatalf(c,"error in '{{.ProtoPackage}}.{{$methCamel}}' reading next message: %v",err)
 				break
 			}
-			if idRaw.IsError() {
-				pcontext.Errorf(c,"error id received (%s),not calling '{{.ProtoPackage}}.{{$methCamel}}'",idRaw.String())
+			if errValue!=0 {
+				pcontext.Errorf(c,"error id received (%d),not calling '{{.ProtoPackage}}.{{$methCamel}}'",errValue)
 				continue
 			}
 			pcontext.Infof(c,"Read in a new request of type: %s","{{$iParam}}")
 			resp, fleazil := impl.{{$methCamel}}(c, &msg)
-			idRaw=fleazil.Raw()
-			if idRaw.IsError() {
-				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %v",idRaw.String())				
-				if err:=bpo.WriteProto(nil,idRaw); err!=nil {
+			if fleazil!=0 {
+				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %d",fleazil)				
+				if err:=bpo.WriteProto(nil,int32(fleazil)); err!=nil {
 					pcontext.Errorf(c,"Error writing errId response in {{$methCamel}}: %v",err)
-				}
+				} 
 				continue
 			}
-			errId:=id.KernelErrIdNoErr
-			if err=bpo.WriteProto(resp,errId.Raw()); err!=nil {
+			errId:=syscall.KernelErr_NoError
+			if err=bpo.WriteProto(resp,int32(errId)); err!=nil {
 				pcontext.Errorf(c,"Error writing proto response in {{$methCamel}}: %v",err)
 				continue
 			}
@@ -179,9 +179,9 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 			pcontext.Dump(c) // from last iteration
 			var msg {{$iParam}}
 			bpi := apiwasm.NewBytePipeIn[*{{$iParam}}](ctx, rd)
-			var idRaw id.IdRaw
+			var rawError int32
 
-			err =bpi.ReadProto(&msg,&idRaw)
+			err =bpi.ReadProto(&msg,&rawError)
 			if err!=nil {
 				if err==apiwasm.ErrSignalExit{
 					break
@@ -189,15 +189,14 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 				pcontext.Fatalf(c,"error in '{{.ProtoPackage}}.{{$methCamel}}' reading next message: %v",err)
 				break
 			}
-			if idRaw.IsError() {
-				pcontext.Errorf(c,"error id received (%s),not calling '{{.ProtoPackage}}.{{$methCamel}}'",idRaw.String())
+			if rawError!=0 {
+				pcontext.Errorf(c,"error id received (%d),not calling '{{.ProtoPackage}}.{{$methCamel}}'",rawError)
 				continue
 			}
 			pcontext.Infof(c,"Read in a new request of type: %s","{{$iParam}}")
 			fleazil := impl.{{$methCamel}}(c, &msg)
-			idRaw = fleazil.Raw()
-			if idRaw.IsError() {
-				pcontext.Errorf(c,"Ignoring error returned from {{$methCamel}}: %v",idRaw.String())				
+			if fleazil!=0 {
+				pcontext.Errorf(c,"Ignoring error returned from {{$methCamel}}: %d",fleazil)				
 				continue
 			}
 		}
@@ -218,20 +217,19 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 		for {
 			pcontext.Dump(c) // from last iteration
 			bpo := apiwasm.NewBytePipeOut[*{{$oParam}}](ctx, wr)
-			var idRaw id.IdRaw
 			resp, fleazil := impl.{{$methCamel}}(c)
-			idRaw=fleazil.Raw()
-			if idRaw.IsError() {
-				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %v",idRaw.String())				
-				if err:=bpo.WriteProto(nil,idRaw); err!=nil {
+			if int32(fleazil)!=0 {
+				pcontext.Errorf(c,"Error returned from {{$methCamel}}: %d",int32(fleazil))				
+				if err:=bpo.WriteProto(nil,int32(fleazil)); err!=nil {
 					pcontext.Errorf(c,"Error writing errId response in {{$methCamel}}: %v",err)
+					break
 				}
 				continue
 			}
-			errId:=id.KernelErrIdNoErr
-			if err=bpo.WriteProto(resp,errId.Raw()); err!=nil {
+			errId:=syscall.KernelErr_NoError
+			if err=bpo.WriteProto(resp,int32(errId)); err!=nil {
 				pcontext.Errorf(c,"Error writing proto response in {{$methCamel}}: %v",err)
-				continue
+				break
 			}
 		}
 		wg.Wait()
@@ -243,7 +241,7 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 
 {{- end }} {{/* end of range over methods */}}
 	pcontext.Dump(ctx)
-	return id.KernelErrIdNoErr
+	return syscall.KernelErr_NoError
 }
 
 {{- /* range over methods again to do the generated refs */}}
@@ -269,13 +267,21 @@ func NewWrap{{$svcCamel}} (ctx context.Context, impl {{$svcCamel}}Server) *Wrap{
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
+{{- $hostFuncName:= $methCamel}}
+{{- $hostFuncNameSnake:= $methSnake}}
+{{- if ne .HostFuncName ""}} 
+{{- $hostFuncName = .HostFuncName}}
+{{- $hostFuncNameSnake = toSnakeCase .HostFuncName}}
+{{- end }} {{/* end of if host func option used */}}
+
 // If you want to implement part of your server in host cost you should call 
 // {{$methCamel}}Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you 
 // implement everything on the guest side).
-//go:wasmimport {{packageToGoName $pkg}} {{$methSnake}}_
-func {{$methCamel}}_(int32,int32,int32,int32) int64
-func {{$methCamel}}Host(inPtr *{{$iParam}}) (*{{$oParam}}, {{$errId}}) {
+//
+//go:wasmimport {{packageToGoName $pkg}} {{$hostFuncNameSnake}}_
+func {{$hostFuncName}}_(int32,int32,int32,int32) int64
+func {{$hostFuncName}}Host(inPtr *{{$iParam}}) (*{{$oParam}}, {{$errId}}) {
 	outProtoPtr := (*{{$oParam}})(nil)
 	ctx := apiwasm.ManufactureGuestContext("[{{$svcCamel}}]{{$methCamel}}")
 	defer pcontext.Dump(ctx)

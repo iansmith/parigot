@@ -1,7 +1,6 @@
 package go_
 
 import (
-	"log"
 	"text/template"
 
 	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
@@ -43,7 +42,6 @@ func (g *GoGen) FuncMap() template.FuncMap {
 }
 
 func (g *GoGen) Process(pr *descriptorpb.FileDescriptorProto) error {
-	log.Printf("xxxx PROCESSing only: %s", pr.GetName())
 	codegen.AddFileContentToFinder(g.finder, pr, g.lang)
 	return nil
 }

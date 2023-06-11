@@ -2,7 +2,7 @@ package main
 
 const (
 	SliceSize = 100 * 1024 // 0.1 MB
-	NumNodes  = 10000      // change this to run out of memory
+	NumNodes  = 100000000       // change this to run out of memory
 )
 
 type Node struct {
@@ -19,6 +19,9 @@ func main() {
 	// Allocate additional nodes
 	current := head
 	for i := 0; i < NumNodes; i++ {
+		if i%1000=={
+			fmt.Logf("Iteration: %d",i)
+		}
 		next := &Node{
 			Data: make([]byte, SliceSize),
 		}

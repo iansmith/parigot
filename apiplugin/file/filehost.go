@@ -5,10 +5,8 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
-	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
 	"github.com/iansmith/parigot/sys"
 
 	"github.com/tetratelabs/wazero/api"
@@ -50,15 +48,15 @@ func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
 }
 
 // true native implementation of open... assume this is read only
-func openImpl(ctx context.Context, in *filemsg.OpenRequest, out *filemsg.OpenResponse) id.IdRaw {
+func openImpl(ctx context.Context, in *file.OpenRequest, out *file.OpenResponse) int32 {
 	// use Os
-	return file.FileErrIdNoErr.Raw()
+	return int32(file.FileErr_NoError)
 }
 
 // the wrappers always look like this.. notice where openImpl is in this function
 func open(ctx context.Context, m api.Module, stack []uint64) {
-	req := &filemsg.OpenRequest{}
-	resp := &filemsg.OpenResponse{}
+	req := &file.OpenRequest{}
+	resp := &file.OpenResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[file]open", m, stack, openImpl, req, resp)
 }
 

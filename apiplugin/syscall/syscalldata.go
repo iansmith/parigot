@@ -9,6 +9,7 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/yourbasic/graph"
 )
 
@@ -394,15 +395,15 @@ func (s *syscallDataImpl) checkNodesInFront(ctx context.Context, svcid string) b
 // Import adds a node in the dependency graph between src and dest.
 // It returns a kerr if either the source or dest cannot be found; it
 // returns a kerr if the new edge would create a cycle.
-func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) id.KernelErrId {
+func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr {
 
 	serviceSource := s.ServiceByIdString(ctx, src.String())
 	if serviceSource == nil {
-		return id.NewKernelErrId(id.KernelNotFound)
+		return syscall.KernelErr_NotFound
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())
 	if serviceDest == nil {
-		return id.NewKernelErrId(id.KernelNotFound)
+		return syscall.KernelErr_NotFound
 	}
 	srcString := serviceSource.String()
 	destString := serviceDest.String()
@@ -414,7 +415,7 @@ func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) id
 	}
 	ok := s.addEdge(ctx, srcString, destString)
 	if !ok {
-		return id.NewKernelErrId(id.KernelNotFound)
+		return syscall.KernelErr_NotFound
 	}
 	if !graph.Acyclic(s.depGraph) {
 		pcontext.Errorf(ctx, "acyclic check failed, removing %s->%s",
@@ -435,10 +436,10 @@ func (s *syscallDataImpl) Import(ctx context.Context, src, dest id.ServiceId) id
 			buf.WriteString(n + "\n")
 		}
 		pcontext.Debugf(ctx, "cycle:\n%s", buf.String())
-		return id.NewKernelErrId(id.KernelDependencyCycle)
+		return syscall.KernelErr_DependencyCycle
 
 	}
-	return id.KernelErrIdNoErr
+	return syscall.KernelErr_NoError
 }
 
 func (s *syscallDataImpl) removeEdge(ctx context.Context, v, u int) {

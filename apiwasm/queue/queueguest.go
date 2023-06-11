@@ -5,17 +5,17 @@ import (
 	"unsafe"
 
 	pcontext "github.com/iansmith/parigot/context"
-	queuemsg "github.com/iansmith/parigot/g/msg/queue/v1"
-	gqueue "github.com/iansmith/parigot/g/queue/v1"
+	queue "github.com/iansmith/parigot/g/queue/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
-	gqueue.MustRegisterQueueService(ctx)
-	gqueue.MustExportQueueService(ctx)
-	gqueue.RunQueueService(ctx, &myQueueSvc{})
+	sid := queue.MustRegisterQueue(ctx)
+	queue.MustExportQueue(ctx)
+	queue.MustWaitSatisfiedQueue(sid)
+	queue.RunQueue(ctx, &myQueueSvc{})
 }
 
 type myQueueSvc struct {
@@ -24,24 +24,24 @@ type myQueueSvc struct {
 func (m *myQueueSvc) Ready(ctx context.Context) bool {
 	return true
 }
-func (m *myQueueSvc) CreateQueue(ctx context.Context, in *queuemsg.CreateQueueRequest) (*queuemsg.CreateQueueResponse, gqueue.QueueErrId) {
-	return gqueue.CreateQueueHost(in)
+func (m *myQueueSvc) CreateQueue(ctx context.Context, in *queue.CreateQueueRequest) (*queue.CreateQueueResponse, queue.QueueErr) {
+	return queue.CreateQueueHost(in)
 }
-func (m *myQueueSvc) Locate(ctx context.Context, in *queuemsg.LocateRequest) (*queuemsg.LocateResponse, gqueue.QueueErrId) {
-	return gqueue.LocateHost(in)
+func (m *myQueueSvc) Locate(ctx context.Context, in *queue.LocateRequest) (*queue.LocateResponse, queue.QueueErr) {
+	return queue.LocateHost(in)
 }
-func (m *myQueueSvc) DeleteQueue(ctx context.Context, in *queuemsg.DeleteQueueRequest) (*queuemsg.DeleteQueueResponse, gqueue.QueueErrId) {
-	return gqueue.DeleteQueueHost(in)
+func (m *myQueueSvc) DeleteQueue(ctx context.Context, in *queue.DeleteQueueRequest) (*queue.DeleteQueueResponse, queue.QueueErr) {
+	return queue.DeleteQueueHost(in)
 }
-func (m *myQueueSvc) Receive(ctx context.Context, in *queuemsg.ReceiveRequest) (*queuemsg.ReceiveResponse, gqueue.QueueErrId) {
-	return gqueue.ReceiveHost(in)
+func (m *myQueueSvc) Receive(ctx context.Context, in *queue.ReceiveRequest) (*queue.ReceiveResponse, queue.QueueErr) {
+	return queue.ReceiveHost(in)
 }
-func (m *myQueueSvc) MarkDone(ctx context.Context, in *queuemsg.MarkDoneRequest) (*queuemsg.MarkDoneResponse, gqueue.QueueErrId) {
-	return gqueue.MarkDoneHost(in)
+func (m *myQueueSvc) MarkDone(ctx context.Context, in *queue.MarkDoneRequest) (*queue.MarkDoneResponse, queue.QueueErr) {
+	return queue.MarkDoneHost(in)
 }
-func (m *myQueueSvc) Length(ctx context.Context, in *queuemsg.LengthRequest) (*queuemsg.LengthResponse, gqueue.QueueErrId) {
-	return gqueue.LengthHost(in)
+func (m *myQueueSvc) Length(ctx context.Context, in *queue.LengthRequest) (*queue.LengthResponse, queue.QueueErr) {
+	return queue.LengthHost(in)
 }
-func (m *myQueueSvc) Send(ctx context.Context, in *queuemsg.SendRequest) (*queuemsg.SendResponse, gqueue.QueueErrId) {
-	return gqueue.SendHost(in)
+func (m *myQueueSvc) Send(ctx context.Context, in *queue.SendRequest) (*queue.SendResponse, queue.QueueErr) {
+	return queue.SendHost(in)
 }
