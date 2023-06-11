@@ -25,7 +25,7 @@ var templateFS embed.FS
 
 var generatorMap = map[string]codegen.Generator{}
 
-var save = flag.Bool("s", true, "save a copy of the input to temp dir")
+var save = flag.Bool("s", false, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
 var terminal = flag.Bool("t", false, "dump the generated code to stdout instead of using protobuf format")
 var tmpDir = flag.String("d", "tmp", "provide a directory to use as the temp directior, defaults to ./tmp")
@@ -54,6 +54,9 @@ func main() {
 		pkg := f.GetOptions().GetGoPackage()
 		if index := strings.LastIndex(pkg, ";"); index != -1 {
 			pkg = pkg[:index]
+		}
+		if codegen.IsIgnoredPackage(pkg) {
+			continue
 		}
 		importToPackageMap[f.GetName()] = pkg
 	}
@@ -113,12 +116,14 @@ func isGenerate(fullName string, genReq *pluginpb.CodeGeneratorRequest) bool {
 // about the languages being used.  those get set at the point we compute genMap
 func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
 	fileList := []*util.OutputFile{}
-
 	// compute the set of descriptors that will need to be generated... have to do this firest because
 	// there can be multiple protos in the same package
 	fileToSvc := make(map[string][]*descriptorpb.ServiceDescriptorProto)
 	fileToMsg := make(map[string][]*descriptorpb.DescriptorProto)
 	nameToFile := make(map[string]*descriptorpb.FileDescriptorProto)
+	enumType := make(map[string][]*descriptorpb.EnumDescriptorProto)
+	enumTypeToValue := make(map[string][]*descriptorpb.EnumValueDescriptorProto)
+
 	for _, desc := range genReq.GetProtoFile() {
 		nameToFile[desc.GetName()] = desc
 		isGen := isGenerate(desc.GetName(), genReq)
@@ -150,16 +155,16 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 			fileToMsg[desc.GetName()] = allMsg
 		}
 	}
-	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg)
-
+	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
 		for lang, generator := range generatorMap {
 			codegen.Collect(info, generator.LanguageText())
 			if info.Contains(desc.GetName()) {
 				// inject this desc into the finder
-				// skip it? only if no services and no messages xxx will break enums
-				if len(info.GetAllServiceByName(desc.GetName())) == 0 {
+				nSvc := len(info.GetAllServiceByName(desc.GetName()))
+				nMsg := len(info.GetAllMessageByName(desc.GetName()))
+				if nSvc == 0 && nMsg == 0 {
 					continue
 				}
 				// load up templates

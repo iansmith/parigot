@@ -126,8 +126,10 @@ func (c *CGType) String(from string) string {
 	if c.composite == nil {
 		return c.lang.BasicTypeToString(c.basic, true)
 	}
-	addr := c.finder.AddressingNameFromMessage(from, c.composite)
-	return addr
+	// addr := c.finder.AddressingNameFromMessage(from, c.composite)
+	// log.Printf("cgtype discovered %s FROM %s, and message %s", addr, from, c.composite.GetName())
+
+	return c.composite.GetWasmMessageName()
 }
 
 func (c *CGType) StringNotInProto() string {

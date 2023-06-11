@@ -9,19 +9,14 @@ import (
 {{else}}	
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
     "github.com/tetratelabs/wazero/api"
 )
 //
 //  Begin Boilerplate for {{.errorName}}
 //
 
-type {{.errorName}}IdCode uint16
-const {{.errorName}}IdNoError {{.errorName}}IdCode = 0
-const {{.errorName}}IdLocateError {{.errorName}}IdCode = 1
-const {{.errorName}}IdUnmarshalError {{.errorName}}IdCode = 2
-const {{.errorName}}IdDispatchError {{.errorName}}IdCode = 3
-const {{.errorName}}IdGuestStart {{.errorName}}IdCode = 4
+type {{.errorName}}IdCode int32
 type Def{{.errorName}} struct{}
 
 // Use Def{{.errorName}} if you need to make an IdRoot[T] with T being Def{{.ErrorName}}
@@ -33,7 +28,7 @@ type {{.errorName}}Id {{.idPkg}}IdRoot[Def{{.errorName}}]
 
 // NoErr is a convenience for referring to an errorId that is
 // "everything is ok".
-var {{.errorName}}IdNoErr = New{{.errorName}}Id({{.errorName}}IdNoError)
+var {{.errorName}} = New{{.errorName}}Id({{.errorName}}IdNoError)
 
 func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
     high2:=uint64(Def{{.errorName}}{}.Letter())
@@ -46,7 +41,7 @@ func New{{.errorName}}Id(code {{.errorName}}IdCode) {{.errorName}}Id {
     return {{.errorName}}Id(root)
 }
 
-func (f {{.errorName}}Id) Marshal() *protosupportmsg.IdRaw {
+func (f {{.errorName}}Id) Marshal() *protosupport.IdRaw {
 	return {{.idPkg}}MarshalProtobuf({{.errorCast}})
 }
 func ZeroValue{{.errorName}}Id() {{.errorName}}Id {

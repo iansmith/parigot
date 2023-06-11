@@ -9,8 +9,6 @@ import (
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
-	methodcallmsg "github.com/iansmith/parigot/g/msg/methodcall/v1"
-	testmsg "github.com/iansmith/parigot/g/msg/test/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -18,15 +16,13 @@ import (
 
 var exitCode = int32(0)
 
-const TestRegexpFail test.TestErrIdCode = test.TestErrIdGuestStart
-
 func manufactureContext(name string) context.Context {
 	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(context.Background()), name), name)
 }
 
 var myServiceId id.ServiceId
-var foo methodcall.FooServiceClient
-var bar methodcall.BarServiceClient
+var foo methodcall.FooClient
+var bar methodcall.BarClient
 
 func main() {
 	ctx := manufactureContext("[methodcall]main")
@@ -38,36 +34,36 @@ func main() {
 	pcontext.Debugf(ctx, "program started")
 
 	myServiceId = lib.MustRegisterClient(ctx)
-	methodcall.MustRequireFooService(pcontext.CallTo(ctx, "Require"), myServiceId)
+	methodcall.MustRequireFoo(pcontext.CallTo(ctx, "Require"), myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring foo")
-	test.MustRequireTestService(ctx, myServiceId)
+	test.MustRequireTest(ctx, myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring test")
-	methodcall.MustRequireBarService(ctx, myServiceId)
+	methodcall.MustRequireBar(ctx, myServiceId)
 	pcontext.Debugf(ctx, "fineshed requiring bar")
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
 	pcontext.Debugf(ctx, "finished wait satisfy")
 
-	underTestServer.testSvc = test.MustLocateTestService(ctx, myServiceId)
-	underTestServer.foo = methodcall.MustLocateFooService(ctx, myServiceId)
-	underTestServer.bar = methodcall.MustLocateBarService(ctx, myServiceId)
+	underTestServer.testSvc = test.MustLocateTest(ctx, myServiceId)
+	underTestServer.foo = methodcall.MustLocateFoo(ctx, myServiceId)
+	underTestServer.bar = methodcall.MustLocateBar(ctx, myServiceId)
 
 	pcontext.Debugf(ctx, "methodcall.main: got three locates  and satified all requires")
 
-	test.RunUnderTestService(ctx, underTestServer)
+	test.RunUnderTest(ctx, underTestServer)
 }
 
 // TestAddMulitply is a test of a function that has both input and output.
 func (m *myUnderTestServer) TestAddMultiply(ctx context.Context, t *testing.T) {
 	fn := func(t *testing.T, value0, value1, sum, product int32) {
-		req := &methodcallmsg.AddMultiplyRequest{
+		req := &methodcall.AddMultiplyRequest{
 			Value0: value0,
 			Value1: value1,
 			IsAdd:  true,
 		}
 		resp, err := m.foo.AddMultiply(ctx, req)
-		if err.IsError() {
-			t.Fatalf("error in AddMultiply [add]:%v", err)
+		if err != methodcall.MethodCallSuiteErr_NoError {
+			t.Fatalf("error in AddMultiply [add]:%v", methodcall.MethodCallSuiteErr_name[int32(err)])
 		}
 		if resp.Result != sum {
 			t.Fatalf("bad result for add, expected %d but got %d", sum, resp.Result)
@@ -75,8 +71,8 @@ func (m *myUnderTestServer) TestAddMultiply(ctx context.Context, t *testing.T) {
 
 		req.IsAdd = false
 		resp, err = m.foo.AddMultiply(ctx, req)
-		if err.IsError() {
-			t.Fatalf("error in AddMultiply [mult]:%s", err.Short())
+		if err != methodcall.MethodCallSuiteErr_NoError {
+			t.Fatalf("error in AddMultiply [mult]:%s", methodcall.MethodCallSuiteErr_name[int32(err)])
 		}
 		if resp.Result != product {
 			t.Fatalf("bad result for multiply, expected %d but got %d", product, resp.Result)
@@ -104,12 +100,12 @@ func (m *myUnderTestServer) TestAccumulate(t *testing.T) {
 	fn := func(t *testing.T, sum, prod int32, rest ...int32) {
 		ctx := manufactureContext("TestAccumulate")
 
-		req := methodcallmsg.AccumulateRequest{
+		req := methodcall.AccumulateRequest{
 			Value: rest,
 		}
 		resp, err := m.bar.Accumulate(ctx, &req)
-		if err.IsError() {
-			t.Errorf("received error from call to Accumulate: %v", err)
+		if err != methodcall.MethodCallSuiteErr_NoError {
+			t.Errorf("received error from call to Accumulate: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
 			t.FailNow()
 		}
 		if resp.GetProduct() != prod {
@@ -139,9 +135,9 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 	ctx := manufactureContext("[methodcall]TestLucas")
 
 	result, err := m.foo.LucasSequence(ctx)
-	if err.IsError() {
+	if err != methodcall.MethodCallSuiteErr_NoError {
 		t.Logf("outside func f1")
-		t.Errorf("received error from call to LucasSequence: %v", err)
+		t.Errorf("received error from call to LucasSequence: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
 		t.Fail()
 	}
 	member := result.GetSequence()[const_.LucasSize]
@@ -161,32 +157,32 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
-	testSvc test.TestServiceClient
-	foo     methodcall.FooServiceClient
-	bar     methodcall.BarServiceClient
+	testSvc test.TestClient
+	foo     methodcall.FooClient
+	bar     methodcall.BarClient
 }
 
 func (m *myUnderTestServer) Ready(ctx context.Context) bool {
-	m.foo = methodcall.MustLocateFooService(ctx, myServiceId)
-	m.bar = methodcall.MustLocateBarService(ctx, myServiceId)
-	m.testSvc = test.MustLocateTestService(ctx, myServiceId)
-	if err := m.setupTests(ctx); err.IsError() {
-		pcontext.Logf(ctx, pcontext.Error, "test setup failed:%s", err.Short())
+	m.foo = methodcall.MustLocateFoo(ctx, myServiceId)
+	m.bar = methodcall.MustLocateBar(ctx, myServiceId)
+	m.testSvc = test.MustLocateTest(ctx, myServiceId)
+	if err := m.setupTests(ctx); err != test.TestErr_NoError {
+		pcontext.Logf(ctx, pcontext.Error, "test setup failed:%s", test.TestErr_name[int32(err)])
 		return false
 	}
 	return true
 }
-func (m *myUnderTestServer) Exec(ctx context.Context, req *testmsg.ExecRequest) (*testmsg.ExecResponse, test.TestErrId) {
+func (m *myUnderTestServer) Exec(ctx context.Context, req *test.ExecRequest) (*test.ExecResponse, test.TestErr) {
 	pcontext.Debugf(ctx, "Exec", "got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName())
-	resp := &testmsg.ExecResponse{}
-	return resp, test.TestErrIdNoErr
+	resp := &test.ExecResponse{}
+	return resp, test.TestErr_NoError
 }
 
-func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErrId {
+func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErr {
 	pcontext.Debugf(ctx, "setupTests", "setup tests reached")
 
-	addReq := &testmsg.AddTestSuiteRequest{
-		Suite: []*testmsg.SuiteInfo{
+	addReq := &test.AddTestSuiteRequest{
+		Suite: []*test.SuiteInfo{
 			{
 				PackagePath:  "methodcall",
 				Service:      "Main",
@@ -197,20 +193,20 @@ func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErrId {
 		ExecService: "UnderTestService",
 	}
 	resp, err := m.testSvc.AddTestSuite(ctx, addReq)
-	if err.IsError() {
-		pcontext.Logf(ctx, pcontext.Error, "AddTestSuite:%v", err)
+	if err != test.TestErr_NoError {
+		pcontext.Logf(ctx, pcontext.Error, "AddTestSuite:%s", test.TestErr_name[int32(err)])
 		return err
 	}
 	pcontext.Logf(ctx, pcontext.Info, "AddTestSuite success: %+v", resp.Succeeded)
-	startResp, err := m.testSvc.Start(ctx, &testmsg.StartRequest{})
-	if err.IsError() {
-		pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%v", err)
+	startResp, err := m.testSvc.Start(ctx, &test.StartRequest{})
+	if err != test.TestErr_NoError {
+		pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%s", test.TestErr_name[int32(err)])
 		return err
 	}
 	if startResp.GetRegexFailed() {
 		pcontext.Logf(ctx, pcontext.Error, "Regexp Failed in filter:%v", err)
-		return test.NewTestErrId(TestRegexpFail)
+		return test.TestErr_RegexpFailed
 	}
 	pcontext.Logf(ctx, pcontext.Info, "Start() success: started %v tests", startResp.GetNumTest())
-	return test.TestErrIdNoErr
+	return test.TestErr_NoError
 }

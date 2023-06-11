@@ -8,7 +8,6 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  // id manipulation
-    "github.com/iansmith/parigot/g/msg/syscall/v1"  //syscallmsg
     "github.com/iansmith/parigot/apiimpl/syscall"  // to get a callImpl
 
 
@@ -33,8 +32,8 @@ type StoreServiceClient struct {
 // Locate finds a reference to the client interface of StoreService.  The logger parameter can be 
 // nil which implies that client code cannot call the Log() interface of ClientSideService.
 func LocateStoreService(logger lib.Log) (*StoreServiceClient,error) { 
-	var resp *syscallmsg.LocateResponse
-	req := &syscallmsg.LocateRequest{
+	var resp *syscall.LocateResponse
+	req := &syscall.LocateRequest{
         PackageName:"store.v1",
         ServiceName: "StoreService",
 	}

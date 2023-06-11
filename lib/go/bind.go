@@ -1,8 +1,8 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/apiwasm/syscall"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -13,16 +13,16 @@ import (
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func BindMethodIn(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
-	return bindMethodByName(in, syscallmsg.MethodDirection_METHOD_DIRECTION_IN)
+func BindMethodIn(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
+	return bindMethodByName(in, syscall.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodInNoPctx binds a method that only has an in parameter and does not
 // use the Pctx mechanism for logging.  This may, in fact, be a terrible idea but one
 // cannot write a separate logger server with having this.
 // xxxfixme: temporary? Should this be a different kernel call?
-func BindMethodInNoPctx(in *syscallmsg.BindMethodRequest, _ func(proto.Message) error) (*syscallmsg.BindMethodResponse, error) {
-	return bindMethodByName(in, syscallmsg.MethodDirection_METHOD_DIRECTION_IN)
+func BindMethodInNoPctx(in *syscall.BindMethodRequest, _ func(proto.Message) error) (*syscall.BindMethodResponse, error) {
+	return bindMethodByName(in, syscall.MethodDirection_METHOD_DIRECTION_IN)
 }
 
 // BindMethodOut binds a method that only has an out parameter.  This should
@@ -31,9 +31,9 @@ func BindMethodInNoPctx(in *syscallmsg.BindMethodRequest, _ func(proto.Message) 
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-// func BindMethodOut(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
-func BindMethodOut(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
-	return bindMethodByName(in, syscallmsg.MethodDirection_METHOD_DIRECTION_OUT)
+// func BindMethodOut(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
+func BindMethodOut(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
+	return bindMethodByName(in, syscall.MethodDirection_METHOD_DIRECTION_OUT)
 }
 
 // BindMethodBoth binds a method that has both an in and out parameter.  This should
@@ -42,14 +42,14 @@ func BindMethodOut(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResp
 // If there was an error, it is pulled out and returned in the 2nd result here.
 // MethodIds are opaque tokens that the kernel uses to communicate to an
 // implementing server which method has been invoked.
-func BindMethodBoth(in *syscallmsg.BindMethodRequest) (*syscallmsg.BindMethodResponse, error) {
-	return bindMethodByName(in, syscallmsg.MethodDirection_METHOD_DIRECTION_BOTH)
+func BindMethodBoth(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
+	return bindMethodByName(in, syscall.MethodDirection_METHOD_DIRECTION_BOTH)
 }
 
 // bindMethodByName is the implementation of all three of the Bind* calls.
-func bindMethodByName(in *syscallmsg.BindMethodRequest, dir syscallmsg.MethodDirection) (*syscallmsg.BindMethodResponse, error) {
+func bindMethodByName(in *syscall.BindMethodRequest, dir syscall.MethodDirection) (*syscall.BindMethodResponse, error) {
 	in.Direction = dir
-	out, err := syscall.BindMethod(in)
+	out, err := syscallguest.BindMethod(in)
 	if err != nil {
 		return nil, err
 	}

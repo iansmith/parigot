@@ -17,6 +17,7 @@ type WasmMethod struct {
 	parent         *WasmService
 	input          *InputParam
 	output         *OutputParam
+	HostFuncName   string
 	// these values doesn't matter if your parent service has the "always"
 	// version of it set
 	pullParameters bool
@@ -49,8 +50,9 @@ func (w *WasmMethod) IsTest() bool {
 func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	fullName := m.GetFullName()
 	parts := strings.Split(fullName, ".")
+	addr := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
+	log.Printf("importForMessage: addr=%s => fullname=%s", addr, fullName)
 	formattedName := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
-	log.Printf("xxx -- import For Message --- %+v, %s", parts, formattedName)
 	if len(parts) > 2 {
 		return fmt.Sprintf("github.com/iansmith/parigot/g/%s", strings.Join(parts[:len(parts)-1], "/"))
 	}
@@ -67,10 +69,6 @@ func (w *WasmMethod) addImportForOutput(comp *WasmMessage, imp map[string]struct
 func (w *WasmMethod) AddImportsNeeded(imp map[string]struct{}) {
 	w.addImportForInput(w.CGInput().CGType().CompositeType(), imp)
 	w.addImportForOutput(w.CGOutput().GetCGType().CompositeType(), imp)
-}
-
-func (w *WasmMethod) HasNoPackageOption() bool {
-	return w.parent.HasNoPackageOption()
 }
 
 func (w *WasmMethod) HasAbiCallOption() bool {
@@ -148,13 +146,13 @@ func (m *WasmMethod) EmtpyOutput() bool {
 	return m.CGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	if m.PullOutput() {
-		exp := ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
-		if exp == nil {
-			return false
-		}
-		return !exp.GetCGType().IsEmpty()
-	}
+	// if m.PullOutput() {
+	// 	exp := ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
+	// 	if exp == nil {
+	// 		return false
+	// 	}
+	// 	return !exp.GetCGType().IsEmpty()
+	// }
 	t := m.CGOutput().GetCGType()
 	if t == nil {
 		return false
@@ -218,16 +216,16 @@ func (m *WasmMethod) Language() LanguageText {
 	return m.Parent().GetLanguage()
 }
 
-func (m *WasmMethod) PullParameters() bool {
-	if m.parent.AlwaysPullParameters() {
-		return true
-	}
-	return m.pullParameters
-}
+// func (m *WasmMethod) PullParameters() bool {
+// 	if m.parent.AlwaysPullParameters() {
+// 		return true
+// 	}
+// 	return m.pullParameters
+// }
 
-func (m *WasmMethod) PullOutput() bool {
-	if m.parent.AlwaysPullOutput() {
-		return true
-	}
-	return m.pullOutput
-}
+// func (m *WasmMethod) PullOutput() bool {
+// 	if m.parent.AlwaysPullOutput() {
+// 		return true
+// 	}
+// 	return m.pullOutput
+// }

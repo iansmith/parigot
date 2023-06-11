@@ -9,36 +9,37 @@ import (
 {{else}}	
     "github.com/iansmith/parigot/apishared/id"
 {{end}}
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
+	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
 )
 //
 //  Begin Boilerplate for {{.primaryName}}
 //
 
-type {{.primaryName}}Code {{.idPkg}}IdRootErrorCode
-const {{.primaryName}}NoError {{.primaryName}}Code = 0
 type Def{{.primaryName}} struct{}
 
 func (f Def{{.primaryName}}) ShortString() string { return "{{.primaryShortName}}" }
 func (f Def{{.primaryName}}) Letter() byte        { return {{.primaryLetter}} } 
-func (f Def{{.primaryName}}) IsError() bool       { return true }
 
 type {{.primaryName}}Id {{.idPkg}}IdRoot[Def{{.primaryName}}]
 
 
-func New{{.primaryName}}IdFromRaw(in {{.idPkg}}IdRaw) {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}NewIdRootFromRaw[Def{{.primaryName}}](in))
+func New{{.primaryName}}Id() {{.primaryName}}Id {
+	return {{.primaryName}}Id({{.idPkg}}NewIdRoot[Def{{.primaryName}}]())
 }
 
-func (f {{.primaryName}}Id) Marshal() *protosupportmsg.IdRaw {
-	return {{.idPkg}}MarshalProtobuf({{.primaryCast}})
+func (f {{.primaryName}}Id) Marshal() *protosupport.IdRaw {
+	raw:=&protosupport.IdRaw{}
+	raw.High = f.High()
+	raw.Low = f.Low()
+	return raw
 }
-func ZeroValue{{.primaryName}}Id() {{.primaryName}}Id {
-	return {{.primaryName}}Id({{.idPkg}}ZeroValue[Def{{.primaryName}}]())
+func {{.primaryName}}IdZeroValue() {{.primaryName}}Id {
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](0xffffffffffffff,0xffffffffffffffff))
 }
-func (f {{.primaryName}}Id) Raw() {{.idPkg}}IdRaw {
-	return {{.primaryCast}}.Raw()
+func {{.primaryName}}IdEmptyValue() {{.primaryName}}Id {
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](0,0))
 }
+
 func (f {{.primaryName}}Id) Equal(other {{.primaryName}}Id) bool{
 	return {{.primaryCast}}.Equal({{.idPkg}}IdRoot[Def{{.primaryName}}](other))
 }
@@ -48,14 +49,15 @@ func (f {{.primaryName}}Id) String() string{
 func (f {{.primaryName}}Id) Short() string{
 	return {{.primaryCast}}.Short()
 }
-func (f {{.primaryName}}Id) IsError() bool{
-	return {{.primaryCast}}.IsError()
-}
+
 func (f {{.primaryName}}Id) IsZeroValue() bool{
 	return {{.primaryCast}}.IsZeroValue()
 }
 func (f {{.primaryName}}Id) IsEmptyValue() bool{
 	return {{.primaryCast}}.IsEmptyValue()
+}
+func (f {{.primaryName}}Id) IsZeroOrEmptyValue() bool{
+	return {{.primaryCast}}.IsZeroOrEmptyValue()
 }
 
 func (f {{.primaryName}}Id) High() uint64{
@@ -65,32 +67,11 @@ func (f {{.primaryName}}Id) Low() uint64{
 	return {{.primaryCast}}.Low()
 }
 
-func Unmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) ({{.primaryName}}Id, {{.idPkg}}IdErr) {
-	fid, err := {{.idPkg}}UnmarshalProtobuf[Def{{.primaryName}}](b)
-	if err.IsError() {
-		return ZeroValue{{.primaryName}}Id(), err
-	}
-	return {{.primaryName}}Id(fid), {{.idPkg}}NoIdErr
+func Unmarshal{{.primaryName}}Id(b *protosupport.IdRaw) {{.primaryName}}Id {
+	l:=b.GetLow()
+	h:=b.GetHigh()
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](h,l))
 }
-
-func MustUnmarshal{{.primaryName}}Id(b *protosupportmsg.IdRaw) {{.primaryName}}Id{
-	result, err:=Unmarshal{{.primaryName}}Id(b)
-	if err.IsError() {
-		panic("unable to unmarshal {{.primaryName}}Id from raw value: "+err.String())
-	}
-	return result
-}
-
-func New{{.primaryName}}IdFromProto(in *protosupportmsg.IdRaw) {{.primaryName}}Id {
-	raw:=MustUnmarshal{{.primaryName}}Id(in)
-	return {{.primaryName}}Id(raw)
-}
-
-func New{{.primaryName}}Id() {{.primaryName}}Id {
-	idroot := {{.idPkg}}NewIdRoot[Def{{.primaryName}}]()
-	return {{.primaryName}}Id(idroot)
-}
-
 
 //
 // End Boilerplate for {{.primaryName}}

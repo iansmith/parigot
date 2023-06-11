@@ -7,9 +7,6 @@ import (
 	"io"
 	"testing"
 
-	protosupportmsg "github.com/iansmith/parigot/g/msg/protosupport/v1"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
-
 	"github.com/iansmith/parigot/apishared/id"
 	"google.golang.org/protobuf/proto"
 )
@@ -41,7 +38,7 @@ func check0(t *testing.T, result proto.Message, err error) any {
 	if err != nil {
 		t.Errorf("unexpected error in test 0: %v", err)
 	}
-	bucr, ok := result.(*syscallmsg.BlockUntilCallResponse)
+	bucr, ok := result.(*syscall.BlockUntilCallResponse)
 	if !ok {
 		t.Errorf("unexpected proto type in test 0: %v", bucr)
 	}
@@ -53,12 +50,12 @@ func check1(t *testing.T, result proto.Message, err error) any {
 	if err != nil {
 		t.Errorf("unexpected error in test 0 (part2): %v", err)
 	}
-	bucr, ok := result.(*syscallmsg.BlockUntilCallResponse)
+	bucr, ok := result.(*syscall.BlockUntilCallResponse)
 	if !ok {
 		t.Errorf("unexpected proto type in test 0 (part2): %v", bucr)
 	}
-	call := id.Unmarshal[*protosupportmsg.CallId](bucr.GetCall())
-	meth := id.Unmarshal[*protosupportmsg.MethodId](bucr.GetMethod())
+	call := id.Unmarshal[*protosupport.CallId](bucr.GetCall())
+	meth := id.Unmarshal[*protosupport.MethodId](bucr.GetMethod())
 	if !call.Equal(check1Var[0]) {
 		t.Errorf("expected %s for call id, int test 0 (part2) but got %s", check1Var[0], call)
 	}
@@ -106,7 +103,7 @@ func setup0(t *testing.T) io.Reader {
 	t.Helper()
 
 	// empty
-	blockMsg := syscallmsg.BlockUntilCallResponse{}
+	blockMsg := syscall.BlockUntilCallResponse{}
 	marshaled, err := proto.Marshal(&blockMsg)
 	if err != nil {
 		t.Errorf("unable to marshal proto in test 0")
@@ -117,9 +114,9 @@ func setup0(t *testing.T) io.Reader {
 
 	check1Var[0] = id.NewCallId()
 	check1Var[1] = id.NewMethodId()
-	blockMsg2 := syscallmsg.BlockUntilCallResponse{
-		Method: id.Marshal[protosupportmsg.MethodId](check1Var[1]),
-		Call:   id.Marshal[protosupportmsg.CallId](check1Var[0]),
+	blockMsg2 := syscall.BlockUntilCallResponse{
+		Method: id.Marshal[protosupport.MethodId](check1Var[1]),
+		Call:   id.Marshal[protosupport.CallId](check1Var[0]),
 	}
 
 	marshaled2, err := proto.Marshal(&blockMsg2)
@@ -133,7 +130,7 @@ func setup0(t *testing.T) io.Reader {
 func setup1(t *testing.T) io.Reader {
 	t.Helper()
 
-	blockMsg := &syscallmsg.BlockUntilCallResponse{}
+	blockMsg := &syscall.BlockUntilCallResponse{}
 	marshaled, err := proto.Marshal(blockMsg)
 	if err != nil {
 		t.Errorf("unable to marshal proto")

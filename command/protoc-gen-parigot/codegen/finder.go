@@ -17,7 +17,7 @@ type Finder interface {
 	AddMessageType(wasmName, protoPackage, goPackage string, message *WasmMessage)
 	AddServiceType(wasmName, protoPackage, goPackage string, service *WasmService)
 	AddressingNameFromMessage(currentPkg string, message *WasmMessage) string
-	GoPackageOption(service []*WasmService) (string, error)
+	GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error)
 	Service() []*WasmService
 	Message() []*WasmMessage
 }
@@ -33,16 +33,12 @@ func NewSimpleFinder() *SimpleFinder {
 		message: make(map[*MessageRecord]*WasmMessage),
 	}
 }
-func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
+
+func (s *SimpleFinder) GoPackageOption(service []*WasmService, message []*WasmMessage) (string, error) {
 	pkg := ""
 	for _, svc := range service {
 		for sr, m := range s.service {
 			if m == svc {
-				//print(fmt.Sprintf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr))
-				// if pkg != "" && pkg != sr.goPackage {
-				// 	return "", fmt.Errorf("service '%s':mismatched go packages in go_option: '%s' and '%s'",
-				// 		svc.GetName(), pkg, sr.goPackage)
-				// }
 				part := strings.Split(sr.goPackage, ";")
 				if len(part) != 2 {
 					return "", fmt.Errorf("service %s: cannot understand go package option '%s'",
@@ -51,6 +47,19 @@ func (s *SimpleFinder) GoPackageOption(service []*WasmService) (string, error) {
 				pkg = part[1]
 			}
 		}
+	}
+	if len(service) == 0 {
+		for _, msg := range message {
+			//log.Printf("%s?%s", msg.GetName(), msg.GetGoPackage())
+			raw := msg.GetGoPackage()
+			part := strings.Split(raw, ";")
+			if len(part) == 2 {
+				pkg = part[1]
+			}
+		}
+	}
+	if pkg == "" {
+		panic("no package")
 	}
 	return pkg, nil
 }
@@ -100,6 +109,7 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 	for candidate, m := range s.message {
 		if m.GetFullName() == message.GetFullName() {
 			if m.GetProtoPackage() == currentPkg {
+				//log.Printf("\t\tcomparing pcakages %s vs %s (yay %s)", m.GetProtoPackage(), currentPkg, m.GetName())
 				if verbose {
 					log.Printf("! [simplefinder addressing name] found %s in package [%d] (current pkg was %s)", m.GetName(), len(m.GetField()), currentPkg)
 				}
@@ -118,12 +128,14 @@ func (s *SimpleFinder) AddressingNameFromMessage(currentPkg string, message *Was
 					}
 					p_2 := nonMsgPart
 					p_1 := part[len(part)-1]
-					return fmt.Sprintf("%smsg.%s", p_2, p_1)
+					// YYY ies crucial
+					return fmt.Sprintf("%s.%s", p_2, p_1)
 				}
 				result := strings.Join(part[len(part)-2:], ".")
 				if versionRegexp.MatchString(result) {
 					// move back one
-					pick := append([]string{part[len(part)-3] + "msg"}, part[len(part)-1:]...)
+					// YYY ies crucial
+					pick := append([]string{part[len(part)-3]}, part[len(part)-1:]...)
 					result = strings.Join(pick, ".")
 				}
 				//return strings.Join(part[len(part)-2:], ".")
@@ -205,6 +217,7 @@ func nameToJustServiceOrMessage(name string) string {
 	}
 	return part[len(part)-1]
 }
+
 func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *WasmService {
 	// sanity check
 	if !strings.HasPrefix(name, "."+protoPackage) {
@@ -221,8 +234,8 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *Wasm
 				return svc
 			} else {
 				if verbose {
-					log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s",
-						protoPackage, candidate.wasmName, shortName)
+					log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s xxxx %#v",
+						protoPackage, candidate.wasmName, shortName, candidate)
 				}
 			}
 		} else {
@@ -236,13 +249,13 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *Wasm
 
 }
 
-func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto,
-	lang LanguageText) {
+func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto, lang LanguageText) {
 	for _, m := range pr.GetMessageType() {
 		msg := NewWasmMessage(pr, m, lang, f)
 		f.AddMessageType(m.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), msg)
 	}
 	for _, s := range pr.GetService() {
+		log.Printf("xxxx %s: %v", s.GetName(), isServiceMarkedParigot(s.Options.String()))
 		svc := NewWasmService(pr, s, lang, f)
 		log.Printf("xxxx-->> adding %s,%s,%s => %s", s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc.GetWasmServiceName())
 		f.AddServiceType(s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)

@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	syscallmsg "github.com/iansmith/parigot/g/msg/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -39,63 +39,51 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 // Syscall host implementations
 //
 
-func exportImpl(ctx context.Context, req *syscallmsg.ExportRequest, resp *syscallmsg.ExportResponse) id.IdRaw {
+func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
 	for _, fullyQualified := range req.GetService() {
 		sid, _ := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
 		if depData().Export(ctx, sid.Id()) == nil {
-			return id.NewKernelErrId(id.KernelNotFound).Raw()
+			return int32(syscall.KernelErr_NotFound)
 		}
 	}
-	return id.KernelErrIdNoErr.Raw()
-
-}
-func returnKernelErrorForIdErr(ctx context.Context, ierr id.IdErr) id.KernelErrId {
-	pcontext.Errorf(ctx, "unable to unmarshal the service id in a require request: %s", ierr.Short())
-	// xxx this isn't a great error because the problem is really an Id error
-	return id.NewKernelErrId(id.KernelErrIdUnmarshalError)
+	return int32(syscall.KernelErr_NoError)
 
 }
 
-func runImpl(ctx context.Context, req *syscallmsg.RunRequest, resp *syscallmsg.RunResponse) id.IdRaw {
-	sid, idErr := id.UnmarshalServiceId(req.GetServiceId())
-	if idErr.IsError() {
-		returnKernelErrorForIdErr(ctx, idErr)
-	}
+func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResponse) int32 {
+	sid := id.UnmarshalServiceId(req.GetServiceId())
 	if !depData().Run(ctx, sid) {
-		return id.IdRaw(id.NewKernelErrId(id.KernelDependencyCycle))
+		return int32(syscall.KernelErr_DependencyCycle)
 	}
-	return id.KernelErrIdNoErr.Raw()
+	return int32(syscall.KernelErr_NoError)
 }
 
-func locateImpl(ctx context.Context, req *syscallmsg.LocateRequest, resp *syscallmsg.LocateResponse) id.IdRaw {
-	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.MustUnmarshalServiceId(req.CalledBy),
+func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
+	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.UnmarshalServiceId(req.CalledBy),
 		req.GetPackageName()+"."+req.GetServiceName())
 	svc, ok := depData().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
-		return id.NewKernelErrId(id.KernelNotFound).Raw()
+		return int32(syscall.KernelErr_NotFound)
 	}
-	calledBy := id.MustUnmarshalServiceId(req.CalledBy)
+	calledBy := id.UnmarshalServiceId(req.CalledBy)
 	if !depData().PathExists(ctx, calledBy.String(), svc.String()) {
-		return id.NewKernelErrId(id.KernelNotRequired).Raw()
+		return int32(syscall.KernelErr_NotRequired)
 	}
 	svcId := svc.Id()
 	pcontext.Debugf(ctx, "at end of locate, we are returning %s", svcId.Short())
 	resp.ServiceId = svcId.Marshal()
-	return id.IdRaw(id.KernelErrIdNoErr)
+	return int32(syscall.KernelErr_NoError)
 }
 
-func registerImpl(ctx context.Context, req *syscallmsg.RegisterRequest, resp *syscallmsg.RegisterResponse) id.IdRaw {
+func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
 	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.Id = svc.Id().Marshal()
-	return id.KernelErrIdNoErr.Raw()
+	return int32(syscall.KernelErr_NoError)
 }
 
-func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *syscallmsg.RequireResponse) id.IdRaw {
-	src, idErr := id.UnmarshalServiceId(req.GetSource())
-	if idErr.IsError() {
-		returnKernelErrorForIdErr(ctx, idErr)
-	}
+func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
+	src := id.UnmarshalServiceId(req.GetSource())
 	fqn := req.GetDest()
 	for _, fullyQualified := range fqn {
 		dest, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
@@ -104,12 +92,12 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 				fullyQualified.GetService(), dest.Short())
 		}
 		kerr := depData().Import(ctx, src, dest.Id())
-		if kerr.IsError() {
-			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr.ErrorCode())
-			return kerr.Raw()
+		if int32(kerr) != 0 {
+			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr)
+			return int32(kerr)
 		}
 	}
-	return id.KernelErrIdNoErr.Raw()
+	return int32(syscall.KernelErr_NoError)
 }
 
 //
@@ -117,13 +105,8 @@ func requireImpl(ctx context.Context, req *syscallmsg.RequireRequest, resp *sysc
 //
 
 func locate(ctx context.Context, m api.Module, stack []uint64) {
-	defer func() {
-		if r := recover(); r != nil {
-			print("Trapped a panic in locate ", r, "\n")
-		}
-	}()
-	req := &syscallmsg.LocateRequest{}
-	resp := &syscallmsg.LocateResponse{}
+	req := &syscall.LocateRequest{}
+	resp := &syscall.LocateResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
@@ -138,23 +121,13 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("bindMethod 0x%x", stack)
 }
 func run(ctx context.Context, m api.Module, stack []uint64) {
-	defer func() {
-		if r := recover(); r != nil {
-			print("Trapped a panic in run ", r, "\n")
-		}
-	}()
-	req := &syscallmsg.RunRequest{}
-	resp := (*syscallmsg.RunResponse)(nil)
+	req := &syscall.RunRequest{}
+	resp := (*syscall.RunResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
-	defer func() {
-		if r := recover(); r != nil {
-			print("trapped recover in export", r, "\n")
-		}
-	}()
-	req := &syscallmsg.ExportRequest{}
-	resp := (*syscallmsg.ExportResponse)(nil)
+	req := &syscall.ExportRequest{}
+	resp := (*syscall.ExportResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
@@ -162,27 +135,16 @@ func returnValue(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func require(ctx context.Context, m api.Module, stack []uint64) {
-	defer func() {
-		if r := recover(); r != nil {
-			print("FOUND RECOVERE ", r, "\n")
-		}
-	}()
-	req := &syscallmsg.RequireRequest{}
-	resp := (*syscallmsg.RequireResponse)(nil)
+	req := &syscall.RequireRequest{}
+	resp := (*syscall.RequireResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
 
 }
 
 func register(ctx context.Context, m api.Module, stack []uint64) {
-	defer func() {
-		if r := recover(); r != nil {
-			print("FOUND RECOVERE ", r, "\n")
-		}
-	}()
-	req := &syscallmsg.RegisterRequest{}
-	resp := &syscallmsg.RegisterResponse{}
+	req := &syscall.RegisterRequest{}
+	resp := &syscall.RegisterResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, registerImpl, req, resp)
-
 }
 
 func exit(ctx context.Context, m api.Module, stack []uint64) {

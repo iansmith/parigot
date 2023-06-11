@@ -85,7 +85,6 @@ func computeArgvEnvp() ([]string, []string) {
 var envp, argv []string
 
 func FlagParseCreateEnv() {
-	// log.Printf("xxx -- FlagParseCreateEnv()")
 	// argv, envp = computeArgvEnvp()
 	// os.Args = argv
 	// flag.Parse()

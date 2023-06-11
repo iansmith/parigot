@@ -27,13 +27,9 @@ func FuncParamPass(method *WasmMethod,
 	}
 	if !in.IsEmpty() {
 		if !in.CGType().IsBasic() {
-			if method.PullParameters() {
-				result += walkParametersPulled(method, fn)
-			} else {
-				fakeFormal := in.CGType().ShortName()[0:1]
-				cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.CGType())
-				result += fn(method, 0, cgp)
-			}
+			fakeFormal := in.CGType().ShortName()[0:1]
+			cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.CGType())
+			result += fn(method, 0, cgp)
 		}
 	}
 	// output is handled by OutTypeWalk
@@ -135,33 +131,4 @@ func walkParametersPulled(m *WasmMethod,
 		}
 	}
 	return result
-}
-
-func walkOutputPulledParam(m *WasmMethod,
-	fn func(protoPkg string, method *WasmMethod, parameter *CGParameter) string) string {
-	out := m.CGOutput()
-	if out.GetCGType().IsEmpty() {
-		// this is a semi-error but we tolerate it... you could have specified
-		// alwaysPullUp on the service and then if you had any empty functions
-		// you'd get a bunch of errors
-		return ""
-	}
-	t := out.GetCGType()
-	if t.IsBasic() {
-		log.Fatalf("unable to pull up parameters of %s because it is not a composite "+
-			"object", t.String("" /*doesnt matter on basic*/))
-	}
-	composite := t.CompositeType()
-	if len(composite.GetField()) == 0 {
-		return ""
-	}
-	if len(t.CompositeType().GetField()) > 1 {
-		log.Fatalf("cant pull up parameters from output type %s, it has more than 1 value",
-			t.String(""))
-	}
-	protoPkg := m.Parent().ProtoPackage()
-	f := t.CompositeType().GetField()[0]
-	childType := NewCGTypeFromField(f, m, protoPkg)
-	cgParam := NewCGParameterNoFormal(childType)
-	return fn(m.ProtoPackage(), m, cgParam)
 }
