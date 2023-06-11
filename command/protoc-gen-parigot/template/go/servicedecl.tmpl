@@ -46,7 +46,7 @@ type {{$svcCamel}} interface {
 
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $iParam:=.InputParam.CGType.String $package}}
 {{- $oParam:=.OutputParam.CGType.String $package}}
 {{- if .InputCodeNeeded }}
@@ -64,7 +64,6 @@ type {{$svcCamel}} interface {
 {{- end}} {{/* closes service, the interface stuff*/}}
 
 {{- range .service }}
-{{- if .NoKernelOption}}
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 {{ $errId:=.GetWasmServiceErrId }}
@@ -75,7 +74,7 @@ type {{$svcCamel}}Client_ struct {
 }
 
 // Locate finds a reference to the client interface of {{$svc}}.  
-func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,id.KernelErrId) {
+func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,syscall.KernelErr) {
 	req := &syscall.LocateRequest{
         PackageName:"{{.ProtoPackage}}",
         ServiceName: "{{$svc}}",
@@ -84,27 +83,27 @@ func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,i
 
     resp,errId:=syscallguest.Locate(req)
     print("locate ","{{.ProtoPackage}} ","{{$svc}}"," sid ",sid.String()," result ",resp," error ",errId.String(),"\n")
-    if errId.IsError() { 
-        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %v",errId.Short())
+    if errId!=syscall.KernelErr_NoError{
+        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %s",syscall.KernelErr_name[int32(errId)])
         return nil, errId
     }
-    serviceId:=id.MustUnmarshalServiceId(resp.GetServiceId())
+    serviceId:=id.UnmarshalServiceId(resp.GetServiceId())
 
     cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
     return &{{$svc}}Client_{
         ClientSideService: cs,
-    },id.KernelErrIdNoErr
+    },syscall.KernelErr_NoError
 }
 
 func MustLocate{{$svc}}(ctx context.Context, sid id.ServiceId) {{$svcCamel}}Client {
 
     result, err:=Locate{{$svc}}(ctx, sid)
 
-    normal:="unable to locate {{.ProtoPackage}}.{{$svc}}:"+err.Short()
-
-    if err.IsError() {
-        pcontext.Debugf(ctx,"error code is %d",err.ErrorCode())
-        if err.ErrorCode() == 28 {
+    name:=syscall.KernelErr_name[int32(err)]
+    normal:="unable to locate {{.ProtoPackage}}.{{$svc}}:"+name
+    if err!=0 {
+        pcontext.Debugf(ctx,"kernel error was  %s",name)
+        if err == syscall.KernelErr_NotRequired {
             pcontext.Errorf(ctx,"service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
@@ -113,7 +112,7 @@ func MustLocate{{$svc}}(ctx context.Context, sid id.ServiceId) {{$svcCamel}}Clie
     return result
 }
 
-func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
+func Register{{$svc}}(ctx context.Context) (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: "{{.ProtoPackage}}",
@@ -123,18 +122,15 @@ func Register{{$svc}}(ctx context.Context) (id.ServiceId, id.KernelErrId){
     req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
-    if err.IsError() {
-        return id.ZeroValueServiceId(), err
+    if err!=0 {
+        return id.ServiceIdZeroValue(), err
     }
-    sid, idErr:=id.UnmarshalServiceId(resp.Id)
-    if idErr.IsError() {
-        return id.ZeroValueServiceId(),	id.NewKernelErrId(id.KernelErrIdUnmarshalError)
-    }
-    return sid,id.KernelErrIdNoErr
+    sid:=id.UnmarshalServiceId(resp.Id)
+    return sid,syscall.KernelErr_NoError
 }
 func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
     sid, err:=Register{{$svc}}(ctx)
-    if err.IsError() {
+    if err!=syscall.KernelErr_NoError {
         pcontext.Fatalf(ctx,"unable to register %s.%s","{{.ProtoPackage}}","{{$svc}}")
         panic("unable to register "+"{{$svc}}")
     }
@@ -143,21 +139,21 @@ func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
 
 func MustRequire{{$svc}}(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}",sid)
-    if err.IsError() {
-        if err.ErrorCode()==11 {
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","{{.ProtoPackage}}","{{$svc}}",err.String())
-            panic("nequire {{.ProtoPackage}}.{{$svc}} creates a dependency loop")
+    if err!=syscall.KernelErr_NoError {
+        if err==syscall.KernelErr_DependencyCycle{
+            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","{{.ProtoPackage}}","{{$svc}}",syscall.KernelErr_name[int32(err)])
+            panic("require {{.ProtoPackage}}.{{$svc}} creates a dependency loop")
         }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","{{.ProtoPackage}}","{{$svc}}",err.String())
-        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+err.Short())
+        pcontext.Errorf(ctx,"unable to require %s.%s:%s","{{.ProtoPackage}}","{{$svc}}",syscall.KernelErr_name[int32(err)])
+        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
     }
 }
 
 func MustExport{{$svc}}(ctx context.Context) {
     _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
-    if err.IsError() {
+    if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","{{.ProtoPackage}}","{{$svc}}")
-        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+err.Short())
+        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
     }
 }
 func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
@@ -170,11 +166,11 @@ func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
 
 {{- $meth:=.WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput . }}
+{{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded false false . }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
-{{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded .PullParameters .PullOutput .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded false false .}}
 
 
 {{- if .InputCodeNeeded -}}
@@ -196,30 +192,25 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context)
     _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
 {{ end }} {{/* end of output code needed for dispatch call */}}
 
-    if err.IsError(){
+    if int32(err)!=0{
 {{- if .OutputCodeNeeded }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
-        return nil, New{{$errId}}({{$errId}}DispatchError)
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
+        return nil,{{$errId}}_DispatchError
     }
 {{- else }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",err.Short())
-        return  New{{$errId}}({{$errId}}DispatchError)
+        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
+        return {{$errId}}_DispatchError
     }
 {{ end }} {{/* end of output code needed for return */}}
 {{- if .OutputCodeNeeded }}
     unmarsh := resp.Result.UnmarshalTo(out)
     if unmarsh!=nil {
-        return nil,New{{$errId}}({{$errId}}UnmarshalError)
+        return nil,{{$errId}}_UnmarshalError
     }
-    return out,{{$errId}}NoErr
+    return out,{{$errId}}_NoError
 {{- else }} {{/* other side of output code needed */}}
-    return {{$errId}}NoErr
+    return {{$errId}}_NoError
 {{- end }} {{/* output code needed */}}
 }
 {{end}} {{/*ranging over methods*/}}
-{{- end }} {{/* no kernel option */}}
 {{- end}} {{/*ranging over services*/}}
-
-{{range .enumType}}
-// enum type {{.GetName}}
-{{end}}

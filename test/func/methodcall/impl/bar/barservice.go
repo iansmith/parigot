@@ -20,18 +20,18 @@ func main() {
 		os.Exit(1)
 	}()
 
-	myId := methodcall.MustRegisterBarService(ctx)
-	methodcall.MustExportBarService(ctx)
-	methodcall.MustRequireFooService(ctx, myId)
-	methodcall.MustWaitSatisfiedBarService(myId)
+	myId := methodcall.MustRegisterBar(ctx)
+	methodcall.MustExportBar(ctx)
+	methodcall.MustRequireFoo(ctx, myId)
+	methodcall.MustWaitSatisfiedBar(myId)
 	b := &barServer{}
-	b.foo = methodcall.MustLocateFooService(ctx, myId)
-	methodcall.RunBarService(ctx, b)
+	b.foo = methodcall.MustLocateFoo(ctx, myId)
+	methodcall.RunBar(ctx, b)
 }
 
 // this type better implement methodcall.v1.BarService
 type barServer struct {
-	foo methodcall.FooServiceClient
+	foo methodcall.Foo
 }
 
 //
@@ -40,12 +40,12 @@ type barServer struct {
 //
 
 func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRequest) (*methodcall.AccumulateResponse,
-	methodcall.MethodcallErrId) {
+	methodcall.MethodCallSuiteErr) {
 	resp := &methodcall.AccumulateResponse{}
 	if len(req.Value) == 0 {
 		resp.Product = 0
 		resp.Sum = 0
-		return resp, methodcall.MethodcallErrIdNoErr
+		return resp, methodcall.MethodCallSuiteErr_NoError
 	}
 
 	reqAdd := &methodcall.AddMultiplyRequest{
@@ -59,12 +59,11 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRe
 	reqMul.Value1 = 1 // identity to start
 
 	var respAdd, respMul *methodcall.AddMultiplyResponse
-	var errId methodcall.MethodcallErrId
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, errId = b.foo.AddMultiply(ctx, reqAdd)
-		if errId.IsError() {
-			return nil, errId
+		respAdd, multErr := b.foo.AddMultiply(ctx, reqAdd)
+		if int32(multErr) != 0 {
+			return nil, multErr
 		}
 		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD (%d,%d) iteration #%d, result add %d",
 		// 	reqAdd.GetValue0(), reqAdd.GetValue1(), i, respAdd.Result)
@@ -72,8 +71,8 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRe
 
 		/// multiply
 		reqMul.Value0 = req.GetValue()[i]
-		respMul, errId = b.foo.AddMultiply(ctx, reqMul)
-		if errId.IsError() {
+		respMul, errId := b.foo.AddMultiply(ctx, reqMul)
+		if int32(errId) != 0 {
 			return nil, errId
 		}
 		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "MUL (%d,%d) iteration #%d, result mul %d",
@@ -82,7 +81,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRe
 	}
 	resp.Product = respMul.GetResult()
 	resp.Sum = respAdd.GetResult()
-	return resp, methodcall.MethodcallErrIdNoErr
+	return resp, methodcall.MethodCallSuiteErr_NoError
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.

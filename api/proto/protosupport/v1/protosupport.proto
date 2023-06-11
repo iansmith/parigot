@@ -15,3 +15,7 @@ extend google.protobuf.EnumOptions {
 extend google.protobuf.MethodOptions {
   string host_func_name = 543212;
 }
+
+extend google.protobuf.ServiceOptions {
+  string error_id_name = 543213;
+}

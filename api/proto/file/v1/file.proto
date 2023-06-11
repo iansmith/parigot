@@ -17,7 +17,7 @@ import "protosupport/v1/protosupport.proto";
 // such as a user on the internet with a web browser.
 
 
-service FileService {
+service File {
   rpc Open(OpenRequest) returns (OpenResponse);
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc Close(CloseRequest) returns (CloseResponse);
@@ -81,4 +81,12 @@ message LoadTestDataRequest {
 // false since by definition the error_path will be empty.
 message LoadTestDataResponse {
   repeated string error_path = 1;
+}
+
+enum FileErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; //mandatory
+    UnmarshalError = 2; // mandatory
+
 }

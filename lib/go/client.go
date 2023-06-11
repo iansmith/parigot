@@ -31,13 +31,13 @@ func (c *ClientSideService) SetCaller(caller string) {
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscall.DispatchResponse, id.KernelErrId) {
+func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, id.KernelErrIdNoErr
+			return nil, syscall.KernelErr_NoError
 		}
 	}
 	if c.svc.IsZeroValue() {
@@ -52,21 +52,21 @@ func (c *ClientSideService) Dispatch(method string, param proto.Message) (*sysca
 	return syscallguest.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscall.RunResponse, id.KernelErrId) {
+func (c *ClientSideService) Run() (*syscall.RunResponse, syscall.KernelErr) {
 	req := syscall.RunRequest{
 		Wait: true,
 	}
 	out, err := syscallguest.Run(&req)
-	if err.IsError() {
+	if err != 0 {
 		return nil, err
 	}
-	return out, id.KernelErrIdNoErr
+	return out, syscall.KernelErr_NoError
 }
 
 // Require1 is a thin wrapper over syscall.Require so it's easy
 // to require things by their name.  This is used by the code generator
 // primarily.
-func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, id.KernelErrId) {
+func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -82,7 +82,7 @@ func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, 
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscall.ExportResponse, id.KernelErrId) {
+func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
@@ -115,15 +115,12 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 	req.Fqs = fqs
 	req.IsClient = isClient
 	resp, err := syscallguest.Register(req)
-	if err.IsError() {
-		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name, err.Short())
+	if err != 0 {
+		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name,
+			syscall.KernelErr_name[int32(err)])
 		panic("registration error")
 	}
-	sid, errId := id.UnmarshalServiceId(resp.GetId())
-	if errId.IsError() {
-		pcontext.Fatalf(ctx, "unable to unmarshal service id for %s.%s: %s", pkg, name, err.Short())
-		panic("registration error")
-	}
+	sid := id.UnmarshalServiceId(resp.GetId())
 	return sid
 
 }

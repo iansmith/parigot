@@ -12,9 +12,9 @@ var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
-	file.MustRegisterFileService(ctx)
-	file.MustExportFileService(ctx)
-	file.RunFileService(ctx, &myFileSvc{})
+	file.MustRegisterFile(ctx)
+	file.MustExportFile(ctx)
+	file.RunFile(ctx, &myFileSvc{})
 }
 
 type myFileSvc struct{}
@@ -26,20 +26,20 @@ func (f *myFileSvc) Ready(ctx context.Context) bool {
 	return true
 }
 
-func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) (*file.OpenResponse, file.FileErrId) {
+func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) (*file.OpenResponse, file.FileErr) {
 	return file.OpenHost(in)
 }
 
-func (f *myFileSvc) Create(ctx context.Context, in *file.CreateRequest) (*file.CreateResponse, file.FileErrId) {
+func (f *myFileSvc) Create(ctx context.Context, in *file.CreateRequest) (*file.CreateResponse, file.FileErr) {
 	return file.CreateHost(in)
 
 }
 
-func (f *myFileSvc) Close(ctx context.Context, in *file.CloseRequest) (*file.CloseResponse, file.FileErrId) {
+func (f *myFileSvc) Close(ctx context.Context, in *file.CloseRequest) (*file.CloseResponse, file.FileErr) {
 	return file.CloseHost(in)
 }
 
-func (f *myFileSvc) LoadTestData(ctx context.Context, in *file.LoadTestDataRequest) (*file.LoadTestDataResponse, file.FileErrId) {
+func (f *myFileSvc) LoadTestData(ctx context.Context, in *file.LoadTestDataRequest) (*file.LoadTestDataResponse, file.FileErr) {
 	return file.LoadTestDataHost(in)
 
 }

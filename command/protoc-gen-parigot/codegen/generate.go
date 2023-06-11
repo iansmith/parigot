@@ -43,6 +43,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 			path2 := strings.TrimSuffix(toGen, ".proto") + resultName[i]
 			f := util.NewOutputFile(path2)
 			wasmService := []*WasmService{}
+
 			for _, pb := range info.GetAllServiceByName(toGen) {
 				desc := info.GetFileByName(toGen)
 				w := info.FindServiceByName(desc.GetPackage(), pb.GetName())

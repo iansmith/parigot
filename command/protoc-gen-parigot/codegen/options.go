@@ -16,6 +16,7 @@ const (
 	parigotOptionForEnum = "543211"
 
 	parigotOptionForHostFuncName = "543212"
+	parigotOptionForErrorIdName  = "543213"
 
 	// serviceOptionNoPackage        = "543211"
 	// serviceOptionAlwaysPullParams = "543212"

@@ -29,15 +29,15 @@ func New{{.primaryName}}Id() {{.primaryName}}Id {
 
 func (f {{.primaryName}}Id) Marshal() *protosupport.IdRaw {
 	raw:=&protosupport.IdRaw{}
-	raw.High = f.high
-	raw.Low = f.low
+	raw.High = f.High()
+	raw.Low = f.Low()
 	return raw
 }
 func {{.primaryName}}IdZeroValue() {{.primaryName}}Id {
-	return {{.primaryName}}Id(NewIdTyped[Def{{.primaryName}}](0xffffffffffffff,0xffffffffffffffff))
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](0xffffffffffffff,0xffffffffffffffff))
 }
 func {{.primaryName}}IdEmptyValue() {{.primaryName}}Id {
-	return {{.primaryName}}Id(NewIdTyped[Def{{.primaryName}}](0,0))
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](0,0))
 }
 
 func (f {{.primaryName}}Id) Equal(other {{.primaryName}}Id) bool{
@@ -68,10 +68,9 @@ func (f {{.primaryName}}Id) Low() uint64{
 }
 
 func Unmarshal{{.primaryName}}Id(b *protosupport.IdRaw) {{.primaryName}}Id {
-	var result {{.primaryName}}Id
-	result.low=b.GetLow()
-	result.high=b.GetHigh()
-	return result
+	l:=b.GetLow()
+	h:=b.GetHigh()
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](h,l))
 }
 
 //
