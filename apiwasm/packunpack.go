@@ -61,7 +61,7 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 
 	wrapped := fn(length, req, out, errPtr)
 	if int32(outErr) != 0 {
-		pcontext.Errorf(ctx, "client side returned error %s",
+		pcontext.Errorf(ctx, "guest side received error response %s",
 			syscall.KernelErr_name[outErr])
 		pcontext.Dump(ctx)
 		return nilU, outErr, false

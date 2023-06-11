@@ -37,7 +37,7 @@ func writeErr32Guest(m api.Memory, offset uint32, err int32) bool {
 	fourByte := make([]byte, 4)
 	binary.LittleEndian.PutUint32(fourByte, uint32(err))
 	for i := 0; i < 4; i++ {
-		if !m.WriteByte(offset, fourByte[4-i]) {
+		if !m.WriteByte(offset, fourByte[3-i]) {
 			return false
 		}
 		offset++
