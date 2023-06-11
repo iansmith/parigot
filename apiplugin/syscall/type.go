@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/iansmith/parigot/apishared/id"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
 type Service interface {
@@ -50,7 +51,7 @@ type SyscallData interface {
 	// This function returns a kernel error in two primary cases.
 	// 1. one of the src or destination could not be found.  2. The
 	// newly introduced edge would create a cycle.
-	Import(ctx context.Context, src, dest id.ServiceId) id.KernelErr
+	Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr
 	// Run blocks the caller until all the prerequistes have been
 	// launched.  It returns false if it returned because of
 	// a timeout or the service id cannot be found, otherwise true.

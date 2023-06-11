@@ -3,7 +3,7 @@ package methodcall.v1;
 option go_package="github.com/iansmith/parigot/g/methodcall/v1;methodcall";
 import "protosupport/v1/protosupport.proto";
 
-service MethodCallSuiteService {
+service MethodCallSuite {
     rpc Exec(ExecRequest) returns (ExecResponse);
     rpc SuiteReport(SuiteReportRequest) returns (SuiteReportResponse);
 }
@@ -84,4 +84,13 @@ message SuiteReportResponse {}
 message QueuePayload {
   string name = 1;
   string func_name  = 2;
+}
+
+// Error codes
+enum MethodCallSuiteErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; // mandatory
+    UnmarshalError = 2; //mandatory
+    BadTerms = 3; // can't perform math on terms
 }

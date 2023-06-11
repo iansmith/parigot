@@ -2,9 +2,10 @@ package go_
 
 import (
 	"fmt"
-	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 	"log"
 	"strings"
+
+	"github.com/iansmith/parigot/command/protoc-gen-parigot/codegen"
 )
 
 type GoText struct {
@@ -17,14 +18,14 @@ func (g *GoText) AllInputWithFormal(m *codegen.WasmMethod, showFormalName bool) 
 }
 
 func (g *GoText) OutTypeDecl(m *codegen.WasmMethod) string {
-	if m.PullParameters() {
-		comp := m.CGOutput().GetCGType().CompositeType()
-		if len(comp.GetField()) == 0 {
-			return "error"
-		}
-		param := codegen.NewCGParameterFromField(comp.GetField()[0], m, m.ProtoPackage())
-		return fmt.Sprintf("(%s,error)", g.GetReturnValueDecl(m.ProtoPackage(), m, param))
-	}
+	// if m.PullParameters() {
+	// 	comp := m.CGOutput().GetCGType().CompositeType()
+	// 	if len(comp.GetField()) == 0 {
+	// 		return "error"
+	// 	}
+	// 	param := codegen.NewCGParameterFromField(comp.GetField()[0], m, m.ProtoPackage())
+	// 	return fmt.Sprintf("(%s,error)", g.GetReturnValueDecl(m.ProtoPackage(), m, param))
+	// }
 	return g.OutType(m)
 }
 
@@ -55,36 +56,36 @@ func (g *GoText) AllInputFormal(method *codegen.WasmMethod) string {
 }
 
 func (g *GoText) ReturnErrorDecl(m *codegen.WasmMethod, msg string) string {
-	if m.PullParameters() {
-		comp := m.CGOutput().GetCGType().CompositeType()
-		err := fmt.Sprintf("parigot.NewFromError(\"%s\",err)", msg)
-		if len(comp.GetField()) == 0 {
-			return "return " + err
-		}
-		return fmt.Sprintf("return resp," + err)
-	}
+	// if m.PullParameters() {
+	// 	comp := m.CGOutput().GetCGType().CompositeType()
+	// 	err := fmt.Sprintf("parigot.NewFromError(\"%s\",err)", msg)
+	// 	if len(comp.GetField()) == 0 {
+	// 		return "return " + err
+	// 	}
+	// 	return fmt.Sprintf("return resp," + err)
+	// }
 	return "return " + g.OutZeroValue(m) + "err"
 }
 
 func (g *GoText) ReturnValueDecl(m *codegen.WasmMethod) string {
-	if m.PullParameters() {
-		comp := m.CGOutput().GetCGType().CompositeType()
-		if len(comp.GetField()) == 0 {
-			return "return nil"
-		}
-		return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
-	}
+	// if m.PullParameters() {
+	// 	comp := m.CGOutput().GetCGType().CompositeType()
+	// 	if len(comp.GetField()) == 0 {
+	// 		return "return nil"
+	// 	}
+	// 	return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
+	// }
 	return "return " + g.OutZeroValue(m) + ",nil"
 }
 
 func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
-	if m.PullOutput() {
-		t := m.CGOutput().GetCGType()
-		if t.IsCompositeNoFields() {
-			return "return nil"
-		}
-		return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
-	}
+	// if m.PullOutput() {
+	// 	t := m.CGOutput().GetCGType()
+	// 	if t.IsCompositeNoFields() {
+	// 		return "return nil"
+	// 	}
+	// 	return fmt.Sprintf("return %s,nil", g.OutZeroValue(m))
+	// }
 	return "return " + g.OutType(m)
 
 }
@@ -92,17 +93,17 @@ func (g *GoText) OutZeroValueDecl(m *codegen.WasmMethod) string {
 // OutZeroValue should return a legal value for its type.  This value
 // is just for compilers (to keep them quiet) so the value will never be used.
 func (g *GoText) OutZeroValue(m *codegen.WasmMethod) string {
-	if m.PullOutput() {
-		// xxx fix me, this should not be hitting codgen like this
-		exp := codegen.ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
-		if exp == nil {
-			return ""
-		}
-		if !exp.GetCGType().IsBasic() {
-			return exp.GetCGType().String(m.ProtoPackage()) + "{}"
-		}
-		return g.ZeroValuesForProtoTypes(exp.GetCGType().String(""))
-	}
+	// if m.PullOutput() {
+	// 	// xxx fix me, this should not be hitting codgen like this
+	// 	exp := codegen.ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
+	// 	if exp == nil {
+	// 		return ""
+	// 	}
+	// 	if !exp.GetCGType().IsBasic() {
+	// 		return exp.GetCGType().String(m.ProtoPackage()) + "{}"
+	// 	}
+	// 	return g.ZeroValuesForProtoTypes(exp.GetCGType().String(""))
+	// }
 	out := m.CGOutput()
 	if out == nil || out.IsEmpty() {
 		return ""

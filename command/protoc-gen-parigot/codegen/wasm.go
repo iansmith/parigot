@@ -41,6 +41,11 @@ func NewWasmMessage(file *descriptorpb.FileDescriptorProto, message *descriptorp
 
 func NewWasmService(file *descriptorpb.FileDescriptorProto,
 	service *descriptorpb.ServiceDescriptorProto, lang LanguageText, finder Finder) *WasmService {
+
+	errIdName, ok := isStringOptionPresent(service.GetOptions().String(), parigotOptionForErrorIdName)
+	if !ok {
+		errIdName = ""
+	}
 	s := &WasmService{
 		ServiceDescriptorProto: service,
 		wasmServiceName:        "",
@@ -48,6 +53,7 @@ func NewWasmService(file *descriptorpb.FileDescriptorProto,
 		method:                 []*WasmMethod{},
 		lang:                   lang,
 		finder:                 finder,
+		errorIdName:            errIdName,
 	}
 	if service.GetOptions() != nil {
 		// s.alwaysPullParameters = alwaysPullParamsOption(service.GetOptions().String())

@@ -8,8 +8,8 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared"
-	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -27,15 +27,15 @@ func ManufactureGuestContext(fn string) context.Context {
 // manipulations so you can call a lower level function that is implemented by
 // the host. The final bool is a meta indicator about if we detected a crash and
 // the client side of the program should exit.
-func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (outU U, outId id.IdRaw, signal bool) {
-	var outErr id.IdRaw
+func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U, fn func(int32, int32, int32, int32) int64) (outU U, outId int32, signal bool) {
+	var outErr int32
 	outProtoPtr := u
 	outErrPtr := &outErr
 	var nilU U
 
 	buf, err := proto.Marshal(t)
 	if err != nil {
-		return nilU, id.NewKernelErrId(id.KernelMarshalFailed).Raw(), false
+		return nilU, int32(syscall.KernelErr_MarshalFailed), false
 	}
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	length := int32(len(buf))
@@ -60,9 +60,9 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	}()
 
 	wrapped := fn(length, req, out, errPtr)
-	if outErr.IsError() {
-		kerr := id.NewKernelErrIdFromRaw(outErr)
-		pcontext.Errorf(ctx, "client side returned error %s", kerr.Short())
+	if int32(outErr) != 0 {
+		pcontext.Errorf(ctx, "client side returned error %s",
+			syscall.KernelErr_name[outErr])
 		pcontext.Dump(ctx)
 		return nilU, outErr, false
 	}
@@ -74,21 +74,20 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 		print(fmt.Sprintf("WARNING! mismatched pointers in host call/return %x, %x\n", ptr, out))
 	}
 	if unsafe.Pointer(asPtr(u)) == nil {
-		myId := id.KernelErrIdNoErr.Raw()
-		return u, myId, false
+		return u, int32(syscall.KernelErr_NoError), false
 	}
 	if l == 0 {
-		return nilU, id.KernelErrIdNoErr.Raw(), false
+		return nilU, int32(syscall.KernelErr_NoError), false
 
 	}
 	if l > 0 {
 		if err := proto.Unmarshal(outBuf[:l], u); err != nil {
 			print(fmt.Sprintf("found the source of a 2 -- %d, %s", l, err.Error()))
-			myId := id.NewKernelErrId((2))
-			outErr = myId.Raw()
+			myId := syscall.KernelErr_UnmarshalFailed
+			outErr = int32(myId)
 		}
 	}
-	return outProtoPtr, id.NewKernelErrId((0)).Raw(), false
+	return outProtoPtr, int32(0), false
 }
 
 func asPtr[T proto.Message](t T) uintptr {

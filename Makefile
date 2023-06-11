@@ -126,7 +126,6 @@ build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(
 
 ## generate some id cruft for a couple of types built by parigot
 API_ID= \
-	apiwasm/bytepipeid.go \
 	apishared/id/serviceid.go \
 	apishared/id/methodid.go \
 	apishared/id/callid.go \
@@ -143,8 +142,6 @@ apishared/id/methodid.go:apishared/id/id.go command/boilerplateid/main.go comman
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Method m method > apishared/id/methodid.go	
 apishared/id/callid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Call c call > apishared/id/callid.go	
-apiwasm/bytepipeid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
-	$(GO_TO_HOST) run command/boilerplateid/main.go -e apiwasm BytePipeErr b errbytep > apiwasm/bytepipeid.go	
 
 #id cruft
 g/file/v1/fileid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
@@ -214,7 +211,7 @@ build/pbmodel: pbmodel/protobuf3_parser.go command/pbmodel/*.go pbmodel/*.go hel
 # METHODCALL TEST
 #
 g/methodcall/v1/methodcallid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/idanderr.tmpl
-	$(GO_TO_HOST) run command/boilerplateid/main.go methodcall Methodcall MethodcallErr m methcall M errmeth > g/methodcall/v1/methodcallid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p methodcall Methodcall m methcall > g/methodcall/v1/methodcallid.go
 
 ## methodcall test code
 METHODCALLTEST_SRC=test/func/methodcall/*.go

@@ -27,13 +27,13 @@ func FuncParamPass(method *WasmMethod,
 	}
 	if !in.IsEmpty() {
 		if !in.CGType().IsBasic() {
-			if method.PullParameters() {
-				result += walkParametersPulled(method, fn)
-			} else {
-				fakeFormal := in.CGType().ShortName()[0:1]
-				cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.CGType())
-				result += fn(method, 0, cgp)
-			}
+			// if method.PullParameters() {
+			// 	result += walkParametersPulled(method, fn)
+			// } else {
+			fakeFormal := in.CGType().ShortName()[0:1]
+			cgp := NewCGParameterFromString(strings.ToLower(fakeFormal), in.CGType())
+			result += fn(method, 0, cgp)
+			//			}
 		}
 	}
 	// output is handled by OutTypeWalk

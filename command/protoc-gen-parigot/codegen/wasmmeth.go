@@ -146,13 +146,13 @@ func (m *WasmMethod) EmtpyOutput() bool {
 	return m.CGOutput().GetCGType() == nil
 }
 func (m *WasmMethod) NotEmptyOutput() bool {
-	if m.PullOutput() {
-		exp := ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
-		if exp == nil {
-			return false
-		}
-		return !exp.GetCGType().IsEmpty()
-	}
+	// if m.PullOutput() {
+	// 	exp := ExpandReturnInfoForOutput(m.CGOutput(), m, m.ProtoPackage())
+	// 	if exp == nil {
+	// 		return false
+	// 	}
+	// 	return !exp.GetCGType().IsEmpty()
+	// }
 	t := m.CGOutput().GetCGType()
 	if t == nil {
 		return false
@@ -216,16 +216,16 @@ func (m *WasmMethod) Language() LanguageText {
 	return m.Parent().GetLanguage()
 }
 
-func (m *WasmMethod) PullParameters() bool {
-	if m.parent.AlwaysPullParameters() {
-		return true
-	}
-	return m.pullParameters
-}
+// func (m *WasmMethod) PullParameters() bool {
+// 	if m.parent.AlwaysPullParameters() {
+// 		return true
+// 	}
+// 	return m.pullParameters
+// }
 
-func (m *WasmMethod) PullOutput() bool {
-	if m.parent.AlwaysPullOutput() {
-		return true
-	}
-	return m.pullOutput
-}
+// func (m *WasmMethod) PullOutput() bool {
+// 	if m.parent.AlwaysPullOutput() {
+// 		return true
+// 	}
+// 	return m.pullOutput
+// }

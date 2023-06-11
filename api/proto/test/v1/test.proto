@@ -3,7 +3,7 @@ package test.v1;
 option go_package="github.com/iansmith/parigot/g/test/v1;test";
 import "protosupport/v1/protosupport.proto";
 
-service TestService {
+service Test {
     // AddTestSuite adds all the elements in the request as suites to the
     // TestService list.  If you add a Suite more than once, the function
     // lists are merged--the functions that were already present are retained
@@ -19,15 +19,19 @@ service TestService {
 }
 
 
-service MethodCallSuiteService {
-    rpc Exec(ExecRequest) returns (ExecResponse);
-    rpc SuiteReport(SuiteReportRequest) returns (SuiteReportResponse);
+service MethodCallSuite {
+  option (protosupport.v1.error_id_name) = "TestErr";
+
+  rpc Exec(ExecRequest) returns (ExecResponse);
+  rpc SuiteReport(SuiteReportRequest) returns (SuiteReportResponse);
 }
 
  
-// UnderTestService is the service that services should implement to be "under test" and
-// testable via TestService.
-service UnderTestService {
+// UnderTest is the service that services should implement to be "under test" and
+// testable via Test.
+service UnderTest {
+    option (protosupport.v1.error_id_name) = "TestErr";
+
     // For the default test setup, this is the method that dispatches requests from the
     // TestService to the appropriate test function.
     rpc Exec(ExecRequest) returns (ExecResponse) {
@@ -147,4 +151,32 @@ message SuiteReportResponse {}
 message QueuePayload {
   string name = 1;
   string func_name  = 2;
+}
+
+// Error codes
+enum TestErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; // mandatory
+    UnmarshalError = 2; //mandatory
+    // ServiceNotFound means that the service that was supposed to be under test
+    // could not be found.
+    ServiceNotFound = 3;
+    // Exec means that the exec itself (not the thing being execed) has failed.
+    Exec =4;
+    // SendFailed means that the Test code itself could not create the
+    // necessary queue entries.
+    SendFailed=5;
+    // Internal means that the Test code itself (not the code under test) has had
+    //a problem.
+    Internal=6;
+    // RegexpFailed means that the regexp provided by the caller did not compile
+    // and is not a valid go regexp.
+    RegexpFailed=7;
+    // Marshal is used to when we cannot marshal arguments
+    // into to a protobuf.
+    Marshal=8;
+    // Queue means that the there was internal error with the queue
+    // that is used by the Test service.
+    Queue =9;
 }

@@ -26,11 +26,11 @@ const testQueueName = "test_queue"
 func main() {
 	lib.FlagParseCreateEnv()
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
-	myId = test.MustRegisterTestService(ctx)
-	queue.MustRequireQueueService(ctx, myId)
-	test.MustExportTestService(ctx)
-	test.MustWaitSatisfiedTestService(myId)
-	test.RunTestService(ctx, &myTestServer{})
+	myId = test.MustRegisterTest(ctx)
+	queue.MustRequireQueue(ctx, myId)
+	test.MustExportTest(ctx)
+	test.MustWaitSatisfiedTest(myId)
+	test.RunTest(ctx, &myTestServer{})
 }
 
 var myId id.ServiceId
@@ -40,7 +40,7 @@ type myTestServer struct {
 	suiteExec map[string]string
 	testQid   queueg.QueueId
 
-	queueSvc queue.QueueServiceClient
+	queueSvc queue.QueueClient
 
 	started    bool
 	haveName   bool
@@ -54,7 +54,7 @@ type suiteInfo struct {
 	funcName     []string
 }
 
-func newSuiteInfo(req *test.AddTestSuiteRequest) ([]*suiteInfo, test.TestErrId) {
+func newSuiteInfo(req *test.AddTestSuiteRequest) ([]*suiteInfo, test.TestErr) {
 	infoList := []*suiteInfo{}
 
 	for _, suite := range req.GetSuite() {
@@ -68,7 +68,7 @@ func newSuiteInfo(req *test.AddTestSuiteRequest) ([]*suiteInfo, test.TestErrId) 
 		}
 		infoList = append(infoList, result)
 	}
-	return infoList, test.TestErrIdNoErr
+	return infoList, test.TestErr_NoError
 }
 
 func (s *suiteInfo) String() string {
@@ -90,10 +90,10 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	m.suiteExec = make(map[string]string)
 
 	pcontext.Debugf(ctx, "myTestServer ready called")
-	m.queueSvc = queue.MustLocateQueueService(ctx, myId)
+	m.queueSvc = queue.MustLocateQueue(ctx, myId)
 	qid, err := qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName)
-	if err.IsError() {
-		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID: error was %s ", err.Short())
+	if err != queue.QueueErr_NoError {
+		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID: error was %s ", queue.QueueErr_name[int32(err)])
 		return false
 	}
 	m.testQid = qid
@@ -101,10 +101,10 @@ func (m *myTestServer) Ready(ctx context.Context) bool {
 	return true
 }
 
-func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) (*test.AddTestSuiteResponse, test.TestErrId) {
+func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) (*test.AddTestSuiteResponse, test.TestErr) {
 
 	infoList, err := newSuiteInfo(req)
-	if err.IsError() { // really should not happen
+	if err != test.TestErr_NoError { // really should not happen
 		return nil, err
 	}
 	success := make(map[string]bool)
@@ -138,7 +138,7 @@ func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteR
 	}
 	pcontext.Debugf(ctx, "", "addSuiteResp.Succeeded:%#v", resp.Succeeded)
 
-	return resp, test.TestErrIdNoErr
+	return resp, test.TestErr_NoError
 }
 
 func contains(list []string, cand string) bool {
@@ -150,7 +150,7 @@ func contains(list []string, cand string) bool {
 	return false
 }
 
-func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test.StartResponse, test.TestErrId) {
+func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test.StartResponse, test.TestErr) {
 	var regexpFail bool
 	var suiteString, nameString string
 	var err error
@@ -178,7 +178,7 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 	if regexpFail {
 		return &test.StartResponse{
 			RegexFailed: regexpFail,
-		}, test.NewTestErrId(TestErrorrRegexpFailed)
+		}, test.TestErr_RegexpFailed
 	}
 	count := 0
 	m.started = true // lets go
@@ -201,16 +201,16 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 				if match {
 					count++
 					sReq, err := makeSendRequest(pcontext.CallTo(ctx, "makeSendRequest"), m.testQid, name, m.suiteExec[suiteName])
-					if err.IsError() {
+					if err != test.TestErr_NoError {
 						return nil, err
 					}
 					resp, errResp := m.queueSvc.Send(ctx, sReq)
-					if errResp.IsError() {
-						pcontext.Errorf(ctx, "failed send to the queue: %s", errResp.Short())
+					if errResp != queue.QueueErr_NoError {
+						pcontext.Errorf(ctx, "failed send to the queue: %s", queue.QueueErr_name[int32(errResp)])
 						return nil, err
 					}
 					if len(resp.Succeed) != 1 {
-						return nil, test.NewTestErrId(TestErrorInternal)
+						return nil, test.TestErr_Internal
 					}
 				}
 			}
@@ -225,7 +225,7 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 	resp := &test.StartResponse{
 		NumTest: int32(count),
 	}
-	return resp, test.TestErrIdNoErr
+	return resp, test.TestErr_NoError
 }
 func (m *myTestServer) Background(ctx context.Context) {
 	if !m.started {
@@ -236,16 +236,16 @@ func (m *myTestServer) Background(ctx context.Context) {
 		MessageLimit: 1,
 	}
 	resp, err := m.queueSvc.Receive(ctx, &req)
-	if err.IsError() {
-		pcontext.Errorf(ctx, "unable to receive from queue: %s", err.Short())
+	if err != queue.QueueErr_NoError {
+		pcontext.Errorf(ctx, "unable to receive from queue: %s", queue.QueueErr_name[int32(err)])
 		return
 	}
 	msg := resp.Message[0]
 	aload := msg.GetPayload()
 	payload := test.QueuePayload{}
 	unmarsh := aload.UnmarshalTo(&payload)
-	if err.IsError() {
-		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s, retrying...", unmarsh.Error())
+	if unmarsh != nil {
+		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s", unmarsh.Error())
 		return
 	}
 	pcontext.Infof(ctx, "got test from queue %s,%s", payload.Name, payload.FuncName)
@@ -267,10 +267,10 @@ func suiteInfoToSuiteName(info *suiteInfo) string {
 	return fmt.Sprintf("%s.%s", info.pkg, info.service)
 }
 
-func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) test.TestErrId {
+func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) test.TestErr {
 	pcontext.Debugf(ctx, "run tests0")
-	locate := make(map[string]test.UnderTestServiceClient)
-	var client test.UnderTestServiceClient
+	locate := make(map[string]test.UnderTestClient)
+	var client test.UnderTestClient
 	part := strings.Split(fullTestName, ".")
 
 	pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
@@ -278,10 +278,10 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 	pcontext.Debugf(ctx, "run tests2 %s,%s\n", fullTestName, execPackageSvc)
 	loc, ok := locate[execPackageSvc]
 	if !ok {
-		var tId test.TestErrId
+		var tId test.TestErr
 		execPkg, execSvc := splitPkgAndService(execPackageSvc)
 		client, tId = m.locateClient(pcontext.CallTo(ctx, "locateClient"), execPkg, execSvc)
-		if tId.IsError() {
+		if tId != test.TestErr_NoError {
 			return tId
 		}
 		locate[execPackageSvc] = client
@@ -295,13 +295,13 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 			Service: svc,
 			Name:    part[len(part)-1],
 		})
-	if err.IsError() {
-		pcontext.Errorf(ctx, "xxx run tests %v", err.Short())
-		return test.NewTestErrId(TestErrorServiceNotFound)
+	if err != test.TestErr_NoError {
+		pcontext.Errorf(ctx, "xxx run tests %v", test.TestErr_name[int32(err)])
+		return test.TestErr_ServiceNotFound
 	}
 	pcontext.Debugf(ctx, "xxx run tests %s.%s.%s (skipped? %v, success? %v)",
 		resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
-	return test.TestErrIdNoErr
+	return test.TestErr_NoError
 }
 func splitPkgAndService(s string) (string, string) {
 	part := strings.Split(s, ".")
@@ -312,7 +312,7 @@ func splitPkgAndService(s string) (string, string) {
 
 }
 
-func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.UnderTestServiceClient, test.TestErrId) {
+func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.UnderTestClient, test.TestErr) {
 	pcontext.Debugf(ctx, "xxx locate test pkg=%s svc=%s\n", pkg, svc)
 	req := &syscall.LocateRequest{
 		PackageName: pkg,
@@ -320,26 +320,23 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.
 	}
 	pcontext.Debugf(ctx, "xxx locate client 1")
 	resp, err := syscallguest.Locate(req)
-	if err.IsError() {
+	if err != syscall.KernelErr_NoError {
 		pcontext.Errorf(ctx, "locate failed for %s.%s", pkg, svc)
-		return nil, test.NewTestErrId(TestErrorServiceNotFound)
+		return nil, test.TestErr_ServiceNotFound
 	}
 	pcontext.Debugf(ctx, "xxx locate client 3")
-	service, idErr := id.UnmarshalServiceId(resp.GetServiceId())
-	if idErr.IsError() {
-		return nil, test.NewTestErrId(TestErrorMarshaling)
-	}
+	service := id.UnmarshalServiceId(resp.GetServiceId())
 	cs := lib.NewClientSideService(ctx, service, "testService")
 
 	pcontext.Debugf(ctx, "locateClient", "xxx locate client 4")
-	return &test.UnderTestServiceClient_{
+	return &test.UnderTestClient_{
 		ClientSideService: cs,
-	}, test.TestErrIdNoErr
+	}, test.TestErr_NoError
 }
 
 // makeSendRequest creates a SendRequest and all the internal objects required
 // make it work correctly in the test queue.
-func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName string) (*queue.SendRequest, test.TestErrId) {
+func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName string) (*queue.SendRequest, test.TestErr) {
 
 	qidM := qid.Marshal()
 	payload := test.QueuePayload{
@@ -349,7 +346,7 @@ func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName str
 	a := anypb.Any{}
 	if err := a.MarshalFrom(&payload); err != nil {
 		pcontext.Errorf(ctx, "unable to marshal payload creating send request: %s", err.Error())
-		return nil, test.NewTestErrId(TestErrorMarshaling)
+		return nil, test.TestErr_Marshal
 	}
 	msg := queue.QueueMsg{
 		Payload: &a,
@@ -359,5 +356,5 @@ func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName str
 		Id:  qidM,
 		Msg: []*queue.QueueMsg{&msg},
 	}
-	return &req, test.TestErrIdNoErr
+	return &req, test.TestErr_NoError
 }

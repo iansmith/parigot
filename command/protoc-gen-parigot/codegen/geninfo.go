@@ -2,6 +2,8 @@ package codegen
 
 import (
 	"fmt"
+	"log"
+	"runtime/debug"
 
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
@@ -198,6 +200,11 @@ func NewMessageRecord(name, protoPackage, goPackage string) *MessageRecord {
 }
 
 func NewServiceRecord(wasmName, protoPackage, goPackage string) *ServiceRecord {
+	if wasmName == "" {
+		print("---------------------------------------------\n")
+		debug.PrintStack()
+		print("---------------------------------------------\n")
+	}
 	return &ServiceRecord{
 		wasmName:     wasmName,
 		protoPackage: protoPackage,
@@ -212,6 +219,9 @@ func (m *ServiceRecord) String() string {
 	return fmt.Sprintf("ServiceRec(%s,%s,%s)", m.wasmName, m.protoPackage, m.goPackage)
 }
 func (g *GenInfo) RegisterService(w *WasmService) {
+	if w.GetWasmServiceName() == "" {
+		log.Printf("................. %#v", w.ServiceDescriptorProto.GetName())
+	}
 	g.finder.AddServiceType(w.GetWasmServiceName(), w.ProtoPackage(), w.GetGoPackage(), w)
 }
 

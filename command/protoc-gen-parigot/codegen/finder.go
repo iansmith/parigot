@@ -39,14 +39,7 @@ func (s *SimpleFinder) GoPackageOption(service []*WasmService, message []*WasmMe
 	for _, svc := range service {
 		for sr, m := range s.service {
 			if m == svc {
-				// log.Printf("xxx GoPackageOption: %s == %s but %+v\n", m.GetWasmServiceName(), svc.GetWasmServiceName(), sr)
-				// if pkg != "" && pkg != sr.goPackage {
-				// 	return "", fmt.Errorf("service '%s':mismatched go packages in go_option: '%s' and '%s'",
-				// 		svc.GetName(), pkg, sr.goPackage)
-				// }
 				part := strings.Split(sr.goPackage, ";")
-				//log.Printf("\t%+v, %s", part, part[1])
-
 				if len(part) != 2 {
 					return "", fmt.Errorf("service %s: cannot understand go package option '%s'",
 						svc.GetName(), sr.goPackage)
@@ -241,8 +234,8 @@ func (s *SimpleFinder) FindServiceByName(protoPackage string, name string) *Wasm
 				return svc
 			} else {
 				if verbose {
-					log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s",
-						protoPackage, candidate.wasmName, shortName)
+					log.Printf("- [simplefinder service]  package (%s) but not name %s vs %s xxxx %#v",
+						protoPackage, candidate.wasmName, shortName, candidate)
 				}
 			}
 		} else {
