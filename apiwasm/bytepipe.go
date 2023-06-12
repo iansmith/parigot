@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	pcontext "github.com/iansmith/parigot/context"
 	"google.golang.org/protobuf/proto"
@@ -42,7 +43,7 @@ func NewBytePipeIn[T nilableProto](ctx context.Context, rd io.Reader) *BytePipeI
 }
 
 func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *int32) error {
-
+	log.Printf("xxxx -- Read Proto\n")
 	if b.syncLost {
 		b.syncLost = false
 		b.rd = nil
@@ -57,11 +58,13 @@ func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *int32) error {
 	if err := readConstantSize(b.ctx, b.rd, 5, sizeBuf); err != nil {
 		return err
 	}
+
 	ctx := pcontext.CallTo(b.ctx, "toInt")
 	size, err := b.toInt(ctx, sizeBuf)
 	if err != nil {
 		return b.lostSync(err)
 	}
+	log.Printf("-----> size read was %d", size)
 	if size == 0xffff {
 		return ErrSignalExit
 	}
@@ -192,6 +195,7 @@ func (b *BytePipeOut[T]) WriteProto(resp T, err int32) error {
 func readConstantSize(ctx context.Context, rd io.Reader, size int32, buf []byte) error {
 	count := int32(0)
 	for count < size {
+		print("xxxx read constant size %d, bytes %+x", size, buf)
 		rd, err := rd.Read(buf[count:])
 		if err != nil {
 			return err

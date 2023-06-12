@@ -61,13 +61,16 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 
 	wrapped := fn(length, req, out, errPtr)
 	if int32(outErr) != 0 {
-		pcontext.Errorf(ctx, "guest side received error response %s",
-			syscall.KernelErr_name[outErr])
 		pcontext.Dump(ctx)
 		return nilU, outErr, false
 	}
 	l, ptr := unwindLenAndPtr(uint64(wrapped))
+	if l == 0 {
+		return nilU, int32(syscall.KernelErr_NoError), false
+	}
+
 	if ptr < 0xff {
+		print("xxxx---PTR is ", ptr, " and ", l, "\n")
 		debug.PrintStack()
 	}
 	if int32(ptr) != out { //sanity
@@ -75,10 +78,6 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	}
 	if unsafe.Pointer(asPtr(u)) == nil {
 		return u, int32(syscall.KernelErr_NoError), false
-	}
-	if l == 0 {
-		return nilU, int32(syscall.KernelErr_NoError), false
-
 	}
 	if l > 0 {
 		if err := proto.Unmarshal(outBuf[:l], u); err != nil {

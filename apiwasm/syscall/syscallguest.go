@@ -215,6 +215,7 @@ func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
 	pcontext.Debugf(ctx, "about to call satisy wait .............. %s", sid.Short())
 	_, err := Run(req)
 	if err != 0 {
+		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])
 		panic(fmt.Sprintf("failed to run successfully:%s",
 			syscall.KernelErr_name[int32(err)]))
 	}

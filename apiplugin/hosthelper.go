@@ -37,7 +37,7 @@ func writeErr32Guest(m api.Memory, offset uint32, err int32) bool {
 	fourByte := make([]byte, 4)
 	binary.LittleEndian.PutUint32(fourByte, uint32(err))
 	for i := 0; i < 4; i++ {
-		if !m.WriteByte(offset, fourByte[3-i]) {
+		if !m.WriteByte(offset, fourByte[i]) {
 			return false
 		}
 		offset++
@@ -135,7 +135,8 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 	currCtx := ManufactureHostContext(ctx, name)
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Fatalf(currCtx, "host side panic from inside function %s: %v", name, r)
+			pcontext.Fatalf(currCtx, "host side panic from inside function %s: %v (%T)", name, r, t)
+			debug.PrintStack()
 		}
 		pcontext.Dump(currCtx)
 	}()

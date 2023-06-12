@@ -16,7 +16,7 @@ type Service interface {
 	RunRequested() bool
 	Started() bool
 	Exported() bool
-	Run(context.Context) bool
+	Run(context.Context) syscall.KernelErr
 }
 
 type SyscallData interface {
@@ -55,7 +55,7 @@ type SyscallData interface {
 	// Run blocks the caller until all the prerequistes have been
 	// launched.  It returns false if it returned because of
 	// a timeout or the service id cannot be found, otherwise true.
-	Run(context.Context, id.ServiceId) bool
+	Run(context.Context, id.ServiceId) syscall.KernelErr
 	// PathExists returns true if there is a sequence of dependency
 	// graph vertices that eventually leads from source to target.
 	PathExists(ctx context.Context, source, target string) bool
