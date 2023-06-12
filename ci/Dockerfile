@@ -1,17 +1,10 @@
 FROM ubuntu:22.04
 #RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update --fix-missing
-RUN apt-get install -y wget git g++ xz-utils curl file sudo clang
+RUN apt-get install -y wget git g++ xz-utils curl file sudo clang-15
 # cmake ninja-build python3 nano \
 #     hugo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg \
 # 	clang-15 wabt
-
-# clang-15 will fail when building plugins, error shows:
-# go: downloading golang.org/x/sys v0.6.0
-# runtime/cgo
-# cgo: C compiler "/usr/bin/clang" not found: exec: "/usr/bin/clang": stat /usr/bin/clang: no such file or directory
-
-
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot

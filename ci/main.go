@@ -23,6 +23,8 @@ const (
 )
 
 var (
+	ignoreFiles = []string{".devcontainer/", "ci/", "build/", "g/", "tmp/", "ui/"}
+
 	// go environment variables
 	goEnvVarsWASM = map[string]string{
 		"GOROOT": "/home/parigot/deps/go1.21",
@@ -535,12 +537,9 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 		return img, err
 	}
 
-	img, err = img.WithWorkdir("apiplugin/queue/sqlc").
+	img = img.WithWorkdir("apiplugin/queue/sqlc").
 		WithExec([]string{"sqlc", "generate"}).
-		WithWorkdir("/workspaces/parigot").Sync(ctx)
-	if err != nil {
-		return img, err
-	}
+		WithWorkdir("/workspaces/parigot")
 
 	return img, nil
 }
