@@ -23,6 +23,8 @@ const (
 )
 
 var (
+	ignoreFiles = []string{".devcontainer/", "ci/", "build/", "g/", "tmp/", "ui/"}
+
 	// go environment variables
 	goEnvVarsWASM = map[string]string{
 		"GOROOT": "/home/parigot/deps/go1.21",
@@ -350,7 +352,6 @@ func generateRep(ctx context.Context, img *dagger.Container) (*dagger.Container,
 func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Container, error) {
 	/*
 	 *	This function is to generate some id cruft for a couple of types built by parigot:
-	 *		apishared/id/kernelerrid.go,	apiwasm/bytepipeid.go
 	 *		apishared/id/serviceid.go,		apishared/id/methodid.go
 	 *		apishared/id/callid.go,			g/queue/v1/queueid.go,
 	 *		g/queue/v1/rowid.go,			g/queue/v1/queuemsgid.go,
@@ -374,19 +375,7 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 		return img, err
 	}
 
-	target := "apishared/id/kernelerrid.go"
-	kernelCmd := append(goCmd, "-i", "-e", "id", "KernelErr", "k", "errkern")
-	img, err = generateIdFile(ctx, img, target, kernelCmd)
-	if err != nil {
-		return img, err
-	}
-	target = "apiwasm/bytepipeid.go"
-	bytepipCmd := append(goCmd, "-e", "apiwasm", "BytePipeErr", "b", "errbytep")
-	img, err = generateIdFile(ctx, img, target, bytepipCmd)
-	if err != nil {
-		return img, err
-	}
-	target = "apishared/id/serviceid.go"
+	target := "apishared/id/serviceid.go"
 	serviceCmd := append(goCmd, "-i", "-p", "id", "Service", "s", "svc")
 	img, err = generateIdFile(ctx, img, target, serviceCmd)
 	if err != nil {
@@ -406,7 +395,7 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	}
 
 	target = "g/queue/v1/queueid.go"
-	queueCmd := append(goCmd, "queue", "Queue", "QueueErr", "q", "queue", "Q", "errqueue")
+	queueCmd := append(goCmd, "-p", "queue", "Queue", "q", "queue")
 	img, err = generateIdFile(ctx, img, target, queueCmd)
 	if err != nil {
 		return img, err
@@ -424,13 +413,13 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 		return img, err
 	}
 	target = "g/file/v1/fileid.go"
-	fileCmd := append(goCmd, "file", "File", "FileErr", "f", "file", "F", "errfile")
+	fileCmd := append(goCmd, "-p", "file", "File", "f", "file")
 	img, err = generateIdFile(ctx, img, target, fileCmd)
 	if err != nil {
 		return img, err
 	}
 	target = "g/test/v1/testid.go"
-	testCmd := append(goCmd, "test", "Test", "TestErr", "t", "\\test", "T", "errtest")
+	testCmd := append(goCmd, "-p", "test", "Test", "t", "test")
 	img, err = generateIdFile(ctx, img, target, testCmd)
 	if err != nil {
 		return img, err
@@ -443,7 +432,7 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 		return img, err
 	}
 	target = "g/methodcall/v1/methodcallid.go"
-	methodcallCmd := append(goCmd, "methodcall", "Methodcall", "MethodcallErr", "m", "methodcall", "M", "errmeth")
+	methodcallCmd := append(goCmd, "-p", "methodcall", "Methodcall", "m", "methodcall")
 	img, err = generateIdFile(ctx, img, target, methodcallCmd)
 	if err != nil {
 		return img, err
@@ -535,12 +524,9 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 		return img, err
 	}
 
-	img, err = img.WithWorkdir("apiplugin/queue/sqlc").
+	img = img.WithWorkdir("apiplugin/queue/sqlc").
 		WithExec([]string{"sqlc", "generate"}).
-		WithWorkdir("/workspaces/parigot").Sync(ctx)
-	if err != nil {
-		return img, err
-	}
+		WithWorkdir("/workspaces/parigot")
 
 	return img, nil
 }
