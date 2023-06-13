@@ -52,6 +52,7 @@ type fileInfo struct {
 	path           string
 	content        string
 	status         FileStatus
+	createDate     time.Time
 	lastAccessTime time.Time
 }
 
@@ -140,53 +141,89 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 	return f
 }
 
-// read only, need to be implemented
-func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest, resp *file.OpenResponse) int32 {
+// READ only, need to be implemented
+func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
+	resp *file.OpenResponse) int32 {
+
+	fpath := req.GetPath()
+
+	if !isValidPath(fpath) {
+		pcontext.Errorf(ctx, "file path is not valid: %s", fpath)
+
+		return int32(file.FileErr_InvalidPathError)
+	}
+
+	resp.Path = fpath
+	fileDataCache := *f.fileDataCache
+
+	// if file doesn't exist, return an error
+	if fid, exist := fpathTofid[fpath]; !exist {
+		pcontext.Errorf(ctx, "file does not exist and cannot be opened: %s", fpath)
+
+		return int32(file.FileErr_NotExistError)
+	} else {
+		// check file status
+		if fileDataCache[fid].status == Fs_Open {
+			pcontext.Errorf(ctx, "file is open, cannot be opened again: %s", fpath)
+
+			return int32(file.FileErr_PermissionError)
+		}
+
+		resp.Id = fid.Marshal()
+		fileDataCache[fid].lastAccessTime = time.Now()
+		fileDataCache[fid].status = Fs_Open
+	}
+
 	return int32(file.FileErr_NoError)
 }
 
 // WRITE only
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
-	path := req.GetPath()
 
-	if !isValidPath(path) {
-		pcontext.Errorf(ctx, "File path is not valid: %s", path)
+	fpath := req.GetPath()
+
+	if !isValidPath(fpath) {
+		pcontext.Errorf(ctx, "File path is not valid: %s", fpath)
 
 		return int32(file.FileErr_InvalidPathError)
 	}
 
-	resp.Path = path
+	resp.Path = fpath
 	resp.Truncated = false
 	content := req.GetContent()
 	fileDataCache := *f.fileDataCache
 
 	// if file/path exists, truncating
-	if fid, exist := fpathTofid[path]; exist {
+	if fid, exist := fpathTofid[fpath]; exist {
 		resp.Id = fid.Marshal()
 
-		// check file status first, a closed file cannot be extended
-		if fileDataCache[fid].status == Fs_Close {
-			pcontext.Errorf(ctx, "File is closed")
+		// check file status first, a opened file cannot be be written at the same time
+		if fileDataCache[fid].status == Fs_Open {
+			pcontext.Errorf(ctx, "file is open, cannot be created: %s", fpath)
 
 			return int32(file.FileErr_PermissionError)
 		}
 		// extend a file
 		resp.Truncated = true
 		fileDataCache[fid].content += content
+		fileDataCache[fid].lastAccessTime = time.Now()
+		fileDataCache[fid].createDate = time.Now()
 	} else {
 		// create a file id
 		fid := file.NewFileId()
 		resp.Id = fid.Marshal()
 
 		newFileInfo := fileInfo{
-			id:      fid,
-			path:    path,
-			content: content,
-			status:  Fs_Open,
+			id:             fid,
+			path:           fpath,
+			content:        content,
+			status:         Fs_Close,
+			createDate:     time.Now(),
+			lastAccessTime: time.Now(),
 		}
 		fileDataCache[fid] = &newFileInfo
-		fpathTofid[path] = fid
+		fpathTofid[fpath] = fid
 	}
 
 	return int32(file.FileErr_NoError)
@@ -199,6 +236,8 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *f
 
 	// check if file exists. We cannot delete a file which doesn't exist
 	if _, exist := fileDataCache[fid]; !exist {
+		pcontext.Errorf(ctx, "file does not exist, cannot be closed: %d", fid)
+
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -214,8 +253,8 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *f
 // A valid path should be a shortest path name equivalent to path by purely lexical processingand.
 // Specifically, it should start with "/parigot/app/", also, any use of '.', '..',
 // '//' (duplicate /, like //, ///, etc...) in the path is not allowed.
-func isValidPath(path string) bool {
-	if !strings.HasPrefix(path, pathPrefix) || path != filepath.Clean(path) {
+func isValidPath(fpath string) bool {
+	if !strings.HasPrefix(fpath, pathPrefix) || fpath != filepath.Clean(fpath) {
 		return false
 	}
 	return true
