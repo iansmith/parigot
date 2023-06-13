@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	file "github.com/iansmith/parigot/g/file/v1"
-	filemsg "github.com/iansmith/parigot/g/msg/file/v1"
+	"github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/sys"
 
 	"google.golang.org/protobuf/proto"
@@ -21,13 +22,14 @@ import (
 // you'll need to pick the short names and letters for them... I would
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
-var fileSvc *fileSvcImpl
+const pathPrefix = "/parigot/app/"
 
-type filePlugin struct{}
-
-var _ = unsafe.Sizeof([]byte{})
-
-var ParigiotInitialize sys.ParigotInit = &filePlugin{}
+var (
+	fileSvc            *fileSvcImpl
+	_                                  = unsafe.Sizeof([]byte{})
+	ParigiotInitialize sys.ParigotInit = &filePlugin{}
+	fpathTofid                         = make(map[string]file.FileId)
+)
 
 // RULE: All files opened by a user program have to have a
 // RULE: pathname that looks like /app/...  also, any
@@ -43,19 +45,34 @@ var ParigiotInitialize sys.ParigotInit = &filePlugin{}
 // via CurrentTime()... later on we will be expiring entries
 // in fileDataCache
 
-type myFileInfo struct {
-	// id
-	// path
-	// status
-	// lastAccessTime
+type filePlugin struct{}
+
+type fileInfo struct {
+	id             file.FileId
+	path           string
+	content        string
+	status         FileStatus
+	lastAccessTime time.Time
 }
 
 // for now, create a map of FileId -> to myFileInfo
 // var fileDataCache = make(map[Fileid])*myFileInfo
 
 type fileSvcImpl struct {
-	fileDataCache *map[file.FileId]*myFileInfo
+	fileDataCache *map[file.FileId]*fileInfo
 	ctx           context.Context
+}
+
+// enum for file status
+type FileStatus int
+
+const (
+	Fs_Open FileStatus = iota
+	Fs_Close
+)
+
+func (fs FileStatus) String() string {
+	return []string{"Open", "Close"}[fs]
 }
 
 func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
@@ -69,7 +86,7 @@ func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
 }
 
 func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
-	fn func(context.Context, T, U) id.IdRaw, m api.Module, stack []uint64, req T, resp U) {
+	fn func(context.Context, T, U) int32, m api.Module, stack []uint64, req T, resp U) {
 	defer func() {
 		if r := recover(); r != nil {
 			print(">>>>>>>> Trapped recover in set up for   ", fnName, "<<<<<<<<<<\n")
@@ -92,22 +109,22 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 // }
 
 func openFileHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &filemsg.OpenRequest{}
-	resp := &filemsg.OpenResponse{}
+	req := &file.OpenRequest{}
+	resp := &file.OpenResponse{}
 
 	hostBase(ctx, "[file]open", fileSvc.open, m, stack, req, resp)
 }
 
 func createFileHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &filemsg.CreateRequest{}
-	resp := &filemsg.CreateResponse{}
+	req := &file.CreateRequest{}
+	resp := &file.CreateResponse{}
 
 	hostBase(ctx, "[file]create", fileSvc.create, m, stack, req, resp)
 }
 
 func closeFileHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &filemsg.CloseRequest{}
-	resp := &filemsg.CloseResponse{}
+	req := &file.CloseRequest{}
+	resp := &file.CloseResponse{}
 
 	hostBase(ctx, "[file]close", fileSvc.close, m, stack, req, resp)
 }
@@ -116,7 +133,7 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
 	f := &fileSvcImpl{
-		fileDataCache: &map[file.FileId]*myFileInfo{},
+		fileDataCache: &map[file.FileId]*fileInfo{},
 		ctx:           newCtx,
 	}
 
@@ -124,18 +141,84 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 }
 
 // read only, need to be implemented
-func (f *fileSvcImpl) open(ctx context.Context, req *filemsg.OpenRequest, resp *filemsg.OpenResponse) id.IdRaw {
-	return file.FileErrIdNoErr.Raw()
+func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest, resp *file.OpenResponse) int32 {
+	return int32(file.FileErr_NoError)
 }
 
-// write only, need to be implemented
-func (f *fileSvcImpl) create(ctx context.Context, req *filemsg.CreateRequest, resp *filemsg.CreateResponse) id.IdRaw {
-	return file.FileErrIdNoErr.Raw()
+// WRITE only
+func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
+	resp *file.CreateResponse) int32 {
+	path := req.GetPath()
+
+	if !isValidPath(path) {
+		pcontext.Errorf(ctx, "File path is not valid: %s", path)
+
+		return int32(file.FileErr_InvalidPathError)
+	}
+
+	resp.Path = path
+	resp.Truncated = false
+	content := req.GetContent()
+	fileDataCache := *f.fileDataCache
+
+	// if file/path exists, truncating
+	if fid, exist := fpathTofid[path]; exist {
+		resp.Id = fid.Marshal()
+
+		// check file status first, a closed file cannot be extended
+		if fileDataCache[fid].status == Fs_Close {
+			pcontext.Errorf(ctx, "File is closed")
+
+			return int32(file.FileErr_PermissionError)
+		}
+		// extend a file
+		resp.Truncated = true
+		fileDataCache[fid].content += content
+	} else {
+		// create a file id
+		fid := file.NewFileId()
+		resp.Id = fid.Marshal()
+
+		newFileInfo := fileInfo{
+			id:      fid,
+			path:    path,
+			content: content,
+			status:  Fs_Open,
+		}
+		fileDataCache[fid] = &newFileInfo
+		fpathTofid[path] = fid
+	}
+
+	return int32(file.FileErr_NoError)
 }
 
-// close only, need to be implemented
-func (f *fileSvcImpl) close(ctx context.Context, req *filemsg.CloseRequest, resp *filemsg.CloseResponse) id.IdRaw {
-	return file.FileErrIdNoErr.Raw()
+// free up item from the fileDataCache
+func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *file.CloseResponse) int32 {
+	fid := file.UnmarshalFileId(req.Id)
+	fileDataCache := *f.fileDataCache
+
+	// check if file exists. We cannot delete a file which doesn't exist
+	if _, exist := fileDataCache[fid]; !exist {
+		return int32(file.FileErr_NotExistError)
+	}
+
+	// remove file from the fileDataCache
+	fpath := fileDataCache[fid].path
+	delete(fileDataCache, fid)
+	delete(fpathTofid, fpath)
+
+	resp.Id = req.Id
+	return int32(file.FileErr_NoError)
+}
+
+// A valid path should be a shortest path name equivalent to path by purely lexical processingand.
+// Specifically, it should start with "/parigot/app/", also, any use of '.', '..',
+// '//' (duplicate /, like //, ///, etc...) in the path is not allowed.
+func isValidPath(path string) bool {
+	if !strings.HasPrefix(path, pathPrefix) || path != filepath.Clean(path) {
+		return false
+	}
+	return true
 }
 
 //  add two more functions: create and close.  Create is
