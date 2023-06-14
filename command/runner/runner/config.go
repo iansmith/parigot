@@ -14,7 +14,7 @@ import (
 	"github.com/iansmith/parigot/eng"
 )
 
-var deployVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
+var deployVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // DeployConfig represents the microservices that the user has configured for this application.
 // Public fields in this struct are data that has been read from the user and has been
@@ -109,7 +109,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 		if m.WasmPath == "" {
 			return nil, fmt.Errorf("bad microservice configuration (%s): Path is a required field", name)
 		}
-		_, err := pathExists(m.name, m.WasmPath, false)
+		err := pathExists(m.name, m.WasmPath, false)
 		if err != nil {
 			return nil, err
 		}
@@ -140,11 +140,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 			return nil, fmt.Errorf("bad microservice configuration (%s): PluginPath is only allowed for microservices that are servers", m.name)
 		}
 		if m.Server && m.PluginPath != "" {
-			_, err := pathExists(m.name, m.PluginPath, true)
-			if err != nil {
-				return nil, err
-			}
-			m.plug, err = plugin.Open(m.PluginPath)
+			err := pathExists(m.name, m.PluginPath, true)
 			if err != nil {
 				return nil, err
 			}
@@ -176,7 +172,7 @@ func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, 
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
 			m.name, m.WasmPath, err)
 	}
-	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (with plugin: %s)", m.name, m.WasmPath)
+	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (with wasm code: %s)", m.name, m.WasmPath)
 	return mod, nil
 }
 
@@ -249,24 +245,32 @@ func (m *Microservice) GetModule() eng.Module {
 	return m.module
 }
 
-func pathExists(serviceName, path string, isPlugin bool) (fs.FileInfo, error) {
+func pathExists(serviceName, path string, isPlugin bool) error {
 	pathType := "wasm path"
 	if isPlugin {
 		pathType = "plugin path"
 	}
-	info, err := os.Stat(path)
+	var info fs.FileInfo
+	var err error
+	if isPlugin {
+		info, err = pathExistsPlugin(path)
+	} else {
+		info, err = os.Stat(path)
+	}
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s' does not exist",
+			return fmt.Errorf("bad microservice configuration (%s): %s '%s' does not exist",
 				serviceName, pathType, path)
 		}
-		return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s': %v",
+		return fmt.Errorf("bad microservice configuration (%s): %s '%s': %v",
 			serviceName, pathType, path, err)
 	}
-	if info.IsDir() {
-		return nil, fmt.Errorf("bad microservice configuration (%s): %s '%s' cannot be a directory",
+	// in the simple case where we link the plugins it returns nil
+	// as the file info.
+	if info != nil && info.IsDir() {
+		return fmt.Errorf("bad microservice configuration (%s): %s '%s' cannot be a directory",
 			serviceName, pathType, path)
 
 	}
-	return info, nil
+	return nil
 }

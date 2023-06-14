@@ -263,17 +263,17 @@ apiplugin/queue/db.go: $(QUEUE_SQL) apiplugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find apiplugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/queue/db.go build/syscall.so  wazero-src-1.1/fauxfd.go
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/queue/main
 
 FILE_PLUGIN=$(shell find apiplugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) build/syscall.so  wazero-src-1.1/fauxfd.go
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/file/main
 
 SYSCALL_PLUGIN=$(shell find apiplugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) apiplugin/*.go  wazero-src-1.1/fauxfd.go
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/apiplugin/syscall/main
 
 #
 # TEST

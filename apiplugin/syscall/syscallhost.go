@@ -1,8 +1,9 @@
-package main
+package syscall
 
 import (
 	"context"
 	"log"
+	_ "unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
@@ -13,14 +14,13 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-type syscallPlugin struct{}
+////-----  //go:linkname ParigotInitialize ParigotInitialize
 
-var ParigiotInitialize = syscallPlugin{}
+type SyscallPlugin struct{}
 
-// xxx global vairable kinda sucks
-var currentEng eng.Engine
+var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
 
-func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "locate_", locate)
 	e.AddSupportedFunc(ctx, "parigot", "dispatch_", dispatch)
 	e.AddSupportedFunc(ctx, "parigot", "block_until_call_", blockUntilCall)

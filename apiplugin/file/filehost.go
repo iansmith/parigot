@@ -1,4 +1,4 @@
-package main
+package file
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
-	"github.com/iansmith/parigot/sys"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -17,11 +16,9 @@ import (
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
 
-type filePlugin struct{}
+type FilePlugin struct{}
 
 var _ = unsafe.Sizeof([]byte{})
-
-var ParigiotInitialize sys.ParigotInit = &filePlugin{}
 
 // RULE: All files opened by a user program have to have a
 // RULE: pathname that looks like /app/...  also, any
@@ -37,12 +34,10 @@ var ParigiotInitialize sys.ParigotInit = &filePlugin{}
 // via CurrentTime()... later on we will be expiring entries
 // in fileDataCache
 
-type myFileInfo struct{}
-
 // for now, create a map of FileId -> to myFileInfo
 //var fileDataCache = make(map[Fileid])*myFileInfo
 
-func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "open_", open) // this should call the "wrapper"
 	return true
 }

@@ -116,7 +116,6 @@ func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, syscall.KernelErr) {
 	if err != 0 {
 		return nil, syscall.KernelErr(err)
 	}
-
 	return rr, syscall.KernelErr_NoError
 }
 
@@ -212,7 +211,7 @@ func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
 		Wait:      true,
 		ServiceId: sid.Marshal(),
 	}
-	pcontext.Debugf(ctx, "about to call satisy wait .............. %s", sid.Short())
+	pcontext.Debugf(ctx, "about to call satisfy wait for .............. %s", sid.Short())
 	_, err := Run(req)
 	if err != 0 {
 		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])

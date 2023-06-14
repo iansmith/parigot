@@ -307,7 +307,7 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 
 	mod, err := m.parent.r.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
-		print("ERR IS ", err.Error(), "\n")
+		pcontext.Errorf(ctx, "ERR IS %s", err.Error())
 		return nil, err
 	}
 	i := &wazeroInstance{
@@ -321,6 +321,7 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	if err := i.addMemory(ctx); err != nil {
 		return nil, err
 	}
+
 	m.parent.instantiated[mod.Name()] = i.m
 	return i, nil
 }

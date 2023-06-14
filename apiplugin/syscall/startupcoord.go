@@ -1,4 +1,4 @@
-package main
+package syscall
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
@@ -81,7 +82,7 @@ func (s *startupCoordinator) SetService(ctx context.Context, package_, name stri
 	} else {
 		pcontext.Errorf(ctx, "result of set service is nil?")
 	}
-	//	pcontext.Debugf(ctx, "created service via SetService: %s [%s]", result.id.Short(), result.Name())
+	pcontext.Debugf(ctx, "created service via SetService: %s [%s]", result.id.Short(), result.Name())
 	return result, true
 
 }
@@ -138,12 +139,13 @@ func (s *startupCoordinator) Export(ctx context.Context, svcId id.ServiceId) Ser
 		return nil
 	}
 
+	pcontext.Debugf(ctx, "exporting %s%s", svc.Name(), svc.Short())
 	svc.(*startupService).export()
 	if svc.(*startupService).canRun(ctx) {
-		svc.(*startupService).SetStarted()
-		pcontext.Debugf(ctx, "service %s [%s] is ready to run due to export", svc.Short(), svc.Name())
+		// svc.(*startupService).SetStarted()
+		pcontext.Debugf(ctx, "service %s [%s] exported and can run", svc.Short(), svc.Name())
 	}
-	s.checkNodesInFront(ctx, svc.String())
+	// s.checkNodesInFront(ctx, svc.String())
 
 	return svc
 }
@@ -168,23 +170,23 @@ func (s *startupCoordinator) topoSort(ctx context.Context) []string {
 		}
 		name[len(result)-1-i] = str
 	}
-	// for i, str := range name {
-	// 	svc := s.serviceByIdStringNoLock(ctx, str)
-	// 	log.Printf("dep %d  %s%s (running? %v)", i, svc.Name(), svc.Short(), svc.Started())
-	// }
-	// for v := 0; v < s.depGraph.Order(); v++ {
-	// 	s.depGraph.Visit(v, func(w int, c int64) (skip bool) {
-	// 		vName, bv := reverseMap(s.vertexName, v)
-	// 		wName, bw := reverseMap(s.vertexName, w)
-	// 		vSvc := s.serviceByIdStringNoLock(ctx, vName)
-	// 		wSvc := s.serviceByIdStringNoLock(ctx, wName)
-	// 		if !bv || !bw {
-	// 			log.Printf("BAD ENTRY IN THE GRAPH! %d,%d", v, w)
-	// 		}
-	// 		log.Printf("\t edge: %s -> %s", vSvc.Name(), wSvc.Name())
-	// 		return
-	// 	})
-	// }
+	for i, str := range name {
+		svc := s.serviceByIdStringNoLock(ctx, str)
+		log.Printf("dep %d  %s%s (running? %v)", i, svc.Name(), svc.Short(), svc.Started())
+	}
+	for v := 0; v < s.depGraph.Order(); v++ {
+		s.depGraph.Visit(v, func(w int, c int64) (skip bool) {
+			vName, bv := reverseMap(s.vertexName, v)
+			wName, bw := reverseMap(s.vertexName, w)
+			vSvc := s.serviceByIdStringNoLock(ctx, vName)
+			wSvc := s.serviceByIdStringNoLock(ctx, wName)
+			if !bv || !bw {
+				log.Printf("BAD ENTRY IN THE GRAPH! %d,%d", v, w)
+			}
+			log.Printf("\t edge: %s -> %s", vSvc.Name(), wSvc.Name())
+			return
+		})
+	}
 
 	return name
 }
@@ -212,40 +214,86 @@ func (s *startupCoordinator) topoSort(ctx context.Context) []string {
 // 	panic("did not find id " + svcid + " in the list of vertices")
 // }
 
+// notify all nodes that there has been a state change in the given node
+func (s *startupCoordinator) notifyAllNodes(ctx context.Context) {
+	topo := s.topoSort(ctx)
+	pcontext.Debugf(ctx, "topo created--- %d", len(topo))
+	for i, str := range topo {
+		time.Sleep(10 * time.Second)
+		svc := s.ServiceByIdString(ctx, str)
+		if svc == nil {
+			panic("unable to find service in checkNodesBehindForRunning:" + str)
+		}
+		pcontext.Debugf(ctx, "\tNotify All")
+		pcontext.Debugf(ctx, "\telement[%02d]:%s,%s (running?%v)", i, svc.Name(), svc.Short(), svc.Started())
+		node, ok := reverseMap(s.vertexName, i)
+		if !ok {
+			panic("unable to find the element in the vertex map")
+		}
+		nodeSvc := s.ServiceByIdString(ctx, node)
+		if nodeSvc == nil {
+			panic("unable to find service in checkNodesBehindForRunning:" + str)
+		}
+		if nodeSvc.Started() {
+			log.Printf("not notifying %s%s already started", nodeSvc.Name(), nodeSvc.Short())
+		}
+		log.Printf("sending a wakeUp to %s%s", nodeSvc.Name(), nodeSvc.Id().Short())
+		nodeSvc.(*startupService).wakeUp()
+	}
+}
+
 // checkNodesBehindForRunning walks the topologically ordered vertices, looking for any nodes
 // that are predecessors of the given node and testing to see if they are started. If not
 // we return false.  If all the predecessorys are started, then we return true.  If the
 // serviceId cannot be found, we return true.
 func (s *startupCoordinator) checkNodesBehindForRunning(ctx context.Context, svcid string) bool {
+	print("xxx1\n")
 	topo := s.topoSort(ctx)
 	if s.ServiceByIdString(ctx, svcid) == nil {
+		print("xxx2\n")
 		return true
 	}
+	print("xxx3\n")
+	pcontext.Debugf(ctx, "** check Nodes Behind For Running **")
 	pcontext.Debugf(ctx, "topo created--- %d", len(topo))
-	for _, str := range topo {
+	for i, str := range topo {
 		svc := s.ServiceByIdString(ctx, str)
 		if svc == nil {
 			panic("unable to find service in checkNodesBehindForRunning:" + str)
 		}
-		//pcontext.Debugf(ctx, "\telement[%02d]:%s,%s (running?%v)", i, svc.Name(), svc.Short(), svc.Started())
+		pcontext.Debugf(ctx, "\telement[%02d]:%s,%s (running?%v)", i, svc.Name(), svc.Short(), svc.Started())
 	}
+	print("xxx4\n")
 
 	for _, str := range topo {
-		// pcontext.Debugf(ctx, "topo considering elem? %s", str)
-		if str == svcid {
-			pcontext.Debugf(ctx, "topo: found %s (check behind for ready done)", str)
-			return true
-		}
+		print("xxx5 " + str + "\n")
+		pcontext.Debugf(ctx, "topo considering elem? %s", str)
+
+		// this clause is LOGICALLY the one we need to use but in practice it
+		// is not. because the topo sort isn't actually the tree, but just one
+		// possible dependency order.  thus, its SIBLINGS might also be ready to
+		// start.
+		// if str == svcid {
+		// 	pcontext.Debugf(ctx, "topo: found %s (check behind for ready done)", str)
+		// 	continue
+		// }
 		svc := s.ServiceByIdString(ctx, str)
 		if svc == nil {
 			panic("unable to walk the dep graph looking for predeessors, a predecessor could not be found: " + str)
 		}
-		if svc.(*startupService).canRun(ctx) {
-			// pcontext.Debugf(ctx, "  -- check completed %s [%s] (%v) continuing ", svc.Short(), svc.Name(), svc.Started())
+		if svc.String() == svcid {
+			print("xxx6\n")
+			return true
+		}
+		ss := svc.(*startupService)
+		print("xxx7\n")
+		if ss.Exported() && ss.RunRequested() {
+			print("xxx8\n")
+			pcontext.Debugf(ctx, "  -- check completed %s candidate [%s] (%v)  ", svc.Short(), svc.Name(), svc.Started())
 			svc.(*startupService).wakeUp()
 			continue
 		}
-		//pcontext.Debugf(ctx, "topo search failure: candidate %s%sis not ready (%v,%v,%v)", svc.Short(), svc.Name(), svc.Exported(), svc.RunRequested(), svc.Started())
+		pcontext.Debugf(ctx, "topo search failure: candidate %s%sis not ready (%v,%v,%v)", svc.Short(), svc.Name(), svc.Exported(), svc.RunRequested(), svc.Started())
 		return false
 	}
 	panic("did not find id " + svcid + " in the list of vertices")
@@ -288,19 +336,21 @@ func (s *startupCoordinator) checkNodesInFront(ctx context.Context, svcid string
 func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr {
 	serviceSource := s.ServiceByIdString(ctx, src.String())
 	if serviceSource == nil {
-		pcontext.Debugf(ctx, "xxxx --- ????creating service because it has been imported: %s", src.String())
 		sid, ok := s.SetService(ctx, serviceSource.Package(), serviceSource.Name(), false)
 		if ok {
-			pcontext.Debugf(ctx, "xxxx --- ???? created service %s%s", sid.Name(), sid.Short())
+			pcontext.Debugf(ctx, "xxxx --- ???? created service %s%s because of import", sid.Name(), sid.Short())
 		}
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())
 	if serviceDest == nil {
 		return syscall.KernelErr_NotFound
 	}
+	pcontext.Debugf(ctx, "import: %s%s -> %s%s", serviceSource.Name(), serviceSource.Short(),
+		serviceDest.Name(), dest.Short())
 	srcString := serviceSource.String()
 	destString := serviceDest.String()
-	// lock for the graph
+
+	// graph does not lock itself
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if !graph.Acyclic(s.depGraph) {
@@ -332,6 +382,7 @@ func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId)
 		return syscall.KernelErr_DependencyCycle
 
 	}
+	s.notifyAllNodes(ctx)
 	return syscall.KernelErr_NoError
 }
 
@@ -384,14 +435,20 @@ func (s *startupCoordinator) addEdge(ctx context.Context, src, dest string) bool
 // function does not assert the lock.
 func (s *startupCoordinator) Run(ctx context.Context, sid id.ServiceId) syscall.KernelErr {
 	service := s.ServiceById(ctx, sid)
+	log.Printf("RUN %s%s", service.Name(), service.Short())
 	if service == nil {
 		return syscall.KernelErr_NotFound
 	}
+	log.Printf("Going te SERVICE RUN %s%s", service.Name(), service.Short())
+
 	kerr := service.Run(ctx)
 	if kerr != syscall.KernelErr_NoError {
 		return kerr
 	}
-	s.checkNodesInFront(ctx, sid.String())
+	log.Printf("OUT OF SVCRUN %s%s", service.Name(), service.Short())
+
+	s.notifyAllNodes(ctx)
+
 	return syscall.KernelErr_NoError
 }
 
@@ -433,6 +490,10 @@ func (s *startupCoordinator) PathExists(ctx context.Context, src, dest string) b
 	return false
 }
 
+//
+// Graph routines
+//
+
 // reverseMap is kinda sucky.  This walks the elements of the dependency
 // map looking for the name of the vertex that has the vertex number i.
 // The number of dependency edges should be small so keeping another map seemed
@@ -444,4 +505,68 @@ func reverseMap(dep map[string]int, i int) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func inboundEdges(g graph.Iterator, target int) []int {
+	result := []int{}
+	max := g.Order()
+	for i := 0; i < max; i++ {
+		if i == target {
+			continue
+		}
+		g.Visit(i, func(w int, _ int64) (skip bool) {
+			if w == target {
+				result = append(result, i)
+			}
+			return
+		})
+	}
+	return result
+}
+func (s *startupCoordinator) mustVertexNumToService(ctx context.Context, v int) Service {
+	n, ok := reverseMap(_coord.vertexName, v)
+	if !ok {
+		panic("unable to find vertex name for index")
+	}
+	svc := s.ServiceByIdString(ctx, n)
+	if svc == nil {
+		panic("unable to find service by Id string")
+	}
+	return svc
+}
+func (s *startupCoordinator) mustServiceToVertexNum(ctx context.Context, svc Service) int {
+	str := svc.String()
+	i, ok := s.vertexName[str]
+	if !ok {
+		panic("unable to find vertex number for service id string")
+	}
+	return i
+}
+
+func (s *startupCoordinator) dependenciesStarted(ctx context.Context, v int) []int {
+	fail := []int{}
+	s.depGraph.Visit(v, func(w int, c int64) (skip bool) {
+		cand := s.mustVertexNumToService(ctx, w)
+		if !cand.Started() {
+			fail = append(fail, w)
+		}
+		fail = append(fail, s.dependenciesStarted(ctx, s.depGraph, w)...)
+		return
+	})
+	return fail
+}
+
+func (s *startupCoordinator) DFSDeps(ctx context.Context, sid Service) bool {
+	i := s.mustServiceToVertexNum(ctx, sid)
+	fail := s.dependenciesStarted(ctx, i)
+	return len(fail) == 0
+}
+
+func (s *startupCoordinator) notifyIncomingNeighbors(ctx context.Context, sid Service) {
+	i := s.mustServiceToVertexNum(ctx, sid)
+	in := inboundEdges(s.depGraph, i)
+	for _, c := range in {
+		svc := s.mustVertexNumToService(ctx, c)
+		svc.(*startupService).wakeUp()
+	}
 }
