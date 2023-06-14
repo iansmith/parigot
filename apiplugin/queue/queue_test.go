@@ -270,10 +270,10 @@ func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExp
 	ctx := pcontext.DevNullContext(context.Background())
 
 	t.Helper()
-	creat := &queue.CreateQueueRequest{}
-	creat.QueueName = name
+	create := &queue.CreateQueueRequest{}
+	create.QueueName = name
 	resp := &queue.CreateQueueResponse{}
-	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, creat, resp))
+	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, create, resp))
 	if errorExpected {
 		if !err.IsError() {
 			t.Errorf("expected error: %s :%s", msg, err.Short())
@@ -297,10 +297,10 @@ func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 	t.Helper()
 	ctx := pcontext.DevNullContext(context.Background())
 
-	creat := &queue.CreateQueueRequest{}
-	creat.QueueName = queueNameInTest
+	create := &queue.CreateQueueRequest{}
+	create.QueueName = queueNameInTest
 	resp := &queue.CreateQueueResponse{}
-	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, creat, resp))
+	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, create, resp))
 	if err.IsError() {
 		t.Errorf("expected queue to be created")
 	}
