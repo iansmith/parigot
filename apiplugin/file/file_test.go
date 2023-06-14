@@ -44,10 +44,6 @@ func TestOpenClose(t *testing.T) {
 	// also try closing a file twice, there should be an error in the second time
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file that does not exist", true, int32(file.FileErr_NotExistError))
-
-	// when expecting an error, for now you'll have to use
-	// the raw numbers from the list of errors
-	// apiwasm/file/fileerr.go
 }
 
 func TestCreateClose(t *testing.T) {
@@ -88,7 +84,7 @@ func TestCreateClose(t *testing.T) {
 
 	// close a file twice, the seconde time there should have an error
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-	testFileClose(t, svc, fid, "close a file", true, int32(file.FileErr_NotExistError))
+	testFileClose(t, svc, fid, "close a closed file", true, int32(file.FileErr_NotExistError))
 
 	// create a file with the same path
 	fid2 = creatAGoodFile(t, svc)
@@ -159,7 +155,6 @@ func testFileClose(t *testing.T, svc *fileSvcImpl, fid file.FileId, msg string,
 	if !fid.Equal(candidate) {
 		log.Fatalf("created and closed file id don't match")
 	}
-	return
 }
 
 func testFileOpen(t *testing.T, svc *fileSvcImpl, fpath string, msg string,

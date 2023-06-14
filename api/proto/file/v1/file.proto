@@ -21,7 +21,7 @@ service File {
   rpc Open(OpenRequest) returns (OpenResponse);
 
   // Create creates or truncates the named file in the path. If the file already exists, 
-  // it is truncated. If the file does not exist, it is created with mode 0666 (before umask).
+  // it is truncated. If the file does not exist, it is created.
   rpc Create(CreateRequest) returns (CreateResponse);
 
   rpc Close(CloseRequest) returns (CloseResponse);
