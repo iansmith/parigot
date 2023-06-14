@@ -147,17 +147,18 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	fpath := req.GetPath()
 
-	if !isValidPath(fpath) {
+	cleanPath, valid := isValidPath(fpath)
+	if !valid {
 		pcontext.Errorf(ctx, "file path is not valid: %s", fpath)
 
 		return int32(file.FileErr_InvalidPathError)
 	}
 
-	resp.Path = fpath
+	resp.Path = cleanPath
 	fileDataCache := *f.fileDataCache
 
 	// if file doesn't exist, return an error
-	if fid, exist := fpathTofid[fpath]; !exist {
+	if fid, exist := fpathTofid[cleanPath]; !exist {
 		pcontext.Errorf(ctx, "file does not exist and cannot be opened: %s", fpath)
 
 		return int32(file.FileErr_NotExistError)
@@ -166,7 +167,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 		if fileDataCache[fid].status == Fs_Open {
 			pcontext.Errorf(ctx, "file is open, cannot be opened again: %s", fpath)
 
-			return int32(file.FileErr_PermissionError)
+			return int32(file.FileErr_AlreadyInUseError)
 		}
 
 		resp.Id = fid.Marshal()
@@ -183,13 +184,14 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 	fpath := req.GetPath()
 
-	if !isValidPath(fpath) {
+	cleanPath, valid := isValidPath(fpath)
+	if !valid {
 		pcontext.Errorf(ctx, "File path is not valid: %s", fpath)
 
 		return int32(file.FileErr_InvalidPathError)
 	}
 
-	resp.Path = fpath
+	resp.Path = cleanPath
 	resp.Truncated = false
 	content := req.GetContent()
 	fileDataCache := *f.fileDataCache
@@ -202,7 +204,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 		if fileDataCache[fid].status == Fs_Open {
 			pcontext.Errorf(ctx, "file is open, cannot be created: %s", fpath)
 
-			return int32(file.FileErr_PermissionError)
+			return int32(file.FileErr_AlreadyInUseError)
 		}
 		// extend a file
 		resp.Truncated = true
@@ -216,14 +218,14 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		newFileInfo := fileInfo{
 			id:             fid,
-			path:           fpath,
+			path:           cleanPath,
 			content:        content,
 			status:         Fs_Close,
 			createDate:     time.Now(),
 			lastAccessTime: time.Now(),
 		}
 		fileDataCache[fid] = &newFileInfo
-		fpathTofid[fpath] = fid
+		fpathTofid[cleanPath] = fid
 	}
 
 	return int32(file.FileErr_NoError)
@@ -251,15 +253,15 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *f
 }
 
 // A valid path should be a shortest path name equivalent to path by purely lexical processingand.
-// Specifically, it should start with "/parigot/app/", also, any use of '.', '..',
-// '//' (duplicate /, like //, ///, etc...) in the path is not allowed.
-func isValidPath(fpath string) bool {
-	if !strings.HasPrefix(fpath, pathPrefix) || fpath != filepath.Clean(fpath) {
-		return false
+// Specifically, it should start with "/parigot/app/", also, any use of '.', '..', in the path is
+// not allowed.
+func isValidPath(fpath string) (string, bool) {
+	fileName := filepath.Base(fpath)
+	dir := strings.ReplaceAll(fpath, fileName, "")
+	if !strings.HasPrefix(dir, pathPrefix) || strings.Contains(dir, ".") {
+		return fpath, false
 	}
-	return true
-}
+	cleanPath := filepath.Clean(fpath)
 
-//  add two more functions: create and close.  Create is
-// like open, but WRITE only.  Close frees up items from the
-// table fileDataCache
+	return cleanPath, true
+}

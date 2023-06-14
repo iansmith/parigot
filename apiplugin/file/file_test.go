@@ -40,7 +40,7 @@ func TestOpenClose(t *testing.T) {
 	// also try opening a file twice, for now should be an error
 	creatAGoodFile(t, svc)
 	fid = testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
-	testFileOpen(t, svc, filePath, "open a open file", true, int32(file.FileErr_PermissionError))
+	testFileOpen(t, svc, filePath, "open a open file", true, int32(file.FileErr_AlreadyInUseError))
 	// also try closing a file twice, there should be an error in the second time
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file that does not exist", true, int32(file.FileErr_NotExistError))
@@ -49,26 +49,26 @@ func TestOpenClose(t *testing.T) {
 func TestCreateClose(t *testing.T) {
 	svc := newFileSvc((context.Background()))
 
-	// create a file with duplicate "/" in the path name
-	badFid := testFileCreate(t, svc, "/parigot/app///file.go", fileContent,
-		"bad path name", true, int32(file.FileErr_InvalidPathError))
-	if !badFid.IsZeroValue() {
-		t.Errorf("accidentally created a file with the a bad path name")
-	}
 	// create a file with . in the path name
-	badFid = testFileCreate(t, svc, "/parigot/app/./file.go", fileContent,
-		"bad path name", true, int32(file.FileErr_InvalidPathError))
+	badFid := testFileCreate(t, svc, "/parigot/app/./file.go", fileContent,
+		"bad path name with .", true, int32(file.FileErr_InvalidPathError))
 	if !badFid.IsZeroValue() {
 		t.Errorf("accidentally created a file with the a bad path name")
 	}
 	// create a file with .. in the path name
 	badFid = testFileCreate(t, svc, "/parigot/app/../file.go", fileContent,
-		"bad path name", true, int32(file.FileErr_InvalidPathError))
+		"bad path name with ..", true, int32(file.FileErr_InvalidPathError))
 	if !badFid.IsZeroValue() {
 		t.Errorf("accidentally created a file with the a bad path name")
 	}
 	// create a file without prefix '/parigot/app/'
-	badFid = testFileCreate(t, svc, "dir/file.go", fileContent, "bad path name",
+	badFid = testFileCreate(t, svc, "dir/file.go", fileContent, "bad path name without right prefix",
+		true, int32(file.FileErr_InvalidPathError))
+	if !badFid.IsZeroValue() {
+		t.Errorf("accidentally created a file with the a bad path name")
+	}
+	// create a file with a prefix close to the right one
+	badFid = testFileCreate(t, svc, "/parigot/workspace/file.go", fileContent, "bad path name with a prefix close to the right one",
 		true, int32(file.FileErr_InvalidPathError))
 	if !badFid.IsZeroValue() {
 		t.Errorf("accidentally created a file with the a bad path name")
@@ -79,7 +79,7 @@ func TestCreateClose(t *testing.T) {
 	// create a file already exist
 	fid2 := creatAGoodFile(t, svc)
 	if !fid.Equal(fid2) {
-		t.Errorf("unexpected that the file was not appended")
+		t.Errorf("unexpected that a new file was created")
 	}
 
 	// close a file twice, the seconde time there should have an error
