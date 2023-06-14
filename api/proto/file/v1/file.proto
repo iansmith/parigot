@@ -19,7 +19,11 @@ import "protosupport/v1/protosupport.proto";
 
 service File {
   rpc Open(OpenRequest) returns (OpenResponse);
+
+  // Create creates or truncates the named file in the path. If the file already exists, 
+  // it is truncated. If the file does not exist, it is created.
   rpc Create(CreateRequest) returns (CreateResponse);
+
   rpc Close(CloseRequest) returns (CloseResponse);
 
   // Load does NOT check that the file(s) referred to are reasonable in length, do not contain
@@ -30,6 +34,7 @@ service File {
 
 message CreateRequest {
   string path  = 1;
+  string content = 2;
 }
 
 message OpenRequest {
@@ -88,5 +93,10 @@ enum FileErr {
     NoError = 0; // mandatory
     DispatchError = 1; //mandatory
     UnmarshalError = 2; // mandatory
-
+    // invalid path means that the given path name is a not a valid identifier.  Identifiers should be 
+    // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
+    // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
+    InvalidPathError = 3;
+    AlreadyInUseError = 4;
+    NotExistError = 5;
 }
