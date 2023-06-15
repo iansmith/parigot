@@ -179,7 +179,7 @@ func (m *myUnderTestServer) Exec(ctx context.Context, req *test.ExecRequest) (*t
 }
 
 func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErr {
-	pcontext.Debugf(ctx, "setupTests", "setup tests reached")
+	pcontext.Debugf(ctx, "setupTests reached in under test server")
 
 	addReq := &test.AddTestSuiteRequest{
 		Suite: []*test.SuiteInfo{

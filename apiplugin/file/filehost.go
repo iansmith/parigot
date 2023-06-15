@@ -25,9 +25,9 @@ const pathPrefix = "/parigot/app/"
 
 var (
 	fileSvc            *fileSvcImpl
-	_                                  = unsafe.Sizeof([]byte{})
-	ParigiotInitialize sys.ParigotInit = &filePlugin{}
-	fpathTofid                         = make(map[string]file.FileId)
+	_                                        = unsafe.Sizeof([]byte{})
+	ParigiotInitialize apiplugin.ParigotInit = &FilePlugin{}
+	fpathTofid                               = make(map[string]file.FileId)
 )
 
 // RULE: All files opened by a user program have to have a
@@ -44,7 +44,7 @@ var (
 // via CurrentTime()... later on we will be expiring entries
 // in fileDataCache
 
-type filePlugin struct{}
+type FilePlugin struct{}
 
 type fileInfo struct {
 	id             file.FileId
@@ -75,7 +75,7 @@ func (fs FileStatus) String() string {
 	return []string{"Open", "Close"}[fs]
 }
 
-func (*filePlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "open_file_", openFileHost) // this should call the "wrapper"
 	e.AddSupportedFunc(ctx, "file", "create_file_", createFileHost)
 	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)

@@ -57,8 +57,6 @@ func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResp
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
-	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.UnmarshalServiceId(req.CalledBy),
-		req.GetPackageName()+"."+req.GetServiceName())
 	svc, ok := coordinator().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
 		return int32(syscall.KernelErr_NotFound)
@@ -68,7 +66,6 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 		return int32(syscall.KernelErr_NotRequired)
 	}
 	svcId := svc.Id()
-	pcontext.Debugf(ctx, "at end of locate, we are returning %s", svcId.Short())
 	resp.ServiceId = svcId.Marshal()
 	return int32(syscall.KernelErr_NoError)
 }
