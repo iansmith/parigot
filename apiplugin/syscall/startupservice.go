@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -125,7 +124,7 @@ func (s *startupService) canRun(ctx context.Context) bool {
 	pcontext.Debugf(ctx, "trying to see if %s [%s] can run now ", s.Short(), s.Name())
 	withFn := pcontext.CallTo(ctx, "notifyAllNodes")
 
-	result := s.parent.checkNodesBehindForRunning(withFn, s.String())
+	result := s.parent.DFSDeps(withFn, s)
 	log.Printf("can run check 3 for %s%s => %v", s.name, s.id.Short(), result)
 	return result
 }
@@ -136,20 +135,13 @@ func (s *startupService) canRun(ctx context.Context) bool {
 //
 // waitToRun should be called with the lock available.
 func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
-	counter := 0
-	log.Printf("xxx-- wait to run %s%s %v,%v", s.name, s.id.Short(), s.Exported(), s.RunRequested())
-	if s.canRun(ctx) {
-		s.SetStarted()
-		print(fmt.Sprintf("%s is immediately ready to run", s.Name()))
-		return syscall.KernelErr_NoError
-	}
 	pcontext.Debugf(ctx, "Timeout loop running for %s", s.Name())
 	for {
-
+		log.Printf("waitingToRun: %s", s.String())
 		if s.canRun(ctx) {
 			s.SetStarted()
-			log.Printf("%s is  after waiting %d", s.Name(), counter)
-			pcontext.Debugf(ctx, "%s is ready to run after waiting (%d)", s.Name(), counter)
+			log.Printf("%s is ready, after waiting", s.Name())
+			pcontext.Debugf(ctx, "%s is ready to run after waiting", s.Name())
 			return syscall.KernelErr_NoError
 		} else {
 			log.Printf("%s failed to pass can run check", s.name)
@@ -157,13 +149,8 @@ func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
 		select {
 		case <-s.runCh:
 			continue
-		case <-time.After(15 * time.Second):
-			pcontext.Debugf(ctx, "%s incrementing counter: %d", s.Name(), counter)
-			counter++
-			if counter > timeoutInSecs {
-				return syscall.KernelErr_RunTimeout
-			}
-			// try again
+		case <-time.After(timeoutInSecs * time.Second):
+			continue
 		}
 	}
 }
