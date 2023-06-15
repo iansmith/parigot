@@ -1,4 +1,4 @@
-package main
+package syscall
 
 import (
 	"github.com/yourbasic/graph"

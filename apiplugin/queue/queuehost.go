@@ -1,4 +1,4 @@
-package main
+package queue
 
 import (
 	"context"
@@ -31,6 +31,8 @@ var inMemDSN = "file:test.db?cache=shared&mode=memory"
 
 const longForm = "2006-01-02 15:04:05"
 
+var queueSvc *queueSvcImpl
+
 // This impl is part of the GO side, it is not visible in WASM.
 type queueSvcImpl struct {
 	db      *sql.DB
@@ -38,15 +40,11 @@ type queueSvcImpl struct {
 	ctx     context.Context
 }
 
-var queueSvc *queueSvcImpl
-
-type queuePlugin struct{}
-
-var ParigotInitialize = queuePlugin{}
+type QueuePlugin struct{}
 
 // This init functions points the host functions at the functions that
 // are the ones to a short setup before calling the real implementation.
-func (*queuePlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*QueuePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "queue", "create_queue_", createQueueHost)
 	e.AddSupportedFunc(ctx, "queue", "delete_queue_", deleteQueueHost)
 	e.AddSupportedFunc(ctx, "queue", "length_", lengthHost)

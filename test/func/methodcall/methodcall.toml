@@ -2,7 +2,7 @@
 ## are relative to that dir, not this dir
 
 ParigotLibPath="build/syscall.so"
-ParigotLibSymbol="ParigiotInitialize"
+ParigotLibSymbol="ParigotInitialize"
 
 # the names here have no significance, they are just for humans
 [microservice.foo]
@@ -12,6 +12,7 @@ Env=["PARIGOT_GOOD=bad"]
 
 [microservice.bar]
 WasmPath="build/methodcallbar.p.wasm"
+
 Arg=["methodcallbar.p.wasm"]
 Env=["PARIGOT_SOFT=hard"]
 

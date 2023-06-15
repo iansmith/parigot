@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
@@ -31,9 +29,9 @@ func main() {
 		Remote:   *remote,
 	}
 	defer func() {
-		if r := recover(); r != nil {
-			print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
-		}
+		// if r := recover(); r != nil {
+		// 	print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
+		// }
 	}()
 	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
@@ -70,21 +68,21 @@ func main() {
 		}
 	}(ctx)
 
-	go func() {
-		var buf bytes.Buffer
-		for {
-			buf.Reset()
-			time.Sleep(60 * time.Second)
-			deployCtx.Process().Range(func(keyAny, valueAny any) bool {
-				key := keyAny.(string)
-				proc := valueAny.(*sys.Process)
-				buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
-					key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
-				return true
-			})
-			print("periodic check:-----------\n", buf.String(), "\n")
-		}
-	}()
+	// go func() {
+	// 	var buf bytes.Buffer
+	// 	for {
+	// 		buf.Reset()
+	// 		time.Sleep(60 * time.Second)
+	// 		deployCtx.Process().Range(func(keyAny, valueAny any) bool {
+	// 			key := keyAny.(string)
+	// 			proc := valueAny.(*sys.Process)
+	// 			buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
+	// 				key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
+	// 			return true
+	// 		})
+	// 		print("periodic check:-----------\n", buf.String(), "\n")
+	// 	}
+	// }()
 
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)

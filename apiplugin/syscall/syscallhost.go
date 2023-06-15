@@ -1,8 +1,9 @@
-package main
+package syscall
 
 import (
 	"context"
 	"log"
+	_ "unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
@@ -13,14 +14,13 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-type syscallPlugin struct{}
+////-----  //go:linkname ParigotInitialize ParigotInitialize
 
-var ParigiotInitialize = syscallPlugin{}
+type SyscallPlugin struct{}
 
-// xxx global vairable kinda sucks
-var currentEng eng.Engine
+var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
 
-func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "locate_", locate)
 	e.AddSupportedFunc(ctx, "parigot", "dispatch_", dispatch)
 	e.AddSupportedFunc(ctx, "parigot", "block_until_call_", blockUntilCall)
@@ -41,9 +41,9 @@ func (*syscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
 	for _, fullyQualified := range req.GetService() {
-		sid, _ := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+		sid, _ := coordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
-		if depData().Export(ctx, sid.Id()) == nil {
+		if coordinator().Export(ctx, sid.Id()) == nil {
 			return int32(syscall.KernelErr_NotFound)
 		}
 	}
@@ -53,21 +53,18 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 
 func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	if !depData().Run(ctx, sid) {
-		return int32(syscall.KernelErr_DependencyCycle)
-	}
-	return int32(syscall.KernelErr_NoError)
+	return int32(coordinator().Run(ctx, sid))
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
 	pcontext.Debugf(ctx, "start of locate impl: req is sender=%v,%v", id.UnmarshalServiceId(req.CalledBy),
 		req.GetPackageName()+"."+req.GetServiceName())
-	svc, ok := depData().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
+	svc, ok := coordinator().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
 		return int32(syscall.KernelErr_NotFound)
 	}
 	calledBy := id.UnmarshalServiceId(req.CalledBy)
-	if !depData().PathExists(ctx, calledBy.String(), svc.String()) {
+	if !coordinator().PathExists(ctx, calledBy.String(), svc.String()) {
 		return int32(syscall.KernelErr_NotRequired)
 	}
 	svcId := svc.Id()
@@ -77,7 +74,7 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
-	svc, _ := depData().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
+	svc, _ := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.Id = svc.Id().Marshal()
 	return int32(syscall.KernelErr_NoError)
 }
@@ -85,13 +82,15 @@ func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *sysca
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
 	src := id.UnmarshalServiceId(req.GetSource())
 	fqn := req.GetDest()
+	//log.Printf("xxx--- require impl, source = %s", src.Short())
+
 	for _, fullyQualified := range fqn {
-		dest, ok := depData().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
-		if ok {
-			pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
-				fullyQualified.GetService(), dest.Short())
-		}
-		kerr := depData().Import(ctx, src, dest.Id())
+		dest, _ := coordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+		// if ok {
+		// 	pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
+		// 		fullyQualified.GetService(), dest.Short())
+		// }
+		kerr := coordinator().Import(ctx, src, dest.Id())
 		if int32(kerr) != 0 {
 			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr)
 			return int32(kerr)

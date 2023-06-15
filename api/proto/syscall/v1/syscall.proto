@@ -64,7 +64,7 @@ enum KernelErr{
 	  DependencyCycle = 11;
 	  // NetworkFailed means that we successfully connected to the nameserver, but failed
 	  // during the communication process itself.
-    NetworkFailed = 12;
+   	 NetworkFailed = 12;
 	  // NetworkConnectionLost means that our internal connection to the remote nameserver
 	  // was either still working but has lost "sync" in the protocol or the connection has
 	  // become entirely broken.  The kernel will close the connection to remote nameserver
@@ -119,14 +119,17 @@ enum KernelErr{
     // an id type into a system call.  This usually means that you did not 
     // properly initialize a protobuf.
 	  BadId = 26;
-	  // ReadyFailedindicates that the service that was trying
-	  // to start was aborted because it returned false from Ready().
-    // Usually this error indicates that the program has no way to
+	// ReadyFailedindicates that the service that was trying
+	// to start was aborted because it returned false from Ready().
+	// Usually this error indicates that the program has no way to
     // continue running.
 	  NotReady = 27;
 	  // NotRequired that a service has tried to Locate() another service
 	  // that that the first service did not Require() previously.
 	  NotRequired = 28;
+	  // RunTimeout means that the programs timeout has expired when waiting
+	  // for all the required dependencies to be fulfilled.
+	  RunTimeout = 29;
 
 };
 

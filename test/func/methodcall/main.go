@@ -35,11 +35,11 @@ func main() {
 
 	myServiceId = lib.MustRegisterClient(ctx)
 	methodcall.MustRequireFoo(pcontext.CallTo(ctx, "Require"), myServiceId)
-	pcontext.Debugf(ctx, "fineshed requiring foo")
+	pcontext.Debugf(ctx, "finished requiring foo")
 	test.MustRequireTest(ctx, myServiceId)
-	pcontext.Debugf(ctx, "fineshed requiring test")
+	pcontext.Debugf(ctx, "finished requiring test")
 	methodcall.MustRequireBar(ctx, myServiceId)
-	pcontext.Debugf(ctx, "fineshed requiring bar")
+	pcontext.Debugf(ctx, "finished requiring bar")
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
 	pcontext.Debugf(ctx, "finished wait satisfy")

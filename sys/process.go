@@ -14,13 +14,6 @@ import (
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
-// ParigotInit is the interface that plugins must meet to be
-// initialized. It is expected that they will use the supplied
-// Engine in the call to Init to register Host functions.
-type ParigotInit interface {
-	Init(ctx context.Context, e eng.Engine) bool
-}
-
 type Service interface {
 	IsServer() bool
 	IsLocal() bool
@@ -99,7 +92,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	}
 
 	if m.GetPluginPath() != "" {
-		_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
+		err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
 			m.GetPluginPath(), m.GetPluginSymbol(), engine, m.GetName())
 		if err != nil {
 			return nil, err
@@ -115,28 +108,26 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	return proc, nil
 }
 
-func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, name string) (*plugin.Plugin, ParigotInit, error) {
-	plug, err := plugin.Open(pluginPath)
+func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, name string) error {
+	i, err := LoadPlugin(ctx, pluginPath, pluginSymbol, name)
 	if err != nil {
-		return nil, nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
+		pcontext.Dump(ctx)
+		return err
 	}
-	sym, err := plug.Lookup(pluginSymbol)
-	if err != nil {
-		return nil, nil, err
-	}
-	initFn := sym.(ParigotInit)
-	initCtx := pcontext.NewContextWithContainer(pcontext.ServerGoContext(ctx), "LoadPluginAndAddFunc")
-	ok := initFn.Init(initCtx, engine)
-	if !ok {
-		pcontext.Dump(initCtx)
-		return nil, nil, fmt.Errorf("unable to initialize plugin '%s'", pluginPath)
-	}
-	if _, err := engine.InstantiateHostModule(ctx, name); err != nil {
-		return nil, nil, err
+	if !i.Init(ctx, engine) {
+		pcontext.Errorf(ctx, "unable to load plugin: %v", err.Error())
+		pcontext.Dump(ctx)
+		return fmt.Errorf("unable to load plugin: %v", err.Error())
 	}
 
-	pcontext.Dump(initCtx)
-	return plug, initFn, nil
+	if _, err := engine.InstantiateHostModule(ctx, name); err != nil {
+		pcontext.Errorf(ctx, "instantiate host module failed: %s", err.Error())
+		pcontext.Dump(ctx)
+		return fmt.Errorf("instantiate host module failed: %s", err.Error())
+	}
+
+	pcontext.Dump(ctx)
+	return nil
 }
 
 func (p *Process) RequirementsMet() bool {
@@ -232,6 +223,9 @@ func (p *Process) Run() {
 
 // Start invokes the wasm interp and returns an error code if this is a "main" process.
 func (p *Process) Start(ctx context.Context) (code int) {
+	if p == nil {
+		panic("unable to Start when there is no process (p==nil)")
+	}
 	procPrint(ctx, "START ", "start process: %s", p)
 	var err error
 	procPrint(ctx, "START ", "start of args  %+v", p.microservice.GetArg())
