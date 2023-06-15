@@ -88,7 +88,7 @@ func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,s
     }
     serviceId:=id.UnmarshalServiceId(resp.GetServiceId())
 
-    cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
+    cs := lib.NewClientSideService(ctx, serviceId)
     return &{{$svc}}Client_{
         ClientSideService: cs,
     },syscall.KernelErr_NoError
@@ -186,9 +186,9 @@ func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context)
 
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
-    {{$dispatchResult}}, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+    {{$dispatchResult}}, err:= i.ClientSideService.Dispatch({{$svcCamel}}MethodNameToId["{{.WasmMethodName}}"],{{$inbound}})
 {{- else }} {{/* other side of output code needed */}}
-    _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+    _, err:= i.ClientSideService.Dispatch({{$svcCamel}}MethodNameToId["{{.WasmMethodName}}"],{{$inbound}})
 {{ end }} {{/* end of output code needed for dispatch call */}}
 
     if int32(err)!=0{

@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"context"
+	"fmt"
 	"log"
 	_ "unsafe"
 
@@ -14,9 +15,11 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-////-----  //go:linkname ParigotInitialize ParigotInitialize
+var serviceNameToId = make(map[string]id.ServiceId)
+var serviceIdToMethod = make(map[string]map[string]id.MethodId)
 
-type SyscallPlugin struct{}
+type SyscallPlugin struct {
+}
 
 var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
 
@@ -56,6 +59,16 @@ func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResp
 	return int32(coordinator().Run(ctx, sid))
 }
 
+func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
+	sid := id.UnmarshalServiceId(req.GetServiceId())
+	mid, err := addMethodByName(ctx, sid, req.GetMethodName())
+	if err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+	resp.MethodId = mid.Marshal()
+	return int32(syscall.KernelErr_NoError)
+}
+
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
 	svc, ok := coordinator().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
@@ -72,6 +85,11 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
 	svc, _ := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
+
+	sname := fmt.Sprintf("%s.%s", req.Fqs.GetPackagePath(), req.Fqs.GetService())
+	serviceNameToId[sname] = svc.Id()
+	serviceIdToMethod[svc.Id().String()] = make(map[string]id.MethodId)
+
 	resp.Id = svc.Id().Marshal()
 	return int32(syscall.KernelErr_NoError)
 }
@@ -107,14 +125,19 @@ func locate(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func dispatch(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("dispatch 0x%x", stack)
+	// req := &syscall.DispatchRequest{}
+	// resp := &syscall.DispatchResponse{}
+	// apiplugin.InvokeImplFromStack(ctx, "[syscall]dispatch", m, stack, dispatchImpl, req, resp)
 }
 
 func blockUntilCall(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("blockUntilCall 0x%x", stack)
 }
 func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("bindMethod 0x%x", stack)
+	req := &syscall.BindMethodRequest{}
+	resp := (*syscall.BindMethodResponse)(nil)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]bindMethod", m, stack, bindMethodImpl, req, resp)
+
 }
 func run(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.RunRequest{}
@@ -146,4 +169,22 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 func exit(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("exit 0x%x", stack)
 	panic("exit called ")
+}
+
+// addMethodByName adds the new method name that is name inside the given service id,
+// to the internal datastructures.  This creates an id for the method and returns
+// that new id.  If the name already existed in our internal structures then
+// we return the already know method id.  This method will return KernelErr_NotFound
+// only in the case where the service given by the service id cannot be found.
+func addMethodByName(ctx context.Context, serviceId id.ServiceId, methodName string) (id.MethodId, syscall.KernelErr) {
+	methMap, ok := serviceIdToMethod[serviceId.String()]
+	if !ok {
+		return id.MethodIdZeroValue(), syscall.KernelErr_NotFound
+	}
+	mid, ok := methMap[methodName]
+	if !ok {
+		mid = id.NewMethodId()
+		methMap[methodName] = mid
+	}
+	return mid, syscall.KernelErr_NoError
 }

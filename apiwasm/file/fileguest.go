@@ -12,9 +12,9 @@ var _ = unsafe.Sizeof([]byte{})
 
 func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
-	file.MustRegisterFile(ctx)
+	myId := file.MustRegisterFile(ctx)
 	file.MustExportFile(ctx)
-	file.RunFile(ctx, &myFileSvc{})
+	file.RunFile(ctx, myId, &myFileSvc{})
 }
 
 type myFileSvc struct{}

@@ -21,21 +21,20 @@ import (
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	"github.com/iansmith/parigot/apiwasm"  
+	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"  
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/apishared/id"
 	
 )
 var _ =  unsafe.Sizeof([]byte{})
+
+
 {{- $info:=.info }}
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 {{- $errId:=.GetWasmServiceErrId }}
-var {{$svcCamel}}fsName = "/parigotvirt"
-
-//
-// {{$svcCamel}}Server (from {{$file}})
-//
 
 type {{$svcCamel}}Server interface {
 {{- range .GetWasmMethod }}
@@ -64,16 +63,18 @@ type {{$svcCamel}}Server interface {
 {{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
 {{- $svcLowerNoService:=toLowerNoService .GetWasmServiceName }}
 
+var {{$svcCamel}}MethodNameToId = make(map[string]id.MethodId)
+
 func (s * Wrap{{$svcCamel}}) Ready(ctx context.Context) bool {
 	return s.impl.Ready(ctx)
 }
-func Run{{$svcCamel}}(ctx context.Context, impl {{$svcCamel}}Server) {
+func Run{{$svcCamel}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}Server) {
 	defer func() {
 		pcontext.Dump(ctx)
 	}()
 	// wait until all the go routines are done
 	var wg sync.WaitGroup
-	err:={{$svcCamelFL}}Bind(ctx,impl,&wg)
+	err:={{$svcCamelFL}}Bind(ctx,sid, impl,&wg)
 	if err!=0{
 		pcontext.Errorf(ctx,"error returned from {{$svcCamel}}Bind:%d",
 			err)
@@ -83,28 +84,37 @@ func Run{{$svcCamel}}(ctx context.Context, impl {{$svcCamel}}Server) {
 	wg.Wait()			
 }
 
-func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.WaitGroup)  syscall.KernelErr {
+func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}Server, wg *sync.WaitGroup)  syscall.KernelErr {
 	var fp io.Reader
 	var err error
+	var bindReq *syscall.BindMethodRequest
+	var mid id.MethodId
 
 {{- range .GetWasmMethod}}
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
-
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
 {{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded false false .}}
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "{{$methCamel}}"
+	// we create and bind the message id below
 
 //
 // {{.ProtoPackage}}.{{$methCamel}}
 //
 {{- if eq $dir "Both" }}
+	bindReq.Direction = syscall.MethodDirection_METHOD_DIRECTION_BOTH
 	fp, err=os.OpenFile("{{.ProtoPackage}}.{{$methCamel}}",os.O_CREATE | os.O_RDWR, 0600)
 {{- else }} {{/* else of InOut */}}
 {{- if eq $dir "Out" }}
+	bindReq.Direction =syscall.MethodDirection_METHOD_DIRECTION_OUT
 	fp, err=os.OpenFile("{{.ProtoPackage}}.{{$methCamel}}",os.O_CREATE | os.O_WRONLY, 0200)
 {{- else }} {{/* else of "Out */}}
+	bindReq.Direction =syscall.MethodDirection_METHOD_DIRECTION_IN
 	fp, err=os.OpenFile("{{.ProtoPackage}}.{{$methCamel}}",os.O_CREATE | os.O_RDONLY, 0400)
 {{- end }} {{/* end of Out */}}
 {{- end }} {{/* end of Both */}}
@@ -117,6 +127,9 @@ func {{$svcCamelFL}}Bind(ctx context.Context,impl {{$svcCamel}}Server, wg *sync.
 		pcontext.Dump(ctx)
 		return syscall.KernelErr_NotReady
 	}
+	mid=guestsyscall.MustBindMethodName(bindReq)
+	{{$svcCamel}}MethodNameToId["{{$methCamel}}"]=mid
+
 {{- if eq $dir "Both" }}
 	go func(c context.Context, rd io.Reader, wr io.Writer, impl {{$svcCamel}}Server, wg *sync.WaitGroup) {
 		wg.Add(1)
