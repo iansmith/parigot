@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/apiplugin"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
@@ -22,6 +22,7 @@ import (
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
 const pathPrefix = "/parigot/app/"
+const maxBufSize = 16000
 
 var (
 	fileSvc    *fileSvcImpl
@@ -84,6 +85,20 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	return true
 }
 
+func (fi *fileInfo) Read(p []byte) (n int, err error) {
+	for i, b := range []byte(fi.content) {
+		if i >= len(p) {
+			fi.lastAccessTime = time.Now()
+			fi.status = Fs_Close
+			return len(p), nil
+		}
+		p[i] = b
+	}
+	fi.lastAccessTime = time.Now()
+	fi.status = Fs_Close
+	return len(fi.content), nil
+}
+
 func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
 	fn func(context.Context, T, U) int32, m api.Module, stack []uint64, req T, resp U) {
 	defer func() {
@@ -93,19 +108,6 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 	}()
 	apiplugin.InvokeImplFromStack(ctx, fnName, m, stack, fn, req, resp)
 }
-
-// // true native implementation of open... assume this is read only
-// func openImpl(ctx context.Context, in *file.OpenRequest, out *file.OpenResponse) int32 {
-// 	// use Os
-// 	return int32(file.FileErr_NoError)
-// }
-
-// // the wrappers always look like this.. notice where openImpl is in this function
-// func open(ctx context.Context, m api.Module, stack []uint64) {
-// 	req := &file.OpenRequest{}
-// 	resp := &file.OpenResponse{}
-// 	apiplugin.InvokeImplFromStack(ctx, "[file]open", m, stack, openImpl, req, resp)
-// }
 
 func openFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	req := &file.OpenRequest{}
@@ -198,7 +200,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	if fid, exist := fpathTofid[fpath]; exist {
 		resp.Id = fid.Marshal()
 
-		// check file status first, a opened file cannot be be written at the same time
+		// check file status first, a opened file cannot be created at the same time
 		if fileDataCache[fid].status == Fs_Open {
 			pcontext.Errorf(ctx, "file is open, cannot be created: %s", fpath)
 
@@ -231,7 +233,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 // free up item from the fileDataCache
 func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *file.CloseResponse) int32 {
-	fid := file.UnmarshalFileId(req.Id)
+	fid := file.UnmarshalFileId(req.GetId())
 	fileDataCache := *f.fileDataCache
 
 	// check if file exists. We cannot delete a file which doesn't exist
@@ -246,7 +248,50 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *f
 	delete(fileDataCache, fid)
 	delete(fpathTofid, fpath)
 
-	resp.Id = req.Id
+	resp.Id = req.GetId()
+	return int32(file.FileErr_NoError)
+}
+
+func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *file.ReadResponse) int32 {
+	fid := file.UnmarshalFileId(req.GetId())
+	fileDataCache := *f.fileDataCache
+
+	// check if file exists. We cannot read a file which doesn't exist
+	if _, exist := fileDataCache[fid]; !exist {
+		pcontext.Errorf(ctx, "file does not exist, cannot be read: %d", fid)
+
+		return int32(file.FileErr_NotExistError)
+	}
+
+	myfileInfo := fileDataCache[fid]
+	fpath := myfileInfo.path
+	// check file status, we cannot read a closed file
+	if myfileInfo.status == Fs_Close {
+		pcontext.Errorf(ctx, "file is closed, cannot be read: %s", fpath)
+
+		return int32(file.FileErr_FileClosedError)
+	}
+
+	bufSize := req.GetBufSize()
+	// Check if bufSize exceeds the maximum buffer size allowed
+	if bufSize > maxBufSize {
+		pcontext.Errorf(ctx, "the expected buffer size %d exceeds the maximum buffer"+
+			"size (%d) allowed", bufSize, maxBufSize)
+
+		return int32(file.FileErr_BufferFullError)
+	}
+	if int(bufSize) < len(myfileInfo.content) {
+		resp.Truncated = true
+	} else {
+		resp.Truncated = false
+	}
+
+	buf := make([]byte, bufSize)
+	myfileInfo.Read(buf)
+
+	resp.Id = req.GetId()
+	resp.Buf = buf
+
 	return int32(file.FileErr_NoError)
 }
 

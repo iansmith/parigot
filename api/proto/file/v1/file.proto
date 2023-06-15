@@ -29,6 +29,10 @@ service File {
   // Load does NOT check that the file(s) referred to are reasonable in length, do not contain
   // symlinks, are readable, etc.  Don't allow this call in prod.
   rpc LoadTestData(LoadTestDataRequest) returns (LoadTestDataResponse);
+
+  rpc Read(ReadRequest) returns (ReadResponse);
+
+  rpc Write(WriteRequest) returns (WriteResponse);
 }
 
 
@@ -46,39 +50,36 @@ message CloseRequest {
 }
 
 message CreateResponse {
-    string path = 1;
-    // This id might contain an error value.
-    protosupport.v1.IdRaw id = 2;
-    bool truncated = 3;
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
+  bool truncated = 3;
 }
 
 message OpenResponse {
-    string path = 1;
-    // This id might contain an error value.
-    protosupport.v1.IdRaw id = 2;
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
 }
 
 // CloseResponse is not empty because it can return an error. However, there is no
 // action that the receiver of this response can take other than perhaps issuing a warning
 // to the system operators.
 message CloseResponse {
-  // This will be NoError or some error code, not a handle to an open file.
   protosupport.v1.IdRaw id = 1;
 }
 
 // LoadTestDataRequest loads the contents of given directory from the _host_ file system into the /app directory
 // of the test filesystem (in memory).   This is only intended to be use for test code.
 message LoadTestDataRequest {
-    // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
-    string path = 1;
-    // where this new file will exist in the in-memory filesystem... this path
-    // will be cleaned lexically and then joined to /app.  Note that it is possible
-    // create paths with this parameter that cannot be opened because of
-    // restrictions on the path in open.
-    string mount_location = 2;
-    // returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error.
-    // If this value is set to true, the paths that cause an error on import are return in the TestDataResponse.
-    bool return_on_fail = 3;
+  // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
+  string path = 1;
+  // where this new file will exist in the in-memory filesystem... this path
+  // will be cleaned lexically and then joined to /app.  Note that it is possible
+  // create paths with this parameter that cannot be opened because of
+  // restrictions on the path in open.
+  string mount_location = 2;
+  // returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error.
+  // If this value is set to true, the paths that cause an error on import are return in the TestDataResponse.
+  bool return_on_fail = 3;
 }
 
 // LoadTestDataResponse contains a list of paths that caused an error during loading. This value is only
@@ -88,16 +89,42 @@ message LoadTestDataResponse {
   repeated string error_path = 1;
 }
 
+message ReadRequest {
+  protosupport.v1.IdRaw id = 1;
+  // The length of the bytes you want to read
+  int32 buf_size = 2;
+}
+
+message ReadResponse {
+  protosupport.v1.IdRaw id = 1;
+  bytes buf = 2;
+  int32 num_read = 3;
+}
+
+message WriteRequest {
+  protosupport.v1.IdRaw id = 1;
+  string content = 2;
+}
+
+message WriteResponse {
+  protosupport.v1.IdRaw id = 1;
+}
+
 enum FileErr {
-    option (protosupport.v1.parigot_error) = true;
-    NoError = 0; // mandatory
-    DispatchError = 1; //mandatory
-    UnmarshalError = 2; // mandatory
-    MarshalError = 3; // mandatory
-    // invalid path means that the given path name is a not a valid identifier.  Identifiers should be 
-    // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
-    // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
-    InvalidPathError = 4;
-    AlreadyInUseError = 5;
-    NotExistError = 6;
+  option (protosupport.v1.parigot_error) = true;
+  NoError = 0; // mandatory
+  DispatchError = 1; //mandatory
+  UnmarshalError = 2; // mandatory
+  MarshalError = 3; // mandatory
+  // InvalidPathError means that the given path name is a not a valid identifier.  Identifiers should be 
+  // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
+  // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
+  InvalidPathError = 4;
+  // AlreadyInUseError means that the file has been in used.
+  AlreadyInUseError = 5;
+  // NotExistError means that the file does not exist
+  NotExistError = 6;
+  // FileClosedError means that the status of the file is CLOSE. it cannot be accessed by a read or write request.
+  FileClosedError = 7;
+  BufferFullError = 8;
 }

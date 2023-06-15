@@ -34,12 +34,12 @@ func TestOpenClose(t *testing.T) {
 	}
 
 	// try opening and closing a file
-	fid := testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
+	fid := openAGoodFile(t, svc)
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 
 	// also try opening a file twice, for now should be an error
 	creatAGoodFile(t, svc)
-	fid = testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
+	fid = openAGoodFile(t, svc)
 	testFileOpen(t, svc, filePath, "open a open file", true, int32(file.FileErr_AlreadyInUseError))
 	// also try closing a file twice, there should be an error in the second time
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
@@ -91,6 +91,14 @@ func TestCreateClose(t *testing.T) {
 	if fid.Equal(fid2) {
 		t.Errorf("unexpected that second creation of a deleted file gives same id")
 	}
+}
+
+func TestOpenRead(t *testing.T) {
+	svc := newFileSvc((context.Background()))
+	creatAGoodFile(t, svc)
+	//fid := openAGoodFile(t, svc)
+
+	//testFileRead(t, svc, fid, 2, "read a file", false, int32(file.FileErr_NoError))
 }
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
@@ -187,7 +195,41 @@ func testFileOpen(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	return file.UnmarshalFileId(resp.GetId())
 }
 
+func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf_size int32,
+	msg string, errExpected bool, expectedErrCode int32) file.FileId {
+
+	ctx := pcontext.DevNullContext(context.Background())
+	t.Helper()
+
+	req := &file.ReadRequest{
+		Id:      fid.Marshal(),
+		BufSize: buf_size,
+	}
+	resp := &file.ReadResponse{}
+	errCode := svc.read(ctx, req, resp)
+	if errExpected {
+		if errCode == int32(file.FileErr_NoError) {
+			log.Fatalf("expected error in reading a file: %s :%d", msg, errCode)
+		}
+		if errCode != expectedErrCode {
+			log.Fatalf("wrong error code in reading a file: %s, expected %d but got %d",
+				msg, expectedErrCode, errCode)
+		}
+		return file.FileIdEmptyValue()
+	}
+	// no error expected case
+	if errCode != int32(file.FileErr_NoError) {
+		log.Fatalf("unexpected error in reading a file: %s :%d", msg, errCode)
+	}
+
+	return file.UnmarshalFileId(resp.GetId())
+}
+
 func creatAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {
 	return testFileCreate(t, svc, filePath, fileContent, "good path name",
 		false, int32(file.FileErr_NoError))
+}
+
+func openAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {
+	return testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
 }
