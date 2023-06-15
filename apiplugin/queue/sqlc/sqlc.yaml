@@ -5,6 +5,6 @@ sql:
     queries: "query.sql"
     gen:
       go:
-        package: "main"
+        package: "queue"
         out: ".."
         

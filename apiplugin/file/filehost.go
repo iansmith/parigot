@@ -1,4 +1,4 @@
-package main
+package file
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
-	"github.com/iansmith/parigot/sys"
 
 	"google.golang.org/protobuf/proto"
 

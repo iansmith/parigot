@@ -3,6 +3,7 @@ package sys
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 
@@ -60,14 +61,13 @@ func (c *DeployContext) Process() *sync.Map {
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
 func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
-	_, _, err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"), c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")
+	// load the parigot syscalls, this is done based on the config in the .toml file
+	err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"),
+		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")
 	if err != nil {
 		return err
 	}
 
-	// if err := c.instantiateBuiltinHostFunc(ctx); err != nil {
-	// 	return err
-	// }
 	// load wasm files, implicitly checks them and converts them to binary
 	if err := c.LoadAllModules(ctx, c.engine); err != nil {
 		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
@@ -100,6 +100,9 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		procAny, ok := c.process.Load(f.Name())
 		if !ok {
 			panic("unable to find (internal) process for name " + f.Name())
+		}
+		if procAny == nil {
+			log.Printf("xxx proc any is nil")
 		}
 		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
 			mainList = append(mainList, f.Name())

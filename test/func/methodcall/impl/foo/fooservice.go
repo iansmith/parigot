@@ -20,7 +20,6 @@ func main() {
 	defer pcontext.Dump(ctx)
 	pcontext.Debugf(ctx, "started main open")
 	myId := methodcall.MustRegisterFoo(ctx)
-	methodcall.MustRequireBar(ctx, myId)
 	methodcall.MustExportFoo(ctx)
 	methodcall.MustWaitSatisfiedFoo(myId)
 	methodcall.RunFoo(ctx, &fooServer{})

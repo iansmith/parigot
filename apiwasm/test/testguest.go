@@ -12,7 +12,7 @@ import (
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/queue/v1"
-	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 
 	queueg "github.com/iansmith/parigot/g/queue/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
@@ -85,7 +85,7 @@ func (s *suiteInfo) String() string {
 }
 
 func (m *myTestServer) Ready(ctx context.Context) bool {
-	// initialization needs to be done here, not in main
+	// initialization can be done here, not just in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
 
