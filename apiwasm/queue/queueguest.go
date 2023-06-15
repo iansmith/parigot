@@ -15,7 +15,7 @@ func main() {
 	sid := queue.MustRegisterQueue(ctx)
 	queue.MustExportQueue(ctx)
 	queue.MustWaitSatisfiedQueue(sid)
-	queue.RunQueue(ctx, &myQueueSvc{})
+	queue.RunQueue(ctx, sid, &myQueueSvc{})
 }
 
 type myQueueSvc struct {

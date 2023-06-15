@@ -22,7 +22,7 @@ func main() {
 	myId := methodcall.MustRegisterFoo(ctx)
 	methodcall.MustExportFoo(ctx)
 	methodcall.MustWaitSatisfiedFoo(myId)
-	methodcall.RunFoo(ctx, &fooServer{})
+	methodcall.RunFoo(ctx, myId, &fooServer{})
 }
 
 // this type better implement methodcall.v1.FooService

@@ -30,7 +30,7 @@ func main() {
 	queue.MustRequireQueue(ctx, myId)
 	test.MustExportTest(ctx)
 	test.MustWaitSatisfiedTest(myId)
-	test.RunTest(ctx, &myTestServer{})
+	test.RunTest(ctx, myId, &myTestServer{})
 }
 
 var myId id.ServiceId
@@ -326,7 +326,7 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.
 	}
 	pcontext.Debugf(ctx, "xxx locate client 3")
 	service := id.UnmarshalServiceId(resp.GetServiceId())
-	cs := lib.NewClientSideService(ctx, service, "testService")
+	cs := lib.NewClientSideService(ctx, service)
 
 	pcontext.Debugf(ctx, "locateClient", "xxx locate client 4")
 	return &test.UnderTestClient_{

@@ -152,9 +152,8 @@ message LocateResponse {
 // DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
 message DispatchRequest {
     protosupport.v1.IdRaw service_id = 1; 
-    string method = 2;
-    string caller = 3;
-    google.protobuf.Any  param = 4;  // inside is another Request object, but we don't know its type
+    protosupport.v1.IdRaw method_id = 2;
+    google.protobuf.Any  param = 3;  // inside is another Request object, but we don't know its type
 }
 
 // DispatchResponse sent by the server back to a client. It contains the return results generated
@@ -162,7 +161,6 @@ message DispatchRequest {
 message DispatchResponse {
     google.protobuf.Any result = 1; // again, there is a nested response object but we don't know its type
     protosupport.v1.IdRaw call_id = 2;
-    protosupport.v1.IdRaw method_id = 3;
 }
 
 message ReturnValueRequest{
@@ -196,11 +194,11 @@ enum MethodDirection {
   METHOD_DIRECTION_BOTH = 3;
 }
 
+
 message BindMethodRequest  {
-  string proto_package = 1;
-  string service = 2;
-  string method = 3;
-  MethodDirection direction = 4;
+  protosupport.v1.IdRaw service_id = 1;
+  string method_name = 2;
+  MethodDirection direction = 3;
 }
 
 message BindMethodResponse {

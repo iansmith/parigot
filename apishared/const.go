@@ -53,3 +53,6 @@ const LongReadTimeout = 500 * time.Millisecond
 
 var KoopmanTable = crc32.MakeTable(crc32.Koopman)
 var ReadBufferSize = 8192
+
+// Name of the fs we used to send/receive messages to parigot
+var FsName = "/parigotvirt"

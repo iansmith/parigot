@@ -26,7 +26,7 @@ func main() {
 	methodcall.MustWaitSatisfiedBar(myId)
 	b := &barServer{}
 	b.foo = methodcall.MustLocateFoo(ctx, myId)
-	methodcall.RunBar(ctx, b)
+	methodcall.RunBar(ctx, myId, b)
 }
 
 // this type better implement methodcall.v1.BarService

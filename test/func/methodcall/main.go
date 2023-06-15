@@ -50,7 +50,7 @@ func main() {
 
 	pcontext.Debugf(ctx, "methodcall.main: got three locates  and satified all requires")
 
-	test.RunUnderTest(ctx, underTestServer)
+	test.RunUnderTest(ctx, myServiceId, underTestServer)
 }
 
 // TestAddMulitply is a test of a function that has both input and output.

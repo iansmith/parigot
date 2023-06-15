@@ -14,39 +14,38 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// ClientSideService is a type that is used for all client (call origin)
+// side implementations.  This includes any client in the
+// guest codespace. This object primarily just receives
+// message call requests and this type sends it to the
+// kernel.
 type ClientSideService struct {
-	svc    id.ServiceId
-	caller string
+	svc id.ServiceId
 }
 
-func NewClientSideService(ctx context.Context, id id.ServiceId, caller string) *ClientSideService {
+func NewClientSideService(ctx context.Context, id id.ServiceId) *ClientSideService {
 	return &ClientSideService{
-		svc:    id,
-		caller: caller,
+		svc: id,
 	}
 }
 
-func (c *ClientSideService) SetCaller(caller string) {
-	c.caller = caller
-}
-
 // Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method string, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
+func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			return nil, syscall.KernelErr_NoError
+			// do we want to have a special error type for this?
+			return nil, syscall.KernelErr_MarshalFailed
 		}
 	}
-	if c.svc.IsZeroValue() {
-		panic("cannot dispatch to a nil service! client side service field 'svc' is nil")
+	if c.svc.IsZeroOrEmptyValue() {
+		panic("cannot dispatch to an unknown service! client side service field 'svc' is zero or empty")
 	}
 	in := &syscall.DispatchRequest{
 		ServiceId: c.svc.Marshal(),
-		Caller:    c.caller,
-		Method:    method,
+		MethodId:  method.Marshal(),
 		Param:     a,
 	}
 	return syscallguest.Dispatch(in)

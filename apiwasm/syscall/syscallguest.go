@@ -48,49 +48,28 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 // This is code that runs on the WASM side.
 //
 //go:wasmimport parigot dispatch_
-func Dispatch_(int32, int32) int32
-func Dispatch(in *syscall.DispatchRequest) (*syscall.DispatchResponse, syscall.KernelErr) {
-	out := &syscall.DispatchResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return out, syscall.KernelErr_NoError
-}
+func Dispatch_(int32, int32, int32, int32) int64
+func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscall.KernelErr) {
+	outProtoPtr := &syscall.DispatchResponse{}
+	ctx := apiwasm.ManufactureGuestContext("[syscall]Dispatch")
+	defer pcontext.Dump(ctx)
 
-// BlockUntilCall is used to block a process until a request is received from another process.  Even when
-// all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
-//
-// func BlockUntilCall(*syscall.BlockUntilCallRequest) *syscall.BlockUntilCallResponse
-//
-//go:wasmimport parigot block_until_call_
-func BlockUntilCall_(int32, int32) int32
+	dr, err, signal :=
+		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
 
-func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error) {
-	out := &syscall.BlockUntilCallResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
+	// in band error?
+	kerr := syscall.KernelErr(err)
+	if kerr != syscall.KernelErr_NoError {
+		return nil, kerr
 	}
-	return out, nil
-}
 
-// BindMethod is the way that a particular service gets associated with
-// a given method id. This is normally not needed by user code because the
-// generated code for any service will call this automatically.
-//
-// func BindMethod(*syscall.BindMethodRequest) *syscall.BindMethodResponse
-//
-//go:wasmimport parigot bind_method_
-func BindMethod_(int32, int32) int32
-
-func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, error) {
-	out := &syscall.BindMethodResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
+	// somebody else died?
+	if signal {
+		os.Exit(1)
 	}
-	return out, nil
+
+	// normal case
+	return dr, syscall.KernelErr_NoError
 }
 
 // Run is starts a service (or a guest application) running. Note that
@@ -218,4 +197,58 @@ func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
 		panic(fmt.Sprintf("failed to run successfully:%s",
 			syscall.KernelErr_name[int32(err)]))
 	}
+}
+
+//
+// unused?
+//
+
+// BlockUntilCall is used to block a process until a request is received from another process.  Even when
+// all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
+//
+// func BlockUntilCall(*syscall.BlockUntilCallRequest) *syscall.BlockUntilCallResponse
+//
+//go:wasmimport parigot block_until_call_
+func BlockUntilCall_(int32, int32) int32
+
+func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error) {
+	out := &syscall.BlockUntilCallResponse{}
+	err := error(nil)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BindMethod is the way that a particular service gets associated with
+// a given method id. This is normally not needed by user code because the
+// generated code for any service will call this automatically.
+//
+// func BindMethod(*syscall.BindMethodRequest) *syscall.BindMethodResponse
+//
+//go:wasmimport parigot bind_method_
+func BindMethod_(int32, int32, int32, int32) int64
+
+func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, syscall.KernelErr) {
+	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]BindMethod")
+	defer pcontext.Dump(ctx)
+	resp := &syscall.BindMethodResponse{}
+	_, err, signal := apiwasm.ClientSide(ctx, in, resp, BindMethod_)
+	if signal {
+		os.Exit(1)
+	}
+
+	kerr := syscall.KernelErr(err)
+	if kerr != syscall.KernelErr_NoError {
+		return nil, kerr
+	}
+	return resp, syscall.KernelErr_NoError
+}
+
+func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
+	tmp, kerr := BindMethod(in)
+	if kerr != syscall.KernelErr_NoError {
+		panic("failed to bind method:" + in.GetMethodName() + ", error %s" + syscall.KernelErr_name[int32(kerr)])
+	}
+	return id.UnmarshalMethodId(tmp.MethodId)
 }
