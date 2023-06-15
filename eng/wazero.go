@@ -356,21 +356,8 @@ func wazeroContext(ctx context.Context) context.Context {
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	// go func(c context.Context, a *AsyncClientInteraction) {
-	// 	time.Sleep(time.Duration(1) * time.Second)
-	// 	c = pcontext.ServerGoContext(pcontext.CallTo(c, "Send(fake)"))
-	// 	err := a.Send("methodcall.v1.AddMultiply", &methodcallmsg.AddMultiplyRequest{
-	// 		Value0: 27,
-	// 		Value1: 918,
-	// 		IsAdd:  true,
-	// 	})
-	// 	if err != nil {
-	// 		pcontext.Errorf(c, "unable to push bundle: %v", err)
-	// 	}
-	// 	pcontext.Dump(rawLineContext)
-	// 	pcontext.Dump(AsyncInteraction.origCtx)
-	// }(ctx, AsyncInteraction)
-	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.GuestContext(ctx), "call of run()"))
+	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(
+		pcontext.GuestContext(ctx), "call of run()"))
 	if err != nil {
 		return nil, err
 	}

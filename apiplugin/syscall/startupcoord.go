@@ -3,8 +3,6 @@ package syscall
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/apishared/id"
@@ -272,37 +270,20 @@ func (s *startupCoordinator) Run(ctx context.Context, sid id.ServiceId) syscall.
 // service source requiring foo, and service foo requiring bar, will
 // return true for a call for PathExists(source,bar).
 // This means that carefully crafted require's that know the
-// depgraph of other services will work, but seems unnecessary.
+// depgraph of other services will work, but seems wildly unnecessary.
 func (s *startupCoordinator) PathExists(ctx context.Context, src, dest string) bool {
 
 	// lock for the graph
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	data := DFS(s.depGraph)
-	destV, ok := s.vertexName[dest]
-	if !ok {
-		pcontext.Errorf(ctx, "unable find vertex, %s, can't check for path existence", dest)
-	}
-	curr := destV
-	// str, _ := reverseMap(s.vertexName, curr)
-	// sid := s.serviceByIdStringNoLock(ctx, str)
-	// log.Printf("tracing edge... start at %s%s", sid.Name(), sid.Short())
+	srcV := s.vertexName[src]
+	destV := s.vertexName[dest]
 
-	for curr != -1 {
-		cand, ok := reverseMap(s.vertexName, curr)
-		if !ok {
-			panic("badly formed dependency graph, can't find " + fmt.Sprint(curr))
-		}
-		//sid := s.serviceByIdStringNoLock(ctx, cand)
-		//log.Printf("tracing edge... %s%s", sid.Name(), sid.Short())
-
-		if cand == src {
-			return true
-		}
-		curr = data.Prev[curr]
+	if !s.searchEdges(srcV, destV) {
+		pcontext.Errorf(ctx, "locate called, but no require given: %s -> %s", src, dest)
+		return false
 	}
-	pcontext.Errorf(ctx, "import but no require: %s -> %s", src, dest)
-	return false
+	return true
 }
 
 //
@@ -368,10 +349,8 @@ func (s *startupCoordinator) mustServiceToVertexNum(ctx context.Context, svc Ser
 // held when it is entered.
 func (s *startupCoordinator) dependenciesStarted(ctx context.Context, v int) []int {
 	fail := []int{}
-	log.Printf("dep started: %d", v)
 	s.depGraph.Visit(v, func(w int, c int64) (skip bool) {
 		cand := s.mustVertexNumToService(ctx, w)
-		log.Printf("deps started %d->%d ? %v", v, w, cand.Started())
 		if !cand.Started() {
 			fail = append(fail, w)
 		}
@@ -381,21 +360,18 @@ func (s *startupCoordinator) dependenciesStarted(ctx context.Context, v int) []i
 	return fail
 }
 
-// DFSDeps traces through the dependency graph depth first
+// dfsDeps traces through the dependency graph depth first
 // and looks for all reachable nodes and makes sure they are
 // all started. If any are not started, it returns false.
 // This is called from the startupService and it assumes
 // the downstream functions are not touching the lock.
-func (s *startupCoordinator) DFSDeps(ctx context.Context, sid Service) bool {
+func (s *startupCoordinator) dfsDeps(ctx context.Context, sid Service) bool {
 
 	i := s.mustServiceToVertexNum(ctx, sid)
-	str := sid.String()
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	n := s.vertexName[str]
-	log.Printf("DFSDeps: %d", n)
 	fail := s.dependenciesStarted(ctx, i)
 	return len(fail) == 0
 }
@@ -415,4 +391,21 @@ func (s *startupCoordinator) notifyIncomingNeighbors(ctx context.Context, sid Se
 		svc := s.mustVertexNumToService(ctx, c)
 		svc.(*startupService).wakeUp()
 	}
+}
+
+// searchEdges looks for a path from source to dest.  It returns true
+// if there such a path, otherwise false.
+func (s *startupCoordinator) searchEdges(source, dest int) bool {
+	found := false
+	s.depGraph.Visit(source, func(w int, c int64) (skip bool) {
+		if w == dest {
+			found = true
+			skip = true
+			return
+		}
+		found = found || s.searchEdges(w, dest)
+		return
+	})
+	return found
+
 }

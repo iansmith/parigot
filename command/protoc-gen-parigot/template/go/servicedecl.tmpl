@@ -82,7 +82,6 @@ func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,s
 	}
 
     resp,errId:=syscallguest.Locate(req)
-    print("locate ","{{.ProtoPackage}} ","{{$svc}}"," sid ",sid.String()," result ",resp," error ",errId.String(),"\n")
     if errId!=syscall.KernelErr_NoError{
         pcontext.Errorf(ctx,"UnmarshalServiceId failed: %s",syscall.KernelErr_name[int32(errId)])
         return nil, errId

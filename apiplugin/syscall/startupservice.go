@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -101,9 +100,7 @@ func (s *startupService) Exported() bool {
 // Run is called to indicate that the service wants to run and can be blocked
 // until all of its dependencies are fulfilled.
 func (s *startupService) Run(ctx context.Context) syscall.KernelErr {
-	log.Printf("Run reached in svc: %s%s", s.Name(), s.Short())
 	s.RequestRun()
-	log.Printf("about to waitToRun svc: %s%s", s.Name(), s.Short())
 	return s.waitToRun(ctx) // be sure this does not lock
 }
 
@@ -113,19 +110,15 @@ func (s *startupService) Run(ctx context.Context) syscall.KernelErr {
 // "Behind" here means that this service may need the service that is behind
 // to start running.
 func (s *startupService) canRun(ctx context.Context) bool {
-	log.Printf("canRun check 1 for %s%s %v", s.name, s.id.Short(), s.Exported())
 	if !s.Exported() {
 		return false
 	}
 	if !s.RunRequested() {
 		return false
 	}
-	log.Printf("canRun check  2 for %s%s", s.name, s.id.Short())
-	pcontext.Debugf(ctx, "trying to see if %s [%s] can run now ", s.Short(), s.Name())
 	withFn := pcontext.CallTo(ctx, "notifyAllNodes")
 
-	result := s.parent.DFSDeps(withFn, s)
-	log.Printf("can run check 3 for %s%s => %v", s.name, s.id.Short(), result)
+	result := s.parent.dfsDeps(withFn, s)
 	return result
 }
 
@@ -135,16 +128,13 @@ func (s *startupService) canRun(ctx context.Context) bool {
 //
 // waitToRun should be called with the lock available.
 func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
-	pcontext.Debugf(ctx, "Timeout loop running for %s", s.Name())
 	for {
-		log.Printf("waitingToRun: %s", s.String())
 		if s.canRun(ctx) {
 			s.SetStarted()
-			log.Printf("%s is ready, after waiting", s.Name())
-			pcontext.Debugf(ctx, "%s is ready to run after waiting", s.Name())
+			pcontext.Debugf(ctx, "%s%s is ready to run, after waiting", s.Name(), s.Short())
 			return syscall.KernelErr_NoError
 		} else {
-			log.Printf("%s failed to pass can run check", s.name)
+			pcontext.Debugf(ctx, "%s%s is not yet ready to run", s.Name(), s.Short())
 		}
 		select {
 		case <-s.runCh:
