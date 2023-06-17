@@ -76,7 +76,7 @@ func (c *logContainer) Dump(ctx context.Context) {
 	for i < c.front {
 		// put this line's data in the buffer
 		l := c.line[i]
-		l.Print(ctx)
+		l.Print()
 		i = (i + 1) % MaxContainerSize
 	}
 	c.back = i

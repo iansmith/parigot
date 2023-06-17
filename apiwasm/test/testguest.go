@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
@@ -29,8 +30,14 @@ func main() {
 	myId = test.MustRegisterTest(ctx)
 	queue.MustRequireQueue(ctx, myId)
 	test.MustExportTest(ctx)
-	test.MustWaitSatisfiedTest(myId)
-	test.RunTest(ctx, myId, &myTestServer{})
+
+	allDead := apiwasm.NewParigotWaitGroup("[main]Test")
+	server := &myTestServer{}
+
+	test.MustWaitSatisfiedTest(ctx, myId, server, allDead)
+	test.StartTest(ctx, myId, server)
+
+	allDead.Wait()
 }
 
 var myId id.ServiceId
@@ -84,13 +91,13 @@ func (s *suiteInfo) String() string {
 	return buf.String()
 }
 
-func (m *myTestServer) Ready(ctx context.Context) bool {
+func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
 	// initialization can be done here, not just in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
 
 	pcontext.Debugf(ctx, "myTestServer ready called")
-	m.queueSvc = queue.MustLocateQueue(ctx, myId)
+	m.queueSvc = queue.MustLocateQueue(ctx, sid)
 	qid, err := qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName)
 	if err != queue.QueueErr_NoError {
 		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID: error was %s ", queue.QueueErr_name[int32(err)])

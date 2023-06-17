@@ -4,24 +4,39 @@ import (
 	"context"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	file "github.com/iansmith/parigot/g/file/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
+	GoFile()
+}
+
+func GoFile() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
 	myId := file.MustRegisterFile(ctx)
 	file.MustExportFile(ctx)
-	file.RunFile(ctx, myId, &myFileSvc{})
+
+	svc := &myFileSvc{}
+	allDead := apiwasm.NewParigotWaitGroup("[main]File")
+	file.MustWaitSatisfiedFile(ctx, myId, svc, allDead)
+	kerr := file.StartFile(ctx, myId, svc)
+	if kerr != syscall.KernelErr_NoError {
+		pcontext.Errorf(ctx, "unable to start File: %s", syscall.KernelErr_name[int32(kerr)])
+	}
+	allDead.Wait()
 }
 
 type myFileSvc struct{}
 
 var myImpl *myFileSvc = &myFileSvc{}
 
-func (f *myFileSvc) Ready(ctx context.Context) bool {
+func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) bool {
 	pcontext.Debugf(ctx, "Ready reached in file service")
 	return true
 }

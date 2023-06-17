@@ -155,7 +155,7 @@ func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId)
 	if serviceSource == nil {
 		sid, ok := s.SetService(ctx, serviceSource.Package(), serviceSource.Name(), false)
 		if ok {
-			pcontext.Debugf(ctx, "xxxx --- ???? created service %s%s because of import", sid.Name(), sid.Short())
+			pcontext.Debugf(ctx, "startup coordinator: created service %s%s because of import", sid.Name(), sid.Short())
 		}
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())

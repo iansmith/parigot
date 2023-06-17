@@ -129,18 +129,19 @@ func (s *startupService) canRun(ctx context.Context) bool {
 // waitToRun should be called with the lock available.
 func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
 	for {
+		pcontext.Debugf(ctx, "%s%s is checking for ready to start", s.Name(), s.Short())
 		if s.canRun(ctx) {
 			s.SetStarted()
-			pcontext.Debugf(ctx, "%s%s is ready to run, after waiting", s.Name(), s.Short())
+			pcontext.Debugf(ctx, "!!!!!! %s%s is ready to run, after waiting", s.Name(), s.Short())
 			return syscall.KernelErr_NoError
 		} else {
-			pcontext.Debugf(ctx, "%s%s is not yet ready to run", s.Name(), s.Short())
+			pcontext.Debugf(ctx, "@@@@@@ %s%s is not yet ready to run", s.Name(), s.Short())
 		}
 		select {
 		case <-s.runCh:
 			continue
 		case <-time.After(timeoutInSecs * time.Second):
-			continue
+			return syscall.KernelErr_RunTimeout
 		}
 	}
 }

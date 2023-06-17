@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"fmt"
+	"log"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -126,7 +127,7 @@ func detailPrefix(ctx context.Context, level LogLevel, source Source, fn string)
 
 type LogLine interface {
 	IsDevNull() bool
-	Print(context.Context)
+	Print()
 }
 
 type LogContainer interface {
@@ -134,8 +135,6 @@ type LogContainer interface {
 	AddLogLine(ctx context.Context, l LogLine)
 	Dump(ctx context.Context)
 }
-
-const stackBufferSize = 4096
 
 func StackTrace(ctx context.Context) {
 	cont := GetContainer(ctx)
@@ -160,12 +159,17 @@ func DevNullContext(orig context.Context) context.Context {
 }
 
 func NewContextWithContainer(orig context.Context, origin string) context.Context {
+
 	if orig == nil {
 		orig = context.Background()
 		Errorf(orig, "the use of nil context to newContext() is discouraged")
 		StackTrace(orig)
 	}
 	cont := newLogContainer(origin)
+	log.Printf("xxx -- log container origin '%s'", origin)
+	runtime.SetFinalizer(cont, func(cont *logContainer) {
+		cont.Dump(nil)
+	})
 	sanity := LogContainer(cont)
 	ctx := context.WithValue(orig, ParigotTime, time.Now())
 	ctx = context.WithValue(ctx, ParigotLogContainer, sanity)

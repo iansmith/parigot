@@ -5,6 +5,8 @@ import (
 	"math"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -15,18 +17,33 @@ var _ = unsafe.Sizeof([]byte{})
 const pathPrefix = "/parigotvirt/"
 
 func main() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "[fooservice]main")
+	GoFoo()
+}
+
+func GoFoo() {
+	ctx := pcontext.NewContextWithContainer(context.Background(), "[foo]main")
 	ctx = pcontext.CallTo(pcontext.GuestContext(ctx), "[foo]main")
 	defer pcontext.Dump(ctx)
+	server := &fooServer{}
+
 	pcontext.Debugf(ctx, "started main open")
-	myId := methodcall.MustRegisterFoo(ctx)
+	pcontext.Debugf(ctx, "here we go foo1")
+	server.myId = methodcall.MustRegisterFoo(ctx)
+	pcontext.Debugf(ctx, "here we go foo2")
 	methodcall.MustExportFoo(ctx)
-	methodcall.MustWaitSatisfiedFoo(myId)
-	methodcall.RunFoo(ctx, myId, &fooServer{})
+
+	allDead := apiwasm.NewParigotWaitGroup("[main]Foo")
+	pcontext.Debugf(ctx, "here we go foo3")
+	methodcall.MustWaitSatisfiedFoo(ctx, server.myId, server, allDead)
+	pcontext.Debugf(ctx, "here we go foo4")
+	methodcall.StartFoo(ctx, server.myId, &fooServer{})
+	pcontext.Debugf(ctx, "here we go foo5")
+	allDead.Wait()
 }
 
 // this type better implement methodcall.v1.FooService
 type fooServer struct {
+	myId id.ServiceId
 }
 
 //
@@ -77,8 +94,8 @@ func (f *fooServer) WritePi(ctx context.Context, req *methodcall.WritePiRequest)
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
-// Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
-// services are ready.
-func (f *fooServer) Ready(ctx context.Context) bool {
+// Normally this is used to do LocateXXX() calls that are needed for
+// the operation of the service.
+func (f *fooServer) Ready(_ context.Context, _ id.ServiceId) bool {
 	return true
 }

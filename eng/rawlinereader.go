@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"runtime/debug"
 
 	pcontext "github.com/iansmith/parigot/context"
 
@@ -21,13 +22,14 @@ type rawLineReader struct {
 func (w *rawLineReader) read(ctx context.Context) {
 	defer func(c context.Context) {
 		if r := recover(); r != nil {
-			print("RECOVER OF RLR\n")
+			print("RECOVER OF RLR ", r, "\n")
+			debug.PrintStack()
 			pcontext.Dump(c)
 		}
 	}(ctx)
 	for {
 		err := w.in.Scan()
-		if err == true && w.in.Err() != nil {
+		if err && w.in.Err() != nil {
 			pcontext.Errorf(ctx, "internal error with pipe inside wazerowriter: %v", w.in.Err())
 			continue
 		}

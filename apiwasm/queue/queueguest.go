@@ -4,6 +4,8 @@ import (
 	"context"
 	"unsafe"
 
+	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	queue "github.com/iansmith/parigot/g/queue/v1"
 )
@@ -14,14 +16,18 @@ func main() {
 	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
 	sid := queue.MustRegisterQueue(ctx)
 	queue.MustExportQueue(ctx)
-	queue.MustWaitSatisfiedQueue(sid)
-	queue.RunQueue(ctx, sid, &myQueueSvc{})
+
+	allDead := apiwasm.NewParigotWaitGroup("[main]Queue")
+	server := &myQueueSvc{}
+	queue.MustWaitSatisfiedQueue(ctx, sid, server, allDead)
+	queue.StartQueue(ctx, sid, server)
+	allDead.Wait()
 }
 
 type myQueueSvc struct {
 }
 
-func (m *myQueueSvc) Ready(ctx context.Context) bool {
+func (m *myQueueSvc) Ready(ctx context.Context, _ id.ServiceId) bool {
 	return true
 }
 func (m *myQueueSvc) CreateQueue(ctx context.Context, in *queue.CreateQueueRequest) (*queue.CreateQueueResponse, queue.QueueErr) {

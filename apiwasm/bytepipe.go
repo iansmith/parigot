@@ -43,7 +43,6 @@ func NewBytePipeIn[T nilableProto](ctx context.Context, rd io.Reader) *BytePipeI
 }
 
 func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *int32) error {
-	log.Printf("xxxx -- Read Proto\n")
 	if b.syncLost {
 		b.syncLost = false
 		b.rd = nil
