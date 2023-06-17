@@ -9,9 +9,13 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
+	gsys "github.com/iansmith/parigot/g/syscall/v1"
+
 	"github.com/tetratelabs/wazero"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var (
@@ -205,4 +209,9 @@ func (a *AsyncClientInteraction) Send(path string, m proto.Message) error {
 		count += written
 	}
 	return nil
+}
+
+func (a *AsyncClientInteraction) Dispatch(path string, pbAny *anypb.Any) (*anypb.Any, id.CallId, gsys.KernelErr) {
+	print(">>>>>>>> path is ", path, "\n")
+	return nil, id.NewCallId(), gsys.KernelErr_NoError
 }

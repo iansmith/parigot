@@ -22,6 +22,7 @@ import(
     "github.com/iansmith/parigot/apishared/id"  
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
     syscallguest "github.com/iansmith/parigot/apiwasm/syscall" 
+    "github.com/iansmith/parigot/apiwasm" 
 
 
 {{/* this special case for log.Log kinda stinks */}}
@@ -38,6 +39,7 @@ import(
 {{- $svc:=.GetWasmServiceName }}
 {{- $errId:=.GetWasmServiceErrId}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+
 //
 // {{$svcCamel}} from {{$file}}
 //
@@ -67,6 +69,7 @@ type {{$svcCamel}} interface {
 {{ $svc:=.GetWasmServiceName }}
 {{ $svcCamel:=.GetWasmServiceName }}
 {{ $errId:=.GetWasmServiceErrId }}
+{{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
 
 type {{$svcCamel}}Client {{$svcCamel}}
 type {{$svcCamel}}Client_ struct {
@@ -155,10 +158,23 @@ func MustExport{{$svc}}(ctx context.Context) {
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
     }
 }
-func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
+
+func WaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}Server, allDead *apiwasm.ParigotWaitGroup) syscall.KernelErr{
+    allStarted:=apiwasm.NewParigotWaitGroup("WaitSatisfied{{$svc}}")
+	err:={{$svcCamelFL}}Bind(ctx,sid, impl,allDead,allStarted)
+	if err!=0{
+		return syscall.KernelErr(err)
+	}
+    allStarted.Wait()
+    return syscall.KernelErr_NoError
+}
+
+func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}Server, allDead *apiwasm.ParigotWaitGroup) {
+    if err:=WaitSatisfied{{$svc}}(ctx,sid,impl,allDead); err!=syscall.KernelErr_NoError {
+        panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
+    }
     s:=sid.Marshal()
 	syscallguest.Run(&syscall.RunRequest{Wait: true, ServiceId:s })
-
 }
 
 {{range .GetWasmMethod}}
@@ -175,7 +191,6 @@ func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
 {{- if .InputCodeNeeded -}}
 func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
 {{- else -}}
-// ouch {{.InputCodeNeeded}} {{.OutputCodeNeeded}}
 func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context) 
 {{- end -}}
 {{- if .OutputCodeNeeded -}}

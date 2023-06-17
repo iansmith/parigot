@@ -3,6 +3,7 @@ package syscall
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/iansmith/parigot/apiplugin"
@@ -30,6 +31,9 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
+		log.Printf("xxxx Locate exiting due to signal")
+		for {
+		}
 		os.Exit(1)
 	}
 	if kerr != syscall.KernelErr_NoError {
@@ -65,6 +69,10 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 
 	// somebody else died?
 	if signal {
+		log.Printf("xxx Dispatch exiting due to signal")
+		for {
+
+		}
 		os.Exit(1)
 	}
 
@@ -90,6 +98,11 @@ func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, syscall.KernelErr) {
 	rr, err, signal :=
 		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Run_)
 	if signal {
+		log.Printf("xxx Run exiting due to signal")
+		for {
+
+		}
+
 		os.Exit(1)
 	}
 	if err != 0 {
@@ -110,6 +123,10 @@ func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.Kern
 	defer pcontext.Dump(ctx)
 	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Export_)
 	if signal {
+		log.Printf("xxx Export exiting due to signal")
+		for {
+
+		}
 		os.Exit(1)
 	}
 	return er, syscall.KernelErr(err)
@@ -144,6 +161,10 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 	rr, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
 	kerr := syscall.KernelErr((err))
 	if signal {
+		log.Printf("xxx Require exiting due to signal")
+		for {
+
+		}
 		os.Exit(1)
 	}
 
@@ -177,6 +198,10 @@ func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscal
 	defer pcontext.Dump(ctx)
 	rr, kid, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
 	if signal {
+		log.Printf("xxx Register exiting due to signal")
+		for {
+
+		}
 		os.Exit(1)
 	}
 	return rr, syscall.KernelErr(kid)
@@ -235,6 +260,10 @@ func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, sys
 	resp := &syscall.BindMethodResponse{}
 	_, err, signal := apiwasm.ClientSide(ctx, in, resp, BindMethod_)
 	if signal {
+		log.Printf("xxx Bind method exiting due to signal")
+		for {
+
+		}
 		os.Exit(1)
 	}
 
@@ -247,6 +276,8 @@ func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, sys
 
 func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
 	tmp, kerr := BindMethod(in)
+	// sid := id.UnmarshalServiceId(in.ServiceId)
+	// m := in.GetMethodName()
 	if kerr != syscall.KernelErr_NoError {
 		panic("failed to bind method:" + in.GetMethodName() + ", error %s" + syscall.KernelErr_name[int32(kerr)])
 	}

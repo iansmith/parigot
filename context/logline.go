@@ -76,7 +76,7 @@ func NewLogLine(ctx context.Context, src Source, lvl LogLevel, funcName string,
 func isLineReader(src Source) bool {
 	return src == GuestErr || src == GuestOut || src == Wazero
 }
-func (ll *logLine) Print(ctx context.Context) {
+func (ll *logLine) Print() {
 	ll.lock.Lock()
 	defer ll.lock.Unlock()
 

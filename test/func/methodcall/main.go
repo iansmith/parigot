@@ -2,15 +2,17 @@ package main
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+
+	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
+	sysg "github.com/iansmith/parigot/g/syscall/v1"
+
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
@@ -27,30 +29,28 @@ var bar methodcall.BarClient
 func main() {
 	ctx := manufactureContext("[methodcall]main")
 	defer func() {
+		if r := recover(); r != nil {
+			pcontext.Errorf(ctx, "methodcall: trapped a panic in the guest side: %v", r)
+		}
 		pcontext.Dump(ctx)
-		pcontext.Debugf(ctx, "trapped a panic in the guest side")
-		os.Exit(1)
 	}()
 	pcontext.Debugf(ctx, "program started")
 
 	myServiceId = lib.MustRegisterClient(ctx)
 	methodcall.MustRequireFoo(pcontext.CallTo(ctx, "Require"), myServiceId)
-	pcontext.Debugf(ctx, "finished requiring foo")
 	test.MustRequireTest(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished requiring test")
 	methodcall.MustRequireBar(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished requiring bar")
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished wait satisfy")
 
 	underTestServer.testSvc = test.MustLocateTest(ctx, myServiceId)
 	underTestServer.foo = methodcall.MustLocateFoo(ctx, myServiceId)
 	underTestServer.bar = methodcall.MustLocateBar(ctx, myServiceId)
 
-	pcontext.Debugf(ctx, "methodcall.main: got three locates  and satified all requires")
-
-	test.RunUnderTest(ctx, myServiceId, underTestServer)
+	kerr := test.StartUnderTest(ctx, myServiceId, underTestServer)
+	if kerr != sysg.KernelErr_NoError {
+		pcontext.Errorf(ctx, "unable to start the under test service: %s", sysg.KernelErr_name[int32(kerr)])
+	}
 }
 
 // TestAddMulitply is a test of a function that has both input and output.
@@ -162,7 +162,10 @@ type myUnderTestServer struct {
 	bar     methodcall.BarClient
 }
 
-func (m *myUnderTestServer) Ready(ctx context.Context) bool {
+// Ready is a check, if this returns false the library will abort and not attempt to run this service.
+// Normally this is used to do LocateXXX() calls that are needed for
+// the operation of the service.
+func (m *myUnderTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
 	m.foo = methodcall.MustLocateFoo(ctx, myServiceId)
 	m.bar = methodcall.MustLocateBar(ctx, myServiceId)
 	m.testSvc = test.MustLocateTest(ctx, myServiceId)

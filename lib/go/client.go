@@ -43,6 +43,10 @@ func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (*
 	if c.svc.IsZeroOrEmptyValue() {
 		panic("cannot dispatch to an unknown service! client side service field 'svc' is zero or empty")
 	}
+	if method.IsZeroOrEmptyValue() {
+		print("!!!!!! METHOD IS ZERO !!!!!!\n")
+		panic("cannot dispatch to an unknown method! client side service field 'method id' is zero or empty")
+	}
 	in := &syscall.DispatchRequest{
 		ServiceId: c.svc.Marshal(),
 		MethodId:  method.Marshal(),

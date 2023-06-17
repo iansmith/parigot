@@ -75,11 +75,13 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 
 	// create processes
 	for _, name := range c.config.AllName() {
+		log.Printf("xxxx process create--- > %s", name)
 		m := c.config.Microservice[name]
 		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
 		}
+		log.Printf("xxxx process store --- > %s", name)
 		c.process.Store(name, p)
 		ch := make(chan bool)
 		c.notify.Store(name, ch)
@@ -110,6 +112,7 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		name := f.Name()
 		if f.Server {
 			go func(p *Process, serverProcessName string) {
+				log.Printf("xxxx goroutine of %s started", name)
 				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for '%s' starting", serverProcessName)
 				code := p.Start(ctx)
 				contextPrint(ctx, pcontext.Debug, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)

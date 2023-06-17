@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	_ "unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
+	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
@@ -16,7 +18,10 @@ import (
 )
 
 var serviceNameToId = make(map[string]id.ServiceId)
-var serviceIdToMethod = make(map[string]map[string]id.MethodId)
+var serviceIdToName = make(map[string]string)
+
+var serviceIdToMethodNameMap = make(map[string]map[string]id.MethodId)
+var serviceIdToMethodIdMap = make(map[string]map[string]string)
 
 type SyscallPlugin struct {
 }
@@ -83,12 +88,37 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 	return int32(syscall.KernelErr_NoError)
 }
 
+func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
+	midToName, ok := serviceIdToMethodIdMap[req.GetServiceId().String()]
+	if !ok {
+		return int32(syscall.KernelErr_NotFound)
+	}
+	srvId := serviceIdToName[req.GetServiceId().String()]
+	methId := midToName[req.GetMethodId().String()]
+
+	svrName := serviceIdToName[srvId]
+	methName := serviceIdToMethodIdMap[srvId][methId]
+	fqName := fmt.Sprintf("%s.%s", svrName, methName)
+	path := filepath.Join(apishared.FsName, fqName)
+
+	result, cid, err := eng.AsyncInteraction.Dispatch(path, req.GetParam())
+	if err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+	resp.Result = result
+	resp.CallId = cid.Marshal()
+	return int32(syscall.KernelErr_NoError)
+}
+
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
 	svc, _ := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 
 	sname := fmt.Sprintf("%s.%s", req.Fqs.GetPackagePath(), req.Fqs.GetService())
 	serviceNameToId[sname] = svc.Id()
-	serviceIdToMethod[svc.Id().String()] = make(map[string]id.MethodId)
+	serviceIdToName[svc.Id().String()] = sname
+
+	serviceIdToMethodNameMap[svc.Id().String()] = make(map[string]id.MethodId)
+	serviceIdToMethodIdMap[svc.Id().String()] = make(map[string]string)
 
 	resp.Id = svc.Id().Marshal()
 	return int32(syscall.KernelErr_NoError)
@@ -125,9 +155,9 @@ func locate(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func dispatch(ctx context.Context, m api.Module, stack []uint64) {
-	// req := &syscall.DispatchRequest{}
-	// resp := &syscall.DispatchResponse{}
-	// apiplugin.InvokeImplFromStack(ctx, "[syscall]dispatch", m, stack, dispatchImpl, req, resp)
+	req := &syscall.DispatchRequest{}
+	resp := &syscall.DispatchResponse{}
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]dispatch", m, stack, dispatchImpl, req, resp)
 }
 
 func blockUntilCall(ctx context.Context, m api.Module, stack []uint64) {
@@ -135,7 +165,7 @@ func blockUntilCall(ctx context.Context, m api.Module, stack []uint64) {
 }
 func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.BindMethodRequest{}
-	resp := (*syscall.BindMethodResponse)(nil)
+	resp := &syscall.BindMethodResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]bindMethod", m, stack, bindMethodImpl, req, resp)
 
 }
@@ -177,14 +207,19 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 // we return the already know method id.  This method will return KernelErr_NotFound
 // only in the case where the service given by the service id cannot be found.
 func addMethodByName(ctx context.Context, serviceId id.ServiceId, methodName string) (id.MethodId, syscall.KernelErr) {
-	methMap, ok := serviceIdToMethod[serviceId.String()]
+
+	methMapId, ok := serviceIdToMethodIdMap[serviceId.String()]
+	methMapName, ok := serviceIdToMethodNameMap[serviceId.String()]
 	if !ok {
+		log.Printf("unable to find service %s, cannot add method %s", serviceId.Short(), methodName)
 		return id.MethodIdZeroValue(), syscall.KernelErr_NotFound
 	}
-	mid, ok := methMap[methodName]
+	var newId id.MethodId
+	_, ok = methMapId[methodName]
 	if !ok {
-		mid = id.NewMethodId()
-		methMap[methodName] = mid
+		newId = id.NewMethodId()
+		methMapId[newId.String()] = methodName
+		methMapName[methodName] = newId
 	}
-	return mid, syscall.KernelErr_NoError
+	return newId, syscall.KernelErr_NoError
 }

@@ -2,31 +2,26 @@ package main
 
 import (
 	"context"
-	"os"
 	"unsafe"
 
-	apiwasm "github.com/iansmith/parigot/apiwasm"
-	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
 
-func main() {
-	ctx := apiwasm.ManufactureGuestContext("[barservice]main")
-	defer func() {
-		pcontext.Dump(ctx)
-		pcontext.Debugf(ctx, "trapped a panic in the guest side")
-		os.Exit(1)
-	}()
+type FullyQualifiedServiceName struct {
+	PackageName, ServiceName string
+}
 
-	myId := methodcall.MustRegisterBar(ctx)
-	methodcall.MustExportBar(ctx)
-	methodcall.MustRequireFoo(ctx, myId)
-	methodcall.MustWaitSatisfiedBar(myId)
+func main() {
+	req := []apiwasm.MustRequireFunc{
+		methodcall.MustRequireFoo,
+	}
 	b := &barServer{}
-	b.foo = methodcall.MustLocateFoo(ctx, myId)
-	methodcall.RunBar(ctx, myId, b)
+	pwg := methodcall.GoBar(req, b)
+	pwg.Wait()
 }
 
 // this type better implement methodcall.v1.BarService
@@ -85,8 +80,9 @@ func (b *barServer) Accumulate(ctx context.Context, req *methodcall.AccumulateRe
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
-// Normally, this is used to block using the lib.Run() call.  This call will wait until all the required
-// services are ready.
-func (b *barServer) Ready(ctx context.Context) bool {
+// Normally this is used to do LocateXXX() calls that are needed for
+// the operation of the service.
+func (b *barServer) Ready(ctx context.Context, sid id.ServiceId) bool {
+	b.foo = methodcall.MustLocateFoo(ctx, sid)
 	return true
 }
