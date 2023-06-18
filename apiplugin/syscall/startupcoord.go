@@ -247,9 +247,9 @@ func (s *startupCoordinator) addEdge(ctx context.Context, src, dest string) bool
 	return true
 }
 
-// Run blocks the caller on a particular service being ready to run.  Note that
+// Launch blocks the caller on a particular service being ready to run.  Note that
 // this function does not assert the lock.
-func (s *startupCoordinator) Run(ctx context.Context, sid id.ServiceId) syscall.KernelErr {
+func (s *startupCoordinator) Launch(ctx context.Context, sid id.ServiceId) syscall.KernelErr {
 	service := s.ServiceById(ctx, sid)
 	if service == nil {
 		return syscall.KernelErr_NotFound

@@ -14,27 +14,25 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	GoFile()
-}
-
-func GoFile() {
-	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[filewasm]main"))
-	myId := file.MustRegisterFile(ctx)
-	file.MustExportFile(ctx)
-
-	svc := &myFileSvc{}
-	allDead := apiwasm.NewParigotWaitGroup("[main]File")
-	file.MustWaitSatisfiedFile(ctx, myId, svc, allDead)
-	kerr := file.StartFile(ctx, myId, svc)
-	if kerr != syscall.KernelErr_NoError {
-		pcontext.Errorf(ctx, "unable to start File: %s", syscall.KernelErr_name[int32(kerr)])
+	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
+	f := &myFileSvc{}
+	binding := file.InitFile(ctx, []apiwasm.MustRequireFunc{}, f)
+	var kerr syscall.KernelErr
+	for {
+		kerr = file.ReadOneAndCallFile(ctx, binding, file.TimeoutInMillisFile)
+		if kerr == syscall.KernelErr_ReadOneTimeout {
+			pcontext.Infof(ctx, "waiting for calls to file service")
+			continue
+		}
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
 	}
-	allDead.Wait()
+	pcontext.Errorf(ctx, "error while waiting for file service calls: %s", syscall.KernelErr_name[int32(kerr)])
 }
 
 type myFileSvc struct{}
-
-var myImpl *myFileSvc = &myFileSvc{}
 
 func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) bool {
 	pcontext.Debugf(ctx, "Ready reached in file service")

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"reflect"
+	"time"
 	_ "unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
@@ -13,6 +15,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -22,6 +25,8 @@ var serviceIdToName = make(map[string]string)
 
 var serviceIdToMethodNameMap = make(map[string]map[string]id.MethodId)
 var serviceIdToMethodIdMap = make(map[string]map[string]string)
+
+var pairIdToChannel = make(map[string]chan anypb.Any)
 
 type SyscallPlugin struct {
 }
@@ -33,12 +38,13 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "dispatch_", dispatch)
 	e.AddSupportedFunc(ctx, "parigot", "block_until_call_", blockUntilCall)
 	e.AddSupportedFunc(ctx, "parigot", "bind_method_", bindMethod)
-	e.AddSupportedFunc(ctx, "parigot", "run_", run)
+	e.AddSupportedFunc(ctx, "parigot", "launch_", launch)
 	e.AddSupportedFunc(ctx, "parigot", "export_", export)
 	e.AddSupportedFunc(ctx, "parigot", "return_value_", returnValue)
 	e.AddSupportedFunc(ctx, "parigot", "require_", require)
 	e.AddSupportedFunc(ctx, "parigot", "register_", register)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
+	e.AddSupportedFunc(ctx, "parigot", "read_one_", readOne)
 
 	return true
 }
@@ -59,9 +65,9 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 
 }
 
-func runImpl(ctx context.Context, req *syscall.RunRequest, resp *syscall.RunResponse) int32 {
+func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	return int32(coordinator().Run(ctx, sid))
+	return int32(coordinator().Launch(ctx, sid))
 }
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
@@ -71,6 +77,49 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 		return int32(err)
 	}
 	resp.MethodId = mid.Marshal()
+	pairIdToChannel[sid.String()+mid.String()] = make(chan anypb.Any)
+	return int32(syscall.KernelErr_NoError)
+}
+
+var exampleTime time.Time
+
+func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
+	numCases := len(req.Pair)
+	if req.TimeoutInMillis >= 0 {
+		numCases++
+	}
+	cases := make([]reflect.SelectCase, numCases)
+	if numCases == 0 {
+		resp.Pair = nil
+		return int32(syscall.KernelErr_NoError)
+	}
+	for i, pair := range req.Pair {
+		svc := id.UnmarshalServiceId(pair.ServiceId)
+		meth := id.UnmarshalMethodId(pair.MethodId)
+		combo := svc.String() + meth.String()
+		ch := pairIdToChannel[combo]
+		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+	}
+	if req.TimeoutInMillis >= 0 {
+		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
+		cases[len(req.Pair)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+	}
+	chosen, value, ok := reflect.Select(cases)
+	// ok will be true if the channel has not been closed.
+	if !ok {
+		return int32(syscall.KernelErr_KernelConnectionFailed)
+	}
+	if chosen == len(req.Pair) {
+		resp.Timeout = true
+		return int32(syscall.KernelErr_NoError)
+	}
+	resp.Timeout = false
+	pair := req.Pair[chosen]
+	resp.Pair.ServiceId = pair.ServiceId
+	resp.Pair.MethodId = pair.MethodId
+	if !value.IsNil() {
+		resp.Param = value.Interface().(*anypb.Any)
+	}
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -169,10 +218,10 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]bindMethod", m, stack, bindMethodImpl, req, resp)
 
 }
-func run(ctx context.Context, m api.Module, stack []uint64) {
-	req := &syscall.RunRequest{}
-	resp := (*syscall.RunResponse)(nil)
-	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, runImpl, req, resp)
+func launch(ctx context.Context, m api.Module, stack []uint64) {
+	req := &syscall.LaunchRequest{}
+	resp := (*syscall.LaunchResponse)(nil)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, launchImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ExportRequest{}
@@ -187,6 +236,12 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.RequireRequest{}
 	resp := (*syscall.RequireResponse)(nil)
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
+
+}
+func readOne(ctx context.Context, m api.Module, stack []uint64) {
+	req := &syscall.ReadOneRequest{}
+	resp := (*syscall.ReadOneResponse)(nil)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]readOne", m, stack, readOneImpl, req, resp)
 
 }
 

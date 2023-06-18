@@ -1,14 +1,9 @@
 package apiwasm
 
 import (
-	"context"
 	"log"
 	"sync"
-
-	"github.com/iansmith/parigot/apishared/id"
 )
-
-type MustRequireFunc func(context.Context, id.ServiceId)
 
 var waitGroupVerbose = true
 

@@ -29,6 +29,10 @@ func NewClientSideService(ctx context.Context, id id.ServiceId) *ClientSideServi
 	}
 }
 
+func (c *ClientSideService) ServiceId() id.ServiceId {
+	return c.svc
+}
+
 // Shorthand to make it cleaner for the calls from a client side proxy.
 func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
 	var a *anypb.Any
@@ -55,11 +59,11 @@ func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (*
 	return syscallguest.Dispatch(in)
 }
 
-func (c *ClientSideService) Run() (*syscall.RunResponse, syscall.KernelErr) {
-	req := syscall.RunRequest{
-		Wait: true,
+func (c *ClientSideService) Launch() (*syscall.LaunchResponse, syscall.KernelErr) {
+	req := syscall.LaunchRequest{
+		ServiceId: c.svc.Marshal(),
 	}
-	out, err := syscallguest.Run(&req)
+	out, err := syscallguest.Launch(&req)
 	if err != 0 {
 		return nil, err
 	}

@@ -130,6 +130,9 @@ enum KernelErr{
 	  // RunTimeout means that the programs timeout has expired when waiting
 	  // for all the required dependencies to be fulfilled.
 	  RunTimeout = 29;
+	  // ReadOneTimeout means that the program was trying to request
+	  // a service/method pair to invoke, but the request timed out.
+	  ReadOneTimeout = 30;
 
 };
 
@@ -163,17 +166,21 @@ message DispatchResponse {
     protosupport.v1.IdRaw call_id = 2;
 }
 
+// ReturnValueRequest is used to return the result of a
+// function back to the caller.  This is used primarily
+// by the code that handles
 message ReturnValueRequest{
-  protosupport.v1.IdRaw call = 1;
-  protosupport.v1.IdRaw method = 2;
-  google.protobuf.Any result = 3;
-  string marshal_error = 4;
-  string exec_error = 6;
-  protosupport.v1.IdRaw exec_error_id = 7; 
+  protosupport.v1.IdRaw call_id = 1;
+  protosupport.v1.IdRaw method_id = 2;
+  protosupport.v1.IdRaw service_id = 3;
+  bool failed = 4;
+  google.protobuf.Any result = 5;
+  int32 err = 6; 
 }
 
+// ReturnValueResponse is empty because there is
+// no point to responding to a return value request.
 message ReturnValueResponse {
-  bool exit_after_use = 8;
 }
 
 message BlockUntilCallRequest{
@@ -225,12 +232,11 @@ message RequireRequest {
 message RequireResponse {
 }
 
-message RunRequest {
-  bool wait = 1;
-  protosupport.v1.IdRaw service_id = 2;
+message LaunchRequest {
+  protosupport.v1.IdRaw service_id = 1;
 }
 
-message RunResponse {
+message LaunchResponse {
 }
 
 // ExitRequest is how you can request for your wasm program to exit. In some cases, this will not terminate
@@ -255,3 +261,35 @@ message RegisterRequest {
 message RegisterResponse {
     protosupport.v1.IdRaw id =1;
 }
+
+message ServiceMethodPair {
+	protosupport.v1.IdRaw service_id =1;
+	protosupport.v1.IdRaw method_id =2;
+}
+
+// ReadOneRequest gives a set of service/method pairs
+// that should be considered for a read.  The ReadOne
+// operation returns a single service/method pair that
+// has received a call. If the timeout expires, only 
+// the timeout bool is returned. If the timeout value
+// is 0, then an instanteous sample is returned.  If
+// the timeout value is negative, it means wait forever.
+message ReadOneRequest {
+	repeated ServiceMethodPair pair = 1;
+	int32 timeout_in_millis = 2;
+}
+
+// ReadOneResponse returns if a timeout has occurred.
+// If timeout is true, all the other fields should be ignored.
+// Note that if the method denoted by the pair does not
+// take input, the value of param should be ignored and
+// it may be nil.  The call_id is provided so that a matching
+// ReturnValue call can be made.
+message ReadOneResponse {
+    bool timeout =1;
+    ServiceMethodPair pair =2;
+	google.protobuf.Any  param = 3; 
+	protosupport.v1.IdRaw call_id = 4;
+}
+
+

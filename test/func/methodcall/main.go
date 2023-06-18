@@ -23,10 +23,13 @@ func manufactureContext(name string) context.Context {
 }
 
 var myServiceId id.ServiceId
-var foo methodcall.FooClient
-var bar methodcall.BarClient
+var foo methodcall.ClientFoo
+var bar methodcall.ClientBar
 
 func main() {
+	prevMain()
+}
+func prevMain() {
 	ctx := manufactureContext("[methodcall]main")
 	defer func() {
 		if r := recover(); r != nil {
@@ -35,7 +38,6 @@ func main() {
 		pcontext.Dump(ctx)
 	}()
 	pcontext.Debugf(ctx, "program started")
-
 	myServiceId = lib.MustRegisterClient(ctx)
 	methodcall.MustRequireFoo(pcontext.CallTo(ctx, "Require"), myServiceId)
 	test.MustRequireTest(ctx, myServiceId)
@@ -47,7 +49,7 @@ func main() {
 	underTestServer.foo = methodcall.MustLocateFoo(ctx, myServiceId)
 	underTestServer.bar = methodcall.MustLocateBar(ctx, myServiceId)
 
-	kerr := test.StartUnderTest(ctx, myServiceId, underTestServer)
+	kerr := test.LaunchUnderTest(ctx, myServiceId, underTestServer)
 	if kerr != sysg.KernelErr_NoError {
 		pcontext.Errorf(ctx, "unable to start the under test service: %s", sysg.KernelErr_name[int32(kerr)])
 	}
@@ -157,9 +159,9 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
-	testSvc test.TestClient
-	foo     methodcall.FooClient
-	bar     methodcall.BarClient
+	testSvc test.ClientTest
+	foo     methodcall.ClientFoo
+	bar     methodcall.ClientBar
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
