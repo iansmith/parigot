@@ -8,20 +8,28 @@ import (
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	queue "github.com/iansmith/parigot/g/queue/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[queuewasm]main"))
-	sid := queue.MustRegisterQueue(ctx)
-	queue.MustExportQueue(ctx)
-
-	allDead := apiwasm.NewParigotWaitGroup("[main]Queue")
-	server := &myQueueSvc{}
-	queue.MustWaitSatisfiedQueue(ctx, sid, server, allDead)
-	queue.StartQueue(ctx, sid, server)
-	allDead.Wait()
+	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
+	f := &myQueueSvc{}
+	binding := queue.InitQueue(ctx, []apiwasm.MustRequireFunc{}, f)
+	var kerr syscall.KernelErr
+	for {
+		kerr = queue.ReadOneAndCallQueue(ctx, binding, queue.TimeoutInMillisQueue)
+		if kerr == syscall.KernelErr_ReadOneTimeout {
+			pcontext.Infof(ctx, "waiting for calls to queue service")
+			continue
+		}
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
+	}
+	pcontext.Errorf(ctx, "error while waiting for queue service calls: %s", syscall.KernelErr_name[int32(kerr)])
 }
 
 type myQueueSvc struct {

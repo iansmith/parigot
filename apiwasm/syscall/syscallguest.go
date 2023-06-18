@@ -11,6 +11,7 @@ import (
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // Locate is the means of aquiring a handle to a particular service.
@@ -85,10 +86,10 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 // code this is not used because user code usually uses file.MustFileServiceRun() to
 // block service File until it is cleared to run.
 //
-//go:wasmimport parigot run_
-func Run_(int32, int32, int32, int32) int64
-func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, syscall.KernelErr) {
-	outProtoPtr := (*syscall.RunResponse)(nil)
+//go:wasmimport parigot launch_
+func Launch_(int32, int32, int32, int32) int64
+func Launch(inPtr *syscall.LaunchRequest) (*syscall.LaunchResponse, syscall.KernelErr) {
+	outProtoPtr := (*syscall.LaunchResponse)(nil)
 	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
@@ -96,7 +97,7 @@ func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, syscall.KernelErr) {
 		return nil, syscall.KernelErr_BadId
 	}
 	rr, err, signal :=
-		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Run_)
+		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Launch_)
 	if signal {
 		log.Printf("xxx Run exiting due to signal")
 		for {
@@ -119,34 +120,18 @@ func Run(inPtr *syscall.RunRequest) (*syscall.RunResponse, syscall.KernelErr) {
 func Export_(int32, int32, int32, int32) int64
 func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.ExportResponse)(nil)
-	ctx := apiwasm.ManufactureGuestContext("[syscall]Export")
-	defer pcontext.Dump(ctx)
-	er, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Export_)
-	if signal {
-		log.Printf("xxx Export exiting due to signal")
-		for {
-
-		}
-		os.Exit(1)
-	}
-	return er, syscall.KernelErr(err)
+	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Export_, "Export")
 }
 
-// ReturnValue is not a call that user code should be using. It is the
-// mechanism for a return value to be communicated back to the caller
-// from the caller.  User code will typically use the wrappers around
-// this that make the method calls looking synchronous.
+// ReturnValue is for providing return values for calls that have
+// been made on the local service.
 //
 //go:wasmimport parigot return_value_
-// func ReturnValue_(int32, int32) int32
-// func ReturnValue(in *syscall.ReturnValueRequest) (*syscall.ReturnValueResponse, id.Id) {
-// 	out := &syscall.ReturnValueResponse{}
-// 	// err := error(nil)
-// 	// if err != nil {
-// 	// 	return nil, fmt.Errorf("ReturnValue_ failed:%v", err)
-// 	// }
-// 	return out, nil
-// }
+func ReturnValue_(int32, int32, int32, int32) int64
+func ReturnValue(in *syscall.ReturnValueRequest) syscall.KernelErr {
+	out := &syscall.ReturnValueResponse{}
+	return standardGuestSide(in, out, ReturnValue_, "ReturnValue")
+}
 
 // Require is a declaration that a service needs a particular interface.
 // This is not needed by most user code that will use queue.ImpleQueueServiceOrPanic()
@@ -156,19 +141,7 @@ func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.Kern
 func Require_(int32, int32, int32, int32) int64
 func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.RequireResponse)(nil)
-	ctx := apiwasm.ManufactureGuestContext("[syscall]Require")
-	defer pcontext.Dump(ctx)
-	rr, err, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Require_)
-	kerr := syscall.KernelErr((err))
-	if signal {
-		log.Printf("xxx Require exiting due to signal")
-		for {
-
-		}
-		os.Exit(1)
-	}
-
-	return rr, kerr
+	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Require_, "Require")
 }
 
 // Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
@@ -194,29 +167,18 @@ func Register_(int32, int32, int32, int32) int64
 
 func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.RegisterResponse{}
-	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]Register")
-	defer pcontext.Dump(ctx)
-	rr, kid, signal := apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Register_)
-	if signal {
-		log.Printf("xxx Register exiting due to signal")
-		for {
-
-		}
-		os.Exit(1)
-	}
-	return rr, syscall.KernelErr(kid)
+	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Register_, "Register")
 }
 
 // MustSatisfyWait is a convenience wrapper around creating a RunRequest and
 // using the Run syscall.  MustSatisfyWait is a better name for what goes on
 // in the course of a Run() call.
 func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
-	req := &syscall.RunRequest{
-		Wait:      true,
+	req := &syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
 	}
 	pcontext.Debugf(ctx, "about to call satisfy wait for .............. %s", sid.Short())
-	_, err := Run(req)
+	_, err := Launch(req)
 	if err != 0 {
 		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])
 		panic(fmt.Sprintf("failed to run successfully:%s",
@@ -255,31 +217,40 @@ func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallR
 func BindMethod_(int32, int32, int32, int32) int64
 
 func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, syscall.KernelErr) {
-	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]BindMethod")
-	defer pcontext.Dump(ctx)
 	resp := &syscall.BindMethodResponse{}
-	_, err, signal := apiwasm.ClientSide(ctx, in, resp, BindMethod_)
-	if signal {
-		log.Printf("xxx Bind method exiting due to signal")
-		for {
-
-		}
-		os.Exit(1)
-	}
-
-	kerr := syscall.KernelErr(err)
-	if kerr != syscall.KernelErr_NoError {
-		return nil, kerr
-	}
-	return resp, syscall.KernelErr_NoError
+	return resp, standardGuestSide(in, resp, BindMethod_, "BindMethod")
 }
 
 func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
 	tmp, kerr := BindMethod(in)
-	// sid := id.UnmarshalServiceId(in.ServiceId)
-	// m := in.GetMethodName()
 	if kerr != syscall.KernelErr_NoError {
 		panic("failed to bind method:" + in.GetMethodName() + ", error %s" + syscall.KernelErr_name[int32(kerr)])
 	}
 	return id.UnmarshalMethodId(tmp.MethodId)
+}
+
+// ReadOne checks to see if any of the service/method
+// pairs have been called. Timeouts of negative values
+// (forever) and 0 (instant check) are legal.
+//
+//go:wasmimport parigot read_one_
+func ReadOne_(int32, int32, int32, int32) int64
+func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
+	out := &syscall.ReadOneResponse{}
+	return out, standardGuestSide(in, out, ReadOne_, "ReadOne")
+}
+
+// standardGuestSide is a wrapper around ClientSide that knows how
+// to handle the error return to do an immediate exit.
+func standardGuestSide[T proto.Message, U proto.Message](in T, out U, fn func(int32, int32, int32, int32) int64, name string) syscall.KernelErr {
+	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]"+name)
+	defer pcontext.Dump(ctx)
+	var resp U
+	_, err, signal := apiwasm.ClientSide(ctx, in, resp, fn)
+	if signal {
+		pcontext.Fatalf(ctx, "(syscall guest) %s method exiting due to signal", name)
+		os.Exit(1)
+	}
+
+	return syscall.KernelErr(err)
 }

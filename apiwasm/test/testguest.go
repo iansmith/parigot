@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
@@ -25,19 +24,32 @@ import (
 const testQueueName = "test_queue"
 
 func main() {
-	lib.FlagParseCreateEnv()
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 	myId = test.MustRegisterTest(ctx)
 	queue.MustRequireQueue(ctx, myId)
 	test.MustExportTest(ctx)
 
-	allDead := apiwasm.NewParigotWaitGroup("[main]Test")
 	server := &myTestServer{}
 
-	test.MustWaitSatisfiedTest(ctx, myId, server, allDead)
-	test.StartTest(ctx, myId, server)
+	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
+	if err := test.LaunchTest(ctx, myId, server); err != syscall.KernelErr_NoError {
+		pcontext.Fatalf(ctx, "test guest cannot launch the service:%s", syscall.KernelErr_name[int32(err)])
+		return
+	}
+	var kerr syscall.KernelErr
+	for {
+		kerr = test.ReadOneAndCallTest(ctx, binding, 500)
+		if kerr == syscall.KernelErr_ReadOneTimeout {
+			server.Background(ctx)
+			continue
+		}
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
+	}
+	pcontext.Fatalf(ctx, "error while waiting for test service calls: %s", syscall.KernelErr_name[int32(kerr)])
 
-	allDead.Wait()
 }
 
 var myId id.ServiceId
@@ -47,7 +59,7 @@ type myTestServer struct {
 	suiteExec map[string]string
 	testQid   queueg.QueueId
 
-	queueSvc queue.QueueClient
+	queueSvc queue.ClientQueue
 
 	started    bool
 	haveName   bool
@@ -276,8 +288,8 @@ func suiteInfoToSuiteName(info *suiteInfo) string {
 
 func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) test.TestErr {
 	pcontext.Debugf(ctx, "run tests0")
-	locate := make(map[string]test.UnderTestClient)
-	var client test.UnderTestClient
+	locate := make(map[string]test.ClientUnderTest)
+	var client test.ClientUnderTest
 	part := strings.Split(fullTestName, ".")
 
 	pkg, svc := splitPkgAndService(strings.Join(part[:len(part)-1], "."))
@@ -319,7 +331,7 @@ func splitPkgAndService(s string) (string, string) {
 
 }
 
-func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.UnderTestClient, test.TestErr) {
+func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.ClientUnderTest, test.TestErr) {
 	pcontext.Debugf(ctx, "xxx locate test pkg=%s svc=%s\n", pkg, svc)
 	req := &syscall.LocateRequest{
 		PackageName: pkg,
@@ -336,7 +348,7 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.
 	cs := lib.NewClientSideService(ctx, service)
 
 	pcontext.Debugf(ctx, "locateClient", "xxx locate client 4")
-	return &test.UnderTestClient_{
+	return &test.ClientUnderTest_{
 		ClientSideService: cs,
 	}, test.TestErr_NoError
 }

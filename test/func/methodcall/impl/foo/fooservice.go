@@ -9,6 +9,7 @@ import (
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
@@ -17,33 +18,28 @@ var _ = unsafe.Sizeof([]byte{})
 const pathPrefix = "/parigotvirt/"
 
 func main() {
-	GoFoo()
-}
+	req := []apiwasm.MustRequireFunc{}
+	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fooservice.Main")
+	foo := &fooServer{}
+	binding := methodcall.InitFoo(ctx, req, foo)
+	var kerr syscall.KernelErr
+	for {
+		kerr = methodcall.ReadOneAndCallFoo(ctx, binding, methodcall.TimeoutInMillisFoo)
+		if kerr == syscall.KernelErr_ReadOneTimeout {
+			pcontext.Infof(ctx, "waiting for calls to foo service")
+			continue
+		}
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
+	}
+	pcontext.Errorf(ctx, "error while waiting for foo service calls: %s", syscall.KernelErr_name[int32(kerr)])
 
-func GoFoo() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "[foo]main")
-	ctx = pcontext.CallTo(pcontext.GuestContext(ctx), "[foo]main")
-	defer pcontext.Dump(ctx)
-	server := &fooServer{}
-
-	pcontext.Debugf(ctx, "started main open")
-	pcontext.Debugf(ctx, "here we go foo1")
-	server.myId = methodcall.MustRegisterFoo(ctx)
-	pcontext.Debugf(ctx, "here we go foo2")
-	methodcall.MustExportFoo(ctx)
-
-	allDead := apiwasm.NewParigotWaitGroup("[main]Foo")
-	pcontext.Debugf(ctx, "here we go foo3")
-	methodcall.MustWaitSatisfiedFoo(ctx, server.myId, server, allDead)
-	pcontext.Debugf(ctx, "here we go foo4")
-	methodcall.StartFoo(ctx, server.myId, &fooServer{})
-	pcontext.Debugf(ctx, "here we go foo5")
-	allDead.Wait()
 }
 
 // this type better implement methodcall.v1.FooService
 type fooServer struct {
-	myId id.ServiceId
 }
 
 //

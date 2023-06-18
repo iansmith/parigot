@@ -52,10 +52,10 @@ type SyscallData interface {
 	// 1. one of the src or destination could not be found.  2. The
 	// newly introduced edge would create a cycle.
 	Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr
-	// Run blocks the caller until all the prerequistes have been
+	// Launch blocks the caller until all the prerequistes have been
 	// launched.  It returns false if it returned because of
 	// a timeout or the service id cannot be found, otherwise true.
-	Run(context.Context, id.ServiceId) syscall.KernelErr
+	Launch(context.Context, id.ServiceId) syscall.KernelErr
 	// PathExists returns true if there is a sequence of dependency
 	// graph vertices that eventually leads from source to target.
 	PathExists(ctx context.Context, source, target string) bool
