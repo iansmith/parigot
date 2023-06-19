@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
-	"github.com/iansmith/parigot/g/syscall/v1"
+	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -24,20 +24,10 @@ func main() {
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "barservice.Main")
 	bar := &barServer{}
 	binding := methodcall.InitBar(ctx, req, bar)
-	var kerr syscall.KernelErr
-	for {
-		kerr = methodcall.ReadOneAndCallBar(ctx, binding, methodcall.TimeoutInMillisBar)
-		if kerr == syscall.KernelErr_ReadOneTimeout {
-			pcontext.Infof(ctx, "waiting for calls to bar service")
-			continue
-		}
-		if kerr == syscall.KernelErr_NoError {
-			continue
-		}
-		break
+	kerr := methodcall.RunBar(ctx, binding, methodcall.TimeoutInMillisBar, nil)
+	if kerr != syscall.KernelErr_NoError {
+		pcontext.Fatalf(ctx, "RunBar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
 	}
-	pcontext.Errorf(ctx, "error while waiting for bar service calls: %s", syscall.KernelErr_name[int32(kerr)])
-
 }
 
 // this type better implement methodcall.v1.BarService

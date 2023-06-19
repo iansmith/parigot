@@ -72,11 +72,15 @@ func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.L
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	mid, err := addMethodByName(ctx, sid, req.GetMethodName())
-	if err != syscall.KernelErr_NoError {
-		return int32(err)
-	}
+	//mid, err := addMethodByName(ctx, sid, req.GetMethodName())
+	// if err != syscall.KernelErr_NoError {
+	// 	return int32(err)
+	// }
+	mid := id.NewMethodId()
 	resp.MethodId = mid.Marshal()
+	svc := coordinator().ServiceById(ctx, sid)
+	svc.AddMethod(req.GetMethodName(), mid)
+
 	pairIdToChannel[sid.String()+mid.String()] = make(chan anypb.Any)
 	return int32(syscall.KernelErr_NoError)
 }
@@ -134,6 +138,7 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 	}
 	svcId := svc.Id()
 	resp.ServiceId = svcId.Marshal()
+	resp.Binding = svc.Method()
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -160,7 +165,9 @@ func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *sysca
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
-	svc, _ := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
+	svc, ok := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
+	resp.ExistedPreviously = !ok
+	resp.Id = svc.Id().Marshal()
 
 	sname := fmt.Sprintf("%s.%s", req.Fqs.GetPackagePath(), req.Fqs.GetService())
 	serviceNameToId[sname] = svc.Id()
@@ -169,14 +176,16 @@ func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *sysca
 	serviceIdToMethodNameMap[svc.Id().String()] = make(map[string]id.MethodId)
 	serviceIdToMethodIdMap[svc.Id().String()] = make(map[string]string)
 
-	resp.Id = svc.Id().Marshal()
 	return int32(syscall.KernelErr_NoError)
 }
 
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
+	if req.GetDest() == nil {
+		log.Printf("ignoring call to Require because the require list is empty")
+		return 0
+	}
 	src := id.UnmarshalServiceId(req.GetSource())
 	fqn := req.GetDest()
-	//log.Printf("xxx--- require impl, source = %s", src.Short())
 
 	for _, fullyQualified := range fqn {
 		dest, _ := coordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
@@ -261,20 +270,20 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 // that new id.  If the name already existed in our internal structures then
 // we return the already know method id.  This method will return KernelErr_NotFound
 // only in the case where the service given by the service id cannot be found.
-func addMethodByName(ctx context.Context, serviceId id.ServiceId, methodName string) (id.MethodId, syscall.KernelErr) {
+// func addMethodByName(ctx context.Context, serviceId id.ServiceId, methodName string) (id.MethodId, syscall.KernelErr) {
 
-	methMapId, ok := serviceIdToMethodIdMap[serviceId.String()]
-	methMapName, ok := serviceIdToMethodNameMap[serviceId.String()]
-	if !ok {
-		log.Printf("unable to find service %s, cannot add method %s", serviceId.Short(), methodName)
-		return id.MethodIdZeroValue(), syscall.KernelErr_NotFound
-	}
-	var newId id.MethodId
-	_, ok = methMapId[methodName]
-	if !ok {
-		newId = id.NewMethodId()
-		methMapId[newId.String()] = methodName
-		methMapName[methodName] = newId
-	}
-	return newId, syscall.KernelErr_NoError
-}
+// 	methMapId, ok := serviceIdToMethodIdMap[serviceId.String()]
+// 	methMapName, ok := serviceIdToMethodNameMap[serviceId.String()]
+// 	if !ok {
+// 		log.Printf("unable to find service %s, cannot add method %s", serviceId.Short(), methodName)
+// 		return id.MethodIdZeroValue(), syscall.KernelErr_NotFound
+// 	}
+// 	var newId id.MethodId
+// 	_, ok = methMapId[methodName]
+// 	if !ok {
+// 		newId = id.NewMethodId()
+// 		methMapId[newId.String()] = methodName
+// 		methMapName[methodName] = newId
+// 	}
+// 	return newId, syscall.KernelErr_NoError
+// }

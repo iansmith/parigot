@@ -3,6 +3,7 @@ package apiplugin
 import (
 	"context"
 	"encoding/binary"
+	"log"
 	"runtime/debug"
 
 	"github.com/iansmith/parigot/apishared"
@@ -64,6 +65,7 @@ func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, 
 	}
 	if respErr != 0 {
 		stack[0] = NoReturnedStruct
+		log.Printf("wrote error to guest and now returning No struct")
 		return true
 	}
 
@@ -76,10 +78,7 @@ func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, 
 		return true
 	}
 	if len(buf) > apishared.GuestReceiveBufferSize {
-		if !writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_DataTooLarge) {
-			return false
-		}
-		return true
+		return writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_DataTooLarge)
 	}
 	outPtr := eng.Util.DecodeU32(stack[2])
 	if !m.Memory().Write(outPtr, buf) {

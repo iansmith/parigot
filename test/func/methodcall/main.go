@@ -19,7 +19,7 @@ import (
 var exitCode = int32(0)
 
 func manufactureContext(name string) context.Context {
-	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(context.Background()), name), name)
+	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "methodcall.Main")), name), name)
 }
 
 var myServiceId id.ServiceId
@@ -27,9 +27,7 @@ var foo methodcall.ClientFoo
 var bar methodcall.ClientBar
 
 func main() {
-	prevMain()
-}
-func prevMain() {
+
 	ctx := manufactureContext("[methodcall]main")
 	defer func() {
 		if r := recover(); r != nil {

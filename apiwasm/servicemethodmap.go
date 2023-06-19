@@ -24,6 +24,15 @@ type MustRequireFunc func(context.Context, id.ServiceId)
 // value.
 type FuncAnyIO func(*anypb.Any) (*anypb.Any, int32)
 
+// Backgrounder is an interface that can be implemented by
+// types that want to get period background calls when the
+// latest attempt to receive a call has timed out.  Note that
+// when the background is actually running (in Background)
+// their are no attempts to retreive method calls on this service.
+type Backgrounder interface {
+	Background(context.Context)
+}
+
 // ServiceMethodMap is the data structure that provides conversions
 // between a service/method pair and their variants.
 // A service or method can be converted to a string with their
@@ -69,7 +78,9 @@ const sidMidPairKeyGen = "%s,%s"
 // AddServiceMethod is called when a new method has been bound. This
 // method creates various data structures needed to be able to look up
 // the service and method later, as well as find the appropriate
-// FuncAnyIO associated with pair.
+// FuncAnyIO associated with pair.  Note that the funcAnyIO
+// may be nil when the function is not available in this address
+// space and any caller must use Dispatch().
 func (s *ServiceMethodMap) AddServiceMethod(sid id.ServiceId, mid id.MethodId,
 	serviceName, methodName string, fn FuncAnyIO) {
 
@@ -173,4 +184,10 @@ func (s *ServiceMethodMap) MethodNameToId(sid id.ServiceId, methodName string) i
 		return id.MethodIdZeroValue()
 	}
 	return mid
+}
+
+// Len returns the number of known methods in this
+// ServiceMethodMap
+func (s *ServiceMethodMap) Len() int {
+	return len(s.pair)
 }

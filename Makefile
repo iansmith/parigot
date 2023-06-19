@@ -26,7 +26,7 @@ EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
 SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go apiwasm/*.go 
-API_WASM_SRC=apiwasm/*
+API_WASM_SRC=$(shell find apiwasm -type f -regex ".*\.go")
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
 API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_WASM_SRC) $(API_ID)
 

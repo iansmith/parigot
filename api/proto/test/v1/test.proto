@@ -157,8 +157,8 @@ message QueuePayload {
 enum TestErr {
     option (protosupport.v1.parigot_error) = true;
     NoError = 0; // mandatory
-    DispatchError = 1; // mandatory
-    UnmarshalError = 2; //mandatory
+    DispatchError = 1; // used by generated code
+    UnmarshalError = 2; //used by generated code
     // ServiceNotFound means that the service that was supposed to be under test
     // could not be found.
     ServiceNotFound = 3;
@@ -179,4 +179,7 @@ enum TestErr {
     // Queue means that the there was internal error with the queue
     // that is used by the Test service.
     Queue =9;
+    // DynamicLocate is returned when we cannot discover the protobuf
+    // package and service name pair provided.  
+    DynamicLocate =10;
 }

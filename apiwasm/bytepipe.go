@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
 	pcontext "github.com/iansmith/parigot/context"
 	"google.golang.org/protobuf/proto"
@@ -63,7 +62,6 @@ func (b *BytePipeIn[T]) ReadProto(msg T, errIdPtr *int32) error {
 	if err != nil {
 		return b.lostSync(err)
 	}
-	log.Printf("-----> size read was %d", size)
 	if size == 0xffff {
 		return ErrSignalExit
 	}
