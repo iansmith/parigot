@@ -3,9 +3,11 @@ package lib
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 
 	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/apiwasm"
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -20,17 +22,26 @@ import (
 // message call requests and this type sends it to the
 // kernel.
 type ClientSideService struct {
-	svc id.ServiceId
+	svc   id.ServiceId
+	smMap *apiwasm.ServiceMethodMap
 }
 
-func NewClientSideService(ctx context.Context, id id.ServiceId) *ClientSideService {
+func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.ServiceMethodMap) *ClientSideService {
+	if len(sm.Pair()) == 0 {
+		log.Printf("NewClientSideService: binding is zero")
+		//debug.PrintStack()
+	}
 	return &ClientSideService{
-		svc: id,
+		svc:   id,
+		smMap: sm,
 	}
 }
 
 func (c *ClientSideService) ServiceId() id.ServiceId {
 	return c.svc
+}
+func (c *ClientSideService) ServiceMethodMap() *apiwasm.ServiceMethodMap {
+	return c.smMap
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.
@@ -129,5 +140,29 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 	}
 	sid := id.UnmarshalServiceId(resp.GetId())
 	return sid
+
+}
+
+func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy id.ServiceId) (*ClientSideService, syscall.KernelErr) {
+	req := &syscall.LocateRequest{
+		PackageName: protoPkg,
+		ServiceName: serviceName,
+		CalledBy:    calledBy.Marshal(),
+	}
+
+	resp, kerr := syscallguest.Locate(req)
+	if kerr != syscall.KernelErr_NoError {
+		pcontext.Errorf(ctx, "UnmarshalServiceId failed: %s", syscall.KernelErr_name[int32(kerr)])
+		return nil, kerr
+	}
+	serviceId := id.UnmarshalServiceId(resp.GetServiceId())
+	smmap := apiwasm.NewServiceMethodMap()
+	for _, pair := range resp.GetBinding() {
+		mid := id.UnmarshalMethodId(pair.MethodId)
+		smmap.AddServiceMethod(serviceId, mid,
+			serviceName, pair.MethodName, nil)
+	}
+	cs := NewClientSideService(ctx, serviceId, smmap)
+	return cs, syscall.KernelErr_NoError
 
 }

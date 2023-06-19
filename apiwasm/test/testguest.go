@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
 	"github.com/iansmith/parigot/apishared/id"
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
-	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -25,11 +25,13 @@ const testQueueName = "test_queue"
 
 func main() {
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
-	myId = test.MustRegisterTest(ctx)
+	myId := test.MustRegisterTest(ctx)
 	queue.MustRequireQueue(ctx, myId)
 	test.MustExportTest(ctx)
 
-	server := &myTestServer{}
+	server := &myTestServer{
+		myId: myId,
+	}
 
 	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
 	if err := test.LaunchTest(ctx, myId, server); err != syscall.KernelErr_NoError {
@@ -52,9 +54,8 @@ func main() {
 
 }
 
-var myId id.ServiceId
-
 type myTestServer struct {
+	myId      id.ServiceId
 	suite     map[string]*suiteInfo
 	suiteExec map[string]string
 	testQid   queueg.QueueId
@@ -109,6 +110,11 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
 	m.suiteExec = make(map[string]string)
 
 	pcontext.Debugf(ctx, "myTestServer ready called")
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("xxxx MustLocate queue died: %v", r)
+		}
+	}()
 	m.queueSvc = queue.MustLocateQueue(ctx, sid)
 	qid, err := qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName)
 	if err != queue.QueueErr_NoError {
@@ -297,11 +303,10 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 	pcontext.Debugf(ctx, "run tests2 %s,%s\n", fullTestName, execPackageSvc)
 	loc, ok := locate[execPackageSvc]
 	if !ok {
-		var tId test.TestErr
 		execPkg, execSvc := splitPkgAndService(execPackageSvc)
-		client, tId = m.locateClient(pcontext.CallTo(ctx, "locateClient"), execPkg, execSvc)
-		if tId != test.TestErr_NoError {
-			return tId
+		client, err := m.locateClient(ctx, execPkg, execSvc)
+		if err != test.TestErr_NoError {
+			return err
 		}
 		locate[execPackageSvc] = client
 	} else {
@@ -332,22 +337,10 @@ func splitPkgAndService(s string) (string, string) {
 }
 
 func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.ClientUnderTest, test.TestErr) {
-	pcontext.Debugf(ctx, "xxx locate test pkg=%s svc=%s\n", pkg, svc)
-	req := &syscall.LocateRequest{
-		PackageName: pkg,
-		ServiceName: svc,
-	}
-	pcontext.Debugf(ctx, "xxx locate client 1")
-	resp, err := syscallguest.Locate(req)
+	cs, err := lib.LocateDynamic(ctx, pkg, svc, m.myId)
 	if err != syscall.KernelErr_NoError {
-		pcontext.Errorf(ctx, "locate failed for %s.%s", pkg, svc)
-		return nil, test.TestErr_ServiceNotFound
+		return nil, test.TestErr_DynamicLocate
 	}
-	pcontext.Debugf(ctx, "xxx locate client 3")
-	service := id.UnmarshalServiceId(resp.GetServiceId())
-	cs := lib.NewClientSideService(ctx, service)
-
-	pcontext.Debugf(ctx, "locateClient", "xxx locate client 4")
 	return &test.ClientUnderTest_{
 		ClientSideService: cs,
 	}, test.TestErr_NoError

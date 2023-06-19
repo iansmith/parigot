@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/iansmith/parigot/apiplugin"
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
@@ -141,6 +140,9 @@ func ReturnValue(in *syscall.ReturnValueRequest) syscall.KernelErr {
 func Require_(int32, int32, int32, int32) int64
 func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.RequireResponse)(nil)
+	if len(inPtr.GetDest()) == 0 {
+		return nil, syscall.KernelErr_NoError
+	}
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Require_, "Require")
 }
 
@@ -224,7 +226,7 @@ func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, sys
 func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
 	tmp, kerr := BindMethod(in)
 	if kerr != syscall.KernelErr_NoError {
-		panic("failed to bind method:" + in.GetMethodName() + ", error %s" + syscall.KernelErr_name[int32(kerr)])
+		panic("failed to bind method:" + in.GetMethodName() + ", error " + syscall.KernelErr_name[int32(kerr)])
 	}
 	return id.UnmarshalMethodId(tmp.MethodId)
 }
@@ -243,10 +245,9 @@ func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.Kern
 // standardGuestSide is a wrapper around ClientSide that knows how
 // to handle the error return to do an immediate exit.
 func standardGuestSide[T proto.Message, U proto.Message](in T, out U, fn func(int32, int32, int32, int32) int64, name string) syscall.KernelErr {
-	ctx := apiplugin.ManufactureHostContext(context.Background(), "[syscall]"+name)
+	ctx := apiwasm.ManufactureGuestContext("[guest syscall]" + name)
 	defer pcontext.Dump(ctx)
-	var resp U
-	_, err, signal := apiwasm.ClientSide(ctx, in, resp, fn)
+	_, err, signal := apiwasm.ClientSide(ctx, in, out, fn)
 	if signal {
 		pcontext.Fatalf(ctx, "(syscall guest) %s method exiting due to signal", name)
 		os.Exit(1)

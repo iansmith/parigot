@@ -27,6 +27,7 @@ type startupService struct {
 	parent    *startupCoordinator
 	runCh     chan struct{}
 	lock      *sync.Mutex
+	meth      []*syscall.MethodBinding
 }
 
 // newStartupService creates a representative startupService given a set of
@@ -41,6 +42,7 @@ func newStartupService(pkg, name string, sid id.ServiceId, parent *startupCoordi
 		exported: isClient,
 		lock:     new(sync.Mutex),
 		runCh:    make(chan struct{}),
+		meth:     []*syscall.MethodBinding{},
 	}
 	_ = Service(result)
 	return result
@@ -101,7 +103,7 @@ func (s *startupService) Exported() bool {
 // until all of its dependencies are fulfilled.
 func (s *startupService) Run(ctx context.Context) syscall.KernelErr {
 	s.RequestRun()
-	return s.waitToRun(ctx) // be sure this does not lock
+	return s.waitToRun(pcontext.CallTo(ctx, "waitToRun")) // be sure this does not lock
 }
 
 // canRun is true only if three conditions are met.  The service has been
@@ -129,13 +131,12 @@ func (s *startupService) canRun(ctx context.Context) bool {
 // waitToRun should be called with the lock available.
 func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
 	for {
-		pcontext.Debugf(ctx, "%s%s is checking for ready to start", s.Name(), s.Short())
 		if s.canRun(ctx) {
 			s.SetStarted()
-			pcontext.Debugf(ctx, "!!!!!! %s%s is ready to run, after waiting", s.Name(), s.Short())
+			pcontext.Debugf(ctx, "!! %s%s is ready to run, after waiting", s.Name(), s.Short())
 			return syscall.KernelErr_NoError
 		} else {
-			pcontext.Debugf(ctx, "@@@@@@ %s%s is not yet ready to run", s.Name(), s.Short())
+			pcontext.Debugf(ctx, "%s%s is not yet ready to run", s.Name(), s.Short())
 		}
 		select {
 		case <-s.runCh:
@@ -183,4 +184,18 @@ func (s *startupService) Started() bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.started
+}
+
+// Method returns all the pairs of Name and Id for this service.
+func (s *startupService) Method() []*syscall.MethodBinding {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return s.meth
+}
+
+func (s *startupService) AddMethod(name string, id id.MethodId) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	mb := &syscall.MethodBinding{MethodName: name, MethodId: id.Marshal()}
+	s.meth = append(s.meth, mb)
 }

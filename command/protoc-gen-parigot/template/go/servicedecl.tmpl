@@ -8,6 +8,7 @@ package {{ .package }}
 {{ $package:=.package}}
 import(
     "context"
+    "log"
 
 {{- range $j,$i := .import }}
 {{ if ne $j "" }}
@@ -67,10 +68,9 @@ type {{$svcCamel}} interface {
 type Client{{$svcCamel}} {{$svcCamel}}
 type Client{{$svcCamel}}_ struct {
     *lib.ClientSideService
-    smMap *apiwasm.ServiceMethodMap
 }
 func (c * Client{{$svcCamel}}_) Dispatch(name string, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
-    mid:=c.smMap.MethodNameToId(c.ClientSideService.ServiceId(),name)
+    mid:=c.ClientSideService.ServiceMethodMap().MethodNameToId(c.ClientSideService.ServiceId(),name)
     if  mid.IsZeroValue() {
         return nil,syscall.KernelErr_NotFound
     }
@@ -80,23 +80,12 @@ func (c * Client{{$svcCamel}}_) Dispatch(name string, param proto.Message) (*sys
 
 // Locate finds a reference to the client interface of {{$svc}}.  
 func Locate{{$svcCamel}}(ctx context.Context,sid id.ServiceId) (Client{{$svcCamel}},syscall.KernelErr) {
-	req := &syscall.LocateRequest{
-        PackageName:"{{.ProtoPackage}}",
-        ServiceName: "{{$svc}}",
-        CalledBy: sid.Marshal(),
-	}
-
-    resp,errId:=syscallguest.Locate(req)
-    if errId!=syscall.KernelErr_NoError{
-        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %s",syscall.KernelErr_name[int32(errId)])
-        return nil, errId
+    cs, kerr:=lib.LocateDynamic(ctx, "{{.ProtoPackage}}","{{$svc}}", sid)
+    if kerr!=syscall.KernelErr_NoError{
+        return nil, kerr
     }
-    serviceId:=id.UnmarshalServiceId(resp.GetServiceId())
-
-    cs := lib.NewClientSideService(ctx, serviceId)
     return &Client{{$svcCamel}}_{
         ClientSideService: cs,
-        smMap: {{$svcCamelFL}}ServiceBinding,
     },syscall.KernelErr_NoError
 }
 
@@ -125,10 +114,18 @@ func Register{{$svcCamel}}(ctx context.Context) (id.ServiceId, syscall.KernelErr
     req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
-    if err!=0 {
+    log.Printf("register returned %v and err %s",
+        resp.Id, syscall.KernelErr_name[int32(err)])
+    if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
+    log.Printf("response to already existed: %v",
+        resp.ExistedPreviously)
     sid:=id.UnmarshalServiceId(resp.Id)
+    if sid.IsZeroOrEmptyValue() {
+        panic("received bad service Id from register")
+    }
+
     return sid,syscall.KernelErr_NoError
 }
 func MustRegister{{$svcCamel}}(ctx context.Context) id.ServiceId {
@@ -161,24 +158,23 @@ func MustExport{{$svc}}(ctx context.Context) {
 }
 
 func WaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcCamel}}) (*apiwasm.ServiceMethodMap,syscall.KernelErr) {
-    b:=apiwasm.NewServiceMethodMap()
-	err:={{$svcCamelFL}}Bind(ctx,sid, impl,b)
+	smmap, err:={{$svcCamelFL}}Bind(ctx,sid, impl)
 	if err!=0{
-		return  nil, syscall.KernelErr(err)
+		return  nil,syscall.KernelErr(err)
 	}
 
     s:=sid.Marshal()
 	syscallguest.Launch(&syscall.LaunchRequest{ServiceId:s })
 
-    return b,syscall.KernelErr_NoError
+    return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcCamel}})(*apiwasm.ServiceMethodMap)  {
-    b, err:=WaitSatisfied{{$svc}}(ctx,sid,impl)
+func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcCamel}}) *apiwasm.ServiceMethodMap {
+    smmap,err:=WaitSatisfied{{$svc}}(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
     }
-    return b
+    return smmap
 }
 
 {{range .GetWasmMethod}}

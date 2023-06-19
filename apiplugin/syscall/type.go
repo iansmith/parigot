@@ -7,17 +7,44 @@ import (
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
+// Service is the logical representation of a service. This is
+// used internally and is not intended for external use.
 type Service interface {
 	Id() id.ServiceId
+	// Name returns a human readable name of the service.
 	Name() string
+	// Package returns the package name (not the proto package name)
+	// of the service.
 	Package() string
+	// Short returns a nice-to-read version of the service's id.
 	Short() string
+	// String returns the full id of the service.
 	String() string
+	// RunRequested returns true if the service has requested
+	// to run, but its dependencies are not yet satisfied. Once
+	// they are met, the service can start and the Started()
+	// method will return true.
 	RunRequested() bool
+	// Started returns true if the service has started.
 	Started() bool
+	// Exported returns true if some service provider has said that
+	// they implement this service.
 	Exported() bool
+	// Method returns all the pairs of MethodName and MethodId
+	// for a service known to the SyscallData.  You provide the
+	// service to this method to know which set of pairs you want.
+	Method() []*syscall.MethodBinding
+	// AddMethod is called by the syscall bind method to add a
+	// given name/id pair to this service.
+	AddMethod(string, id.MethodId)
+	//Run is badly named. This really means "block until everything
+	//I need is ready."
 	Run(context.Context) syscall.KernelErr
 }
+
+// SyscallData is the interface used by the kernel methods
+// (syscallhost.go) to get information about the status of
+// a startup sequence.
 
 type SyscallData interface {
 	//ServiceByName looks up a service and returns it based on the

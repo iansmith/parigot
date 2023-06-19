@@ -3,7 +3,6 @@ package context
 import (
 	"context"
 	"fmt"
-	"log"
 	"runtime"
 	"runtime/debug"
 	"time"
@@ -166,7 +165,6 @@ func NewContextWithContainer(orig context.Context, origin string) context.Contex
 		StackTrace(orig)
 	}
 	cont := newLogContainer(origin)
-	log.Printf("xxx -- log container origin '%s'", origin)
 	runtime.SetFinalizer(cont, func(cont *logContainer) {
 		cont.Dump(nil)
 	})

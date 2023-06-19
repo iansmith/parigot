@@ -10,7 +10,6 @@ package {{ .package }}
 
 import (
 	"context"
-	"log"
     "unsafe"
 
 {{- range $j,$i := .import  }}
@@ -79,26 +78,55 @@ func Launch{{$svcCamel}}(ctx context.Context, sid id.ServiceId, impl Server{{$sv
 	return syscall.KernelErr_NoError
 }
 
-func Init{{$svcCamel}}(ctx context.Context,require []apiwasm.MustRequireFunc, impl Server{{$svcCamel}}) *apiwasm.ServiceMethodMap {
+func Init{{$svcCamel}}(ctx context.Context,require []apiwasm.MustRequireFunc, impl Server{{$svcCamel}}) *apiwasm.ServiceMethodMap{
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "Go{{$svcCamel}}: trapped a panic in the guest side: %v", r)
+			pcontext.Infof(ctx, "Init{{$svcCamel}}: trapped a panic in the guest side: %v", r)
 		}
 		pcontext.Dump(ctx)
 	}()
 
 	myId := MustRegister{{$svcCamel}}(ctx)
 	MustExport{{$svcCamel}}(ctx)
-	if require!=nil {
+	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
 		}
 	}
-	MustRequire{{$svcCamel}}(ctx, myId)
-
-	b:=MustWaitSatisfied{{$svcCamel}}(ctx, myId, impl)
+	smmap:=MustWaitSatisfied{{$svcCamel}}(ctx, myId, impl)
 	Launch{{$svcCamel}}(ctx, myId, impl)
-	return b
+	return smmap
+}
+func Run{{$svcCamel}}(ctx context.Context,
+	binding *apiwasm.ServiceMethodMap, timeoutInMillis int32, bg apiwasm.Backgrounder) syscall.KernelErr{
+	defer func() {
+		if r := recover(); r != nil {
+			pcontext.Infof(ctx, "Run{{$svcCamel}}: trapped a panic in the guest side: %v", r)
+		}
+		pcontext.Dump(ctx)
+	}()
+	var kerr syscall.KernelErr
+	for {
+		kctx:=pcontext.CallTo(ctx,"ReadOneAndCall{{$svcCamel}}")
+		kerr = ReadOneAndCall{{$svcCamel}}(ctx, binding, timeoutInMillis)
+		pcontext.Dump(kctx)
+		if kerr == syscall.KernelErr_ReadOneTimeout {
+			if bg==nil {
+				continue
+			}
+			pcontext.Infof(ctx,"calling backgrounder of {{$svcCamel}}")
+			bgctx:=pcontext.CallTo(ctx,"Background")
+			bg.Background(bgctx)
+			pcontext.Dump(bgctx)
+			continue
+		}
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
+	}
+	pcontext.Errorf(ctx, "error while waiting for {{$svcCamel}} service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	return kerr
 }
 
 var TimeoutInMillis{{$svcCamel}} = int32(5000)
@@ -140,26 +168,24 @@ func ReadOneAndCall{{$svcCamel}}(ctx context.Context, binding *apiwasm.ServiceMe
 	return err
 }
 
-var {{$svcCamelFL}}ServiceBinding = apiwasm.NewServiceMethodMap()
-
-func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcCamel}}, binding *apiwasm.ServiceMethodMap)  syscall.KernelErr {
+func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcCamel}}) (*apiwasm.ServiceMethodMap, syscall.KernelErr) {
 	var bindReq *syscall.BindMethodRequest
 	var mid id.MethodId
 	var fn apiwasm.FuncAnyIO
+	smmap:=apiwasm.NewServiceMethodMap()
 
+{{- $goname:=packageToGoName .GetParent.Package}}
 {{- range .GetWasmMethod}}
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
 
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $methCamelFL:=toCamelCaseFirstLower .WasmMethodName}}
-{{ $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded false false .}}
-
+{{- $dir :=call .FuncChoice.BindDirection .InputCodeNeeded .OutputCodeNeeded false false .}}
 //
 // {{.ProtoPackage}}.{{$svcCamel}}.{{$methCamel}}
 //
 
-	log.Printf("binding {{$svcCamel}} {{$methCamel}} start")
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "{{$methCamel}}"
@@ -214,12 +240,11 @@ func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svc
 {{- end }} {{/* end of Out */}}
 {{- end }} {{/* end of Both */}}
 	}
-	binding.AddServiceMethod(sid,mid,"{{$svcCamel}}","{{$methCamel}}",fn)
-	{{$svcCamelFL}}ServiceBinding.AddServiceMethod(sid,mid,"{{$svcCamel}}","{{$methCamel}}",fn)
+	smmap.AddServiceMethod(sid,mid,"{{$svcCamel}}",bindReq.MethodName,fn)
 
 {{- end }} {{/* end of range over methods */}}
 	pcontext.Dump(ctx)
-	return syscall.KernelErr_NoError
+	return smmap,syscall.KernelErr_NoError
 }
 
 {{- /* range over methods again to do the generated refs */}}
@@ -229,16 +254,6 @@ func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svc
 {{- $svc:=toSnakeCase .GetWasmServiceName }}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 {{- $errId:=.GetWasmServiceErrId }}
-
-
-//type Wrap{{$svcCamel}} struct {
-//	impl {{$svcCamel}}Server
-//}
-//func NewWrap{{$svcCamel}} (ctx context.Context, impl {{$svcCamel}}Server) *Wrap{{$svcCamel}} {
-//	return &Wrap{{$svcCamel}}{
-//		impl: impl,
-//	}
-//}
 
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}

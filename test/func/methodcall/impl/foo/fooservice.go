@@ -19,11 +19,14 @@ const pathPrefix = "/parigotvirt/"
 
 func main() {
 	req := []apiwasm.MustRequireFunc{}
-	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fooservice.Main")
+	ctx := pcontext.CallTo(pcontext.SourceContext(pcontext.NewContextWithContainer(context.Background(), "fooservice.Main"), pcontext.Guest), "fooservice.Main")
 	foo := &fooServer{}
 	binding := methodcall.InitFoo(ctx, req, foo)
 	var kerr syscall.KernelErr
 	for {
+		if len(binding.Pair()) == 0 {
+			panic("BINDING EMPTY")
+		}
 		kerr = methodcall.ReadOneAndCallFoo(ctx, binding, methodcall.TimeoutInMillisFoo)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			pcontext.Infof(ctx, "waiting for calls to foo service")
