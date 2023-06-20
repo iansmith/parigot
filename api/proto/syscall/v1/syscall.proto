@@ -161,13 +161,21 @@ message DispatchRequest {
     protosupport.v1.IdRaw service_id = 1; 
     protosupport.v1.IdRaw method_id = 2;
     google.protobuf.Any  param = 3;  // inside is another Request object, but we don't know its type
+	protosupport.v1.IdRaw call_id = 4;
 }
 
 // DispatchResponse sent by the server back to a client. It contains the return results generated
-// by the implementation of the method.  Note that errors are propagated elsewhere.
+// by the implementation of the method.    The service and method ids
+// are repeated here from the request. The call id is the one
+// provided by the caller in the request.  This is returned with
+// the response so the caller can "match up" the request and response
+// if they want to handle things asynchronously.
 message DispatchResponse {
-    google.protobuf.Any result = 1; // again, there is a nested response object but we don't know its type
-    protosupport.v1.IdRaw call_id = 2;
+    protosupport.v1.IdRaw service_id = 1; 
+    protosupport.v1.IdRaw method_id = 2;
+    google.protobuf.Any result = 3; // again, there is a nested response object but we don't know its type
+	int32 error = 4;
+    protosupport.v1.IdRaw call_id = 5;
 }
 
 // ReturnValueRequest is used to return the result of a

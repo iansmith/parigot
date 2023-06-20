@@ -116,6 +116,7 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
 		}
 	}()
 	m.queueSvc = queue.MustLocateQueue(ctx, sid)
+	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.ClientQueue_).String())
 	qid, err := qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName)
 	if err != queue.QueueErr_NoError {
 		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID: error was %s ", queue.QueueErr_name[int32(err)])

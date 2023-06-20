@@ -8,7 +8,6 @@ package {{ .package }}
 {{ $package:=.package}}
 import(
     "context"
-    "log"
 
 {{- range $j,$i := .import }}
 {{ if ne $j "" }}
@@ -114,13 +113,9 @@ func Register{{$svcCamel}}(ctx context.Context) (id.ServiceId, syscall.KernelErr
     req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
-    log.Printf("register returned %v and err %s",
-        resp.Id, syscall.KernelErr_name[int32(err)])
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
-    log.Printf("response to already existed: %v",
-        resp.ExistedPreviously)
     sid:=id.UnmarshalServiceId(resp.Id)
     if sid.IsZeroOrEmptyValue() {
         panic("received bad service Id from register")
@@ -189,9 +184,9 @@ func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Serve
 
 
 {{- if .InputCodeNeeded -}}
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) syscall.KernelErr {
 {{- else -}}
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context) 
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context) syscall.KernelErr {
 {{- end -}}
 {{- if .OutputCodeNeeded -}}
     ({{$outParam}}, {{$errId}}) {
