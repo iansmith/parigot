@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
 	"reflect"
 	"time"
 	_ "unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
+	"github.com/iansmith/parigot/g/protosupport/v1"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -26,9 +25,17 @@ var serviceIdToName = make(map[string]string)
 var serviceIdToMethodNameMap = make(map[string]map[string]id.MethodId)
 var serviceIdToMethodIdMap = make(map[string]map[string]string)
 
-var pairIdToChannel = make(map[string]chan anypb.Any)
+var pairIdToChannel = make(map[string]chan *anypb.Any)
+
+// key in pending calls is cid
+var pendingCalls = make(map[string]DispatchSync)
 
 type SyscallPlugin struct {
+}
+
+type DispatchSync struct {
+	resp *syscall.DispatchResponse
+	ch   chan struct{}
 }
 
 var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
@@ -81,7 +88,7 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 	svc := coordinator().ServiceById(ctx, sid)
 	svc.AddMethod(req.GetMethodName(), mid)
 
-	pairIdToChannel[sid.String()+mid.String()] = make(chan anypb.Any)
+	pairIdToChannel[makeSidMidCombo(sid, mid)] = make(chan *anypb.Any)
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -100,7 +107,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	for i, pair := range req.Pair {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
-		combo := svc.String() + meth.String()
+		combo := makeSidMidCombo(svc, meth)
 		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
@@ -143,24 +150,16 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 }
 
 func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
-	midToName, ok := serviceIdToMethodIdMap[req.GetServiceId().String()]
-	if !ok {
-		return int32(syscall.KernelErr_NotFound)
+	param := req.GetParam()
+	cid := req.GetCallId()
+	dispResp := makeCall(req.GetServiceId(),
+		req.GetMethodId(), req.GetCallId(), param)
+	ch := make(chan struct{})
+	pendingCalls[cid.String()] = DispatchSync{
+		resp: dispResp,
+		ch:   ch,
 	}
-	srvId := serviceIdToName[req.GetServiceId().String()]
-	methId := midToName[req.GetMethodId().String()]
-
-	svrName := serviceIdToName[srvId]
-	methName := serviceIdToMethodIdMap[srvId][methId]
-	fqName := fmt.Sprintf("%s.%s", svrName, methName)
-	path := filepath.Join(apishared.FsName, fqName)
-
-	result, cid, err := eng.AsyncInteraction.Dispatch(path, req.GetParam())
-	if err != syscall.KernelErr_NoError {
-		return int32(err)
-	}
-	resp.Result = result
-	resp.CallId = cid.Marshal()
+	<-ch
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -265,25 +264,21 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 	panic("exit called ")
 }
 
-// addMethodByName adds the new method name that is name inside the given service id,
-// to the internal datastructures.  This creates an id for the method and returns
-// that new id.  If the name already existed in our internal structures then
-// we return the already know method id.  This method will return KernelErr_NotFound
-// only in the case where the service given by the service id cannot be found.
-// func addMethodByName(ctx context.Context, serviceId id.ServiceId, methodName string) (id.MethodId, syscall.KernelErr) {
+func makeCall(sid, mid, cid *protosupport.IdRaw, param *anypb.Any) *syscall.DispatchResponse {
+	service := id.UnmarshalServiceId(sid)
+	method := id.UnmarshalMethodId(mid)
+	combo := makeSidMidCombo(service, method)
+	ch := pairIdToChannel[combo]
+	ch <- param
+	// hold onto the dispatch response, we'll match it up to a
+	// return value req later
+	return &syscall.DispatchResponse{
+		ServiceId: sid,
+		MethodId:  mid,
+		CallId:    cid,
+	}
+}
 
-// 	methMapId, ok := serviceIdToMethodIdMap[serviceId.String()]
-// 	methMapName, ok := serviceIdToMethodNameMap[serviceId.String()]
-// 	if !ok {
-// 		log.Printf("unable to find service %s, cannot add method %s", serviceId.Short(), methodName)
-// 		return id.MethodIdZeroValue(), syscall.KernelErr_NotFound
-// 	}
-// 	var newId id.MethodId
-// 	_, ok = methMapId[methodName]
-// 	if !ok {
-// 		newId = id.NewMethodId()
-// 		methMapId[newId.String()] = methodName
-// 		methMapName[methodName] = newId
-// 	}
-// 	return newId, syscall.KernelErr_NoError
-// }
+func makeSidMidCombo(sid id.ServiceId, mid id.MethodId) string {
+	return sid.String() + "," + mid.String()
+}

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -42,6 +43,17 @@ func (c *ClientSideService) ServiceId() id.ServiceId {
 }
 func (c *ClientSideService) ServiceMethodMap() *apiwasm.ServiceMethodMap {
 	return c.smMap
+}
+func (c *ClientSideService) String() string {
+	buf := &bytes.Buffer{}
+	for _, pair := range c.smMap.Pair() {
+		mid := id.UnmarshalMethodId(pair.GetMethodId())
+		buf.WriteString(fmt.Sprintf("%s:%s ", c.smMap.MethodIdToName(mid), mid.Short()))
+	}
+	msg := fmt.Sprintf("[clientSideService: sid:%s, methods(%d):%s]", c.svc.Short(),
+		len(c.smMap.Pair()), buf.String())
+	log.Println(msg)
+	return msg
 }
 
 // Shorthand to make it cleaner for the calls from a client side proxy.

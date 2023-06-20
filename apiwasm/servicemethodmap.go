@@ -186,6 +186,17 @@ func (s *ServiceMethodMap) MethodNameToId(sid id.ServiceId, methodName string) i
 	return mid
 }
 
+// MethodIdToName is used to find a method given a particular service id.
+// This function returns "" if either the service or the method cannot be found.
+// This does not require a service id because method ids are unique.
+func (s *ServiceMethodMap) MethodIdToName(mid id.MethodId) string {
+	name, ok := s.midToName[mid.String()]
+	if !ok {
+		return ""
+	}
+	return name
+}
+
 // Len returns the number of known methods in this
 // ServiceMethodMap
 func (s *ServiceMethodMap) Len() int {
