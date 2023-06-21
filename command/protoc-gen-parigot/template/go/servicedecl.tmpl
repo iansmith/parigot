@@ -25,7 +25,7 @@ import(
     "github.com/iansmith/parigot/apiwasm" 
 
     "google.golang.org/protobuf/proto"
-
+    "google.golang.org/protobuf/types/known/anypb"
 )   
 
 {{- range .service }}
@@ -56,6 +56,27 @@ type {{$svcCamel}} interface {
 {{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
 }
+type Client{{$svcCamel}} interface {
+{{- range .GetWasmMethod}}
+
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $iParam:=.InputParam.CGType.String $package}}
+{{- $oParam:=.OutputParam.CGType.String $package}}
+
+{{- if and .InputCodeNeeded .OutputCodeNeeded }}
+    {{$methCamel}}(ctx context.Context,in *{{$iParam}}, successFn func (context.Context,*{{$oParam}}),errorFn func(context.Context,int32)) syscall.KernelErr
+{{- else }} {{/*not both*/}}
+{{- if .InputCodeNeeded }}
+    {{$methCamel}}(ctx context.Context,in *{{$iParam}},errorFn func(context.Context,int32)) syscall.KernelErr
+{{- else }} 
+    {{$methCamel}}(ctx context.Context, successFn func (context.Context,*{{$oParam}}),errorFn func(context.Context,int32)) syscall.KernelErr 
+{{- end -}}  {{/* end of either in or out */}}
+{{- end }} {{/*end of both*/}}
+{{- end }} {{/* end of range over methods */}}
+}
+
 {{- end}} {{/* closes service, the interface stuff*/}}
 
 {{- range .service }}
@@ -64,7 +85,6 @@ type {{$svcCamel}} interface {
 {{ $errId:=.GetWasmServiceErrId }}
 {{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
 
-type Client{{$svcCamel}} {{$svcCamel}}
 type Client{{$svcCamel}}_ struct {
     *lib.ClientSideService
 }
@@ -73,7 +93,14 @@ func (c * Client{{$svcCamel}}_) Dispatch(name string, param proto.Message) (*sys
     if  mid.IsZeroValue() {
         return nil,syscall.KernelErr_NotFound
     }
-    return c.ClientSideService.Dispatch(mid,param)
+    cid, kerr:= c.ClientSideService.Dispatch(mid,param)
+    if kerr!=syscall.KernelErr_NoError{
+        return nil, kerr
+    }
+    resp:=&syscall.DispatchResponse{
+        CallId:cid.Marshal(),
+    }
+    return resp, syscall.KernelErr_NoError
 }
 
 
@@ -183,43 +210,55 @@ func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Serve
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded false false .}}
 
 
-{{- if .InputCodeNeeded -}}
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) syscall.KernelErr {
-{{- else -}}
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context) syscall.KernelErr {
-{{- end -}}
-{{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, {{$errId}}) {
-{{- else -}}
-    {{$errId}} {
-{{- end -}} {{/* end of output code needed for declaration */}}
-
-{{- if .OutputCodeNeeded }}
-    out:=&{{$outParamDecl}}
-    {{$dispatchResult}}, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
-{{- else }} {{/* other side of output code needed */}}
-    _, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
-{{ end }} {{/* end of output code needed for dispatch call */}}
-
-    if int32(err)!=0{
-{{- if .OutputCodeNeeded }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
-        return nil,{{$errId}}_DispatchError
-    }
+{{- if and .InputCodeNeeded .OutputCodeNeeded  -}}
+// both
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}, successFn func (context.Context,{{$outParam}}),errorFn func(context.Context,int32)) syscall.KernelErr {
+{{- else }} {{/* else for both */}}
+{{- if .InputCodeNeeded }}
+// in
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context,in {{$inParam}}, errorFn func (context.Context,int32)) syscall.KernelErr {
 {{- else }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
-        return {{$errId}}_DispatchError
+// out
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, successfn func (context.Context,{{$outParam}}), errorFn func (context.Context,int32))  syscall.KernelErr {
+{{- end -}}
+{{- end -}}
+
+{{- if .InputCodeNeeded }}
+    raw, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+{{- else }} {{/* other side of yes output and yes input */}}
+    raw, err:= i.Dispatch("{{.WasmMethodName}}")
+{{ end }} {{/* end of output code needed for dispatch call */}}
+    if err!=syscall.KernelErr_NoError{
+        return err
     }
-{{ end }} {{/* end of output code needed for return */}}
+    cid:=id.UnmarshalCallId(raw.GetCallId())
+    fn:=func(a *anypb.Any,err int32) syscall.KernelErr {
 {{- if .OutputCodeNeeded }}
-    unmarsh := resp.Result.UnmarshalTo(out)
-    if unmarsh!=nil {
-        return nil,{{$errId}}_UnmarshalError
+        out:= {{$outParamDecl}}
+        unerr:=a.UnmarshalTo(&out)
+        if unerr!=nil {
+            pcontext.Errorf(ctx,"unable to unmarshal {{$outParam}}: %v",unerr)
+            return syscall.KernelErr_UnmarshalFailed
+        }
+        if err==0 {
+            if successFn!=nil {
+                successFn(ctx,&out)
+            }
+        } else {
+            if errorFn!=nil {
+                errorFn(ctx,err)
+            }
+        }
+{{else}}
+        if errorFn!=nil {
+            errorFn(ctx,err)
+        }
+{{end}} {{/*end of if output code needed*/}}
+        return syscall.KernelErr_NoError
     }
-    return out,{{$errId}}_NoError
-{{- else }} {{/* other side of output code needed */}}
-    return {{$errId}}_NoError
-{{- end }} {{/* output code needed */}}
+    i.ClientSideService.Continuation(cid, fn)
+    lib.AddMatchingClient(cid,i.ClientSideService)
+    return syscall.KernelErr_NoError
 }
 {{end}} {{/*ranging over methods*/}}
 {{- end}} {{/*ranging over services*/}}

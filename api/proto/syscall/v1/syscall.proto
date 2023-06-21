@@ -164,35 +164,27 @@ message DispatchRequest {
 	protosupport.v1.IdRaw call_id = 4;
 }
 
-// DispatchResponse sent by the server back to a client. It contains the return results generated
-// by the implementation of the method.    The service and method ids
-// are repeated here from the request. The call id is the one
-// provided by the caller in the request.  This is returned with
-// the response so the caller can "match up" the request and response
-// if they want to handle things asynchronously.
+// DispatchResponse sent by the server back to a client.  This what is returned
+// as the intermediate value to the caller, because the caller
+// cannot block.  This call_id value can be used on the client side
+// to map to additional info about the call.
 message DispatchResponse {
-    protosupport.v1.IdRaw service_id = 1; 
-    protosupport.v1.IdRaw method_id = 2;
-    google.protobuf.Any result = 3; // again, there is a nested response object but we don't know its type
-	int32 error = 4;
-    protosupport.v1.IdRaw call_id = 5;
+    protosupport.v1.IdRaw call_id = 1;
 }
 
 // ReturnValueRequest is used to return the result of a
-// function back to the caller.  This is used primarily
-// by the code that handles
+// function back to the caller. It is the result information
+// of a call to a service/method function.
 message ReturnValueRequest{
-  protosupport.v1.IdRaw call_id = 1;
-  protosupport.v1.IdRaw method_id = 2;
-  protosupport.v1.IdRaw service_id = 3;
-  bool failed = 4;
-  google.protobuf.Any result = 5;
-  int32 err = 6; 
+	protosupport.v1.IdRaw call_id = 1;
+	google.protobuf.Any result = 2;
+	int32 result_error = 3;
 }
 
 // ReturnValueResponse is empty because there is
 // no point to responding to a return value request.
 message ReturnValueResponse {
+	bool matched = 1;
 }
 
 message BlockUntilCallRequest{
@@ -280,6 +272,12 @@ message ServiceMethodPair {
 	protosupport.v1.IdRaw method_id =2;
 }
 
+message DispatchCompleted {
+	protosupport.v1.IdRaw call_id =1;
+	google.protobuf.Any result = 2;
+	int32 err = 3;
+}
+
 // ReadOneRequest gives a set of service/method pairs
 // that should be considered for a read.  The ReadOne
 // operation returns a single service/method pair that
@@ -292,17 +290,32 @@ message ReadOneRequest {
 	int32 timeout_in_millis = 2;
 }
 
-// ReadOneResponse returns if a timeout has occurred.
-// If timeout is true, all the other fields should be ignored.
+// ReadOneResponse is returned when the control
+// is turned over to parigot for a period of time via
+// a call to ReadOne.
+// ReadOneResponse returns timeout = true if a timeout 
+// has occurred. If timeout is true, all the other fields 
+// should be ignored.  If dispatch_result is
+// true, then the param should be considered a result
+// value and the result, the error value, and call id 
+// propagated back to the original call site, usually
+// a ClientSideService.
+// If dispatch_result is false, then the call is a call
+// on a service and method exposed by this server.  
+// In that case the pair indicates the method and service
+// being invoked, and the param and call id should be
+// to create a matching ReturnValueRequest.
+// 
 // Note that if the method denoted by the pair does not
 // take input, the value of param should be ignored and
-// it may be nil.  The call_id is provided so that a matching
-// ReturnValue call can be made.
+// it may be nil.  
 message ReadOneResponse {
     bool timeout =1;
-    ServiceMethodPair pair =2;
-	google.protobuf.Any  param = 3; 
-	protosupport.v1.IdRaw call_id = 4;
+	bool dispatch_result = 2;
+    ServiceMethodPair pair =3;
+	google.protobuf.Any param = 4; 
+	int32 result_error = 5;
+	protosupport.v1.IdRaw call_id = 6;
 }
 
 

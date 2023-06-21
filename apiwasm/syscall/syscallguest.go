@@ -70,9 +70,6 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 	// somebody else died?
 	if signal {
 		log.Printf("xxx Dispatch exiting due to signal")
-		for {
-
-		}
 		os.Exit(1)
 	}
 

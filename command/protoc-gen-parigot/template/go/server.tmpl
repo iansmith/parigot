@@ -20,6 +20,7 @@ import (
 	"github.com/iansmith/parigot/apiwasm"  
 	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"  
 	pcontext "github.com/iansmith/parigot/context"
+	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/apishared/id"
 
@@ -138,34 +139,33 @@ func ReadOneAndCall{{$svcCamel}}(ctx context.Context, binding *apiwasm.ServiceMe
 	for _, pair := range binding.Pair() {
 		req.Pair=append(req.Pair, pair)
 	}
-	fail:=false
 	req.TimeoutInMillis = timeoutInMillis
 	resp, err:=guestsyscall.ReadOne(&req)
 	if err!=syscall.KernelErr_NoError {
-		fail=true
 		return err
 	}
+	// is timeout?
 	if resp.Timeout {
 		return syscall.KernelErr_ReadOneTimeout
 	}
 
-	sid:=id.UnmarshalServiceId(resp.GetPair().ServiceId)
-	mid:=id.UnmarshalMethodId(resp.GetPair().MethodId)
-
 	rvReq:=&syscall.ReturnValueRequest{}
-	rvReq.ServiceId=resp.GetPair().ServiceId
-	rvReq.MethodId=resp.GetPair().MethodId
 	rvReq.CallId=resp.CallId
-	rvReq.Failed=fail
+	if !resp.GetDispatchResult() {	
+		sid:=id.UnmarshalServiceId(resp.GetPair().ServiceId)
+		mid:=id.UnmarshalMethodId(resp.GetPair().MethodId)
 
-	if !fail{
 		fn:=binding.Func(sid,mid)
 		funcAny, err:=fn(resp.Param)
 		rvReq.Result = funcAny
-		rvReq.Err = err
+		rvReq.ResultError = err
+		kerr:=guestsyscall.ReturnValue(rvReq)
+		return kerr
 	}
-	err=guestsyscall.ReturnValue(rvReq)
-	return err
+	// must be part of the dispatch
+	cid:=id.UnmarshalCallId(resp.GetCallId())
+	kerr:= lib.CompleteCall(cid,resp.GetParam(), resp.GetResultError())
+	return kerr
 }
 
 func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcCamel}}) (*apiwasm.ServiceMethodMap, syscall.KernelErr) {
