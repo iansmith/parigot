@@ -2,25 +2,27 @@ package lib
 
 import (
 	"context"
-	"log"
 
 	pcontext "github.com/iansmith/parigot/context"
 
 	"github.com/iansmith/parigot/g/queue/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
-func FindOrCreateQueue(ctx context.Context, queueSvc queue.Queue, name string) (queue.QueueId, queue.QueueErr) {
+func FindOrCreateQueue(ctx context.Context, queueSvc queue.ClientQueue, name string) (queue.QueueId, queue.QueueErr) {
 	req := queue.LocateRequest{}
 	req.QueueName = name
 	pcontext.Infof(ctx, "FindOrCreateQueue: looking for queue '%s'...", name)
-	real := queueSvc.(*queue.ClientQueue_)
+	//real := queueSvc.(*queue.ClientQueue_)
 	//smmap := real.ServiceMethodMap()
 	// for _, v := range smmap.Pair() {
 	// 	sid := id.UnmarshalServiceId(v.ServiceId)
 	// 	mid := id.UnmarshalMethodId(v.MethodId)
 	// }
-	log.Printf("findOrCreateQueue: real is %s", real.ClientSideService.String())
-	resp, err := queueSvc.Locate(ctx, &req)
+	afterLocate := func(ctx context.Context, resp *queue.LocateResponse, err queue.QueueErr) syscall.KernelErr {
+
+	}
+	queueSvc.Locate(ctx, &req, afterLocate, locateErr)
 	if err != queue.QueueErr_NoError && err == queue.QueueErr_NotFound {
 		// it's a not found, so create it
 		pcontext.Infof(ctx, "FindOrCreateQueue: looking for queue '%s'...", name)

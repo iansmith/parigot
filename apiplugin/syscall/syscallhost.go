@@ -12,7 +12,6 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-	"github.com/iansmith/parigot/g/protosupport/v1"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -25,17 +24,32 @@ var serviceIdToName = make(map[string]string)
 var serviceIdToMethodNameMap = make(map[string]map[string]id.MethodId)
 var serviceIdToMethodIdMap = make(map[string]map[string]string)
 
-var pairIdToChannel = make(map[string]chan *anypb.Any)
+var pairIdToChannel = make(map[string]chan CallInfo)
 
-// key in pending calls is cid
-var pendingCalls = make(map[string]DispatchSync)
-
-type SyscallPlugin struct {
+// retValPair is the two return values that need to go back to the
+// proper call site on the client side. Calls to returnValue will
+// set these for later transmission to client.
+type retValPair struct {
+	Result *anypb.Any
+	Error  int32
 }
 
-type DispatchSync struct {
-	resp *syscall.DispatchResponse
-	ch   chan struct{}
+// key in pending calls is cid
+var pendingCalls = make(map[string]DispatchInfo)
+
+// DispatchInfo
+type DispatchInfo struct {
+	cid id.CallId
+	ch  chan retValPair
+}
+
+// CallInfo is sent to the channels that represent service/method calls.
+type CallInfo struct {
+	cid   id.CallId
+	param *anypb.Any
+}
+
+type SyscallPlugin struct {
 }
 
 var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
@@ -79,31 +93,27 @@ func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.L
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	//mid, err := addMethodByName(ctx, sid, req.GetMethodName())
-	// if err != syscall.KernelErr_NoError {
-	// 	return int32(err)
-	// }
 	mid := id.NewMethodId()
 	resp.MethodId = mid.Marshal()
 	svc := coordinator().ServiceById(ctx, sid)
 	svc.AddMethod(req.GetMethodName(), mid)
 
-	pairIdToChannel[makeSidMidCombo(sid, mid)] = make(chan *anypb.Any)
+	pairIdToChannel[makeSidMidCombo(sid, mid)] = make(chan CallInfo, 1)
 	return int32(syscall.KernelErr_NoError)
 }
 
-var exampleTime time.Time
-
 func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
-	numCases := len(req.Pair)
+	numCases := len(req.Pair) + len(pendingCalls)
 	if req.TimeoutInMillis >= 0 {
 		numCases++
 	}
-	cases := make([]reflect.SelectCase, numCases)
 	if numCases == 0 {
 		resp.Pair = nil
 		return int32(syscall.KernelErr_NoError)
 	}
+	flatten := make([]DispatchInfo, len(pendingCalls))
+	cases := make([]reflect.SelectCase, numCases)
+	firstPending := len(req.Pair)
 	for i, pair := range req.Pair {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
@@ -111,27 +121,63 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
+	count := len(req.Pair)
+	for _, info := range pendingCalls {
+		cases[count] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(info.ch)}
+		flatten[count-len(req.Pair)] = info
+		count++
+	}
 	if req.TimeoutInMillis >= 0 {
 		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
-		cases[len(req.Pair)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+		cases[len(req.Pair)+len(pendingCalls)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
 	chosen, value, ok := reflect.Select(cases)
 	// ok will be true if the channel has not been closed.
 	if !ok {
 		return int32(syscall.KernelErr_KernelConnectionFailed)
 	}
-	if chosen == len(req.Pair) {
+	// is timeout?
+	if chosen == len(req.Pair)+len(pendingCalls) {
 		resp.Timeout = true
 		return int32(syscall.KernelErr_NoError)
 	}
+	// is service/method call?
 	resp.Timeout = false
-	pair := req.Pair[chosen]
-	resp.Pair.ServiceId = pair.ServiceId
-	resp.Pair.MethodId = pair.MethodId
-	if !value.IsNil() {
-		resp.Param = value.Interface().(*anypb.Any)
+	if chosen < firstPending {
+		resp.DispatchResult = false
+		pair := req.Pair[chosen]
+		resp.Pair.ServiceId = pair.ServiceId
+		resp.Pair.MethodId = pair.MethodId
+		if !value.IsNil() {
+			resp.Param = value.Interface().(*anypb.Any)
+		}
+		return int32(syscall.KernelErr_NoError)
 	}
+	// must be a dispatch
+	resp.DispatchResult = true
+	resp.Pair = nil
+	msg := value.Interface().(*retValPair)
+	resp.CallId = flatten[chosen].cid.Marshal()
+	resp.Param = msg.Result
+	resp.ResultError = msg.Error
 	return int32(syscall.KernelErr_NoError)
+}
+
+func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
+	cid := id.UnmarshalCallId(req.GetCallId())
+	ret := retValPair{
+		Result: req.GetResult(),
+		Error:  req.GetResultError(),
+	}
+	call, ok := pendingCalls[cid.String()]
+	if !ok {
+		resp.Matched = false
+		return int32(0)
+	}
+	call.ch <- ret
+	resp.Matched = true
+	delete(pendingCalls, cid.String())
+	return int32(0)
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
@@ -150,16 +196,27 @@ func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.L
 }
 
 func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
-	param := req.GetParam()
-	cid := req.GetCallId()
-	dispResp := makeCall(req.GetServiceId(),
-		req.GetMethodId(), req.GetCallId(), param)
-	ch := make(chan struct{})
-	pendingCalls[cid.String()] = DispatchSync{
-		resp: dispResp,
-		ch:   ch,
+	sid := id.UnmarshalServiceId(req.GetServiceId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+	cid := id.UnmarshalCallId(req.GetCallId())
+
+	target := pairIdToChannel[makeSidMidCombo(sid, mid)]
+	if target == nil {
+		return int32(syscall.KernelErr_NotFound)
 	}
-	<-ch
+
+	resp.CallId = cid.Marshal()
+
+	ch := make(chan retValPair, 1)
+	pendingCalls[cid.String()] = DispatchInfo{
+		cid: cid,
+		ch:  ch,
+	}
+	cm := CallInfo{
+		cid:   cid,
+		param: req.GetParam(),
+	}
+	target <- cm
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -224,8 +281,8 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.BindMethodRequest{}
 	resp := &syscall.BindMethodResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]bindMethod", m, stack, bindMethodImpl, req, resp)
-
 }
+
 func launch(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.LaunchRequest{}
 	resp := (*syscall.LaunchResponse)(nil)
@@ -237,7 +294,10 @@ func export(ctx context.Context, m api.Module, stack []uint64) {
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, exportImpl, req, resp)
 }
 func returnValue(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("returnValue 0x%x", stack)
+	req := &syscall.ReturnValueRequest{}
+	resp := (*syscall.ReturnValueResponse)(nil)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]returnValue", m, stack, returnValueImpl, req, resp)
+
 }
 
 func require(ctx context.Context, m api.Module, stack []uint64) {
@@ -262,21 +322,6 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 func exit(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("exit 0x%x", stack)
 	panic("exit called ")
-}
-
-func makeCall(sid, mid, cid *protosupport.IdRaw, param *anypb.Any) *syscall.DispatchResponse {
-	service := id.UnmarshalServiceId(sid)
-	method := id.UnmarshalMethodId(mid)
-	combo := makeSidMidCombo(service, method)
-	ch := pairIdToChannel[combo]
-	ch <- param
-	// hold onto the dispatch response, we'll match it up to a
-	// return value req later
-	return &syscall.DispatchResponse{
-		ServiceId: sid,
-		MethodId:  mid,
-		CallId:    cid,
-	}
 }
 
 func makeSidMidCombo(sid id.ServiceId, mid id.MethodId) string {

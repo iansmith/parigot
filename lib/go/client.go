@@ -25,6 +25,7 @@ import (
 type ClientSideService struct {
 	svc   id.ServiceId
 	smMap *apiwasm.ServiceMethodMap
+	cont  map[string]Pcob
 }
 
 func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.ServiceMethodMap) *ClientSideService {
@@ -35,15 +36,37 @@ func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.Serv
 	return &ClientSideService{
 		svc:   id,
 		smMap: sm,
+		cont:  make(map[string]func(*anypb.Any, int32) syscall.KernelErr),
 	}
 }
 
 func (c *ClientSideService) ServiceId() id.ServiceId {
 	return c.svc
 }
+
 func (c *ClientSideService) ServiceMethodMap() *apiwasm.ServiceMethodMap {
 	return c.smMap
 }
+func (c *ClientSideService) Continuation(cid id.CallId, fn func(*anypb.Any, int32) syscall.KernelErr) {
+	c.cont[cid.String()] = fn
+}
+
+// Complete call is used to connect the return results of a dispatch call
+// the proper continues (success or failure).  This function returns
+// a value that is ONLY regarding the setup/teardown behavior, not that of
+// the called continuations.
+func (c *ClientSideService) CompleteCall(cid id.CallId, a *anypb.Any, err int32) syscall.KernelErr {
+	fn, ok := c.cont[cid.String()]
+	if !ok {
+		return syscall.KernelErr_NotFound
+	}
+	e := fn(a, err)
+	delete(c.cont, cid.String())
+	return e
+}
+
+// String() returns a useful stringn for debugging a client side service.
+// This includes all the known methods for the service.
 func (c *ClientSideService) String() string {
 	buf := &bytes.Buffer{}
 	for _, pair := range c.smMap.Pair() {
@@ -56,30 +79,37 @@ func (c *ClientSideService) String() string {
 	return msg
 }
 
-// Shorthand to make it cleaner for the calls from a client side proxy.
-func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (*syscall.DispatchResponse, syscall.KernelErr) {
+// Dispatch is called by every client side "method" on the client side
+// service. This funciton is the one that make a system call to the
+// kernel and prepares for handling the result.
+func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (id.CallId, syscall.KernelErr) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
 			// do we want to have a special error type for this?
-			return nil, syscall.KernelErr_MarshalFailed
+			return id.CallIdZeroValue(), syscall.KernelErr_MarshalFailed
 		}
 	}
 	if c.svc.IsZeroOrEmptyValue() {
 		panic("cannot dispatch to an unknown service! client side service field 'svc' is zero or empty")
 	}
 	if method.IsZeroOrEmptyValue() {
-		print("!!!!!! METHOD IS ZERO !!!!!!\n")
 		panic("cannot dispatch to an unknown method! client side service field 'method id' is zero or empty")
 	}
 	in := &syscall.DispatchRequest{
 		ServiceId: c.svc.Marshal(),
 		MethodId:  method.Marshal(),
+		CallId:    id.NewCallId().Marshal(),
 		Param:     a,
 	}
-	return syscallguest.Dispatch(in)
+	resp, kerr := syscallguest.Dispatch(in)
+	if kerr != syscall.KernelErr_NoError {
+		return id.CallIdZeroValue(), kerr
+	}
+	cid := id.UnmarshalCallId(resp.GetCallId())
+	return cid, syscall.KernelErr_NoError
 }
 
 func (c *ClientSideService) Launch() (*syscall.LaunchResponse, syscall.KernelErr) {
