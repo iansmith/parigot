@@ -71,10 +71,17 @@ func build(ctx context.Context) error {
 
 	// initialize image fron dockerfile
 	// mount a host directory in the container at the '/workspaces/parigot' path
-	img := client.Container().
-		Build(dockerDir).
-		WithDirectory(
-			"/workspaces/parigot",
+	//img := client.Container().
+	//	Build(dockerDir).
+	//	WithDirectory(
+	//		"/workspaces/parigot",
+	//		client.Host().Directory("."),
+	//		dagger.ContainerWithDirectoryOptws{Exclude: []string{".devcontainer/", "ci/", "build/", "g/"}},
+	//	).
+	//	WithWorkdir("/workspaces/parigot").
+	//	WithUser("root")
+	img := dockerDir.DockerBuild().
+		WithDirectory("/workspaces/parigot",
 			client.Host().Directory("."),
 			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/", "g/"}},
 		).
