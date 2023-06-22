@@ -2,12 +2,13 @@ package file
 
 import (
 	"context"
+	"io"
 	"path/filepath"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
+	"github.com/iansmith/parigot/apishared"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
@@ -22,7 +23,7 @@ import (
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
 const pathPrefix = "/parigot/app/"
-const maxBufSize = 16000
+const maxBufSize = apishared.MaxBufSize
 
 var (
 	fileSvc    *fileSvcImpl
@@ -49,10 +50,12 @@ type FilePlugin struct{}
 type fileInfo struct {
 	id             file.FileId
 	path           string
+	length         int // length of the file content
 	content        string
 	status         FileStatus
-	createDate     time.Time
-	lastAccessTime time.Time
+	createDate     string
+	lastAccessTime string
+	prevRune       int // index of previous rune; or 0
 }
 
 // for now, create a map of FileId -> to myFileInfo
@@ -86,17 +89,23 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 }
 
 func (fi *fileInfo) Read(p []byte) (n int, err error) {
-	for i, b := range []byte(fi.content) {
+	// check current position is not the end of file
+	if fi.prevRune == fi.length {
+		return 0, io.EOF
+	}
+
+	for i, b := range []byte(fi.content)[fi.prevRune:] {
+		// when length of file is larget than the size of buffer
 		if i >= len(p) {
-			fi.lastAccessTime = time.Now()
-			fi.status = Fs_Close
+			fi.prevRune += i
 			return len(p), nil
 		}
 		p[i] = b
 	}
-	fi.lastAccessTime = time.Now()
-	fi.status = Fs_Close
-	return len(fi.content), nil
+
+	// buffer is larger
+	fi.prevRune = fi.length
+	return fi.length, nil
 }
 
 func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
@@ -158,22 +167,25 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	fileDataCache := *f.fileDataCache
 
 	// if file doesn't exist, return an error
-	if fid, exist := fpathTofid[cleanPath]; !exist {
+	fid, exist := fpathTofid[cleanPath]
+	if !exist {
 		pcontext.Errorf(ctx, "file does not exist and cannot be opened: %s", fpath)
 
 		return int32(file.FileErr_NotExistError)
-	} else {
-		// check file status
-		if fileDataCache[fid].status == Fs_Open {
-			pcontext.Errorf(ctx, "file is open, cannot be opened again: %s", fpath)
-
-			return int32(file.FileErr_AlreadyInUseError)
-		}
-
-		resp.Id = fid.Marshal()
-		fileDataCache[fid].lastAccessTime = time.Now()
-		fileDataCache[fid].status = Fs_Open
 	}
+
+	myFileInfo := fileDataCache[fid]
+	// check file status
+	if myFileInfo.status == Fs_Open {
+		pcontext.Errorf(ctx, "file is open, cannot be opened again: %s", fpath)
+
+		return int32(file.FileErr_AlreadyInUseError)
+	}
+
+	resp.Id = fid.Marshal()
+
+	myFileInfo.lastAccessTime = pcontext.CurrentTimeString(ctx, true)
+	myFileInfo.status = Fs_Open
 
 	return int32(file.FileErr_NoError)
 }
@@ -181,6 +193,8 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 // WRITE only
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
+
+	currentTime := pcontext.CurrentTimeString(ctx, true)
 
 	fpath := req.GetPath()
 
@@ -200,17 +214,18 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	if fid, exist := fpathTofid[fpath]; exist {
 		resp.Id = fid.Marshal()
 
+		myFileInfo := fileDataCache[fid]
 		// check file status first, a opened file cannot be created at the same time
-		if fileDataCache[fid].status == Fs_Open {
+		if myFileInfo.status == Fs_Open {
 			pcontext.Errorf(ctx, "file is open, cannot be created: %s", fpath)
 
 			return int32(file.FileErr_AlreadyInUseError)
 		}
 		// extend a file
 		resp.Truncated = true
-		fileDataCache[fid].content += content
-		fileDataCache[fid].lastAccessTime = time.Now()
-		fileDataCache[fid].createDate = time.Now()
+		myFileInfo.content += content
+		myFileInfo.lastAccessTime = currentTime
+		myFileInfo.length += len(content)
 	} else {
 		// create a file id
 		fid := file.NewFileId()
@@ -219,10 +234,12 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 		newFileInfo := fileInfo{
 			id:             fid,
 			path:           cleanPath,
+			length:         len(content),
 			content:        content,
 			status:         Fs_Close,
-			createDate:     time.Now(),
-			lastAccessTime: time.Now(),
+			createDate:     currentTime,
+			lastAccessTime: currentTime,
+			prevRune:       0,
 		}
 		fileDataCache[fid] = &newFileInfo
 		fpathTofid[cleanPath] = fid
@@ -263,10 +280,10 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *fil
 		return int32(file.FileErr_NotExistError)
 	}
 
-	myfileInfo := fileDataCache[fid]
-	fpath := myfileInfo.path
+	myFileInfo := fileDataCache[fid]
+	fpath := myFileInfo.path
 	// check file status, we cannot read a closed file
-	if myfileInfo.status == Fs_Close {
+	if myFileInfo.status == Fs_Close {
 		pcontext.Errorf(ctx, "file is closed, cannot be read: %s", fpath)
 
 		return int32(file.FileErr_FileClosedError)
@@ -280,17 +297,14 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *fil
 
 		return int32(file.FileErr_BufferFullError)
 	}
-	if int(bufSize) < len(myfileInfo.content) {
-		resp.Truncated = true
-	} else {
-		resp.Truncated = false
-	}
 
 	buf := make([]byte, bufSize)
-	myfileInfo.Read(buf)
+	n, _ := myFileInfo.Read(buf)
+	myFileInfo.lastAccessTime = pcontext.CurrentTimeString(ctx, true)
 
 	resp.Id = req.GetId()
 	resp.Buf = buf
+	resp.NumRead = int32(n)
 
 	return int32(file.FileErr_NoError)
 }

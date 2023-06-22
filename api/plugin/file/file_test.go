@@ -13,8 +13,10 @@ import (
 // the tests ignore the wrapper functions and use the
 // real impleentations directly.
 
-const fileContent = "Hello! Parigot!"
+const fileContent = "Hello!Parigot!"
 const filePath = "/parigot/app/file.go"
+
+var notExistFid = file.NewFileId()
 
 func TestOpenClose(t *testing.T) {
 	svc := newFileSvc((context.Background()))
@@ -32,6 +34,8 @@ func TestOpenClose(t *testing.T) {
 	if !badFid.IsEmptyValue() {
 		t.Errorf("accidentally opened a file with the a bad path name")
 	}
+	// try close a non-existing file
+	testFileClose(t, svc, notExistFid, "close a non-exisiting file", true, int32(file.FileErr_NotExistError))
 
 	// try opening and closing a file
 	fid := openAGoodFile(t, svc)
@@ -89,16 +93,39 @@ func TestCreateClose(t *testing.T) {
 	// create a file with the same path
 	fid2 = creatAGoodFile(t, svc)
 	if fid.Equal(fid2) {
-		t.Errorf("unexpected that second creation of a deleted file gives same id")
+		t.Errorf("unexpected the created file has the same ID as the deleted file")
 	}
 }
 
 func TestOpenRead(t *testing.T) {
 	svc := newFileSvc((context.Background()))
-	creatAGoodFile(t, svc)
-	//fid := openAGoodFile(t, svc)
 
-	//testFileRead(t, svc, fid, 2, "read a file", false, int32(file.FileErr_NoError))
+	// Read a file that does not exist
+	testFileRead(t, svc, notExistFid, make([]byte, 2), "read a non_existent file", true, int32(file.FileErr_NotExistError))
+
+	fid_created := creatAGoodFile(t, svc)
+
+	// read a closed file
+	testFileRead(t, svc, fid_created, make([]byte, 2), "read a closed file", true, int32(file.FileErr_FileClosedError))
+
+	fid_open := openAGoodFile(t, svc)
+	// it should be the same, but just be careful
+	if !fid_open.Equal(fid_created) {
+		t.Errorf("unexpected that the file that was just created was not opened")
+	}
+
+	// read a file content "Hello!Parigot!" twice.
+	// the 1st reading should be "Hello!"
+	// 2nd should be "Parigot!"
+	_, readBuf := testFileRead(t, svc, fid_open, make([]byte, 6), "read a file", false, int32(file.FileErr_NoError))
+	if string(readBuf) != fileContent[:6] {
+		t.Errorf("unexpected that read was not as expected")
+	}
+	_, readBuf = testFileRead(t, svc, fid_open, make([]byte, 8), "read a file", false, int32(file.FileErr_NoError))
+	if string(readBuf) != fileContent[6:] {
+		t.Errorf("unexpected that read was not as expected")
+	}
+
 }
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
@@ -195,15 +222,15 @@ func testFileOpen(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	return file.UnmarshalFileId(resp.GetId())
 }
 
-func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf_size int32,
-	msg string, errExpected bool, expectedErrCode int32) file.FileId {
+func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
+	msg string, errExpected bool, expectedErrCode int32) (file.FileId, []byte) {
 
 	ctx := pcontext.DevNullContext(context.Background())
 	t.Helper()
 
 	req := &file.ReadRequest{
-		Id:      fid.Marshal(),
-		BufSize: buf_size,
+		Id:  fid.Marshal(),
+		Buf: buf,
 	}
 	resp := &file.ReadResponse{}
 	errCode := svc.read(ctx, req, resp)
@@ -215,14 +242,14 @@ func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf_size int3
 			log.Fatalf("wrong error code in reading a file: %s, expected %d but got %d",
 				msg, expectedErrCode, errCode)
 		}
-		return file.FileIdEmptyValue()
+		return file.FileIdEmptyValue(), make([]byte, 0)
 	}
 	// no error expected case
 	if errCode != int32(file.FileErr_NoError) {
 		log.Fatalf("unexpected error in reading a file: %s :%d", msg, errCode)
 	}
 
-	return file.UnmarshalFileId(resp.GetId())
+	return file.UnmarshalFileId(resp.GetId()), buf
 }
 
 func creatAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {

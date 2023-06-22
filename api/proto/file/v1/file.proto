@@ -91,23 +91,26 @@ message LoadTestDataResponse {
 
 message ReadRequest {
   protosupport.v1.IdRaw id = 1;
-  // The length of the bytes you want to read
-  int32 buf_size = 2;
+  // Reads up to len(buf) bytes into buf
+  bytes buf = 2;
 }
 
 message ReadResponse {
   protosupport.v1.IdRaw id = 1;
-  bytes buf = 2;
-  int32 num_read = 3;
+  // The number of bytes read (0 <= num_read <= len(buf))
+  int32 num_read = 2;
 }
 
 message WriteRequest {
   protosupport.v1.IdRaw id = 1;
-  string content = 2;
+  // Writes len(buf) bytes from buf
+  bytes buf = 2;
 }
 
 message WriteResponse {
   protosupport.v1.IdRaw id = 1;
+  // The number of bytes written from buf (0 <= num_write <= len(buf)) 
+  int32 num_write = 2;
 }
 
 enum FileErr {
