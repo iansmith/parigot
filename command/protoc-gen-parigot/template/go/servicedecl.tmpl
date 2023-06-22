@@ -25,7 +25,6 @@ import(
     "github.com/iansmith/parigot/apiwasm" 
 
     "google.golang.org/protobuf/proto"
-    "google.golang.org/protobuf/types/known/anypb"
 )   
 
 {{- range .service }}
@@ -58,23 +57,23 @@ type {{$svcCamel}} interface {
 }
 type Client{{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
-
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $iParam:=.InputParam.CGType.String $package}}
 {{- $oParam:=.OutputParam.CGType.String $package}}
-
-{{- if and .InputCodeNeeded .OutputCodeNeeded }}
-    {{$methCamel}}(ctx context.Context,in *{{$iParam}}, successFn func (context.Context,*{{$oParam}}),errorFn func(context.Context,int32)) syscall.KernelErr
-{{- else }} {{/*not both*/}}
 {{- if .InputCodeNeeded }}
-    {{$methCamel}}(ctx context.Context,in *{{$iParam}},errorFn func(context.Context,int32)) syscall.KernelErr
+    {{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }} 
-    {{$methCamel}}(ctx context.Context, successFn func (context.Context,*{{$oParam}}),errorFn func(context.Context,int32)) syscall.KernelErr 
-{{- end -}}  {{/* end of either in or out */}}
-{{- end }} {{/*end of both*/}}
+    {{$methCamel}}(ctx context.Context) 
+{{- end -}} 
+{{- if .OutputCodeNeeded -}}
+    lib.Promise[*{{$oParam}}, {{$errId}}]
+{{- else -}}
+    lib.Promise[any,{{$errId}}]
+{{- end -}} {{/* end of output code needed for declaration */}}
 {{- end }} {{/* end of range over methods */}}
+
 }
 
 {{- end}} {{/* closes service, the interface stuff*/}}
@@ -212,53 +211,35 @@ func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Serve
 
 {{- if and .InputCodeNeeded .OutputCodeNeeded  -}}
 // both
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}, successFn func (context.Context,{{$outParam}}),errorFn func(context.Context,int32)) syscall.KernelErr {
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) lib.Promise[{{$outParam}},{{$errId}}]{
+    raw, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
+    if err!=syscall.KernelErr_NoError{
+        return lib.Promise[{{$outParam}},{{$errId}}]{}, err
+    }
+    cid:=id.UnmarshalCallId(raw.GetCallId())
+    return lib.NewPromiseFromProto[{{$outParam}},{{$errId}}](i.ClientSideService,cid)
+
 {{- else }} {{/* else for both */}}
 {{- if .InputCodeNeeded }}
 // in
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context,in {{$inParam}}, errorFn func (context.Context,int32)) syscall.KernelErr {
-{{- else }}
-// out
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, successfn func (context.Context,{{$outParam}}), errorFn func (context.Context,int32))  syscall.KernelErr {
-{{- end -}}
-{{- end -}}
-
-{{- if .InputCodeNeeded }}
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context,in {{$inParam}}) lib.Promise[any,{{$errId}}] {
     raw, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
-{{- else }} {{/* other side of yes output and yes input */}}
-    raw, err:= i.Dispatch("{{.WasmMethodName}}")
-{{ end }} {{/* end of output code needed for dispatch call */}}
     if err!=syscall.KernelErr_NoError{
-        return err
+        return lib.PromiseOnlyError[{{$errId}}]{}, err
     }
     cid:=id.UnmarshalCallId(raw.GetCallId())
-    fn:=func(a *anypb.Any,err int32) syscall.KernelErr {
-{{- if .OutputCodeNeeded }}
-        out:= {{$outParamDecl}}
-        unerr:=a.UnmarshalTo(&out)
-        if unerr!=nil {
-            pcontext.Errorf(ctx,"unable to unmarshal {{$outParam}}: %v",unerr)
-            return syscall.KernelErr_UnmarshalFailed
-        }
-        if err==0 {
-            if successFn!=nil {
-                successFn(ctx,&out)
-            }
-        } else {
-            if errorFn!=nil {
-                errorFn(ctx,err)
-            }
-        }
-{{else}}
-        if errorFn!=nil {
-            errorFn(ctx,err)
-        }
-{{end}} {{/*end of if output code needed*/}}
-        return syscall.KernelErr_NoError
+    p:=lib.NewPromiseErrOnly[any,{{$errId}}]()
+{{- else }}
+// out
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context)  lib.Promise[{{$outParam}},{{$errId}}] {
+    raw, err:= i.Dispatch("{{.WasmMethodName}}")
+    if err!=syscall.KernelErr_NoError{
+        return lib.Promise[{{$outParam}},{{$errId}}], err
     }
-    i.ClientSideService.Continuation(cid, fn)
-    lib.AddMatchingClient(cid,i.ClientSideService)
-    return syscall.KernelErr_NoError
+    cid:=id.UnmarshalCallId(raw.GetCallId())
+    return lib.NewPromiseFromProto[{{$outParam}},{{$errId}}](i.ClientSideService,cid)
+{{- end -}} {{/*end of need input plus else */}}
+{{- end -}} {{/*end of need both */}}
 }
 {{end}} {{/*ranging over methods*/}}
 {{- end}} {{/*ranging over services*/}}

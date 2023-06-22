@@ -23,9 +23,10 @@ import (
 // message call requests and this type sends it to the
 // kernel.
 type ClientSideService struct {
-	svc   id.ServiceId
-	smMap *apiwasm.ServiceMethodMap
-	cont  map[string]Pcob
+	svc     id.ServiceId
+	smMap   *apiwasm.ServiceMethodMap
+	contOut map[string]Promise[proto.Message, int32]
+	contErr map[string]PromiseOnlyError[int32]
 }
 
 func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.ServiceMethodMap) *ClientSideService {
@@ -34,9 +35,9 @@ func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.Serv
 		//debug.PrintStack()
 	}
 	return &ClientSideService{
-		svc:   id,
-		smMap: sm,
-		cont:  make(map[string]func(*anypb.Any, int32) syscall.KernelErr),
+		svc:     id,
+		smMap:   sm,
+		contOut: make(map[string]Promise[proto.Message, int32]),
 	}
 }
 
@@ -48,7 +49,7 @@ func (c *ClientSideService) ServiceMethodMap() *apiwasm.ServiceMethodMap {
 	return c.smMap
 }
 func (c *ClientSideService) Continuation(cid id.CallId, fn func(*anypb.Any, int32) syscall.KernelErr) {
-	c.cont[cid.String()] = fn
+	//c.contOut[cid.String()] = fn
 }
 
 // Complete call is used to connect the return results of a dispatch call
@@ -56,13 +57,13 @@ func (c *ClientSideService) Continuation(cid id.CallId, fn func(*anypb.Any, int3
 // a value that is ONLY regarding the setup/teardown behavior, not that of
 // the called continuations.
 func (c *ClientSideService) CompleteCall(cid id.CallId, a *anypb.Any, err int32) syscall.KernelErr {
-	fn, ok := c.cont[cid.String()]
-	if !ok {
-		return syscall.KernelErr_NotFound
-	}
-	e := fn(a, err)
-	delete(c.cont, cid.String())
-	return e
+	// fn, ok := c.cont[cid.String()]
+	// if !ok {
+	// 	return syscall.KernelErr_NotFound
+	// }
+	// e := fn(a, err)
+	// delete(c.cont, cid.String())
+	return syscall.KernelErr_NoError
 }
 
 // String() returns a useful stringn for debugging a client side service.
@@ -98,17 +99,23 @@ func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (i
 	if method.IsZeroOrEmptyValue() {
 		panic("cannot dispatch to an unknown method! client side service field 'method id' is zero or empty")
 	}
+	// this is where it all begins
+	cid := id.NewCallId()
 	in := &syscall.DispatchRequest{
 		ServiceId: c.svc.Marshal(),
 		MethodId:  method.Marshal(),
-		CallId:    id.NewCallId().Marshal(),
+		CallId:    cid.Marshal(),
 		Param:     a,
+		HostId:    CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Dispatch(in)
 	if kerr != syscall.KernelErr_NoError {
 		return id.CallIdZeroValue(), kerr
 	}
-	cid := id.UnmarshalCallId(resp.GetCallId())
+	cid2 := id.UnmarshalCallId(resp.GetCallId())
+	if !cid.Equal(cid2) {
+		panic("mismatched call ids in dispatch")
+	}
 	return cid, syscall.KernelErr_NoError
 }
 
@@ -146,6 +153,7 @@ func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
+		HostId:      CurrentHost().Marshal(),
 	}
 	in := &syscall.ExportRequest{
 		Service: []*syscall.FullyQualifiedService{fqs},

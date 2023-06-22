@@ -119,7 +119,7 @@ enum KernelErr{
     // an id type into a system call.  This usually means that you did not 
     // properly initialize a protobuf.
 	  BadId = 26;
-	// ReadyFailedindicates that the service that was trying
+	// NotReady that the service that was trying
 	// to start was aborted because it returned false from Ready().
 	// Usually this error indicates that the program has no way to
     // continue running.
@@ -133,6 +133,11 @@ enum KernelErr{
 	  // ReadOneTimeout means that the program was trying to request
 	  // a service/method pair to invoke, but the request timed out.
 	  ReadOneTimeout = 30;
+	  // BadCallId is returned when trying to match up the results
+	  // and the call of a function resulting in a promise. It is returned
+	  // if either there is no such cid registered yet or the cid
+	  // is already in use.
+	  BadCallId = 31;
 
 };
 
@@ -149,11 +154,12 @@ message LocateRequest {
 }
 
 // LocateResponse hands back the service Id of the package_name and service_name supplied in the request.
-// A service id can be thought of as a (hostname,port) pair that defines which
+// A service id can be thought of as a (network hostname,port) pair that defines which
 // service's "location".
 message LocateResponse {
-    protosupport.v1.IdRaw service_id = 1;
-	repeated MethodBinding binding = 2;
+	protosupport.v1.IdRaw host_id = 1;
+    protosupport.v1.IdRaw service_id = 2;
+	repeated MethodBinding binding = 3;
 }
 
 // DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
@@ -162,6 +168,7 @@ message DispatchRequest {
     protosupport.v1.IdRaw method_id = 2;
     google.protobuf.Any  param = 3;  // inside is another Request object, but we don't know its type
 	protosupport.v1.IdRaw call_id = 4;
+	protosupport.v1.IdRaw host_id = 5;
 }
 
 // DispatchResponse sent by the server back to a client.  This what is returned
@@ -172,19 +179,27 @@ message DispatchResponse {
     protosupport.v1.IdRaw call_id = 1;
 }
 
+// Host is a data structure for retaining information about 
+// previously discovered networkhosts. It is also used when 
+// exporting a service to declare that the service is an
+// implementation
+message Host {
+    protosupport.v1.IdRaw host_id = 1;
+	string name = 2;
+}
+
 // ReturnValueRequest is used to return the result of a
 // function back to the caller. It is the result information
 // of a call to a service/method function.
 message ReturnValueRequest{
-	protosupport.v1.IdRaw call_id = 1;
-	google.protobuf.Any result = 2;
-	int32 result_error = 3;
+	protosupport.v1.IdRaw host_id = 1;
+	protosupport.v1.IdRaw call_id = 2;
+	google.protobuf.Any result = 3;
+	int32 result_error = 4;
 }
 
-// ReturnValueResponse is empty because there is
-// no point to responding to a return value request.
+// ReturnValueResponse is currently empty.
 message ReturnValueResponse {
-	bool matched = 1;
 }
 
 message BlockUntilCallRequest{
@@ -205,7 +220,6 @@ enum MethodDirection {
   METHOD_DIRECTION_BOTH = 3;
 }
 
-
 message BindMethodRequest  {
   protosupport.v1.IdRaw service_id = 1;
   string method_name = 2;
@@ -222,7 +236,8 @@ message FullyQualifiedService {
 }
 
 message ExportRequest {
-  repeated FullyQualifiedService service = 1;
+	repeated FullyQualifiedService service = 1;
+	protosupport.v1.IdRaw host_id = 2;
 }
 
 message ExportResponse {
@@ -272,10 +287,11 @@ message ServiceMethodPair {
 	protosupport.v1.IdRaw method_id =2;
 }
 
-message DispatchCompleted {
-	protosupport.v1.IdRaw call_id =1;
-	google.protobuf.Any result = 2;
-	int32 err = 3;
+message ResolvedCall {
+	protosupport.v1.IdRaw host_id = 1;
+	protosupport.v1.IdRaw call_id =2;
+	google.protobuf.Any result = 3;
+	int32 result_error = 4;
 }
 
 // ReadOneRequest gives a set of service/method pairs
@@ -285,9 +301,15 @@ message DispatchCompleted {
 // the timeout bool is returned. If the timeout value
 // is 0, then an instanteous sample is returned.  If
 // the timeout value is negative, it means wait forever.
+// In addition to potential calls on the service who
+// requests this read, it is also possible that the
+// return value represents a completed call from a previous
+// point in the execution of the calling program.
 message ReadOneRequest {
 	repeated ServiceMethodPair pair = 1;
 	int32 timeout_in_millis = 2;
+	protosupport.v1.IdRaw call_id = 3;
+	Host host = 4;
 }
 
 // ReadOneResponse is returned when the control
@@ -295,11 +317,15 @@ message ReadOneRequest {
 // a call to ReadOne.
 // ReadOneResponse returns timeout = true if a timeout 
 // has occurred. If timeout is true, all the other fields 
-// should be ignored.  If dispatch_result is
-// true, then the param should be considered a result
-// value and the result, the error value, and call id 
-// propagated back to the original call site, usually
-// a ClientSideService.
+// should be ignored. There are two types of results and
+// these are mutually exclusive.
+//
+// If resolved is not nil, then this a notification that a
+// call made by this program have completed.  The
+// resolved field holds information about the completed call, 
+// and that data needs to be matched with the appropriate call ids 
+// and the promises resolved.
+//
 // If dispatch_result is false, then the call is a call
 // on a service and method exposed by this server.  
 // In that case the pair indicates the method and service
@@ -311,11 +337,7 @@ message ReadOneRequest {
 // it may be nil.  
 message ReadOneResponse {
     bool timeout =1;
-	bool dispatch_result = 2;
-    ServiceMethodPair pair =3;
-	google.protobuf.Any param = 4; 
-	int32 result_error = 5;
-	protosupport.v1.IdRaw call_id = 6;
+    ServiceMethodPair pair =2;
+	google.protobuf.Any param = 3; 
+	ResolvedCall resolved = 4;
 }
-
-

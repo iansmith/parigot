@@ -5,6 +5,7 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Service is the logical representation of a service. This is
@@ -86,4 +87,41 @@ type SyscallData interface {
 	// PathExists returns true if there is a sequence of dependency
 	// graph vertices that eventually leads from source to target.
 	PathExists(ctx context.Context, source, target string) bool
+}
+
+// CallMatcher is an internal data structure object that
+// connects calls to Dispatch (the call) with the response
+// which are created by ReturnValue requests.
+type CallMatcher interface {
+	// Response is called when a return value is
+	// being processed. Any value that
+	// is returned is NOT from the execution but from
+	// the Response call itself.  Be aware that the
+	// Response call is likely to be from a different
+	// host than the original Dispatch call.
+	Response(cid id.CallId, a *anypb.Any, err int32) syscall.KernelErr
+	// Dispatch creates the necessary entries to handle
+	// a future call to Response.  The value returned is
+	// related to the Dispatch itself, it is not related
+	// to the execution of the call being registered.
+	Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr
+	// Ready returns a resolved call or nil if no Promises are
+	// resolved for the given host.
+	Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)
+}
+
+// HostFinder returns information about a host in the format used
+// by the syscall struct. It is convention to use the fully qualified
+// name of the service for the name.
+type HostFinder interface {
+	// FindByName finds the correct host by the name field.
+	// If the name cannot be found, it returns nil.
+	FindByName(name string) *syscall.Host
+	// FindById finds the correct host by the id field.
+	// If the id cannot be found it returns nil.
+	FindById(id id.HostId) *syscall.Host
+	// AddHost is used to add a record to the set of hosts
+	// that are know. This call will panic if either the
+	// name or id is not set.
+	AddHost(h *syscall.Host) syscall.KernelErr
 }

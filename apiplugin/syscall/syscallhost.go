@@ -18,30 +18,7 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-var serviceNameToId = make(map[string]id.ServiceId)
-var serviceIdToName = make(map[string]string)
-
-var serviceIdToMethodNameMap = make(map[string]map[string]id.MethodId)
-var serviceIdToMethodIdMap = make(map[string]map[string]string)
-
 var pairIdToChannel = make(map[string]chan CallInfo)
-
-// retValPair is the two return values that need to go back to the
-// proper call site on the client side. Calls to returnValue will
-// set these for later transmission to client.
-type retValPair struct {
-	Result *anypb.Any
-	Error  int32
-}
-
-// key in pending calls is cid
-var pendingCalls = make(map[string]DispatchInfo)
-
-// DispatchInfo
-type DispatchInfo struct {
-	cid id.CallId
-	ch  chan retValPair
-}
 
 // CallInfo is sent to the channels that represent service/method calls.
 type CallInfo struct {
@@ -75,11 +52,19 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 //
 
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
+	hid := id.UnmarshalHostId(req.GetHostId())
 	for _, fullyQualified := range req.GetService() {
-		sid, _ := coordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+		sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
-		if coordinator().Export(ctx, sid.Id()) == nil {
+		if startCoordinator().Export(ctx, sid.Id()) == nil {
 			return int32(syscall.KernelErr_NotFound)
+		}
+		host := &syscall.Host{
+			HostId: hid.Marshal(),
+			Name:   fmt.Sprintf("%s.%s", fullyQualified.GetPackagePath(), fullyQualified.GetService()),
+		}
+		if kerr := finder().AddHost(host); kerr != syscall.KernelErr_NoError {
+			return int32(kerr)
 		}
 	}
 	return int32(syscall.KernelErr_NoError)
@@ -88,14 +73,14 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	return int32(coordinator().Launch(ctx, sid))
+	return int32(startCoordinator().Launch(ctx, sid))
 }
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
 	mid := id.NewMethodId()
 	resp.MethodId = mid.Marshal()
-	svc := coordinator().ServiceById(ctx, sid)
+	svc := startCoordinator().ServiceById(ctx, sid)
 	svc.AddMethod(req.GetMethodName(), mid)
 
 	pairIdToChannel[makeSidMidCombo(sid, mid)] = make(chan CallInfo, 1)
@@ -103,7 +88,21 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 }
 
 func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
-	numCases := len(req.Pair) + len(pendingCalls)
+
+	hid := id.UnmarshalHostId(req.Host.GetHostId())
+	rc, err := matcher().Ready(hid)
+	if err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+	// we favor resolving calls, which may be wrong
+	if rc != nil {
+		resp.Timeout = false
+		resp.Pair = nil
+		resp.Param = nil
+		resp.Resolved = rc
+		return int32(syscall.KernelErr_NoError)
+	}
+	numCases := len(req.Pair)
 	if req.TimeoutInMillis >= 0 {
 		numCases++
 	}
@@ -111,9 +110,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		resp.Pair = nil
 		return int32(syscall.KernelErr_NoError)
 	}
-	flatten := make([]DispatchInfo, len(pendingCalls))
 	cases := make([]reflect.SelectCase, numCases)
-	firstPending := len(req.Pair)
 	for i, pair := range req.Pair {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
@@ -121,15 +118,9 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
-	count := len(req.Pair)
-	for _, info := range pendingCalls {
-		cases[count] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(info.ch)}
-		flatten[count-len(req.Pair)] = info
-		count++
-	}
 	if req.TimeoutInMillis >= 0 {
 		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
-		cases[len(req.Pair)+len(pendingCalls)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
+		cases[len(req.Pair)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
 	chosen, value, ok := reflect.Select(cases)
 	// ok will be true if the channel has not been closed.
@@ -137,56 +128,34 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		return int32(syscall.KernelErr_KernelConnectionFailed)
 	}
 	// is timeout?
-	if chosen == len(req.Pair)+len(pendingCalls) {
+	if chosen == len(req.Pair) {
 		resp.Timeout = true
 		return int32(syscall.KernelErr_NoError)
 	}
-	// is service/method call?
+	// service/method call
 	resp.Timeout = false
-	if chosen < firstPending {
-		resp.DispatchResult = false
-		pair := req.Pair[chosen]
-		resp.Pair.ServiceId = pair.ServiceId
-		resp.Pair.MethodId = pair.MethodId
-		if !value.IsNil() {
-			resp.Param = value.Interface().(*anypb.Any)
-		}
-		return int32(syscall.KernelErr_NoError)
+	pair := req.Pair[chosen]
+	resp.Pair.ServiceId = pair.ServiceId
+	resp.Pair.MethodId = pair.MethodId
+	if !value.IsNil() {
+		resp.Param = value.Interface().(*anypb.Any)
 	}
-	// must be a dispatch
-	resp.DispatchResult = true
-	resp.Pair = nil
-	msg := value.Interface().(*retValPair)
-	resp.CallId = flatten[chosen].cid.Marshal()
-	resp.Param = msg.Result
-	resp.ResultError = msg.Error
 	return int32(syscall.KernelErr_NoError)
 }
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
 	cid := id.UnmarshalCallId(req.GetCallId())
-	ret := retValPair{
-		Result: req.GetResult(),
-		Error:  req.GetResultError(),
-	}
-	call, ok := pendingCalls[cid.String()]
-	if !ok {
-		resp.Matched = false
-		return int32(0)
-	}
-	call.ch <- ret
-	resp.Matched = true
-	delete(pendingCalls, cid.String())
-	return int32(0)
+	kerr := matcher().Response(cid, req.Result, req.ResultError)
+	return int32(kerr)
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
-	svc, ok := coordinator().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
+	svc, ok := startCoordinator().SetService(ctx, req.GetPackageName(), req.GetServiceName(), false)
 	if ok {
 		return int32(syscall.KernelErr_NotFound)
 	}
 	calledBy := id.UnmarshalServiceId(req.CalledBy)
-	if !coordinator().PathExists(ctx, calledBy.String(), svc.String()) {
+	if !startCoordinator().PathExists(ctx, calledBy.String(), svc.String()) {
 		return int32(syscall.KernelErr_NotRequired)
 	}
 	svcId := svc.Id()
@@ -199,19 +168,18 @@ func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *sysca
 	sid := id.UnmarshalServiceId(req.GetServiceId())
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 	cid := id.UnmarshalCallId(req.GetCallId())
+	hid := id.UnmarshalHostId(req.GetHostId())
+
+	matcher().Dispatch(hid, cid)
 
 	target := pairIdToChannel[makeSidMidCombo(sid, mid)]
 	if target == nil {
+		// should this have a special error
 		return int32(syscall.KernelErr_NotFound)
 	}
 
 	resp.CallId = cid.Marshal()
 
-	ch := make(chan retValPair, 1)
-	pendingCalls[cid.String()] = DispatchInfo{
-		cid: cid,
-		ch:  ch,
-	}
 	cm := CallInfo{
 		cid:   cid,
 		param: req.GetParam(),
@@ -221,16 +189,9 @@ func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *sysca
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
-	svc, ok := coordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
+	svc, ok := startCoordinator().SetService(ctx, req.Fqs.GetPackagePath(), req.Fqs.GetService(), req.GetIsClient())
 	resp.ExistedPreviously = !ok
 	resp.Id = svc.Id().Marshal()
-
-	sname := fmt.Sprintf("%s.%s", req.Fqs.GetPackagePath(), req.Fqs.GetService())
-	serviceNameToId[sname] = svc.Id()
-	serviceIdToName[svc.Id().String()] = sname
-
-	serviceIdToMethodNameMap[svc.Id().String()] = make(map[string]id.MethodId)
-	serviceIdToMethodIdMap[svc.Id().String()] = make(map[string]string)
 
 	return int32(syscall.KernelErr_NoError)
 }
@@ -244,12 +205,12 @@ func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall
 	fqn := req.GetDest()
 
 	for _, fullyQualified := range fqn {
-		dest, _ := coordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+		dest, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 		// if ok {
 		// 	pcontext.Infof(ctx, "requireImpl: created new service id %s.%s => %s", fullyQualified.GetPackagePath(),
 		// 		fullyQualified.GetService(), dest.Short())
 		// }
-		kerr := coordinator().Import(ctx, src, dest.Id())
+		kerr := startCoordinator().Import(ctx, src, dest.Id())
 		if int32(kerr) != 0 {
 			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr)
 			return int32(kerr)
