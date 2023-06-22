@@ -142,6 +142,8 @@ apishared/id/methodid.go:apishared/id/id.go command/boilerplateid/main.go comman
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Method m method > apishared/id/methodid.go	
 apishared/id/callid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Call c call > apishared/id/callid.go	
+apishared/id/hostid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Host h host > apishared/id/hostid.go	
 
 #id cruft
 g/file/v1/fileid.go: apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl

@@ -4,15 +4,27 @@ import (
 	"context"
 
 	pcontext "github.com/iansmith/parigot/context"
+	lib "github.com/iansmith/parigot/lib/go"
 
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
-func FindOrCreateQueue(ctx context.Context, queueSvc queue.ClientQueue, name string) (queue.QueueId, queue.QueueErr) {
+func FindOrCreateQueue(ctx context.Context, queueHandle queue.ClientQueue, name string) lib.NewPromise[queue.QueueId, queue.QueueErr] {
 	req := queue.LocateRequest{}
 	req.QueueName = name
 	pcontext.Infof(ctx, "FindOrCreateQueue: looking for queue '%s'...", name)
+	p := lib.NewPromise[queue.QueueId, queue.QueueErr]()
+	queueHandle.Locate(ctx, &req).
+		OnSuccess(ctx, func(resp *queue.LocateResponse) {
+			p.Resolve(resp.GetId(), queue.QueueErr_None)
+		}).
+		OnFailure(ctx, func(err queue.QueueErr) {
+			if err == queue.QueueErr_NotFound {
+
+			}
+		})
+
 	//real := queueSvc.(*queue.ClientQueue_)
 	//smmap := real.ServiceMethodMap()
 	// for _, v := range smmap.Pair() {
@@ -20,7 +32,11 @@ func FindOrCreateQueue(ctx context.Context, queueSvc queue.ClientQueue, name str
 	// 	mid := id.UnmarshalMethodId(v.MethodId)
 	// }
 	afterLocate := func(ctx context.Context, resp *queue.LocateResponse, err queue.QueueErr) syscall.KernelErr {
+		if err != queue.QueueErr_NoError {
+			if err == queue.QueueErr_NotFound {
 
+			}
+		}
 	}
 	queueSvc.Locate(ctx, &req, afterLocate, locateErr)
 	if err != queue.QueueErr_NoError && err == queue.QueueErr_NotFound {

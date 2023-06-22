@@ -7,8 +7,8 @@ var _coord *startupCoordinator = newSyscallDataImpl()
 // timed out.
 const timeoutInSecs = 5
 
-// coordinator controls access to the underlying variable that has
+// startCoordinator controls access to the underlying variable that has
 // the singleton of startupCoordinator.
-func coordinator() *startupCoordinator {
+func startCoordinator() *startupCoordinator {
 	return _coord
 }
