@@ -53,7 +53,7 @@ type ServiceMethodMap struct {
 	nameToMid map[string]map[string]id.MethodId
 	sidToName map[string]string
 	midToName map[string]string
-	pair      []*syscall.ServiceMethodPair
+	call      []*syscall.ServiceMethodCall
 	disabled  map[string]bool
 }
 
@@ -105,19 +105,19 @@ func (s *ServiceMethodMap) AddServiceMethod(sid id.ServiceId, mid id.MethodId,
 	s.sidToName[sid.String()] = serviceName
 	s.midToName[mid.String()] = methodName
 
-	curr := &syscall.ServiceMethodPair{
+	curr := &syscall.ServiceMethodCall{
 		ServiceId: sid.Marshal(),
 		MethodId:  mid.Marshal(),
 	}
-	s.pair = append(s.pair, curr)
+	s.call = append(s.call, curr)
 }
 
 // Pair returns a list of Service/Method pairs suitable for use in
 // a ReadOneRequest.  Particular elements of the map can be omitted
 // or included with Disable and Enable.
-func (s *ServiceMethodMap) Pair() []*syscall.ServiceMethodPair {
-	result := []*syscall.ServiceMethodPair{}
-	for _, pair := range s.pair {
+func (s *ServiceMethodMap) Call() []*syscall.ServiceMethodCall {
+	result := []*syscall.ServiceMethodCall{}
+	for _, pair := range s.call {
 		sidStr := id.UnmarshalServiceId(pair.ServiceId).String()
 		midStr := id.UnmarshalMethodId(pair.MethodId).String()
 		disableKey := fmt.Sprintf(sidMidPairKeyGen, sidStr, midStr)
@@ -200,5 +200,5 @@ func (s *ServiceMethodMap) MethodIdToName(mid id.MethodId) string {
 // Len returns the number of known methods in this
 // ServiceMethodMap
 func (s *ServiceMethodMap) Len() int {
-	return len(s.pair)
+	return len(s.call)
 }

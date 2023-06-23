@@ -23,21 +23,20 @@ import (
 // message call requests and this type sends it to the
 // kernel.
 type ClientSideService struct {
-	svc     id.ServiceId
-	smMap   *apiwasm.ServiceMethodMap
-	contOut map[string]Promise[proto.Message, int32]
-	contErr map[string]PromiseOnlyError[int32]
+	svc   id.ServiceId
+	smMap *apiwasm.ServiceMethodMap
+	cont  map[string]Promise[proto.Message, int32]
 }
 
 func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.ServiceMethodMap) *ClientSideService {
-	if len(sm.Pair()) == 0 {
+	if len(sm.Call()) == 0 {
 		log.Printf("NewClientSideService: binding is zero")
 		//debug.PrintStack()
 	}
 	return &ClientSideService{
-		svc:     id,
-		smMap:   sm,
-		contOut: make(map[string]Promise[proto.Message, int32]),
+		svc:   id,
+		smMap: sm,
+		cont:  make(map[string]Promise[proto.Message, int32]),
 	}
 }
 
@@ -70,12 +69,12 @@ func (c *ClientSideService) CompleteCall(cid id.CallId, a *anypb.Any, err int32)
 // This includes all the known methods for the service.
 func (c *ClientSideService) String() string {
 	buf := &bytes.Buffer{}
-	for _, pair := range c.smMap.Pair() {
+	for _, pair := range c.smMap.Call() {
 		mid := id.UnmarshalMethodId(pair.GetMethodId())
 		buf.WriteString(fmt.Sprintf("%s:%s ", c.smMap.MethodIdToName(mid), mid.Short()))
 	}
 	msg := fmt.Sprintf("[clientSideService: sid:%s, methods(%d):%s]", c.svc.Short(),
-		len(c.smMap.Pair()), buf.String())
+		c.smMap.Len(), buf.String())
 	log.Println(msg)
 	return msg
 }
@@ -153,10 +152,10 @@ func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
-		HostId:      CurrentHost().Marshal(),
 	}
 	in := &syscall.ExportRequest{
 		Service: []*syscall.FullyQualifiedService{fqs},
+		HostId:  CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Export(in)
 	return resp, kerr

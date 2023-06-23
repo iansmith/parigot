@@ -116,12 +116,12 @@ type CallMatcher interface {
 type HostFinder interface {
 	// FindByName finds the correct host by the name field.
 	// If the name cannot be found, it returns nil.
-	FindByName(name string) *syscall.Host
+	FindByName(name string) *hostInfo
 	// FindById finds the correct host by the id field.
 	// If the id cannot be found it returns nil.
-	FindById(id id.HostId) *syscall.Host
+	FindById(id id.HostId) *hostInfo
 	// AddHost is used to add a record to the set of hosts
 	// that are know. This call will panic if either the
 	// name or id is not set.
-	AddHost(h *syscall.Host) syscall.KernelErr
+	AddHost(name string, hid id.HostId) syscall.KernelErr
 }

@@ -179,15 +179,6 @@ message DispatchResponse {
     protosupport.v1.IdRaw call_id = 1;
 }
 
-// Host is a data structure for retaining information about 
-// previously discovered networkhosts. It is also used when 
-// exporting a service to declare that the service is an
-// implementation
-message Host {
-    protosupport.v1.IdRaw host_id = 1;
-	string name = 2;
-}
-
 // ReturnValueRequest is used to return the result of a
 // function back to the caller. It is the result information
 // of a call to a service/method function.
@@ -221,9 +212,10 @@ enum MethodDirection {
 }
 
 message BindMethodRequest  {
-  protosupport.v1.IdRaw service_id = 1;
-  string method_name = 2;
-  MethodDirection direction = 3;
+  protosupport.v1.IdRaw host_id = 1;
+  protosupport.v1.IdRaw service_id = 2;
+  string method_name = 3;
+  MethodDirection direction = 4;
 }
 
 message BindMethodResponse {
@@ -282,7 +274,7 @@ message RegisterResponse {
 	bool existed_previously = 2;
 }
 
-message ServiceMethodPair {
+message ServiceMethodCall {
 	protosupport.v1.IdRaw service_id =1;
 	protosupport.v1.IdRaw method_id =2;
 }
@@ -306,10 +298,9 @@ message ResolvedCall {
 // return value represents a completed call from a previous
 // point in the execution of the calling program.
 message ReadOneRequest {
-	repeated ServiceMethodPair pair = 1;
+	repeated ServiceMethodCall call = 1;
 	int32 timeout_in_millis = 2;
-	protosupport.v1.IdRaw call_id = 3;
-	Host host = 4;
+	protosupport.v1.IdRaw  host_id = 3;
 }
 
 // ReadOneResponse is returned when the control
@@ -326,7 +317,7 @@ message ReadOneRequest {
 // and that data needs to be matched with the appropriate call ids 
 // and the promises resolved.
 //
-// If dispatch_result is false, then the call is a call
+// If resolved is nil, then the call is a call
 // on a service and method exposed by this server.  
 // In that case the pair indicates the method and service
 // being invoked, and the param and call id should be
@@ -337,7 +328,8 @@ message ReadOneRequest {
 // it may be nil.  
 message ReadOneResponse {
     bool timeout =1;
-    ServiceMethodPair pair =2;
-	google.protobuf.Any param = 3; 
-	ResolvedCall resolved = 4;
+    ServiceMethodCall call =2;
+	protosupport.v1.IdRaw  call_id = 3;
+	google.protobuf.Any param = 4; 
+	ResolvedCall resolved = 5;
 }
