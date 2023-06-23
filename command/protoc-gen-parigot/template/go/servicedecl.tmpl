@@ -67,11 +67,7 @@ type Client{{$svcCamel}} interface {
 {{- else }} 
     {{$methCamel}}(ctx context.Context) 
 {{- end -}} 
-{{- if .OutputCodeNeeded -}}
-    lib.Promise[*{{$oParam}}, {{$errId}}]
-{{- else -}}
-    lib.Promise[any,{{$errId}}]
-{{- end -}} {{/* end of output code needed for declaration */}}
+    *lib.Future
 {{- end }} {{/* end of range over methods */}}
 
 }
@@ -211,33 +207,33 @@ func MustWaitSatisfied{{$svc}}(ctx context.Context, sid id.ServiceId, impl Serve
 
 {{- if and .InputCodeNeeded .OutputCodeNeeded  -}}
 // both
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) lib.Promise[{{$outParam}},{{$errId}}]{
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) *lib.Promise{
     raw, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
     if err!=syscall.KernelErr_NoError{
-        return lib.Promise[{{$outParam}},{{$errId}}]{}, err
+        return &lib.NewFutureError[syscall.KernelErr](err)
     }
     cid:=id.UnmarshalCallId(raw.GetCallId())
-    return lib.NewPromiseFromProto[{{$outParam}},{{$errId}}](i.ClientSideService,cid)
+    return lib.NewPromise[{{$outParam}},{{$errId}}]()
 
 {{- else }} {{/* else for both */}}
 {{- if .InputCodeNeeded }}
 // in
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context,in {{$inParam}}) lib.Promise[any,{{$errId}}] {
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context,in {{$inParam}}) *lib.Promise {
     raw, err:= i.Dispatch("{{.WasmMethodName}}",{{$inbound}})
     if err!=syscall.KernelErr_NoError{
-        return lib.PromiseOnlyError[{{$errId}}]{}, err
+        return &lib.NewPromiseErrOnly[{{$errId}}]{}
     }
     cid:=id.UnmarshalCallId(raw.GetCallId())
-    p:=lib.NewPromiseErrOnly[any,{{$errId}}]()
+    return lib.NewPromiseErrOnly[{{$errId}}]()
 {{- else }}
 // out
-func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context)  lib.Promise[{{$outParam}},{{$errId}}] {
+func (i *Client{{$svcCamel}}_) {{$methCamel}}(ctx context.Context) *lib.Promise[{{$outParam}},{{$errId}}] {
     raw, err:= i.Dispatch("{{.WasmMethodName}}")
     if err!=syscall.KernelErr_NoError{
-        return lib.Promise[{{$outParam}},{{$errId}}], err
+        return &lib.Promise[{{$outParam}},{{$errId}}]
     }
     cid:=id.UnmarshalCallId(raw.GetCallId())
-    return lib.NewPromiseFromProto[{{$outParam}},{{$errId}}](i.ClientSideService,cid)
+    return lib.NewPromiseProto[{{$outParam}},{{$errId}}](i.ClientSideService,cid)
 {{- end -}} {{/*end of need input plus else */}}
 {{- end -}} {{/*end of need both */}}
 }

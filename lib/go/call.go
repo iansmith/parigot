@@ -21,7 +21,7 @@ func AddMatchingClient(cid id.CallId, cs *ClientSideService) {
 // CompleteCall is called from the CallOne handler to cause a
 // prior dispatch call to be completed. The matching is done
 // based on the cid and cidToClient.
-func CompleteCall(cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
+func Resolve(_ id.HostId, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
 	cs, ok := cidToClient[cid.String()]
 	if !ok {
 		return syscall.KernelErr_NotFound

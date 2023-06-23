@@ -1,81 +1,65 @@
 package lib
 
-import (
-	"github.com/iansmith/parigot/apishared/id"
-	"google.golang.org/protobuf/proto"
-)
-
 type ErrorType interface {
 	~int32
 }
 
-type Promise[T any, U ErrorType] struct {
-	ready bool
-	msg   T
-	err   U
-	cs    *ClientSideService
-	cid   id.CallId
+type BaseType interface {
+	~int32 | ~int64 | ~uint32 | ~uint64 | ~float32 | ~float64 | ~string
 }
 
-func NewPromiseProto[T proto.Message, U ErrorType](cs *ClientSideService, cid id.CallId) Promise[T, U] {
-	return Promise[T, U]{
-		cs:  cs,
-		cid: cid,
+type Future struct {
+	resolveFn     func(any)
+	rejectFn      func(int32)
+	resolved      bool
+	resolvedValue any
+	rejected      bool
+	rejectedValue int32
+	rejectedConst bool
+	downstream    []*Future
+}
+
+func NewFuture[T any, U ErrorType](resolve func(T), reject func(U)) *Future {
+	resolveWrap := func(a any) {
+		resolve(a.(T))
+	}
+	rejectWrap := func(a int32) {
+		reject(U(a))
+	}
+
+	return &Future{
+		resolveFn: resolveWrap,
+		rejectFn:  rejectWrap,
 	}
 }
-func NewPromise[T any, U ErrorType]() Promise[T, U] {
-	return Promise[T, U]{}
-}
 
-func (p *Promise[T, U]) Resolved() bool {
-	return p.ready
-}
-
-func (p *Promise[T, U]) Resolve(t T, u U, cid id.CallId) {
-	if p.ready {
-		panic("attempt to resolve an already resolved promise")
-	}
-	if !cid.IsZeroOrEmptyValue() {
-		if !cid.Equal(p.cid) {
-			panic("attempt to resolve a promise with wrong call id")
-		}
-	}
-	p.msg = t
-	p.err = u
-	p.ready = true
-}
-
-func (p *Promise[T, U]) Rejected() bool {
-	return p.ready && p.err != 0
-}
-
-// Error Only
-type PromiseOnlyError[U ErrorType] struct {
-	ready bool
-	err   U
-	cs    *ClientSideService
-	cid   id.CallId
-}
-
-func (p *PromiseOnlyError[U]) Resolved() bool {
-	return p.ready
-}
-
-func NewPromiseErrorOnly[U ErrorType](cs *ClientSideService, cid id.CallId) PromiseOnlyError[U] {
-	return PromiseOnlyError[U]{
-		cs:  cs,
-		cid: cid,
+func NewFutureValue[T BaseType](t T) *Future {
+	return &Future{
+		resolvedValue: t,
 	}
 }
-func (p *PromiseOnlyError[U]) Resolve(u U, cid id.CallId) {
-	if p.ready {
-		panic("attempt to resolve an already resolved promise")
+
+func NewFutureError[U ErrorType](u U) *Future {
+	return &Future{
+		rejectedConst: true,
+		rejectedValue: int32(u),
 	}
-	if !cid.IsZeroOrEmptyValue() {
-		if !cid.Equal(p.cid) {
-			panic("attempt to resolve a promise with wrong call id")
-		}
+}
+
+func (f *Future) SuccessAny(fn func(any)) {
+	if f.resolvedValue != nil {
+		fn(f.resolvedValue)
+		return
 	}
-	p.err = u
-	p.ready = true
+	newFuture := NewFuture[any, int32](fn, nil)
+	f.downstream = append(f.downstream, newFuture)
+}
+
+func (f *Future) FailureAny(fn func(int32)) {
+	if f.rejectedConst {
+		fn(f.rejectedValue)
+		return
+	}
+	newFuture := NewFuture[any, int32](nil, fn)
+	f.downstream = append(f.downstream, newFuture)
 }

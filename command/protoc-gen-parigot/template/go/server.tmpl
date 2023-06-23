@@ -23,7 +23,6 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apishared"
 
 	"google.golang.org/protobuf/types/known/anypb"
 
@@ -56,7 +55,6 @@ type Server{{$svcCamel}} interface {
 {{- end}} {{/* end of range over methods */}}
 	Ready(ctx context.Context, sid id.ServiceId) bool
 }
-var Host{{$svcCamel}} = apishared.NewInMemoryHost("{{.ProtoPackage}}.{{$svcCamel}}")
 {{- end}} {{/* end of range over services */}}
 
 {{- range .service }}
@@ -138,11 +136,11 @@ func ReadOneAndCall{{$svcCamel}}(ctx context.Context, binding *apiwasm.ServiceMe
 	timeoutInMillis int32)  syscall.KernelErr {
 	req:=syscall.ReadOneRequest{}
 
-	for _, pair := range binding.Pair() {
-		req.Pair=append(req.Pair, pair)
+	for _, c := range binding.Call() {
+		req.Call=append(req.Call, c)
 	}
 	req.TimeoutInMillis = timeoutInMillis
-	req.Host = Host{{$svcCamel}}
+	req.HostId = lib.CurrentHostId().Marshal()
 	resp, err:=guestsyscall.ReadOne(&req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -152,31 +150,26 @@ func ReadOneAndCall{{$svcCamel}}(ctx context.Context, binding *apiwasm.ServiceMe
 		return syscall.KernelErr_ReadOneTimeout
 	}
 
+	// is a promise being completed?
+	if r:=resp.GetResolved(); r!=nil {
+		cid:=id.UnmarshalCallId(r.GetCallId())
+		hid:=id.UnmarshalHostId(r.GetHostId())
+		return lib.Resolve(hid,cid,r.GetResult(), r.GetResultError())
+	}
+
 	rvReq:=&syscall.ReturnValueRequest{
-		CallId: resp.CallId,
-		HostId: Host{{$svc}},
+		//CallId: req.GetCallId(),
+		HostId: lib.CurrentHostId().Marshal(),
 	}
 
-	rvReq.CallId=resp.CallId
-	if !resp.GetDispatchResult() {	
-		sid:=id.UnmarshalServiceId(resp.GetPair().ServiceId)
-		mid:=id.UnmarshalMethodId(resp.GetPair().MethodId)
+	sid:=id.UnmarshalServiceId(resp.GetCall().GetServiceId())
+	mid:=id.UnmarshalMethodId(resp.GetCall().GetMethodId())
 
-		fn:=binding.Func(sid,mid)
-		funcAny, err:=fn(resp.Param)
-		rvReq.Result = funcAny
-		rvReq.ResultError = er
-		kerr:=guestsyscall.ReturnValue(rvReq)
-		return kerr
-	}
-	// must be part of the dispatch
-	for _, resv:=range resp.GetResolved() {
-		kerr:=lib.CompleteCall(resv)
-		if kerr!=syscall.KernelErr_NoError {
-
-		}
-	}
-	return kerr
+	fn:=binding.Func(sid,mid)
+	funcAny, retErr:=fn(resp.Param)
+	rvReq.Result = funcAny
+	rvReq.ResultError = retErr
+	return guestsyscall.ReturnValue(rvReq)
 }
 
 func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcCamel}}) (*apiwasm.ServiceMethodMap, syscall.KernelErr) {
@@ -198,6 +191,7 @@ func {{$svcCamelFL}}Bind(ctx context.Context,sid id.ServiceId, impl Server{{$svc
 //
 
 	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "{{$methCamel}}"
 {{- if eq $dir "Both" }}
