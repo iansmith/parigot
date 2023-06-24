@@ -72,6 +72,9 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 	return int32(syscall.KernelErr_NoError)
 
 }
+func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
+	return int32(0x7fffff00 | (req.Code & 0xff))
+}
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
@@ -287,8 +290,9 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func exit(ctx context.Context, m api.Module, stack []uint64) {
-	log.Printf("exit 0x%x", stack)
-	panic("exit called ")
+	req := &syscall.ExitRequest{}
+	resp := &syscall.ExitResponse{}
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, exitImpl, req, resp)
 }
 
 func makeSidMidCombo(sid id.ServiceId, mid id.MethodId) string {

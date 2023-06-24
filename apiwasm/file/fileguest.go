@@ -9,6 +9,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	file "github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -16,10 +17,10 @@ var _ = unsafe.Sizeof([]byte{})
 func main() {
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
 	f := &myFileSvc{}
-	binding := file.InitFile(ctx, []apiwasm.MustRequireFunc{}, f)
+	binding := file.Init(ctx, []apiwasm.MustRequireFunc{}, f)
 	var kerr syscall.KernelErr
 	for {
-		kerr = file.ReadOneAndCallFile(ctx, binding, file.TimeoutInMillisFile)
+		kerr = file.ReadOneAndCall(ctx, binding, file.TimeoutInMillisFile)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			pcontext.Infof(ctx, "waiting for calls to file service")
 			continue
@@ -34,9 +35,11 @@ func main() {
 
 type myFileSvc struct{}
 
-func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) bool {
+func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.Future {
 	pcontext.Debugf(ctx, "Ready reached in file service")
-	return true
+	ff := lib.NewFuture[any, file.FileErr](nil, nil)
+	ff.CompleteCall(nil, 0)
+	return ff
 }
 
 func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) (*file.OpenResponse, file.FileErr) {

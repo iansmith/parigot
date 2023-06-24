@@ -25,7 +25,6 @@ import (
 type ClientSideService struct {
 	svc   id.ServiceId
 	smMap *apiwasm.ServiceMethodMap
-	cont  map[string]Promise[proto.Message, int32]
 }
 
 func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.ServiceMethodMap) *ClientSideService {
@@ -36,7 +35,6 @@ func NewClientSideService(ctx context.Context, id id.ServiceId, sm *apiwasm.Serv
 	return &ClientSideService{
 		svc:   id,
 		smMap: sm,
-		cont:  make(map[string]Promise[proto.Message, int32]),
 	}
 }
 
@@ -47,6 +45,15 @@ func (c *ClientSideService) ServiceId() id.ServiceId {
 func (c *ClientSideService) ServiceMethodMap() *apiwasm.ServiceMethodMap {
 	return c.smMap
 }
+
+func (c *ClientSideService) MethodIdByName(str string) (id.MethodId, bool) {
+	mid := c.smMap.MethodNameToId(c.ServiceId(), str)
+	if mid.IsEmptyValue() {
+		return mid, false
+	}
+	return mid, true
+}
+
 func (c *ClientSideService) Continuation(cid id.CallId, fn func(*anypb.Any, int32) syscall.KernelErr) {
 	//c.contOut[cid.String()] = fn
 }
@@ -88,7 +95,9 @@ func (c *ClientSideService) Dispatch(method id.MethodId, param proto.Message) (i
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			// do we want to have a special error type for this?
+			ctx := pcontext.NewContextWithContainer(pcontext.GuestContext(context.Background()), "dispatch")
+			pcontext.Errorf(ctx, "failed in call to dispatch: %v", err)
+			pcontext.Dump(ctx)
 			return id.CallIdZeroValue(), syscall.KernelErr_MarshalFailed
 		}
 	}

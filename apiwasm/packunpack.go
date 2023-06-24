@@ -62,6 +62,9 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	wrapped := fn(length, req, out, errPtr)
 	if int32(outErr) != 0 {
 		pcontext.Dump(ctx)
+		if outErr&0x7fffff00 == 0x7fffff00 {
+			return nilU, outErr & 0xff, true
+		}
 		return nilU, outErr, false
 	}
 	l, ptr := unwindLenAndPtr(uint64(wrapped))

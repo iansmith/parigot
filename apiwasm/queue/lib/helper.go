@@ -3,59 +3,37 @@ package lib
 import (
 	"context"
 
-	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	lib "github.com/iansmith/parigot/lib/go"
 
 	"github.com/iansmith/parigot/g/queue/v1"
-	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
-func FindOrCreateQueue(ctx context.Context, queueHandle queue.ClientQueue, name string) lib.Promise[queue.QueueId, queue.QueueErr] {
+func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name string) *lib.Future {
 	req := queue.LocateRequest{}
 	req.QueueName = name
 	pcontext.Infof(ctx, "FindOrCreateQueue: looking for queue '%s'...", name)
-	p := lib.NewPromise[queue.QueueId, queue.QueueErr]()
-	queueHandle.Locate(ctx, &req).
-		OnSuccess(func(resp *queue.LocateResponse) {
-			qid := queue.UnmarshalQueueId(resp.GetId())
-			p.Resolve(qid, queue.QueueErr_NoError, id.CallIdZeroValue())
-		}).
-		OnFailure(ctx, func(err queue.QueueErr) {
-			if err == queue.QueueErr_NotFound {
 
-			}
+	qidFuture := lib.NewFutureId()
+
+	locateFuture := queueHandle.Locate(ctx, &req)
+	locateFuture.Success(func(resp *queue.LocateResponse) {
+		qidFuture.CompleteCall(resp.Id, 0)
+	})
+	locateFuture.Failure(queue.Future2LocateFailure[queue.Client, string](func(qerr queue.QueueErr, handle queue.Client, n string) {
+		if qerr != queue.QueueErr_NotFound {
+			return // somebody else's problem
+		}
+		createReq := &queue.CreateQueueRequest{
+			QueueName: name,
+		}
+		fcreate := queueHandle.CreateQueue(ctx, createReq)
+		fcreate.Success(func(resp *queue.CreateQueueResponse) {
+			qidFuture.CompleteCall(resp.Id, 0)
 		})
+		fcreate.Failure(func(qe queue.QueueErr) {
 
-	//real := queueSvc.(*queue.ClientQueue_)
-	//smmap := real.ServiceMethodMap()
-	// for _, v := range smmap.Pair() {
-	// 	sid := id.UnmarshalServiceId(v.ServiceId)
-	// 	mid := id.UnmarshalMethodId(v.MethodId)
-	// }
-	afterLocate := func(ctx context.Context, resp *queue.LocateResponse, err queue.QueueErr) syscall.KernelErr {
-		if err != queue.QueueErr_NoError {
-			if err == queue.QueueErr_NotFound {
-
-			}
-		}
-	}
-	queueSvc.Locate(ctx, &req, afterLocate, locateErr)
-	if err != queue.QueueErr_NoError && err == queue.QueueErr_NotFound {
-		// it's a not found, so create it
-		pcontext.Infof(ctx, "FindOrCreateQueue: looking for queue '%s'...", name)
-		createReq := queue.CreateQueueRequest{}
-		createReq.QueueName = name
-		createResp, err := queueSvc.CreateQueue(ctx, &createReq)
-		if err != queue.QueueErr_NoError {
-			return queue.QueueIdZeroValue(), err
-		}
-		qid := queue.UnmarshalQueueId(createResp.GetId())
-		return qid, queue.QueueErr_NoError
-	}
-	if err != queue.QueueErr_NoError {
-		return queue.QueueIdZeroValue(), err
-	}
-	qid := queue.UnmarshalQueueId(resp.Id)
-	return qid, queue.QueueErr_NoError
+		})
+	}, queueHandle, name))
+	return qidFuture
 }
