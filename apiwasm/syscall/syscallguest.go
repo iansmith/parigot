@@ -147,15 +147,14 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 // the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
 // will marke it dead and so forth.
 //
-//go:wasmimport parigot exit
-func Exit_(int32, int32) int32
-func Exit(in *syscall.ExitRequest) (*syscall.ExitResponse, syscall.KernelErr) {
+//go:wasmimport parigot exit_
+func Exit_(int32, int32, int32, int32) int64
+func Exit(err int32) (*syscall.ExitResponse, syscall.KernelErr) {
+	in := &syscall.ExitRequest{
+		Code: err,
+	}
 	out := &syscall.ExitResponse{}
-	// err := error(nil)
-	// if err != nil {
-	// 	return nil, //fmt.Errorf("Exit_ failed:%v", err)
-	// }
-	return out, syscall.KernelErr_NoError
+	return out, standardGuestSide(in, out, Exit_, "Exit")
 }
 
 // Register should be called before any other services are

@@ -6,26 +6,27 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var cidToClient = make(map[string]*ClientSideService)
+var cidToClient = make(map[string]*Future)
 
-// AddMatchingClient is a utility for adding a new
-// cid, client pair to the tables used to look up
+// AddMatchingFuture is a utility for adding a new
+// cid, future pair to the tables used to look up
 // the location where response values should be sent.
-func AddMatchingClient(cid id.CallId, cs *ClientSideService) {
+func AddMatchingFuture(cid id.CallId, f *Future) {
 	if cidToClient[cid.String()] != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
-	cidToClient[cid.String()] = cs
+	cidToClient[cid.String()] = f
 }
 
 // CompleteCall is called from the CallOne handler to cause a
 // prior dispatch call to be completed. The matching is done
-// based on the cid and cidToClient.
-func Resolve(_ id.HostId, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
-	cs, ok := cidToClient[cid.String()]
+// based on the cid.
+func Resolve(cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
+	f, ok := cidToClient[cid.String()]
 	if !ok {
 		return syscall.KernelErr_NotFound
 	}
 	delete(cidToClient, cid.String())
-	return cs.CompleteCall(cid, result, resultErr)
+	f.CompleteCall(result, resultErr)
+	return syscall.KernelErr_NoError
 }

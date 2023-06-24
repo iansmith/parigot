@@ -13,8 +13,6 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
-
-	queueg "github.com/iansmith/parigot/g/queue/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
@@ -25,8 +23,8 @@ const testQueueName = "test_queue"
 
 func main() {
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
-	myId := test.MustRegisterTest(ctx)
-	queue.MustRequireQueue(ctx, myId)
+	myId := test.MustRegisterUnderTest(ctx)
+	queue.MustRequire(ctx, myId)
 	test.MustExportTest(ctx)
 
 	server := &myTestServer{
@@ -34,6 +32,8 @@ func main() {
 	}
 
 	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
+	launchFuture := test.LaunchTest(ctx, myId, server)
+	//launchFuture.Failure
 	if err := test.LaunchTest(ctx, myId, server); err != syscall.KernelErr_NoError {
 		pcontext.Fatalf(ctx, "test guest cannot launch the service:%s", syscall.KernelErr_name[int32(err)])
 		return
@@ -104,7 +104,7 @@ func (s *suiteInfo) String() string {
 	return buf.String()
 }
 
-func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
+func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.Future {
 	// initialization can be done here, not just in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
@@ -115,7 +115,7 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) bool {
 			log.Printf("xxxx MustLocate queue died: %v", r)
 		}
 	}()
-	m.queueSvc = queue.MustLocateQueue(ctx, sid)
+	m.queueSvc = queue.MustLocate(ctx, sid)
 	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.ClientQueue_).String())
 	qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName).
 		OnSuccess(func(qid queue.QueueId) {

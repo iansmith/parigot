@@ -24,10 +24,9 @@ import (
 const pathPrefix = "/parigot/app/"
 
 var (
-	fileSvc            *fileSvcImpl
-	_                                        = unsafe.Sizeof([]byte{})
-	ParigiotInitialize apiplugin.ParigotInit = &FilePlugin{}
-	fpathTofid                               = make(map[string]file.FileId)
+	fileSvc    *fileSvcImpl
+	_          = unsafe.Sizeof([]byte{})
+	fpathTofid = make(map[string]file.FileId)
 )
 
 // RULE: All files opened by a user program have to have a

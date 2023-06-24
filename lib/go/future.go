@@ -1,5 +1,9 @@
 package lib
 
+import (
+	"github.com/iansmith/parigot/g/protosupport/v1"
+)
+
 type ErrorType interface {
 	~int32
 }
@@ -46,8 +50,35 @@ func NewFutureError[U ErrorType](u U) *Future {
 	}
 }
 
+func (f *Future) CompleteCall(result any, resultErr int32) {
+	if resultErr != 0 {
+		if f.rejectFn != nil {
+			f.rejectFn(resultErr)
+		}
+		f.rejected = true
+		f.rejectedConst = true
+		f.rejectedValue = resultErr
+	} else {
+		if result != nil {
+			if f.resolveFn != nil {
+				f.resolveFn(result)
+			}
+		}
+		f.resolved = true
+		f.resolvedValue = result
+	}
+	// float downstream
+	for _, d := range f.downstream {
+		d.CompleteCall(result, resultErr)
+	}
+}
+
 func (f *Future) SuccessAny(fn func(any)) {
-	if f.resolvedValue != nil {
+	if f.rejected {
+		return // no way this fn call ever be called
+	}
+	// call immediately if resolved
+	if f.resolved {
 		fn(f.resolvedValue)
 		return
 	}
@@ -56,10 +87,17 @@ func (f *Future) SuccessAny(fn func(any)) {
 }
 
 func (f *Future) FailureAny(fn func(int32)) {
-	if f.rejectedConst {
+	if f.resolved {
+		return // cannot be reached
+	}
+	if f.rejected {
 		fn(f.rejectedValue)
 		return
 	}
 	newFuture := NewFuture[any, int32](nil, fn)
 	f.downstream = append(f.downstream, newFuture)
+}
+
+func NewFutureId() *Future {
+	return NewFuture[*protosupport.IdRaw, int32](nil, nil)
 }
