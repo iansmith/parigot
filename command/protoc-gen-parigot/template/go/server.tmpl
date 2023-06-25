@@ -15,7 +15,6 @@ import (
 	{{- $j -}}
 {{- end}} {{/* imports */}}
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-	"github.com/iansmith/parigot/apiwasm"  
 	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"  
 	pcontext "github.com/iansmith/parigot/context"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -74,54 +73,29 @@ type Server{{$svcDiff}} interface {
 {{end}}
 
 
-type FutureLaunch{{$svcDiff}} struct {
-	*lib.Future
-	ok func()
-	notOk func({{$errId}}) 
-}
-func NewFutureLaunch{{$svcDiff}}() *FutureLaunch{{$svcDiff}} {
-	f:=&FutureLaunch{{$svcDiff}} {
-		Future: lib.NewFuture[any,int32](nil,nil),
-	}
-	f.FailureAny(func (err int32) {
-		if err==0 && f.ok!=nil{
-			f.ok()
-		} else {
-			if f.notOk!=nil {
-				f.notOk({{$errId}}(err))
-			}
-		}
-	})
-	return f
-}
-func (f *FutureLaunch{{$svcDiff}}) Failure(fn func ({{$errId}})) {
-	f.notOk=fn
-}
-func (f *FutureLaunch{{$svcDiff}}) Ok(fn func ()) {
-	f.ok=fn
-}
 
-func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *FutureLaunch{{$svcDiff}} {
+func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *lib.BaseFuture[bool] {
+
 	defer func() {
 		pcontext.Dump(ctx)
 	}()
 
-	readyResult:=NewFutureLaunch{{$svcDiff}}()
+	readyResult:=lib.NewBaseFuture[bool]()
 
 	ready:=impl.Ready(ctx,sid)
 	ready.SuccessAny(func (_ any) {
-			readyResult.CompleteCall(nil,0)
+			readyResult.Set(true)
 	})
 	ready.FailureAny(func (err int32) {
 			pcontext.Errorf(ctx,"Unable to start {{.ProtoPackage}}.{{$svcCamel}}, Ready returned false")
 			pcontext.Dump(ctx)
-			readyResult.CompleteCall(nil,err)
+			readyResult.Set(false)
 	})
 
 	return readyResult
 }
 
-func Init{{$svcDiff}}(ctx context.Context,require []apiwasm.MustRequireFunc, impl Server{{$svcDiff}}) *apiwasm.ServiceMethodMap{
+func Init{{$svcDiff}}(ctx context.Context,require []lib.MustRequireFunc, impl Server{{$svcDiff}}) *lib.ServiceMethodMap{
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "Init{{$svcCamel}}: trapped a panic in the guest side: %v", r)
@@ -139,8 +113,8 @@ func Init{{$svcDiff}}(ctx context.Context,require []apiwasm.MustRequireFunc, imp
 	smmap:=MustWaitSatisfied{{$svcDiff}}(ctx, myId, impl)
 	launchF:=Launch{{$svcDiff}}(ctx, myId, impl)
 
-	launchF.FailureAny(func (err int32) {
-		if err!=0{
+	launchF.Handle(func (ready bool) {
+		if !ready {
 			pcontext.Errorf(ctx, "ready call on {{$svcCamel}} failed")
 			guestsyscall.Exit(1)
 		}
@@ -148,7 +122,7 @@ func Init{{$svcDiff}}(ctx context.Context,require []apiwasm.MustRequireFunc, imp
 	return smmap
 }
 func Run{{$svcDiff}}(ctx context.Context,
-	binding *apiwasm.ServiceMethodMap, timeoutInMillis int32, bg apiwasm.Backgrounder) syscall.KernelErr{
+	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "Run{{$svcDiff}}: trapped a panic in the guest side: %v", r)
@@ -181,7 +155,7 @@ func Run{{$svcDiff}}(ctx context.Context,
 
 var TimeoutInMillis{{$svcCamel}} = int32(5000)
 
-func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *apiwasm.ServiceMethodMap, 
+func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32)  syscall.KernelErr {
 	req:=syscall.ReadOneRequest{}
 
@@ -222,11 +196,11 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *apiwasm.ServiceMet
 	return guestsyscall.ReturnValue(rvReq)
 }
 
-func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcDiff}}) (*apiwasm.ServiceMethodMap, syscall.KernelErr) {
+func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcDiff}}) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	var bindReq *syscall.BindMethodRequest
 	var mid id.MethodId
-	var fn apiwasm.FuncAnyIO
-	smmap:=apiwasm.NewServiceMethodMap()
+	var fn lib.FuncAnyIO
+	smmap:=lib.NewServiceMethodMap()
 
 {{- $goname:=packageToGoName .GetParent.Package}}
 {{- range .GetWasmMethod}}
@@ -332,9 +306,9 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl Server{{$svcD
 func {{$hostFuncName}}_(int32,int32,int32,int32) int64
 func {{$hostFuncName}}{{$svcDiff}}Host(inPtr *{{$iParam}}) (*{{$oParam}}, {{$errId}}) {
 	outProtoPtr := (*{{$oParam}})(nil)
-	ctx := apiwasm.ManufactureGuestContext("[{{$svcCamel}}]{{$methCamel}}")
+	ctx := lib.ManufactureGuestContext("[{{$svcCamel}}]{{$methCamel}}")
 	defer pcontext.Dump(ctx)
-	ret, raw, signal:= apiwasm.ClientSide(ctx, inPtr, outProtoPtr, {{$methCamel}}_)
+	ret, raw, signal:= lib.ClientSide(ctx, inPtr, outProtoPtr, {{$methCamel}}_)
 	if signal {
 		pcontext.Infof(ctx, "{{$hostFuncName}} exiting because of parigot signal")
 		pcontext.Dump(ctx)

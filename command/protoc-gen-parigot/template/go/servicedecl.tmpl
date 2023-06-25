@@ -22,7 +22,6 @@ import(
     "github.com/iansmith/parigot/apishared/id"  
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
     syscallguest "github.com/iansmith/parigot/apiwasm/syscall" 
-    "github.com/iansmith/parigot/apiwasm" 
 )   
 
 {{ $needServiceDifferentiation:=true }}
@@ -174,7 +173,7 @@ func MustExport{{$svcDiff}}(ctx context.Context) {
     }
 }
 
-func WaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) (*apiwasm.ServiceMethodMap,syscall.KernelErr) {
+func WaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) (*lib.ServiceMethodMap,syscall.KernelErr) {
 	smmap, err:={{$svcDiffFL}}bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,syscall.KernelErr(err)
@@ -186,7 +185,7 @@ func WaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Serve
     return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *apiwasm.ServiceMethodMap {
+func MustWaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *lib.ServiceMethodMap {
     smmap,err:=WaitSatisfied{{$svcDiff}}(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])

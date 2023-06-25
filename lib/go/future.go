@@ -8,10 +8,6 @@ type ErrorType interface {
 	~int32
 }
 
-type BaseType interface {
-	~int32 | ~int64 | ~uint32 | ~uint64 | ~float32 | ~float64 | ~string
-}
-
 type Future struct {
 	resolveFn     func(any)
 	rejectFn      func(int32)
@@ -34,12 +30,6 @@ func NewFuture[T any, U ErrorType](resolve func(T), reject func(U)) *Future {
 	return &Future{
 		resolveFn: resolveWrap,
 		rejectFn:  rejectWrap,
-	}
-}
-
-func NewFutureValue[T BaseType](t T) *Future {
-	return &Future{
-		resolvedValue: t,
 	}
 }
 
@@ -100,4 +90,44 @@ func (f *Future) FailureAny(fn func(int32)) {
 
 func NewFutureId() *Future {
 	return NewFuture[*protosupport.IdRaw, int32](nil, nil)
+}
+
+type BaseFuture[T any] struct {
+	resolveFn     func(T)
+	resolved      bool
+	resolvedValue T
+	downstream    []*Future
+}
+
+func NewBaseFuture[T any]() *BaseFuture[T] {
+	return &BaseFuture[T]{
+		resolved: false,
+	}
+}
+
+func NewBaseFutureWithValue[T any](t T) *BaseFuture[T] {
+	return &BaseFuture[T]{
+		resolved:      true,
+		resolvedValue: t,
+	}
+}
+
+func (f *BaseFuture[T]) Set(t T) {
+	if f.resolved {
+		panic("attempt to set value for panic, but panic is already resolved")
+	}
+	if f.resolveFn != nil {
+		f.resolveFn(t)
+	} else {
+		f.resolved = true
+		f.resolvedValue = t
+	}
+}
+
+func (f *BaseFuture[T]) Handle(fn func(T)) {
+	if f.resolved {
+		fn(f.resolvedValue)
+		return
+	}
+	f.resolveFn = fn
 }
