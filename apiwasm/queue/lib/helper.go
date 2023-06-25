@@ -20,10 +20,9 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 	locateFuture.Success(func(resp *queue.LocateResponse) {
 		qidFuture.Set(queue.UnmarshalQueueId(resp.Id))
 	})
-	locateFuture.Failure(queue.Future2LocateFailure[queue.Client, string](func(qerr queue.QueueErr, handle queue.Client, n string) {
+	locateFuture.Failure(func(qerr queue.QueueErr) {
 		if qerr != queue.QueueErr_NotFound {
 			qidFuture.Set(queue.QueueIdZeroValue())
-			return // somebody will have to handle the error
 		}
 		createReq := &queue.CreateQueueRequest{
 			QueueName: name,
@@ -36,6 +35,6 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 			pcontext.Errorf(ctx, "unable to create queue for testing!")
 			qidFuture.Set(queue.QueueIdZeroValue())
 		})
-	}, queueHandle, name))
+	})
 	return qidFuture
 }

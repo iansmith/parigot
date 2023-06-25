@@ -43,7 +43,7 @@ func main() {
 	})
 	var kerr syscall.KernelErr
 	for {
-		test.RunTest(ctx, binding, 1000, nil)
+		test.RunTest(ctx, binding, 1000, server)
 	}
 	pcontext.Fatalf(ctx, "error while waiting for test service calls: %s", syscall.KernelErr_name[int32(kerr)])
 
@@ -232,14 +232,15 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 					if err != test.TestErr_NoError {
 						return nil, err
 					}
-					resp, errResp := m.queueSvc.Send(ctx, sReq)
-					if errResp != queue.QueueErr_NoError {
-						pcontext.Errorf(ctx, "failed send to the queue: %s", queue.QueueErr_name[int32(errResp)])
-						return nil, err
-					}
-					if len(resp.Succeed) != 1 {
-						return nil, test.TestErr_Internal
-					}
+					f := m.queueSvc.Send(ctx, sReq)
+					f.Success(func(resp *queue.SendResponse) {
+						if len(resp.Succeed) != 1 {
+							pcontext.Errorf(ctx, "failed send to the queue, expected only one send to succed")
+						}
+					})
+					f.Failure(func(err queue.QueueErr) {
+						pcontext.Errorf(ctx, "failed send to the queue: %s", queue.QueueErr_name[int32(err)])
+					})
 				}
 			}
 		}
@@ -263,20 +264,21 @@ func (m *myTestServer) Background(ctx context.Context) {
 		Id:           m.testQid.Marshal(),
 		MessageLimit: 1,
 	}
-	resp, err := m.queueSvc.Receive(ctx, &req)
-	if err != queue.QueueErr_NoError {
+	f := m.queueSvc.Receive(ctx, &req)
+	f.Failure(func(err queue.QueueErr) {
 		pcontext.Errorf(ctx, "unable to receive from queue: %s", queue.QueueErr_name[int32(err)])
-		return
-	}
-	msg := resp.Message[0]
-	aload := msg.GetPayload()
-	payload := test.QueuePayload{}
-	unmarsh := aload.UnmarshalTo(&payload)
-	if unmarsh != nil {
-		pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s", unmarsh.Error())
-		return
-	}
-	pcontext.Infof(ctx, "got test from queue %s,%s", payload.Name, payload.FuncName)
+	})
+	f.Success(func(resp *queue.ReceiveResponse) {
+		msg := resp.Message[0]
+		aload := msg.GetPayload()
+		payload := test.QueuePayload{}
+		unmarsh := aload.UnmarshalTo(&payload)
+		if unmarsh != nil {
+			pcontext.Errorf(ctx, "unable to unmarshal queue message payload: %s", unmarsh.Error())
+			return
+		}
+		pcontext.Infof(ctx, "got test from queue %s,%s", payload.Name, payload.FuncName)
+	})
 }
 
 func (m *myTestServer) addAllTests(ctx context.Context, info *suiteInfo) {
@@ -295,7 +297,7 @@ func suiteInfoToSuiteName(info *suiteInfo) string {
 	return fmt.Sprintf("%s.%s", info.pkg, info.service)
 }
 
-func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) test.TestErr {
+func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSvc string) *test.FutureUnderTestExec {
 	pcontext.Debugf(ctx, "run tests0")
 	locate := make(map[string]test.ClientUnderTest)
 	var client test.ClientUnderTest
@@ -306,30 +308,35 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 	pcontext.Debugf(ctx, "run tests2 %s,%s\n", fullTestName, execPackageSvc)
 	loc, ok := locate[execPackageSvc]
 	if !ok {
+		var err test.TestErr
 		execPkg, execSvc := splitPkgAndService(execPackageSvc)
-		client, err := m.locateClient(ctx, execPkg, execSvc)
+		client, err = m.locateClient(ctx, execPkg, execSvc)
 		if err != test.TestErr_NoError {
-			return err
+			pcontext.Errorf(ctx, "unable to test %s.%s, cannot locate it", execPkg, execSvc)
+			f := test.NewFutureUnderTestExec()
+			f.CompleteCall(nil, int32(err))
+			return f
 		}
-		locate[execPackageSvc] = client
+
 	} else {
 		client = loc
 	}
 	pcontext.Debugf(ctx, "run tests4, got a client")
-	resp, err :=
-		client.Exec(ctx, &test.ExecRequest{
-			Package: pkg,
-			Service: svc,
-			Name:    part[len(part)-1],
-		})
-	if err != test.TestErr_NoError {
+	f := client.UnderTestExec(ctx, &test.ExecRequest{
+		Package: pkg,
+		Service: svc,
+		Name:    part[len(part)-1],
+	})
+	f.Failure(func(err test.TestErr) {
 		pcontext.Errorf(ctx, "xxx run tests %v", test.TestErr_name[int32(err)])
-		return test.TestErr_ServiceNotFound
-	}
-	pcontext.Debugf(ctx, "xxx run tests %s.%s.%s (skipped? %v, success? %v)",
-		resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
-	return test.TestErr_NoError
+	})
+	f.Success(func(resp *test.ExecResponse) {
+		pcontext.Debugf(ctx, "xxx run tests %s.%s.%s (skipped? %v, success? %v)",
+			resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
+	})
+	return f
 }
+
 func splitPkgAndService(s string) (string, string) {
 	part := strings.Split(s, ".")
 
@@ -345,13 +352,13 @@ func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.
 		return nil, test.TestErr_DynamicLocate
 	}
 	return &test.ClientUnderTest_{
-		ClientSideService: cs,
+		BaseService: cs,
 	}, test.TestErr_NoError
 }
 
 // makeSendRequest creates a SendRequest and all the internal objects required
 // make it work correctly in the test queue.
-func makeSendRequest(ctx context.Context, qid queueg.QueueId, name, funcName string) (*queue.SendRequest, test.TestErr) {
+func makeSendRequest(ctx context.Context, qid queue.QueueId, name, funcName string) (*queue.SendRequest, test.TestErr) {
 
 	qidM := qid.Marshal()
 	payload := test.QueuePayload{

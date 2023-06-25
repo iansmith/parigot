@@ -5,10 +5,10 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -18,8 +18,8 @@ type FullyQualifiedServiceName struct {
 }
 
 func main() {
-	req := []apiwasm.MustRequireFunc{
-		methodcall.MustRequireFoo,
+	req := []lib.MustRequireFunc{
+		methodcall.MustRequire,
 	}
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "barservice.Main")
 	bar := &barServer{}

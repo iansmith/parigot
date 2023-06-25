@@ -23,6 +23,9 @@ import(
     "github.com/iansmith/parigot/apishared/id"  
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
     syscallguest "github.com/iansmith/parigot/apiwasm/syscall" 
+
+    "google.golang.org/protobuf/types/known/anypb"
+
 )   
 
 {{ $needServiceDifferentiation:=true }}
@@ -208,8 +211,28 @@ func MustWaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl S
 // method: {{$svcCamel}}.{{$methCamel}}  ({{$svcDiff}})
 //
 
+{{- if .OutputCodeNeeded }}
 type Future{{$svcDiff}}{{$methCamel}} struct {
-    *lib.Future
+    *lib.Future[{{$outParam}},{{$errId}}]
+}
+{{- else}}
+type Future{{$svcDiff}}{{$methCamel}} struct {
+    *lib.Future[any,{{$errId}}]
+}
+{{- end }} {{/*end of output code needed */}}
+
+func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteCall(a *anypb.Any, e int32) {
+{{- if .OutputCodeNeeded }}
+    result:= &{{$outParamDecl}}
+    err:=a.UnmarshalTo(result)
+    if err!=nil {
+        panic("unable to unmarshal data for use in a future being completed")
+    }
+{{- else }}
+    result:=any(nil)
+{{- end }}
+    resultErr:={{$errId}}(e)
+    f.Future.CompleteCall(result,resultErr)
 }
 
 {{- if .OutputCodeNeeded}}
@@ -226,40 +249,6 @@ func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func ({{$errId}})) {
 {{- end }} {{/* end of output code needed*/}}
 }
 
-{{- if .OutputCodeNeeded}}
-func Future1{{$svcDiff}}{{$methCamel}}Success[T any](fn func({{$outParam}}, T),t T) func({{$outParam}}) {
-    return func(e {{$outParam}}){
-        fn(e,t)
-    }
-}
-func Future2{{$svcDiff}}{{$methCamel}}Success[T any,U any](fn func({{$outParam}}, T, U),t T, u U) func({{$outParam}}) {
-    return func(e {{$outParam}}){
-        fn(e,t,u)
-    }
-}
-func Future3{{$svcDiff}}{{$methCamel}}Success[T any,U any,V any](fn func({{$outParam}}, T, U, V), t T, u U, v V) func({{$outParam}}) {
-    return func(e {{$outParam}}){
-        fn(e,t,u,v)
-    }
-}
-{{- end }} {{/*output code needed */}}
-
-func Future1{{$svcDiff}}{{$methCamel}}Failure[T any](fn func({{$errId}}, T),t T) func({{$errId}}) {
-    return func(e {{$errId}}){
-        fn(e,t)
-    }
-}
-func Future2{{$svcDiff}}{{$methCamel}}Failure[T any,U any](fn func({{$errId}}, T, U),t T, u U) func({{$errId}}) {
-    return func(e {{$errId}}){
-        fn(e,t,u)
-    }
-}
-func Future3{{$svcDiff}}{{$methCamel}}Failure[T any,U any,V any](fn func({{$errId}}, T, U, V), t T, u U, v V) func({{$errId}}) {
-    return func(e {{$errId}}){
-        fn(e,t,u,v)
-    }
-}
-
 func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
     f:= &Future{{$svcDiff}}{{$methCamel}}{
 {{- if .OutputCodeNeeded }}
@@ -272,24 +261,6 @@ func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
     return f    
 }
 
-func NewFuture{{$svcDiff}}{{$methCamel}}Error(e {{$errId}}) *Future{{$svcDiff}}{{$methCamel}} {
-    f:=&Future{{$svcDiff}}{{$methCamel}}{
-        Future: lib.NewFuture[any,{{$errId}}](nil,nil),
-    }
-    f.Future.CompleteCall(nil,int32(e))
-    return f
-}
-
-{{- if .OutputCodeNeeded}}
-func NewFuture{{$svcDiff}}{{$methCamel}}Value(x {{$outParam}}) *Future{{$svcDiff}}{{$methCamel}} {
-    f:=&Future{{$svcDiff}}{{$methCamel}}{
-        Future: lib.NewFuture[{{$outParam}},int32](nil,nil),
-    }
-    f.Future.CompleteCall(x,0)
-    return f
-}
-{{- end }} {{/* end of output code needed */}}
-
 {{- if .InputCodeNeeded }}
 func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context, in {{$inParam}}) *Future{{$svcDiff}}{{$methCamel}} {
 {{- else }}
@@ -297,18 +268,21 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
 {{- end }} {{/* end of input needed */}}
     mid, ok := i.BaseService.MethodIdByName("{{.WasmMethodName}}")
     if!ok {
-        return NewFuture{{$svcDiff}}{{$methCamel}}Error({{$errId}}(1))
+        f:=NewFuture{{$svcDiff}}{{$methCamel}}()
+        f.CompleteCall(nil,1/*dispatch error*/)
+        return f
     }
 {{- if .InputCodeNeeded }}
     cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
 {{- else }}
     cid,kerr:= i.BaseService.Dispatch(mid,nil)
 {{- end }} {{/* end of input needed */}}
-    if kerr!=syscall.KernelErr_NoError{
-        return NewFuture{{$svcDiff}}{{$methCamel}}Error({{$errId}}(1))
-     }
     f:=NewFuture{{$svcDiff}}{{$methCamel}}()
-    lib.AddMatchingFuture(cid,f.Future)
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteCall(nil, 1/*dispatch error*/)
+        return f
+     }
+    lib.MatchCompleter(cid,f)
     return f
 }
 {{- end}} {{/*ranging over methods*/}}

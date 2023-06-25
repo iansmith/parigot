@@ -28,8 +28,7 @@ type BaseService struct {
 
 func NewBaseService(ctx context.Context, id id.ServiceId, sm *lib.ServiceMethodMap) *BaseService {
 	if len(sm.Call()) == 0 {
-		log.Printf("NewBaseService: binding is zero")
-		//debug.PrintStack()
+		pcontext.Infof(ctx, "NewBaseService: binding size is zero")
 	}
 	return &BaseService{
 		svc:   id,
