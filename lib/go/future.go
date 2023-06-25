@@ -1,69 +1,48 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/g/protosupport/v1"
+	"google.golang.org/protobuf/types/known/anypb"
 )
+
+type Completer interface {
+	CompleteCall(a *anypb.Any, resultErr int32)
+}
 
 type ErrorType interface {
 	~int32
 }
 
-type Future struct {
-	resolveFn     func(any)
-	rejectFn      func(int32)
+type Future[T any, U ErrorType] struct {
+	resolveFn     func(t T)
+	rejectFn      func(U)
 	resolved      bool
-	resolvedValue any
+	resolvedValue T
 	rejected      bool
-	rejectedValue int32
-	rejectedConst bool
-	downstream    []*Future
+	rejectedValue U
 }
 
-func NewFuture[T any, U ErrorType](resolve func(T), reject func(U)) *Future {
-	resolveWrap := func(a any) {
-		resolve(a.(T))
-	}
-	rejectWrap := func(a int32) {
-		reject(U(a))
-	}
-
-	return &Future{
-		resolveFn: resolveWrap,
-		rejectFn:  rejectWrap,
+func NewFuture[T any, U ErrorType](resolve func(T), reject func(U)) *Future[T, U] {
+	return &Future[T, U]{
+		resolveFn: resolve,
+		rejectFn:  reject,
 	}
 }
 
-func NewFutureError[U ErrorType](u U) *Future {
-	return &Future{
-		rejectedConst: true,
-		rejectedValue: int32(u),
-	}
-}
-
-func (f *Future) CompleteCall(result any, resultErr int32) {
-	if resultErr != 0 {
+func (f *Future[T, U]) CompleteCall(result T, resultErr U) {
+	if resultErr != 0 || f.resolveFn == nil {
 		if f.rejectFn != nil {
 			f.rejectFn(resultErr)
 		}
 		f.rejected = true
-		f.rejectedConst = true
 		f.rejectedValue = resultErr
 	} else {
-		if result != nil {
-			if f.resolveFn != nil {
-				f.resolveFn(result)
-			}
-		}
+		f.resolveFn(result)
 		f.resolved = true
 		f.resolvedValue = result
 	}
-	// float downstream
-	for _, d := range f.downstream {
-		d.CompleteCall(result, resultErr)
-	}
 }
 
-func (f *Future) SuccessAny(fn func(any)) {
+func (f *Future[T, U]) Success(fn func(T)) {
 	if f.rejected {
 		return // no way this fn call ever be called
 	}
@@ -72,11 +51,10 @@ func (f *Future) SuccessAny(fn func(any)) {
 		fn(f.resolvedValue)
 		return
 	}
-	newFuture := NewFuture[any, int32](fn, nil)
-	f.downstream = append(f.downstream, newFuture)
+	f.resolveFn = fn
 }
 
-func (f *Future) FailureAny(fn func(int32)) {
+func (f *Future[T, U]) Failure(fn func(U)) {
 	if f.resolved {
 		return // cannot be reached
 	}
@@ -84,19 +62,17 @@ func (f *Future) FailureAny(fn func(int32)) {
 		fn(f.rejectedValue)
 		return
 	}
-	newFuture := NewFuture[any, int32](nil, fn)
-	f.downstream = append(f.downstream, newFuture)
+	f.rejectFn = fn
 }
 
-func NewFutureId() *Future {
-	return NewFuture[*protosupport.IdRaw, int32](nil, nil)
-}
+//
+// BaseFature (single value with Handle())
+//
 
 type BaseFuture[T any] struct {
 	resolveFn     func(T)
 	resolved      bool
 	resolvedValue T
-	downstream    []*Future
 }
 
 func NewBaseFuture[T any]() *BaseFuture[T] {

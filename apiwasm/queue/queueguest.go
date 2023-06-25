@@ -5,10 +5,10 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	queue "github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -16,10 +16,10 @@ var _ = unsafe.Sizeof([]byte{})
 func main() {
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
 	f := &myQueueSvc{}
-	binding := queue.InitQueue(ctx, []apiwasm.MustRequireFunc{}, f)
+	binding := queue.Init(ctx, []lib.MustRequireFunc{}, f)
 	var kerr syscall.KernelErr
 	for {
-		kerr = queue.ReadOneAndCallQueue(ctx, binding, queue.TimeoutInMillisQueue)
+		kerr = queue.ReadOneAndCall(ctx, binding, queue.TimeoutInMillisQueue)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			pcontext.Infof(ctx, "waiting for calls to queue service")
 			continue
@@ -35,8 +35,10 @@ func main() {
 type myQueueSvc struct {
 }
 
-func (m *myQueueSvc) Ready(ctx context.Context, _ id.ServiceId) bool {
-	return true
+func (m *myQueueSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.BaseFuture[bool] {
+	n := lib.NewBaseFuture[bool]()
+	n.Set(true)
+	return n
 }
 func (m *myQueueSvc) CreateQueue(ctx context.Context, in *queue.CreateQueueRequest) (*queue.CreateQueueResponse, queue.QueueErr) {
 	return queue.CreateQueueHost(in)

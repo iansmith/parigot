@@ -177,9 +177,7 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 	// is a promise being completed?
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		// not much use, we know who we are
-		//hid:=id.UnmarshalHostId(r.GetHostId())
-		return lib.Resolve(cid,r.GetResult(), r.GetResultError())
+		return lib.CompleteCall(cid,r.GetResult(), r.GetResultError())
 	}
 
 	rvReq:=&syscall.ReturnValueRequest{
