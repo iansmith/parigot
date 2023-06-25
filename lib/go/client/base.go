@@ -26,7 +26,7 @@ type BaseService struct {
 	smMap *lib.ServiceMethodMap
 }
 
-func NewBaseService(ctx context.Context, id id.ServiceId, sm *ServiceMethodMap) *BaseService {
+func NewBaseService(ctx context.Context, id id.ServiceId, sm *lib.ServiceMethodMap) *BaseService {
 	if len(sm.Call()) == 0 {
 		log.Printf("NewBaseService: binding is zero")
 		//debug.PrintStack()
@@ -41,7 +41,7 @@ func (c *BaseService) ServiceId() id.ServiceId {
 	return c.svc
 }
 
-func (c *BaseService) ServiceMethodMap() *ServiceMethodMap {
+func (c *BaseService) ServiceMethodMap() *lib.ServiceMethodMap {
 	return c.smMap
 }
 
@@ -53,7 +53,7 @@ func (c *BaseService) MethodIdByName(str string) (id.MethodId, bool) {
 	return mid, true
 }
 
-// String() returns a useful stringn for debugging a client side service.
+// String() returns a useful string for debugging a client side service.
 // This includes all the known methods for the service.
 func (c *BaseService) String() string {
 	buf := &bytes.Buffer{}
@@ -95,7 +95,7 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		MethodId:  method.Marshal(),
 		CallId:    cid.Marshal(),
 		Param:     a,
-		HostId:    CurrentHostId().Marshal(),
+		HostId:    lib.CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Dispatch(in)
 	if kerr != syscall.KernelErr_NoError {

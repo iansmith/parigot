@@ -34,10 +34,10 @@ func main() {
 
 type myFileSvc struct{}
 
-func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.Future {
+func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.BaseFuture[bool] {
 	pcontext.Debugf(ctx, "Ready reached in file service")
-	ff := lib.NewFuture[any, file.FileErr](nil, nil)
-	ff.CompleteCall(nil, 0)
+	ff := lib.NewBaseFuture[bool]()
+	ff.Set(true)
 	return ff
 }
 

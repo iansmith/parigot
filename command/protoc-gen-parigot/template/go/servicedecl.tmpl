@@ -18,6 +18,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  
+    "github.com/iansmith/parigot/lib/go/client"  
     pcontext "github.com/iansmith/parigot/context"  
     "github.com/iansmith/parigot/apishared/id"  
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
@@ -94,18 +95,18 @@ type Client{{$svcDiff}} interface {
 {{- $svcDiffFL = $svcCamelFL }}
 {{end}}
 type Client{{$svcDiff}}_ struct {
-    *lib.ClientSideService
+    *client.BaseService
 }
 
 
 // Locate finds a reference to the client interface of {{$svc}}.  
 func Locate{{$svcDiff}}(ctx context.Context,sid id.ServiceId) (Client{{$svcDiff}},syscall.KernelErr) {
-    cs, kerr:=lib.LocateDynamic(ctx, "{{.ProtoPackage}}","{{$svc}}", sid)
+    cs, kerr:=client.LocateDynamic(ctx, "{{.ProtoPackage}}","{{$svc}}", sid)
     if kerr!=syscall.KernelErr_NoError{
         return nil, kerr
     }
     return &Client{{$svcDiff}}_{
-        ClientSideService: cs,
+        BaseService: cs,
     },syscall.KernelErr_NoError
 }
 
@@ -294,14 +295,14 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context, in
 {{- else }}
 func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}} {
 {{- end }} {{/* end of input needed */}}
-    mid, ok := i.ClientSideService.MethodIdByName("{{.WasmMethodName}}")
+    mid, ok := i.BaseService.MethodIdByName("{{.WasmMethodName}}")
     if!ok {
         return NewFuture{{$svcDiff}}{{$methCamel}}Error({{$errId}}(1))
     }
 {{- if .InputCodeNeeded }}
-    cid,kerr:= i.ClientSideService.Dispatch(mid,{{$inbound}})
+    cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
 {{- else }}
-    cid,kerr:= i.ClientSideService.Dispatch(mid,nil)
+    cid,kerr:= i.BaseService.Dispatch(mid,nil)
 {{- end }} {{/* end of input needed */}}
     if kerr!=syscall.KernelErr_NoError{
         return NewFuture{{$svcDiff}}{{$methCamel}}Error({{$errId}}(1))
