@@ -25,10 +25,9 @@ EXTRA_WASM_COMP_ARGS=
 EXTRA_HOST_ARGS=
 EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
-SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go apiwasm/*.go 
-API_WASM_SRC=$(shell find apiwasm -type f -regex ".*\.go")
+SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_WASM_SRC) $(API_ID)
+API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 
 CC=/usr/lib/llvm-15/bin/clang
@@ -98,7 +97,7 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
 PLUGIN= build/queue.so build/file.so build/syscall.so
-build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/*.go apiwasm/*.go apiplugin/* wazero-src-1.1/fauxfd.go
+build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC) apishared/id/*.go apiplugin/* 
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 

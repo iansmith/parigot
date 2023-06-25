@@ -1,4 +1,4 @@
-package apiwasm
+package lib
 
 import (
 	"context"

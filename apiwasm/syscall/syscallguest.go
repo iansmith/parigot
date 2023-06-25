@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -24,16 +24,14 @@ import (
 func Locate_(int32, int32, int32, int32) int64
 func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.LocateResponse{}
-	ctx := apiwasm.ManufactureGuestContext("[syscall]Locate")
+	ctx := lib.ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
 	lr, errIdRaw, signal :=
-		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+		lib.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
 		log.Printf("xxxx Locate exiting due to signal")
-		for {
-		}
 		os.Exit(1)
 	}
 	if kerr != syscall.KernelErr_NoError {
@@ -55,11 +53,11 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 func Dispatch_(int32, int32, int32, int32) int64
 func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.DispatchResponse{}
-	ctx := apiwasm.ManufactureGuestContext("[syscall]Dispatch")
+	ctx := lib.ManufactureGuestContext("[syscall]Dispatch")
 	defer pcontext.Dump(ctx)
 
 	dr, err, signal :=
-		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
+		lib.ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
 
 	// in band error?
 	kerr := syscall.KernelErr(err)
@@ -86,14 +84,14 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 func Launch_(int32, int32, int32, int32) int64
 func Launch(inPtr *syscall.LaunchRequest) (*syscall.LaunchResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.LaunchResponse)(nil)
-	ctx := apiwasm.ManufactureGuestContext("[syscall]Run")
+	ctx := lib.ManufactureGuestContext("[syscall]Run")
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
 	if sid.IsZeroOrEmptyValue() {
 		return nil, syscall.KernelErr_BadId
 	}
 	rr, err, signal :=
-		apiwasm.ClientSide(ctx, inPtr, outProtoPtr, Launch_)
+		lib.ClientSide(ctx, inPtr, outProtoPtr, Launch_)
 	if signal {
 		log.Printf("xxx Run exiting due to signal")
 		for {
@@ -241,9 +239,9 @@ func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.Kern
 // standardGuestSide is a wrapper around ClientSide that knows how
 // to handle the error return to do an immediate exit.
 func standardGuestSide[T proto.Message, U proto.Message](in T, out U, fn func(int32, int32, int32, int32) int64, name string) syscall.KernelErr {
-	ctx := apiwasm.ManufactureGuestContext("[guest syscall]" + name)
+	ctx := lib.ManufactureGuestContext("[guest syscall]" + name)
 	defer pcontext.Dump(ctx)
-	_, err, signal := apiwasm.ClientSide(ctx, in, out, fn)
+	_, err, signal := lib.ClientSide(ctx, in, out, fn)
 	if signal {
 		pcontext.Fatalf(ctx, "(syscall guest) %s method exiting due to signal", name)
 		os.Exit(1)

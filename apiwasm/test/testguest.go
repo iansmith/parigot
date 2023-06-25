@@ -10,7 +10,9 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
+	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
@@ -33,22 +35,13 @@ func main() {
 
 	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
 	launchFuture := test.LaunchTest(ctx, myId, server)
-	//launchFuture.Failure
-	if err := test.LaunchTest(ctx, myId, server); err != syscall.KernelErr_NoError {
-		pcontext.Fatalf(ctx, "test guest cannot launch the service:%s", syscall.KernelErr_name[int32(err)])
-		return
-	}
+	launchFuture.Failure(func(i test.TestErr) {
+		pcontext.Errorf(ctx, "ready check failed for test service")
+		guestsyscall.Exit(1)
+	})
 	var kerr syscall.KernelErr
 	for {
-		kerr = test.ReadOneAndCallTest(ctx, binding, 500)
-		if kerr == syscall.KernelErr_ReadOneTimeout {
-			server.Background(ctx)
-			continue
-		}
-		if kerr == syscall.KernelErr_NoError {
-			continue
-		}
-		break
+		test.RunTest(ctx, binding, 1000, nil)
 	}
 	pcontext.Fatalf(ctx, "error while waiting for test service calls: %s", syscall.KernelErr_name[int32(kerr)])
 
@@ -118,7 +111,7 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.Future 
 	m.queueSvc = queue.MustLocate(ctx, sid)
 	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.ClientQueue_).String())
 	qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName).
-		OnSuccess(func(qid queue.QueueId) {
+		Success(func(i *protosupport.IdRaw) {
 
 		}).
 		OnError(func(err queue.QueueErr) {

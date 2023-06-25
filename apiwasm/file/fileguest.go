@@ -5,7 +5,6 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm"
 	pcontext "github.com/iansmith/parigot/context"
 	file "github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -17,7 +16,7 @@ var _ = unsafe.Sizeof([]byte{})
 func main() {
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
 	f := &myFileSvc{}
-	binding := file.Init(ctx, []apiwasm.MustRequireFunc{}, f)
+	binding := file.Init(ctx, []lib.MustRequireFunc{}, f)
 	var kerr syscall.KernelErr
 	for {
 		kerr = file.ReadOneAndCall(ctx, binding, file.TimeoutInMillisFile)
