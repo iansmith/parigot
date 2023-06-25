@@ -1,4 +1,4 @@
-package lib
+package client
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/lib/go/client"
+	lib "github.com/iansmith/parigot/lib/go"
 )
 
 func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy id.ServiceId) (*BaseService, syscall.KernelErr) {
@@ -23,13 +23,13 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 		return nil, kerr
 	}
 	serviceId := id.UnmarshalServiceId(resp.GetServiceId())
-	smmap := NewServiceMethodMap()
+	smmap := lib.NewServiceMethodMap()
 	for _, pair := range resp.GetBinding() {
 		mid := id.UnmarshalMethodId(pair.MethodId)
 		smmap.AddServiceMethod(serviceId, mid,
 			serviceName, pair.MethodName, nil)
 	}
-	cs := client.NewBaseService(ctx, serviceId, smmap)
+	cs := NewBaseService(ctx, serviceId, smmap)
 	return cs, syscall.KernelErr_NoError
 
 }

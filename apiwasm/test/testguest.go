@@ -12,11 +12,11 @@ import (
 	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
 	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"
 	pcontext "github.com/iansmith/parigot/context"
-	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/client"
 
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -35,9 +35,11 @@ func main() {
 
 	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
 	launchFuture := test.LaunchTest(ctx, myId, server)
-	launchFuture.Failure(func(i test.TestErr) {
-		pcontext.Errorf(ctx, "ready check failed for test service")
-		guestsyscall.Exit(1)
+	launchFuture.Handle(func(ok bool) {
+		if !ok {
+			pcontext.Errorf(ctx, "ready check failed for test service")
+			guestsyscall.Exit(1)
+		}
 	})
 	var kerr syscall.KernelErr
 	for {
@@ -51,9 +53,9 @@ type myTestServer struct {
 	myId      id.ServiceId
 	suite     map[string]*suiteInfo
 	suiteExec map[string]string
-	testQid   queueg.QueueId
+	testQid   queue.QueueId
 
-	queueSvc queue.ClientQueue
+	queueSvc queue.Client
 
 	started    bool
 	haveName   bool
@@ -97,7 +99,7 @@ func (s *suiteInfo) String() string {
 	return buf.String()
 }
 
-func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.Future {
+func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.BaseFuture[bool] {
 	// initialization can be done here, not just in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
@@ -109,21 +111,22 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.Future 
 		}
 	}()
 	m.queueSvc = queue.MustLocate(ctx, sid)
-	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.ClientQueue_).String())
+	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.Client_).String())
+	baseBool := lib.NewBaseFuture[bool]()
+	// note that find or create queue returns an id future
+	// and it will be zero value if things failed upstream.
 	qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName).
-		Success(func(i *protosupport.IdRaw) {
-
-		}).
-		OnError(func(err queue.QueueErr) {
-
+		Handle(func(i queue.QueueId) {
+			if i.IsZeroOrEmptyValue() {
+				pcontext.Errorf(ctx, "unable find or create queue in test service")
+				baseBool.Set(false)
+				return
+			}
+			m.testQid = i
+			baseBool.Set(true)
 		})
-	if err != queue.QueueErr_NoError {
-		pcontext.Errorf(ctx, "myTestServer: failed to extract queue ID: error was %s ", queue.QueueErr_name[int32(err)])
-		return false
-	}
-	m.testQid = qid
 
-	return true
+	return baseBool
 }
 
 func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) (*test.AddTestSuiteResponse, test.TestErr) {
@@ -337,7 +340,7 @@ func splitPkgAndService(s string) (string, string) {
 }
 
 func (m *myTestServer) locateClient(ctx context.Context, pkg, svc string) (test.ClientUnderTest, test.TestErr) {
-	cs, err := lib.LocateDynamic(ctx, pkg, svc, m.myId)
+	cs, err := client.LocateDynamic(ctx, pkg, svc, m.myId)
 	if err != syscall.KernelErr_NoError {
 		return nil, test.TestErr_DynamicLocate
 	}
