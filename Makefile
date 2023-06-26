@@ -225,7 +225,7 @@ build/methodcalltest.p.wasm: $(METHODCALLTEST_SRC) $(API_CLIENT_SIDE) $(METHODCA
 
 ## methodcall service impl: methodcall.FooService
 FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go
+build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go g/methodcall/foo/v1/foo.proto
 	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
 

@@ -19,7 +19,7 @@ func main() {
 	binding := file.Init(ctx, []lib.MustRequireFunc{}, f)
 	var kerr syscall.KernelErr
 	for {
-		kerr = file.ReadOneAndCall(ctx, binding, file.TimeoutInMillisFile)
+		kerr = file.ReadOneAndCall(ctx, binding, file.TimeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			pcontext.Infof(ctx, "waiting for calls to file service")
 			continue

@@ -19,7 +19,7 @@ func main() {
 	binding := queue.Init(ctx, []lib.MustRequireFunc{}, f)
 	var kerr syscall.KernelErr
 	for {
-		kerr = queue.ReadOneAndCall(ctx, binding, queue.TimeoutInMillisQueue)
+		kerr = queue.ReadOneAndCall(ctx, binding, queue.TimeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			pcontext.Infof(ctx, "waiting for calls to queue service")
 			continue

@@ -1,10 +1,10 @@
 syntax ="proto3";
-package methodcall.v1;
-option go_package="github.com/iansmith/parigot/g/methodcall/v1;methodcall";
+package methodcall.foo.v1;
+option go_package="github.com/iansmith/parigot/g/methodcall/foo/v1;foo";
 import "protosupport/v1/protosupport.proto";
 
 service Foo {
-    option (protosupport.v1.error_id_name) = "MethodCallSuiteErr";
+    option (protosupport.v1.error_id_name) = "FooErr";
   rpc AddMultiply(AddMultiplyRequest) returns (AddMultiplyResponse);
   rpc LucasSequence(LucasSequenceRequest) returns (LucasSequenceResponse);
   rpc WritePi(WritePiRequest) returns (WritePiResponse);
@@ -40,3 +40,10 @@ message WritePiRequest { //print pi to terminal with log service
 message WritePiResponse {
 }
 
+enum FooErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; //mandatory
+    UnmarshalError = 2; // mandatory
+    BadParamWritePi = 3;
+}
