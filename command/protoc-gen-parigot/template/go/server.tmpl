@@ -154,7 +154,7 @@ func Run{{$svcDiff}}(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillis{{$svcDiff}} = int32(5000)
+var TimeoutInMillis{{$svcDiff}} = int32(500)
 
 func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32)  syscall.KernelErr {
