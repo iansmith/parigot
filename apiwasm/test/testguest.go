@@ -15,8 +15,8 @@ import (
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	test "github.com/iansmith/parigot/g/test/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/client"
+	"github.com/iansmith/parigot/lib/go/future"
 
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -99,7 +99,7 @@ func (s *suiteInfo) String() string {
 	return buf.String()
 }
 
-func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.BaseFuture[bool] {
+func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
 	// initialization can be done here, not just in main
 	m.suite = make(map[string]*suiteInfo)
 	m.suiteExec = make(map[string]string)
@@ -112,7 +112,7 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *lib.BaseFut
 	}()
 	m.queueSvc = queue.MustLocate(ctx, sid)
 	log.Printf("got a queue, with a cs of %s", m.queueSvc.(*queue.Client_).String())
-	baseBool := lib.NewBaseFuture[bool]()
+	baseBool := future.NewBase[bool]()
 	// note that find or create queue returns an id future
 	// and it will be zero value if things failed upstream.
 	qlib.FindOrCreateQueue(ctx, m.queueSvc, testQueueName).
@@ -314,7 +314,7 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 		if err != test.TestErr_NoError {
 			pcontext.Errorf(ctx, "unable to test %s.%s, cannot locate it", execPkg, execSvc)
 			f := test.NewFutureUnderTestExec()
-			f.CompleteCall(nil, int32(err))
+			f.CompleteMethod(nil, int32(err))
 			return f
 		}
 

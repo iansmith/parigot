@@ -18,6 +18,7 @@ import(
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     lib "github.com/iansmith/parigot/lib/go"  
+    "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     pcontext "github.com/iansmith/parigot/context"  
     "github.com/iansmith/parigot/apishared/id"  
@@ -32,16 +33,16 @@ import(
 {{ $svcLen := len .service }}
 {{- if eq $svcLen 1 }}
 {{- $needServiceDifferentiation = false}}
-{{- end}}
+{{- end}} {{/* end of need differentiation check */}}
 
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
 {{- $errId:=.GetWasmServiceErrId}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
-{{- $svcDiff:=""}}
+{{- $svcDiff := ""}}
 {{if $needServiceDifferentiation}}
 {{- $svcDiff = $svcCamel }}
-{{end}}
+{{end}} {{/*end of service iter */}}
 
 //
 // {{$svcCamel}} from {{$file}}
@@ -59,14 +60,11 @@ type {{$svcCamel}} interface {
     {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
 {{- else }} 
     {{$svcDiff}}{{$methCamel}}(ctx context.Context) 
-{{- end -}} 
-{{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, {{$errId}}) 
-{{- else -}}
-    {{$errId}}
-{{- end -}} {{/* end of output code needed for declaration */}}
+{{- end -}}  {{/* end of input needed */}}
+    *Future{{$svcDiff}}{{$methCamel}}
 {{- end }} {{/* end of range over methods */}}
 }
+
 //client interface
 type Client{{$svcDiff}} interface {
 {{- range .GetWasmMethod}}
@@ -76,14 +74,13 @@ type Client{{$svcDiff}} interface {
 {{- $iParam:=.InputParam.CGType.String $package}}
 {{- $oParam:=.OutputParam.CGType.String $package}}
 {{- if .InputCodeNeeded }}
-    {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 
-    {{$svcDiff}}{{$methCamel}}(ctx context.Context) 
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}}
 {{- end -}} 
-    *Future{{$svcDiff}}{{$methCamel}}
 {{- end }} {{/* end of range over methods */}}
-
 }
+
 {{- end}} {{/* closes service, the interface stuff*/}}
 
 {{- range .service }}
@@ -213,52 +210,54 @@ func MustWaitSatisfied{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl S
 
 {{- if .OutputCodeNeeded }}
 type Future{{$svcDiff}}{{$methCamel}} struct {
-    *lib.Future[{{$outParam}},{{$errId}}]
+    method *future.Method[{{$outParam}},{{$errId}}]
 }
 {{- else}}
 type Future{{$svcDiff}}{{$methCamel}} struct {
-    *lib.Future[any,{{$errId}}]
+    base *future.Base[{{$errId}}]
 }
 {{- end }} {{/*end of output code needed */}}
 
-func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteCall(a *anypb.Any, e int32) {
+// This is the same API for output needed or not because of the Completer interface.
+func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(a *anypb.Any, e int32) {
 {{- if .OutputCodeNeeded }}
     result:= &{{$outParamDecl}}
     err:=a.UnmarshalTo(result)
     if err!=nil {
         panic("unable to unmarshal data for use in a future being completed")
     }
+    f.method.CompleteMethod(result,{{$errId}}(e))
 {{- else }}
-    result:=any(nil)
+    f.base.Set({{$errId}}(e))
 {{- end }}
-    resultErr:={{$errId}}(e)
-    f.Future.CompleteCall(result,resultErr)
 }
 
 {{- if .OutputCodeNeeded}}
 func (f *Future{{$svcDiff}}{{$methCamel}})Success(sfn func ({{$outParam}})) {
-    f.Future = lib.NewFuture[{{$outParam}},{{$errId}}](sfn,nil)
+    f.method.Success(sfn)
 } 
 {{- end }} {{/* end of output code needed*/}}
 
 func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func ({{$errId}})) {
 {{- if .OutputCodeNeeded}}
-    f.Future = lib.NewFuture[{{$outParam}},{{$errId}}](nil,ffn)
+    f.method.Failure(ffn)
 {{- else }}
-    f.Future = lib.NewFuture[any,{{$errId}}](nil,ffn)
+    f.base.Handle(ffn)
 {{- end }} {{/* end of output code needed*/}}
 }
 
-func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
-    f:= &Future{{$svcDiff}}{{$methCamel}}{
 {{- if .OutputCodeNeeded }}
-        Future: lib.NewFuture[{{$outParam}},{{$errId}}](nil,nil),
+func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
+    f:=&Future{{$svcDiff}}{{$methCamel}}{
+        method: future.NewMethod[{{$outParam}},{{$errId}}](nil,nil),
     }
 {{- else }}
-        Future: lib.NewFuture[any,{{$errId}}](nil,nil),
+func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
+    f:=&Future{{$svcDiff}}{{$methCamel}}{
+        base: future.NewBase[{{$errId}}](),
     }
-{{- end }} {{/* output code needed */}}
-    return f    
+{{- end}}
+    return f
 }
 
 {{- if .InputCodeNeeded }}
@@ -267,10 +266,9 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context, in
 func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}} {
 {{- end }} {{/* end of input needed */}}
     mid, ok := i.BaseService.MethodIdByName("{{.WasmMethodName}}")
-    if!ok {
+    if !ok {
         f:=NewFuture{{$svcDiff}}{{$methCamel}}()
-        f.CompleteCall(nil,1/*dispatch error*/)
-        return f
+        f.CompleteMethod(nil,1)/*dispatch error*/
     }
 {{- if .InputCodeNeeded }}
     cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
@@ -279,7 +277,7 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
 {{- end }} {{/* end of input needed */}}
     f:=NewFuture{{$svcDiff}}{{$methCamel}}()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteCall(nil, 1/*dispatch error*/)
+        f.CompleteMethod(nil, 1)/*dispatch error*/
         return f
      }
     lib.MatchCompleter(cid,f)

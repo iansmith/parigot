@@ -1,6 +1,9 @@
 package future
 
 import (
+	"bytes"
+	"fmt"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -9,7 +12,7 @@ import (
 // type can be "completed" at a later time.  This is used
 // only for Methods.
 type Completer interface {
-	CompleteCall(a *anypb.Any, resultErr int32)
+	CompleteMethod(a *anypb.Any, resultErr int32)
 }
 
 type ErrorType interface {
@@ -19,21 +22,21 @@ type ErrorType interface {
 // Method is a special type of future that is used frequently
 // in Parigot because all the methods of a service, and the
 // methods of clients that use that same service, must return
-// this type.  It has the special behavior that when CompletMethod
-// is called on this method, the error value is compared to zero
+// this type.  It has the special behavior that when CompleteMethod
+// is called on this Method, the error value is compared to zero
 // and this determines if the Success (error value is 0)
-// or Failure (error is not 0) function is called.
+// or Failure (error is not 0) handler function is called.
 //
 // It is thus impossible to have a Method that can behave in
 // a failed way (call to Failure) based on the return value
-// being 0.  In this case, use a BaseFuture[int32].
+// being 0.  In this case, use a Base[int32], as parigot does.
 type Method[T proto.Message, U ErrorType] struct {
-	resolveFn     func(t T)
-	rejectFn      func(U)
-	resolved      bool
-	resolvedValue T
-	rejected      bool
-	rejectedValue U
+	resolveFn               func(t T)
+	rejectFn                func(U)
+	resolvedValue           T
+	rejectedValue           U
+	completed               bool
+	resolveSucc, rejectSucc *Method[T, U]
 }
 
 // NewMethod return as method future with two types given.  The T
@@ -47,39 +50,91 @@ func NewMethod[T proto.Message, U ErrorType](resolve func(T), reject func(U)) *M
 	}
 }
 
+// findLast is a utility function which finds the last
+// Method future in a sequence of futures.  Whether it finds error
+// or success values based on the isSuccess paramater.
+func (f *Method[T, U]) findLast(isSuccess bool) *Method[T, U] {
+	var current *Method[T, U]
+	if isSuccess {
+		current = f.resolveSucc
+	} else {
+		current = f.rejectSucc
+	}
+	prev := f
+	for current != nil {
+		prev = current
+		if isSuccess {
+			current = current.resolveSucc
+		} else {
+			current = current.rejectSucc
+		}
+	}
+	return prev
+}
+
 // CompleteMethod is called to indicate that the outcome, or value,
 // of the future is now known.  This method is typically called by
 // the infrastructure of Parigot, but it can be useful to call this
-// method directly in tests.  Calling CompleteMethod() on an already
-// completed method future will panic as such a call to CompleteMethod()
-// makes no sense (a method can only be completed once).
+// method directly in tests.  Calling this method on completed Method
+// future is pointless and will panic.
 func (f *Method[T, U]) CompleteMethod(result T, resultErr U) {
-	if f.resolved || f.rejected {
+	if f.completed {
 		panic("cannot call CompleteMethod on a future that is already completed")
 	}
-	if resultErr != 0 || f.resolveFn == nil {
-		if f.rejectFn != nil {
-			f.rejectFn(resultErr)
+	if resultErr != 0 {
+		current := f
+		for current != nil {
+			if current.rejectFn != nil {
+				current.rejectFn(resultErr)
+			}
+			current.rejectedValue = resultErr
+			current.completed = true
+			current = current.rejectSucc
 		}
-		f.rejected = true
-		f.rejectedValue = resultErr
-	} else {
-		f.resolveFn(result)
-		f.resolved = true
-		f.resolvedValue = result
+		return // ran them all
+	}
+	current := f
+	for current != nil {
+		if current.resolveFn != nil {
+			current.resolveFn(result)
+		}
+		current.completed = true
+		current.resolvedValue = result
+		current = current.resolveSucc
 	}
 }
 
+// String() returns a human-friendly version of this Method future.
+// It shows it is resolved and if so, if the completion was an error.
+func (f *Method[T, U]) String() string {
+	var t T
+	var u U
+	buf := &bytes.Buffer{}
+	buf.WriteString(fmt.Sprintf("[Method:%T,%T]", t, u))
+	if f.completed {
+		buf.WriteString("completed:")
+		if f.rejectedValue != 0 {
+			buf.WriteString(fmt.Sprintf("error: %+v", f.resolvedValue))
+		} else {
+			buf.WriteString("success")
+		}
+	} else {
+		buf.WriteString("waiting")
+	}
+	return buf.String()
+}
+
 // Success provides a function to be called if the Method returns a
-// success.  Unlike Base[T], the given function fn will replace the
-// function, if any, that was previously given as the success function.
+// success.
 // Calling Success() on an already completed method is useless and
 // causes a panic (a method can only be 'completed' once).
 func (f *Method[T, U]) Success(fn func(T)) {
-	if f.resolved || f.rejected {
+	if f.completed {
 		panic("Success() called on already completed Method")
 	}
-	f.resolveFn = fn
+	last := f.findLast(true)
+	next := NewMethod[T, U](fn, nil)
+	last.resolveSucc = next
 }
 
 // Failure provides a function to be called if the Method returns a
@@ -88,19 +143,22 @@ func (f *Method[T, U]) Success(fn func(T)) {
 // Calling Failure() on an already completed method is useless and
 // causes a panic (a method can only be 'completed' once).
 func (f *Method[T, U]) Failure(fn func(U)) {
-	if f.resolved || f.rejected {
+	if f.completed {
 		panic("Success() called on already completed Method")
 	}
-	f.rejectFn = fn
+	last := f.findLast(false)
+	next := NewMethod[T, U](nil, fn)
+
+	last.rejectSucc = next
 }
 
 // Completed returns true if the Method has been completed.
 func (f *Method[T, U]) Completed() bool {
-	return f.rejected || f.resolved
+	return f.completed
 }
 
 //
-// BaseFuture (single value with Handle())
+// Base (single value with Handle())
 //
 
 // Base[T] represents a future computation resulting in
@@ -231,4 +289,23 @@ func (f *Base[T]) alreadyRunAll() bool {
 		current = current.successor
 	}
 	return true
+}
+
+// Completed returns true if all the Handle() functions
+// on this future have run.  Note that is can be
+// changed by the addition of new Handle() functions
+// via Handle().
+func (f *Base[T]) Completed() bool {
+	return f.alreadyRunAll()
+}
+
+// Strings returns a human-friendly representation of this Base
+// futuer.  It returns if the future is complete or not.
+func (f *Base[T]) String() string {
+	var t T
+	if f.alreadyRunAll() {
+		return fmt.Sprintf("Base[%T]:completed", t)
+	}
+	return fmt.Sprintf("Base[%T]:waiting", t)
+
 }

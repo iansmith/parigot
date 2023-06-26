@@ -9,6 +9,7 @@ import (
 	queue "github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/future"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -35,10 +36,8 @@ func main() {
 type myQueueSvc struct {
 }
 
-func (m *myQueueSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.BaseFuture[bool] {
-	n := lib.NewBaseFuture[bool]()
-	n.Set(true)
-	return n
+func (m *myQueueSvc) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool] {
+	return future.NewBaseWithValue[bool](true)
 }
 func (m *myQueueSvc) CreateQueue(ctx context.Context, in *queue.CreateQueueRequest) (*queue.CreateQueueResponse, queue.QueueErr) {
 	return queue.CreateQueueHost(in)

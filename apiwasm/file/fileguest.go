@@ -9,6 +9,7 @@ import (
 	file "github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/future"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -34,11 +35,9 @@ func main() {
 
 type myFileSvc struct{}
 
-func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *lib.BaseFuture[bool] {
+func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool] {
 	pcontext.Debugf(ctx, "Ready reached in file service")
-	ff := lib.NewBaseFuture[bool]()
-	ff.Set(true)
-	return ff
+	return future.NewBaseWithValue[bool](true)
 }
 
 func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) (*file.OpenResponse, file.FileErr) {
