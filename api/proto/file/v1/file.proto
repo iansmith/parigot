@@ -129,5 +129,6 @@ enum FileErr {
   NotExistError = 6;
   // FileClosedError means that the status of the file is CLOSE. it cannot be accessed by a read or write request.
   FileClosedError = 7;
-  BufferFullError = 8;
+  LargeBufError = 8;
+  ReaderNotInitializedError = 8;
 }

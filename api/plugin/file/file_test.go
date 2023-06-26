@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"log"
+	"strings"
 	"testing"
 
 	pcontext "github.com/iansmith/parigot/context"
@@ -13,8 +14,8 @@ import (
 // the tests ignore the wrapper functions and use the
 // real impleentations directly.
 
-const fileContent = "Hello!Parigot!"
 const filePath = "/parigot/app/file.go"
+const fileContent = "Hello!Parigot!"
 
 var notExistFid = file.NewFileId()
 
@@ -38,12 +39,12 @@ func TestOpenClose(t *testing.T) {
 	testFileClose(t, svc, notExistFid, "close a non-exisiting file", true, int32(file.FileErr_NotExistError))
 
 	// try opening and closing a file
-	fid := openAGoodFile(t, svc)
+	fid := testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 
 	// also try opening a file twice, for now should be an error
-	creatAGoodFile(t, svc)
-	fid = openAGoodFile(t, svc)
+	fid = creatAGoodFile(t, svc)
+	openAGoodFile(t, svc)
 	testFileOpen(t, svc, filePath, "open a open file", true, int32(file.FileErr_AlreadyInUseError))
 	// also try closing a file twice, there should be an error in the second time
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
@@ -79,9 +80,9 @@ func TestCreateClose(t *testing.T) {
 	}
 
 	// create a file with a good name
-	fid := creatAGoodFile(t, svc)
+	fid := testFileCreate(t, svc, filePath, fileContent, "good path name", false, int32(file.FileErr_NoError))
 	// create a file already exist
-	fid2 := creatAGoodFile(t, svc)
+	fid2 := testFileCreate(t, svc, filePath, fileContent, "good path name", false, int32(file.FileErr_NoError))
 	if !fid.Equal(fid2) {
 		t.Errorf("unexpected that a new file was created")
 	}
@@ -97,35 +98,33 @@ func TestCreateClose(t *testing.T) {
 	}
 }
 
-func TestOpenRead(t *testing.T) {
+func TestRead(t *testing.T) {
 	svc := newFileSvc((context.Background()))
 
 	// Read a file that does not exist
-	testFileRead(t, svc, notExistFid, make([]byte, 2), "read a non_existent file", true, int32(file.FileErr_NotExistError))
+	testFileRead(t, svc, notExistFid, make([]byte, 2), "read a non_existent file",
+		true, int32(file.FileErr_NotExistError))
 
-	fid_created := creatAGoodFile(t, svc)
+	fid := creatAGoodFile(t, svc)
 
 	// read a closed file
-	testFileRead(t, svc, fid_created, make([]byte, 2), "read a closed file", true, int32(file.FileErr_FileClosedError))
+	testFileRead(t, svc, fid, make([]byte, 2), "read a closed file",
+		true, int32(file.FileErr_FileClosedError))
 
-	fid_open := openAGoodFile(t, svc)
-	// it should be the same, but just be careful
-	if !fid_open.Equal(fid_created) {
-		t.Errorf("unexpected that the file that was just created was not opened")
-	}
-
+	openAGoodFile(t, svc)
 	// read a file content "Hello!Parigot!" twice.
 	// the 1st reading should be "Hello!"
 	// 2nd should be "Parigot!"
-	_, readBuf := testFileRead(t, svc, fid_open, make([]byte, 6), "read a file", false, int32(file.FileErr_NoError))
+	_, readBuf := testFileRead(t, svc, fid, make([]byte, 6), "read a file",
+		false, int32(file.FileErr_NoError))
 	if string(readBuf) != fileContent[:6] {
 		t.Errorf("unexpected that read was not as expected")
 	}
-	_, readBuf = testFileRead(t, svc, fid_open, make([]byte, 8), "read a file", false, int32(file.FileErr_NoError))
+	_, readBuf = testFileRead(t, svc, fid, make([]byte, 8), "read a file",
+		false, int32(file.FileErr_NoError))
 	if string(readBuf) != fileContent[6:] {
 		t.Errorf("unexpected that read was not as expected")
 	}
-
 }
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
@@ -253,10 +252,35 @@ func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 }
 
 func creatAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {
-	return testFileCreate(t, svc, filePath, fileContent, "good path name",
-		false, int32(file.FileErr_NoError))
+	currentTime := pcontext.CurrentTime(svc.ctx)
+	fid := file.NewFileId()
+
+	newFileInfo := fileInfo{
+		id:             fid,
+		path:           filePath,
+		length:         len(fileContent),
+		content:        fileContent,
+		status:         Fs_Close,
+		createDate:     currentTime,
+		lastAccessTime: currentTime,
+	}
+
+	fileDataCache := *svc.fileDataCache
+	fileDataCache[fid] = &newFileInfo
+
+	fpathTofid := *svc.fpathTofid
+	fpathTofid[filePath] = fid
+
+	return fid
 }
 
-func openAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {
-	return testFileOpen(t, svc, filePath, "open a file", false, int32(file.FileErr_NoError))
+func openAGoodFile(t *testing.T, svc *fileSvcImpl) {
+	fileDataCache := *svc.fileDataCache
+	fpathTofid := *svc.fpathTofid
+	fid := fpathTofid[filePath]
+	myFileInfo := fileDataCache[fid]
+
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(svc.ctx)
+	myFileInfo.status = Fs_Open
+	myFileInfo.reader = strings.NewReader(myFileInfo.content)
 }

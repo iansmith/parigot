@@ -3,8 +3,10 @@ package file
 import (
 	"context"
 	"io"
+	"log"
 	"path/filepath"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/iansmith/parigot/apiplugin"
@@ -22,8 +24,8 @@ import (
 // you'll need to pick the short names and letters for them... I would
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
-const pathPrefix = "/parigot/app/"
-const maxBufSize = apishared.MaxBufSize
+const pathPrefix = apishared.FileServicePathPrefix
+const maxBufSize = apishared.FileServiceMaxBufSize
 
 var (
 	fileSvc    *fileSvcImpl
@@ -53,9 +55,11 @@ type fileInfo struct {
 	length         int // length of the file content
 	content        string
 	status         FileStatus
-	createDate     string
-	lastAccessTime string
-	prevRune       int // index of previous rune; or 0
+	createDate     time.Time
+	lastAccessTime time.Time
+
+	reader io.Reader
+	writer io.Writer
 }
 
 // for now, create a map of FileId -> to myFileInfo
@@ -89,23 +93,14 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 }
 
 func (fi *fileInfo) Read(p []byte) (n int, err error) {
-	// check current position is not the end of file
-	if fi.prevRune == fi.length {
-		return 0, io.EOF
+	// check size of input buffer, and return error
+	n, err = fi.reader.Read(p)
+	if err == io.EOF {
+		return n, nil
+	} else if err != nil {
+		log.Fatal("Error reading from file: ", err)
 	}
-
-	for i, b := range []byte(fi.content)[fi.prevRune:] {
-		// when length of file is larget than the size of buffer
-		if i >= len(p) {
-			fi.prevRune += i
-			return len(p), nil
-		}
-		p[i] = b
-	}
-
-	// buffer is larger
-	fi.prevRune = fi.length
-	return fi.length, nil
+	return n, nil
 }
 
 func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
@@ -150,7 +145,7 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 	return f
 }
 
-// READ only, need to be implemented
+// READ only
 func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	resp *file.OpenResponse) int32 {
 
@@ -184,8 +179,10 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	resp.Id = fid.Marshal()
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTimeString(ctx, true)
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Open
+	// initialize a reader
+	myFileInfo.reader = strings.NewReader(myFileInfo.content)
 
 	return int32(file.FileErr_NoError)
 }
@@ -194,7 +191,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
 
-	currentTime := pcontext.CurrentTimeString(ctx, true)
+	currentTime := pcontext.CurrentTime(ctx)
 
 	fpath := req.GetPath()
 
@@ -239,7 +236,6 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 			status:         Fs_Close,
 			createDate:     currentTime,
 			lastAccessTime: currentTime,
-			prevRune:       0,
 		}
 		fileDataCache[fid] = &newFileInfo
 		fpathTofid[cleanPath] = fid
@@ -249,7 +245,9 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 }
 
 // free up item from the fileDataCache
-func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *file.CloseResponse) int32 {
+func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
+	resp *file.CloseResponse) int32 {
+
 	fid := file.UnmarshalFileId(req.GetId())
 	fileDataCache := *f.fileDataCache
 
@@ -269,7 +267,9 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *f
 	return int32(file.FileErr_NoError)
 }
 
-func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *file.ReadResponse) int32 {
+func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
+	resp *file.ReadResponse) int32 {
+
 	fid := file.UnmarshalFileId(req.GetId())
 	fileDataCache := *f.fileDataCache
 
@@ -281,12 +281,17 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *fil
 	}
 
 	myFileInfo := fileDataCache[fid]
-	fpath := myFileInfo.path
 	// check file status, we cannot read a closed file
 	if myFileInfo.status == Fs_Close {
-		pcontext.Errorf(ctx, "file is closed, cannot be read: %s", fpath)
+		pcontext.Errorf(ctx, "file is closed, cannot be read: %d", fid)
 
 		return int32(file.FileErr_FileClosedError)
+	}
+	// check reader existitance, we cannot read a file without reader
+	if myFileInfo.reader == nil {
+		pcontext.Errorf(ctx, "file reader not initialized, cannot be read: %d", fid)
+
+		return int32(file.FileErr_ReaderNotInitializedError)
 	}
 
 	bufSize := req.GetBufSize()
@@ -295,12 +300,12 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest, resp *fil
 		pcontext.Errorf(ctx, "the expected buffer size %d exceeds the maximum buffer"+
 			"size (%d) allowed", bufSize, maxBufSize)
 
-		return int32(file.FileErr_BufferFullError)
+		return int32(file.FileErr_LargeBufError)
 	}
 
 	buf := make([]byte, bufSize)
 	n, _ := myFileInfo.Read(buf)
-	myFileInfo.lastAccessTime = pcontext.CurrentTimeString(ctx, true)
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.Buf = buf
