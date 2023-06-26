@@ -1,10 +1,10 @@
 syntax ="proto3";
-package methodcall.v1;
-option go_package="github.com/iansmith/parigot/g/methodcall/v1;methodcall";
+package methodcall.bar.v1;
+option go_package="github.com/iansmith/parigot/g/methodcall/bar/v1;bar";
 import "protosupport/v1/protosupport.proto";
 
 service Bar {
-  option (protosupport.v1.error_id_name) = "MethodCallSuiteErr";
+  option (protosupport.v1.error_id_name) = "BarErr";
 
   // this calls the Foo service to test intra-service calls
   rpc Accumulate(AccumulateRequest) returns (AccumulateResponse);
@@ -20,5 +20,11 @@ message AccumulateResponse {
     int32 product = 2;
 }
 
-
+enum BarErr {
+    option (protosupport.v1.parigot_error) = true;
+    NoError = 0; // mandatory
+    DispatchError = 1; //mandatory
+    UnmarshalError = 2; // mandatory
+    AddMultFailed = 3;
+}
 
