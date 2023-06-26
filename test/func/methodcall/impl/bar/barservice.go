@@ -8,7 +8,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/bar/v1"
 	"github.com/iansmith/parigot/g/methodcall/foo/v1"
-	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 )
 
@@ -26,9 +26,8 @@ func main() {
 	bServer := &barServer{}
 	binding := bar.Init(ctx, req, bServer)
 	kerr := bar.Run(ctx, binding, bar.TimeoutInMillis, nil)
-	if kerr != syscall.KernelErr_NoError {
-		pcontext.Fatalf(ctx, "RunBar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
-	}
+	pcontext.Fatalf(ctx, "Run in Bar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
+
 }
 
 // this type better implement methodcall.v1.BarService
@@ -37,7 +36,7 @@ type barServer struct {
 }
 
 //
-// This file contains the true implementations--the server side--for the methods
+// This file contains the true implementation--the server side--for the method
 // defined in bar.proto.
 //
 
@@ -60,26 +59,28 @@ func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) 
 	reqMul.Value1 = 1 // identity to start
 
 	var respAdd, respMul *foo.AddMultiplyResponse
+	list := make([]foo.FutureAddMultiply, len(req.GetValue()))
 	for i := 0; i < len(req.GetValue()); i++ {
 		reqAdd.Value0 = req.GetValue()[i]
-		respAdd, multErr := b.foo.AddMultiply(ctx, reqAdd)
-		if int32(multErr) != 0 {
-			return nil, bar.BarErr_AddMultFailed
-		}
-		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "ADD (%d,%d) iteration #%d, result add %d",
-		// 	reqAdd.GetValue0(), reqAdd.GetValue1(), i, respAdd.Result)
-		reqAdd.Value1 = respAdd.GetResult()
-
-		/// multiply
-		reqMul.Value0 = req.GetValue()[i]
-		respMul, errId := b.foo.AddMultiply(ctx, reqMul)
-		if int32(errId) != 0 {
-			return nil, bar.BarErr_AddMultFailed
-		}
+		futureAdd := b.foo.AddMultiply(ctx, reqAdd)
+		list[i] = *futureAdd
+		futureAdd.Failure(func(err foo.FooErr) {
+			pcontext.Errorf(ctx, "add multiply of foo failed (add)")
+		})
+		futureAdd.Success(func(resp *foo.AddMultiplyResponse) {
+			reqAdd.Value1 = respAdd.GetResult()
+			/// multiply
+			reqMul.Value0 = req.GetValue()[i]
+		})
+		futureMultiply := b.foo.AddMultiply(ctx, reqMul)
+		futureMultiply.Failure(func(err foo.FooErr) {
+			pcontext.Errorf(ctx, "add multiply of foo failed (mult)")
+		})
 		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "MUL (%d,%d) iteration #%d, result mul %d",
 		// 	reqMul.GetValue0(), reqMul.GetValue1(), i, respMul.Result)
 		reqMul.Value1 = respMul.GetResult()
 	}
+
 	resp.Product = respMul.GetResult()
 	resp.Sum = respAdd.GetResult()
 	return resp, bar.BarErr_NoError

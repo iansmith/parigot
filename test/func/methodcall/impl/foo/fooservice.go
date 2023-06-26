@@ -8,7 +8,6 @@ import (
 	"github.com/iansmith/parigot/apishared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	foo "github.com/iansmith/parigot/g/methodcall/foo/v1"
-	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
@@ -19,27 +18,12 @@ var _ = unsafe.Sizeof([]byte{})
 const pathPrefix = "/parigotvirt/"
 
 func main() {
-	req := []lib.MustRequireFunc{}
+	require := []lib.MustRequireFunc{}
 	ctx := pcontext.CallTo(pcontext.SourceContext(pcontext.NewContextWithContainer(context.Background(), "fooservice.Main"), pcontext.Guest), "fooservice.Main")
 	fooServ := &fooServer{}
-	binding := foo.Init(ctx, req, fooServ)
-	var kerr syscall.KernelErr
-	for {
-		if binding.Len() == 0 {
-			panic("no methods found on binding for foo")
-		}
-		kerr = methodcall.ReadOneAndCall(ctx, binding, foo.TimeoutInMillis)
-		if kerr == syscall.KernelErr_ReadOneTimeout {
-			pcontext.Infof(ctx, "waiting for calls to foo service")
-			continue
-		}
-		if kerr == syscall.KernelErr_NoError {
-			continue
-		}
-		break
-	}
+	binding := foo.Init(ctx, require, fooServ)
+	kerr := foo.Run(ctx, binding, foo.TimeoutInMillis, nil)
 	pcontext.Errorf(ctx, "error while waiting for foo service calls: %s", syscall.KernelErr_name[int32(kerr)])
-
 }
 
 // this type better implement methodcall.v1.FooService
