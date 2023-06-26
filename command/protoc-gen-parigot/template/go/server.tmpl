@@ -20,6 +20,7 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/lib/go/future"
 
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -55,7 +56,7 @@ type Server{{$svcDiff}} interface {
     {{$errId}}
 {{- end}} {{/* end of output code needed */}}
 {{- end}} {{/* end of range over methods */}}
-	Ready(ctx context.Context, sid id.ServiceId) *lib.BaseFuture[bool]
+	Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool]
 }
 {{- end}} {{/* end of range over services */}}
 
@@ -74,13 +75,13 @@ type Server{{$svcDiff}} interface {
 
 
 
-func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *lib.BaseFuture[bool] {
+func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl Server{{$svcDiff}}) *future.Base[bool] {
 
 	defer func() {
 		pcontext.Dump(ctx)
 	}()
 
-	readyResult:=lib.NewBaseFuture[bool]()
+	readyResult:=future.NewBase[bool]()
 
 	ready:=impl.Ready(ctx,sid)
 	ready.Handle(func (b bool) {

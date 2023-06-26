@@ -10,6 +10,7 @@ import (
 	"github.com/iansmith/parigot/g/methodcall/foo/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/future"
 )
 
 var _ = unsafe.Sizeof([]byte{})
@@ -89,9 +90,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
 // Normally this is used to do LocateXXX() calls that are needed for
 // the operation of the service.
-func (b *barServer) Ready(ctx context.Context, sid id.ServiceId) *lib.BaseFuture[bool] {
+func (b *barServer) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
 	b.foo = foo.MustLocate(ctx, sid)
-	f := lib.NewBaseFuture[bool]()
-	f.Set(true)
-	return f
+	return future.NewBaseWithValue[bool](true)
 }

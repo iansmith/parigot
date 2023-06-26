@@ -10,6 +10,7 @@ import (
 	foo "github.com/iansmith/parigot/g/methodcall/foo/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
@@ -78,8 +79,6 @@ func (f *fooServer) WritePi(ctx context.Context, req *foo.WritePiRequest) foo.Fo
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
 // Normally this is used to do LocateXXX() calls that are needed for
 // the operation of the service.
-func (f *fooServer) Ready(_ context.Context, _ id.ServiceId) *lib.BaseFuture[bool] {
-	fut := lib.NewBaseFuture[bool]()
-	fut.Set(true)
-	return fut
+func (f *fooServer) Ready(_ context.Context, _ id.ServiceId) *future.Base[bool] {
+	return future.NewBaseWithValue[bool](true)
 }

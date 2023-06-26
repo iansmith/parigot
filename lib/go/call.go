@@ -3,15 +3,16 @@ package lib
 import (
 	"github.com/iansmith/parigot/apishared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/lib/go/future"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var cidToCompleter = make(map[string]Completer)
+var cidToCompleter = make(map[string]future.Completer)
 
 // MatchCompleter is a utility for adding a new
 // cid and completer to the tables used to look up
 // the location where response values should be sent.
-func MatchCompleter(cid id.CallId, comp Completer) {
+func MatchCompleter(cid id.CallId, comp future.Completer) {
 	if cidToCompleter[cid.String()] != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
@@ -27,6 +28,6 @@ func CompleteCall(cid id.CallId, result *anypb.Any, resultErr int32) syscall.Ker
 		return syscall.KernelErr_NotFound
 	}
 	delete(cidToCompleter, cid.String())
-	comp.CompleteCall(result, resultErr)
+	comp.CompleteMethod(result, resultErr)
 	return syscall.KernelErr_NoError
 }

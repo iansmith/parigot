@@ -116,14 +116,14 @@ func TestMethodSimple(t *testing.T) {
 		fail = kerr
 	}
 	m := NewMethod(s, f)
-	//no change before the call
+	//test that we don't mess with them too soon
 	if success || fail != 0 {
 		t.Errorf("%s (0):expected no change before CompleteMethod()", "TestMethodSimple")
 	}
 	m.CompleteMethod(nil, syscall.KernelErr_DependencyCycle)
 	if success || fail != syscall.KernelErr_DependencyCycle {
-		t.Errorf("%s (1):expected %s but got %s for error", "TestMethodSimple", syscall.KernelErr_name[int32(syscall.KernelErr_DependencyCycle)],
-			syscall.KernelErr_name[int32(fail)])
+		t.Errorf("%s (1):expected %s but got %s for error (%v,%d)", "TestMethodSimple", syscall.KernelErr_name[int32(syscall.KernelErr_DependencyCycle)],
+			syscall.KernelErr_name[int32(fail)], success, fail)
 	}
 	//
 	// try success case
@@ -137,39 +137,40 @@ func TestMethodSimple(t *testing.T) {
 	}
 }
 
-func TestMethodReplaceFunc(t *testing.T) {
-	success := false
-	err := syscall.KernelErr_NoError
+func TestMethodQueueFunc(t *testing.T) {
+	success1, success2 := false, false
+	result := &syscall.DispatchResponse{}
+	err1, err2 := syscall.KernelErr_NoError, syscall.KernelErr_NoError
 	sample := &syscall.DispatchResponse{}
 
-	s := func(d *syscall.DispatchResponse) {
-		success = true
-	}
-	m := NewMethod(func(*syscall.DispatchResponse) {},
-		func(_ syscall.KernelErr) {})
-	// s should replace no op we started with
-	m.Success(s)
-	if success {
-		t.Errorf("%s (0):premature call to success", "TestMethodReplaceFunc")
-
-	}
+	m := NewMethod[*syscall.DispatchResponse, syscall.KernelErr](func(resp *syscall.DispatchResponse) { success1, result = true, nil },
+		func(kerr syscall.KernelErr) { err1 = kerr })
+	m.Success(func(resp *syscall.DispatchResponse) {
+		result = resp // note that this will overwrite prev value
+		success2 = true
+	})
+	// the two success should be stacked (really queued)
 	m.CompleteMethod(sample, syscall.KernelErr_NoError)
-	if !success || err != 0 {
-		t.Errorf("%s (1):expected replacement func to set success", "TestMethodReplaceFunc")
+	if !success1 || !success2 || err1 != 0 || err2 != 0 || result != sample {
+		t.Errorf("%s (1):expected queued funcs to set both success vars and the result var, as well as not touch errors", "TestMethodQueueFunc")
 	}
+
 	// try failure case
-	success = false
-	m = NewMethod(func(*syscall.DispatchResponse) {},
-		func(_ syscall.KernelErr) {})
+	success2, success1 = false, false
+	result = nil
+	m = NewMethod(func(*syscall.DispatchResponse) { success1 = true },
+		func(kerr syscall.KernelErr) { err1 = kerr })
+
 	f := func(kerr syscall.KernelErr) {
-		err = kerr
+		err2 = kerr
 	}
-	m.Failure(f)
-	if success || err != 0 {
-		t.Errorf("%s (2):call to failure too soon", "TestMethodReplaceFunc")
+	m.Failure(f) // stacks both error funcs
+	m.CompleteMethod(result, syscall.KernelErr_BadId)
+	if success1 || success2 || result != nil {
+		t.Errorf("%s (2):call to failure should only mess with the two error values", "TestMethodQueueFunc")
 	}
-	m.CompleteMethod(nil, syscall.KernelErr_ReadOneTimeout)
-	if success || err != syscall.KernelErr_ReadOneTimeout {
-		t.Errorf("%s (3):call to change err value", "TestMethodReplaceFunc")
+	if err1 != syscall.KernelErr_BadId || err2 != syscall.KernelErr_BadId {
+		t.Errorf("%s (3):error values should be Bad Id (%d) but are err1=%d, err2=%d", "TestMethodQueueFunc",
+			syscall.KernelErr_BadId, err1, err2)
 	}
 }
