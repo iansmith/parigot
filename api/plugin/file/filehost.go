@@ -28,9 +28,8 @@ const pathPrefix = apishared.FileServicePathPrefix
 const maxBufSize = apishared.FileServiceMaxBufSize
 
 var (
-	fileSvc    *fileSvcImpl
-	_          = unsafe.Sizeof([]byte{})
-	fpathTofid = make(map[string]file.FileId)
+	fileSvc *fileSvcImpl
+	_       = unsafe.Sizeof([]byte{})
 )
 
 // RULE: All files opened by a user program have to have a
@@ -68,6 +67,8 @@ type fileInfo struct {
 type fileSvcImpl struct {
 	fileDataCache *map[file.FileId]*fileInfo
 	ctx           context.Context
+	// track fid based on file path
+	fpathTofid *map[string]file.FileId
 }
 
 // enum for file status
@@ -86,6 +87,7 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "open_file_", openFileHost) // this should call the "wrapper"
 	e.AddSupportedFunc(ctx, "file", "create_file_", createFileHost)
 	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)
+	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
 
 	_ = newFileSvc(ctx)
 
@@ -134,12 +136,20 @@ func closeFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	hostBase(ctx, "[file]close", fileSvc.close, m, stack, req, resp)
 }
 
+func readFileHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.ReadRequest{}
+	resp := &file.ReadResponse{}
+
+	hostBase(ctx, "[file]read", fileSvc.read, m, stack, req, resp)
+}
+
 func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
 	f := &fileSvcImpl{
 		fileDataCache: &map[file.FileId]*fileInfo{},
 		ctx:           newCtx,
+		fpathTofid:    &map[string]file.FileId{},
 	}
 
 	return f
@@ -160,6 +170,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	resp.Path = cleanPath
 	fileDataCache := *f.fileDataCache
+	fpathTofid := *f.fpathTofid
 
 	// if file doesn't exist, return an error
 	fid, exist := fpathTofid[cleanPath]
@@ -169,6 +180,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 		return int32(file.FileErr_NotExistError)
 	}
 
+	// file exists, so the fid must exist in the fileDataCache
 	myFileInfo := fileDataCache[fid]
 	// check file status
 	if myFileInfo.status == Fs_Open {
@@ -206,11 +218,13 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp.Truncated = false
 	content := req.GetContent()
 	fileDataCache := *f.fileDataCache
+	fpathTofid := *f.fpathTofid
 
 	// if file/path exists, truncating
 	if fid, exist := fpathTofid[fpath]; exist {
 		resp.Id = fid.Marshal()
 
+		// file exists, so the fid must exist in the fileDataCache
 		myFileInfo := fileDataCache[fid]
 		// check file status first, a opened file cannot be created at the same time
 		if myFileInfo.status == Fs_Open {
@@ -223,6 +237,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 		myFileInfo.content += content
 		myFileInfo.lastAccessTime = currentTime
 		myFileInfo.length += len(content)
+
 	} else {
 		// create a file id
 		fid := file.NewFileId()
@@ -250,6 +265,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	fid := file.UnmarshalFileId(req.GetId())
 	fileDataCache := *f.fileDataCache
+	fpathTofid := *f.fpathTofid
 
 	// check if file exists. We cannot delete a file which doesn't exist
 	if _, exist := fileDataCache[fid]; !exist {
@@ -294,7 +310,8 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 		return int32(file.FileErr_ReaderNotInitializedError)
 	}
 
-	bufSize := req.GetBufSize()
+	buf := req.GetBuf()
+	bufSize := len(buf)
 	// Check if bufSize exceeds the maximum buffer size allowed
 	if bufSize > maxBufSize {
 		pcontext.Errorf(ctx, "the expected buffer size %d exceeds the maximum buffer"+
@@ -303,12 +320,10 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 		return int32(file.FileErr_LargeBufError)
 	}
 
-	buf := make([]byte, bufSize)
 	n, _ := myFileInfo.Read(buf)
 	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
-	resp.Buf = buf
 	resp.NumRead = int32(n)
 
 	return int32(file.FileErr_NoError)

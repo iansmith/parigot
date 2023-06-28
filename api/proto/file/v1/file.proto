@@ -131,4 +131,5 @@ enum FileErr {
   FileClosedError = 7;
   LargeBufError = 8;
   ReaderNotInitializedError = 8;
+  WriterNotInitializedError = 9;
 }

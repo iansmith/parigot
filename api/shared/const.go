@@ -61,5 +61,5 @@ var FsName = "/parigotvirt"
 // completed.
 var FunctionTimeoutInMillis = int64(3000)
 
-// MaxBufSize is used to
-const MaxBufSize = 2048
+const FileServiceMaxBufSize = 2048
+const FileServicePathPrefix = "/parigot/app/"
