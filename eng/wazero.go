@@ -9,7 +9,7 @@ import (
 	"os"
 	"unsafe"
 
-	apishared "github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 	pcontext "github.com/iansmith/parigot/context"
 
 	"github.com/tetratelabs/wazero"
@@ -25,8 +25,6 @@ const maxWasmFile = 0x1024 * 0x1024 * 0x20
 // ErrorOrIdOffset is how far PAST the pointer that points to
 // a ReturnValue
 const ErrorOrIdOffset = 8
-
-var AsyncInteraction = NewAsyncClientInteraction(pcontext.ServerGoContext(pcontext.NewContextWithContainer(context.Background(), "asynchInteraction")))
 
 type wazeroEng struct {
 	r            wazero.Runtime
@@ -292,7 +290,7 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 }
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
-	fsConfig := wazero.NewFSConfig().WithFauxFs(AsyncInteraction, "/parigotvirt/")
+	fsConfig := wazero.NewFSConfig()
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
@@ -366,7 +364,6 @@ func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra i
 		pcontext.Debugf(ctx, "Run", "result %02d:%x", i, r)
 	}
 	pcontext.Dump(rawLineContext)
-	pcontext.Dump(AsyncInteraction.origCtx)
 	return nil, nil
 }
 

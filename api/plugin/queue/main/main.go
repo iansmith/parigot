@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apiplugin/queue"
+	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/plugin/queue"
 )
 
 var ParigotInitialize apiplugin.ParigotInit = &queue.QueuePlugin{}

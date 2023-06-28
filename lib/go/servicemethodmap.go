@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
 

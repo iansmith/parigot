@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/iansmith/parigot/apishared"
-	"github.com/iansmith/parigot/apishared/id"
+	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"

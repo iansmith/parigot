@@ -15,11 +15,11 @@ import (
 	{{- $j -}}
 {{- end}} {{/* imports */}}
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"  
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	pcontext "github.com/iansmith/parigot/context"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
 

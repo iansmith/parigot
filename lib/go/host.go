@@ -1,7 +1,7 @@
 package lib
 
 import (
-	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/api/shared/id"
 )
 
 var _hostId = id.NewHostId()

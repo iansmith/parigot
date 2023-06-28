@@ -7,7 +7,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apiplugin"
+	apiplugin "github.com/iansmith/parigot/api/plugin"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"

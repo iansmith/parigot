@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apiplugin/file"
+	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/plugin/file"
 )
 
 var ParigotInitialize apiplugin.ParigotInit = &file.FilePlugin{}

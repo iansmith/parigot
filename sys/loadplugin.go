@@ -5,7 +5,7 @@ package sys
 import (
 	"context"
 
-	"github.com/iansmith/parigot/apiplugin"
+	apiplugin "github.com/iansmith/parigot/api/plugin"
 )
 
 func LoadPlugin(ctx context.Context, plugin, symbol, name string) (apiplugin.ParigotInit, error) {

@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/iansmith/parigot/apishared/id"
-	qlib "github.com/iansmith/parigot/apiwasm/queue/lib"
-	guestsyscall "github.com/iansmith/parigot/apiwasm/syscall"
+	qlib "github.com/iansmith/parigot/api/guest/queue/lib"
+	guestsyscall "github.com/iansmith/parigot/api/guest/syscall"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"

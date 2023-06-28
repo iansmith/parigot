@@ -1,4 +1,4 @@
-package apiplugin
+package plugin
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"log"
 	"runtime/debug"
 
-	"github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
