@@ -8,13 +8,12 @@ all: commands \
 #
 # GROUPS OF TARGETS
 #
-protos: g/file/$(API_VERSION)/file.pb.go 
+protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-apiwasm: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
-#commands: 	build/protoc-gen-parigot build/runner build/wcl build/pbmodel
+guest: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
-sqlc: apiplugin/queue/db.go
+sqlc: api/plugin/queue/db.go
 
 #
 # EXTRA ARGS FOR BUILDING (placed after the "go build")
@@ -27,16 +26,13 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 
 SYSCALL_CLIENT_SIDE=apiwasm/syscall/*.go 
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-API_CLIENT_SIDE=build/test.p.wasm build/file.p.wasm build/queue.p.wasm $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
+API_CLIENT_SIDE=guest $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 
 CC=/usr/lib/llvm-15/bin/clang
 CTX_SRC=$(shell find context -type f -regex ".*\.go")
-SHARED_SRC=$(shell find apishared -type f -regex ".*\.go")
+SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
-
-#this command can be useful if you want to run tinygo in a container but otherwise use your host machine
-#GO_TO_WASM=docker run --rm --env CC=/usr/bin/clang --env GOFLAGS="-buildvcs=false" --mount type=bind,source=`pwd`,target=/home/tinygo/parigot --workdir=/home/tinygo/parigot parigot-tinygo:0.27 tinygo 
 
 #
 # GO
