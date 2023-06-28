@@ -44,7 +44,7 @@ RUN mv go go${GOLANG_VERSION_HOST}
 
 # client side go install
 WORKDIR /home/parigot/deps
-RUN git clone https://github.com/golang/go.git
+RUN git clone --depth 1 --branch go1.21rc2 https://github.com/golang/go.git
 ENV GOLANG_VERSION_GUEST="1.21"
 RUN mv go go${GOLANG_VERSION_GUEST}
 WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
@@ -55,10 +55,10 @@ ENV GOROOT=
 ENV GOROOT_BOOTSTRAP=
 
 ## install wasmtime
-WORKDIR /home/parigot/deps
-RUN unxz wasmtime.tar.xz
-RUN tar xf wasmtime.tar
-RUN rm wasmtime.tar
+#WORKDIR /home/parigot/deps
+#RUN unxz wasmtime.tar.xz
+#RUN tar xf wasmtime.tar
+#RUN rm wasmtime.tar
 
 #RUN mkdir /home/parigot/deps/bin
 #WORKDIR /home/parigot/deps/bin
@@ -117,10 +117,10 @@ RUN set -eux \
 
 
 # antlr 4.11 is a platform-neutral lib (java)
-ENV ANTLR_VERSION=4.11.1
-RUN mkdir -p /home/parigot/tools/lib
-WORKDIR /home/parigot/tools/lib
-RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
+#ENV ANTLR_VERSION=4.11.1
+#RUN mkdir -p /home/parigot/tools/lib
+#WORKDIR /home/parigot/tools/lib
+#RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
 
 # ADD zshrc /home/parigot/.zshrc
 # ADD p10k.zsh /home/parigot/.p10k.zsh
@@ -173,8 +173,9 @@ RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/p
 # set some vars
 WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
-ENV WABTTOOLS=/home/parigot/tools/wabt
+#ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV PARIGOT_TOOLS=/home/parigot/tools
+# the following is only used by our antlr helper
 ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 ENV CC=/usr/lib/llvm-15/bin/clang
