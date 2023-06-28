@@ -5,6 +5,7 @@ import (
 
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/lib/go/future"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/iansmith/parigot/g/queue/v1"
 )
@@ -20,10 +21,12 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 	qidFuture := future.NewBase[queue.QueueId]()
 
 	locateFuture := queueHandle.Locate(ctx, &req)
-	locateFuture.Success(func(resp *queue.LocateResponse) {
+	locateFuture.Success(func(raw proto.Message) {
+		resp := raw.(*queue.LocateResponse)
 		qidFuture.Set(queue.UnmarshalQueueId(resp.Id))
 	})
-	locateFuture.Failure(func(qerr queue.QueueErr) {
+	locateFuture.Failure(func(raw int32) {
+		qerr := queue.QueueErr(raw)
 		if qerr != queue.QueueErr_NotFound {
 			qidFuture.Set(queue.QueueIdZeroValue())
 		}
@@ -31,12 +34,13 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 			QueueName: name,
 		}
 		fcreate := queueHandle.CreateQueue(ctx, createReq)
-		fcreate.Success(func(resp *queue.CreateQueueResponse) {
+		fcreate.Success(func(raw proto.Message) {
+			resp := raw.(*queue.CreateQueueResponse)
 			qidFuture.Set(queue.UnmarshalQueueId(resp.Id))
 		})
-		fcreate.Failure(func(qe queue.QueueErr) {
-			pcontext.Errorf(ctx, "unable to create queue for testing!")
-			qidFuture.Set(queue.QueueIdZeroValue())
+		fcreate.Failure(func(raw int32) {
+			pcontext.Errorf(ctx, "unable to create queue for testing: %s", queue.QueueErr_name[raw])
+			qidFuture.Set(queue.QueueIdZeroValue()) //xxx hack with zero value
 		})
 	})
 	return qidFuture

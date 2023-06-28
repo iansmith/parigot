@@ -33,64 +33,91 @@ func main() {
 
 // this type better implement methodcall.v1.BarService
 type barServer struct {
-	foo foo.Client
+	fooClient foo.Client
 }
+
+var _ = bar.Bar(&barServer{})
 
 //
 // This file contains the true implementation--the server side--for the method
 // defined in bar.proto.
 //
 
-func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) (*bar.AccumulateResponse, bar.BarErr) {
-	resp := &bar.AccumulateResponse{}
+// helper for generating success functions
+func (b *barServer) generator(fn accumulator, ctx context.Context, req *bar.AccumulateRequest, i int, result *bar.FutureAccumulate) addMultSucc {
+	r := func(r *foo.AddMultiplyResponse) {
+		sf := b.generator(b.succFn, ctx, req, i+1, result)
+		fut := fn(ctx, req, r, i, result)
+		fut.Method.Success(sf)
+	}
+	return r
+}
+
+// addMultSucc is the typename of the "base" success function that the foo.FutureAddMultiply
+// is expecting... this is the RESULT of the b.generator() function
+type addMultSucc func(*foo.AddMultiplyResponse)
+
+// convenience type to make names more clear, this what our internal model of
+// a success function looks like, and it needs a bunch of params... this type gets
+// wrapped and passed params by b.generator
+type accumulator func(ctx context.Context, req *bar.AccumulateRequest, resp *foo.AddMultiplyResponse, i int, result *bar.FutureAccumulate) *foo.FutureAddMultiply
+
+// our success function, each call uses successive versions of this func with i increasing by one but otherwise
+// the params staying the same
+func (b *barServer) succFn(ctx context.Context, req *bar.AccumulateRequest, resp *foo.AddMultiplyResponse, i int, result *bar.FutureAccumulate) *foo.FutureAddMultiply {
+	if i < len(req.GetValue()) {
+		// we just finished ith iter
+		reqAdd := &foo.AddMultiplyRequest{}
+		reqAdd.Value1 = resp.GetResult() //
+		reqAdd.Value0 = req.GetValue()[i+1]
+		reqAdd.IsAdd = true
+		fut := b.fooClient.AddMultiply(ctx, reqAdd)
+		fut.Method.Failure(func(err foo.FooErr) {
+			result.Method.CompleteMethod(ctx, nil, bar.BarErr_AddMultFailed)
+		})
+		return fut
+	}
+	// finished all the given elements in req.GetValue()
+	result.Method.Success(func(resp *bar.AccumulateResponse) {
+		pcontext.Infof(ctx, "success for sum! %d", resp.GetSum())
+	})
+	return nil // wont be consumed
+}
+
+func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) *bar.FutureAccumulate {
+	//trivial case
 	if len(req.Value) == 0 {
-		resp.Product = 0
+		resp := &bar.AccumulateResponse{}
+		resp.Product = 1
 		resp.Sum = 0
-		return resp, bar.BarErr_NoError
+		f := bar.NewFutureAccumulate()
+		f.CompleteMethod(ctx, resp, 0)
+		return f
 	}
 
-	reqAdd := &foo.AddMultiplyRequest{
-		IsAdd: true,
-	}
-	reqMul := &foo.AddMultiplyRequest{
-		IsAdd: false,
-	}
+	// ultimately this is the future for the WHOLE accumulate
+	finalFut := bar.NewFutureAccumulate()
 
-	reqAdd.Value1 = 0 //identity to start
-	reqMul.Value1 = 1 // identity to start
+	// if anything goes wrong, we alse fail the finalFut
+	finalFut.Method.Failure(func(err bar.BarErr) {
+		pcontext.Errorf(ctx, "unable to compute accumulation sum: %s", bar.BarErr_name[int32(err)])
+	})
 
-	var respAdd, respMul *foo.AddMultiplyResponse
-	list := make([]foo.FutureAddMultiply, len(req.GetValue()))
-	for i := 0; i < len(req.GetValue()); i++ {
-		reqAdd.Value0 = req.GetValue()[i]
-		futureAdd := b.foo.AddMultiply(ctx, reqAdd)
-		list[i] = *futureAdd
-		futureAdd.Failure(func(err foo.FooErr) {
-			pcontext.Errorf(ctx, "add multiply of foo failed (add)")
-		})
-		futureAdd.Success(func(resp *foo.AddMultiplyResponse) {
-			reqAdd.Value1 = respAdd.GetResult()
-			/// multiply
-			reqMul.Value0 = req.GetValue()[i]
-		})
-		futureMultiply := b.foo.AddMultiply(ctx, reqMul)
-		futureMultiply.Failure(func(err foo.FooErr) {
-			pcontext.Errorf(ctx, "add multiply of foo failed (mult)")
-		})
-		// b.log(nil, pblog.LogLevel_LOG_LEVEL_DEBUG, "MUL (%d,%d) iteration #%d, result mul %d",
-		// 	reqMul.GetValue0(), reqMul.GetValue1(), i, respMul.Result)
-		reqMul.Value1 = respMul.GetResult()
-	}
+	// initial startup
+	reqAdd := &foo.AddMultiplyRequest{}
+	reqAdd.Value1 = 0 //identity add
+	reqAdd.Value0 = req.GetValue()[0]
+	startSuccess := b.generator(b.succFn, ctx, req, 0, finalFut)
+	futAdd := b.fooClient.AddMultiply(ctx, reqAdd)
+	futAdd.Method.Success(startSuccess)
 
-	resp.Product = respMul.GetResult()
-	resp.Sum = respAdd.GetResult()
-	return resp, bar.BarErr_NoError
+	return finalFut
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.
 // Normally this is used to do LocateXXX() calls that are needed for
 // the operation of the service.
 func (b *barServer) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
-	b.foo = foo.MustLocate(ctx, sid)
+	b.fooClient = foo.MustLocate(ctx, sid)
 	return future.NewBaseWithValue[bool](true)
 }

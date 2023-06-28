@@ -18,6 +18,7 @@ import (
 	"github.com/iansmith/parigot/lib/go/client"
 	"github.com/iansmith/parigot/lib/go/future"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -43,7 +44,11 @@ func main() {
 	})
 	var kerr syscall.KernelErr
 	for {
-		test.RunTest(ctx, binding, 1000, server)
+		kerr := test.RunTest(ctx, binding, test.TimeoutInMillisTest, nil)
+		if kerr == syscall.KernelErr_NoError {
+			continue
+		}
+		break
 	}
 	pcontext.Fatalf(ctx, "error while waiting for test service calls: %s", syscall.KernelErr_name[int32(kerr)])
 
@@ -129,11 +134,14 @@ func (m *myTestServer) Ready(ctx context.Context, sid id.ServiceId) *future.Base
 	return baseBool
 }
 
-func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) (*test.AddTestSuiteResponse, test.TestErr) {
+func (m *myTestServer) TestAddTestSuite(ctx context.Context, req *test.AddTestSuiteRequest) *test.FutureTestAddTestSuite {
 
 	infoList, err := newSuiteInfo(req)
 	if err != test.TestErr_NoError { // really should not happen
-		return nil, err
+		f := test.NewFutureTestAddTestSuite()
+		pcontext.Errorf(ctx, "unable to add test suite: %s", test.TestErr_name[int32(err)])
+		f.CompleteMethod(ctx, nil, int32(err))
+		return f
 	}
 	success := make(map[string]bool)
 	for _, suite := range infoList {
@@ -164,9 +172,11 @@ func (m *myTestServer) AddTestSuite(ctx context.Context, req *test.AddTestSuiteR
 	resp := &test.AddTestSuiteResponse{
 		Succeeded: success,
 	}
+	f := test.NewFutureTestAddTestSuite()
+	f.CompleteMethod(ctx, resp, 0)
 	pcontext.Debugf(ctx, "", "addSuiteResp.Succeeded:%#v", resp.Succeeded)
 
-	return resp, test.TestErr_NoError
+	return f
 }
 
 func contains(list []string, cand string) bool {
@@ -178,7 +188,7 @@ func contains(list []string, cand string) bool {
 	return false
 }
 
-func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test.StartResponse, test.TestErr) {
+func (m *myTestServer) TestStart(ctx context.Context, req *test.StartRequest) *test.FutureTestStart {
 	var regexpFail bool
 	var suiteString, nameString string
 	var err error
@@ -204,9 +214,9 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 		}
 	}
 	if regexpFail {
-		return &test.StartResponse{
-			RegexFailed: regexpFail,
-		}, test.TestErr_RegexpFailed
+		f := test.NewFutureTestStart()
+		f.CompleteMethod(ctx, nil, int32(test.TestErr_RegexpFailed))
+		return f
 	}
 	count := 0
 	m.started = true // lets go
@@ -230,16 +240,19 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 					count++
 					sReq, err := makeSendRequest(pcontext.CallTo(ctx, "makeSendRequest"), m.testQid, name, m.suiteExec[suiteName])
 					if err != test.TestErr_NoError {
-						return nil, err
+						f := test.NewFutureTestStart()
+						f.CompleteMethod(ctx, nil, int32(err))
+						return f
 					}
 					f := m.queueSvc.Send(ctx, sReq)
-					f.Success(func(resp *queue.SendResponse) {
+					f.Success(func(raw proto.Message) {
+						resp := raw.(*queue.SendResponse)
 						if len(resp.Succeed) != 1 {
 							pcontext.Errorf(ctx, "failed send to the queue, expected only one send to succed")
 						}
 					})
-					f.Failure(func(err queue.QueueErr) {
-						pcontext.Errorf(ctx, "failed send to the queue: %s", queue.QueueErr_name[int32(err)])
+					f.Failure(func(raw int32) {
+						pcontext.Errorf(ctx, "failed send to the queue: %s", queue.QueueErr_name[raw])
 					})
 				}
 			}
@@ -254,8 +267,11 @@ func (m *myTestServer) Start(ctx context.Context, req *test.StartRequest) (*test
 	resp := &test.StartResponse{
 		NumTest: int32(count),
 	}
-	return resp, test.TestErr_NoError
+	f := test.NewFutureTestStart()
+	f.CompleteMethod(ctx, resp, 0)
+	return f
 }
+
 func (m *myTestServer) Background(ctx context.Context) {
 	if !m.started {
 		return
@@ -265,10 +281,12 @@ func (m *myTestServer) Background(ctx context.Context) {
 		MessageLimit: 1,
 	}
 	f := m.queueSvc.Receive(ctx, &req)
-	f.Failure(func(err queue.QueueErr) {
+	f.Failure(func(raw int32) {
+		err := queue.QueueErr(raw)
 		pcontext.Errorf(ctx, "unable to receive from queue: %s", queue.QueueErr_name[int32(err)])
 	})
-	f.Success(func(resp *queue.ReceiveResponse) {
+	f.Success(func(raw proto.Message) {
+		resp := raw.(*queue.ReceiveResponse)
 		msg := resp.Message[0]
 		aload := msg.GetPayload()
 		payload := test.QueuePayload{}
@@ -314,7 +332,7 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 		if err != test.TestErr_NoError {
 			pcontext.Errorf(ctx, "unable to test %s.%s, cannot locate it", execPkg, execSvc)
 			f := test.NewFutureUnderTestExec()
-			f.CompleteMethod(nil, int32(err))
+			f.CompleteMethod(ctx, nil, int32(err))
 			return f
 		}
 
@@ -327,10 +345,12 @@ func (m *myTestServer) runTests(ctx context.Context, fullTestName, execPackageSv
 		Service: svc,
 		Name:    part[len(part)-1],
 	})
-	f.Failure(func(err test.TestErr) {
+	f.Failure(func(raw int32) {
+		err := test.TestErr(raw)
 		pcontext.Errorf(ctx, "xxx run tests %v", test.TestErr_name[int32(err)])
 	})
-	f.Success(func(resp *test.ExecResponse) {
+	f.Success(func(raw proto.Message) {
+		resp := raw.(*test.ExecResponse)
 		pcontext.Debugf(ctx, "xxx run tests %s.%s.%s (skipped? %v, success? %v)",
 			resp.GetPackage(), resp.GetService(), resp.GetName(), resp.GetSkipped(), resp.GetSuccess())
 	})

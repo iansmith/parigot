@@ -161,26 +161,27 @@ enum QueueErr {
     NoError = 0; // mandatory
     DispatchError = 1; // mandatory
     UnmarshalError = 2; //mandatory
+    MarshalError = 3; //mandatory
 
     // InvalidName means that the given queue name is a not a valid
 	// identifier.  Identifiers must contain only ascii alphanumeric characters
 	// and the symbols ".", ",","_" and "-".  The first letter of a queue name
 	// must be an alphabetic character.
-	InvalidName = 3;
+	InvalidName = 4;
 	// InternalError means that the queue's implementation (not the values)
 	// passed to it) is the problem.  This is roughly a 500 not a 401.
     // This is usually caused by a problem with the internal
     // database used to store the queue items.
-	InternalError=4;
+	InternalError=5;
 	// NoPayload is an error that means that an attempt was made to create
 	// a message a nil payload.  Payloads are mandatory and senders are optional.
-	NoPayload=5;
+	NoPayload=6;
 	// NotFound means that the Queue name requested could not be found.
 	// This the queue equivalent of 404.
-	NotFound=6;
+	NotFound=7;
 	//AlreadyExists means that the Queue name is already in use.
-	AlreadyExists=7;
+	AlreadyExists=8;
 	//Unmarshal error means that we could not use the protobuf
     //unmarshal successfully for a payload or sender.
-	UnmarshalFailed=8;
+	UnmarshalFailed=9;
 }

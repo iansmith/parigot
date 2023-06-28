@@ -56,3 +56,7 @@ var ReadBufferSize = 8192
 
 // Name of the fs we used to send/receive messages to parigot
 var FsName = "/parigotvirt"
+
+// The amount of time we will wait for a function call to be
+// completed.
+var FunctionTimeoutInMillis = int64(3000)
