@@ -1,4 +1,4 @@
-package apiplugin
+package plugin
 
 import (
 	"context"

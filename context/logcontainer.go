@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 )
 
 var UseBlack = true

@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apiplugin/syscall"
+	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/plugin/syscall"
 )
 
 var ParigotInitialize apiplugin.ParigotInit = &syscall.SyscallPlugin{}

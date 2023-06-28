@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm/syscall"
+	"github.com/iansmith/parigot/api/guest/syscall"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"

@@ -7,7 +7,7 @@ import (
 	"runtime/debug"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 

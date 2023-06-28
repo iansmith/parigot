@@ -6,10 +6,10 @@ import (
 	"context"
 	"log"
 
-	"github.com/iansmith/parigot/apiplugin"
-	"github.com/iansmith/parigot/apiplugin/file"
-	"github.com/iansmith/parigot/apiplugin/queue"
-	"github.com/iansmith/parigot/apiplugin/syscall"
+	"github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/plugin/file"
+	"github.com/iansmith/parigot/api/plugin/queue"
+	"github.com/iansmith/parigot/api/plugin/syscall"
 )
 
 func LoadPlugin(ctx context.Context, plugin, symbol, name string) (apiplugin.ParigotInit, error) {

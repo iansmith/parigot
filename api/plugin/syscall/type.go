@@ -3,7 +3,7 @@ package syscall
 import (
 	"context"
 
-	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )

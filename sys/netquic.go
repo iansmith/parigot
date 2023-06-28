@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 
 	"github.com/iansmith/parigot/sys/dep"
 	quic "github.com/quic-go/quic-go"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"unsafe"
 
-	"github.com/iansmith/parigot/apishared/id"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	file "github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"

@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 
-	"github.com/iansmith/parigot/apishared/id"
-	syscallguest "github.com/iansmith/parigot/apiwasm/syscall"
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
