@@ -28,7 +28,7 @@ EXTRA_PLUGIN_ARGS=-buildmode=plugin
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 SYSCALL_CLIENT_SIDE=api/guest/syscall/*.go 
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
-API_CLIENT_SIDE=guest $(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
+API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 
 CC=/usr/lib/llvm-15/bin/clang
@@ -182,12 +182,12 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go build/syscall.so  
+build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) build/syscall.so  
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/file/main
 
@@ -228,5 +228,4 @@ binclean:
 
 .PHONY: clean
 clean: protoclean sqlclean idclean binclean
-	rm -f build/* static/t1.wasm
 
