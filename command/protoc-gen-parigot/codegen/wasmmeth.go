@@ -101,6 +101,7 @@ func (w *WasmMethod) GoPackage() string {
 func (w *WasmMethod) CGInput() *InputParam {
 	return w.input
 }
+
 func (w *WasmMethod) CGOutput() *OutputParam {
 	return w.output
 }

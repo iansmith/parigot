@@ -1,9 +1,15 @@
 package lib
 
 import (
+	"context"
+	"time"
+
+	"github.com/iansmith/parigot/apishared"
 	"github.com/iansmith/parigot/apishared/id"
+	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -22,12 +28,54 @@ func MatchCompleter(cid id.CallId, comp future.Completer) {
 // CompleteCall is called from the CallOne handler to cause a
 // prior dispatch call to be completed. The matching is done
 // based on the cid.
-func CompleteCall(cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
+func CompleteCall(ctx context.Context, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
 	comp, ok := cidToCompleter[cid.String()]
 	if !ok {
 		return syscall.KernelErr_NotFound
 	}
 	delete(cidToCompleter, cid.String())
-	comp.CompleteMethod(result, resultErr)
+	comp.CompleteMethod(ctx, result, resultErr)
 	return syscall.KernelErr_NoError
+}
+
+var internalFuture = make(map[string]time.Time)
+var keyToRealFuture = make(map[string]*future.Method[proto.Message, int32])
+
+// ExpireMethod() checks the internal list of guest side futures
+// that have no call id associated with them.  These futures come about
+// when a implementation of a server function returns a future
+// that is not completed.  This future likely exists because the
+// implementation of the server function called another service
+// and the result of the server function thus cannot be calculated
+// immediately.  When the call is completed, the Success or Failure
+// functions will be called on the original future.  This function
+// exists to maintain a list so that we can expire and cancel futures
+// that have waiting longer than the timeout time.
+func ExpireMethod(ctx context.Context) {
+	dead := make([]string, 0)
+	for key, elem := range internalFuture {
+		future := keyToRealFuture[key]
+		if !future.Completed() {
+			curr := pcontext.CurrentTime(ctx)
+			diff := curr.Sub(elem)
+			if diff.Milliseconds() > apishared.FunctionTimeoutInMillis {
+				dead = append(dead, key)
+			}
+		} else {
+			// just clean up finished ones
+			dead = append(dead, key)
+		}
+	}
+	// don't want delete as we iterate on internalFuture
+	for _, key := range dead {
+		f := keyToRealFuture[key]
+		delete(internalFuture, key)
+		f.Cancel()
+	}
+}
+
+// AddServerReturn is called to register a server side function
+// result as a future.
+func AddServerReturn(fut future.Method[proto.Message, int32]) {
+
 }

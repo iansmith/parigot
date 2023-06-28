@@ -133,7 +133,7 @@ API_ID= \
 	g/queue/v1/queuemsgid.go \
 	g/file/v1/fileid.go \
 	g/test/v1/testid.go \
-	g/methodcall/v1/methodcallid.go 
+	g/methodcall/v1/methodcallid.go  
 
 apishared/id/serviceid.go:apishared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Service s svc > apishared/id/serviceid.go	

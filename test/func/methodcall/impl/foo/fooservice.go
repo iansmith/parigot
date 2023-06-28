@@ -36,17 +36,19 @@ type fooServer struct {
 // defined in foo.proto.
 //
 
-func (f *fooServer) AddMultiply(ctx context.Context, req *foo.AddMultiplyRequest) (*foo.AddMultiplyResponse, foo.FooErr) {
+func (f *fooServer) AddMultiply(ctx context.Context, req *foo.AddMultiplyRequest) *foo.FutureAddMultiply {
 	resp := &foo.AddMultiplyResponse{}
 	if req.IsAdd {
 		resp.Result = req.Value0 + req.Value1
 	} else {
 		resp.Result = req.Value0 * req.Value1
 	}
-	return resp, foo.FooErr_NoError
+	fut := foo.NewFutureAddMultiply()
+	fut.Method.CompleteMethod(ctx, resp, foo.FooErr_NoError)
+	return fut
 }
 
-func (f *fooServer) LucasSequence(ctx context.Context) (*foo.LucasSequenceResponse, foo.FooErr) {
+func (f *fooServer) LucasSequence(ctx context.Context) *foo.FutureLucasSequence {
 	pcontext.Debugf(ctx, "LucasSequence", "received call for fooServer.LucasSequence")
 	resp := &foo.LucasSequenceResponse{}
 	seq := make([]int32, const_.LucasSize) // -2 because first two are given
@@ -56,15 +58,19 @@ func (f *fooServer) LucasSequence(ctx context.Context) (*foo.LucasSequenceRespon
 		seq[i] = seq[i-1] + seq[i-2]
 	}
 	resp.Sequence = seq
-	return resp, foo.FooErr_NoError
+	fut := foo.NewFutureLucasSequence()
+	fut.Method.CompleteMethod(ctx, resp, foo.FooErr_NoError)
+	return fut
 }
 
 // Newton-Raphson method, terms values beyond about 4 are silly
-func (f *fooServer) WritePi(ctx context.Context, req *foo.WritePiRequest) foo.FooErr {
+func (f *fooServer) WritePi(ctx context.Context, req *foo.WritePiRequest) *foo.FutureWritePi {
 	pcontext.Debugf(ctx, "WritePi", "received call for fooServer.AddMultiply")
 
+	fut := foo.NewFutureWritePi()
 	if req.GetTerms() < 1 || req.GetTerms() > 4 {
-		return foo.FooErr_BadParamWritePi
+		fut.Base.Set(foo.FooErr_BadParamWritePi)
+		return fut
 	}
 	runningTotal := 3.0 // k==0 term
 
@@ -73,7 +79,8 @@ func (f *fooServer) WritePi(ctx context.Context, req *foo.WritePiRequest) foo.Fo
 		pcontext.Debugf(ctx, "WritePi", "%f", runningTotal)
 	}
 	pcontext.Infof(ctx, "WritePi result:", "%f", runningTotal)
-	return foo.FooErr_NoError
+	fut.Base.Set(foo.FooErr_NoError)
+	return fut
 }
 
 // Ready is a check, if this returns false the library will abort and not attempt to run this service.

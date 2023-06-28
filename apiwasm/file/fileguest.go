@@ -40,20 +40,20 @@ func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool
 	return future.NewBaseWithValue[bool](true)
 }
 
-func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) (*file.OpenResponse, file.FileErr) {
-	return file.OpenHost(in)
+func (f *myFileSvc) Open(ctx context.Context, in *file.OpenRequest) *file.FutureOpen {
+	return file.OpenHost(ctx, in)
 }
 
-func (f *myFileSvc) Create(ctx context.Context, in *file.CreateRequest) (*file.CreateResponse, file.FileErr) {
-	return file.CreateHost(in)
+func (f *myFileSvc) Create(ctx context.Context, in *file.CreateRequest) *file.FutureCreate {
+	return file.CreateHost(ctx, in)
 
 }
 
-func (f *myFileSvc) Close(ctx context.Context, in *file.CloseRequest) (*file.CloseResponse, file.FileErr) {
-	return file.CloseHost(in)
+func (f *myFileSvc) Close(ctx context.Context, in *file.CloseRequest) *file.FutureClose {
+	return file.CloseHost(ctx, in)
 }
 
-func (f *myFileSvc) LoadTestData(ctx context.Context, in *file.LoadTestDataRequest) (*file.LoadTestDataResponse, file.FileErr) {
-	return file.LoadTestDataHost(in)
+func (f *myFileSvc) LoadTestData(ctx context.Context, in *file.LoadTestDataRequest) *file.FutureLoadTestData {
+	return file.LoadTestDataHost(ctx, in)
 
 }

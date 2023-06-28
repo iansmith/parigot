@@ -93,10 +93,11 @@ enum FileErr {
     NoError = 0; // mandatory
     DispatchError = 1; //mandatory
     UnmarshalError = 2; // mandatory
+    MarshalError = 3; // mandatory
     // invalid path means that the given path name is a not a valid identifier.  Identifiers should be 
     // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
     // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
-    InvalidPathError = 3;
-    AlreadyInUseError = 4;
-    NotExistError = 5;
+    InvalidPathError = 4;
+    AlreadyInUseError = 5;
+    NotExistError = 6;
 }

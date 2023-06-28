@@ -6,6 +6,7 @@ import (
 
 	"github.com/iansmith/parigot/apishared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/lib/go/future"
 
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -18,11 +19,11 @@ type MustRequireFunc func(context.Context, id.ServiceId)
 
 // FuncAnyIO is the type of the guest-side functions that
 // implement the set and tear down of method implementations
-// in a server.  If the service and method bar is
+// in a server.  If a method fleazil is
 // defined on a service, it will have FuncAnyIO wrapper
-// that unmarshals input parameters and marhsals the return
+// that unmarshals input parameters and marshals the return
 // value.
-type FuncAnyIO func(*anypb.Any) (*anypb.Any, int32)
+type FuncAnyIO func(*anypb.Any) future.Method[*anypb.Any, int32]
 
 // Backgrounder is an interface that can be implemented by
 // types that want to get period background calls when the
@@ -46,7 +47,7 @@ type Backgrounder interface {
 // they will not be used when generating the list of pairs
 // for a call to ReadOne().
 type ServiceMethodMap struct {
-	forward   map[string]map[string]FuncAnyIO
+	forward   map[string]map[string]future.Invoker
 	sidString map[string]id.ServiceId
 	midString map[string]id.MethodId
 	nameToSid map[string]id.ServiceId
@@ -59,7 +60,7 @@ type ServiceMethodMap struct {
 
 func NewServiceMethodMap() *ServiceMethodMap {
 	result := &ServiceMethodMap{
-		forward:   make(map[string]map[string]FuncAnyIO),
+		forward:   make(map[string]map[string]future.Invoker),
 		sidString: make(map[string]id.ServiceId),
 		midString: make(map[string]id.MethodId),
 		nameToSid: make(map[string]id.ServiceId),
@@ -82,11 +83,11 @@ const sidMidPairKeyGen = "%s,%s"
 // may be nil when the function is not available in this address
 // space and any caller must use Dispatch().
 func (s *ServiceMethodMap) AddServiceMethod(sid id.ServiceId, mid id.MethodId,
-	serviceName, methodName string, fn FuncAnyIO) {
+	serviceName, methodName string, fn future.Invoker) {
 
 	methMap, ok := s.forward[sid.String()]
 	if !ok {
-		s.forward[sid.String()] = make(map[string]FuncAnyIO)
+		s.forward[sid.String()] = make(map[string]future.Invoker)
 		methMap = s.forward[sid.String()]
 	}
 	methMap[mid.String()] = fn
@@ -159,7 +160,7 @@ func (s *ServiceMethodMap) Enable(sid id.ServiceId, mid id.MethodId) {
 
 // Func returns the FuncAnyIO object associated with the sid and mid pair. If
 // either sid or mid cannot be found, it returns nil.
-func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) FuncAnyIO {
+func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoker {
 	m := s.forward[sid.String()]
 	if m == nil {
 		return nil

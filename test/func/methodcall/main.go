@@ -68,10 +68,10 @@ func (m *myUnderTestServer) TestAddMultiply(ctx context.Context, t *testing.T) {
 			IsAdd:  true,
 		}
 		addMultFuture := m.fooClient.AddMultiply(ctx, req)
-		addMultFuture.Failure(func(err foo.FooErr) {
+		addMultFuture.Method.Failure(func(err foo.FooErr) {
 			t.Errorf("error in AddMultiply [add]:%v", foo.FooErr_name[int32(err)])
 		})
-		addMultFuture.Success(func(resp *foo.AddMultiplyResponse) {
+		addMultFuture.Method.Success(func(resp *foo.AddMultiplyResponse) {
 			if resp.Result != sum {
 				t.Errorf("bad result for add, expected %d but got %d", sum, resp.Result)
 			}
@@ -103,11 +103,11 @@ func (m *myUnderTestServer) TestAccumulate(t *testing.T) {
 			Value: rest,
 		}
 		futureAcc := m.barClient.Accumulate(ctx, &req)
-		futureAcc.Failure(func(err bar.BarErr) {
+		futureAcc.Method.Failure(func(err bar.BarErr) {
 			t.Errorf("received error from call to Accumulate: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
 			t.FailNow()
 		})
-		futureAcc.Success(func(resp *bar.AccumulateResponse) {
+		futureAcc.Method.Success(func(resp *bar.AccumulateResponse) {
 			if resp.GetProduct() != prod {
 				t.Errorf("received wrong result from Accumulate: expected prod %d but got %d", prod, resp.GetProduct())
 			}
@@ -136,10 +136,10 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 	ctx := manufactureContext("[methodcall]TestLucas")
 
 	lucasFuture := m.fooClient.LucasSequence(ctx)
-	lucasFuture.Failure(func(err foo.FooErr) {
+	lucasFuture.Method.Failure(func(err foo.FooErr) {
 		t.Errorf("received error from call to LucasSequence: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
 	})
-	lucasFuture.Success(func(result *foo.LucasSequenceResponse) {
+	lucasFuture.Method.Success(func(result *foo.LucasSequenceResponse) {
 		member := result.GetSequence()[const_.LucasSize]
 		if member != 141422324 {
 			t.Logf("outside func f2")
@@ -171,20 +171,22 @@ func (m *myUnderTestServer) Ready(ctx context.Context, sid id.ServiceId) *future
 	m.testSvc = test.MustLocateTest(ctx, myServiceId)
 	setupFuture := m.setupTests(ctx)
 	ready := future.NewBase[bool]()
-	setupFuture.Success(func(_ *test.AddTestSuiteResponse) {
+	setupFuture.Method.Success(func(_ *test.AddTestSuiteResponse) {
 		pcontext.Infof(ctx, "test setup ok")
 		ready.Set(true)
 	})
-	setupFuture.Failure(func(err test.TestErr) {
+	setupFuture.Method.Failure(func(err test.TestErr) {
 		pcontext.Infof(ctx, "test setup failed:%s", test.TestErr_name[int32(err)])
 		ready.Set(false)
 	})
 	return ready
 }
-func (m *myUnderTestServer) Exec(ctx context.Context, req *test.ExecRequest) (*test.ExecResponse, test.TestErr) {
+func (m *myUnderTestServer) UnderTestExec(ctx context.Context, req *test.ExecRequest) *test.FutureUnderTestExec {
 	pcontext.Debugf(ctx, "Exec", "got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName())
+	fut := test.NewFutureUnderTestExec()
 	resp := &test.ExecResponse{}
-	return resp, test.TestErr_NoError
+	fut.Method.CompleteMethod(ctx, resp, test.TestErr_NoError)
+	return fut
 }
 
 func (m *myUnderTestServer) setupTests(ctx context.Context) *test.FutureTestAddTestSuite {
@@ -202,22 +204,23 @@ func (m *myUnderTestServer) setupTests(ctx context.Context) *test.FutureTestAddT
 		ExecService: "UnderTestService",
 	}
 	tsFuture := m.testSvc.TestAddTestSuite(ctx, addReq)
-	tsFuture.Failure(func(err test.TestErr) {
+	tsFuture.Method.Failure(func(err test.TestErr) {
 		pcontext.Infof(ctx, "AddTestSuite:failed to add test suite %s", test.TestErr_name[int32(err)])
 	})
-	tsFuture.Success(func(resp *test.AddTestSuiteResponse) {
+	tsFuture.Method.Success(func(resp *test.AddTestSuiteResponse) {
 		pcontext.Infof(ctx, "AddTestSuite success: %+v",
 			resp.GetSucceeded())
 
 		startFuture := m.testSvc.TestStart(ctx, &test.StartRequest{})
-		startFuture.Failure(func(err test.TestErr) {
-			pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%s", test.TestErr_name[int32(err)])
+		startFuture.Method.Failure(func(err test.TestErr) {
+			pcontext.Errorf(ctx, "testSvc.Start():%s", test.TestErr_name[int32(err)])
 		})
-		startFuture.Success(func(resp *test.StartResponse) {
+		startFuture.Method.Success(func(resp *test.StartResponse) {
 			if resp.GetRegexFailed() {
-				pcontext.Logf(ctx, pcontext.Error, "Regexp Failed in filter")
+				pcontext.Errorf(ctx, "Regexp Failed in filter")
+				return
 			}
-			pcontext.Logf(ctx, pcontext.Info, "Start() success: started %v tests", resp.GetNumTest())
+			pcontext.Infof(ctx, "Start() success: started %v tests", resp.GetNumTest())
 		})
 	})
 	return tsFuture

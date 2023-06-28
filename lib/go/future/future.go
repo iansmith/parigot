@@ -2,8 +2,10 @@ package future
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
+	"github.com/iansmith/parigot/apishared/id"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -12,7 +14,17 @@ import (
 // type can be "completed" at a later time.  This is used
 // only for Methods.
 type Completer interface {
-	CompleteMethod(a *anypb.Any, resultErr int32)
+	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32)
+	Success(func(proto.Message))
+	Failure(func(int32))
+}
+
+// Invoker is the interface that means that a given
+// type be run as an implementation of a function..
+type Invoker interface {
+	// Invoke has to do the work to unmarshal the msg because it knows
+	// the specific type to use whereas the caller does not.
+	Invoke(ctx context.Context, msg *anypb.Any) Completer
 }
 
 type ErrorType interface {
@@ -20,7 +32,7 @@ type ErrorType interface {
 }
 
 // Method is a special type of future that is used frequently
-// in Parigot because all the methods of a service, and the
+// in parigot because all the methods of a service, and the
 // methods of clients that use that same service, must return
 // this type.  It has the special behavior that when CompleteMethod
 // is called on this Method, the error value is compared to zero
@@ -36,7 +48,9 @@ type Method[T proto.Message, U ErrorType] struct {
 	resolvedValue           T
 	rejectedValue           U
 	completed               bool
+	wasResolved             bool
 	resolveSucc, rejectSucc *Method[T, U]
+	waitingId               id.CallId
 }
 
 // NewMethod return as method future with two types given.  The T
@@ -47,7 +61,30 @@ func NewMethod[T proto.Message, U ErrorType](resolve func(T), reject func(U)) *M
 	return &Method[T, U]{
 		resolveFn: resolve,
 		rejectFn:  reject,
+		waitingId: id.NewCallId(),
 	}
+}
+
+// WaitingId is useful only to the go client side library.  The WaitingId
+// is a repurposing of the CallId to create a key value, a string, for use
+// in a map, since Method[T,U] is not a valid key type in go.
+func (m *Method[T, U]) WaitingId() string {
+	return m.waitingId.String()
+}
+
+// Cancel causes a future to be marked completed and also to remove any and all
+// possible calls to a Sucess() or Failure() function later.  This enforces
+// that a Cancel() is permanent, even if the future is "completed" later.
+// Calling Cancel() on an already completed future will be ignored.
+func (m *Method[T, U]) Cancel() {
+	if m.completed {
+		return
+	}
+	m.completed = true
+	m.rejectSucc = nil
+	m.resolveSucc = nil
+	m.resolveFn = nil
+	m.rejectFn = nil
 }
 
 // findLast is a utility function which finds the last
@@ -76,10 +113,10 @@ func (f *Method[T, U]) findLast(isSuccess bool) *Method[T, U] {
 // of the future is now known.  This method is typically called by
 // the infrastructure of Parigot, but it can be useful to call this
 // method directly in tests.  Calling this method on completed Method
-// future is pointless and will panic.
-func (f *Method[T, U]) CompleteMethod(result T, resultErr U) {
+// future will be ignored.
+func (f *Method[T, U]) CompleteMethod(ctx context.Context, result T, resultErr U) {
 	if f.completed {
-		panic("cannot call CompleteMethod on a future that is already completed")
+		return
 	}
 	if resultErr != 0 {
 		current := f
@@ -87,8 +124,9 @@ func (f *Method[T, U]) CompleteMethod(result T, resultErr U) {
 			if current.rejectFn != nil {
 				current.rejectFn(resultErr)
 			}
-			current.rejectedValue = resultErr
 			current.completed = true
+			current.wasResolved = false
+			current.rejectedValue = resultErr
 			current = current.rejectSucc
 		}
 		return // ran them all
@@ -99,9 +137,34 @@ func (f *Method[T, U]) CompleteMethod(result T, resultErr U) {
 			current.resolveFn(result)
 		}
 		current.completed = true
+		current.wasResolved = true
 		current.resolvedValue = result
 		current = current.resolveSucc
 	}
+}
+
+// Completed returns true if this method has already completed.
+func (f *Method[T, U]) Completed() bool {
+	return f.completed
+}
+
+// ValueResponse may not do what you expect: This function does not
+// force the world to stop and wait for the Response in question to be
+// received. It can only be trusted when the function Completed() returns
+// true  and the function WasSuccess() returns true.  This function
+// returns the value of a response (type T) on a completed
+// method
+func (f *Method[T, U]) ValueResponse() T {
+	return f.resolvedValue
+}
+
+// ValueErr may not do what you expect: This function does not
+// force the world to stop and wait for the Error in question to be
+// received. It can only be trusted when the function Completed() returns
+// true and the function WasSuccess() returns false.  It returns the
+// value of the error on a completed Method.
+func (f *Method[T, U]) ValueErr() U {
+	return f.rejectedValue
 }
 
 // String() returns a human-friendly version of this Method future.
@@ -125,36 +188,44 @@ func (f *Method[T, U]) String() string {
 }
 
 // Success provides a function to be called if the Method returns a
-// success.
-// Calling Success() on an already completed method is useless and
-// causes a panic (a method can only be 'completed' once).
+// success.  Calling Success() on an already completed method causes the
+// code supplied in the success method to be run immediately if the
+// future was resolved successfully.
 func (f *Method[T, U]) Success(fn func(T)) {
 	if f.completed {
-		panic("Success() called on already completed Method")
+		if f.wasResolved {
+			fn(f.resolvedValue)
+		}
+		// nothing to do with the error
+		return
 	}
 	last := f.findLast(true)
 	next := NewMethod[T, U](fn, nil)
 	last.resolveSucc = next
 }
 
-// Failure provides a function to be called if the Method returns a
-// non zero error value.  Unlike Base[T], the given function fn will
-// replace any previous function that was given as the failure function.
-// Calling Failure() on an already completed method is useless and
-// causes a panic (a method can only be 'completed' once).
+// Failure provides a function to be called if the Method completion supplies
+// a non zero error value. Calling failure on a completed Method that
+// had an error causes the given function to run immediately.
 func (f *Method[T, U]) Failure(fn func(U)) {
 	if f.completed {
-		panic("Success() called on already completed Method")
+		if !f.wasResolved {
+			fn(f.rejectedValue)
+		}
+		return
 	}
 	last := f.findLast(false)
 	next := NewMethod[T, U](nil, fn)
-
 	last.rejectSucc = next
 }
 
-// Completed returns true if the Method has been completed.
-func (f *Method[T, U]) Completed() bool {
-	return f.completed
+// WasSuccess returns true if the Method is completed and finished
+// as a sucess.  Before a Method is completed, it returns false.
+func (f *Method[T, U]) WasSuccess() bool {
+	if !f.completed {
+		return false
+	}
+	return f.wasResolved
 }
 
 //
@@ -221,14 +292,11 @@ func (f *Base[T]) Set(t T) bool {
 }
 
 // Handle sets up the handler for the future it is called on.
-// This function may create a new future as part of its operation
-// and the new future is returned as the result; if no new future
-// has been created, the result will be the same as the future
-// Handle() was called on.  It is both allowed and useful to
-// call Handle() multiple times on the same future if there are
+// It is both allowed and useful to
+// call Handle() multiple times on the same future.  If there are
 // handle functions that remain uncalled because they were added
 // after the previous call to Set was executed. When the future
-// is completed, all of the incomplete, supplied Handle() functions
+// is completed via Set(), all of the incomplete, supplied Handle() functions
 // will run and in the order they were called on the future.
 //
 // If Handle() is called on a future which has completed running
@@ -236,33 +304,32 @@ func (f *Base[T]) Set(t T) bool {
 // is run immediately.  This is usually what you want.
 // If you wish to delay the execution until the next Set() call use HandleLater.
 
-func (f *Base[T]) Handle(fn func(T)) *Base[T] {
+func (f *Base[T]) Handle(fn func(T)) {
 	if f.alreadyRunAll() {
 		fn(f.resolvedValue)
-		return f
+		return
 	}
-	return f._handle(fn)
+	f._handle(fn)
 }
 
-// HnadleLater is used in the (relatively rare) can where you
-// have a future that has already completed all of
+// HnadleLater is used in the rare instance can where you
+// have a future that has possibly completed all of
 // its Handle() functions and you wish to delay the excution
 // of fn until the next Set() call.  Note that the default
-// behavior of Handle() would be to run fn immediately and thus
-// you only need this function if you call Set multiple times
-// on the same future.
-func (f *Base[T]) HandleLater(fn func(T)) *Base[T] {
-	return f._handle(fn)
+// behavior of Handle() would be to run fn immediately, and thus
+// you only need this function if you call must Set multiple times
+// on the same future with the possibility that is already completed.
+func (f *Base[T]) HandleLater(fn func(T)) {
+	f._handle(fn)
 }
 
 // create a new future and put it at the end of the chain
 // rooted by f.
-func (f *Base[T]) _handle(fn func(T)) *Base[T] {
+func (f *Base[T]) _handle(fn func(T)) {
 	last := f.findLast()
 	end := NewBase[T]()
 	last.successor = end
 	end.resolveFn = fn
-	return end
 }
 
 // findLast is a utility function which finds the last
@@ -308,4 +375,75 @@ func (f *Base[T]) String() string {
 	}
 	return fmt.Sprintf("Base[%T]:waiting", t)
 
+}
+
+// Cancel causes the future's state to be cleared and the future
+// to be marked completed.  Any calls to
+// Set() that occur after Cancel() and before any other calls
+// to Handle() will have no effect.  Any existing chain
+// of Handle() functions will be removed from the future by Cancel().
+// Since the call to Cancel() marks the
+func (f *Base[T]) Cancel() {
+	f.resolved = true
+	f.resolveFn = nil
+	f.successor = nil
+}
+
+// All waits for all its dependent futures to complete and if they
+// all complete successfully, it calls the Success function, otherwise
+// the index of a failing future is sent to the Failure() method.
+func All[T proto.Message, U ErrorType](dep ...*Method[T, U]) *AllFuture[T, U] {
+	return NewAllFuture[T, U](dep)
+}
+
+// AllFuture is the underlying Future type for a call to the All() function.
+// As with Base and Method, this future queues all the calls to Success() and
+// Failure().
+type AllFuture[T proto.Message, U ErrorType] struct {
+	dep        []*Method[T, U]
+	success    int
+	successFut *Base[bool]
+	failFut    *Base[int]
+}
+
+func NewAllFuture[T proto.Message, U ErrorType](dep []*Method[T, U]) *AllFuture[T, U] {
+	result := &AllFuture[T, U]{
+		dep: dep,
+	}
+	for i, fut := range result.AllDependent() {
+		copyI := i
+		fut.Success(func(t T) {
+			result.addOneSuccess(copyI)
+		})
+		fut.Failure(func(u U) {
+			result.fail(copyI)
+		})
+	}
+	result.successFut = NewBase[bool]()
+	result.failFut = NewBase[int]()
+	return result
+}
+
+func (a *AllFuture[T, U]) AllDependent() []*Method[T, U] {
+	return a.dep
+}
+func (a *AllFuture[T, U]) addOneSuccess(_ int) {
+	a.success++
+	if a.success == len(a.dep) {
+		a.successFut.Set(true)
+	}
+}
+func (a *AllFuture[T, U]) fail(index int) {
+	a.failFut.Set(index)
+}
+
+func (a *AllFuture[T, U]) Success(fn func()) {
+	a.successFut.Handle(func(_ bool) {
+		fn()
+	})
+}
+func (a *AllFuture[T, U]) Failure(fn func(int)) {
+	a.failFut.Handle(func(index int) {
+		fn(index)
+	})
 }
