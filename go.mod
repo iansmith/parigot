@@ -2,8 +2,6 @@ module github.com/iansmith/parigot
 
 go 1.21
 
-replace github.com/tetratelabs/wazero v1.1.0 => ./wazero-src-1.1
-
 require (
 	fyne.io/fyne/v2 v2.3.0
 	github.com/BurntSushi/toml v1.2.1
@@ -13,6 +11,7 @@ require (
 	github.com/quic-go/quic-go v0.34.0
 	github.com/tetratelabs/wazero v1.1.0
 	google.golang.org/protobuf v1.30.0
+	github.com/tetratelabs/wazero v1.2.1
 //github.com/golang/protobuf v1.3.4
 )
 
