@@ -71,15 +71,6 @@ func build(ctx context.Context) error {
 
 	// initialize image fron dockerfile
 	// mount a host directory in the container at the '/workspaces/parigot' path
-	//img := client.Container().
-	//	Build(dockerDir).
-	//	WithDirectory(
-	//		"/workspaces/parigot",
-	//		client.Host().Directory("."),
-	//		dagger.ContainerWithDirectoryOptws{Exclude: []string{".devcontainer/", "ci/", "build/", "g/"}},
-	//	).
-	//	WithWorkdir("/workspaces/parigot").
-	//	WithUser("root")
 	img := dockerDir.DockerBuild().
 		WithDirectory("/workspaces/parigot",
 			client.Host().Directory("."),
@@ -140,10 +131,6 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 		return img, err
 	}
 	_, err = fs.FindFilesWithPattern("api/shared/id/*.go")
-	if err != nil {
-		return img, err
-	}
-	_, err = fs.FindFilesWithPattern("api/guest/*.go")
 	if err != nil {
 		return img, err
 	}
@@ -211,25 +198,25 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	}
 
 	// build/syscall.so
-	dir := "apiplugin/syscall"
+	dir := "api/plugin/syscall"
 	target := "build/syscall.so"
-	packagePath := "github.com/iansmith/parigot/api/plugin/syscall"
+	packagePath := "github.com/iansmith/parigot/api/plugin/syscall/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
 	// build/queue.so
-	dir = "apiplugin/queue"
+	dir = "api/plugin/queue"
 	target = "build/queue.so"
-	packagePath = "github.com/iansmith/parigot/api/plugin/queue"
+	packagePath = "github.com/iansmith/parigot/api/plugin/queue/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
 	// build/file.so
-	dir = "apiplugin/file"
+	dir = "api/plugin/file"
 	target = "build/file.so"
-	packagePath = "github.com/iansmith/parigot/api/plugin/file"
+	packagePath = "github.com/iansmith/parigot/api/plugin/file/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
@@ -257,7 +244,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	}
 
 	// build/file.p.wasm
-	dir := "apiwasm/file"
+	dir := "api/guest/file"
 	target := "build/file.p.wasm"
 	packagePath := "github.com/iansmith/parigot/api/guest/file"
 	img, err = buildAClientService(ctx, img, dir, target, packagePath)
@@ -265,7 +252,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 		return img, err
 	}
 	// build/test.p.wasm
-	dir = "apiwasm/test"
+	dir = "api/guest/test"
 	target = "build/test.p.wasm"
 	packagePath = "github.com/iansmith/parigot/api/guest/test"
 	img, err = buildAClientService(ctx, img, dir, target, packagePath)
@@ -273,7 +260,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 		return img, err
 	}
 	// build/queue.p.wasm
-	dir = "apiwasm/queue"
+	dir = "api/guest/queue"
 	target = "build/queue.p.wasm"
 	packagePath = "github.com/iansmith/parigot/api/guest/queue"
 	img, err = buildAClientService(ctx, img, dir, target, packagePath)
