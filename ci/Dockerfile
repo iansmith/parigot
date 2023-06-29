@@ -20,8 +20,6 @@ ENV GOLANG_VERSION_HOST="1.20.4"
 ## wasmtime version
 ENV WASMTIME_VERSION=8.0.1
 
-ENV HUGO_VERSION=0.114.1
-
 #figure out ARCH and download correct tarballs
 RUN set -e; \
 	unamearch="$(uname -m)" ; \
@@ -33,10 +31,8 @@ RUN set -e; \
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ;; \
-		wget -O hugo_$(HUGO_VERSION).deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmitme.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz;; \
-		wget -O hugo_$(HUGO_VERSION).deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac; \
 	ls -l 
@@ -66,9 +62,6 @@ ENV GOROOT_BOOTSTRAP=
 
 #RUN mkdir /home/parigot/deps/bin
 #WORKDIR /home/parigot/deps/bin
-
-# install Hugo
-dpkg -i hugo_$(HUGO_VERSION).deb
 
 # protocol buffers 
 ENV PB_VERSION="21.12"
