@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -13,22 +14,26 @@ import (
 
 const queueNameInTest = "unit_test"
 
+func isError(err queue.QueueErr) bool {
+	return err != queue.QueueErr_NoError
+}
+
 func TestCreateAndDelete(t *testing.T) {
 	svc, errId := newQueueSvc((context.Background()))
-	if errId.IsError() {
+	if isError(errId) {
 		t.FailNow()
 	}
 	// create bad name
-	testQueueCreate(t, svc, "foo$bar", "bad name", true, 4)
+	testQueueCreate(t, svc, "foo$bar", "bad name", true, queue.QueueErr_NotFound)
 
 	// create good name
 	qid := testQueueCreate(t, svc, "foobar", "good name", false, 0)
-	testQueueCreate(t, svc, "foobar", "duplicate name", true, 8)
+	testQueueCreate(t, svc, "foobar", "duplicate name", true, queue.QueueErr_AlreadyExists)
 
 	// delete it
 	testQueueDelete(t, svc, qid, "simple delete", false, 0)
 	// delete 2nd time
-	testQueueDelete(t, svc, qid, "2nd delete", true, 7)
+	testQueueDelete(t, svc, qid, "2nd delete", true, int32(queue.QueueErr_NotFound))
 
 	// create it again
 	qid2nd := testQueueCreate(t, svc, "foobar", "good name", false, 0)
@@ -48,7 +53,7 @@ func TestQueueHappyPath(t *testing.T) {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	svc, err := newQueueSvc((context.Background()))
-	if err.IsError() {
+	if isError(err) {
 		t.FailNow()
 	}
 	qid := setupQueue(t, svc)
@@ -68,13 +73,13 @@ func TestQueueHappyPath(t *testing.T) {
 	}
 	sendResp := &queue.SendResponse{}
 	errId := svc.send(ctx, sendReq, sendResp)
-	if errId.IsError() {
+	if isError(queue.QueueErr(errId)) {
 		t.Errorf("unable to send message")
 	}
 	if testQueueLen(t, svc, qid) != 1 {
 		t.Errorf("only one message sent, so should have 1 message")
 	}
-	savedMid := queue.MustUnmarshalQueueMsgId(sendResp.Succeed[0])
+	savedMid := queue.UnmarshalQueueMsgId(sendResp.Succeed[0])
 	//check queue len
 	qlen := testQueueLen(t, svc, qid)
 	if qlen != 1 {
@@ -118,7 +123,7 @@ func TestLocateManyMessages(t *testing.T) {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	svc, err := newQueueSvc((context.Background()))
-	if err.IsError() {
+	if isError(err) {
 		t.FailNow()
 	}
 	qid := setupQueue(t, svc)
@@ -138,9 +143,9 @@ func TestLocateManyMessages(t *testing.T) {
 	req.Id = qid.Marshal()
 
 	rawErr := svc.send(ctx, &req, &resp)
-	qErr := queue.NewQueueErrIdFromRaw(rawErr)
-	if qErr.IsError() {
-		t.Errorf("unexpected error from send: %s", qErr.Short())
+	qErr := queue.QueueErr(rawErr)
+	if isError(qErr) {
+		t.Errorf("unexpected error from send: %s", queue.QueueErr_name[int32(qErr)])
 		t.FailNow()
 	}
 	lsucc := len(resp.GetSucceed())
@@ -149,7 +154,7 @@ func TestLocateManyMessages(t *testing.T) {
 		t.FailNow()
 	}
 	for i := 0; i < 10; i++ {
-		md[i] = queue.MustUnmarshalQueueMsgId(resp.GetSucceed()[i])
+		md[i] = queue.UnmarshalQueueMsgId(resp.GetSucceed()[i])
 	}
 	//
 	// switch to receive side
@@ -159,11 +164,11 @@ func TestLocateManyMessages(t *testing.T) {
 	}
 	locResponse := queue.LocateResponse{}
 	rawErr = svc.locate(ctx, &locRequest, &locResponse)
-	qErr = queue.NewQueueErrIdFromRaw((rawErr))
-	if qErr.IsError() {
-		t.Errorf("unexpected failure of locate: %s", qErr.Short())
+	qErr = queue.QueueErr(rawErr)
+	if isError(qErr) {
+		t.Errorf("unexpected failure of locate: %s", queue.QueueErr_name[int32(qErr)])
 	}
-	locId := queue.MustUnmarshalQueueId(locResponse.GetId())
+	locId := queue.UnmarshalQueueId(locResponse.GetId())
 	if !qid.Equal(locId) {
 		t.Errorf("mismatched ids from create (%s) and locate (%s)", qid.Short(), locId.Short())
 	}
@@ -173,14 +178,14 @@ func TestLocateManyMessages(t *testing.T) {
 		rcvReq.Id = locId.Marshal()
 		rcvReq.MessageLimit = 3
 		rawErr := svc.receive(ctx, rcvReq, rcvResp)
-		qErr := queue.NewQueueErrIdFromRaw(rawErr)
-		if qErr.IsError() {
-			t.Errorf("unable successfully receive iteration %d, %s", i, qErr.Short())
+		qErr := queue.QueueErr(rawErr)
+		if isError(qErr) {
+			t.Errorf("unable successfully receive iteration %d, %s", i, queue.QueueErr_name[int32(qErr)])
 		}
 		if len(rcvResp.GetMessage()) != 3 {
 			t.Errorf("could not retrieve 3 messages successfully (sent %d)", len(rcvResp.GetMessage()))
 		}
-		dead := []*proto.IdRaw{}
+		dead := []*protosupport.IdRaw{}
 		num := 3
 		if len(rcvResp.Message) < 3 {
 			t.Logf("warning, expected to get three elements back from the queue, but got %d", len(rcvResp.Message))
@@ -201,7 +206,7 @@ func TestLocateManyMessages(t *testing.T) {
 				t.FailNow()
 			}
 			dead = append(dead, md[index].Marshal())
-			target := queue.NewQueueMsgIdFromProto(msg.GetMsgId())
+			target := queue.UnmarshalQueueMsgId(msg.GetMsgId())
 			found, _, md = isInListId(md, target, true)
 			if !found {
 				t.Errorf("unable to find msg id %s in list of payloads", target)
@@ -214,9 +219,9 @@ func TestLocateManyMessages(t *testing.T) {
 		mdReq.Msg = dead
 		mdReq.Id = locId.Marshal()
 		rawErr = svc.markDone(ctx, &mdReq, &mdResp)
-		mdErr := queue.NewQueueErrIdFromRaw(rawErr)
-		if mdErr.IsError() {
-			t.Errorf("unable to mark done successfully: %s", mdErr.Short())
+		mdErr := queue.QueueErr(rawErr)
+		if isError(mdErr) {
+			t.Errorf("unable to mark done successfully: %s", queue.QueueErr_name[rawErr])
 		}
 		if len(mdResp.GetUnmodified()) != 0 {
 			t.Errorf("expected to mark done all but %d were left", len(mdResp.GetUnmodified()))
@@ -246,51 +251,53 @@ func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg str
 	delResp := &queue.DeleteQueueResponse{}
 	delReq.Id = qid.Marshal()
 	err := svc.delete(ctx, delReq, delResp)
-	qerr := queue.NewQueueErrIdFromRaw(err)
+	qerr := queue.QueueErr(err)
 	if errorExpected {
-		if !err.IsError() {
-			t.Errorf("expected error from delete queue (%s): %s: %s", qid.Short(), msg, qerr.Short())
+		if !isError(qerr) {
+			t.Errorf("expected error from delete queue (%s): %s: expected %s but got %s", qid.Short(), msg,
+				queue.QueueErr_name[int32(errorCode)], queue.QueueErr_name[int32(qerr)])
+
 		}
-		if qerr.ErrorCode() != 7 {
-			t.Errorf("wrong error code from delete queue: %s: %s", msg, qerr.Short())
+		if qerr != queue.QueueErr(errorCode) {
+			t.Errorf("wrong error code from delete queue: %s: %s", msg, queue.QueueErr_name[int32(qerr)])
 		}
 		return
 	}
-	if qerr.IsError() {
-		t.Errorf("uxexpected error from delete queue: %s: %s", msg, qerr.Short())
+	if isError(qerr) {
+		t.Errorf("uxexpected error from delete queue: %s: %s", msg, queue.QueueErr_name[int32(qerr)])
 	}
-	candidate := queue.MustUnmarshalQueueId(delResp.GetId())
+	candidate := queue.UnmarshalQueueId(delResp.GetId())
 	if !qid.Equal(candidate) {
 		t.Errorf("created and deleted ids don't match")
 	}
 
 }
 
-func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode int32) queue.QueueId {
+func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode queue.QueueErr) queue.QueueId {
 	ctx := pcontext.DevNullContext(context.Background())
 
 	t.Helper()
 	create := &queue.CreateQueueRequest{}
 	create.QueueName = name
 	resp := &queue.CreateQueueResponse{}
-	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, create, resp))
+	err := queue.QueueErr(svc.create(ctx, create, resp))
 	if errorExpected {
-		if !err.IsError() {
-			t.Errorf("expected error: %s :%s", msg, err.Short())
+		if !isError(err) {
+			t.Errorf("expected error: %s :%s", msg, queue.QueueErr_name[int32(err)])
 		}
-		if queue.QueueErrIdCode(expectedCode) != err.ErrorCode() {
-			t.Errorf("wrong code: %s, expected %d but got %d",
-				msg, expectedCode, err.ErrorCode())
+		if expectedCode != err {
+			t.Errorf("wrong code: %s, expected %d but got %s",
+				msg, expectedCode, queue.QueueErr_name[int32(err)])
 		}
-		return queue.ZeroValueQueueId()
+		return queue.QueueIdZeroValue()
 	}
 	// no error expected case
-	if err.IsError() {
-		t.Errorf("unexpected error: %s :%s", msg, err.Short())
-		return queue.ZeroValueQueueId()
+	if isError(err) {
+		t.Errorf("unexpected error: %s :%s", msg, queue.QueueErr_name[int32(err)])
+		return queue.QueueIdZeroValue()
 	}
 
-	return queue.MustUnmarshalQueueId(resp.GetId())
+	return queue.UnmarshalQueueId(resp.GetId())
 }
 
 func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
@@ -300,11 +307,11 @@ func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 	create := &queue.CreateQueueRequest{}
 	create.QueueName = queueNameInTest
 	resp := &queue.CreateQueueResponse{}
-	err := queue.NewQueueErrIdFromRaw(svc.create(ctx, create, resp))
-	if err.IsError() {
+	err := queue.QueueErr(svc.create(ctx, create, resp))
+	if isError(err) {
 		t.Errorf("expected queue to be created")
 	}
-	qid := queue.MustUnmarshalQueueId(resp.GetId())
+	qid := queue.UnmarshalQueueId(resp.GetId())
 	return qid
 }
 
@@ -316,8 +323,8 @@ func testQueueLen(t *testing.T, svc *queueSvcImpl, qid queue.QueueId) int {
 	}
 	resp := &queue.LengthResponse{}
 	rawErr := svc.length(ctx, req, resp)
-	err := queue.NewQueueErrIdFromRaw(rawErr)
-	if err.IsError() {
+	err := queue.QueueErr(rawErr)
+	if isError(err) {
 		t.Errorf("unable to get a clean response from length")
 		t.FailNow()
 	}
@@ -356,9 +363,9 @@ func receivedOneCheckContent(t *testing.T, ctx context.Context, qid queue.QueueI
 	}
 	receiveResp := &queue.ReceiveResponse{}
 	rawId := svc.receive(ctx, receiveReq, receiveResp)
-	qerr := queue.NewQueueErrIdFromRaw(rawId)
-	if qerr.IsError() {
-		t.Errorf("unable to receive queue messages: %s", qerr.Short())
+	qerr := queue.QueueErr(rawId)
+	if isError(qerr) {
+		t.Errorf("unable to receive queue messages: %s", queue.QueueErr_name[int32(qerr)])
 	}
 	// testing number received, not number in queue
 	if len(receiveResp.Message) != 1 {
@@ -366,15 +373,16 @@ func receivedOneCheckContent(t *testing.T, ctx context.Context, qid queue.QueueI
 		t.FailNow()
 	}
 	errId := svc.receive(ctx, receiveReq, receiveResp)
-	if errId.IsError() {
-		qerrId := queue.NewQueueErrIdFromRaw(errId)
-		t.Errorf("unable to receive message: %s", qerrId.Short())
+	if isError(queue.QueueErr(errId)) {
+		qerrId := queue.QueueErr(errId)
+		t.Errorf("unable to receive message: %s", queue.QueueErr_name[int32(qerrId)])
 		t.FailNow()
 	}
 	msg := receiveResp.Message[0]
-	candMid := queue.MustUnmarshalQueueMsgId(msg.GetMsgId())
+	candMid := queue.UnmarshalQueueMsgId(msg.GetMsgId())
 	if !candMid.Equal(mid) {
 		t.Errorf("mismatched send (%s) and received id (%s)", mid.Short(), candMid.Short())
+		panic("foo")
 	}
 	var wrapSender wrapperspb.BoolValue
 	if err := msg.Sender.UnmarshalTo(&wrapSender); err != nil {
@@ -398,7 +406,7 @@ func receivedOneCheckContent(t *testing.T, ctx context.Context, qid queue.QueueI
 func receiveMessageNoError(t *testing.T, svc *queueSvcImpl, ctx context.Context,
 	req *queue.ReceiveRequest, resp *queue.ReceiveResponse) {
 	errId := svc.receive(ctx, req, resp)
-	if errId.IsError() {
+	if isError(queue.QueueErr(errId)) {
 		t.Errorf("unable to receive message")
 	}
 }
@@ -407,15 +415,15 @@ func testMarkdone(t *testing.T, ctx context.Context, svc *queueSvcImpl, qid queu
 	mdReq := &queue.MarkDoneRequest{}
 	mdResp := &queue.MarkDoneResponse{}
 	mdReq.Id = qid.Marshal()
-	mdReq.Msg = []*proto.IdRaw{savedMid.Marshal()}
+	mdReq.Msg = []*protosupport.IdRaw{savedMid.Marshal()}
 
 	rawErr := svc.markDone(ctx, mdReq, mdResp)
-	qErr := queue.NewQueueErrIdFromRaw(rawErr)
-	if qErr.IsError() {
+	qErr := queue.QueueErr(rawErr)
+	if isError(qErr) {
 		t.Errorf("unable to mark message %s done", savedMid.Short())
 		t.FailNow()
 	}
-	candQid := queue.MustUnmarshalQueueId(mdResp.GetId())
+	candQid := queue.UnmarshalQueueId(mdResp.GetId())
 	if !candQid.Equal(qid) {
 		t.Errorf("mismatched original (%s) and received (%s) queue id",
 			qid.Short(), candQid.Short())

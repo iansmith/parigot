@@ -31,6 +31,7 @@ func (f HostId) Marshal() *protosupport.IdRaw {
 	raw.Low = f.Low()
 	return raw
 }
+
 func HostIdZeroValue() HostId {
 	return HostId(NewIdTyped[DefHost](0xffffffffffffff,0xffffffffffffffff))
 }
@@ -69,6 +70,15 @@ func UnmarshalHostId(b *protosupport.IdRaw) HostId {
 	l:=b.GetLow()
 	h:=b.GetHigh()
 	return HostId(NewIdTyped[DefHost](h,l))
+}
+
+// FromPair is probably not something you want to use unless you
+// are pulling values from external storage or files.  If you pulling
+// values from the network, use the Marshal() ad Unmarshal()
+// functions to work with Ids.  Absolutely no checking is done
+// on the values provided, so much caution is advised.
+func HostIdFromPair(high, low uint64) HostId {
+	return HostId(NewIdTyped[DefHost](high,low))
 }
 
 //
