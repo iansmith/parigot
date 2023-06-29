@@ -1,12 +1,14 @@
 name: workflow test1
-run-name: pull request test
+#run-name: pull request test
 on:
   pull_request:
     types: opened
+    branches: master/**
+
 jobs:
-myfirstjob:
-  name: My First Job
-mysecondjob:
-  name: My 2nd job   
-run:
+  build:
+    runs-on: ubuntu-latest
+
+  steps:
+    - uses: actions/checkout master
   "go run ci/main.go"
