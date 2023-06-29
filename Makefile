@@ -199,11 +199,11 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SR
 #
 # TEST
 #
-#test: methodcalltest test/func/methodcall/methodcall.toml all
+.PHONY: test
 test:
-	go test github.com/iansmith/parigot/api/plugin/queue
-	go test github.com/iansmith/parigot/api/plugin/file
-	go test github.com/iansmith/parigot/lib/go/future
+	go test -v github.com/iansmith/parigot/api/plugin/queue
+	go test -v github.com/iansmith/parigot/api/plugin/file
+	go test -v github.com/iansmith/parigot/lib/go/future
 #	build/runner -t test/func/methodcall/methodcall.toml 
 
 #

@@ -408,7 +408,7 @@ func (q queueSvcImpl) locate(ctx context.Context, req *queue.LocateRequest, resp
 
 // receive is separate from the "real" call of
 // receiveHost so it is easy to test. If there was an error you'll
-// get the QueueErrId.  This code will return some number of messages
+// get the queue.QueueErr.  This code will return some number of messages
 // from zero to the requested maximum.  If the requested maximum is out of bounds
 // it will be clipped to the range [1,4).  1 is the recommended value, and since
 // the max is an integer type with a default of 0, it will be clipped to 1.
@@ -483,7 +483,10 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 			return int32(queue.QueueErr_UnmarshalFailed)
 		}
 
-		messageId := queue.NewQueueMsgId()
+		high := uint64(resultMsg[0].IDHigh.Int64)
+		low := uint64(resultMsg[0].IDLow.Int64)
+
+		messageId := queue.QueueIdFromPair(high, low)
 		m := queue.QueueMsg{
 			Id:           req.GetId(),
 			MsgId:        messageId.Marshal(),
