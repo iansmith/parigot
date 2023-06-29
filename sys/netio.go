@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/iansmith/parigot/apishared"
+	apishared "github.com/iansmith/parigot/api/shared"
 
 	quic "github.com/quic-go/quic-go"
 	"google.golang.org/protobuf/proto"

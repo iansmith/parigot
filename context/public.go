@@ -163,7 +163,7 @@ func addToContainerOrPrint(ctx context.Context, line LogLine) {
 		return
 	}
 	if cont == nil {
-		line.Print(ctx)
+		line.Print()
 		return
 	}
 	container := cont.(*logContainer)

@@ -64,8 +64,8 @@ func main() {
 	go func(context context.Context) {
 		for range c {
 			pcontext.Dump(context)
-			os.Exit(2)
 		}
+		log.Printf("goroutine exited")
 	}(ctx)
 
 	// go func() {
@@ -101,6 +101,10 @@ func main() {
 			"all main programs completed successfully")
 	} else {
 		pcontext.Logf(ctx, pcontext.Info, "main program completed successfully")
+	}
+	log.Printf("xxx main program exiting")
+	for {
+
 	}
 	os.Exit(8)
 }

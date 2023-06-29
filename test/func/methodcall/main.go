@@ -2,81 +2,80 @@ package main
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/iansmith/parigot/apishared/id"
-	"github.com/iansmith/parigot/apiwasm/syscall"
+	"github.com/iansmith/parigot/api/guest/syscall"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
-	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/future"
+
+	bar "github.com/iansmith/parigot/g/methodcall/bar/v1"
+	foo "github.com/iansmith/parigot/g/methodcall/foo/v1"
+	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
+
 	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
 )
 
 var exitCode = int32(0)
 
 func manufactureContext(name string) context.Context {
-	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(context.Background()), name), name)
+	return pcontext.NewContextWithContainer(pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "methodcall.Main")), name), name)
 }
 
 var myServiceId id.ServiceId
-var foo methodcall.FooClient
-var bar methodcall.BarClient
+var fooClient foo.Client
+var barClient bar.Client
 
 func main() {
+
 	ctx := manufactureContext("[methodcall]main")
 	defer func() {
+		if r := recover(); r != nil {
+			pcontext.Errorf(ctx, "methodcall: trapped a panic in the guest side: %v", r)
+		}
 		pcontext.Dump(ctx)
-		pcontext.Debugf(ctx, "trapped a panic in the guest side")
-		os.Exit(1)
 	}()
 	pcontext.Debugf(ctx, "program started")
-
 	myServiceId = lib.MustRegisterClient(ctx)
-	methodcall.MustRequireFoo(pcontext.CallTo(ctx, "Require"), myServiceId)
-	pcontext.Debugf(ctx, "finished requiring foo")
+	foo.MustRequire(pcontext.CallTo(ctx, "Require"), myServiceId)
 	test.MustRequireTest(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished requiring test")
-	methodcall.MustRequireBar(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished requiring bar")
+	bar.MustRequire(ctx, myServiceId)
 
 	syscall.MustSatisfyWait(ctx, myServiceId)
-	pcontext.Debugf(ctx, "finished wait satisfy")
 
 	underTestServer.testSvc = test.MustLocateTest(ctx, myServiceId)
-	underTestServer.foo = methodcall.MustLocateFoo(ctx, myServiceId)
-	underTestServer.bar = methodcall.MustLocateBar(ctx, myServiceId)
+	underTestServer.fooClient = foo.MustLocate(ctx, myServiceId)
+	underTestServer.barClient = bar.MustLocate(ctx, myServiceId)
 
-	pcontext.Debugf(ctx, "methodcall.main: got three locates  and satified all requires")
-
-	test.RunUnderTest(ctx, underTestServer)
+	baseBool := test.LaunchUnderTest(ctx, myServiceId, underTestServer)
+	baseBool.Handle(func(ok bool) {
+		if !ok {
+			pcontext.Errorf(ctx, "unable to start the under test service")
+			return
+		}
+		pcontext.Infof(ctx, "LaunchUnderTest succeeded.")
+	})
 }
 
 // TestAddMulitply is a test of a function that has both input and output.
 func (m *myUnderTestServer) TestAddMultiply(ctx context.Context, t *testing.T) {
 	fn := func(t *testing.T, value0, value1, sum, product int32) {
-		req := &methodcall.AddMultiplyRequest{
+		req := &foo.AddMultiplyRequest{
 			Value0: value0,
 			Value1: value1,
 			IsAdd:  true,
 		}
-		resp, err := m.foo.AddMultiply(ctx, req)
-		if err != methodcall.MethodCallSuiteErr_NoError {
-			t.Fatalf("error in AddMultiply [add]:%v", methodcall.MethodCallSuiteErr_name[int32(err)])
-		}
-		if resp.Result != sum {
-			t.Fatalf("bad result for add, expected %d but got %d", sum, resp.Result)
-		}
-
-		req.IsAdd = false
-		resp, err = m.foo.AddMultiply(ctx, req)
-		if err != methodcall.MethodCallSuiteErr_NoError {
-			t.Fatalf("error in AddMultiply [mult]:%s", methodcall.MethodCallSuiteErr_name[int32(err)])
-		}
-		if resp.Result != product {
-			t.Fatalf("bad result for multiply, expected %d but got %d", product, resp.Result)
-		}
+		addMultFuture := m.fooClient.AddMultiply(ctx, req)
+		addMultFuture.Method.Failure(func(err foo.FooErr) {
+			t.Errorf("error in AddMultiply [add]:%v", foo.FooErr_name[int32(err)])
+		})
+		addMultFuture.Method.Success(func(resp *foo.AddMultiplyResponse) {
+			if resp.Result != sum {
+				t.Errorf("bad result for add, expected %d but got %d", sum, resp.Result)
+			}
+		})
 		t.Run("accumulate", func(t *testing.T) {
 		})
 	}
@@ -100,20 +99,22 @@ func (m *myUnderTestServer) TestAccumulate(t *testing.T) {
 	fn := func(t *testing.T, sum, prod int32, rest ...int32) {
 		ctx := manufactureContext("TestAccumulate")
 
-		req := methodcall.AccumulateRequest{
+		req := bar.AccumulateRequest{
 			Value: rest,
 		}
-		resp, err := m.bar.Accumulate(ctx, &req)
-		if err != methodcall.MethodCallSuiteErr_NoError {
+		futureAcc := m.barClient.Accumulate(ctx, &req)
+		futureAcc.Method.Failure(func(err bar.BarErr) {
 			t.Errorf("received error from call to Accumulate: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
 			t.FailNow()
-		}
-		if resp.GetProduct() != prod {
-			t.Errorf("received wrong result from Accumulate: expected prod %d but got %d", prod, resp.GetProduct())
-		}
-		if resp.GetSum() != sum {
-			t.Errorf("received wrong result from  Accumulate: expected sum %d but got %d", sum, resp.GetSum())
-		}
+		})
+		futureAcc.Method.Success(func(resp *bar.AccumulateResponse) {
+			if resp.GetProduct() != prod {
+				t.Errorf("received wrong result from Accumulate: expected prod %d but got %d", prod, resp.GetProduct())
+			}
+			if resp.GetSum() != sum {
+				t.Errorf("received wrong result from  Accumulate: expected sum %d but got %d", sum, resp.GetSum())
+			}
+		})
 	}
 	t.Run("accumulate1", func(t *testing.T) {
 		fn(t, 21, 720, 1, 2, 3, 4, 5, 6)
@@ -134,19 +135,18 @@ func (m *myUnderTestServer) TestAccumulate(t *testing.T) {
 func (m *myUnderTestServer) TestLucas(t *testing.T) {
 	ctx := manufactureContext("[methodcall]TestLucas")
 
-	result, err := m.foo.LucasSequence(ctx)
-	if err != methodcall.MethodCallSuiteErr_NoError {
-		t.Logf("outside func f1")
+	lucasFuture := m.fooClient.LucasSequence(ctx)
+	lucasFuture.Method.Failure(func(err foo.FooErr) {
 		t.Errorf("received error from call to LucasSequence: %v", methodcall.MethodCallSuiteErr_name[int32(err)])
-		t.Fail()
-	}
-	member := result.GetSequence()[const_.LucasSize]
-	if member != 141422324 {
-		t.Logf("outside func f2")
-		t.Logf("unexpected value in lucas sequence (index %d): got %d but expected %d",
-			const_.LucasSize-1, member, 141422324)
-	}
-	t.Logf("outside func")
+	})
+	lucasFuture.Method.Success(func(result *foo.LucasSequenceResponse) {
+		member := result.GetSequence()[const_.LucasSize]
+		if member != 141422324 {
+			t.Logf("outside func f2")
+			t.Logf("unexpected value in lucas sequence (index %d): got %d but expected %d",
+				const_.LucasSize-1, member, 141422324)
+		}
+	})
 }
 
 /////////////////
@@ -157,29 +157,40 @@ func (m *myUnderTestServer) TestLucas(t *testing.T) {
 var underTestServer = &myUnderTestServer{}
 
 type myUnderTestServer struct {
-	testSvc test.TestClient
-	foo     methodcall.FooClient
-	bar     methodcall.BarClient
+	testSvc   test.ClientTest
+	fooClient foo.Client
+	barClient bar.Client
 }
 
-func (m *myUnderTestServer) Ready(ctx context.Context) bool {
-	m.foo = methodcall.MustLocateFoo(ctx, myServiceId)
-	m.bar = methodcall.MustLocateBar(ctx, myServiceId)
+// Ready is a check, if this returns false the library will abort and not attempt to run this service.
+// Normally this is used to do LocateXXX() calls that are needed for
+// the operation of the service.
+func (m *myUnderTestServer) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
+	m.fooClient = foo.MustLocate(ctx, myServiceId)
+	m.barClient = bar.MustLocate(ctx, myServiceId)
 	m.testSvc = test.MustLocateTest(ctx, myServiceId)
-	if err := m.setupTests(ctx); err != test.TestErr_NoError {
-		pcontext.Logf(ctx, pcontext.Error, "test setup failed:%s", test.TestErr_name[int32(err)])
-		return false
-	}
-	return true
+	setupFuture := m.setupTests(ctx)
+	ready := future.NewBase[bool]()
+	setupFuture.Method.Success(func(_ *test.AddTestSuiteResponse) {
+		pcontext.Infof(ctx, "test setup ok")
+		ready.Set(true)
+	})
+	setupFuture.Method.Failure(func(err test.TestErr) {
+		pcontext.Infof(ctx, "test setup failed:%s", test.TestErr_name[int32(err)])
+		ready.Set(false)
+	})
+	return ready
 }
-func (m *myUnderTestServer) Exec(ctx context.Context, req *test.ExecRequest) (*test.ExecResponse, test.TestErr) {
+func (m *myUnderTestServer) UnderTestExec(ctx context.Context, req *test.ExecRequest) *test.FutureUnderTestExec {
 	pcontext.Debugf(ctx, "Exec", "got an exec call %s.%s.%s", req.GetPackage(), req.GetService(), req.GetName())
+	fut := test.NewFutureUnderTestExec()
 	resp := &test.ExecResponse{}
-	return resp, test.TestErr_NoError
+	fut.Method.CompleteMethod(ctx, resp, test.TestErr_NoError)
+	return fut
 }
 
-func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErr {
-	pcontext.Debugf(ctx, "setupTests", "setup tests reached")
+func (m *myUnderTestServer) setupTests(ctx context.Context) *test.FutureTestAddTestSuite {
+	pcontext.Debugf(ctx, "setupTests reached in under test server")
 
 	addReq := &test.AddTestSuiteRequest{
 		Suite: []*test.SuiteInfo{
@@ -192,21 +203,25 @@ func (m *myUnderTestServer) setupTests(ctx context.Context) test.TestErr {
 		ExecPackage: "test.v1",
 		ExecService: "UnderTestService",
 	}
-	resp, err := m.testSvc.AddTestSuite(ctx, addReq)
-	if err != test.TestErr_NoError {
-		pcontext.Logf(ctx, pcontext.Error, "AddTestSuite:%s", test.TestErr_name[int32(err)])
-		return err
-	}
-	pcontext.Logf(ctx, pcontext.Info, "AddTestSuite success: %+v", resp.Succeeded)
-	startResp, err := m.testSvc.Start(ctx, &test.StartRequest{})
-	if err != test.TestErr_NoError {
-		pcontext.Logf(ctx, pcontext.Error, "testSvc.Start():%s", test.TestErr_name[int32(err)])
-		return err
-	}
-	if startResp.GetRegexFailed() {
-		pcontext.Logf(ctx, pcontext.Error, "Regexp Failed in filter:%v", err)
-		return test.TestErr_RegexpFailed
-	}
-	pcontext.Logf(ctx, pcontext.Info, "Start() success: started %v tests", startResp.GetNumTest())
-	return test.TestErr_NoError
+	tsFuture := m.testSvc.TestAddTestSuite(ctx, addReq)
+	tsFuture.Method.Failure(func(err test.TestErr) {
+		pcontext.Infof(ctx, "AddTestSuite:failed to add test suite %s", test.TestErr_name[int32(err)])
+	})
+	tsFuture.Method.Success(func(resp *test.AddTestSuiteResponse) {
+		pcontext.Infof(ctx, "AddTestSuite success: %+v",
+			resp.GetSucceeded())
+
+		startFuture := m.testSvc.TestStart(ctx, &test.StartRequest{})
+		startFuture.Method.Failure(func(err test.TestErr) {
+			pcontext.Errorf(ctx, "testSvc.Start():%s", test.TestErr_name[int32(err)])
+		})
+		startFuture.Method.Success(func(resp *test.StartResponse) {
+			if resp.GetRegexFailed() {
+				pcontext.Errorf(ctx, "Regexp Failed in filter")
+				return
+			}
+			pcontext.Infof(ctx, "Start() success: started %v tests", resp.GetNumTest())
+		})
+	})
+	return tsFuture
 }

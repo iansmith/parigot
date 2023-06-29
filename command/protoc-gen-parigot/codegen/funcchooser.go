@@ -32,6 +32,7 @@ type FuncChooser struct {
 	InputToSend           QuadWithMethodString
 	DispatchParam         QuadWithMethodString
 	DispatchResult        QuadWithMethodString
+	InParamDecl           QuadWithMethodString
 	OutParamDecl          QuadWithMethodString
 	BindDirection         QuadWithMethodString
 	GenMethodPossibleTest func(m *WasmMethod) bool
