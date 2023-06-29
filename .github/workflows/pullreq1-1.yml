@@ -1,5 +1,12 @@
+name: workflow test1
+run-name: pull request test
 on:
   pull_request:
     types: opened
+jobs:
+myfirstjob:
+  name: My First Job
+mysecondjob:
+  name: My 2nd job   
 run:
   "go run ci/main.go"
