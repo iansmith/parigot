@@ -18,12 +18,14 @@ import "protosupport/v1/protosupport.proto";
 
 
 service File {
+  // Open handles the READ-only operation on a file
   rpc Open(OpenRequest) returns (OpenResponse);
 
-  // Create creates or truncates the named file in the path. If the file already exists, 
-  // it is truncated. If the file does not exist, it is created.
+  // Create handles the WRITE-only operation on a file. It creates or truncates the name file
+  // in the path. If the file already exists, it is truncated. If the file does not exist, it is created.
   rpc Create(CreateRequest) returns (CreateResponse);
 
+  // Close changes the status of a file to "close"
   rpc Close(CloseRequest) returns (CloseResponse);
 
   // Load does NOT check that the file(s) referred to are reasonable in length, do not contain
@@ -33,6 +35,9 @@ service File {
   rpc Read(ReadRequest) returns (ReadResponse);
 
   rpc Write(WriteRequest) returns (WriteResponse);
+
+  // Delete free a file from memory (datacache) or delete it from the disk
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
 }
 
 
@@ -113,23 +118,31 @@ message WriteResponse {
   int32 num_write = 2;
 }
 
+message DeleteRequest {
+  protosupport.v1.IdRaw id = 1;
+}
+
+message DeleteResponse {
+  protosupport.v1.IdRaw id = 1;
+}
+
 enum FileErr {
   option (protosupport.v1.parigot_error) = true;
   NoError = 0; // mandatory
   DispatchError = 1; //mandatory
   UnmarshalError = 2; // mandatory
   MarshalError = 3; // mandatory
-  // InvalidPathError means that the given path name is a not a valid identifier.  Identifiers should be 
-  // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
-  // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
+ // InvalidPathError indicates that the provided path name is not a valid identifier. Identifiers must be 
+  // the shortest path name equivalent to the given path, derived through pure lexical processing. 
+  // Specifically, it should start with specific prefix, and any usage of '.' or '..' in the path is disallowed.
   InvalidPathError = 4;
-  // AlreadyInUseError means that the file has been in used.
+  // AlreadyInUseError means that the file is already being used.
   AlreadyInUseError = 5;
   // NotExistError means that the file does not exist
   NotExistError = 6;
-  // FileClosedError means that the status of the file is CLOSE. it cannot be accessed by a read or write request.
+  // FileClosedError means that the status of the file is CLOSED, hence it cannot be accessed by a read or write request.
   FileClosedError = 7;
   LargeBufError = 8;
-  ReaderNotInitializedError = 8;
-  WriterNotInitializedError = 9;
+  // InternalError means that there are issues with the file service.
+  InternalError = 9;
 }
