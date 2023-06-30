@@ -1,9 +1,9 @@
 name: workflow test1
 #run-name: pull request test
-on: 
-  pull_request:
-    types: opened
-    branches: master/**
+on: [push, pull_request]
+  #pull_request:
+   # types: opened
+    #branches: master/**
 
 jobs:
   build:
