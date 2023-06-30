@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout xinyu/dagger
+      - uses: actions/checkout@xinyu/dagger
     defaults:
       run:
         shell: bash
