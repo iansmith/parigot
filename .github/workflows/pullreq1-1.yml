@@ -1,19 +1,12 @@
-name: workflow test1
-#run-name: pull request test
-on: [pull_request]
-  #pull_request:
-   # types: opened
-    #branches: master/**
+name: Basic test push
+
+on: 
+  push:
+    branches:
+      - 'autoupdate'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      #- uses: #actions/checkout@v3
-      name: fela
-      run: echo fart
-    defaults:
-      run:
-        shell: bash
-        working-directory: ci
+      -  run: echo Test One Worked!
