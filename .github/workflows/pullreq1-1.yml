@@ -11,4 +11,4 @@ jobs:
 
     steps:
       - uses: actions/checkout master
-      run: go run ci/main.go
+  run: "go run ci/main.go"
