@@ -1,6 +1,6 @@
 name: workflow test1
 #run-name: pull request test
-on:
+on: 
   pull_request:
     types: opened
     branches: master/**
