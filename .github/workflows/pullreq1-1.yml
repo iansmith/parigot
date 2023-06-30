@@ -1,10 +1,9 @@
 name: Basic test push
 
 on: 
-  workflow_dispatch
-  #push:
-   # branches:
-    #  - 'autoupdate'
+  push:
+    branches:
+      - 'autoupdate'
 
 jobs:
   build:
