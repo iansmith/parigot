@@ -2,12 +2,13 @@ package file
 
 import (
 	"context"
-	"path/filepath"
-	"strings"
+	"io"
+	"log"
 	"time"
 	"unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
+	apishared "github.com/iansmith/parigot/api/shared"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
@@ -21,12 +22,12 @@ import (
 // you'll need to pick the short names and letters for them... I would
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
-const pathPrefix = "/parigot/app/"
+const pathPrefix = apishared.FileServicePathPrefix
+const maxBufSize = apishared.FileServiceMaxBufSize
 
 var (
-	fileSvc    *fileSvcImpl
-	_          = unsafe.Sizeof([]byte{})
-	fpathTofid = make(map[string]file.FileId)
+	fileSvc *fileSvcImpl
+	_       = unsafe.Sizeof([]byte{})
 )
 
 // RULE: All files opened by a user program have to have a
@@ -48,10 +49,14 @@ type FilePlugin struct{}
 type fileInfo struct {
 	id             file.FileId
 	path           string
+	length         int // length of the file content
 	content        string
 	status         FileStatus
 	createDate     time.Time
 	lastAccessTime time.Time
+
+	rdClose io.ReadCloser
+	wrClose io.WriteCloser
 }
 
 // for now, create a map of FileId -> to myFileInfo
@@ -60,28 +65,59 @@ type fileInfo struct {
 type fileSvcImpl struct {
 	fileDataCache *map[file.FileId]*fileInfo
 	ctx           context.Context
+	// track fid based on file path
+	fpathTofid *map[string]file.FileId
+	isTesting  bool
 }
 
 // enum for file status
 type FileStatus int
 
 const (
-	Fs_Open FileStatus = iota
+	Fs_Write FileStatus = iota
+	Fs_Read
 	Fs_Close
 )
 
 func (fs FileStatus) String() string {
-	return []string{"Open", "Close"}[fs]
+	return []string{"Write", "Read", "Close"}[fs]
 }
 
 func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "open_file_", openFileHost) // this should call the "wrapper"
 	e.AddSupportedFunc(ctx, "file", "create_file_", createFileHost)
 	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)
+	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
+	e.AddSupportedFunc(ctx, "file", "delete_file_", deleteFileHost)
 
 	_ = newFileSvc(ctx)
 
 	return true
+}
+
+func (fi *fileInfo) Read(p []byte) (n int, err error) {
+	n, err = fi.rdClose.Read(p)
+	if err == io.EOF {
+		log.Printf("We read %d bytes and the file has exhausted its content", n)
+	} else if err != nil {
+		log.Fatal("Error reading from a file: ", err)
+	} else {
+		log.Printf("We read %d bytes", n)
+	}
+
+	return n, err
+}
+
+func (fi *fileInfo) Write(p []byte) (n int, err error) {
+	n, err = fi.wrClose.Write(p)
+	if err != nil {
+		log.Fatal("Error writing to a file: ", err)
+	}
+
+	fi.length += n
+	log.Printf("We write %d bytes", n)
+
+	return n, nil
 }
 
 func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
@@ -93,19 +129,6 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 	}()
 	apiplugin.InvokeImplFromStack(ctx, fnName, m, stack, fn, req, resp)
 }
-
-// // true native implementation of open... assume this is read only
-// func openImpl(ctx context.Context, in *file.OpenRequest, out *file.OpenResponse) int32 {
-// 	// use Os
-// 	return int32(file.FileErr_NoError)
-// }
-
-// // the wrappers always look like this.. notice where openImpl is in this function
-// func open(ctx context.Context, m api.Module, stack []uint64) {
-// 	req := &file.OpenRequest{}
-// 	resp := &file.OpenResponse{}
-// 	apiplugin.InvokeImplFromStack(ctx, "[file]open", m, stack, openImpl, req, resp)
-// }
 
 func openFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	req := &file.OpenRequest{}
@@ -128,138 +151,280 @@ func closeFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	hostBase(ctx, "[file]close", fileSvc.close, m, stack, req, resp)
 }
 
+func readFileHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.ReadRequest{}
+	resp := &file.ReadResponse{}
+
+	hostBase(ctx, "[file]read", fileSvc.read, m, stack, req, resp)
+}
+
+func deleteFileHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.DeleteRequest{}
+	resp := &file.DeleteResponse{}
+
+	hostBase(ctx, "[file]delete", fileSvc.delete, m, stack, req, resp)
+}
+
 func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
 	f := &fileSvcImpl{
 		fileDataCache: &map[file.FileId]*fileInfo{},
 		ctx:           newCtx,
+		fpathTofid:    &map[string]file.FileId{},
+		isTesting:     false,
 	}
 
 	return f
 }
 
-// READ only, need to be implemented
 func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	resp *file.OpenResponse) int32 {
 
+	// If we are in test mode, set the default OpenHook to openHookForStrings.
+	// In this mode, we do not operate on the real files on the disk
+	if f.isTesting {
+		defaultOpenHook = openHookForStrings
+	}
+
 	fpath := req.GetPath()
-
 	cleanPath, valid := isValidPath(fpath)
-	if !valid {
-		pcontext.Errorf(ctx, "file path is not valid: %s", fpath)
 
+	// Validate the file path
+	if !valid {
+		pcontext.Errorf(ctx, "File path is not valid: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
-
 	resp.Path = cleanPath
-	fileDataCache := *f.fileDataCache
 
-	// if file doesn't exist, return an error
-	if fid, exist := fpathTofid[cleanPath]; !exist {
-		pcontext.Errorf(ctx, "file does not exist and cannot be opened: %s", fpath)
-
+	// Check if the file exists
+	fid, exist := (*f.fpathTofid)[cleanPath]
+	if !exist {
+		pcontext.Errorf(ctx, "File does not exist and cannot be opened: %s", fpath)
 		return int32(file.FileErr_NotExistError)
-	} else {
-		// check file status
-		if fileDataCache[fid].status == Fs_Open {
-			pcontext.Errorf(ctx, "file is open, cannot be opened again: %s", fpath)
-
-			return int32(file.FileErr_AlreadyInUseError)
-		}
-
-		resp.Id = fid.Marshal()
-		fileDataCache[fid].lastAccessTime = time.Now()
-		fileDataCache[fid].status = Fs_Open
 	}
+
+	// If file exists, fetch its information from fileDataCache
+	myFileInfo := (*f.fileDataCache)[fid]
+
+	// Check file status
+	if myFileInfo.status != Fs_Close {
+		pcontext.Errorf(ctx, "File is already in use: %s", fpath)
+		return int32(file.FileErr_AlreadyInUseError)
+	}
+
+	// If the file is closed, update the file information and open it for reading
+	resp.Id = fid.Marshal()
+
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+	myFileInfo.status = Fs_Read
+	myFileInfo.rdClose = defaultOpenHook(cleanPath)
 
 	return int32(file.FileErr_NoError)
 }
 
-// WRITE only
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
 
-	fpath := req.GetPath()
+	// Set the defaultCreateHook for testing
+	if f.isTesting {
+		defaultCreateHook = createHookForStrings
+	}
 
+	fpath := req.GetPath()
+	// Validate the file path
 	cleanPath, valid := isValidPath(fpath)
 	if !valid {
-		pcontext.Errorf(ctx, "File path is not valid: %s", fpath)
-
+		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
 	resp.Path = cleanPath
 	resp.Truncated = false
+
+	// Validate the content buffer
 	content := req.GetContent()
-	fileDataCache := *f.fileDataCache
+	buf := []byte(content)
+	if !isValidBuf(buf) {
+		pcontext.Errorf(ctx, "Content size %d exceeds the maximum buffer size (%d) "+
+			"allowed", len(buf), maxBufSize)
+		return int32(file.FileErr_LargeBufError)
+	}
 
-	// if file/path exists, truncating
-	if fid, exist := fpathTofid[fpath]; exist {
+	// If the file/path already exists, truncate it
+	if fid, exist := (*f.fpathTofid)[fpath]; exist {
+		// Update the response
 		resp.Id = fid.Marshal()
+		resp.Truncated = true
 
-		// check file status first, a opened file cannot be be written at the same time
-		if fileDataCache[fid].status == Fs_Open {
-			pcontext.Errorf(ctx, "file is open, cannot be created: %s", fpath)
+		// Fetch existing file information
+		myFileInfo := (*f.fileDataCache)[fid]
 
+		// The create request only applies to a closed file
+		if myFileInfo.status != Fs_Close {
+			pcontext.Errorf(ctx, "file is in use: %s", fpath)
 			return int32(file.FileErr_AlreadyInUseError)
 		}
-		// extend a file
-		resp.Truncated = true
-		fileDataCache[fid].content += content
-		fileDataCache[fid].lastAccessTime = time.Now()
-		fileDataCache[fid].createDate = time.Now()
-	} else {
-		// create a file id
-		fid := file.NewFileId()
-		resp.Id = fid.Marshal()
 
-		newFileInfo := fileInfo{
-			id:             fid,
-			path:           cleanPath,
-			content:        content,
-			status:         Fs_Close,
-			createDate:     time.Now(),
-			lastAccessTime: time.Now(),
-		}
-		fileDataCache[fid] = &newFileInfo
-		fpathTofid[cleanPath] = fid
+		// Extend the file
+		myFileInfo.content += content
+		myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+		myFileInfo.status = Fs_Write
+		myFileInfo.Write(buf)
+
+	} else {
+		// If file/path does not exist, create a new file
+		fid := f.createANewFile(cleanPath, content)
+		resp.Id = fid.Marshal()
 	}
 
 	return int32(file.FileErr_NoError)
 }
 
-// free up item from the fileDataCache
-func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest, resp *file.CloseResponse) int32 {
-	fid := file.UnmarshalFileId(req.Id)
-	fileDataCache := *f.fileDataCache
+// createANewFile is a helper function to create a new file in the file service.
+func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
+	if f.isTesting {
+		defaultCreateHook = createHookForStrings
+	}
 
-	// check if file exists. We cannot delete a file which doesn't exist
-	if _, exist := fileDataCache[fid]; !exist {
-		pcontext.Errorf(ctx, "file does not exist, cannot be closed: %d", fid)
+	currentTime := pcontext.CurrentTime(f.ctx)
+	fid := file.NewFileId()
 
+	newFileInfo := fileInfo{
+		id:             fid,
+		path:           fpath,
+		content:        fcontent,
+		status:         Fs_Write,
+		createDate:     currentTime,
+		lastAccessTime: currentTime,
+
+		wrClose: defaultCreateHook(fpath),
+	}
+
+	newFileInfo.Write([]byte(fcontent))
+
+	(*f.fileDataCache)[fid] = &newFileInfo
+	(*f.fpathTofid)[fpath] = fid
+
+	return fid
+}
+
+// turn the file status to close and close the file
+func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
+	resp *file.CloseResponse) int32 {
+
+	fid := file.UnmarshalFileId(req.GetId())
+
+	// Fetch file data from cache
+	fileData, exist := (*f.fileDataCache)[fid]
+
+	// Validate if the file exists in the cache
+	if !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be closed: %d", fid)
 		return int32(file.FileErr_NotExistError)
 	}
 
-	// remove file from the fileDataCache
-	fpath := fileDataCache[fid].path
-	delete(fileDataCache, fid)
-	delete(fpathTofid, fpath)
+	// Check if the file is already closed
+	if fileData.status == Fs_Close {
+		pcontext.Errorf(ctx, "File is already closed, cannot be closed again: %d", fid)
+		return int32(file.FileErr_FileClosedError)
+	}
 
-	resp.Id = req.Id
+	status := fileData.status
+
+	// If the file exists and is not closed, change its status to "closed"
+	(*f.fileDataCache)[fid].status = Fs_Close
+	(*f.fileDataCache)[fid].lastAccessTime = pcontext.CurrentTime(ctx)
+
+	switch status {
+	case Fs_Read:
+		(*f.fileDataCache)[fid].rdClose.Close()
+	default:
+		(*f.fileDataCache)[fid].wrClose.Close()
+	}
+
+	resp.Id = req.GetId()
+
 	return int32(file.FileErr_NoError)
 }
 
-// A valid path should be a shortest path name equivalent to path by purely lexical processingand.
-// Specifically, it should start with "/parigot/app/", also, any use of '.', '..', in the path is
-// not allowed.
-func isValidPath(fpath string) (string, bool) {
-	fileName := filepath.Base(fpath)
-	dir := strings.ReplaceAll(fpath, fileName, "")
-	if !strings.HasPrefix(dir, pathPrefix) || strings.Contains(dir, ".") {
-		return fpath, false
-	}
-	cleanPath := filepath.Clean(fpath)
+func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
+	resp *file.ReadResponse) int32 {
 
-	return cleanPath, true
+	fid := file.UnmarshalFileId(req.GetId())
+
+	// Validate if the file exists in the cache
+	if _, exist := (*f.fileDataCache)[fid]; !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be read: %d", fid)
+		return int32(file.FileErr_NotExistError)
+	}
+
+	myFileInfo := (*f.fileDataCache)[fid]
+
+	// Verify file status to prevent errors during operation.
+	// Only files with "read" status can be processed.
+	switch myFileInfo.status {
+	// If file status is "closed", log an error and return a file closed error code.
+	case Fs_Close:
+		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is closed.", fid)
+		return int32(file.FileErr_FileClosedError)
+	// If file status is "write", meaning it is currently being written by others,
+	// log an error and return a file already in use error code.
+	case Fs_Write:
+		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is being written by others.", fid)
+		return int32(file.FileErr_AlreadyInUseError)
+	}
+
+	// Check if the file's reader is initialized
+	if myFileInfo.rdClose == nil {
+		pcontext.Errorf(ctx, "File reader not initialized, cannot be read: %d", fid)
+		return int32(file.FileErr_InternalError)
+	}
+
+	// Validate the requested buffer size
+	buf := req.GetBuf()
+	if !isValidBuf(buf) {
+		pcontext.Errorf(ctx, "the expected buffer size %d exceeds the maximum buffer"+
+			"size (%d) allowed", len(buf), maxBufSize)
+		return int32(file.FileErr_LargeBufError)
+	}
+
+	n, _ := myFileInfo.Read(buf)
+
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+
+	resp.Id = req.GetId()
+	resp.NumRead = int32(n)
+
+	return int32(file.FileErr_NoError)
+}
+
+func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
+	resp *file.DeleteResponse) int32 {
+
+	fid := file.UnmarshalFileId(req.GetId())
+
+	// Validate if the file exists in the cache
+	if _, exist := (*f.fileDataCache)[fid]; !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be closed: %d", fid)
+		return int32(file.FileErr_NotExistError)
+	}
+	// Ensure the file is not currently in use
+	if (*f.fileDataCache)[fid].status != Fs_Close {
+		pcontext.Errorf(ctx, "File is in use, cannot be deleted currently: %d", fid)
+		return int32(file.FileErr_AlreadyInUseError)
+	}
+
+	fpath := (*f.fileDataCache)[fid].path
+
+	// If testing, simply delete the file from the cache
+	// otherwise, delete it from the disk
+	if f.isTesting {
+		delete(*f.fileDataCache, fid)
+		delete(*f.fpathTofid, fpath)
+	} else {
+		deleteFileAndParentDirIfNeeded(fpath)
+	}
+
+	return int32(file.FileErr_NoError)
 }
