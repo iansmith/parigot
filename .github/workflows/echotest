@@ -1,0 +1,12 @@
+name: Echo Test
+#run-name: pull request test
+on: 
+  pull_request:
+    types: opened
+    branches: master/**
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -  run: echo Test One Worked!
