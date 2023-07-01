@@ -13,3 +13,4 @@ ui/parser/.antlr
 .cache
 .lesshst
 go/pkg/mod/*
+.hugo_build.lock

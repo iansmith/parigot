@@ -8,6 +8,11 @@ plugins:
   - name: go
     out: g/
     opt: paths=source_relative
+  - name: doc
+    out: g/doc
+    opt: 
+    - doc_opt=markdown,index.md
+    #- doc_out=g/doc 
   #- name: connect-go
   #  out: proto/g/
 #    opt: paths=source_relative
