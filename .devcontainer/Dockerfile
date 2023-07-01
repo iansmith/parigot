@@ -73,7 +73,6 @@ RUN mkdir protoc${PROTOC_VERSION}
 WORKDIR /home/parigot/deps/protoc${PROTOC_VERSION}
 RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
-RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
 
 ## install wasmtime
 WORKDIR /home/parigot/deps
@@ -127,6 +126,7 @@ RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
 RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
+RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
 
 # RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
 # RUN ln -s /usr/lib/llvm-15/bin/clang /home/parigot/tools/bin
@@ -181,14 +181,18 @@ ENV PROTOC_GO_VERSION=1.28.1
 ENV PROTOC_GRPC_VERSION=1.51.0
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
-#RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
-#RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@v1.17
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/kyleconroy/sqlc/cmd/sqlc@latest
+RUN go${GOLANG_VERSION_HOST} install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
+RUN go${GOLANG_VERSION_HOST} install  github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+
+
+#RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
+#RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 #RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2/ginkgo
 
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin

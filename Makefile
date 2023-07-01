@@ -212,19 +212,43 @@ test:
 .PHONY: docs
 docs:
 	#protobufs
-	protoc --doc_out=site/content/en/docs/API/Proto --doc_opt=markdown,api.md -I api/proto \
+	protoc --doc_out=site/content/en/docs/api/proto --doc_opt=markdown,api.md -I api/proto \
 	api/proto/file/v1/file.proto \
 	api/proto/syscall/v1/syscall.proto \
 	api/proto/queue/v1/queue.proto \
 	api/proto/protosupport/v1/protosupport.proto \
 	api/proto/queue/v1/queue.proto \
 	api/proto/test/v1/test.proto
-	touch site/content/en/docs/API/Proto/frontmatter_date.md
-	chmod 777 site/content/en/docs/API/Proto/frontmatter_date.md
-	cat site/content/en/docs/API/Proto/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/API/Proto/frontmatter_date.md
-	cat site/content/en/docs/API/Proto/frontmatter_date.md site/content/en/docs/API/Proto/api.md > site/content/en/docs/API/Proto/_index.md
-	rm site/content/en/docs/API/Proto/frontmatter_date.md
-	rm site/content/en/docs/API/Proto/api.md
+	touch site/content/en/docs/api/proto/frontmatter_date.md
+	chmod 777 site/content/en/docs/api/proto/frontmatter_date.md
+	cat site/content/en/docs/api/proto/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/proto/frontmatter_date.md
+	cat site/content/en/docs/api/proto/frontmatter_date.md site/content/en/docs/api/proto/api.md > site/content/en/docs/api/proto/_index.md
+	rm site/content/en/docs/api/proto/frontmatter_date.md
+	rm site/content/en/docs/api/proto/api.md
+	## guest docs
+	GOFLAGS= gomarkdoc -o site/content/en/docs/api/guest/guest.md \
+	github.com/iansmith/parigot/api/guest/... \
+	github.com/iansmith/parigot/lib/go/... \
+	github.com/iansmith/parigot/api/shared/... 
+	touch site/content/en/docs/api/guest/frontmatter_date.md
+	chmod 777 site/content/en/docs/api/guest/frontmatter_date.md
+	cat site/content/en/docs/api/guest/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/guest/frontmatter_date.md
+	cat site/content/en/docs/api/guest/frontmatter_date.md site/content/en/docs/api/guest/guest.md > site/content/en/docs/api/guest/_index.md
+	rm site/content/en/docs/api/guest/frontmatter_date.md
+	rm site/content/en/docs/api/guest/guest.md
+	## plugin docs
+	GOFLAGS= gomarkdoc -o site/content/en/docs/api/plugin/plugin.md \
+	github.com/iansmith/parigot/api/plugin/... \
+	github.com/iansmith/parigot/api/plugin/file/... \
+	github.com/iansmith/parigot/api/plugin/queue/... \
+	github.com/iansmith/parigot/api/plugin/syscall/... 
+	touch site/content/en/docs/api/plugin/frontmatter_date.md
+	chmod 777 site/content/en/docs/api/plugin/frontmatter_date.md
+	cat site/content/en/docs/api/plugin/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/plugin/frontmatter_date.md
+	cat site/content/en/docs/api/plugin/frontmatter_date.md site/content/en/docs/api/plugin/plugin.md > site/content/en/docs/api/plugin/_index.md
+	rm site/content/en/docs/api/plugin/frontmatter_date.md
+	rm site/content/en/docs/api/plugin/plugin.md
+	## plugin docs
 #
 # CLEAN
 #
