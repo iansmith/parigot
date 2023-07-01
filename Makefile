@@ -56,7 +56,6 @@ $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	buf lint
 	buf generate
 
-
 #
 # PROTOC EXTENSION
 #
@@ -206,6 +205,26 @@ test:
 	go test -v github.com/iansmith/parigot/lib/go/future
 #	build/runner -t test/func/methodcall/methodcall.toml 
 
+###
+### DOCS
+###
+
+.PHONY: docs
+docs:
+	#protobufs
+	protoc --doc_out=site/content/en/docs/API/Proto --doc_opt=markdown,api.md -I api/proto \
+	api/proto/file/v1/file.proto \
+	api/proto/syscall/v1/syscall.proto \
+	api/proto/queue/v1/queue.proto \
+	api/proto/protosupport/v1/protosupport.proto \
+	api/proto/queue/v1/queue.proto \
+	api/proto/test/v1/test.proto
+	touch site/content/en/docs/API/Proto/frontmatter_date.md
+	chmod 777 site/content/en/docs/API/Proto/frontmatter_date.md
+	cat site/content/en/docs/API/Proto/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/API/Proto/frontmatter_date.md
+	cat site/content/en/docs/API/Proto/frontmatter_date.md site/content/en/docs/API/Proto/api.md > site/content/en/docs/API/Proto/_index.md
+	rm site/content/en/docs/API/Proto/frontmatter_date.md
+	rm site/content/en/docs/API/Proto/api.md
 #
 # CLEAN
 #

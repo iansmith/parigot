@@ -1,9 +1,9 @@
 FROM ubuntu:22.04
 #RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
-RUN apt-get update --fix-missing
+RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
     hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
-	clang-15 wabt ack dpkg
+	clang-15 wabt ack dpkg zip unzip
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -21,6 +21,8 @@ ENV WASMTIME_VERSION=8.0.1
 
 # hugo version for website
 ENV HUGO_VERSION=0.114.1
+# protoc because some plugins don't work with buf
+ENV PROTOC_VERSION=23.3
 
 #figure out ARCH and download correct tarballs
 RUN set -e; \
@@ -33,10 +35,12 @@ RUN set -e; \
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
-		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb;; \
+		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
+		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmitme.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz; \
-		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb;; \
+		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
+		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
 
@@ -63,6 +67,14 @@ RUN ls -l
 RUN dpkg -i hugo_${HUGO_VERSION}.deb
 RUN rm -f hugo_${HUGO_VERSION}.deb
 
+# install protoc
+WORKDIR /home/parigot/deps
+RUN mkdir protoc${PROTOC_VERSION}
+WORKDIR /home/parigot/deps/protoc${PROTOC_VERSION}
+RUN mv ../protoc-${PROTOC_VERSION}.zip .
+RUN unzip protoc-${PROTOC_VERSION}.zip
+RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
+
 ## install wasmtime
 WORKDIR /home/parigot/deps
 RUN unxz wasmtime.tar.xz
@@ -80,7 +92,11 @@ RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 ENV PB_REL=""
 
-## tinygo
+## tinygo does not support enough of reflect package to run "standard" go protobufs
+## using the google tools ... there are other implementation of protobufs that
+## do work 
+## https://github.com/knqyf263/go-plugin
+## https://github.com/planetscale/vtprotobuf
 # ENV TINYGO_VERSION=v0.27.0
 # ENV CFLAGS="-g"
 # WORKDIR /usr/local
@@ -110,10 +126,12 @@ RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST}/bin/go /home/parigot/tool
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_HOST}
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
+RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
+
 # RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
 # RUN ln -s /usr/lib/llvm-15/bin/clang /home/parigot/tools/bin
 # RUN ln -s /usr/lib/llvm-15/bin/clang /usr/bin  # compiled in somewhere
-RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
+
 
 RUN set -eux \
 	ls -l /home/parigot/tools/bin ;\
