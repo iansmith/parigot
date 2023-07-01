@@ -7,10 +7,12 @@ tmp/*
 tinygotest/*
 Makefile.orig
 .DS_Store
-.vscode
+.vscode/*
+!vscode/settings.json
 ui/parser/.antlr
 .bash_history
 .cache
 .lesshst
 go/pkg/mod/*
 .hugo_build.lock
+site/.vscode

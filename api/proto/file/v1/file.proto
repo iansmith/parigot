@@ -18,17 +18,26 @@ import "protosupport/v1/protosupport.proto";
 
 
 service File {
+  // Open handles the READ-only operation on a file
   rpc Open(OpenRequest) returns (OpenResponse);
 
-  // Create creates or truncates the named file in the path. If the file already exists, 
-  // it is truncated. If the file does not exist, it is created.
+  // Create handles the WRITE-only operation on a file. It creates or truncates the name file
+  // in the path. If the file already exists, it is truncated. If the file does not exist, it is created.
   rpc Create(CreateRequest) returns (CreateResponse);
 
+  // Close changes the status of a file to "close"
   rpc Close(CloseRequest) returns (CloseResponse);
 
   // Load does NOT check that the file(s) referred to are reasonable in length, do not contain
   // symlinks, are readable, etc.  Don't allow this call in prod.
   rpc LoadTestData(LoadTestDataRequest) returns (LoadTestDataResponse);
+
+  rpc Read(ReadRequest) returns (ReadResponse);
+
+  rpc Write(WriteRequest) returns (WriteResponse);
+
+  // Delete free a file from memory (datacache) or delete it from the disk
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
 }
 
 
@@ -46,39 +55,36 @@ message CloseRequest {
 }
 
 message CreateResponse {
-    string path = 1;
-    // This id might contain an error value.
-    protosupport.v1.IdRaw id = 2;
-    bool truncated = 3;
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
+  bool truncated = 3;
 }
 
 message OpenResponse {
-    string path = 1;
-    // This id might contain an error value.
-    protosupport.v1.IdRaw id = 2;
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
 }
 
 // CloseResponse is not empty because it can return an error. However, there is no
 // action that the receiver of this response can take other than perhaps issuing a warning
 // to the system operators.
 message CloseResponse {
-  // This will be NoError or some error code, not a handle to an open file.
   protosupport.v1.IdRaw id = 1;
 }
 
 // LoadTestDataRequest loads the contents of given directory from the _host_ file system into the /app directory
 // of the test filesystem (in memory).   This is only intended to be use for test code.
 message LoadTestDataRequest {
-    // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
-    string path = 1;
-    // where this new file will exist in the in-memory filesystem... this path
-    // will be cleaned lexically and then joined to /app.  Note that it is possible
-    // create paths with this parameter that cannot be opened because of
-    // restrictions on the path in open.
-    string mount_location = 2;
-    // returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error.
-    // If this value is set to true, the paths that cause an error on import are return in the TestDataResponse.
-    bool return_on_fail = 3;
+  // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
+  string path = 1;
+  // where this new file will exist in the in-memory filesystem... this path
+  // will be cleaned lexically and then joined to /app.  Note that it is possible
+  // create paths with this parameter that cannot be opened because of
+  // restrictions on the path in open.
+  string mount_location = 2;
+  // returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error.
+  // If this value is set to true, the paths that cause an error on import are return in the TestDataResponse.
+  bool return_on_fail = 3;
 }
 
 // LoadTestDataResponse contains a list of paths that caused an error during loading. This value is only
@@ -88,16 +94,55 @@ message LoadTestDataResponse {
   repeated string error_path = 1;
 }
 
+message ReadRequest {
+  protosupport.v1.IdRaw id = 1;
+  // Reads up to len(buf) bytes into buf
+  bytes buf = 2;
+}
+
+message ReadResponse {
+  protosupport.v1.IdRaw id = 1;
+  // The number of bytes read (0 <= num_read <= len(buf))
+  int32 num_read = 2;
+}
+
+message WriteRequest {
+  protosupport.v1.IdRaw id = 1;
+  // Writes len(buf) bytes from buf
+  bytes buf = 2;
+}
+
+message WriteResponse {
+  protosupport.v1.IdRaw id = 1;
+  // The number of bytes written from buf (0 <= num_write <= len(buf)) 
+  int32 num_write = 2;
+}
+
+message DeleteRequest {
+  protosupport.v1.IdRaw id = 1;
+}
+
+message DeleteResponse {
+  protosupport.v1.IdRaw id = 1;
+}
+
 enum FileErr {
-    option (protosupport.v1.parigot_error) = true;
-    NoError = 0; // mandatory
-    DispatchError = 1; //mandatory
-    UnmarshalError = 2; // mandatory
-    MarshalError = 3; // mandatory
-    // invalid path means that the given path name is a not a valid identifier.  Identifiers should be 
-    // shortest path name equivalent to path by purely lexical processingand. Specifically, it should 
-    // start with "/parigot/app/", also, any use of '.' or '..' in the path is not allowed.
-    InvalidPathError = 4;
-    AlreadyInUseError = 5;
-    NotExistError = 6;
+  option (protosupport.v1.parigot_error) = true;
+  NoError = 0; // mandatory
+  DispatchError = 1; //mandatory
+  UnmarshalError = 2; // mandatory
+  MarshalError = 3; // mandatory
+ // InvalidPathError indicates that the provided path name is not a valid identifier. Identifiers must be 
+  // the shortest path name equivalent to the given path, derived through pure lexical processing. 
+  // Specifically, it should start with specific prefix, and any usage of '.' or '..' in the path is disallowed.
+  InvalidPathError = 4;
+  // AlreadyInUseError means that the file is already being used.
+  AlreadyInUseError = 5;
+  // NotExistError means that the file does not exist
+  NotExistError = 6;
+  // FileClosedError means that the status of the file is CLOSED, hence it cannot be accessed by a read or write request.
+  FileClosedError = 7;
+  LargeBufError = 8;
+  // InternalError means that there are issues with the file service.
+  InternalError = 9;
 }

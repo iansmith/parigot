@@ -63,3 +63,6 @@ var ReadBufferSize = 8192
 // The amount of time we will wait for a function call to be
 // completed.
 var FunctionTimeoutInMillis = int64(3000)
+
+const FileServiceMaxBufSize = 2048
+const FileServicePathPrefix = "/parigot/app/"

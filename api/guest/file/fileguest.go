@@ -57,3 +57,17 @@ func (f *myFileSvc) LoadTestData(ctx context.Context, in *file.LoadTestDataReque
 	return file.LoadTestDataHost(ctx, in)
 
 }
+
+func (f *myFileSvc) Read(ctx context.Context, in *file.ReadRequest) *file.FutureRead {
+	return file.ReadHost(ctx, in)
+}
+
+func (f *myFileSvc) Write(ctx context.Context, in *file.WriteRequest) *file.FutureWrite {
+	return file.WriteHost(ctx, in)
+
+}
+
+func (f *myFileSvc) Delete(ctx context.Context, in *file.DeleteRequest) *file.FutureDelete {
+	return file.DeleteHost(ctx, in)
+
+}
