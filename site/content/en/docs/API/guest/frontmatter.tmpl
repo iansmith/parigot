@@ -1,0 +1,28 @@
+---
+title: Guest-side API
+description: Golang guests interacting with parigot and built-in services
+date: _date_
+weight: 1
+---
+{{% pageinfo %}} 
+
+All of this information applies the current version of parigot, `atlanta-0.3.0`.
+Versions up to `some_city-1.0.0` carry no backward compatibility guarantees,
+promises or anything else to protect you from change..  One may assume that
+there will be significant changes in any and all publicly facing APIs and
+internal code as well.  
+
+{{% /pageinfo %}}
+
+{{% pageinfo %}} 
+
+We expect to have more "guest side" libraries for other languages soon.  Notable
+priorities are python and languages that compile to the Java VM. 
+
+{{% /pageinfo %}}
+
+All of these libraries are available to golang developers who are build a 
+guest application on top of parigot.  It is expected that developers using
+these libraries will be using at least [go1.23](https://go.dev/dl/) and with
+the go build environment variables `GOOS=wasip1 GOARCH=wasm` or equivalent
+command line flags.

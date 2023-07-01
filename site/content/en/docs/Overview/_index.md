@@ -4,11 +4,15 @@ description: parigot makes building microservices fun again.
 weight: 1
 ---
 
-{{% pageinfo %}} All of this information applies the current version of parigot,
-`atlanta-0.3.0`.  Versions up to `some_city-1.0.0` carry no backward
-compatibility guarantees, promises or anything else to protect you from change..
-One may assume that there will be significant changes in any and all publicly
-facing APIs and internal code as well.  {{% /pageinfo %}}
+{{% pageinfo %}} 
+
+All of this information applies the current version of parigot, `atlanta-0.3.0`.
+Versions up to `some_city-1.0.0` carry no backward compatibility guarantees,
+promises or anything else to protect you from change.  One may assume that
+there will be significant changes in any and all publicly facing APIs and
+internal code as well.  
+
+{{% /pageinfo %}}
 
 
 ## What is it?
@@ -28,7 +32,6 @@ language produced or interprets the guest program.
 
 
 
-Introduce your project, including what it does or lets you do, why you would use it, and its primary goal (and how it achieves it). This should be similar to your README description, though you can go into a little more detail here if you want.
 
 ## Why do I want parigot?
 
@@ -36,7 +39,7 @@ Introduce your project, including what it does or lets you do, why you would use
 
 * **What is it not good for?**: parigot aims to provide many "built-in" services that meet common needs such as logging, queues, files, databases, http, etc, but it does not offer a "standard" API.  The programming model of parigot is different than most other systems, and the particulars of the programming model enable many of the advanced capabilities that parigot offers.  _For-profit entities will provide the ability to have a  more "standard" type of programming models such as a `libc.a` workalike, connections to legacy services, multi-threading of services, etc._  These types of features will, thus, be available but the free, open-source project will focus on parigot's unique programming model.
 
-* **What is it *not yet* good for?**: Python support will be available in a foreseeable, upcoming versions.  In addition, a second set of guest binding for golang will be added that makes golang programming with pargiot more idiomatic golang.
+* **What is it *not yet* good for?**: Python support will be available in a foreseeable, upcoming version.  In addition, a second set of guest binding for golang will be added that makes golang programming with pargiot more idiomatic golang.  
 
 ## Where should I go next?
 
