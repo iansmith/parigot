@@ -30,7 +30,8 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 		ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
-		log.Printf("xxxx Locate exiting due to signal")
+		pcontext.Fatalf(ctx, "xxxx Locate exiting due to signal")
+		pcontext.Dump(ctx)
 		os.Exit(1)
 	}
 	if kerr != syscall.KernelErr_NoError {
