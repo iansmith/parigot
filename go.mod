@@ -1,6 +1,6 @@
 module github.com/iansmith/parigot
 
-go 1.21
+go 1.20
 
 require (
 	fyne.io/fyne/v2 v2.3.0
