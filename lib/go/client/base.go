@@ -26,6 +26,7 @@ type BaseService struct {
 	smMap *lib.ServiceMethodMap
 }
 
+// NewBaseService creates.
 func NewBaseService(ctx context.Context, id id.ServiceId, sm *lib.ServiceMethodMap) *BaseService {
 	if len(sm.Call()) == 0 {
 		pcontext.Infof(ctx, "NewBaseService: binding size is zero")
@@ -85,6 +86,7 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		panic("cannot dispatch to an unknown service! client side service field 'svc' is zero or empty")
 	}
 	if method.IsZeroOrEmptyValue() {
+		log.Printf("xxx -- smMap %+v", c.smMap)
 		panic("cannot dispatch to an unknown method! client side service field 'method id' is zero or empty")
 	}
 	// this is where it all begins
@@ -105,15 +107,4 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		panic("mismatched call ids in dispatch")
 	}
 	return cid, syscall.KernelErr_NoError
-}
-
-func (c *BaseService) Launch() (*syscall.LaunchResponse, syscall.KernelErr) {
-	req := syscall.LaunchRequest{
-		ServiceId: c.svc.Marshal(),
-	}
-	out, err := syscallguest.Launch(&req)
-	if err != 0 {
-		return nil, err
-	}
-	return out, syscall.KernelErr_NoError
 }
