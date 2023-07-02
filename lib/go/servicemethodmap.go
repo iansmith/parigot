@@ -79,7 +79,7 @@ const sidMidPairKeyGen = "%s,%s"
 // AddServiceMethod is called when a new method has been bound. This
 // method creates various data structures needed to be able to look up
 // the service and method later, as well as find the appropriate
-// FuncAnyIO associated with pair.  Note that the funcAnyIO
+// Invoker associated with pair.  Note that the Invoker
 // may be nil when the function is not available in this address
 // space and any caller must use Dispatch().
 func (s *ServiceMethodMap) AddServiceMethod(sid id.ServiceId, mid id.MethodId,
