@@ -178,19 +178,15 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 func bind(ctx context.Context,sid id.ServiceId, impl Bar) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	var bindReq *syscall.BindMethodRequest
-	var mid id.MethodId
 	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
 //
 // methodcall.bar.v1.Bar.Accumulate
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Accumulate"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Bar",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Bar","Accumulate",
 		GenerateAccumulateInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError

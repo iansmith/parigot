@@ -178,85 +178,63 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	var bindReq *syscall.BindMethodRequest
-	var mid id.MethodId
 	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
 //
 // file.v1.File.Open
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Open",
 		GenerateOpenInvoker(impl))
 //
 // file.v1.File.Create
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Create"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Create",
 		GenerateCreateInvoker(impl))
 //
 // file.v1.File.Close
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Close"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Close",
 		GenerateCloseInvoker(impl))
 //
 // file.v1.File.LoadTestData
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "LoadTestData"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","LoadTestData",
 		GenerateLoadTestDataInvoker(impl))
 //
 // file.v1.File.Read
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Read"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Read",
 		GenerateReadInvoker(impl))
 //
 // file.v1.File.Write
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Write"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Write",
 		GenerateWriteInvoker(impl))
 //
 // file.v1.File.Delete
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Delete"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"File",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"File","Delete",
 		GenerateDeleteInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError

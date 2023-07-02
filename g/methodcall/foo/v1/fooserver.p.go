@@ -178,41 +178,31 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	var bindReq *syscall.BindMethodRequest
-	var mid id.MethodId
 	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
 //
 // methodcall.foo.v1.Foo.AddMultiply
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "AddMultiply"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Foo",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Foo","AddMultiply",
 		GenerateAddMultiplyInvoker(impl))
 //
 // methodcall.foo.v1.Foo.LucasSequence
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "LucasSequence"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Foo",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Foo","LucasSequence",
 		GenerateLucasSequenceInvoker(impl))
 //
 // methodcall.foo.v1.Foo.WritePi
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "WritePi"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Foo",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Foo","WritePi",
 		GenerateWritePiInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
