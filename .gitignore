@@ -2,7 +2,6 @@ antlr-*.log
 .idea
 build/*
 enable-parigot
-g/*
 tmp/*
 tinygotest/*
 Makefile.orig
