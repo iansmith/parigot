@@ -65,8 +65,7 @@ type Process struct {
 	argc       int32
 	argvBuffer *bytes.Buffer
 
-	callCh chan *callContext
-	runCh  chan bool
+	runCh chan bool
 }
 
 // NewProcessFromMicroservice does not handle concurrent use. It assumes that each call to this
@@ -87,8 +86,6 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		exited:          false,
 		microservice:    m,
 		path:            m.GetWasmPath(),
-
-		callCh: make(chan *callContext),
 	}
 
 	if m.GetPluginPath() != "" {
