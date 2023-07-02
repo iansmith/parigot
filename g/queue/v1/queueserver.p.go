@@ -178,85 +178,63 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	var bindReq *syscall.BindMethodRequest
-	var mid id.MethodId
 	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
 //
 // queue.v1.Queue.CreateQueue
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "CreateQueue"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","CreateQueue",
 		GenerateCreateQueueInvoker(impl))
 //
 // queue.v1.Queue.Locate
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Locate"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","Locate",
 		GenerateLocateInvoker(impl))
 //
 // queue.v1.Queue.DeleteQueue
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "DeleteQueue"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","DeleteQueue",
 		GenerateDeleteQueueInvoker(impl))
 //
 // queue.v1.Queue.Receive
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Receive"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","Receive",
 		GenerateReceiveInvoker(impl))
 //
 // queue.v1.Queue.MarkDone
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "MarkDone"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","MarkDone",
 		GenerateMarkDoneInvoker(impl))
 //
 // queue.v1.Queue.Length
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Length"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","Length",
 		GenerateLengthInvoker(impl))
 //
 // queue.v1.Queue.Send
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Send"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"Queue",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"Queue","Send",
 		GenerateSendInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError

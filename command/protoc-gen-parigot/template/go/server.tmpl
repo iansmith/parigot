@@ -200,9 +200,8 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 }
 
 func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	var bindReq *syscall.BindMethodRequest
-	var mid id.MethodId
 	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
 {{- $goname:=packageToGoName .GetParent.Package}}
 {{- range .GetWasmMethod}}
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
@@ -213,13 +212,10 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 //
 // {{.ProtoPackage}}.{{$svcCamel}}.{{$methCamel}}
 //
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "{{$svcDiff}}{{$methCamel}}"
 
+	mid=id.NewMethodId()
 	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"{{$svcCamel}}",bindReq.MethodName,
+	smmap.AddServiceMethod(sid,mid,"{{$svcCamel}}","{{$svcDiff}}{{$methCamel}}",
 		Generate{{$svcDiff}}{{$methCamel}}Invoker(impl))
 
 {{- end }} {{/* end of range over methods */}}
