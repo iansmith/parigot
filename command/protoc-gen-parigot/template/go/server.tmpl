@@ -219,7 +219,7 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "{{$methCamel}}"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err

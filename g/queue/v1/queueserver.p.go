@@ -190,7 +190,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "CreateQueue"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -207,7 +207,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Locate"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -224,7 +224,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "DeleteQueue"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -241,7 +241,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Receive"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -258,7 +258,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "MarkDone"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -275,7 +275,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Length"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -292,7 +292,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Send"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
