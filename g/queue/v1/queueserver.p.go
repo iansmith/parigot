@@ -180,11 +180,23 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // queue.v1.Queue.CreateQueue
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","CreateQueue",
 		GenerateCreateQueueInvoker(impl))
@@ -192,7 +204,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.Locate
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Locate",
 		GenerateLocateInvoker(impl))
@@ -200,7 +221,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.DeleteQueue
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","DeleteQueue",
 		GenerateDeleteQueueInvoker(impl))
@@ -208,7 +238,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.Receive
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Receive",
 		GenerateReceiveInvoker(impl))
@@ -216,7 +255,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.MarkDone
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","MarkDone",
 		GenerateMarkDoneInvoker(impl))
@@ -224,7 +272,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.Length
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Length",
 		GenerateLengthInvoker(impl))
@@ -232,7 +289,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 // queue.v1.Queue.Send
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Send",
 		GenerateSendInvoker(impl)) 

@@ -181,11 +181,23 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // test.v1.Test.AddTestSuite
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestAddTestSuite",
 		GenerateTestAddTestSuiteInvoker(impl))
@@ -193,7 +205,16 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 // test.v1.Test.Start
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestStart",
 		GenerateTestStartInvoker(impl)) 
@@ -533,11 +554,23 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // test.v1.MethodCallSuite.Exec
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteExec",
 		GenerateMethodCallSuiteExecInvoker(impl))
@@ -545,7 +578,16 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 // test.v1.MethodCallSuite.SuiteReport
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteSuiteReport",
 		GenerateMethodCallSuiteSuiteReportInvoker(impl)) 
@@ -885,11 +927,23 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // test.v1.UnderTest.Exec
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"UnderTest","UnderTestExec",
 		GenerateUnderTestExecInvoker(impl)) 
