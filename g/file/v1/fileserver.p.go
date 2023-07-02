@@ -180,11 +180,23 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // file.v1.File.Open
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Open",
 		GenerateOpenInvoker(impl))
@@ -192,7 +204,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.Create
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Create",
 		GenerateCreateInvoker(impl))
@@ -200,7 +221,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.Close
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Close",
 		GenerateCloseInvoker(impl))
@@ -208,7 +238,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.LoadTestData
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","LoadTestData",
 		GenerateLoadTestDataInvoker(impl))
@@ -216,7 +255,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.Read
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Read",
 		GenerateReadInvoker(impl))
@@ -224,7 +272,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.Write
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Write",
 		GenerateWriteInvoker(impl))
@@ -232,7 +289,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 // file.v1.File.Delete
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Delete",
 		GenerateDeleteInvoker(impl)) 

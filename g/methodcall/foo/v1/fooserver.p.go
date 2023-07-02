@@ -180,11 +180,23 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
 //
 // methodcall.foo.v1.Foo.AddMultiply
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Foo","AddMultiply",
 		GenerateAddMultiplyInvoker(impl))
@@ -192,7 +204,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap
 // methodcall.foo.v1.Foo.LucasSequence
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Foo","LucasSequence",
 		GenerateLucasSequenceInvoker(impl))
@@ -200,7 +221,16 @@ func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap
 // methodcall.foo.v1.Foo.WritePi
 //
 
-	mid=id.NewMethodId()
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Open"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Foo","WritePi",
 		GenerateWritePiInvoker(impl)) 
