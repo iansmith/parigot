@@ -191,7 +191,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "AddTestSuite"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -208,7 +208,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Start"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -564,7 +564,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Exec"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -581,7 +581,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "SuiteReport"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -937,7 +937,7 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Exec"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err

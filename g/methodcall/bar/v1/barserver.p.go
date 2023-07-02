@@ -190,7 +190,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Bar) (*lib.ServiceMethodMap
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Accumulate"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err

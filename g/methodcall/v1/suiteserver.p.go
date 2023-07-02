@@ -190,7 +190,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.Serv
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "Exec"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
@@ -207,7 +207,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.Serv
 	bindReq = &syscall.BindMethodRequest{}
 	bindReq.HostId = lib.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Open"
+	bindReq.MethodName = "SuiteReport"
 	resp, err=syscallguest.BindMethod(bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
