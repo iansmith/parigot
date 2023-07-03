@@ -100,7 +100,6 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	if err != syscall.KernelErr_NoError {
 		return int32(err)
 	}
-	log.Printf("read one impl 1: %v,%v", req == nil, resp == nil)
 	// we favor resolving calls, which may be a terrible idea
 	if rc != nil {
 		log.Printf("read one impl 1A: resolving call")
@@ -111,30 +110,25 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		resp.Resolved = rc
 		return int32(syscall.KernelErr_NoError)
 	}
-	log.Printf("read one impl 2: no calls to resolve, len of call %d", len(req.Call))
 
 	numCases := len(req.Call)
 	if req.TimeoutInMillis >= 0 {
 		numCases++
 	}
 	if numCases == 0 {
-		log.Printf("read one impl 2A: no cases")
 		resp.Call = nil
 		return int32(syscall.KernelErr_NoError)
 	}
 	cases := make([]reflect.SelectCase, numCases)
-	log.Printf("read one impl 2A1: num cases %d", numCases)
 	for i, pair := range req.Call {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
-		log.Printf("read one impl 2B: case %d, svc %s, meth %s", i, svc.Short(), meth.Short())
 		combo := makeSidMidCombo(svc, meth)
 		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
 
 	if req.TimeoutInMillis >= 0 {
-		log.Printf("read one impl 2C: creating timeout case")
 		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
 		cases[len(req.Call)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
@@ -143,27 +137,22 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	if !ok {
 		return int32(syscall.KernelErr_KernelConnectionFailed)
 	}
-	log.Printf("read one impl 3: decoding result")
 	// is timeout?
 	if chosen == len(req.Call) {
 		resp.Timeout = true
-		log.Printf("read one impl 3A: timeout")
 		return int32(syscall.KernelErr_NoError)
 	}
 	// service/method call
 	resp.Timeout = false
 	pair := req.Call[chosen]
-	log.Printf("read one impl 3B: %d, %+v", chosen, pair)
 	resp.Call = &syscall.ServiceMethodCall{}
 	resp.Call.ServiceId = pair.ServiceId
 	resp.Call.MethodId = pair.MethodId
-	log.Printf("read one impl 3C service method call: %s,%s (%+v)", pair.ServiceId.String(), pair.MethodId.String(), value)
 
 	// value can't be nil, but...
 	if value.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("unexpected return value from select in ReadOne (%s)", value.Kind().String()))
 	}
-	log.Printf("trying to coerce value %T %T", value, value.Interface())
 	resp.CallId = value.Interface().(CallInfo).cid.Marshal()
 	resp.Param = value.Interface().(CallInfo).param
 
@@ -172,6 +161,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
 	cid := id.UnmarshalCallId(req.GetCallId())
+	log.Printf("returnValueImpl called %+w", req)
 	kerr := matcher().Response(cid, req.Result, req.ResultError)
 	return int32(kerr)
 }
