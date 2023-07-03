@@ -35,7 +35,6 @@ func MustRegisterClient(ctx context.Context) id.ServiceId {
 	pkg := "Client"
 	name := fmt.Sprintf("program%03d", rand.Intn(999))
 	sid := register(ctx, pkg, name, true)
-	pcontext.Debugf(ctx, "client faux service created: %s.%s", pkg, name)
 	return sid
 }
 
