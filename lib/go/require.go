@@ -72,3 +72,68 @@ func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, 
 	resp, err := syscallguest.Require(in)
 	return resp, err
 }
+
+// MustInitClient is for clients only.  In other words, you should
+// only use this function if you do not implement services, just
+// use them.  A common case of this is a demo program or a program
+// that performs a one off task.  This function wraps MustRegisterClient
+// and panics if things go wrong.
+func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.ServiceId {
+
+	myId := MustRegisterClient(ctx)
+	for _, f := range requirement {
+		f(ctx, myId)
+	}
+	syscallguest.MustSatisfyWait(ctx, myId)
+
+	launchreq := &syscall.LaunchRequest{
+		ServiceId: myId.Marshal(),
+	}
+	_, err := syscallguest.Launch(launchreq)
+	if err != syscall.KernelErr_NoError {
+		panic(fmt.Sprintf("unable to launch client service: %s",
+			syscall.KernelErr_name[int32(err)]))
+	}
+
+	return myId
+}
+
+func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {
+	var err syscall.KernelErr
+	for {
+		err = clientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
+		if err != syscall.KernelErr_NoError && err != syscall.KernelErr_ReadOneTimeout {
+			break
+		}
+	}
+	return err
+}
+
+func clientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
+	timeoutInMillis int32) syscall.KernelErr {
+	req := syscall.ReadOneRequest{}
+
+	// setup a request to read an incoming message
+	req.TimeoutInMillis = timeoutInMillis
+	req.HostId = CurrentHostId().Marshal()
+	resp, err := syscallguest.ReadOne(&req)
+	if err != syscall.KernelErr_NoError {
+		return err
+	}
+	// is timeout?
+	if resp.Timeout {
+		return syscall.KernelErr_ReadOneTimeout
+	}
+
+	// check for finished futures from within our address space
+	ExpireMethod(ctx)
+
+	// is a promise being completed that was fulfilled somewhere else
+	if r := resp.GetResolved(); r != nil {
+		cid := id.UnmarshalCallId(r.GetCallId())
+		CompleteCall(ctx, cid, r.GetResult(), r.GetResultError())
+		return syscall.KernelErr_NoError
+	}
+
+	return syscall.KernelErr_NoError
+}
