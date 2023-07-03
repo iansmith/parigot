@@ -17,6 +17,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )  
@@ -60,9 +62,16 @@ type FutureOpen struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*OpenResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&OpenResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureOpen)Success(sfn func (proto.Message)) {
     x:=func(m *OpenResponse){
@@ -107,9 +116,16 @@ type FutureCreate struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*CreateResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&CreateResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureCreate)Success(sfn func (proto.Message)) {
     x:=func(m *CreateResponse){
@@ -154,9 +170,16 @@ type FutureClose struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*CloseResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&CloseResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureClose)Success(sfn func (proto.Message)) {
     x:=func(m *CloseResponse){
@@ -201,9 +224,16 @@ type FutureLoadTestData struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*LoadTestDataResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&LoadTestDataResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureLoadTestData)Success(sfn func (proto.Message)) {
     x:=func(m *LoadTestDataResponse){
@@ -248,9 +278,16 @@ type FutureRead struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*ReadResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&ReadResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureRead)Success(sfn func (proto.Message)) {
     x:=func(m *ReadResponse){
@@ -295,9 +332,16 @@ type FutureWrite struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*WriteResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&WriteResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureWrite)Success(sfn func (proto.Message)) {
     x:=func(m *WriteResponse){
@@ -342,9 +386,16 @@ type FutureDelete struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*DeleteResponse)
-    f.Method.CompleteMethod(ctx,result,FileErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&DeleteResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureDelete)Success(sfn func (proto.Message)) {
     x:=func(m *DeleteResponse){
