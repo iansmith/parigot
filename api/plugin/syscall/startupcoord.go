@@ -79,7 +79,6 @@ func (s *startupCoordinator) SetService(ctx context.Context, package_, name stri
 	} else {
 		pcontext.Errorf(ctx, "result of set service is nil?")
 	}
-	pcontext.Debugf(ctx, "created service via SetService: %s [%s]", result.id.Short(), result.Name())
 	return result, true
 
 }
@@ -136,13 +135,7 @@ func (s *startupCoordinator) Export(ctx context.Context, svcId id.ServiceId) Ser
 		return nil
 	}
 
-	pcontext.Debugf(ctx, "exporting %s%s", svc.Name(), svc.Short())
 	svc.(*startupService).export()
-	if svc.(*startupService).canRun(ctx) {
-		// svc.(*startupService).SetStarted()
-		pcontext.Debugf(ctx, "service %s [%s] exported and can run", svc.Short(), svc.Name())
-	}
-	// s.checkNodesInFront(ctx, svc.String())
 
 	return svc
 }
@@ -155,15 +148,13 @@ func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId)
 	if serviceSource == nil {
 		sid, ok := s.SetService(ctx, serviceSource.Package(), serviceSource.Name(), false)
 		if ok {
-			pcontext.Debugf(ctx, "startup coordinator: created service %s%s because of import", sid.Name(), sid.Short())
+			pcontext.Infof(ctx, "startup coordinator: created service %s%s because of import", sid.Name(), sid.Short())
 		}
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())
 	if serviceDest == nil {
 		return syscall.KernelErr_NotFound
 	}
-	pcontext.Debugf(ctx, "import: %s%s -> %s%s", serviceSource.Name(), serviceSource.Short(),
-		serviceDest.Name(), dest.Short())
 	srcString := serviceSource.String()
 	destString := serviceDest.String()
 
@@ -195,7 +186,6 @@ func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId)
 			}
 			buf.WriteString(n + "\n")
 		}
-		pcontext.Debugf(ctx, "cycle:\n%s", buf.String())
 		return syscall.KernelErr_DependencyCycle
 
 	}
