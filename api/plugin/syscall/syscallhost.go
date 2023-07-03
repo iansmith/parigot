@@ -159,14 +159,14 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	resp.Call.MethodId = pair.MethodId
 	log.Printf("read one impl 3C service method call: %s,%s (%+v)", pair.ServiceId.String(), pair.MethodId.String(), value)
 
-	if value.IsNil() {
-		log.Printf("read one impl 3D: value is nil, ok is %v", ok)
+	// value can't be nil, but...
+	if value.Kind() != reflect.Struct {
+		panic(fmt.Sprintf("unexpected return value from select in ReadOne (%s)", value.Kind().String()))
 	}
-	if !value.IsNil() {
-		log.Printf("trying to coerce value %T %T", value, value.Interface())
-		resp.CallId = value.Interface().(*CallInfo).cid.Marshal()
-		resp.Param = value.Interface().(*anypb.Any)
-	}
+	log.Printf("trying to coerce value %T %T", value, value.Interface())
+	resp.CallId = value.Interface().(*CallInfo).cid.Marshal()
+	resp.Param = value.Interface().(*anypb.Any)
+
 	return int32(syscall.KernelErr_NoError)
 }
 
