@@ -377,7 +377,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 
 	// Check if the file's reader is initialized
 	if myFileInfo.rdClose == nil {
-		pcontext.Errorf(ctx, "File reader not initialized, cannot be read: %d", fid)
+		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
 		return int32(file.FileErr_InternalError)
 	}
 
@@ -426,5 +426,56 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 		deleteFileAndParentDirIfNeeded(fpath)
 	}
 
+	return int32(file.FileErr_NoError)
+}
+
+func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
+	resp *file.WriteResponse) int32 {
+	fid := file.UnmarshalFileId(req.GetId())
+	fileDataCache := *f.fileDataCache
+
+	// Validate if the file exists in the cache
+	if _, exist := fileDataCache[fid]; !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be write: %d", fid)
+		return int32(file.FileErr_NotExistError)
+	}
+
+	myFileInfo := (*f.fileDataCache)[fid]
+
+	// Verify file status to prevent errors during operation.
+	// Only files with "write" status can be processed.
+	switch myFileInfo.status {
+	// If file status is "closed", log an error and return a file closed error code.
+	case Fs_Close:
+		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is closed.", fid)
+		return int32(file.FileErr_FileClosedError)
+	// If file status is "read", meaning it is currently being read by others,
+	// log an error and return a file already in use error code.
+	case Fs_Read:
+		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is being read by others.", fid)
+		return int32(file.FileErr_AlreadyInUseError)
+	}
+
+	// Check writer initialization, we cannot write a file without writer
+	if myFileInfo.wrClose == nil {
+		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
+		return int32(file.FileErr_InternalError)
+	}
+
+	// Validate the requested buffer size
+	buf := req.GetBuf()
+	// Check is size of buf exceeds the maximum buffer size allowed
+	if isValidBuf(buf) {
+		pcontext.Errorf(ctx, "the buffer size %d exceeds the maximum buffer"+
+			"size (%d) allowed", len(buf), maxBufSize)
+		return int32(file.FileErr_LargeBufError)
+	}
+
+	n, _ := myFileInfo.Write(buf)
+
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+
+	resp.Id = req.GetId()
+	resp.NumWrite = int32(n)
 	return int32(file.FileErr_NoError)
 }

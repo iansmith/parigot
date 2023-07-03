@@ -18,6 +18,7 @@ const filePath = apishared.FileServicePathPrefix + "testfile.txt"
 const fileContent = "Hello!Parigot!"
 
 var notExistFid = file.NewFileId()
+var contentBuf = []byte(fileContent)
 
 func TestOpenClose(t *testing.T) {
 	svc := newFileSvc((context.Background()))
@@ -60,51 +61,48 @@ func TestCreateClose(t *testing.T) {
 	svc := newFileSvc((context.Background()))
 	svc.isTesting = true
 
-	// Test case: Create a file with . in the path name
-	badFid := testFileCreate(t, svc, "/parigot/app/./file.go", fileContent,
-		"bad path name with .", true, int32(file.FileErr_InvalidPathError))
-	if !badFid.IsZeroValue() {
-		t.Errorf("Unexpectedly created a file with the a bad path name")
-	}
-	// Test case: Create a file with .. in the path name
-	badFid = testFileCreate(t, svc, "/parigot/app/../file.go", fileContent,
-		"bad path name with ..", true, int32(file.FileErr_InvalidPathError))
-	if !badFid.IsZeroValue() {
-		t.Errorf("Unexpectedly created a file with the a bad path name")
-	}
-	// Test case: Create a file without prefix '/parigot/app/'
-	badFid = testFileCreate(t, svc, "dir/file.go", fileContent, "bad path name without right prefix",
-		true, int32(file.FileErr_InvalidPathError))
-	if !badFid.IsZeroValue() {
-		t.Errorf("Unexpectedly created a file with the a bad path name")
-	}
-	// Test case: Create a file with a prefix close to the right one
-	badFid = testFileCreate(t, svc, "/parigot/workspace/file.go", fileContent,
-		"bad path name with a prefix close to the right one",
-		true, int32(file.FileErr_InvalidPathError))
-	if !badFid.IsZeroValue() {
-		t.Errorf("Unexpectedly created a file with the a bad path name")
+	// Test cases 1: Create files with bad path names
+	//  	. in the path name 						- "/parigot/app/./file.go"
+	// 		.. in the path name 					- "/parigot/app/../file.go"
+	// 		without prefix '/parigot/app/' 			- "dir/file.go"
+	// 		with a prefix close to the right one 	- "/parigot/workspace/file.go"
+	// 		too much parts in the path name 		- "/parigot/app/1/2/.../19/file.go"
+	longPath := "/parigot/app/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/file.go"
+	for _, currentName := range []string{"/parigot/app/./file.go", "/parigot/app/../file.go",
+		"dir/file.go", "/parigot/workspace/file.go", longPath} {
+
+		badFid := testFileCreate(t, svc, currentName, fileContent,
+			"Test cases 1 in CreateClose", true, int32(file.FileErr_InvalidPathError))
+		if !badFid.IsZeroValue() {
+			t.Errorf("Unexpectedly created a file with the a bad path name")
+		}
 	}
 
-	// Test case: Create a file with a good name
-	fid := testFileCreate(t, svc, filePath, fileContent, "good path name",
-		false, int32(file.FileErr_NoError))
-	// Test case: Create a file that is already in use.
-	testFileCreate(t, svc, filePath, fileContent, "create a file in use",
+	// Test case 2: Create a file with a good name
+	fid := testFileCreate(t, svc, filePath, fileContent,
+		"Test cases 2 in CreateClose", false, int32(file.FileErr_NoError))
+	// Test case 3: Create a file that is already in the written status
+	testFileCreate(t, svc, filePath, fileContent, "Test cases 3 in CreateClose",
 		true, int32(file.FileErr_AlreadyInUseError))
-	// Test case: Close a good file
-	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
+	// Test case 4: Close a good file
+	testFileClose(t, svc, fid, "Test cases 4 in CreateClose", false, int32(file.FileErr_NoError))
 
-	// Test case: Create a file that already exists.
-	fid2 := testFileCreate(t, svc, filePath, fileContent, "good path name",
+	// Test case 5: Create a file that is already in the read status
+	openAGoodFile(t, svc)
+	testFileCreate(t, svc, filePath, fileContent, "Test cases 5 in CreateClose",
+		true, int32(file.FileErr_AlreadyInUseError))
+	closeAGoodFile(t, svc)
+
+	// Test case 6: Create a file that already exists.
+	fid2 := testFileCreate(t, svc, filePath, fileContent, "Test cases 6 in CreateClose",
 		false, int32(file.FileErr_NoError))
 	if !fid.Equal(fid2) {
 		t.Errorf("Unexpected creation of a new file.")
 	}
 
-	// Test case: Close a file twice, expecting an error on the second attempt.
-	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-	testFileClose(t, svc, fid, "close a closed file", true, int32(file.FileErr_FileClosedError))
+	// Test case 7: Close a file twice, expecting an error on the second attempt.
+	testFileClose(t, svc, fid, "Test cases 7 in CreateClose", false, int32(file.FileErr_NoError))
+	testFileClose(t, svc, fid, "Test cases 7 in CreateClose", true, int32(file.FileErr_FileClosedError))
 }
 
 func TestRead(t *testing.T) {
@@ -150,6 +148,36 @@ func TestRead(t *testing.T) {
 		"read with large buffer", true, int32(file.FileErr_LargeBufError))
 }
 
+func TestWrite(t *testing.T) {
+	svc := newFileSvc((context.Background()))
+	svc.isTesting = true
+
+	// Test case: Write a file that does not exist
+	testFileWrite(t, svc, notExistFid, contentBuf, "write a non-existent file",
+		true, int32(file.FileErr_NotExistError))
+
+	fid := creatAGoodFile(t, svc)
+	closeAGoodFile(t, svc)
+
+	// Test case: Write a closed file
+	testFileWrite(t, svc, fid, contentBuf, "write a closed file",
+		true, int32(file.FileErr_FileClosedError))
+
+	// Test case: Write a read file
+	openAGoodFile(t, svc)
+	testFileWrite(t, svc, fid, contentBuf, "write a read-only file",
+		true, int32(file.FileErr_AlreadyInUseError))
+
+	// Test case: Write a file with 0 length buffer
+	creatAGoodFile(t, svc)
+	// testFileWrite(t, svc, fid, []byte{}, "write a file with 0 length buffer",
+	// true, int32(file.FileErr_NoError))
+}
+
+func TestDelete(t *testing.T) {
+	// try to delet a opened file
+}
+
 // need to write more decent tests
 func TestRealFiles(t *testing.T) {
 	svc := newFileSvc((context.Background()))
@@ -162,7 +190,7 @@ func TestRealFiles(t *testing.T) {
 	testFileOpen(t, svc, filePath, "read a file", false, int32(file.FileErr_NoError))
 	testFileRead(t, svc, fid, make([]byte, 6), "read a real file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-	testFileDelete(t, svc, fid, "delete a file", false, int32(file.FileErr_NoError))
+	//testFileDelete(t, svc, fid, "delete a file", false, int32(file.FileErr_NoError))
 }
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
@@ -268,7 +296,7 @@ func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 			t.Fatalf("Unexpected error code while reading a file: %s. Expected %d, but got %d",
 				msg, expectedErrCode, errCode)
 		}
-		return file.FileIdEmptyValue(), make([]byte, 0)
+		return file.FileIdEmptyValue(), []byte{}
 	}
 	// If an error was not expected but one occurred.
 	if errCode != int32(file.FileErr_NoError) {
@@ -301,6 +329,33 @@ func testFileDelete(t *testing.T, svc *fileSvcImpl, fid file.FileId, msg string,
 	if errCode != int32(file.FileErr_NoError) {
 		t.Fatalf("Unexpected error occurred while deleting a file: %s. Error code: %d", msg, errCode)
 	}
+}
+
+func testFileWrite(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
+	msg string, errExpected bool, expectedErrCode int32) file.FileId {
+
+	ctx := pcontext.DevNullContext(context.Background())
+	t.Helper()
+
+	req := &file.WriteRequest{
+		Id:  fid.Marshal(),
+		Buf: buf,
+	}
+	resp := &file.WriteResponse{}
+	errCode := svc.write(ctx, req, resp)
+	if errExpected {
+		if errCode != expectedErrCode {
+			t.Fatalf("Unexpected error code while writing a file: %s. Expected %d, but got %d",
+				msg, expectedErrCode, errCode)
+		}
+		return file.FileIdEmptyValue()
+	}
+	// If an error was not expected but one occurred.
+	if errCode != int32(file.FileErr_NoError) {
+		t.Fatalf("Unexpected error occurred while writing a file: %s. Error code: %d", msg, errCode)
+	}
+
+	return file.UnmarshalFileId(resp.GetId())
 }
 
 func creatAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {

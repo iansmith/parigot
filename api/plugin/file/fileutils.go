@@ -1,11 +1,12 @@
 package file
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	apishared "github.com/iansmith/parigot/api/shared"
 )
 
 func getRealPath(path string) string {
@@ -16,16 +17,24 @@ func getRealPath(path string) string {
 	return filepath.Join(wd[:len(wd)-23], path)
 }
 
-// A valid path should be a shortest path name equivalent to path by purely lexical processingand.
-// Specifically, it should start with "/parigot/app/", also, any use of '.', '..', in the path is
-// not allowed.
+// A given file path is valid based on some specific rules:
+// 1. The separator should be "/"
+// 2. It should start with specific prefix
+// 3. It should not contain any "." or ".." in the path
+// 4. It should not exceed a specific value for the number of parts in the path
 func isValidPath(fpath string) (string, bool) {
 	fileName := filepath.Base(fpath)
 	dir := strings.ReplaceAll(fpath, fileName, "")
 	if !strings.HasPrefix(dir, pathPrefix) || strings.Contains(dir, ".") {
 		return fpath, false
 	}
+
 	cleanPath := filepath.Clean(fpath)
+
+	component := strings.Split(cleanPath, "/")
+	if len(component) > apishared.FileServiceMaxPathPart {
+		return fpath, false
+	}
 
 	return cleanPath, true
 }
@@ -46,7 +55,7 @@ func deleteFileAndParentDirIfNeeded(path string) {
 	dir := filepath.Dir(realPath)
 	for {
 		// Read the directory.
-		entries, err := ioutil.ReadDir(dir)
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			log.Fatal("Failed to read dir: ", err)
 		}

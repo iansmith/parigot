@@ -132,17 +132,20 @@ enum FileErr {
   DispatchError = 1; //mandatory
   UnmarshalError = 2; // mandatory
   MarshalError = 3; // mandatory
- // InvalidPathError indicates that the provided path name is not a valid identifier. Identifiers must be 
-  // the shortest path name equivalent to the given path, derived through pure lexical processing. 
-  // Specifically, it should start with specific prefix, and any usage of '.' or '..' in the path is disallowed.
+
+  // Path related errors
+  // InvalidPathError: Provided path name is not valid based on following rules:
+  // 1. The separator should be "/"
+  // 2. It should start with specific prefix
+  // 3. It should not contain any "." or ".." in the path
+  // 4. It should not exceed a specific limit for the number of parts in the path
   InvalidPathError = 4;
-  // AlreadyInUseError means that the file is already being used.
-  AlreadyInUseError = 5;
-  // NotExistError means that the file does not exist
-  NotExistError = 6;
-  // FileClosedError means that the status of the file is CLOSED, hence it cannot be accessed by a read or write request.
-  FileClosedError = 7;
-  LargeBufError = 8;
-  // InternalError means that there are issues with the file service.
-  InternalError = 9;
+
+  // File state related errors
+  AlreadyInUseError = 5; // The file is already being used.
+  NotExistError = 6; // The file does not exist
+  FileClosedError = 7; // The file status is CLOSED, cannot be accessed by a read or write request
+  
+  LargeBufError = 8; // The buffer for the file is too large
+  InternalError = 9; // There are internal issues with the file service
 }
