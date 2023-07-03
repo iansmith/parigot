@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"log"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
@@ -35,8 +34,6 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 	}
 	serviceId := id.UnmarshalServiceId(resp.GetServiceId())
 	smmap := lib.NewServiceMethodMap()
-	log.Printf("xxx -- locate dynamic: number of methods on %s.%s: %d",
-		protoPkg, serviceName, smmap.Len())
 	for _, pair := range resp.GetBinding() {
 		mid := id.UnmarshalMethodId(pair.MethodId)
 		smmap.AddServiceMethod(serviceId, mid,

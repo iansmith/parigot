@@ -96,15 +96,11 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		}
 	}
 
-	pcontext.Debugf(c, "about to call new instance on %s", m.GetName())
-
 	instance, err := proc.module.NewInstance(pcontext.CallTo(c, "NewInstance"))
 	if err != nil {
 		return nil, err
 	}
 	proc.instance = instance
-	pcontext.Debugf(c, "finished instantiation of %s", m.GetName())
-	pcontext.Dump(c)
 	return proc, nil
 }
 
