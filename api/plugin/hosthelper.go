@@ -61,6 +61,9 @@ func writeKernelErrToGuest(m api.Memory, offset uint32, kerr syscall.KernelErr) 
 func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, respErr int32, stack []uint64) bool {
 	log.Printf("push response to stack: %d", respErr)
 	errPtr := eng.Util.DecodeU32(stack[3])
+	if respErr == 2147483392 {
+		debug.PrintStack()
+	}
 	if !writeErr32Guest(m.Memory(), errPtr, respErr) {
 		return false
 	}
