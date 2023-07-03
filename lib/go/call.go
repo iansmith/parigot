@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"log"
 	"time"
 
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -22,6 +23,7 @@ func MatchCompleter(cid id.CallId, comp future.Completer) {
 	if cidToCompleter[cid.String()] != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
+	log.Printf("xxx -- MatchCompleter added a new target %s, %T", cid.Short(), comp)
 	cidToCompleter[cid.String()] = comp
 }
 
