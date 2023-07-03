@@ -14,7 +14,7 @@ import (
 	"github.com/iansmith/parigot/eng"
 )
 
-var deployVerbose = true || os.Getenv("PARIGOT_VERBOSE") != ""
+var deployVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
 // DeployConfig represents the microservices that the user has configured for this application.
 // Public fields in this struct are data that has been read from the user and has been
