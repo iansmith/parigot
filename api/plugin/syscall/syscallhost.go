@@ -287,7 +287,7 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 }
 func readOne(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ReadOneRequest{}
-	resp := (*syscall.ReadOneResponse)(nil)
+	resp := &syscall.ReadOneResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]readOne", m, stack, readOneImpl, req, resp)
 
 }
