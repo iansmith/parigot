@@ -24,6 +24,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )   
@@ -111,13 +113,20 @@ type Future{{$svcDiff}}{{$methCamel}} struct {
 {{- end }} {{/*end of output code needed */}}
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
 {{- if .OutputCodeNeeded }}
-    result:= a.({{$outParam}})
-    f.Method.CompleteMethod(ctx,result,{{$errId}}(e))
+    out:=&{{$outParamDecl}}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,{{$errId}}(e))
 {{- else }}
     f.Base.Set({{$errId}}(e))
 {{- end }} {{/* end output needed */}}
+    return syscall.KernelErr_NoError
+
 }
 
 {{- if .OutputCodeNeeded}}

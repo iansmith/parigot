@@ -17,6 +17,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )  
@@ -50,9 +52,16 @@ type FutureExec struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*ExecResponse)
-    f.Method.CompleteMethod(ctx,result,MethodCallSuiteErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&ExecResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,MethodCallSuiteErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){
@@ -97,8 +106,12 @@ type FutureSuiteReport struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(MethodCallSuiteErr(e)) 
+    return syscall.KernelErr_NoError
+
 } 
 func (f *FutureSuiteReport)Success(sfn func (proto.Message)) {
     // no way for this to be called

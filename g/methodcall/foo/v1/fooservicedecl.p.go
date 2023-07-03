@@ -17,6 +17,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )  
@@ -52,9 +54,16 @@ type FutureAddMultiply struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureAddMultiply) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*AddMultiplyResponse)
-    f.Method.CompleteMethod(ctx,result,FooErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureAddMultiply) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&AddMultiplyResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FooErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureAddMultiply)Success(sfn func (proto.Message)) {
     x:=func(m *AddMultiplyResponse){
@@ -99,9 +108,16 @@ type FutureLucasSequence struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureLucasSequence) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*LucasSequenceResponse)
-    f.Method.CompleteMethod(ctx,result,FooErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureLucasSequence) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&LucasSequenceResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,FooErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureLucasSequence)Success(sfn func (proto.Message)) {
     x:=func(m *LucasSequenceResponse){
@@ -146,8 +162,12 @@ type FutureWritePi struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureWritePi) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureWritePi) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(FooErr(e)) 
+    return syscall.KernelErr_NoError
+
 } 
 func (f *FutureWritePi)Success(sfn func (proto.Message)) {
     // no way for this to be called

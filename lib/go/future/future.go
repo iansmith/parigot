@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/iansmith/parigot/api/shared/id"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -14,7 +15,7 @@ import (
 // type can be "completed" at a later time.  This is used
 // only for Methods.
 type Completer interface {
-	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32)
+	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32) syscall.KernelErr
 	Success(func(proto.Message))
 	Failure(func(int32))
 }

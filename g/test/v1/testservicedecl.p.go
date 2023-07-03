@@ -17,6 +17,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )  
@@ -50,9 +52,16 @@ type FutureTestAddTestSuite struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*AddTestSuiteResponse)
-    f.Method.CompleteMethod(ctx,result,TestErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&AddTestSuiteResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,TestErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureTestAddTestSuite)Success(sfn func (proto.Message)) {
     x:=func(m *AddTestSuiteResponse){
@@ -97,9 +106,16 @@ type FutureTestStart struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*StartResponse)
-    f.Method.CompleteMethod(ctx,result,TestErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&StartResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,TestErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureTestStart)Success(sfn func (proto.Message)) {
     x:=func(m *StartResponse){
@@ -165,9 +181,16 @@ type FutureMethodCallSuiteExec struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*ExecResponse)
-    f.Method.CompleteMethod(ctx,result,TestErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&ExecResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,TestErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureMethodCallSuiteExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){
@@ -212,8 +235,12 @@ type FutureMethodCallSuiteSuiteReport struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureMethodCallSuiteSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureMethodCallSuiteSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(TestErr(e)) 
+    return syscall.KernelErr_NoError
+
 } 
 func (f *FutureMethodCallSuiteSuiteReport)Success(sfn func (proto.Message)) {
     // no way for this to be called
@@ -274,9 +301,16 @@ type FutureUnderTestExec struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*ExecResponse)
-    f.Method.CompleteMethod(ctx,result,TestErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&ExecResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,TestErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureUnderTestExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){

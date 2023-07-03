@@ -17,6 +17,8 @@ import(
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
 
     "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/anypb"
+
 
 
 )  
@@ -48,9 +50,16 @@ type FutureAccumulate struct {
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
-func (f * FutureAccumulate) CompleteMethod(ctx context.Context,a proto.Message, e int32) {
-    result:= a.(*AccumulateResponse)
-    f.Method.CompleteMethod(ctx,result,BarErr(e)) 
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureAccumulate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&AccumulateResponse{}
+    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+        return syscall.KernelErr_UnmarshalFailed
+    }
+    f.Method.CompleteMethod(ctx,out,BarErr(e)) 
+    return syscall.KernelErr_NoError
+
 }
 func (f *FutureAccumulate)Success(sfn func (proto.Message)) {
     x:=func(m *AccumulateResponse){
