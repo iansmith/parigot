@@ -157,12 +157,12 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
 		rvReq.HostId= lib.CurrentHostId().Marshal()
-		var a *anypb.Any
+		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
 			return
 		}
-		rvReq.Result = a
+		rvReq.Result = &a
 		rvReq.ResultError = 0
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
