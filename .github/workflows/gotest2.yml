@@ -8,6 +8,6 @@ jobs:
    runs-on: ubuntu-latest
    steps:
    - name: checkout repo
-     uses: actions/checkout@v3
-   - name: show go file
+     uses: actions/checkout@v3xinyu/dagger
+   - name: run go file
      run: main.go
