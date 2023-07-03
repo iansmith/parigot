@@ -108,6 +108,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		resp.Call = nil
 		resp.Param = nil
 		resp.Resolved = rc
+		log.Printf("resolved call is %+v", rc)
 		return int32(syscall.KernelErr_NoError)
 	}
 
@@ -161,7 +162,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
 	cid := id.UnmarshalCallId(req.GetCallId())
-	log.Printf("returnValueImpl called %+w", req)
+	log.Printf("returnValueImpl called %+v", req)
 	kerr := matcher().Response(cid, req.Result, req.ResultError)
 	return int32(kerr)
 }
