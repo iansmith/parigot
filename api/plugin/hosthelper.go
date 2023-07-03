@@ -59,6 +59,7 @@ func writeKernelErrToGuest(m api.Memory, offset uint32, kerr syscall.KernelErr) 
 // address plus the data that is written is out of bounds.  All
 // other errors are returned in-band as kernel errors.
 func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, respErr int32, stack []uint64) bool {
+	log.Printf("push response to stack: %d", respErr)
 	errPtr := eng.Util.DecodeU32(stack[3])
 	if !writeErr32Guest(m.Memory(), errPtr, respErr) {
 		return false
