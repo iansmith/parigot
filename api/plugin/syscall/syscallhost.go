@@ -65,8 +65,6 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 		}
 
 		fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		log.Printf("xxx -- export impl: %s => %s %s",
-			req.GetService()[0].String(), fqs, req.GetHostId())
 		if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
 			return int32(kerr)
 		}

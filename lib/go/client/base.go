@@ -86,7 +86,6 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		panic("cannot dispatch to an unknown service! client side service field 'svc' is zero or empty")
 	}
 	if method.IsZeroOrEmptyValue() {
-		log.Printf("xxx -- method provided to dispatch %s", method.Short())
 		panic("cannot dispatch to an unknown method! client side service field 'method id' is zero or empty")
 	}
 	// this is where it all begins
