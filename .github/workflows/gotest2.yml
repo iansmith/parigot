@@ -10,4 +10,4 @@ jobs:
    - name: checkout repo
      uses: actions/checkout@v3
    - name: show go file
-     run: cat main.go
+     run: main.go
