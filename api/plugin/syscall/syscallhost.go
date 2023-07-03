@@ -164,7 +164,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		panic(fmt.Sprintf("unexpected return value from select in ReadOne (%s)", value.Kind().String()))
 	}
 	log.Printf("trying to coerce value %T %T", value, value.Interface())
-	resp.CallId = value.Interface().(*CallInfo).cid.Marshal()
+	resp.CallId = value.Interface().(CallInfo).cid.Marshal()
 	resp.Param = value.Interface().(*anypb.Any)
 
 	return int32(syscall.KernelErr_NoError)
