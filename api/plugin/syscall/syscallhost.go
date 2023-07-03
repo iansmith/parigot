@@ -87,7 +87,6 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 	resp.MethodId = mid.Marshal()
 	svc := startCoordinator().ServiceById(ctx, sid)
 	svc.AddMethod(req.GetMethodName(), mid)
-	log.Printf("bindMethodImpl called %s,%s:%s", sid.Short(), req.GetMethodName(), mid.Short())
 	pairIdToChannel[makeSidMidCombo(sid, mid)] = make(chan CallInfo, 1)
 	return int32(syscall.KernelErr_NoError)
 }
