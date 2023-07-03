@@ -72,10 +72,6 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 		return nilU, int32(syscall.KernelErr_NoError), false
 	}
 
-	if ptr < 0xff {
-		print("xxxx---PTR is ", ptr, " and ", l, "\n")
-		debug.PrintStack()
-	}
 	if int32(ptr) != out { //sanity
 		print(fmt.Sprintf("WARNING! mismatched pointers in host call/return %x, %x\n", ptr, out))
 	}
