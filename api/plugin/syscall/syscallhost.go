@@ -165,7 +165,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	}
 	log.Printf("trying to coerce value %T %T", value, value.Interface())
 	resp.CallId = value.Interface().(CallInfo).cid.Marshal()
-	resp.Param = value.Interface().(*anypb.Any)
+	resp.Param = value.Interface().(CallInfo).param
 
 	return int32(syscall.KernelErr_NoError)
 }
