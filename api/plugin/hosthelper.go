@@ -54,44 +54,52 @@ func writeKernelErrToGuest(m api.Memory, offset uint32, kerr syscall.KernelErr) 
 }
 
 // pushResponseToStack does the work of taking a response and a possible error and placing
-// them in the guest side memory.  This returns true only if
-// the address provided on the stack is out of bounds are the
-// address plus the data that is written is out of bounds.  All
+// them in the guest side memory.  The first return value is true only if
+// the address provided on the stack is out of bounds or the
+// address plus the data that is written is out of bounds.  The second
+// error return indicates that a system call performing an
+// exit has been called.  All
 // other errors are returned in-band as kernel errors.
 func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, respErr int32, stack []uint64) bool {
 	log.Printf("push response to stack: %d", respErr)
 	errPtr := eng.Util.DecodeU32(stack[3])
 	if respErr&0x7fffff00 != 0 {
+		errCopy := respErr
 		log.Printf("error called with code %d", respErr&0xff)
 		respErr = 0
 		pcontext.Dump(ctx)
-	}
-	if !writeErr32Guest(m.Memory(), errPtr, respErr) {
-		return false
+		if !writeErr32Guest(m.Memory(), errPtr, errCopy) {
+			return true
+		}
+	} else {
+		if !writeErr32Guest(m.Memory(), errPtr, respErr) {
+			return true
+		}
 	}
 	if respErr != 0 {
 		stack[0] = NoReturnedStruct
 		log.Printf("wrote error to guest and now returning No struct")
-		return true
+		return false
 	}
 
 	buf, err := proto.Marshal(resp)
 	if err != nil {
-		if !writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_MarshalFailed) {
-			return false
+		if writeFailed := writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_MarshalFailed); writeFailed {
+			return true
 		}
 		stack[0] = NoReturnedStruct
-		return true
+		return false
 	}
 	if len(buf) > apishared.GuestReceiveBufferSize {
-		return writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_DataTooLarge)
+		writeFailed := writeKernelErrToGuest(m.Memory(), errPtr, syscall.KernelErr_DataTooLarge)
+		return writeFailed
 	}
 	outPtr := eng.Util.DecodeU32(stack[2])
 	if !m.Memory().Write(outPtr, buf) {
-		return false
+		return true
 	}
 	stack[0] = windUpLenAndPtr(uint32(len(buf)), outPtr)
-	return true
+	return false
 }
 
 // pullRequest from stack uses the stack provided to pull the
@@ -149,7 +157,8 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 		return
 	}
 	kerr := fn(currCtx, t, u)
-	if !pushResponseToStack(currCtx, m, u, kerr, stack) {
+	badWrite := pushResponseToStack(currCtx, m, u, kerr, stack)
+	if badWrite {
 		panic("unable to push response back to guest memory")
 	}
 }
