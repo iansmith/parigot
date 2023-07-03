@@ -157,8 +157,11 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	resp.Call = &syscall.ServiceMethodCall{}
 	resp.Call.ServiceId = pair.ServiceId
 	resp.Call.MethodId = pair.MethodId
-	log.Printf("read one impl 3C service method call: %s,%s", pair.ServiceId.String(), pair.MethodId.String())
+	log.Printf("read one impl 3C service method call: %s,%s (%+v)", pair.ServiceId.String(), pair.MethodId.String(), value)
 
+	if value.IsNil() {
+		log.Printf("read one impl 3D: value is nil, ok is %v", ok)
+	}
 	if !value.IsNil() {
 		log.Printf("trying to coerce value %T %T", value, value.Interface())
 		resp.CallId = value.Interface().(*CallInfo).cid.Marshal()
