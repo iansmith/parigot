@@ -273,7 +273,6 @@ func (m *wazeroEng) InstantiateHostModule(ctx context.Context, pkg string) (Inst
 		pcontext.Errorf(ctx, "failed to create instantiated host module '%s': %v", pkg, err)
 		return nil, err
 	}
-	pcontext.Logf(ctx, pcontext.Info, "created instantiated host module '%s'", pkg)
 	mod := &wazeroModule{parent: m, host: true}
 	return &wazeroInstance{
 		parent: mod,

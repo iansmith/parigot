@@ -13,7 +13,6 @@ import (
 )
 
 func LoadPlugin(ctx context.Context, plugin, symbol, name string) (apiplugin.ParigotInit, error) {
-	log.Printf("load plugin: %s", name)
 	switch name {
 	case "queue":
 		return &queue.QueuePlugin{}, nil

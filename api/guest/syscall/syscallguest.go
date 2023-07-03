@@ -169,7 +169,6 @@ func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
 	req := &syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
 	}
-	pcontext.Debugf(ctx, "about to call satisfy wait for .............. %s", sid.Short())
 	_, err := Launch(req)
 	if err != 0 {
 		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])
