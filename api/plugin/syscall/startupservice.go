@@ -133,10 +133,7 @@ func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
 	for {
 		if s.canRun(ctx) {
 			s.SetStarted()
-			pcontext.Debugf(ctx, "!! %s%s is ready to run, after waiting", s.Name(), s.Short())
 			return syscall.KernelErr_NoError
-		} else {
-			pcontext.Debugf(ctx, "%s%s is not yet ready to run", s.Name(), s.Short())
 		}
 		select {
 		case <-s.runCh:

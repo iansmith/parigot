@@ -100,13 +100,10 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	}
 	// we favor resolving calls, which may be a terrible idea
 	if rc != nil {
-		log.Printf("read one impl 1A: resolving call")
-
 		resp.Timeout = false
 		resp.Call = nil
 		resp.Param = nil
 		resp.Resolved = rc
-		log.Printf("resolved call is %+v", rc)
 		return int32(syscall.KernelErr_NoError)
 	}
 
@@ -160,7 +157,6 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
 	cid := id.UnmarshalCallId(req.GetCallId())
-	log.Printf("returnValueImpl called %+v", req)
 	kerr := matcher().Response(cid, req.Result, req.ResultError)
 	return int32(kerr)
 }
@@ -220,7 +216,6 @@ func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *sysca
 
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
 	if req.GetDest() == nil {
-		log.Printf("ignoring call to Require because the require list is empty")
 		return 0
 	}
 	src := id.UnmarshalServiceId(req.GetSource())
