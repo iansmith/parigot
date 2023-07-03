@@ -65,6 +65,8 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 		}
 
 		fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
+		log.Printf("xxx -- export impl: %s => %s %s",
+			req.GetService()[0].String(), fqs, req.GetHostId())
 		if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
 			return int32(kerr)
 		}
@@ -110,7 +112,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		return int32(syscall.KernelErr_NoError)
 	}
 	log.Printf("read one impl 2: no calls to resolve, len of call %d", len(req.Call))
-	// no calls to resolve
+
 	numCases := len(req.Call)
 	if req.TimeoutInMillis >= 0 {
 		numCases++
@@ -121,6 +123,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		return int32(syscall.KernelErr_NoError)
 	}
 	cases := make([]reflect.SelectCase, numCases)
+	log.Printf("read one impl 2A1: num cases %d", numCases)
 	for i, pair := range req.Call {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
@@ -144,6 +147,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	// is timeout?
 	if chosen == len(req.Call) {
 		resp.Timeout = true
+		log.Printf("read one impl 3A: timeout")
 		return int32(syscall.KernelErr_NoError)
 	}
 	// service/method call
@@ -151,6 +155,8 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	pair := req.Call[chosen]
 	resp.Call.ServiceId = pair.ServiceId
 	resp.Call.MethodId = pair.MethodId
+	log.Printf("read one impl 3B service method call: %s,%s", pair.ServiceId.String(), pair.MethodId.String())
+
 	if !value.IsNil() {
 		log.Printf("trying to coerce value %T %T", value, value.Interface())
 		resp.CallId = value.Interface().(*CallInfo).cid.Marshal()
