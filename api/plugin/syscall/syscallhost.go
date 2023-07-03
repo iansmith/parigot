@@ -98,20 +98,25 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	if err != syscall.KernelErr_NoError {
 		return int32(err)
 	}
+	log.Printf("read one impl 1: %v,%v", req == nil, resp == nil)
 	// we favor resolving calls, which may be a terrible idea
 	if rc != nil {
+		log.Printf("read one impl 1A: resolving call")
+
 		resp.Timeout = false
 		resp.Call = nil
 		resp.Param = nil
 		resp.Resolved = rc
 		return int32(syscall.KernelErr_NoError)
 	}
+	log.Printf("read one impl 2: no calls to resolve, len of call %d", len(req.Call))
 	// no calls to resolve
 	numCases := len(req.Call)
 	if req.TimeoutInMillis >= 0 {
 		numCases++
 	}
 	if numCases == 0 {
+		log.Printf("read one impl 2A: no cases")
 		resp.Call = nil
 		return int32(syscall.KernelErr_NoError)
 	}
@@ -119,11 +124,14 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	for i, pair := range req.Call {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
+		log.Printf("read one impl 2B: case %d, svc %s, meth %s", i, svc.Short(), meth.Short())
 		combo := makeSidMidCombo(svc, meth)
 		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
+
 	if req.TimeoutInMillis >= 0 {
+		log.Printf("read one impl 2C: creating timeout case")
 		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
 		cases[len(req.Call)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
@@ -132,6 +140,7 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 	if !ok {
 		return int32(syscall.KernelErr_KernelConnectionFailed)
 	}
+	log.Printf("read one impl 3: decoding result")
 	// is timeout?
 	if chosen == len(req.Call) {
 		resp.Timeout = true
