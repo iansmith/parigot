@@ -64,6 +64,7 @@ func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, 
 	if respErr&0x7fffff00 != 0 {
 		log.Printf("error called with code %d", respErr&0xff)
 		respErr = 0
+		pcontext.Dump(ctx)
 	}
 	if !writeErr32Guest(m.Memory(), errPtr, respErr) {
 		return false
