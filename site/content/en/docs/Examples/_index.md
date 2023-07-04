@@ -1,13 +1,13 @@
 ---
 title: Examples
-weight: 3
-date: 2017-01-05
+weight: 6
+date: 2023-07-04
 description: See your project in action!
 ---
 
 {{% pageinfo %}}
-This is a placeholder page that shows you how to use this template site.
+These examples were working correctly as of the date of writing using
+the `atlanta-0.3` version of parigot.
 {{% /pageinfo %}}
 
-Do you have any example **applications** or **code** for your users in your repo
-or elsewhere? Link to your examples here.
+You can see examples in the [parigot-examples](http://github.com/iansmith/parigot-examples) repository.

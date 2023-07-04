@@ -8,3 +8,4 @@ lint:
         - ENUM_VALUE_UPPER_SNAKE_CASE
         - SERVICE_SUFFIX
         - RPC_REQUEST_RESPONSE_UNIQUE
+        
