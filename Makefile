@@ -209,47 +209,59 @@ test:
 ### DOCS
 ###
 
+DOCROOT=site/content/en/docs
+PROTOROOT=site/content/en/docs/reference/api/proto
+GUESTROOT=site/content/en/docs/reference/api/guest
+PLUGINROOT=site/content/en/docs/reference/api/plugin
+
+# this should probably be written with make recipies, dependencies
 .PHONY: docs
 docs:
 	#protobufs
-	protoc --doc_out=site/content/en/docs/api/proto --doc_opt=markdown,api.md -I api/proto \
+	protoc --doc_out=$(PROTOROOT) --doc_opt=markdown,api.md -I api/proto \
 	api/proto/file/v1/file.proto \
 	api/proto/syscall/v1/syscall.proto \
 	api/proto/queue/v1/queue.proto \
 	api/proto/protosupport/v1/protosupport.proto \
 	api/proto/queue/v1/queue.proto \
 	api/proto/test/v1/test.proto
-	touch site/content/en/docs/api/proto/frontmatter_date.md
-	chmod 777 site/content/en/docs/api/proto/frontmatter_date.md
-	cat site/content/en/docs/api/proto/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/proto/frontmatter_date.md
-	cat site/content/en/docs/api/proto/frontmatter_date.md site/content/en/docs/api/proto/api.md > site/content/en/docs/api/proto/_index.md
-	rm site/content/en/docs/api/proto/frontmatter_date.md
-	rm site/content/en/docs/api/proto/api.md
+
+	# fix date on the frontmatter
+	touch $(PROTOROOT)/frontmatter_date.md
+	chmod 777 $(PROTOROOT)/frontmatter_date.md
+	cat $(PROTOROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > \
+		$(PROTOROOT)/frontmatter_date.md
+	cat $(PROTOROOT)/frontmatter_date.md $(PROTOROOT)/api.md > $(PROTOROOT)/_index.md
+	rm $(PROTOROOT)/frontmatter_date.md
+	rm $(PROTOROOT)/api.md
+
 	## guest docs
-	GOFLAGS= gomarkdoc -o site/content/en/docs/api/guest/guest.md \
+	GOFLAGS= gomarkdoc -o $(GUESTROOT)/guest.md \
 	github.com/iansmith/parigot/api/guest/... \
 	github.com/iansmith/parigot/lib/go/... \
 	github.com/iansmith/parigot/api/shared/... 
-	touch site/content/en/docs/api/guest/frontmatter_date.md
-	chmod 777 site/content/en/docs/api/guest/frontmatter_date.md
-	cat site/content/en/docs/api/guest/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/guest/frontmatter_date.md
-	cat site/content/en/docs/api/guest/frontmatter_date.md site/content/en/docs/api/guest/guest.md > site/content/en/docs/api/guest/_index.md
-	rm site/content/en/docs/api/guest/frontmatter_date.md
-	rm site/content/en/docs/api/guest/guest.md
+	
+	## fix date on frontmatter
+	touch $(GUESTROOT)/frontmatter_date.md
+	chmod 777 $(GUESTROOT)/frontmatter_date.md
+	cat $(GUESTROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > $(GUESTROOT)/frontmatter_date.md
+	cat $(GUESTROOT)/frontmatter_date.md $(GUESTROOT)/guest.md > $(GUESTROOT)/_index.md
+	rm $(GUESTROOT)/frontmatter_date.md
+	rm $(GUESTROOT)/guest.md
+
 	## plugin docs
-	GOFLAGS= gomarkdoc -o site/content/en/docs/api/plugin/plugin.md \
+	GOFLAGS= gomarkdoc -o $(PLUGINROOT)/plugin.md \
 	github.com/iansmith/parigot/api/plugin/... \
 	github.com/iansmith/parigot/api/plugin/file/... \
 	github.com/iansmith/parigot/api/plugin/queue/... \
 	github.com/iansmith/parigot/api/plugin/syscall/... 
-	touch site/content/en/docs/api/plugin/frontmatter_date.md
-	chmod 777 site/content/en/docs/api/plugin/frontmatter_date.md
-	cat site/content/en/docs/api/plugin/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > site/content/en/docs/api/plugin/frontmatter_date.md
-	cat site/content/en/docs/api/plugin/frontmatter_date.md site/content/en/docs/api/plugin/plugin.md > site/content/en/docs/api/plugin/_index.md
-	rm site/content/en/docs/api/plugin/frontmatter_date.md
-	rm site/content/en/docs/api/plugin/plugin.md
-	## plugin docs
-#
+	touch $(PLUGINROOT)/frontmatter_date.md
+	chmod 777 $(PLUGINROOT)/frontmatter_date.md
+	cat $(PLUGINROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > $(PLUGINROOT)/frontmatter_date.md
+	cat $(PLUGINROOT)/frontmatter_date.md $(PLUGINROOT)/plugin.md > $(PLUGINROOT)/_index.md
+	rm $(PLUGINROOT)/frontmatter_date.md
+	rm $(PLUGINROOT)/plugin.md
+
 # CLEAN
 #
 .PHONY: protoclean

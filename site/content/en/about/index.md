@@ -49,7 +49,8 @@ _making microservices work_.
 {{% blocks/section %}}
 # Backing
 
-parigot has been and is developed by Right Bank Software Society (RBSS), a Deleware
-C-corp.  Although RBSS is the legal entity, the company is frequently just 
-called "parigot".
+parigot has been and is developed by Rive Droit Software Society (RDSS), a
+Deleware C-corp.  Although RDSS is the legal entity, the company is frequently
+just called "parigot".  
+
 {{% /blocks/section %}}
