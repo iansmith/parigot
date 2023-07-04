@@ -1,0 +1,52 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/go
+{
+	"image": "docker.io/iansmith/parigot-atlanta-dev",
+
+	"name": "parigot-dev",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			// Update the VARIANT arg to pick a version of Go: 1, 1.19, 1.18
+			// Append -bullseye or -buster to pin to an OS version.
+			// Use -bullseye variants on local arm64/Apple Silicon.
+			"VARIANT": "1.19.3-bullseye"
+		}
+	},
+	"runArgs": [
+		//"--cap-add=SYS_PTRACE",
+		//"--security-opt",
+		//"seccomp=unconfined",
+		//"-v/Users/iansmith/parigot/wazero-src-1.1:/home/parigot/wazero-src-1.1:rw"
+		//"--add-host=host.docker.internal:host-gateway"
+	],
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Set *default* container specific settings.json values on container create.
+			"settings": {
+				/*"go.toolsManagement.checkForUpdates": "local",*/
+				/* "go.useLanguageServer": true*/
+				/*"go.gopath": "/home/parigot/tools/go1.19.3 "*/
+			},
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"golang.Go"
+			]
+		}
+	},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "go version",
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "parigot",
+	"features": {
+		"git": "os-provided"
+	},
+	"postCreateCommand": "go version",
+	"mounts": [
+	]
+	
+}
