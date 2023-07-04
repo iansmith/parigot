@@ -1,16 +1,31 @@
 ---
 title: Getting Started
-description: What does your user need to know to try your project?
-categories: [Examples, Placeholders]
-tags: [test, docs]
+description: Tooling, editors, etc
 weight: 2
 ---
 
 {{% pageinfo %}}
-This is a placeholder page that shows you how to use this template site.
+
+This page relates to the tooling you need for the `atlanta-0.3` release (pronounced 'at-lan-ta-oh-three').
+
 {{% /pageinfo %}}
 
-Information in this section helps your user try your project themselves.
+### Tooling
+
+This project makes heavy use of __dev containers__ which is a relatively new
+tactic for what is an age-old problem.  A dev container is a
+[container](https://www.docker.com/resources/what-container/) whose image (files,
+tools, and environment) is already packaged so that development work can proceed
+without needing a lot of "set up your machine" processes and time.  
+
+With [VSCode](https://www.google.com/search?client=safari&rls=en&q=download+vscode&ie=UTF-8&oe=UTF-8) the container is actually run by the editor (really "dev
+environment" or "IDE") and the editor knows how to work with the dev container
+for doing things like running programs, launching the debugger, using the
+shell *inside* the container.
+
+#### The quick and mostly easy way
+
+
 
 * What do your users need to do to start using your project? This could include downloading/installation instructions, including any prerequisites or system requirements.
 

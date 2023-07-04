@@ -15,6 +15,7 @@ title: parigot
 
 
 {{% blocks/lead color="primary" %}}
+
 parigot provides a new programming model for building microservice applications.
 parigot allows the _developer_ to see the application as a monolith... because
 a monolith is much easier build, test and debug!  When the application is deployed

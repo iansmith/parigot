@@ -57,7 +57,7 @@ RUN mv go go${GOLANG_VERSION_GUEST}
 WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
 ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_GUEST}
 ENV GOROOT_BOOTSTRAP=/home/parigot/deps/go${GOLANG_VERSION_HOST}
-RUN  ./all.bash
+RUN  ./make.bash
 ENV GOROOT=
 ENV GOROOT_BOOTSTRAP=
 
