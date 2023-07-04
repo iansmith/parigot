@@ -227,8 +227,6 @@ docs:
 	api/proto/test/v1/test.proto
 
 	# fix date on the frontmatter
-	touch $(PROTOROOT)/frontmatter_date.md
-	chmod 777 $(PROTOROOT)/frontmatter_date.md
 	cat $(PROTOROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > \
 		$(PROTOROOT)/frontmatter_date.md
 	cat $(PROTOROOT)/frontmatter_date.md $(PROTOROOT)/api.md > $(PROTOROOT)/_index.md
@@ -237,13 +235,16 @@ docs:
 
 	## guest docs
 	GOFLAGS= gomarkdoc -o $(GUESTROOT)/guest.md \
-	github.com/iansmith/parigot/api/guest/... \
-	github.com/iansmith/parigot/lib/go/... \
-	github.com/iansmith/parigot/api/shared/... 
-	
+	github.com/iansmith/parigot/api/guest/queue/lib \
+	github.com/iansmith/parigot/api/guest/syscall \
+	github.com/iansmith/parigot/api/guest/test \
+	github.com/iansmith/parigot/lib/go \
+	github.com/iansmith/parigot/lib/go/client \
+	github.com/iansmith/parigot/lib/go/future \
+	github.com/iansmith/parigot/api/shared \
+	github.com/iansmith/parigot/api/shared/id
+
 	## fix date on frontmatter
-	touch $(GUESTROOT)/frontmatter_date.md
-	chmod 777 $(GUESTROOT)/frontmatter_date.md
 	cat $(GUESTROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > $(GUESTROOT)/frontmatter_date.md
 	cat $(GUESTROOT)/frontmatter_date.md $(GUESTROOT)/guest.md > $(GUESTROOT)/_index.md
 	rm $(GUESTROOT)/frontmatter_date.md
@@ -251,12 +252,10 @@ docs:
 
 	## plugin docs
 	GOFLAGS= gomarkdoc -o $(PLUGINROOT)/plugin.md \
-	github.com/iansmith/parigot/api/plugin/... \
-	github.com/iansmith/parigot/api/plugin/file/... \
-	github.com/iansmith/parigot/api/plugin/queue/... \
-	github.com/iansmith/parigot/api/plugin/syscall/... 
-	touch $(PLUGINROOT)/frontmatter_date.md
-	chmod 777 $(PLUGINROOT)/frontmatter_date.md
+	github.com/iansmith/parigot/api/plugin \
+	github.com/iansmith/parigot/api/plugin/file \
+	github.com/iansmith/parigot/api/plugin/queue \
+	github.com/iansmith/parigot/api/plugin/syscall 
 	cat $(PLUGINROOT)/frontmatter.tmpl| sed -e "s/_date_/`date -I`/" > $(PLUGINROOT)/frontmatter_date.md
 	cat $(PLUGINROOT)/frontmatter_date.md $(PLUGINROOT)/plugin.md > $(PLUGINROOT)/_index.md
 	rm $(PLUGINROOT)/frontmatter_date.md
