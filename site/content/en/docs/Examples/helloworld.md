@@ -174,7 +174,8 @@ the google go compiler.
 
 This also means that the standard `protoc-gen-go` protobuf definitions will not work
 with tinygo as they use package `reflect` quite heavily.  There have been reports
-that other protobuf implementations (perhaps [gogobuf](https://github.com/gogo/protobuf)) will
+that other protobuf implementations (perhaps [gogobuf](https://github.com/gogo/protobuf)?
+[molecule](https://pkg.go.dev/github.com/richardartoul/molecule)?) will
 generate code that does not use reflection capabilities that are excluded from Tinygo.
 
 {{%/alert %}}
