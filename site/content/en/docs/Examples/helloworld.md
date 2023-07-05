@@ -11,7 +11,7 @@ the [hello world code proper]({{< ref "#hello-world-code-proper" >}}).
 
 ---------------
 
-{{% alert title="Warning" color="warning" %}} 
+{{% alert title="Warning" color="warning" %}}
 
 This explanation of parigot's hello world program is too long.
 This effort was begun as a snack and ended up being a week's worth of
@@ -181,10 +181,14 @@ generate code that does not use reflection capabilities that are excluded from T
 
 ##### clean
 
-clean: `clean` make target removes all the generated files in the `g/` directory
-and the compiled binaries in `build`.  The 'g' stands for generated and only
+The `clean` make target removes all the generated files in the `g/` directory
+and the compiled binaries (`.p.wasm` files) in `build`.  The 'g' stands for generated and only
 automated tool's output belongs there. `make clean` does not remove the tools
 installed by `make tools` in the next section.
+
+{{% alert title="Change coming" color="warning" %}}
+Currently, the parigot system library, `syscall.so` is also resident in the
+build directory.  This will changed soon.
 
 ##### tools
 
@@ -196,6 +200,10 @@ runs parigot binaries and the latter generates the stubs referred to in the
 [generate]({{< ref "#generate" >}}) section above.  You will need to run this
 again if you change versions of parigot or relaunch the dev container since that
 starts with a fresh filesystem.
+
+The above statement is not __quite__ true.  `make tools` also installs the
+parigot system's key host-side library `syscall.so` in the `build` directory.
+At the moment, if you remove `build/syscall.so` you have to `make tools` again.
 
 ### buf.gen.yaml, buf.work.yaml
 Both of
@@ -222,8 +230,8 @@ directory, sadly, is probably something you _should_ check into your repo,
 despite the fact that the content is generated and that practice is generally
 discouraged.  The reason for this is that someone might be using your project as
 a go module (as you are doing with parigot) and needs to be able to compile your
-code as part of a _their build when they don't have your module's source
-installed_.  If `g` is not checked into the __your__ repository, __the other party's__ build
+code as part of a their build when they don't have your module's source
+installed.  If `g` is not checked into  __your__ repository, __the other party's__ build
 will fail because the generated code in `g` is needed.
 
 {{% alert title="Deep Cut" color="info" %}}
@@ -248,11 +256,12 @@ is probably enough for most projects when they are starting out.
 
 ### helloworld.toml
 
-This file is the [delpoyment descriptor](https://github.com/iansmith/parigot-example/blob/master/helloworld/helloworld.toml) for the hello world program.  Its contents tell
-the [runner]({{< ref "#tools" >}}) program the information about the microservices,
-tests, and programs that need
-to be deployed to make the entire application run.  The contents
-as of the time of writing are:
+This file is the [delpoyment
+descriptor](https://github.com/iansmith/parigot-example/blob/master/helloworld/helloworld.toml)
+for the hello world program.  Its contents tell the [runner]({{< ref "#tools"
+>}}) program the information about the microservices, tests, and programs that
+need to be deployed to make the entire application run.  The contents as of the
+time of writing are:
 
 ```toml
 	## Note that because this is consumed from the hello-world root dir, the paths 
