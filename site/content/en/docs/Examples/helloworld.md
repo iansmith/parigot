@@ -190,6 +190,7 @@ installed by `make tools` in the next section.
 {{% alert title="Change coming" color="warning" %}}
 Currently, the parigot system library, `syscall.so` is also resident in the
 build directory.  This will changed soon.
+{{% /alert %}}
 
 ##### tools
 
