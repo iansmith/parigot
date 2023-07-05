@@ -10,4 +10,9 @@ These examples were working correctly as of the date of writing using
 the `atlanta-0.3` version of parigot.
 {{% /pageinfo %}}
 
-You can see examples in the [parigot-examples](http://github.com/iansmith/parigot-examples) repository.
+{{% alert title="Repo" color="warning" %}}
+
+You can see all the code of the examples in the
+[parigot-examples](http://github.com/iansmith/parigot-examples) repository.
+
+{{% /alert %}}
