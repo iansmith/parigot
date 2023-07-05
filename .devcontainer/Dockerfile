@@ -36,11 +36,11 @@ RUN set -e; \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
-		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
+		wget -O protoc-${PROTOC_VERSION} https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
-		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
+		wget -O protoc-${PROTOC_VERSION} https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
 
@@ -48,7 +48,6 @@ RUN set -e; \
 RUN tar xzf go.tar.gz
 RUN rm go.tar.gz 
 RUN mv go go${GOLANG_VERSION_HOST}
-
 # client side go install
 WORKDIR /home/parigot/deps
 RUN git clone --depth 1 https://github.com/golang/go.git
@@ -69,8 +68,8 @@ RUN rm -f hugo_${HUGO_VERSION}.deb
 
 # install protoc
 WORKDIR /home/parigot/deps
-RUN mkdir protoc${PROTOC_VERSION}
-WORKDIR /home/parigot/deps/protoc${PROTOC_VERSION}
+RUN mkdir protoc-${PROTOC_VERSION}
+WORKDIR /home/parigot/deps/protoc-${PROTOC_VERSION}
 RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
 
@@ -189,7 +188,6 @@ RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/kyleconroy/sqlc/cmd/sqlc@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
-
 
 #RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
 #RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
