@@ -218,7 +218,7 @@ enable = false
 #  desc = "Discuss development issues around the project"
 [[params.links.developer]]
   name = "Our Zulip"
-  url = "http://parigot.zulipapp.com"
+  url = "http://parigot.zulipchat.com"
 #  icon = "fa fa-envelope"
   desc = "Chat with the dev team"
 

@@ -22,8 +22,18 @@ microservice-oriented design has substantial negative consequences for
 the developers and first level managers who are "in the trenches" actually
 _making microservices work_.  
 
-
 {{% /blocks/lead %}}
+
+{{% blocks/section %}}
+
+# Engineers and companies wanted
+
+Are you an engineer with experience building microservice-based systems who
+wants to get in at the beginning of a cool project?
+Do you work for a company that builds a lot of microservice-based backends
+for customers?  Get in touch, we want to talk to you!
+
+{{% /blocks/section %}}
 
 {{% blocks/section %}}
 
@@ -45,6 +55,7 @@ _making microservices work_.
     worked on our devops problems.
 
 {{% /blocks/section %}}
+
 
 {{% blocks/section %}}
 # Backing

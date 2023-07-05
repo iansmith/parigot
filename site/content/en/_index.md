@@ -33,13 +33,13 @@ parigot,version `atlanta-0.3`, is out!  Your feedback both desired and accepted!
 {{% /blocks/feature %}}
 
 
-{{% blocks/feature icon="fab fa-github" title="Contributions welcome!" url="https://github.com/google/docsy-example" %}}
+{{% blocks/feature icon="fab fa-github" title="Contributions welcome!" url="https://github.com/iansmith/parigot" %}}
 We do a [Pull Request](https://github.com/iansmith/parigot/pulls) contributions workflow on **GitHub**. New users are always welcome!
 {{% /blocks/feature %}}
 
 
-{{% blocks/feature icon="fab fa-chat" title="Chat with us!" url="https://parigot.zulipapp.com" %}}
-On our [Zulip](https://zulip.com), you can give feedback, ask questions about your parigot application, or just chat about the glory of Paris Saint Germain... 
+{{% blocks/feature icon="fab fa-chat" title="Chat with us!" url="https://parigot.zulipchat.com" %}}
+On our [Zulip](https://parigot.zulipchat.com), you can give feedback, ask questions about your parigot application, or just chat about the glory of Paris Saint Germain... 
 {{% /blocks/feature %}}
 
 {{% /blocks/section %}}
