@@ -68,6 +68,9 @@ type fileSvcImpl struct {
 	// track fid based on file path
 	fpathTofid *map[string]file.FileId
 	isTesting  bool
+
+	defaultOpenHook   OpenHook
+	defaultCreateHook CreateHook
 }
 
 // enum for file status
@@ -89,6 +92,7 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)
 	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
 	e.AddSupportedFunc(ctx, "file", "delete_file_", deleteFileHost)
+	e.AddSupportedFunc(ctx, "file", "write_file_", writeFileHost)
 
 	_ = newFileSvc(ctx)
 
@@ -165,6 +169,13 @@ func deleteFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	hostBase(ctx, "[file]delete", fileSvc.delete, m, stack, req, resp)
 }
 
+func writeFileHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.WriteRequest{}
+	resp := &file.WriteResponse{}
+
+	hostBase(ctx, "[file]write", fileSvc.write, m, stack, req, resp)
+}
+
 func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
@@ -173,6 +184,9 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 		ctx:           newCtx,
 		fpathTofid:    &map[string]file.FileId{},
 		isTesting:     false,
+
+		defaultOpenHook:   openHookForFiles,
+		defaultCreateHook: createHookForFiles,
 	}
 
 	return f
@@ -184,7 +198,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If we are in test mode, set the default OpenHook to openHookForStrings.
 	// In this mode, we do not operate on the real files on the disk
 	if f.isTesting {
-		defaultOpenHook = openHookForStrings
+		f.defaultOpenHook = openHookForStrings
 	}
 
 	fpath := req.GetPath()
@@ -218,18 +232,13 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Read
-	myFileInfo.rdClose = defaultOpenHook(cleanPath)
+	myFileInfo.rdClose = f.defaultOpenHook(cleanPath)
 
 	return int32(file.FileErr_NoError)
 }
 
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
-
-	// Set the defaultCreateHook for testing
-	if f.isTesting {
-		defaultCreateHook = createHookForStrings
-	}
 
 	fpath := req.GetPath()
 	// Validate the file path
@@ -284,7 +293,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 // createANewFile is a helper function to create a new file in the file service.
 func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
 	if f.isTesting {
-		defaultCreateHook = createHookForStrings
+		f.defaultCreateHook = createHookForStrings
 	}
 
 	currentTime := pcontext.CurrentTime(f.ctx)
@@ -298,7 +307,7 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId 
 		createDate:     currentTime,
 		lastAccessTime: currentTime,
 
-		wrClose: defaultCreateHook(fpath),
+		wrClose: f.defaultCreateHook(fpath),
 	}
 
 	newFileInfo.Write([]byte(fcontent))
@@ -402,20 +411,30 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	resp *file.DeleteResponse) int32 {
 
-	fid := file.UnmarshalFileId(req.GetId())
+	// fid := file.UnmarshalFileId(req.GetId())
+
+	fpath := req.GetPath()
+	// Validate the file path
+	cleanPath, valid := isValidPath(fpath)
+	if !valid {
+		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
+		return int32(file.FileErr_InvalidPathError)
+	}
+
+	resp.Path = cleanPath
 
 	// Validate if the file exists in the cache
-	if _, exist := (*f.fileDataCache)[fid]; !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be closed: %d", fid)
+	fid, exist := (*f.fpathTofid)[cleanPath]
+	if !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be deleted: %s", cleanPath)
 		return int32(file.FileErr_NotExistError)
 	}
+
 	// Ensure the file is not currently in use
 	if (*f.fileDataCache)[fid].status != Fs_Close {
 		pcontext.Errorf(ctx, "File is in use, cannot be deleted currently: %d", fid)
 		return int32(file.FileErr_AlreadyInUseError)
 	}
-
-	fpath := (*f.fileDataCache)[fid].path
 
 	// If testing, simply delete the file from the cache
 	// otherwise, delete it from the disk
@@ -431,6 +450,7 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 
 func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 	resp *file.WriteResponse) int32 {
+
 	fid := file.UnmarshalFileId(req.GetId())
 	fileDataCache := *f.fileDataCache
 
@@ -465,7 +485,7 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 	// Validate the requested buffer size
 	buf := req.GetBuf()
 	// Check is size of buf exceeds the maximum buffer size allowed
-	if isValidBuf(buf) {
+	if !isValidBuf(buf) {
 		pcontext.Errorf(ctx, "the buffer size %d exceeds the maximum buffer"+
 			"size (%d) allowed", len(buf), maxBufSize)
 		return int32(file.FileErr_LargeBufError)

@@ -11,6 +11,7 @@ import (
 
 func getRealPath(path string) string {
 	wd, err := os.Getwd()
+
 	if err != nil {
 		log.Fatal("Error getting working directory:", err)
 	}
@@ -45,30 +46,32 @@ func isValidBuf(buf []byte) bool { return len(buf) <= maxBufSize }
 func deleteFileAndParentDirIfNeeded(path string) {
 	realPath := getRealPath(path)
 
+	log.Println("Deleting file: ", realPath)
+
 	// Delete the file
 	err := os.Remove(realPath)
 	if err != nil {
 		log.Fatalf("Failed to delete file: %s. Error: %v", path, err)
 	}
 
-	// Walk up the directory tree and remove any empty directories.
-	dir := filepath.Dir(realPath)
-	for {
-		// Read the directory.
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			log.Fatal("Failed to read dir: ", err)
-		}
+	// // Walk up the directory tree and remove any empty directories.
+	// dir := filepath.Dir(realPath)
+	// for {
+	// 	// Read the directory.
+	// 	entries, err := os.ReadDir(dir)
+	// 	if err != nil {
+	// 		log.Fatal("Failed to read dir: ", err)
+	// 	}
 
-		// If the directory is not empty, we're done.
-		if len(entries) > 0 {
-			break
-		}
+	// 	// If the directory is not empty, we're done.
+	// 	if len(entries) > 0 {
+	// 		break
+	// 	}
 
-		// Delete the directory and move to its parent.
-		if err := os.Remove(dir); err != nil {
-			log.Fatal("Failed to remove dir: ", err)
-		}
-		dir = filepath.Dir(dir)
-	}
+	// 	// Delete the directory and move to its parent.
+	// 	if err := os.Remove(dir); err != nil {
+	// 		log.Fatal("Failed to remove dir: ", err)
+	// 	}
+	// 	dir = filepath.Dir(dir)
+	// }
 }

@@ -119,11 +119,12 @@ message WriteResponse {
 }
 
 message DeleteRequest {
-  protosupport.v1.IdRaw id = 1;
+  string path = 1;
 }
 
 message DeleteResponse {
-  protosupport.v1.IdRaw id = 1;
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
 }
 
 enum FileErr {

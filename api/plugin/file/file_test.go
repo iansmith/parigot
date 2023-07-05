@@ -10,15 +10,15 @@ import (
 	"github.com/iansmith/parigot/g/file/v1"
 )
 
-// if you look at the tests in queue_test you'll see that
-// the tests ignore the wrapper functions and use the
-// real impleentations directly.
-
 const filePath = apishared.FileServicePathPrefix + "testfile.txt"
 const fileContent = "Hello!Parigot!"
 
 var notExistFid = file.NewFileId()
 var contentBuf = []byte(fileContent)
+
+// there is a bug
+// If I use this test as the last test for a file, it does not create a real file on the disk.
+// if I put it as the first test in the file, everything works fine
 
 func TestOpenClose(t *testing.T) {
 	svc := newFileSvc((context.Background()))
@@ -152,46 +152,73 @@ func TestWrite(t *testing.T) {
 	svc := newFileSvc((context.Background()))
 	svc.isTesting = true
 
-	// Test case: Write a file that does not exist
-	testFileWrite(t, svc, notExistFid, contentBuf, "write a non-existent file",
+	// Test case 1: Write a file that does not exist
+	testFileWrite(t, svc, notExistFid, contentBuf, "Test cases 1 in Write",
 		true, int32(file.FileErr_NotExistError))
 
 	fid := creatAGoodFile(t, svc)
 	closeAGoodFile(t, svc)
 
-	// Test case: Write a closed file
-	testFileWrite(t, svc, fid, contentBuf, "write a closed file",
+	// Test case 2: Write a closed file
+	testFileWrite(t, svc, fid, contentBuf, "Test cases 2 in Write",
 		true, int32(file.FileErr_FileClosedError))
 
-	// Test case: Write a read file
+	// Test case 3: Write a read file
 	openAGoodFile(t, svc)
-	testFileWrite(t, svc, fid, contentBuf, "write a read-only file",
+	testFileWrite(t, svc, fid, contentBuf, "Test cases 3 in Write",
 		true, int32(file.FileErr_AlreadyInUseError))
 
-	// Test case: Write a file with 0 length buffer
-	creatAGoodFile(t, svc)
-	// testFileWrite(t, svc, fid, []byte{}, "write a file with 0 length buffer",
-	// true, int32(file.FileErr_NoError))
+	// Test case 4: Write a file with 0 length buffer
+	fid = creatAGoodFile(t, svc)
+	testFileWrite(t, svc, fid, []byte{}, "Test cases 4 in Write",
+		false, int32(file.FileErr_NoError))
+
+	// Test case 5: Write a file with a good buffer
+	testFileWrite(t, svc, fid, contentBuf, "Test cases 5 in Write", false, int32(file.FileErr_NoError))
 }
 
 func TestDelete(t *testing.T) {
-	// try to delet a opened file
+	svc := newFileSvc((context.Background()))
+	svc.isTesting = true
+
+	// Test case 1: Delete a file that does not exist
+	testFileDelete(t, svc, filePath, "Test case 1 in TestDelete", true, int32(file.FileErr_NotExistError))
+
+	// Test case 2: Delete a file that is already in the written status
+	creatAGoodFile(t, svc)
+	testFileDelete(t, svc, filePath, "Test case 2 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
+	closeAGoodFile(t, svc)
+
+	// Test case 3: Delete a file that is already in the read status
+	openAGoodFile(t, svc)
+	testFileDelete(t, svc, filePath, "Test case 3 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
+
+	// Test case 4: Delete a file that is in the closed status
+	closeAGoodFile(t, svc)
+	testFileDelete(t, svc, filePath, "Test case 4 in TestDelete", false, int32(file.FileErr_NoError))
+
+	// Test case 5: Delete a file that is already deleted
+	testFileDelete(t, svc, filePath, "Test case 5 in TestDelete", true, int32(file.FileErr_NotExistError))
 }
 
-// need to write more decent tests
 func TestRealFiles(t *testing.T) {
 	svc := newFileSvc((context.Background()))
 
-	// create a file
+	// Happy path
 	fid := testFileCreate(t, svc, filePath, fileContent, "create a real good file",
 		false, int32(file.FileErr_NoError))
+	testFileWrite(t, svc, fid, contentBuf, "write a real file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 
 	testFileOpen(t, svc, filePath, "read a file", false, int32(file.FileErr_NoError))
 	testFileRead(t, svc, fid, make([]byte, 6), "read a real file", false, int32(file.FileErr_NoError))
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-	//testFileDelete(t, svc, fid, "delete a file", false, int32(file.FileErr_NoError))
+	testFileDelete(t, svc, filePath, "delete a file", false, int32(file.FileErr_NoError))
 }
+
+//
+// helpers
+//
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
 	errExpected bool, expectedErrCode int32) file.FileId {
@@ -306,14 +333,14 @@ func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 	return file.UnmarshalFileId(resp.GetId()), buf
 }
 
-func testFileDelete(t *testing.T, svc *fileSvcImpl, fid file.FileId, msg string,
+func testFileDelete(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	errExpected bool, expectedErrCode int32) {
 
 	ctx := pcontext.DevNullContext(context.Background())
 	t.Helper()
 
 	req := &file.DeleteRequest{
-		Id: fid.Marshal(),
+		Path: fpath,
 	}
 	resp := &file.DeleteResponse{}
 	errCode := svc.delete(ctx, req, resp)
