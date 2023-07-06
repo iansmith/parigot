@@ -1,28 +1,12 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.245.2/containers/go
 {
-	"image": "docker.io/iansmith/parigot-atlanta-dev:0.3",
-	"name": "parigot-dev",
-	// Configure tool-specific properties.
+	"build": { "dockerfile": "Dockerfile" },
+  
 	"customizations": {
-		"vscode": {
-			"settings": {
-			},
-			// Add the IDs of extensions you want installed when the container is created.
-			"extensions": [
-				"golang.Go",
-				"peterj.proto",
-				"stkb.rewrap",
-				"azuretools.vscode-docker",
-				"ms-vscode.makefile-tools"
-			]
-		}
+	  "vscode": {
+		"extensions": [""]
+	  }
 	},
-	"remoteUser": "parigot",
-	"features": {
-		"git": "os-provided"
-	},
-	"postCreateCommand": "go version",
-	"mounts": [
-	]	
-}
+	"mounts":[],
+
+	"forwardPorts": []
+  }
