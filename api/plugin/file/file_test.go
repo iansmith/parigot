@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"log"
+	"path/filepath"
 	"testing"
 
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -10,22 +11,17 @@ import (
 	"github.com/iansmith/parigot/g/file/v1"
 )
 
-const filePath = apishared.FileServicePathPrefix + "testfile.txt"
-const fileContent = "Hello!Parigot!"
-
-var notExistFid = file.NewFileId()
-var contentBuf = []byte(fileContent)
-
-// there is a bug
-// If I use this test as the last test for a file, it does not create a real file on the disk.
-// if I put it as the first test in the file, everything works fine
+var (
+	notExistFid = file.NewFileId()
+	contentBuf  = []byte(fileContent)
+)
 
 func TestOpenClose(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
-	creatAGoodFile(t, svc)
-	closeAGoodFile(t, svc)
+	creatAGoodFile(svc)
+	closeAGoodFile(svc)
 
 	// Test case: Open a non-existent file.
 	badFid := testFileOpen(t, svc, "/parigot/app/badfile.txt", "open a file with non-existent path",
@@ -47,8 +43,8 @@ func TestOpenClose(t *testing.T) {
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 
 	// Create a good file
-	fid = creatAGoodFile(t, svc)
-	openAGoodFile(t, svc)
+	fid = creatAGoodFile(svc)
+	openAGoodFile(svc)
 
 	// Test case: Open a file that is already open.
 	testFileOpen(t, svc, filePath, "open an already opened file", true, int32(file.FileErr_AlreadyInUseError))
@@ -58,7 +54,7 @@ func TestOpenClose(t *testing.T) {
 }
 
 func TestCreateClose(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
 	// Test cases 1: Create files with bad path names
@@ -88,10 +84,10 @@ func TestCreateClose(t *testing.T) {
 	testFileClose(t, svc, fid, "Test cases 4 in CreateClose", false, int32(file.FileErr_NoError))
 
 	// Test case 5: Create a file that is already in the read status
-	openAGoodFile(t, svc)
+	openAGoodFile(svc)
 	testFileCreate(t, svc, filePath, fileContent, "Test cases 5 in CreateClose",
 		true, int32(file.FileErr_AlreadyInUseError))
-	closeAGoodFile(t, svc)
+	closeAGoodFile(svc)
 
 	// Test case 6: Create a file that already exists.
 	fid2 := testFileCreate(t, svc, filePath, fileContent, "Test cases 6 in CreateClose",
@@ -106,21 +102,21 @@ func TestCreateClose(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
 	// Test case: Read a file that does not exist
 	testFileRead(t, svc, notExistFid, make([]byte, 2), "read a non-existent file",
 		true, int32(file.FileErr_NotExistError))
 
-	fid := creatAGoodFile(t, svc)
-	closeAGoodFile(t, svc)
+	fid := creatAGoodFile(svc)
+	closeAGoodFile(svc)
 
 	// Test case: Read a closed file
 	testFileRead(t, svc, fid, make([]byte, 2), "read a closed file",
 		true, int32(file.FileErr_FileClosedError))
 
-	openAGoodFile(t, svc)
+	openAGoodFile(svc)
 
 	// Test case: Read a file with 0 length buffer
 	testFileRead(t, svc, fid, make([]byte, 0), "read a file with 0 length buffer",
@@ -149,27 +145,27 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
 	// Test case 1: Write a file that does not exist
 	testFileWrite(t, svc, notExistFid, contentBuf, "Test cases 1 in Write",
 		true, int32(file.FileErr_NotExistError))
 
-	fid := creatAGoodFile(t, svc)
-	closeAGoodFile(t, svc)
+	fid := creatAGoodFile(svc)
+	closeAGoodFile(svc)
 
 	// Test case 2: Write a closed file
 	testFileWrite(t, svc, fid, contentBuf, "Test cases 2 in Write",
 		true, int32(file.FileErr_FileClosedError))
 
 	// Test case 3: Write a read file
-	openAGoodFile(t, svc)
+	openAGoodFile(svc)
 	testFileWrite(t, svc, fid, contentBuf, "Test cases 3 in Write",
 		true, int32(file.FileErr_AlreadyInUseError))
 
 	// Test case 4: Write a file with 0 length buffer
-	fid = creatAGoodFile(t, svc)
+	fid = creatAGoodFile(svc)
 	testFileWrite(t, svc, fid, []byte{}, "Test cases 4 in Write",
 		false, int32(file.FileErr_NoError))
 
@@ -178,23 +174,23 @@ func TestWrite(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
 	// Test case 1: Delete a file that does not exist
 	testFileDelete(t, svc, filePath, "Test case 1 in TestDelete", true, int32(file.FileErr_NotExistError))
 
 	// Test case 2: Delete a file that is already in the written status
-	creatAGoodFile(t, svc)
+	creatAGoodFile(svc)
 	testFileDelete(t, svc, filePath, "Test case 2 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
-	closeAGoodFile(t, svc)
+	closeAGoodFile(svc)
 
 	// Test case 3: Delete a file that is already in the read status
-	openAGoodFile(t, svc)
+	openAGoodFile(svc)
 	testFileDelete(t, svc, filePath, "Test case 3 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
 
 	// Test case 4: Delete a file that is in the closed status
-	closeAGoodFile(t, svc)
+	closeAGoodFile(svc)
 	testFileDelete(t, svc, filePath, "Test case 4 in TestDelete", false, int32(file.FileErr_NoError))
 
 	// Test case 5: Delete a file that is already deleted
@@ -202,7 +198,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestRealFiles(t *testing.T) {
-	svc := newFileSvc((context.Background()))
+	svc := newFileSvc(context.Background())
 
 	// Happy path
 	fid := testFileCreate(t, svc, filePath, fileContent, "create a real good file",
@@ -216,8 +212,52 @@ func TestRealFiles(t *testing.T) {
 	testFileDelete(t, svc, filePath, "delete a file", false, int32(file.FileErr_NoError))
 }
 
+func TestLoadTestData(t *testing.T) {
+	svc := newFileSvc(context.Background())
+	svc.isTesting = true
+
+	dirPath := "/workspaces/parigot/testloaddata"
+	mountLocation := filepath.Join(apishared.FileServicePathPrefix, "testdata")
+
+	// Test case 1: Load test data from a non-exist directory
+	testDataLoad(t, svc, "/xinyu/testdata", mountLocation, true, "Test case 1 in TestLoadTestData", true, int32(file.FileErr_NotExistError))
+
+	// Test case 2: Load test data from an empty directory that contains no test data
+	createDirOnHost(dirPath)
+	testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 2 in TestLoadTestData", true, int32(file.FileErr_NoDataFoundError))
+
+	// Test case 3: Load test data to a invalid mount location
+	testDataLoad(t, svc, dirPath, "/xinyu/testdata", true, "Test case 3 in TestLoadTestData", true, int32(file.FileErr_InvalidPathError))
+
+	// Test case 4: Happy Path, load test data to a valid mount location
+	// 				One of test files is unreadable
+	createTestFilesOnHost(dirPath, "test4")
+	errPaths := testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 4 in TestLoadTestData", false, int32(file.FileErr_NoError))
+	if len(errPaths) != 1 {
+		t.Errorf("Test case 4 in TestLoadTestData: expected 1 error path, got %d", len(errPaths))
+	}
+	if len(*svc.fileDataCache) != 2 {
+		t.Errorf("Test case 4 in TestLoadTestData: expected 2 files in cache, got %d", len(*svc.fileDataCache))
+	}
+	delTestDirOnHost(dirPath)
+
+	// Test case 5: Happy Path, load test data to a valid mount location with overwrite
+	createTestFilesOnHost(dirPath, "test5")
+	testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 5 in TestLoadTestData", false, int32(file.FileErr_NoError))
+	if len(*svc.fileDataCache) != 2 {
+		t.Errorf("Test case 5 in TestLoadTestData: expected 2 files in cache, got %d", len(*svc.fileDataCache))
+	}
+	// check if the content of the file is overwritten
+	for _, f := range *svc.fileDataCache {
+		if f.content != "test5" {
+			t.Errorf("Test case 5 in TestLoadTestData: expected file content to be test5, got %s", f.content)
+		}
+		delTestDirOnHost(dirPath)
+	}
+}
+
 //
-// helpers
+// Helper function
 //
 
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
@@ -385,20 +425,34 @@ func testFileWrite(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 	return file.UnmarshalFileId(resp.GetId())
 }
 
-func creatAGoodFile(t *testing.T, svc *fileSvcImpl) file.FileId {
-	return svc.createANewFile(filePath, fileContent)
-}
+func testDataLoad(t *testing.T, svc *fileSvcImpl, dirPath string, mountLocation string, returnOnFail bool,
+	msg string, errExpected bool, expectedErrCode int32) []string {
+	ctx := pcontext.DevNullContext(context.Background())
+	t.Helper()
 
-func openAGoodFile(t *testing.T, svc *fileSvcImpl) {
-	fid := (*svc.fpathTofid)[filePath]
-	myFileInfo := (*svc.fileDataCache)[fid]
+	req := &file.LoadTestDataRequest{
+		DirPath:       dirPath,
+		MountLocation: mountLocation,
+		ReturnOnFail:  returnOnFail,
+	}
+	resp := &file.LoadTestDataResponse{}
+	errCode := svc.loadTestData(ctx, req, resp)
+	errPaths := resp.GetErrorPath()
+	if errExpected {
+		if errCode != expectedErrCode {
+			t.Fatalf("Unexpected error code while loading test data: %s. Expected %d, but got %d",
+				msg, expectedErrCode, errCode)
+		}
+		return resp.GetErrorPath()
+	}
+	// if an error was not expected but one occurred.
+	if errCode != int32(file.FileErr_NoError) {
+		t.Fatalf("Unexpected error occurred while loading test data: %s. Error code: %d", msg, errCode)
+	}
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTime(svc.ctx)
-	myFileInfo.status = Fs_Read
-	myFileInfo.rdClose = openHookForStrings(myFileInfo.content)
-}
+	if !returnOnFail && len(errPaths) != 0 {
+		t.Fatalf("Don't expect any error path, because returnOnFail is false")
+	}
 
-func closeAGoodFile(t *testing.T, svc *fileSvcImpl) {
-	fid := (*svc.fpathTofid)[filePath]
-	(*svc.fileDataCache)[fid].status = Fs_Close
+	return resp.GetErrorPath()
 }

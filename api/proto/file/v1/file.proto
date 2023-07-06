@@ -76,7 +76,7 @@ message CloseResponse {
 // of the test filesystem (in memory).   This is only intended to be use for test code.
 message LoadTestDataRequest {
   // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
-  string path = 1;
+  string dir_path = 1;
   // where this new file will exist in the in-memory filesystem... this path
   // will be cleaned lexically and then joined to /app.  Note that it is possible
   // create paths with this parameter that cannot be opened because of
@@ -144,9 +144,10 @@ enum FileErr {
 
   // File state related errors
   AlreadyInUseError = 5; // The file is already being used.
-  NotExistError = 6; // The file does not exist
+  NotExistError = 6; // The file/path does not exist
   FileClosedError = 7; // The file status is CLOSED, cannot be accessed by a read or write request
+  NoDataFoundError = 8;
   
-  LargeBufError = 8; // The buffer for the file is too large
-  InternalError = 9; // There are internal issues with the file service
+  LargeBufError = 9; // The buffer for the file is too large
+  InternalError = 10; // There are internal issues with the file service
 }

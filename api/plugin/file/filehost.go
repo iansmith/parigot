@@ -3,7 +3,10 @@ package file
 import (
 	"context"
 	"io"
+	"io/fs"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 	"unsafe"
 
@@ -290,34 +293,6 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	return int32(file.FileErr_NoError)
 }
 
-// createANewFile is a helper function to create a new file in the file service.
-func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
-	if f.isTesting {
-		f.defaultCreateHook = createHookForStrings
-	}
-
-	currentTime := pcontext.CurrentTime(f.ctx)
-	fid := file.NewFileId()
-
-	newFileInfo := fileInfo{
-		id:             fid,
-		path:           fpath,
-		content:        fcontent,
-		status:         Fs_Write,
-		createDate:     currentTime,
-		lastAccessTime: currentTime,
-
-		wrClose: f.defaultCreateHook(fpath),
-	}
-
-	newFileInfo.Write([]byte(fcontent))
-
-	(*f.fileDataCache)[fid] = &newFileInfo
-	(*f.fpathTofid)[fpath] = fid
-
-	return fid
-}
-
 // turn the file status to close and close the file
 func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 	resp *file.CloseResponse) int32 {
@@ -498,4 +473,125 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
 	return int32(file.FileErr_NoError)
+}
+
+//
+// helper functions
+//
+
+// A helper function to create a new file in the file service.
+func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
+	if f.isTesting {
+		f.defaultCreateHook = createHookForStrings
+	}
+
+	currentTime := pcontext.CurrentTime(f.ctx)
+	fid := file.NewFileId()
+
+	newFileInfo := fileInfo{
+		id:             fid,
+		path:           fpath,
+		content:        fcontent,
+		status:         Fs_Write,
+		createDate:     currentTime,
+		lastAccessTime: currentTime,
+
+		wrClose: f.defaultCreateHook(fpath),
+	}
+
+	newFileInfo.Write([]byte(fcontent))
+
+	(*f.fileDataCache)[fid] = &newFileInfo
+	(*f.fpathTofid)[fpath] = fid
+
+	return fid
+}
+
+func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRequest,
+	resp *file.LoadTestDataResponse) int32 {
+
+	hostPath, dir := req.GetDirPath(), req.GetMountLocation()
+
+	// Validate the directory path in the host machine
+	if !isValidDirectory(hostPath) {
+		pcontext.Errorf(ctx, "Invalid directory path: %s", hostPath)
+		return int32(file.FileErr_NotExistError)
+	}
+
+	// Validate the directory path in the mount location
+	cleanPath, valid := isValidPath(dir)
+	if !valid {
+		pcontext.Errorf(ctx, "Invalid directory path: %s", dir)
+		return int32(file.FileErr_InvalidPathError)
+	}
+
+	resp.ErrorPath = []string{}
+
+	if f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
+		return int32(file.FileErr_NoDataFoundError)
+	}
+
+	return int32(file.FileErr_NoError)
+}
+
+// helper function
+
+// recursively load all files from the directory in the host machine
+// if such file already exists in the cache, rewrite it
+// otherwise, create a new file in the cache
+func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
+	resp *file.LoadTestDataResponse) bool {
+
+	isEmptyRoot := true
+
+	err := filepath.WalkDir(hostPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return handleLoadTestFileError(path, req, resp, err)
+		}
+		if !d.IsDir() {
+			isEmptyRoot = false
+			if err := f.processFile(path, cleanPath, req); err != nil {
+				return handleLoadTestFileError(path, req, resp, err)
+			}
+		}
+		return nil
+	})
+
+	// If returnOnFail is false and there is an error in reading files,
+	// program will be panic immediately and there is no need to return the error to the client.
+	if err != nil {
+		log.Fatalf("Error in loading test data: %v", err)
+	}
+
+	return isEmptyRoot
+}
+func (f *fileSvcImpl) processFile(hostPath string, cleanPath string, req *file.LoadTestDataRequest) error {
+	file, err := os.Open(hostPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	fcontent, err := io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	workPath := filepath.Join(cleanPath, hostPath[len(req.GetDirPath()):])
+
+	// If the file already exists in the cache, rewrite it
+	if fid, exist := (*f.fpathTofid)[workPath]; exist {
+		delete(*f.fileDataCache, fid)
+	}
+	f.createANewFile(workPath, string(fcontent))
+
+	return nil
+}
+
+func handleLoadTestFileError(path string, req *file.LoadTestDataRequest, resp *file.LoadTestDataResponse, err error) error {
+	if req.GetReturnOnFail() {
+		resp.ErrorPath = append(resp.ErrorPath, path)
+		return nil
+	}
+	return err
 }

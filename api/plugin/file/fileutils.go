@@ -15,7 +15,16 @@ func getRealPath(path string) string {
 	if err != nil {
 		log.Fatal("Error getting working directory:", err)
 	}
-	return filepath.Join(wd[:len(wd)-23], path)
+
+	realPath := ""
+	for _, part := range strings.Split(wd, "/") {
+		if part == "parigot" {
+			break
+		}
+		realPath += part + "/"
+	}
+
+	return filepath.Join(realPath, path)
 }
 
 // A given file path is valid based on some specific rules:
@@ -54,24 +63,39 @@ func deleteFileAndParentDirIfNeeded(path string) {
 		log.Fatalf("Failed to delete file: %s. Error: %v", path, err)
 	}
 
-	// // Walk up the directory tree and remove any empty directories.
-	// dir := filepath.Dir(realPath)
-	// for {
-	// 	// Read the directory.
-	// 	entries, err := os.ReadDir(dir)
-	// 	if err != nil {
-	// 		log.Fatal("Failed to read dir: ", err)
-	// 	}
+	// Walk up the directory tree and remove any empty directories.
+	dir := filepath.Dir(realPath)
+	for {
+		// Read the directory.
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			log.Fatal("Failed to read dir: ", err)
+		}
 
-	// 	// If the directory is not empty, we're done.
-	// 	if len(entries) > 0 {
-	// 		break
-	// 	}
+		// If the directory is not empty, we're done.
+		if len(entries) > 0 {
+			break
+		}
 
-	// 	// Delete the directory and move to its parent.
-	// 	if err := os.Remove(dir); err != nil {
-	// 		log.Fatal("Failed to remove dir: ", err)
-	// 	}
-	// 	dir = filepath.Dir(dir)
-	// }
+		// Delete the directory and move to its parent.
+		if err := os.Remove(dir); err != nil {
+			log.Fatal("Failed to remove dir: ", err)
+		}
+		dir = filepath.Dir(dir)
+	}
+}
+
+// Check whether a directory exists and is valid.
+func isValidDirectory(dirPath string) bool {
+	info, err := os.Stat(dirPath)
+	if err != nil {
+		return false
+	}
+	if !info.IsDir() {
+		// Path is not a directory
+		return false
+	}
+
+	// Directory exists and is valid
+	return true
 }
