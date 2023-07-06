@@ -1,5 +1,4 @@
 FROM ubuntu:22.04
-#RUN sed -i -e 's/archive.ubuntu.com\|security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
     hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
