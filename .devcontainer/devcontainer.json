@@ -3,7 +3,8 @@
   
 	"customizations": {
 	  "vscode": {
-		"extensions": [""]
+		"extensions": ["golang.go","ms-vscode.makefile-tools","ms-azuretools.vscode-docker",
+			"stkb.rewrap"]
 	  }
 	},
 	"mounts":[],
