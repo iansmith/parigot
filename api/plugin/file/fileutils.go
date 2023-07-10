@@ -9,6 +9,8 @@ import (
 	apishared "github.com/iansmith/parigot/api/shared"
 )
 
+const pathPrefix = apishared.FileServicePathPrefix
+
 func getRealPath(path string) string {
 	wd, err := os.Getwd()
 
@@ -27,22 +29,59 @@ func getRealPath(path string) string {
 	return filepath.Join(realPath, path)
 }
 
-// A given file path is valid based on some specific rules:
-// 1. The separator should be "/"
-// 2. It should start with specific prefix
-// 3. It should not contain any "." or ".." in the path
-// 4. It should not exceed a specific value for the number of parts in the path
-func isValidPath(fpath string) (string, bool) {
-	fileName := filepath.Base(fpath)
-	dir := strings.ReplaceAll(fpath, fileName, "")
-	if !strings.HasPrefix(dir, pathPrefix) || strings.Contains(dir, ".") {
+// Checks if the given string contains any illegal characters.
+func containsIllegalChars(s string) bool {
+	illegalChar := "*?><|&;$\\`\"'"
+	return strings.ContainsAny(s, illegalChar)
+}
+
+// Checks if the given path starts with the expected prefix.
+func startsWithPrefix(path, prefix string) bool {
+	return strings.HasPrefix(path, prefix)
+}
+
+// Checks if the given path contains "." or "..".
+func containsDisallowedPathComponents(path string) bool {
+	fileName := filepath.Base(path)
+	dir := path[:len(path)-len(fileName)-1]
+	return strings.Contains(dir, ".") || strings.Contains(fileName, "..") || fileName == "."
+}
+
+// Checks if the given path exceeds the maximum number of allowed parts.
+func exceedsMaxParts(path string) bool {
+	parts := strings.Split(path, "/")
+	return len(parts) > apishared.FileServiceMaxPathPart
+}
+
+// Validates if a given file path complies with specific rules.
+// Rules are:
+//  1. The separator should be "/"
+//  2. It should start with specific prefix
+//  3. It should not contain any "." or ".." in the path
+//  4. It should not exceed a specific value for the number of parts in the path
+//  5. It should avoid certain special characters, including:
+//     Asterisk (*)					Question mark (?)		Greater than (>)
+//     Less than (<)				Pipe symbol (|)			Ampersand (&)
+//     Semicolon (;)				Dollar sign ($)			Backtick (`)
+//     Double quotation marks (")	Single quotation mark (')
+//
+// Invalid example:
+//
+//	'/parigot/app/..' -> '..' is not allowed
+//	'/parigot/app/./' -> '.' is not allowed
+//	'/parigot/app/foo\bar' -> '\' is not allowed
+//	'//parigot/app/foo', '/parigot/app' -> prefix should be '/parigot/app/'
+func isValidFilePath(fpath string) (string, bool) {
+	if containsIllegalChars(fpath) || !startsWithPrefix(fpath, pathPrefix) {
+		return fpath, false
+	}
+
+	if containsDisallowedPathComponents(fpath) {
 		return fpath, false
 	}
 
 	cleanPath := filepath.Clean(fpath)
-
-	component := strings.Split(cleanPath, "/")
-	if len(component) > apishared.FileServiceMaxPathPart {
+	if exceedsMaxParts(cleanPath) {
 		return fpath, false
 	}
 
@@ -86,7 +125,7 @@ func deleteFileAndParentDirIfNeeded(path string) {
 }
 
 // Check whether a directory exists and is valid.
-func isValidDirectory(dirPath string) bool {
+func isValidDirOnHost(dirPath string) bool {
 	info, err := os.Stat(dirPath)
 	if err != nil {
 		return false

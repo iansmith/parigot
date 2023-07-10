@@ -15,8 +15,8 @@ const (
 	fileContent = "Hello!Parigot!"
 )
 
-func creatAGoodFile(svc *fileSvcImpl) file.FileId {
-	return svc.createANewFile(filePath, fileContent)
+func creatAGoodFile(svc *fileSvcImpl, fpath string, fcontent string) file.FileId {
+	return svc.createANewFile(fpath, fcontent)
 }
 
 func openAGoodFile(svc *fileSvcImpl) {

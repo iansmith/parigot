@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -26,7 +27,7 @@ import (
 // you'll need to pick the short names and letters for them... I would
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
-const pathPrefix = apishared.FileServicePathPrefix
+
 const maxBufSize = apishared.FileServiceMaxBufSize
 
 var (
@@ -222,7 +223,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	}
 
 	fpath := req.GetPath()
-	cleanPath, valid := isValidPath(fpath)
+	cleanPath, valid := isValidFilePath(fpath)
 
 	// Validate the file path
 	if !valid {
@@ -262,7 +263,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path
-	cleanPath, valid := isValidPath(fpath)
+	cleanPath, valid := isValidFilePath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
@@ -407,7 +408,7 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path
-	cleanPath, valid := isValidPath(fpath)
+	cleanPath, valid := isValidFilePath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
@@ -498,13 +499,13 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 	hostPath, dir := req.GetDirPath(), req.GetMountLocation()
 
 	// Validate the directory path in the host machine
-	if !isValidDirectory(hostPath) {
+	if !isValidDirOnHost(hostPath) {
 		pcontext.Errorf(ctx, "Invalid directory path: %s", hostPath)
 		return int32(file.FileErr_NotExistError)
 	}
 
 	// Validate the directory path in the mount location
-	cleanPath, valid := isValidPath(dir)
+	cleanPath, valid := isValidFilePath(dir)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid directory path: %s", dir)
 		return int32(file.FileErr_InvalidPathError)
@@ -512,7 +513,7 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 
 	resp.ErrorPath = []string{}
 
-	if !f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
+	if !f.loadFilesFromHost(hostPath, cleanPath, req, resp) {
 		return int32(file.FileErr_NoDataFoundError)
 	}
 
@@ -524,21 +525,31 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path, host can only operate on files have specific prefix
-	cleanPath, valid := isValidPath(fpath)
+	cleanPath, valid := isValidFilePath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
-	// Validate if the file exists in the cache
+	// Validate if the file/dir exists in the cache
 	fid, exist := (*f.fpathTofid)[cleanPath]
+	if exist {
+		f.populateStat(resp, cleanPath, fid, false)
+	} else {
+		// If the file does not exist, check if the directory exists
+		// If the directory exists, populate the directory stat
+		for path, newFid := range *f.fpathTofid {
+			if strings.HasPrefix(path, cleanPath) {
+				// Populate directory stat
+				f.populateStat(resp, cleanPath, newFid, true)
+				exist = true
+			}
+		}
+	}
 	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be stat: %s", cleanPath)
+		pcontext.Errorf(ctx, "Path does not exist, cannot be stat: %s", fpath)
 		return int32(file.FileErr_NotExistError)
 	}
-
-	// Populate file stat
-	f.populateFileStat(resp, cleanPath, fid)
 
 	return int32(file.FileErr_NoError)
 }
@@ -548,15 +559,21 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 //
 
 // A helper function to populate file stat.
-func (f *fileSvcImpl) populateFileStat(resp *file.StatResponse, cleanPath string, fid file.FileId) {
+func (f *fileSvcImpl) populateStat(resp *file.StatResponse, cleanPath string, fid file.FileId, isDir bool) {
 	fileStat := resp.GetFileInfo()
+
 	fileStat.Path = cleanPath
-	fileStat.Id = fid.Marshal()
-	fileStat.Size = int32((*f.fileDataCache)[fid].size)
-	fileStat.ModTime = timestamppb.New((*f.fileDataCache)[fid].ModTime)
-	fileStat.CreateTime = timestamppb.New((*f.fileDataCache)[fid].createTime)
-	fileStat.Status = (*f.fileDataCache)[fid].status.String()
-	fileStat.IsDir = false
+	fileStat.Size += int32((*f.fileDataCache)[fid].size)
+	fileStat.ModTime = updateTimestamp(fileStat.ModTime, (*f.fileDataCache)[fid].ModTime, true)
+	fileStat.CreateTime = updateTimestamp(fileStat.CreateTime, (*f.fileDataCache)[fid].createTime, false)
+	fileStat.IsDir = isDir
+}
+
+func updateTimestamp(t1 *timestamppb.Timestamp, t2 time.Time, isLatest bool) *timestamppb.Timestamp {
+	if isLatest == t1.AsTime().After(t2) {
+		return t1
+	}
+	return timestamppb.New(t2)
 }
 
 // A helper function to create a new file in the file service.
@@ -590,7 +607,7 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId 
 // recursively load all files from the directory in the host machine
 // if such file already exists in the cache, rewrite it
 // otherwise, create a new file in the cache
-func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
+func (f *fileSvcImpl) loadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
 	resp *file.LoadTestDataResponse) bool {
 
 	getAnyData := false

@@ -20,7 +20,7 @@ func TestOpenClose(t *testing.T) {
 	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
-	creatAGoodFile(svc)
+	creatAGoodFile(svc, filePath, fileContent)
 	closeAGoodFile(svc)
 
 	// Test case: Open a non-existent file.
@@ -43,7 +43,7 @@ func TestOpenClose(t *testing.T) {
 	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
 
 	// Create a good file
-	fid = creatAGoodFile(svc)
+	fid = creatAGoodFile(svc, filePath, fileContent)
 	openAGoodFile(svc)
 
 	// Test case: Open a file that is already open.
@@ -109,7 +109,7 @@ func TestRead(t *testing.T) {
 	testFileRead(t, svc, notExistFid, make([]byte, 2), "read a non-existent file",
 		true, int32(file.FileErr_NotExistError))
 
-	fid := creatAGoodFile(svc)
+	fid := creatAGoodFile(svc, filePath, fileContent)
 	closeAGoodFile(svc)
 
 	// Test case: Read a closed file
@@ -152,7 +152,7 @@ func TestWrite(t *testing.T) {
 	testFileWrite(t, svc, notExistFid, contentBuf, "Test cases 1 in Write",
 		true, int32(file.FileErr_NotExistError))
 
-	fid := creatAGoodFile(svc)
+	fid := creatAGoodFile(svc, filePath, fileContent)
 	closeAGoodFile(svc)
 
 	// Test case 2: Write a closed file
@@ -165,7 +165,7 @@ func TestWrite(t *testing.T) {
 		true, int32(file.FileErr_AlreadyInUseError))
 
 	// Test case 4: Write a file with 0 length buffer
-	fid = creatAGoodFile(svc)
+	fid = creatAGoodFile(svc, filePath, fileContent)
 	testFileWrite(t, svc, fid, []byte{}, "Test cases 4 in Write",
 		false, int32(file.FileErr_NoError))
 
@@ -181,7 +181,7 @@ func TestDelete(t *testing.T) {
 	testFileDelete(t, svc, filePath, "Test case 1 in TestDelete", true, int32(file.FileErr_NotExistError))
 
 	// Test case 2: Delete a file that is already in the written status
-	creatAGoodFile(svc)
+	creatAGoodFile(svc, filePath, fileContent)
 	testFileDelete(t, svc, filePath, "Test case 2 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
 	closeAGoodFile(svc)
 
@@ -215,7 +215,7 @@ func TestLoadTestData(t *testing.T) {
 	testDataLoad(t, svc, dirPath, "/xinyu/testdata", true, "Test case 3 in TestLoadTestData", true, int32(file.FileErr_InvalidPathError))
 
 	// Test case 4: Happy Path, load test data to a valid mount location
-	// 				One of test files is unreadable
+	//				Creates 3 test files in the specified directory, one of them is unreadable
 	createTestFilesOnHost(dirPath, "test4")
 	errPaths := testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 4 in TestLoadTestData", false, int32(file.FileErr_NoError))
 	if len(errPaths) != 1 {
@@ -251,15 +251,40 @@ func TestStat(t *testing.T) {
 	// Test case 2: Stat a invalid file path
 	testFileStat(t, svc, "/xinyu/testdata", "Test case 2 in TestStat", true, int32(file.FileErr_InvalidPathError))
 
-	// Test case 3: Happy Path
-	creatAGoodFile(svc)
-	testFileStat(t, svc, filePath, "Test case 3 in TestStat", false, int32(file.FileErr_NoError))
+	// Create 2 files in the directory "/parigot/app/" with the same content
+	// filePath: "/parigot/app/testfile.txt" and filePath2: "/parigot/app/testfile2.txt"
+	filePath2 := "/parigot/app/testfile2.txt"
+	creatAGoodFile(svc, filePath, fileContent)
+	creatAGoodFile(svc, filePath2, fileContent)
+
+	// Test case 3: Stat a file that is in the directory
+	file1Info := testFileStat(t, svc, filePath, "Test case 3 in TestStat", false, int32(file.FileErr_NoError))
+	if file1Info.GetPath() != filePath {
+		t.Errorf("Test case 3 in TestStat: expected file name to be %s, got %s", filePath, file1Info.GetPath())
+	}
+	if file1Info.GetSize() != int32(len(fileContent)) {
+		t.Errorf("Test case 3 in TestStat: expected file size to be %d, got %d", len(fileContent), file1Info.GetSize())
+	}
+	if file1Info.GetIsDir() {
+		t.Error("Test case 3 in TestStat: expected to be a file, got a directory")
+	}
+	// Test case 4: Happy Path, stat a directory
+	dir := apishared.FileServicePathPrefix
+	dirInfo := testFileStat(t, svc, dir, "Test case 4 in TestStat", false, int32(file.FileErr_NoError))
+	if !dirInfo.GetIsDir() {
+		t.Error("Test case 4 in TestStat: expected to be a directory, got a file")
+	}
+	if dirInfo.GetSize() != 2*file1Info.GetSize() {
+		t.Errorf("Test case 4 in TestStat: expected size to be %d, got %d", 2*file1Info.GetSize(), dirInfo.GetSize())
+	}
+
 }
 
 func TestRealFiles(t *testing.T) {
 	svc := newFileSvc(context.Background())
 
 	// Happy path
+	// create -> write -> close -> open -> read -> close -> delete
 	fid := testFileCreate(t, svc, filePath, fileContent, "create a real good file",
 		false, int32(file.FileErr_NoError))
 	testFileWrite(t, svc, fid, contentBuf, "write a real file", false, int32(file.FileErr_NoError))
@@ -473,7 +498,7 @@ func testDataLoad(t *testing.T, svc *fileSvcImpl, dirPath string, mountLocation 
 }
 
 func testFileStat(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
-	errExpected bool, expectedErrCode int32) {
+	errExpected bool, expectedErrCode int32) *file.FileInfo {
 
 	ctx := pcontext.DevNullContext(context.Background())
 	t.Helper()
@@ -494,14 +519,12 @@ func testFileStat(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 		if fileInfo.Path != "" {
 			t.Fatalf("Unexpected file path. Expected empty, but got %s", fileInfo.Path)
 		}
-		return
+		return &file.FileInfo{}
 	}
 	// If an error was not expected but one occurred.
 	if errCode != int32(file.FileErr_NoError) {
 		t.Fatalf("Unexpected error occurred while stat a file: %s. Error code: %d", msg, errCode)
 	}
 
-	if fileInfo.Path != fpath {
-		t.Fatalf("Unexpected file path. Expected %s, but got %s", fpath, fileInfo.Path)
-	}
+	return fileInfo
 }
