@@ -197,21 +197,6 @@ func TestDelete(t *testing.T) {
 	testFileDelete(t, svc, filePath, "Test case 5 in TestDelete", true, int32(file.FileErr_NotExistError))
 }
 
-func TestRealFiles(t *testing.T) {
-	svc := newFileSvc(context.Background())
-
-	// Happy path
-	fid := testFileCreate(t, svc, filePath, fileContent, "create a real good file",
-		false, int32(file.FileErr_NoError))
-	testFileWrite(t, svc, fid, contentBuf, "write a real file", false, int32(file.FileErr_NoError))
-	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-
-	testFileOpen(t, svc, filePath, "read a file", false, int32(file.FileErr_NoError))
-	testFileRead(t, svc, fid, make([]byte, 6), "read a real file", false, int32(file.FileErr_NoError))
-	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
-	testFileDelete(t, svc, filePath, "delete a file", false, int32(file.FileErr_NoError))
-}
-
 func TestLoadTestData(t *testing.T) {
 	svc := newFileSvc(context.Background())
 	svc.isTesting = true
@@ -254,6 +239,36 @@ func TestLoadTestData(t *testing.T) {
 		}
 		delTestDirOnHost(dirPath)
 	}
+}
+
+func TestStat(t *testing.T) {
+	svc := newFileSvc(context.Background())
+	svc.isTesting = true
+
+	// Test case 1: Stat a non-exist file
+	testFileStat(t, svc, filePath, "Test case 1 in TestStat", true, int32(file.FileErr_NotExistError))
+
+	// Test case 2: Stat a invalid file path
+	testFileStat(t, svc, "/xinyu/testdata", "Test case 2 in TestStat", true, int32(file.FileErr_InvalidPathError))
+
+	// Test case 3: Happy Path
+	creatAGoodFile(svc)
+	testFileStat(t, svc, filePath, "Test case 3 in TestStat", false, int32(file.FileErr_NoError))
+}
+
+func TestRealFiles(t *testing.T) {
+	svc := newFileSvc(context.Background())
+
+	// Happy path
+	fid := testFileCreate(t, svc, filePath, fileContent, "create a real good file",
+		false, int32(file.FileErr_NoError))
+	testFileWrite(t, svc, fid, contentBuf, "write a real file", false, int32(file.FileErr_NoError))
+	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
+
+	testFileOpen(t, svc, filePath, "read a file", false, int32(file.FileErr_NoError))
+	testFileRead(t, svc, fid, make([]byte, 6), "read a real file", false, int32(file.FileErr_NoError))
+	testFileClose(t, svc, fid, "close a file", false, int32(file.FileErr_NoError))
+	testFileDelete(t, svc, filePath, "delete a file", false, int32(file.FileErr_NoError))
 }
 
 //
@@ -455,4 +470,38 @@ func testDataLoad(t *testing.T, svc *fileSvcImpl, dirPath string, mountLocation 
 	}
 
 	return resp.GetErrorPath()
+}
+
+func testFileStat(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
+	errExpected bool, expectedErrCode int32) {
+
+	ctx := pcontext.DevNullContext(context.Background())
+	t.Helper()
+
+	req := &file.StatRequest{
+		Path: fpath,
+	}
+	resp := &file.StatResponse{
+		FileInfo: &file.FileInfo{},
+	}
+	errCode := svc.stat(ctx, req, resp)
+	fileInfo := resp.GetFileInfo()
+	if errExpected {
+		if errCode != expectedErrCode {
+			t.Fatalf("Unexpected error code while stat a file: %s. Expected %d, but got %d",
+				msg, expectedErrCode, errCode)
+		}
+		if fileInfo.Path != "" {
+			t.Fatalf("Unexpected file path. Expected empty, but got %s", fileInfo.Path)
+		}
+		return
+	}
+	// If an error was not expected but one occurred.
+	if errCode != int32(file.FileErr_NoError) {
+		t.Fatalf("Unexpected error occurred while stat a file: %s. Error code: %d", msg, errCode)
+	}
+
+	if fileInfo.Path != fpath {
+		t.Fatalf("Unexpected file path. Expected %s, but got %s", fpath, fileInfo.Path)
+	}
 }

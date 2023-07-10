@@ -25,7 +25,6 @@
 		"go.buildTags": "wasip1",
 		"editor.insertSpaces": false,
 		"workbench.editor.closeEmptyGroups": false,
-		"terminal.integrated.fontFamily": "'MesloLGS NF'",
 	},
 	"launch": {
 		"version": "0.2.0",

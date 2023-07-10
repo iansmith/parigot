@@ -23,7 +23,7 @@ func openAGoodFile(svc *fileSvcImpl) {
 	fid := (*svc.fpathTofid)[filePath]
 	myFileInfo := (*svc.fileDataCache)[fid]
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTime(svc.ctx)
+	myFileInfo.ModTime = pcontext.CurrentTime(svc.ctx)
 	myFileInfo.status = Fs_Read
 	myFileInfo.rdClose = openHookForStrings(myFileInfo.content)
 }

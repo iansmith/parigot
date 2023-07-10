@@ -2,6 +2,7 @@ syntax ="proto3";
 package file.v1;
 option go_package="github.com/iansmith/parigot/g/file/v1;file";
 import "protosupport/v1/protosupport.proto";
+import "google/protobuf/timestamp.proto";
 
 
 // This is the File service for parigot.  It is sandboxed such that caller to this service
@@ -125,6 +126,28 @@ message DeleteRequest {
 message DeleteResponse {
   string path = 1;
   protosupport.v1.IdRaw id = 2;
+}
+
+// StatRequest asks for the information about a file
+message StatRequest {
+  string path = 1;
+}
+
+
+// Define the FileInfo struct
+message FileInfo {
+  string path = 1;
+  protosupport.v1.IdRaw id = 2;
+  bool is_dir = 3;
+  int32 size = 4;
+  google.protobuf.Timestamp create_time = 5; // creation time
+  google.protobuf.Timestamp mod_time = 6; // modification time
+  string status = 7; // status of the file: WRITE, READ, CLOSED
+}
+
+// Use the FileInfo struct in the StatResponse message
+message StatResponse {
+  FileInfo file_info = 1;
 }
 
 enum FileErr {

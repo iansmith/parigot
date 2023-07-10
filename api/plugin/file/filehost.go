@@ -17,6 +17,7 @@ import (
 	"github.com/iansmith/parigot/g/file/v1"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -50,13 +51,13 @@ var (
 type FilePlugin struct{}
 
 type fileInfo struct {
-	id             file.FileId
-	path           string
-	length         int // length of the file content
-	content        string
-	status         FileStatus
-	createDate     time.Time
-	lastAccessTime time.Time
+	id         file.FileId
+	path       string
+	size       int // length of the file content
+	content    string
+	status     FileStatus
+	createTime time.Time
+	ModTime    time.Time
 
 	rdClose io.ReadCloser
 	wrClose io.WriteCloser
@@ -86,7 +87,7 @@ const (
 )
 
 func (fs FileStatus) String() string {
-	return []string{"Write", "Read", "Close"}[fs]
+	return []string{"WRITE", "READ", "CLOSE"}[fs]
 }
 
 func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
@@ -96,6 +97,8 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
 	e.AddSupportedFunc(ctx, "file", "delete_file_", deleteFileHost)
 	e.AddSupportedFunc(ctx, "file", "write_file_", writeFileHost)
+	e.AddSupportedFunc(ctx, "file", "load_test_data_", loadTestDataHost)
+	e.AddSupportedFunc(ctx, "file", "stat_", statHost)
 
 	_ = newFileSvc(ctx)
 
@@ -121,7 +124,7 @@ func (fi *fileInfo) Write(p []byte) (n int, err error) {
 		log.Fatal("Error writing to a file: ", err)
 	}
 
-	fi.length += n
+	fi.size += n
 	log.Printf("We write %d bytes", n)
 
 	return n, nil
@@ -179,6 +182,20 @@ func writeFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	hostBase(ctx, "[file]write", fileSvc.write, m, stack, req, resp)
 }
 
+func loadTestDataHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.LoadTestDataRequest{}
+	resp := &file.LoadTestDataResponse{}
+
+	hostBase(ctx, "[file]loadTestData", fileSvc.loadTestData, m, stack, req, resp)
+}
+
+func statHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &file.StatRequest{}
+	resp := &file.StatResponse{}
+
+	hostBase(ctx, "[file]stat", fileSvc.stat, m, stack, req, resp)
+}
+
 func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
@@ -233,7 +250,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Read
 	myFileInfo.rdClose = f.defaultOpenHook(cleanPath)
 
@@ -280,7 +297,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+		myFileInfo.ModTime = pcontext.CurrentTime(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
@@ -318,7 +335,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].lastAccessTime = pcontext.CurrentTime(ctx)
+	(*f.fileDataCache)[fid].ModTime = pcontext.CurrentTime(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -375,7 +392,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 
 	n, _ := myFileInfo.Read(buf)
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
@@ -468,43 +485,11 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 
 	n, _ := myFileInfo.Write(buf)
 
-	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
+	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
 	return int32(file.FileErr_NoError)
-}
-
-//
-// helper functions
-//
-
-// A helper function to create a new file in the file service.
-func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
-	if f.isTesting {
-		f.defaultCreateHook = createHookForStrings
-	}
-
-	currentTime := pcontext.CurrentTime(f.ctx)
-	fid := file.NewFileId()
-
-	newFileInfo := fileInfo{
-		id:             fid,
-		path:           fpath,
-		content:        fcontent,
-		status:         Fs_Write,
-		createDate:     currentTime,
-		lastAccessTime: currentTime,
-
-		wrClose: f.defaultCreateHook(fpath),
-	}
-
-	newFileInfo.Write([]byte(fcontent))
-
-	(*f.fileDataCache)[fid] = &newFileInfo
-	(*f.fpathTofid)[fpath] = fid
-
-	return fid
 }
 
 func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRequest,
@@ -527,14 +512,80 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 
 	resp.ErrorPath = []string{}
 
-	if f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
+	if !f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
 		return int32(file.FileErr_NoDataFoundError)
 	}
 
 	return int32(file.FileErr_NoError)
 }
 
-// helper function
+func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
+	resp *file.StatResponse) int32 {
+
+	fpath := req.GetPath()
+	// Validate the file path, host can only operate on files have specific prefix
+	cleanPath, valid := isValidPath(fpath)
+	if !valid {
+		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
+		return int32(file.FileErr_InvalidPathError)
+	}
+
+	// Validate if the file exists in the cache
+	fid, exist := (*f.fpathTofid)[cleanPath]
+	if !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be stat: %s", cleanPath)
+		return int32(file.FileErr_NotExistError)
+	}
+
+	// Populate file stat
+	f.populateFileStat(resp, cleanPath, fid)
+
+	return int32(file.FileErr_NoError)
+}
+
+//
+// helper functions
+//
+
+// A helper function to populate file stat.
+func (f *fileSvcImpl) populateFileStat(resp *file.StatResponse, cleanPath string, fid file.FileId) {
+	fileStat := resp.GetFileInfo()
+	fileStat.Path = cleanPath
+	fileStat.Id = fid.Marshal()
+	fileStat.Size = int32((*f.fileDataCache)[fid].size)
+	fileStat.ModTime = timestamppb.New((*f.fileDataCache)[fid].ModTime)
+	fileStat.CreateTime = timestamppb.New((*f.fileDataCache)[fid].createTime)
+	fileStat.Status = (*f.fileDataCache)[fid].status.String()
+	fileStat.IsDir = false
+}
+
+// A helper function to create a new file in the file service.
+func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
+	if f.isTesting {
+		f.defaultCreateHook = createHookForStrings
+	}
+
+	currentTime := pcontext.CurrentTime(f.ctx)
+	fid := file.NewFileId()
+
+	newFileInfo := fileInfo{
+		id:         fid,
+		path:       fpath,
+		content:    fcontent,
+		status:     Fs_Write,
+		createTime: currentTime,
+		ModTime:    currentTime,
+
+		wrClose: f.defaultCreateHook(fpath),
+	}
+
+	newFileInfo.Write([]byte(fcontent))
+
+	(*f.fileDataCache)[fid] = &newFileInfo
+	(*f.fpathTofid)[fpath] = fid
+
+	return fid
+}
 
 // recursively load all files from the directory in the host machine
 // if such file already exists in the cache, rewrite it
@@ -542,14 +593,14 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
 	resp *file.LoadTestDataResponse) bool {
 
-	isEmptyRoot := true
+	getAnyData := false
 
 	err := filepath.WalkDir(hostPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return handleLoadTestFileError(path, req, resp, err)
 		}
 		if !d.IsDir() {
-			isEmptyRoot = false
+			getAnyData = true
 			if err := f.processFile(path, cleanPath, req); err != nil {
 				return handleLoadTestFileError(path, req, resp, err)
 			}
@@ -563,7 +614,7 @@ func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string,
 		log.Fatalf("Error in loading test data: %v", err)
 	}
 
-	return isEmptyRoot
+	return getAnyData
 }
 func (f *fileSvcImpl) processFile(hostPath string, cleanPath string, req *file.LoadTestDataRequest) error {
 	file, err := os.Open(hostPath)
