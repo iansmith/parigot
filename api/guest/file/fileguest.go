@@ -69,5 +69,4 @@ func (f *myFileSvc) Write(ctx context.Context, in *file.WriteRequest) *file.Futu
 
 func (f *myFileSvc) Delete(ctx context.Context, in *file.DeleteRequest) *file.FutureDelete {
 	return file.DeleteHost(ctx, in)
-
 }
