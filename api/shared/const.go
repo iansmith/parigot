@@ -66,3 +66,4 @@ var FunctionTimeoutInMillis = int64(3000)
 
 const FileServiceMaxBufSize = 2048
 const FileServicePathPrefix = "/parigot/app/"
+const FileServiceMaxPathPart = 20

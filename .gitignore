@@ -7,7 +7,6 @@ tinygotest/*
 Makefile.orig
 .DS_Store
 .vscode/*
-!vscode/settings.json
 ui/parser/.antlr
 .bash_history
 .cache
