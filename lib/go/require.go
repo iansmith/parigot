@@ -14,14 +14,15 @@ import (
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr) {
+func Export1(pkg, name string, serviceId id.ServiceId) (*syscall.ExportResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
 	in := &syscall.ExportRequest{
-		Service: []*syscall.FullyQualifiedService{fqs},
-		HostId:  CurrentHostId().Marshal(),
+		ServiceId: serviceId.Marshal(),
+		Service:   []*syscall.FullyQualifiedService{fqs},
+		HostId:    CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Export(in)
 	return resp, kerr
@@ -45,7 +46,7 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 		Service:     name,
 	}
 	req.Fqs = fqs
-	req.IsClient = isClient
+	req.HostId = CurrentHostId().Marshal()
 	resp, err := syscallguest.Register(req)
 	if err != 0 {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name,

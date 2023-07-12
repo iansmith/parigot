@@ -58,7 +58,7 @@ func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) *lib
 	}()
 
 	myId := MustRegisterTest(ctx)
-	MustExportTest(ctx)
+	MustExportTest(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -256,7 +256,6 @@ func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "test",
 	}
 	req.Fqs = fqs
-    req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -290,8 +289,8 @@ func MustRequireTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExportTest(ctx context.Context) {
-    _, err:=lib.Export1("test.v1","test")
+func MustExportTest(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("test.v1","test",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","test")
         panic("not able to export test.v1.test:"+syscall.KernelErr_name[int32(err)])
@@ -431,7 +430,7 @@ func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl
 	}()
 
 	myId := MustRegisterMethodCallSuite(ctx)
-	MustExportMethodCallSuite(ctx)
+	MustExportMethodCallSuite(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -629,7 +628,6 @@ func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelE
 		Service:     "method_call_suite",
 	}
 	req.Fqs = fqs
-    req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -663,8 +661,8 @@ func MustRequireMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExportMethodCallSuite(ctx context.Context) {
-    _, err:=lib.Export1("test.v1","method_call_suite")
+func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("test.v1","method_call_suite",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","method_call_suite")
         panic("not able to export test.v1.method_call_suite:"+syscall.KernelErr_name[int32(err)])
@@ -804,7 +802,7 @@ func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl Under
 	}()
 
 	myId := MustRegisterUnderTest(ctx)
-	MustExportUnderTest(ctx)
+	MustExportUnderTest(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -985,7 +983,6 @@ func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "under_test",
 	}
 	req.Fqs = fqs
-    req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -1019,8 +1016,8 @@ func MustRequireUnderTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExportUnderTest(ctx context.Context) {
-    _, err:=lib.Export1("test.v1","under_test")
+func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("test.v1","under_test",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","under_test")
         panic("not able to export test.v1.under_test:"+syscall.KernelErr_name[int32(err)])

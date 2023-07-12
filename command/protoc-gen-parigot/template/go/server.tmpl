@@ -79,7 +79,7 @@ func Init{{$svcDiff}}(ctx context.Context,require []lib.MustRequireFunc, impl {{
 	}()
 
 	myId := MustRegister{{$svcDiff}}(ctx)
-	MustExport{{$svcDiff}}(ctx)
+	MustExport{{$svcDiff}}(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -277,7 +277,6 @@ func Register{{$svcDiff}}(ctx context.Context) (id.ServiceId, syscall.KernelErr)
 		Service:     "{{$svc}}",
 	}
 	req.Fqs = fqs
-    req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -311,8 +310,8 @@ func MustRequire{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExport{{$svcDiff}}(ctx context.Context) {
-    _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
+func MustExport{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","{{.ProtoPackage}}","{{$svc}}")
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
