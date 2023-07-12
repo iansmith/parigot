@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"plugin"
 	"strings"
@@ -16,6 +17,17 @@ import (
 
 var deployVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 
+const allowDeploySize = false
+
+const envVar = "PARIGOT_DEPLOYMENT"
+
+var chosen = os.Getenv(envVar) // should be treated as a constant
+
+// Deployment is a mapping from names to DeployConfigs.
+type Deployment struct {
+	Config map[string]*DeployConfig
+}
+
 // DeployConfig represents the microservices that the user has configured for this application.
 // Public fields in this struct are data that has been read from the user and has been
 // sanity checked.
@@ -24,7 +36,34 @@ type DeployConfig struct {
 	Flag             *DeployFlag
 	ParigotLibPath   string
 	ParigotLibSymbol string
+	Arrangement      DeployArrangement
+	ArrangementName  string
+	Size             DeploySize
+	SizeName         string
 }
+
+type DeploySize int
+type DeployArrangement int
+
+const (
+	SizeNotSpecified DeploySize = 0
+	SizeExtraSmall              = 1
+	SizeSmall                   = 2
+	SizeMedium                  = 3
+	SizeLarge                   = 4
+	SizeExtraLarge              = 5
+	SizeLast                    = SizeExtraLarge
+)
+const (
+	ArrangeNotSpecified       DeployArrangement = 0
+	LocalProcess                                = 1
+	LocalDocker                                 = 2
+	ArragementRemoteMarkerBit                   = 0x10000
+	RemoteProcess                               = ArragementRemoteMarkerBit | 1
+	RemoteDocker                                = ArragementRemoteMarkerBit | 2
+	ArrangementLocalLast                        = LocalDocker
+	ArrangementRemoteLast                       = RemoteDocker
+)
 
 // DeployFlag is a structure that comes from the command line passed to the runner itself.  These
 // switches have a large effect on how the runner behaves.
@@ -33,9 +72,6 @@ type DeployFlag struct {
 	// to run.  If TestMode is false, programs marked as Main will be run.  Note that microservices configured
 	// to be Test are ignored when TestMode is false, and vice versa with microservices marked as Main.
 	TestMode bool
-	// Remote being true means that the microservices should be run in separate address spaces.  If this flag
-	// is false, all the microservices are run in a single process (locally).
-	Remote bool
 }
 
 // Microservice is the unit of configuration for the DeployConfig. Public fields are data read from the user's
@@ -71,17 +107,43 @@ func (m *Microservice) Module() eng.Module {
 
 const maxServer = 32
 
-func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
-	var result DeployConfig
-	_, err := toml.DecodeFile(path, &result)
+func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, error) {
+	var deployment Deployment
+	md, err := toml.DecodeFile(path, &deployment)
 	if err != nil {
 		return nil, err
 	}
+	for i, j := range md.Undecoded() {
+		log.Printf("undecoded %d,%+v", i, j.String())
+	}
+
+	log.Printf("xxx -- parse %#v\n", deployment)
+	if chosen == "" {
+		chosen = "dev"
+	}
+	result, ok := deployment.Config[chosen]
+	if !ok {
+		return nil, fmt.Errorf("unable to find deployment '%s' in deployment descriptor '%s", chosen, path)
+	}
+	log.Printf("%s:got a config %+v", chosen, result)
+	// copied from user input
 	result.Flag = flag
+	// loop over the configs making text -> int conversions
+	for _, dc := range deployment.Config {
+		var err error
+		dc.Size, err = sizeToDeploySize(ctx, chosen, dc.SizeName, dc.Size)
+		if err != nil {
+			return nil, err
+		}
+		dc.Arrangement, err = arrangementToDeployArrangement(ctx, chosen, dc.ArrangementName, dc.Arrangement)
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.Printf("xxx %d microservices\n", len(result.Microservice))
 	for name, m := range result.Microservice {
 		// these are just copied to the microservice for convience
 		m.name = name
-		m.remote = flag.Remote
 
 		// get rid of spaces at the end and start of strings
 		m.WasmPath = strings.TrimSpace(m.WasmPath)
@@ -158,7 +220,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	if serverCount >= maxServer {
 		return nil, fmt.Errorf("too many server microservices found in configuration %s, limit on servers is %d", path, maxServer)
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, name string) (eng.Module, error) {
@@ -273,4 +335,88 @@ func pathExists(serviceName, path string, isPlugin bool) error {
 
 	}
 	return nil
+}
+
+func arrangementToDeployArrangement(ctx context.Context, name string, s string, da DeployArrangement) (DeployArrangement, error) {
+	daInRange := func(da DeployArrangement) bool {
+		if da&ArragementRemoteMarkerBit != 0 {
+			mask := ArragementRemoteMarkerBit - 1
+			da := int(da) & mask
+			if da <= int(ArrangeNotSpecified) || da > ArrangementRemoteLast {
+				return false
+			}
+			return true
+		}
+		if da <= ArrangeNotSpecified || da > ArrangementLocalLast {
+			return false
+		}
+		return true
+	}
+	isDev := strings.ToLower(name) == "dev"
+	if s == "" && da == ArrangeNotSpecified {
+		if isDev {
+			return LocalProcess, nil
+		} else {
+			return ArrangeNotSpecified, fmt.Errorf("exactly one of Arrangement or ArrangementName must be specified, neither found in deployment '%s'", name)
+		}
+	}
+	log.Printf("xxxx -- da in range? %d, %v", da, daInRange(da))
+	if s != "" && daInRange(da) {
+		return ArrangeNotSpecified, fmt.Errorf("exactly one of Arrangement or ArrangementName must be specified, both found in deployment '%s'", name)
+
+	}
+	if s != "" {
+		switch strings.ToLower(s) {
+		case "localprocess":
+			return LocalProcess, nil
+		case "localdocker":
+			return LocalDocker, nil
+		case "remoteprocess":
+			return RemoteProcess, nil
+		case "remotedocker":
+			return RemoteDocker, nil
+		}
+		return ArrangeNotSpecified, fmt.Errorf("arrangement '%s' is not knwon", s)
+	}
+	if !daInRange(da) {
+		return ArrangeNotSpecified, fmt.Errorf("arrangement number %d not known, valid values are from %d to %d and %d to %d",
+			da, ArrangeNotSpecified+1, ArrangementLocalLast, (ArrangeNotSpecified|ArragementRemoteMarkerBit)+1, (ArragementRemoteMarkerBit)|ArrangementRemoteLast)
+	}
+	return da, nil // it's ok
+}
+
+func sizeToDeploySize(ctx context.Context, name string, s string, ds DeploySize) (DeploySize, error) {
+	isDev := strings.ToLower(name) == "dev"
+	if isDev {
+		return SizeNotSpecified, nil
+	}
+	if !allowDeploySize && (s != "" || ds != SizeNotSpecified) {
+		return SizeNotSpecified, fmt.Errorf("deployment size value is not permitted for this runner")
+	}
+	if s != "" && ds != SizeNotSpecified {
+		return SizeNotSpecified, fmt.Errorf("exactly one of Size and SizeName must be specified, neither found")
+	}
+	if s == "" && ds == SizeNotSpecified {
+		return SizeNotSpecified, fmt.Errorf("exactly one of Size and SizeName must be specified, both found")
+	}
+	if s != "" {
+		switch strings.ToLower(s) {
+		case "extrasmall":
+			return SizeExtraSmall, nil
+		case "small":
+			return SizeSmall, nil
+		case "medium":
+			return SizeMedium, nil
+		case "large":
+			return SizeLarge, nil
+		case "extralarge":
+			return SizeExtraLarge, nil
+		}
+		return SizeNotSpecified, fmt.Errorf("unknown value for the SizeName field '%s'", s)
+	}
+	if ds <= SizeNotSpecified || ds > SizeLast {
+		return SizeNotSpecified, fmt.Errorf("unknown value Size field %d, values from %d to %d are accepted",
+			ds, SizeNotSpecified+1, SizeLast)
+	}
+	return ds, nil
 }
