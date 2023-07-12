@@ -16,7 +16,12 @@ const (
 )
 
 func creatAGoodFile(svc *fileSvcImpl, fpath string, fcontent string) file.FileId {
-	return svc.createANewFile(fpath, fcontent)
+	// return svc.createANewFile(fpath, fcontent)
+	fid, err := svc.createANewFile(fpath, fcontent)
+	if err != nil {
+		log.Fatal("Failed to create a file: ", err)
+	}
+	return fid
 }
 
 func openAGoodFile(svc *fileSvcImpl) {
@@ -25,7 +30,12 @@ func openAGoodFile(svc *fileSvcImpl) {
 
 	myFileInfo.ModTime = pcontext.CurrentTime(svc.ctx)
 	myFileInfo.status = Fs_Read
-	myFileInfo.rdClose = openHookForStrings(myFileInfo.content)
+
+	var err error
+	myFileInfo.rdClose, err = openHookForStrings(myFileInfo.content)
+	if err != nil {
+		log.Fatal("Failed to open a file: ", err)
+	}
 }
 
 func closeAGoodFile(svc *fileSvcImpl) {
@@ -73,9 +83,4 @@ func createTestFilesOnHost(path string, content string) {
 	}
 }
 
-func delTestDirOnHost(path string) {
-	err := os.RemoveAll(path)
-	if err != nil {
-		log.Fatal("Failed to delete test directory: ", err)
-	}
-}
+func delTestDirOnHost(path string) error { return os.RemoveAll(path) }

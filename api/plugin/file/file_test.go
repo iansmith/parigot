@@ -137,7 +137,7 @@ func TestRead(t *testing.T) {
 
 	// Test case: Read a file to the end
 	testFileRead(t, svc, fid, make([]byte, 2), "read a file to the end",
-		false, int32(file.FileErr_NoError))
+		true, int32(file.FileErr_EOFError))
 
 	// Test case: Read with a larger buffer than the maximum allowed buffer size
 	testFileRead(t, svc, fid, make([]byte, apishared.FileServiceMaxBufSize+1),
@@ -201,34 +201,37 @@ func TestLoadTestData(t *testing.T) {
 	svc := newFileSvc(context.Background())
 	svc.isTesting = true
 
-	dirPath := "/workspaces/parigot/testloaddata"
+	dirPath1 := "/workspaces/parigot/testloaddata1"
+	dirPath2 := "/workspaces/parigot/testloaddata2"
 	mountLocation := filepath.Join(apishared.FileServicePathPrefix, "testdata")
 
 	// Test case 1: Load test data from a non-exist directory
 	testDataLoad(t, svc, "/xinyu/testdata", mountLocation, true, "Test case 1 in TestLoadTestData", true, int32(file.FileErr_NotExistError))
 
 	// Test case 2: Load test data from an empty directory that contains no test data
-	createDirOnHost(dirPath)
-	testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 2 in TestLoadTestData", true, int32(file.FileErr_NoDataFoundError))
+	createDirOnHost(dirPath1)
+	testDataLoad(t, svc, dirPath1, mountLocation, true, "Test case 2 in TestLoadTestData", true, int32(file.FileErr_NoDataFoundError))
 
 	// Test case 3: Load test data to a invalid mount location
-	testDataLoad(t, svc, dirPath, "/xinyu/testdata", true, "Test case 3 in TestLoadTestData", true, int32(file.FileErr_InvalidPathError))
+	testDataLoad(t, svc, dirPath1, "/xinyu/testdata", true, "Test case 3 in TestLoadTestData", true, int32(file.FileErr_InvalidPathError))
 
 	// Test case 4: Happy Path, load test data to a valid mount location
 	//				Creates 3 test files in the specified directory, one of them is unreadable
-	createTestFilesOnHost(dirPath, "test4")
-	errPaths := testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 4 in TestLoadTestData", false, int32(file.FileErr_NoError))
+	createTestFilesOnHost(dirPath1, "test4")
+	defer delTestDirOnHost(dirPath1)
+	errPaths := testDataLoad(t, svc, dirPath1, mountLocation, true, "Test case 4 in TestLoadTestData", false, int32(file.FileErr_NoError))
 	if len(errPaths) != 1 {
 		t.Errorf("Test case 4 in TestLoadTestData: expected 1 error path, got %d", len(errPaths))
 	}
 	if len(*svc.fileDataCache) != 2 {
 		t.Errorf("Test case 4 in TestLoadTestData: expected 2 files in cache, got %d", len(*svc.fileDataCache))
 	}
-	delTestDirOnHost(dirPath)
 
 	// Test case 5: Happy Path, load test data to a valid mount location with overwrite
-	createTestFilesOnHost(dirPath, "test5")
-	testDataLoad(t, svc, dirPath, mountLocation, true, "Test case 5 in TestLoadTestData", false, int32(file.FileErr_NoError))
+	createTestFilesOnHost(dirPath2, "test5")
+	defer delTestDirOnHost(dirPath2)
+
+	testDataLoad(t, svc, dirPath2, mountLocation, true, "Test case 5 in TestLoadTestData", false, int32(file.FileErr_NoError))
 	if len(*svc.fileDataCache) != 2 {
 		t.Errorf("Test case 5 in TestLoadTestData: expected 2 files in cache, got %d", len(*svc.fileDataCache))
 	}
@@ -237,7 +240,6 @@ func TestLoadTestData(t *testing.T) {
 		if f.content != "test5" {
 			t.Errorf("Test case 5 in TestLoadTestData: expected file content to be test5, got %s", f.content)
 		}
-		delTestDirOnHost(dirPath)
 	}
 }
 
