@@ -57,7 +57,7 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Bar) *lib.Serv
 	}()
 
 	myId := MustRegister(ctx)
-	MustExport(ctx)
+	MustExport(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -238,7 +238,6 @@ func Register(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "bar",
 	}
 	req.Fqs = fqs
-    req.IsClient = false
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -272,8 +271,8 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExport(ctx context.Context) {
-    _, err:=lib.Export1("methodcall.bar.v1","bar")
+func MustExport(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("methodcall.bar.v1","bar",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","methodcall.bar.v1","bar")
         panic("not able to export methodcall.bar.v1.bar:"+syscall.KernelErr_name[int32(err)])

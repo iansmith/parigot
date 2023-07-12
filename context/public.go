@@ -102,6 +102,13 @@ func Errorf(ctx context.Context, spec string, rest ...interface{}) {
 		spec, rest...)
 }
 
+// Warnf is a shorthand for a call to LogFull with the currently set source in ctx, and
+// log level being Warn.
+func Warnf(ctx context.Context, spec string, rest ...interface{}) {
+	LogFullf(ctx, Warn, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
+		spec, rest...)
+}
+
 // Debugf is a shorthand for a call to LogFull with the currently set source in ctx, and
 // log level being Debug.  The function name is the one associated with the given ctx.
 func Debugf(ctx context.Context, spec string, rest ...interface{}) {

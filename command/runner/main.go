@@ -26,21 +26,21 @@ func main() {
 	}
 	flg := &runner.DeployFlag{
 		TestMode: *testMode,
-		Remote:   *remote,
 	}
 	defer func() {
 		// if r := recover(); r != nil {
 		// 	print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
 		// }
 	}()
-	config, err := runner.Parse(flag.Arg(0), flg)
+	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
+	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
+	defer pcontext.Dump(ctx)
+
+	config, err := runner.Parse(ctx, flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
-	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
-	defer pcontext.Dump(ctx)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)

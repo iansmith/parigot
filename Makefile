@@ -1,4 +1,3 @@
-API_VERSION=v1
 
 all: commands \
 	guest \
@@ -39,7 +38,7 @@ SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 #
 # GO
 #
-GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21 GOOS=wasip1 GOARCH=wasm go1.21
+GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21rc3 GOOS=wasip1 GOARCH=wasm go1.21rc3
 GO_TO_HOST=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
 GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
 
@@ -203,6 +202,8 @@ test: sqlc
 	go test -v github.com/iansmith/parigot/api/plugin/queue
 	go test -v github.com/iansmith/parigot/api/plugin/file
 	go test -v github.com/iansmith/parigot/lib/go/future
+	go test -v github.com/iansmith/parigot/api/plugin/syscall
+	go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
 #	build/runner -t test/func/methodcall/methodcall.toml 
 
 ###
