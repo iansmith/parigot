@@ -3,10 +3,7 @@ package file
 import (
 	"context"
 	"io"
-	"io/fs"
 	"log"
-	"os"
-	"path/filepath"
 	"time"
 	"unsafe"
 
@@ -17,7 +14,6 @@ import (
 	"github.com/iansmith/parigot/g/file/v1"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/tetratelabs/wazero/api"
 )
@@ -51,13 +47,13 @@ var (
 type FilePlugin struct{}
 
 type fileInfo struct {
-	id         file.FileId
-	path       string
-	size       int // length of the file content
-	content    string
-	status     FileStatus
-	createTime time.Time
-	ModTime    time.Time
+	id             file.FileId
+	path           string
+	length         int // length of the file content
+	content        string
+	status         FileStatus
+	createDate     time.Time
+	lastAccessTime time.Time
 
 	rdClose io.ReadCloser
 	wrClose io.WriteCloser
@@ -72,9 +68,6 @@ type fileSvcImpl struct {
 	// track fid based on file path
 	fpathTofid *map[string]file.FileId
 	isTesting  bool
-
-	defaultOpenHook   OpenHook
-	defaultCreateHook CreateHook
 }
 
 // enum for file status
@@ -87,7 +80,7 @@ const (
 )
 
 func (fs FileStatus) String() string {
-	return []string{"WRITE", "READ", "CLOSE"}[fs]
+	return []string{"Write", "Read", "Close"}[fs]
 }
 
 func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
@@ -96,9 +89,6 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)
 	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
 	e.AddSupportedFunc(ctx, "file", "delete_file_", deleteFileHost)
-	e.AddSupportedFunc(ctx, "file", "write_file_", writeFileHost)
-	e.AddSupportedFunc(ctx, "file", "load_test_data_", loadTestDataHost)
-	e.AddSupportedFunc(ctx, "file", "stat_", statHost)
 
 	_ = newFileSvc(ctx)
 
@@ -124,7 +114,7 @@ func (fi *fileInfo) Write(p []byte) (n int, err error) {
 		log.Fatal("Error writing to a file: ", err)
 	}
 
-	fi.size += n
+	fi.length += n
 	log.Printf("We write %d bytes", n)
 
 	return n, nil
@@ -175,27 +165,6 @@ func deleteFileHost(ctx context.Context, m api.Module, stack []uint64) {
 	hostBase(ctx, "[file]delete", fileSvc.delete, m, stack, req, resp)
 }
 
-func writeFileHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &file.WriteRequest{}
-	resp := &file.WriteResponse{}
-
-	hostBase(ctx, "[file]write", fileSvc.write, m, stack, req, resp)
-}
-
-func loadTestDataHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &file.LoadTestDataRequest{}
-	resp := &file.LoadTestDataResponse{}
-
-	hostBase(ctx, "[file]loadTestData", fileSvc.loadTestData, m, stack, req, resp)
-}
-
-func statHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &file.StatRequest{}
-	resp := &file.StatResponse{}
-
-	hostBase(ctx, "[file]stat", fileSvc.stat, m, stack, req, resp)
-}
-
 func newFileSvc(ctx context.Context) *fileSvcImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
@@ -204,9 +173,6 @@ func newFileSvc(ctx context.Context) *fileSvcImpl {
 		ctx:           newCtx,
 		fpathTofid:    &map[string]file.FileId{},
 		isTesting:     false,
-
-		defaultOpenHook:   openHookForFiles,
-		defaultCreateHook: createHookForFiles,
 	}
 
 	return f
@@ -218,7 +184,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If we are in test mode, set the default OpenHook to openHookForStrings.
 	// In this mode, we do not operate on the real files on the disk
 	if f.isTesting {
-		f.defaultOpenHook = openHookForStrings
+		defaultOpenHook = openHookForStrings
 	}
 
 	fpath := req.GetPath()
@@ -250,15 +216,20 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Read
-	myFileInfo.rdClose = f.defaultOpenHook(cleanPath)
+	myFileInfo.rdClose = defaultOpenHook(cleanPath)
 
 	return int32(file.FileErr_NoError)
 }
 
 func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	resp *file.CreateResponse) int32 {
+
+	// Set the defaultCreateHook for testing
+	if f.isTesting {
+		defaultCreateHook = createHookForStrings
+	}
 
 	fpath := req.GetPath()
 	// Validate the file path
@@ -297,7 +268,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+		myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
@@ -308,6 +279,34 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	}
 
 	return int32(file.FileErr_NoError)
+}
+
+// createANewFile is a helper function to create a new file in the file service.
+func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
+	if f.isTesting {
+		defaultCreateHook = createHookForStrings
+	}
+
+	currentTime := pcontext.CurrentTime(f.ctx)
+	fid := file.NewFileId()
+
+	newFileInfo := fileInfo{
+		id:             fid,
+		path:           fpath,
+		content:        fcontent,
+		status:         Fs_Write,
+		createDate:     currentTime,
+		lastAccessTime: currentTime,
+
+		wrClose: defaultCreateHook(fpath),
+	}
+
+	newFileInfo.Write([]byte(fcontent))
+
+	(*f.fileDataCache)[fid] = &newFileInfo
+	(*f.fpathTofid)[fpath] = fid
+
+	return fid
 }
 
 // turn the file status to close and close the file
@@ -335,7 +334,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].ModTime = pcontext.CurrentTime(ctx)
+	(*f.fileDataCache)[fid].lastAccessTime = pcontext.CurrentTime(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -378,7 +377,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 
 	// Check if the file's reader is initialized
 	if myFileInfo.rdClose == nil {
-		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
+		pcontext.Errorf(ctx, "File reader not initialized, cannot be read: %d", fid)
 		return int32(file.FileErr_InternalError)
 	}
 
@@ -392,7 +391,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 
 	n, _ := myFileInfo.Read(buf)
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.lastAccessTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
@@ -403,30 +402,20 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	resp *file.DeleteResponse) int32 {
 
-	// fid := file.UnmarshalFileId(req.GetId())
-
-	fpath := req.GetPath()
-	// Validate the file path
-	cleanPath, valid := isValidPath(fpath)
-	if !valid {
-		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
-		return int32(file.FileErr_InvalidPathError)
-	}
-
-	resp.Path = cleanPath
+	fid := file.UnmarshalFileId(req.GetId())
 
 	// Validate if the file exists in the cache
-	fid, exist := (*f.fpathTofid)[cleanPath]
-	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be deleted: %s", cleanPath)
+	if _, exist := (*f.fileDataCache)[fid]; !exist {
+		pcontext.Errorf(ctx, "File does not exist, cannot be closed: %d", fid)
 		return int32(file.FileErr_NotExistError)
 	}
-
 	// Ensure the file is not currently in use
 	if (*f.fileDataCache)[fid].status != Fs_Close {
 		pcontext.Errorf(ctx, "File is in use, cannot be deleted currently: %d", fid)
 		return int32(file.FileErr_AlreadyInUseError)
 	}
+
+	fpath := (*f.fileDataCache)[fid].path
 
 	// If testing, simply delete the file from the cache
 	// otherwise, delete it from the disk
@@ -438,211 +427,4 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	}
 
 	return int32(file.FileErr_NoError)
-}
-
-func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
-	resp *file.WriteResponse) int32 {
-
-	fid := file.UnmarshalFileId(req.GetId())
-	fileDataCache := *f.fileDataCache
-
-	// Validate if the file exists in the cache
-	if _, exist := fileDataCache[fid]; !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be write: %d", fid)
-		return int32(file.FileErr_NotExistError)
-	}
-
-	myFileInfo := (*f.fileDataCache)[fid]
-
-	// Verify file status to prevent errors during operation.
-	// Only files with "write" status can be processed.
-	switch myFileInfo.status {
-	// If file status is "closed", log an error and return a file closed error code.
-	case Fs_Close:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is closed.", fid)
-		return int32(file.FileErr_FileClosedError)
-	// If file status is "read", meaning it is currently being read by others,
-	// log an error and return a file already in use error code.
-	case Fs_Read:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is being read by others.", fid)
-		return int32(file.FileErr_AlreadyInUseError)
-	}
-
-	// Check writer initialization, we cannot write a file without writer
-	if myFileInfo.wrClose == nil {
-		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
-		return int32(file.FileErr_InternalError)
-	}
-
-	// Validate the requested buffer size
-	buf := req.GetBuf()
-	// Check is size of buf exceeds the maximum buffer size allowed
-	if !isValidBuf(buf) {
-		pcontext.Errorf(ctx, "the buffer size %d exceeds the maximum buffer"+
-			"size (%d) allowed", len(buf), maxBufSize)
-		return int32(file.FileErr_LargeBufError)
-	}
-
-	n, _ := myFileInfo.Write(buf)
-
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
-
-	resp.Id = req.GetId()
-	resp.NumWrite = int32(n)
-	return int32(file.FileErr_NoError)
-}
-
-func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRequest,
-	resp *file.LoadTestDataResponse) int32 {
-
-	hostPath, dir := req.GetDirPath(), req.GetMountLocation()
-
-	// Validate the directory path in the host machine
-	if !isValidDirectory(hostPath) {
-		pcontext.Errorf(ctx, "Invalid directory path: %s", hostPath)
-		return int32(file.FileErr_NotExistError)
-	}
-
-	// Validate the directory path in the mount location
-	cleanPath, valid := isValidPath(dir)
-	if !valid {
-		pcontext.Errorf(ctx, "Invalid directory path: %s", dir)
-		return int32(file.FileErr_InvalidPathError)
-	}
-
-	resp.ErrorPath = []string{}
-
-	if !f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
-		return int32(file.FileErr_NoDataFoundError)
-	}
-
-	return int32(file.FileErr_NoError)
-}
-
-func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
-	resp *file.StatResponse) int32 {
-
-	fpath := req.GetPath()
-	// Validate the file path, host can only operate on files have specific prefix
-	cleanPath, valid := isValidPath(fpath)
-	if !valid {
-		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
-		return int32(file.FileErr_InvalidPathError)
-	}
-
-	// Validate if the file exists in the cache
-	fid, exist := (*f.fpathTofid)[cleanPath]
-	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be stat: %s", cleanPath)
-		return int32(file.FileErr_NotExistError)
-	}
-
-	// Populate file stat
-	f.populateFileStat(resp, cleanPath, fid)
-
-	return int32(file.FileErr_NoError)
-}
-
-//
-// helper functions
-//
-
-// A helper function to populate file stat.
-func (f *fileSvcImpl) populateFileStat(resp *file.StatResponse, cleanPath string, fid file.FileId) {
-	fileStat := resp.GetFileInfo()
-	fileStat.Path = cleanPath
-	fileStat.Id = fid.Marshal()
-	fileStat.Size = int32((*f.fileDataCache)[fid].size)
-	fileStat.ModTime = timestamppb.New((*f.fileDataCache)[fid].ModTime)
-	fileStat.CreateTime = timestamppb.New((*f.fileDataCache)[fid].createTime)
-	fileStat.Status = (*f.fileDataCache)[fid].status.String()
-	fileStat.IsDir = false
-}
-
-// A helper function to create a new file in the file service.
-func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
-	if f.isTesting {
-		f.defaultCreateHook = createHookForStrings
-	}
-
-	currentTime := pcontext.CurrentTime(f.ctx)
-	fid := file.NewFileId()
-
-	newFileInfo := fileInfo{
-		id:         fid,
-		path:       fpath,
-		content:    fcontent,
-		status:     Fs_Write,
-		createTime: currentTime,
-		ModTime:    currentTime,
-
-		wrClose: f.defaultCreateHook(fpath),
-	}
-
-	newFileInfo.Write([]byte(fcontent))
-
-	(*f.fileDataCache)[fid] = &newFileInfo
-	(*f.fpathTofid)[fpath] = fid
-
-	return fid
-}
-
-// recursively load all files from the directory in the host machine
-// if such file already exists in the cache, rewrite it
-// otherwise, create a new file in the cache
-func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
-	resp *file.LoadTestDataResponse) bool {
-
-	getAnyData := false
-
-	err := filepath.WalkDir(hostPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return handleLoadTestFileError(path, req, resp, err)
-		}
-		if !d.IsDir() {
-			getAnyData = true
-			if err := f.processFile(path, cleanPath, req); err != nil {
-				return handleLoadTestFileError(path, req, resp, err)
-			}
-		}
-		return nil
-	})
-
-	// If returnOnFail is false and there is an error in reading files,
-	// program will be panic immediately and there is no need to return the error to the client.
-	if err != nil {
-		log.Fatalf("Error in loading test data: %v", err)
-	}
-
-	return getAnyData
-}
-func (f *fileSvcImpl) processFile(hostPath string, cleanPath string, req *file.LoadTestDataRequest) error {
-	file, err := os.Open(hostPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fcontent, err := io.ReadAll(file)
-	if err != nil {
-		return err
-	}
-
-	workPath := filepath.Join(cleanPath, hostPath[len(req.GetDirPath()):])
-
-	// If the file already exists in the cache, rewrite it
-	if fid, exist := (*f.fpathTofid)[workPath]; exist {
-		delete(*f.fileDataCache, fid)
-	}
-	f.createANewFile(workPath, string(fcontent))
-
-	return nil
-}
-
-func handleLoadTestFileError(path string, req *file.LoadTestDataRequest, resp *file.LoadTestDataResponse, err error) error {
-	if req.GetReturnOnFail() {
-		resp.ErrorPath = append(resp.ErrorPath, path)
-		return nil
-	}
-	return err
 }

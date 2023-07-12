@@ -2,7 +2,6 @@ syntax ="proto3";
 package file.v1;
 option go_package="github.com/iansmith/parigot/g/file/v1;file";
 import "protosupport/v1/protosupport.proto";
-import "google/protobuf/timestamp.proto";
 
 
 // This is the File service for parigot.  It is sandboxed such that caller to this service
@@ -77,7 +76,7 @@ message CloseResponse {
 // of the test filesystem (in memory).   This is only intended to be use for test code.
 message LoadTestDataRequest {
   // path is a path to a directory on the _host_ filesystem that is to be loaded in /app
-  string dir_path = 1;
+  string path = 1;
   // where this new file will exist in the in-memory filesystem... this path
   // will be cleaned lexically and then joined to /app.  Note that it is possible
   // create paths with this parameter that cannot be opened because of
@@ -120,34 +119,11 @@ message WriteResponse {
 }
 
 message DeleteRequest {
-  string path = 1;
+  protosupport.v1.IdRaw id = 1;
 }
 
 message DeleteResponse {
-  string path = 1;
-  protosupport.v1.IdRaw id = 2;
-}
-
-// StatRequest asks for the information about a file
-message StatRequest {
-  string path = 1;
-}
-
-
-// Define the FileInfo struct
-message FileInfo {
-  string path = 1;
-  protosupport.v1.IdRaw id = 2;
-  bool is_dir = 3;
-  int32 size = 4;
-  google.protobuf.Timestamp create_time = 5; // creation time
-  google.protobuf.Timestamp mod_time = 6; // modification time
-  string status = 7; // status of the file: WRITE, READ, CLOSED
-}
-
-// Use the FileInfo struct in the StatResponse message
-message StatResponse {
-  FileInfo file_info = 1;
+  protosupport.v1.IdRaw id = 1;
 }
 
 enum FileErr {
@@ -156,21 +132,17 @@ enum FileErr {
   DispatchError = 1; //mandatory
   UnmarshalError = 2; // mandatory
   MarshalError = 3; // mandatory
-
-  // Path related errors
-  // InvalidPathError: Provided path name is not valid based on following rules:
-  // 1. The separator should be "/"
-  // 2. It should start with specific prefix
-  // 3. It should not contain any "." or ".." in the path
-  // 4. It should not exceed a specific limit for the number of parts in the path
+ // InvalidPathError indicates that the provided path name is not a valid identifier. Identifiers must be 
+  // the shortest path name equivalent to the given path, derived through pure lexical processing. 
+  // Specifically, it should start with specific prefix, and any usage of '.' or '..' in the path is disallowed.
   InvalidPathError = 4;
-
-  // File state related errors
-  AlreadyInUseError = 5; // The file is already being used.
-  NotExistError = 6; // The file/path does not exist
-  FileClosedError = 7; // The file status is CLOSED, cannot be accessed by a read or write request
-  NoDataFoundError = 8;
-  
-  LargeBufError = 9; // The buffer for the file is too large
-  InternalError = 10; // There are internal issues with the file service
+  // AlreadyInUseError means that the file is already being used.
+  AlreadyInUseError = 5;
+  // NotExistError means that the file does not exist
+  NotExistError = 6;
+  // FileClosedError means that the status of the file is CLOSED, hence it cannot be accessed by a read or write request.
+  FileClosedError = 7;
+  LargeBufError = 8;
+  // InternalError means that there are issues with the file service.
+  InternalError = 9;
 }
