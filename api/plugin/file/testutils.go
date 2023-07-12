@@ -28,7 +28,7 @@ func openAGoodFile(svc *fileSvcImpl) {
 	fid := (*svc.fpathTofid)[filePath]
 	myFileInfo := (*svc.fileDataCache)[fid]
 
-	myFileInfo.ModTime = pcontext.CurrentTime(svc.ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(svc.ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error

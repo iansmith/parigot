@@ -42,12 +42,10 @@ func openHookForStrings(str string) (io.ReadCloser, error) {
 func openHookForFiles(path string) (io.ReadCloser, error) {
 	realPath, err := getRealPath(path)
 	if err != nil {
-		// log.Fatal("Error opening a file: ", file.FileErr_InternalError.String())
 		return nil, err
 	}
 	f, err := os.Open(realPath)
 	if err != nil {
-		// log.Fatal("Error form opening a file: ", err)
 		return nil, err
 	}
 	return f, nil
@@ -63,19 +61,16 @@ func createHookForStrings(str string) (io.WriteCloser, error) {
 func createHookForFiles(path string) (io.WriteCloser, error) {
 	realPath, err := getRealPath(path)
 	if err != nil {
-		// log.Fatal("Error creating a file: ", file.FileErr_InternalError.String())
 		return nil, err
 	}
 	// If it does not exist, recursively create the directory
 	err = os.MkdirAll(filepath.Dir(realPath), 0755)
 	if err != nil {
-		// log.Fatal("Error creating directory:", file.FileErr_InternalError.String())
 		return nil, err
 	}
 
 	f, err := os.Create(realPath)
 	if err != nil {
-		// log.Fatal("Error from creating a file: ", file.FileErr_InternalError.String())
 		return nil, err
 	}
 

@@ -58,7 +58,7 @@ type fileInfo struct {
 	content    string
 	status     FileStatus
 	createTime time.Time
-	ModTime    time.Time
+	modTime    time.Time
 
 	rdClose io.ReadCloser
 	wrClose io.WriteCloser
@@ -213,7 +213,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	}
 
 	fpath := req.GetPath()
-	cleanPath, valid := isValidFilePath(fpath)
+	cleanPath, valid := isValidPath(fpath)
 
 	// Validate the file path
 	if !valid {
@@ -241,7 +241,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error
@@ -259,7 +259,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path
-	cleanPath, valid := isValidFilePath(fpath)
+	cleanPath, valid := isValidPath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
@@ -294,7 +294,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+		myFileInfo.modTime = pcontext.CurrentTime(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
@@ -336,7 +336,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].ModTime = pcontext.CurrentTime(ctx)
+	(*f.fileDataCache)[fid].modTime = pcontext.CurrentTime(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -397,7 +397,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 		return int32(file.FileErr_ReadError)
 	}
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
@@ -413,7 +413,7 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path
-	cleanPath, valid := isValidFilePath(fpath)
+	cleanPath, valid := isValidPath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
@@ -499,7 +499,7 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 		return int32(file.FileErr_WriteError)
 	}
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
@@ -518,7 +518,7 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 	}
 
 	// Validate the directory path in the mount location
-	cleanPath, valid := isValidFilePath(dir)
+	cleanPath, valid := isValidPath(dir)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid directory path: %s", dir)
 		return int32(file.FileErr_InvalidPathError)
@@ -538,7 +538,7 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 
 	fpath := req.GetPath()
 	// Validate the file path, host can only operate on files have specific prefix
-	cleanPath, valid := isValidFilePath(fpath)
+	cleanPath, valid := isValidPath(fpath)
 	if !valid {
 		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
 		return int32(file.FileErr_InvalidPathError)
@@ -560,7 +560,7 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 		}
 	}
 	if !exist {
-		pcontext.Errorf(ctx, "Path does not exist, cannot be stat: %s", fpath)
+		pcontext.Errorf(ctx, "Path does not exist, cannot be stat: %s", cleanPath)
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -571,13 +571,13 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 // helper functions
 //
 
-// A helper function to populate file stat.
+// A helper function to populate file/dir stat.
 func (f *fileSvcImpl) populateStat(resp *file.StatResponse, cleanPath string, fid file.FileId, isDir bool) {
 	fileStat := resp.GetFileInfo()
 
 	fileStat.Path = cleanPath
 	fileStat.Size += int32((*f.fileDataCache)[fid].size)
-	fileStat.ModTime = updateTimestamp(fileStat.ModTime, (*f.fileDataCache)[fid].ModTime, true)
+	fileStat.ModTime = updateTimestamp(fileStat.ModTime, (*f.fileDataCache)[fid].modTime, true)
 	fileStat.CreateTime = updateTimestamp(fileStat.CreateTime, (*f.fileDataCache)[fid].createTime, false)
 	fileStat.IsDir = isDir
 }
@@ -604,7 +604,7 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) (file.FileId
 		content:    fcontent,
 		status:     Fs_Write,
 		createTime: currentTime,
-		ModTime:    currentTime,
+		modTime:    currentTime,
 	}
 	var err error
 	newFileInfo.wrClose, err = f.defaultCreateHook(fpath)

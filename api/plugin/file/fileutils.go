@@ -53,7 +53,7 @@ func exceedsMaxParts(path string) bool {
 }
 
 // Validates if a given file path complies with specific rules.
-func isValidFilePath(fpath string) (string, bool) {
+func isValidPath(fpath string) (string, bool) {
 	if containsIllegalChars(fpath) || !startsWithPrefix(fpath, pathPrefix) {
 		return fpath, false
 	}

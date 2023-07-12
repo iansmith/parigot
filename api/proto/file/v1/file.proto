@@ -155,7 +155,9 @@ enum FileErr {
   UnmarshalError = 2; // mandatory
   MarshalError = 3; // mandatory
 
-  // Rules are:
+  // Path related errors
+
+  // InvalidPathError: Provided path name is not valid based on following rules:
   //  1. The separator should be "/"
   //  2. It should start with specific prefix -> '/parigot/app/'
   //  3. It should not contain any "." or ".." in the path
