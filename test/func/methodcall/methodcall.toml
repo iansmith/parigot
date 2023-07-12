@@ -1,6 +1,7 @@
 ## Note that because this is consumed from the parigot root dir, the paths provided
 ## are relative to that dir, not this dir
 
+
 ParigotLibPath="build/syscall.so"
 ParigotLibSymbol="ParigotInitialize"
 
@@ -12,7 +13,6 @@ Env=["PARIGOT_GOOD=bad"]
 
 [microservice.bar]
 WasmPath="build/methodcallbar.p.wasm"
-
 Arg=["methodcallbar.p.wasm"]
 Env=["PARIGOT_SOFT=hard"]
 
