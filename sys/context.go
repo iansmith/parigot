@@ -61,6 +61,7 @@ func (c *DeployContext) Process() *sync.Map {
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
 func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
+	log.Printf("xxx create all proc: %#v   ;;; %#v", c.config, c.config.Microservice["bar"])
 	// load the parigot syscalls, this is done based on the config in the .toml file
 	err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"),
 		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")

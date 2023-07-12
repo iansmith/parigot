@@ -19,6 +19,12 @@ type ParigotInit interface {
 // want the default implementation.  This function accepts third
 // string param (name) but ignores it.
 func LoadAndReturnInit(ctx context.Context, pluginPath, pluginSymbol, _ string) (ParigotInit, error) {
+	if pluginPath == "" {
+		return nil, fmt.Errorf("cannot load a plugin with no path provided")
+	}
+	if pluginSymbol == "" {
+		return nil, fmt.Errorf("cannot load a plugin with no symbol provided")
+	}
 	plug, err := plugin.Open(pluginPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
