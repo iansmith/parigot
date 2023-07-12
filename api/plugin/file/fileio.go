@@ -51,6 +51,8 @@ func openHookForFiles(path string) io.ReadCloser {
 
 type OpenHook func(pathOrString string) io.ReadCloser
 
+var defaultOpenHook OpenHook = openHookForFiles
+
 // Create hook
 func createHookForStrings(str string) io.WriteCloser {
 	return NewBytesBufferWrapper(&bytes.Buffer{})
@@ -73,3 +75,5 @@ func createHookForFiles(path string) io.WriteCloser {
 }
 
 type CreateHook func(path string) io.WriteCloser
+
+var defaultCreateHook CreateHook = createHookForFiles
