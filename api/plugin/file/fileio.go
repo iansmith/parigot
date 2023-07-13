@@ -3,7 +3,6 @@ package file
 import (
 	"bytes"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,40 +35,46 @@ func NewBytesBufferWrapper(b *bytes.Buffer) *BytesBufferWrapper {
 func (b *BytesBufferWrapper) Close() error { return nil }
 
 // Open hook
-func openHookForStrings(str string) io.ReadCloser {
-	return NewStringReaderWrapper(strings.NewReader(str))
+func openHookForStrings(str string) (io.ReadCloser, error) {
+	return NewStringReaderWrapper(strings.NewReader(str)), nil
 }
 
-func openHookForFiles(path string) io.ReadCloser {
-	realPath := getRealPath(path)
+func openHookForFiles(path string) (io.ReadCloser, error) {
+	realPath, err := getRealPath(path)
+	if err != nil {
+		return nil, err
+	}
 	f, err := os.Open(realPath)
 	if err != nil {
-		log.Fatal("Error form opening a file: ", err)
+		return nil, err
 	}
-	return f
+	return f, nil
 }
 
-type OpenHook func(pathOrString string) io.ReadCloser
+type OpenHook func(pathOrString string) (io.ReadCloser, error)
 
 // Create hook
-func createHookForStrings(str string) io.WriteCloser {
-	return NewBytesBufferWrapper(&bytes.Buffer{})
+func createHookForStrings(str string) (io.WriteCloser, error) {
+	return NewBytesBufferWrapper(&bytes.Buffer{}), nil
 }
 
-func createHookForFiles(path string) io.WriteCloser {
-	realPath := getRealPath(path)
-	// If it does not exist, recursively create the directory
-	err := os.MkdirAll(filepath.Dir(realPath), 0755)
+func createHookForFiles(path string) (io.WriteCloser, error) {
+	realPath, err := getRealPath(path)
 	if err != nil {
-		log.Fatal("Error creating directory:", err)
+		return nil, err
+	}
+	// If it does not exist, recursively create the directory
+	err = os.MkdirAll(filepath.Dir(realPath), 0755)
+	if err != nil {
+		return nil, err
 	}
 
 	f, err := os.Create(realPath)
 	if err != nil {
-		log.Fatal("Error from creating a file: ", err)
+		return nil, err
 	}
 
-	return f
+	return f, nil
 }
 
-type CreateHook func(path string) io.WriteCloser
+type CreateHook func(path string) (io.WriteCloser, error)

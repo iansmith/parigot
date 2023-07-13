@@ -1,7 +1,6 @@
 package file
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,11 +8,13 @@ import (
 	apishared "github.com/iansmith/parigot/api/shared"
 )
 
-func getRealPath(path string) string {
+const pathPrefix = apishared.FileServicePathPrefix
+
+func getRealPath(path string) (string, error) {
 	wd, err := os.Getwd()
 
 	if err != nil {
-		log.Fatal("Error getting working directory:", err)
+		return "", err
 	}
 
 	realPath := ""
@@ -24,25 +25,45 @@ func getRealPath(path string) string {
 		realPath += part + "/"
 	}
 
-	return filepath.Join(realPath, path)
+	return filepath.Join(realPath, path), nil
 }
 
-// A given file path is valid based on some specific rules:
-// 1. The separator should be "/"
-// 2. It should start with specific prefix
-// 3. It should not contain any "." or ".." in the path
-// 4. It should not exceed a specific value for the number of parts in the path
+// Checks if the given string contains any illegal characters.
+func containsIllegalChars(s string) bool {
+	illegalChar := "*?><|&;$\\`\"'"
+	return strings.ContainsAny(s, illegalChar)
+}
+
+// Checks if the given path starts with the expected prefix.
+func startsWithPrefix(path, prefix string) bool {
+	return strings.HasPrefix(path, prefix)
+}
+
+// Checks if the given path contains "." or "..".
+func containsDisallowedPathComponents(path string) bool {
+	fileName := filepath.Base(path)
+	dir := path[:len(path)-len(fileName)-1]
+	return strings.Contains(dir, ".") || strings.Contains(fileName, "..") || fileName == "."
+}
+
+// Checks if the given path exceeds the maximum number of allowed parts.
+func exceedsMaxParts(path string) bool {
+	parts := strings.Split(path, "/")
+	return len(parts) > apishared.FileServiceMaxPathPart
+}
+
+// Validates if a given file path complies with specific rules.
 func isValidPath(fpath string) (string, bool) {
-	fileName := filepath.Base(fpath)
-	dir := strings.ReplaceAll(fpath, fileName, "")
-	if !strings.HasPrefix(dir, pathPrefix) || strings.Contains(dir, ".") {
+	if containsIllegalChars(fpath) || !startsWithPrefix(fpath, pathPrefix) {
+		return fpath, false
+	}
+
+	if containsDisallowedPathComponents(fpath) {
 		return fpath, false
 	}
 
 	cleanPath := filepath.Clean(fpath)
-
-	component := strings.Split(cleanPath, "/")
-	if len(component) > apishared.FileServiceMaxPathPart {
+	if exceedsMaxParts(cleanPath) {
 		return fpath, false
 	}
 
@@ -52,15 +73,16 @@ func isValidPath(fpath string) (string, bool) {
 func isValidBuf(buf []byte) bool { return len(buf) <= maxBufSize }
 
 // Deletes the specified file and its parent directories if they're empty
-func deleteFileAndParentDirIfNeeded(path string) {
-	realPath := getRealPath(path)
-
-	log.Println("Deleting file: ", realPath)
+func deleteFileAndParentDirIfNeeded(path string) error {
+	realPath, err := getRealPath(path)
+	if err != nil {
+		return err
+	}
 
 	// Delete the file
-	err := os.Remove(realPath)
+	err = os.Remove(realPath)
 	if err != nil {
-		log.Fatalf("Failed to delete file: %s. Error: %v", path, err)
+		return err
 	}
 
 	// Walk up the directory tree and remove any empty directories.
@@ -69,7 +91,7 @@ func deleteFileAndParentDirIfNeeded(path string) {
 		// Read the directory.
 		entries, err := os.ReadDir(dir)
 		if err != nil {
-			log.Fatal("Failed to read dir: ", err)
+			return err
 		}
 
 		// If the directory is not empty, we're done.
@@ -79,23 +101,24 @@ func deleteFileAndParentDirIfNeeded(path string) {
 
 		// Delete the directory and move to its parent.
 		if err := os.Remove(dir); err != nil {
-			log.Fatal("Failed to remove dir: ", err)
+			return err
 		}
 		dir = filepath.Dir(dir)
 	}
+	return nil
 }
 
 // Check whether a directory exists and is valid.
-func isValidDirectory(dirPath string) bool {
+func isValidDirOnHost(dirPath string) (bool, error) {
 	info, err := os.Stat(dirPath)
 	if err != nil {
-		return false
+		return false, err
 	}
 	if !info.IsDir() {
 		// Path is not a directory
-		return false
+		return false, err
 	}
 
 	// Directory exists and is valid
-	return true
+	return true, nil
 }
