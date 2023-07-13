@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -26,7 +27,7 @@ import (
 // you'll need to pick the short names and letters for them... I would
 // recommend f for FileId and F for FileErrId, but you can choose
 // others if you want.
-const pathPrefix = apishared.FileServicePathPrefix
+
 const maxBufSize = apishared.FileServiceMaxBufSize
 
 var (
@@ -57,7 +58,7 @@ type fileInfo struct {
 	content    string
 	status     FileStatus
 	createTime time.Time
-	ModTime    time.Time
+	modTime    time.Time
 
 	rdClose io.ReadCloser
 	wrClose io.WriteCloser
@@ -106,26 +107,16 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 }
 
 func (fi *fileInfo) Read(p []byte) (n int, err error) {
-	n, err = fi.rdClose.Read(p)
-	if err == io.EOF {
-		log.Printf("We read %d bytes and the file has exhausted its content", n)
-	} else if err != nil {
-		log.Fatal("Error reading from a file: ", err)
-	} else {
-		log.Printf("We read %d bytes", n)
-	}
-
-	return n, err
+	return fi.rdClose.Read(p)
 }
 
 func (fi *fileInfo) Write(p []byte) (n int, err error) {
 	n, err = fi.wrClose.Write(p)
 	if err != nil {
-		log.Fatal("Error writing to a file: ", err)
+		return 0, err
 	}
 
 	fi.size += n
-	log.Printf("We write %d bytes", n)
 
 	return n, nil
 }
@@ -250,9 +241,15 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 	myFileInfo.status = Fs_Read
-	myFileInfo.rdClose = f.defaultOpenHook(cleanPath)
+
+	var err error
+	myFileInfo.rdClose, err = f.defaultOpenHook(cleanPath)
+	if err != nil {
+		pcontext.Errorf(ctx, "Failed to open file for reading: %s", fpath)
+		return int32(file.FileErr_OpenError)
+	}
 
 	return int32(file.FileErr_NoError)
 }
@@ -297,13 +294,17 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+		myFileInfo.modTime = pcontext.CurrentTime(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
 	} else {
 		// If file/path does not exist, create a new file
-		fid := f.createANewFile(cleanPath, content)
+		fid, err := f.createANewFile(cleanPath, content)
+		if err != nil {
+			pcontext.Errorf(ctx, "Failed to create a new file: %s", fpath)
+			return int32(file.FileErr_CreateError)
+		}
 		resp.Id = fid.Marshal()
 	}
 
@@ -335,7 +336,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].ModTime = pcontext.CurrentTime(ctx)
+	(*f.fileDataCache)[fid].modTime = pcontext.CurrentTime(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -385,25 +386,30 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 	// Validate the requested buffer size
 	buf := req.GetBuf()
 	if !isValidBuf(buf) {
-		pcontext.Errorf(ctx, "the expected buffer size %d exceeds the maximum buffer"+
+		pcontext.Errorf(ctx, "The expected buffer size %d exceeds the maximum buffer"+
 			"size (%d) allowed", len(buf), maxBufSize)
 		return int32(file.FileErr_LargeBufError)
 	}
 
-	n, _ := myFileInfo.Read(buf)
+	n, err := myFileInfo.Read(buf)
+	if err != nil && err != io.EOF {
+		pcontext.Errorf(ctx, "Failed to read: %d", fid)
+		return int32(file.FileErr_ReadError)
+	}
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
 
+	if err == io.EOF {
+		return int32(file.FileErr_EOFError)
+	}
 	return int32(file.FileErr_NoError)
 }
 
 func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	resp *file.DeleteResponse) int32 {
-
-	// fid := file.UnmarshalFileId(req.GetId())
 
 	fpath := req.GetPath()
 	// Validate the file path
@@ -434,7 +440,11 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 		delete(*f.fileDataCache, fid)
 		delete(*f.fpathTofid, fpath)
 	} else {
-		deleteFileAndParentDirIfNeeded(fpath)
+		err := deleteFileAndParentDirIfNeeded(fpath)
+		if err != nil {
+			pcontext.Errorf(ctx, "Error deleting file: %s", err.Error())
+			return int32(file.FileErr_DeleteError)
+		}
 	}
 
 	return int32(file.FileErr_NoError)
@@ -483,9 +493,13 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 		return int32(file.FileErr_LargeBufError)
 	}
 
-	n, _ := myFileInfo.Write(buf)
+	n, err := myFileInfo.Write(buf)
+	if err != nil {
+		pcontext.Errorf(ctx, "Failed to write: %d", fid)
+		return int32(file.FileErr_WriteError)
+	}
 
-	myFileInfo.ModTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = pcontext.CurrentTime(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
@@ -498,8 +512,8 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 	hostPath, dir := req.GetDirPath(), req.GetMountLocation()
 
 	// Validate the directory path in the host machine
-	if !isValidDirectory(hostPath) {
-		pcontext.Errorf(ctx, "Invalid directory path: %s", hostPath)
+	if valid, err := isValidDirOnHost(hostPath); !valid {
+		pcontext.Errorf(ctx, "Invalid directory path: %s, err: %s", hostPath, err.Error())
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -512,7 +526,7 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 
 	resp.ErrorPath = []string{}
 
-	if !f.handleLoadFilesFromHost(hostPath, cleanPath, req, resp) {
+	if !f.loadFilesFromHost(hostPath, cleanPath, req, resp) {
 		return int32(file.FileErr_NoDataFoundError)
 	}
 
@@ -530,15 +544,25 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 		return int32(file.FileErr_InvalidPathError)
 	}
 
-	// Validate if the file exists in the cache
+	// Validate if the file/dir exists in the cache
 	fid, exist := (*f.fpathTofid)[cleanPath]
+	if exist {
+		f.populateStat(resp, cleanPath, fid, false)
+	} else {
+		// If the file does not exist, check if the directory exists
+		// If the directory exists, populate the directory stat
+		for path, newFid := range *f.fpathTofid {
+			if strings.HasPrefix(path, cleanPath) {
+				// Populate directory stat
+				f.populateStat(resp, cleanPath, newFid, true)
+				exist = true
+			}
+		}
+	}
 	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be stat: %s", cleanPath)
+		pcontext.Errorf(ctx, "Path does not exist, cannot be stat: %s", cleanPath)
 		return int32(file.FileErr_NotExistError)
 	}
-
-	// Populate file stat
-	f.populateFileStat(resp, cleanPath, fid)
 
 	return int32(file.FileErr_NoError)
 }
@@ -547,20 +571,26 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 // helper functions
 //
 
-// A helper function to populate file stat.
-func (f *fileSvcImpl) populateFileStat(resp *file.StatResponse, cleanPath string, fid file.FileId) {
+// A helper function to populate file/dir stat.
+func (f *fileSvcImpl) populateStat(resp *file.StatResponse, cleanPath string, fid file.FileId, isDir bool) {
 	fileStat := resp.GetFileInfo()
+
 	fileStat.Path = cleanPath
-	fileStat.Id = fid.Marshal()
-	fileStat.Size = int32((*f.fileDataCache)[fid].size)
-	fileStat.ModTime = timestamppb.New((*f.fileDataCache)[fid].ModTime)
-	fileStat.CreateTime = timestamppb.New((*f.fileDataCache)[fid].createTime)
-	fileStat.Status = (*f.fileDataCache)[fid].status.String()
-	fileStat.IsDir = false
+	fileStat.Size += int32((*f.fileDataCache)[fid].size)
+	fileStat.ModTime = updateTimestamp(fileStat.ModTime, (*f.fileDataCache)[fid].modTime, true)
+	fileStat.CreateTime = updateTimestamp(fileStat.CreateTime, (*f.fileDataCache)[fid].createTime, false)
+	fileStat.IsDir = isDir
+}
+
+func updateTimestamp(t1 *timestamppb.Timestamp, t2 time.Time, isLatest bool) *timestamppb.Timestamp {
+	if isLatest == t1.AsTime().After(t2) {
+		return t1
+	}
+	return timestamppb.New(t2)
 }
 
 // A helper function to create a new file in the file service.
-func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId {
+func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) (file.FileId, error) {
 	if f.isTesting {
 		f.defaultCreateHook = createHookForStrings
 	}
@@ -574,9 +604,12 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId 
 		content:    fcontent,
 		status:     Fs_Write,
 		createTime: currentTime,
-		ModTime:    currentTime,
-
-		wrClose: f.defaultCreateHook(fpath),
+		modTime:    currentTime,
+	}
+	var err error
+	newFileInfo.wrClose, err = f.defaultCreateHook(fpath)
+	if err != nil {
+		return file.FileIdEmptyValue(), err
 	}
 
 	newFileInfo.Write([]byte(fcontent))
@@ -584,13 +617,13 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) file.FileId 
 	(*f.fileDataCache)[fid] = &newFileInfo
 	(*f.fpathTofid)[fpath] = fid
 
-	return fid
+	return fid, nil
 }
 
 // recursively load all files from the directory in the host machine
 // if such file already exists in the cache, rewrite it
 // otherwise, create a new file in the cache
-func (f *fileSvcImpl) handleLoadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
+func (f *fileSvcImpl) loadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
 	resp *file.LoadTestDataResponse) bool {
 
 	getAnyData := false
