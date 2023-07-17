@@ -31,6 +31,12 @@ type Service interface {
 	// Exported returns true if some service provider has said that
 	// they implement this service.
 	Exported() bool
+	// Export causes this service to be marked as exported, thus
+	// future calls to Exported() will return true.  This should
+	// called in response to the system call of the same name only.
+	// The value returned is the previous value of the exported flag,
+	// or false when Export() is called the first time.
+	Export() bool
 	// Method returns all the pairs of MethodName and MethodId
 	// for a service known to the SyscallData.  You provide the
 	// service to this method to know which set of pairs you want.
@@ -41,6 +47,14 @@ type Service interface {
 	//Run is badly named. This really means "block until everything
 	//I need is ready."
 	Run(context.Context) syscall.KernelErr
+	// WakeUp can be called to have this service check to see if the
+	// dependencies it has are met.  Note that this need not be called
+	// from the "outside" (user code, or even syscall code) because if
+	// the grap has no cycles, the calls on this method due to other
+	// services finding their requirements have been met is sufficient.
+	// A call on this method does not guarantee that the service will start
+	// to run, only that it will _check_ to see if that is possible.
+	WakeUp()
 }
 
 // SyscallData is the interface used by the kernel methods

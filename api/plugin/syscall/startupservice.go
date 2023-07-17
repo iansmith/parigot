@@ -48,9 +48,9 @@ func newStartupService(pkg, name string, sid id.ServiceId, parent *startupCoordi
 	return result
 }
 
-// wakeUp causes a send on the servicImpl's runCh and thus checks to see
+// WakeUp causes a send on the servicImpl's runCh and thus checks to see
 // if this service can run now.  This method does not lock.
-func (s *startupService) wakeUp() {
+func (s *startupService) WakeUp() {
 	s.runCh <- struct{}{}
 }
 
@@ -144,12 +144,15 @@ func (s *startupService) waitToRun(ctx context.Context) syscall.KernelErr {
 	}
 }
 
-// export causes this service to be marked as exported, and this is one
-// of the preconditions for starting.
-func (s *startupService) export() {
+// Export causes this service to be marked as exported, and this is one
+// of the preconditions for starting.  (Note that the case of a
+// "client" service is special.)
+func (s *startupService) Export() bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+	prev := s.exported
 	s.exported = true
+	return prev
 }
 
 // String returns a string that is the content of the service id that this startupService
