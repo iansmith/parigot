@@ -3,6 +3,7 @@ package syscall
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -313,8 +314,9 @@ func inboundEdges(g graph.Iterator, target int) []int {
 
 // This function assumes that callers are HOLDING the lock.
 func (s *startupCoordinator) mustVertexNumToService(ctx context.Context, v int) Service {
-	n, ok := reverseMap(_coord.vertexName, v)
+	n, ok := reverseMap(s.vertexName, v)
 	if !ok {
+		fmt.Printf("xxxx looking for=>%d search failed, %+v\n", v, s.vertexName)
 		panic("unable to find vertex name for index")
 	}
 	svc := s.serviceByIdStringNoLock(ctx, n)
@@ -379,7 +381,7 @@ func (s *startupCoordinator) notifyIncomingNeighbors(ctx context.Context, sid Se
 	for _, c := range in {
 		// mustVertex below asserts the lock
 		svc := s.mustVertexNumToService(ctx, c)
-		svc.(*startupService).wakeUp()
+		svc.WakeUp()
 	}
 }
 

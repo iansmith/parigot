@@ -60,9 +60,7 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 	for _, fullyQualified := range req.GetService() {
 		sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
-		if startCoordinator().Export(ctx, sid.Id()) == nil {
-			return int32(syscall.KernelErr_NotFound)
-		}
+		sid.Export()
 
 		fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
 		if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
