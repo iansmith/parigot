@@ -360,7 +360,6 @@ func arrangementToDeployArrangement(ctx context.Context, name string, s string, 
 			return ArrangeNotSpecified, fmt.Errorf("exactly one of Arrangement or ArrangementName must be specified, neither found in deployment '%s'", name)
 		}
 	}
-	log.Printf("xxxx -- da in range? %d, %v", da, daInRange(da))
 	if s != "" && daInRange(da) {
 		return ArrangeNotSpecified, fmt.Errorf("exactly one of Arrangement or ArrangementName must be specified, both found in deployment '%s'", name)
 
