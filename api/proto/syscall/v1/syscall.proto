@@ -227,9 +227,14 @@ message FullyQualifiedService {
   string service = 2;
 }
 
+// ExportRequest informs the kernel that the given
+// service id implements the named services on the
+// host given.  Note that the services provided must be
+// distinct.
 message ExportRequest {
-	repeated FullyQualifiedService service = 1;
-	protosupport.v1.IdRaw host_id = 2;
+	protosupport.v1.IdRaw service_id = 1;
+	repeated FullyQualifiedService service = 2;
+	protosupport.v1.IdRaw host_id = 3;
 }
 
 message ExportResponse {

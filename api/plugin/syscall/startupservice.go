@@ -24,7 +24,7 @@ type startupService struct {
 	runReady  bool
 	exported  bool
 	started   bool
-	parent    *startupCoordinator
+	parent    *rawLocal
 	runCh     chan struct{}
 	lock      *sync.Mutex
 	meth      []*syscall.MethodBinding
@@ -32,7 +32,7 @@ type startupService struct {
 
 // newStartupService creates a representative startupService given a set of
 // parameters that define the new service.
-func newStartupService(pkg, name string, sid id.ServiceId, parent *startupCoordinator, isClient bool) *startupService {
+func newStartupService(pkg, name string, sid id.ServiceId, parent *rawLocal, isClient bool) *startupService {
 	result := &startupService{
 		pkg:      pkg,
 		name:     name,
