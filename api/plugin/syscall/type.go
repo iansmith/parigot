@@ -60,20 +60,7 @@ type Service interface {
 // SyscallData is the interface used by the kernel methods
 // (syscallhost.go) to get information about the status of
 // a startup sequence.
-
 type SyscallData interface {
-	//ServiceByName looks up a service and returns it based on the
-	//values package_ and name.  If this returns nil, the service could
-	//not be found.
-	ServiceByName(ctx context.Context, package_, name string) Service
-	//ServiceById looks up a service and returns it based on the
-	//value sid.  If this returns nil, the service could
-	//not be found.
-	ServiceById(ctx context.Context, sid id.ServiceId) Service
-	//ServiceByIdString looks up a service based on the printed representation
-	//of the service id.  If the service cannot be found ServiceByIdString
-	//returns nil.
-	ServiceByIdString(ctx context.Context, str string) Service
 	// SetService puts a service into SyscallData.  This should only be
 	// called once for each package_ and name pair. It returns the
 	// ServiceId for the service named, creating a new one if necessary.
@@ -101,6 +88,18 @@ type SyscallData interface {
 	// PathExists returns true if there is a sequence of dependency
 	// graph vertices that eventually leads from source to target.
 	PathExists(ctx context.Context, source, target string) bool
+	//ServiceByName looks up a service and returns it based on the
+	//values package_ and name.  If this returns nil, the service could
+	//not be found.
+	ServiceByName(ctx context.Context, package_, name string) Service
+	//ServiceById looks up a service and returns it based on the
+	//value sid.  If this returns nil, the service could
+	//not be found.
+	ServiceById(ctx context.Context, sid id.ServiceId) Service
+	//ServiceByIdString looks up a service based on the printed representation
+	//of the service id.  If the service cannot be found ServiceByIdString
+	//returns nil.
+	ServiceByIdString(ctx context.Context, str string) Service
 }
 
 // CallMatcher is an internal data structure object that
