@@ -57,7 +57,7 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl MethodCallSuit
 	}()
 
 	myId := MustRegister(ctx)
-	MustExport(ctx)
+	MustExport(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -289,8 +289,8 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExport(ctx context.Context) {
-    _, err:=lib.Export1("methodcall.v1","method_call_suite")
+func MustExport(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("methodcall.v1","method_call_suite",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","methodcall.v1","method_call_suite")
         panic("not able to export methodcall.v1.method_call_suite:"+syscall.KernelErr_name[int32(err)])
