@@ -28,7 +28,7 @@ func main() {
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 	myId := test.MustRegisterUnderTest(ctx)
 	queue.MustRequire(ctx, myId)
-	test.MustExportTest(ctx)
+	test.MustExportTest(ctx, myId)
 
 	server := &myTestServer{
 		myId: myId,
