@@ -57,7 +57,7 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl File) *lib.Ser
 	}()
 
 	myId := MustRegister(ctx)
-	MustExport(ctx)
+	MustExport(ctx,myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -374,8 +374,8 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func MustExport(ctx context.Context) {
-    _, err:=lib.Export1("file.v1","file")
+func MustExport(ctx context.Context, sid id.ServiceId) {
+    _, err:=lib.Export1("file.v1","file",sid)
     if err!=syscall.KernelErr_NoError{
         pcontext.Fatalf(ctx, "unable to export %s.%s","file.v1","file")
         panic("not able to export file.v1.file:"+syscall.KernelErr_name[int32(err)])
