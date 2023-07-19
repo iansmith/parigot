@@ -341,4 +341,5 @@ message ReadOneResponse {
 	protosupport.v1.IdRaw  call_id = 3;
 	google.protobuf.Any param = 4; 
 	ResolvedCall resolved = 5;
+    bool exit =6;
 }
