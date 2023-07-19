@@ -106,8 +106,9 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 	}
 	a := &anypb.Any{}
 
-	merr := a.MarshalFrom(nil)
+	merr := a.MarshalFrom(&syscall.ExportResponse{})
 	if merr != nil {
+		log.Printf("xxxx --- marshal error %s", merr.Error())
 		return nil, syscall.KernelErr_MarshalFailed
 	}
 	return a, syscall.KernelErr_NoError
@@ -134,28 +135,19 @@ func (w *wheeler) Run() {
 	for {
 		in := <-w.ch
 		desc := in.Msg.ProtoReflect().Descriptor()
-		var result proto.Message
+		var result *anypb.Any
 		var err syscall.KernelErr
 		switch desc.FullName() {
 		case "syscall.v1.ExportRequest":
-			log.Printf("xxx -- reached wheeler: export\n")
 			result, err = w.export((*syscall.ExportRequest)(in.Msg.(*syscall.ExportRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue
 		}
-		var a anypb.Any
-		e := a.MarshalFrom(result)
-		if e != nil {
-			in.Ch <- OutProtoPair{nil, syscall.KernelErr_MarshalFailed}
-			return
-		}
 		outPair := OutProtoPair{
-			A:   &a,
+			A:   result,
 			Err: err,
 		}
-		log.Printf("xxx -- reached wheeler: export sending result\n")
-
 		in.Ch <- outPair
 
 	}
