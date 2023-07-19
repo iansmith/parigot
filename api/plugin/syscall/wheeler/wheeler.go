@@ -5,6 +5,7 @@ import (
 
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -103,12 +104,13 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 		})
 		pkg2map[name] = allBind
 	}
-	var a anypb.Any
-	merr := a.MarshalFrom(&syscall.ExportResponse{})
+	a := &anypb.Any{}
+
+	merr := a.MarshalFrom(nil)
 	if merr != nil {
 		return nil, syscall.KernelErr_MarshalFailed
 	}
-	return &a, syscall.KernelErr_NoError
+	return a, syscall.KernelErr_NoError
 }
 
 func (w *wheeler) addHost(hid id.HostId, sid id.ServiceId) {
