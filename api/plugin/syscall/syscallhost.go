@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"time"
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
@@ -112,50 +111,53 @@ func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall
 		return int32(syscall.KernelErr_NoError)
 	}
 
-	numCases := len(req.Call)
-	if req.TimeoutInMillis >= 0 {
-		numCases++
+	cases := []reflect.SelectCase{}
+	// now we are going to listen for a message on one of the channels
+	// we can also timeout.  the order of these, sadly, matters and
+	// the service/method listeners must go first because the index
+	// of the channel is how we figure out how to dispatch the method.
+	timeoutChoice, exitChoice := -1, -1
+
+	mcl := newMethodCallListener(req)
+	cases = append(cases, mcl.Case()...)
+
+	tl := newTimeoutListener(req.TimeoutInMillis)
+	c := tl.Case()
+	if len(c) != 0 {
+		timeoutChoice = len(cases) // we are about to fill the spot
 	}
-	if numCases == 0 {
+	cases = append(cases, c...)
+
+	exitChannel := (chan int32)(nil)
+	el := NewExitListener(exitChannel)
+	c = el.Case()
+	if len(c) != 0 {
+		exitChoice = len(cases)
+	}
+	cases = append(cases, c...)
+
+	if len(cases) == 0 { // very unlikely since there is the possibility of exit
 		resp.Call = nil
+		resp.Param = nil
+		resp.Timeout = false
+		resp.Exit = false
 		return int32(syscall.KernelErr_NoError)
 	}
-	cases := make([]reflect.SelectCase, numCases)
-	for i, pair := range req.Call {
-		svc := id.UnmarshalServiceId(pair.ServiceId)
-		meth := id.UnmarshalMethodId(pair.MethodId)
-		combo := makeSidMidCombo(svc, meth)
-		ch := pairIdToChannel[combo]
-		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
-	}
 
-	if req.TimeoutInMillis >= 0 {
-		ch := time.After(time.Duration(req.TimeoutInMillis) * time.Millisecond)
-		cases[len(req.Call)] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
-	}
+	// run the select
 	chosen, value, ok := reflect.Select(cases)
 	// ok will be true if the channel has not been closed.
 	if !ok {
 		return int32(syscall.KernelErr_KernelConnectionFailed)
 	}
-	// is timeout?
-	if chosen == len(req.Call) {
-		resp.Timeout = true
-		return int32(syscall.KernelErr_NoError)
+	switch chosen {
+	case timeoutChoice:
+		tl.Handle(value, chosen, resp)
+	case exitChoice:
+		el.Handle(value, chosen, resp)
+	default:
+		mcl.Handle(value, chosen, resp)
 	}
-	// service/method call
-	resp.Timeout = false
-	pair := req.Call[chosen]
-	resp.Call = &syscall.ServiceMethodCall{}
-	resp.Call.ServiceId = pair.ServiceId
-	resp.Call.MethodId = pair.MethodId
-
-	// value can't be nil, but...
-	if value.Kind() != reflect.Struct {
-		panic(fmt.Sprintf("unexpected return value from select in ReadOne (%s)", value.Kind().String()))
-	}
-	resp.CallId = value.Interface().(CallInfo).cid.Marshal()
-	resp.Param = value.Interface().(CallInfo).param
 
 	return int32(syscall.KernelErr_NoError)
 }
