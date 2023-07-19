@@ -15,7 +15,23 @@ type Wheeler interface {
 }
 
 // the only wheeler
-var _wheeler = newWheeler()
+var _wheeler *wheeler
+
+// InstallWheelerWithChan should be called one time to
+// install the wheeler with the given exitCh.  It is assumed
+// that the caller will be monitoring the exit channel.
+// The exit channel receives information about exits requested
+// or required from the running program.  If the exit code
+// is 0 to 192, this a requested exit with that code.  If
+// the value is > 192 then this is an abort.  Values
+// from 193 to 255 are reserved and the value 255 indicates
+// a trapped error (via recover).
+// Values with the 256 bit set (bit 8) are exits caused
+// by exit codes taken from the syscall.KernelErr set and the
+// value of the error is ored into the low order 4 bits.
+func InstallWheelerWithChan(exitCh chan int32) {
+	_wheeler = newWheeler(exitCh)
+}
 
 // OutProtoPair is the return type of a message to the wheeler.
 // it is sent through the channel given as part of the request.
@@ -55,15 +71,17 @@ type serviceData struct {
 // is spinning around to take each one in turn.
 type wheeler struct {
 	ch               chan InProtoPair
+	exitCh           chan int32
 	pkgToServiceImpl map[string]map[string][]hostBinding
 	hostToService    map[string][]id.ServiceId
 	serviceToHost    map[string]id.HostId
 }
 
-// newWheeler returns a wheeler, but this should be called
-// only during the init() function.
-func newWheeler() *wheeler {
+// newWheeler returns a Wheeler and should only be called--
+// exactly one time--from  InstallWheeler.
+func newWheeler(exitCh chan int32) *wheeler {
 	w := &wheeler{
+		exitCh:           exitCh,
 		ch:               make(chan InProtoPair),
 		pkgToServiceImpl: make(map[string]map[string][]hostBinding),
 		hostToService:    make(map[string][]id.ServiceId),
@@ -131,6 +149,22 @@ func (w *wheeler) checkHost(hid id.HostId, allSvc []id.ServiceId) {
 	//alleged services are still there
 }
 
+func (w *wheeler) exit(req *syscall.ExitRequest) (*anypb.Any, syscall.KernelErr) {
+	resp := &syscall.ExitResponse{}
+
+	a := &anypb.Any{}
+	err := a.MarshalFrom(resp)
+	if err != nil {
+		return nil, syscall.KernelErr_MarshalFailed
+	}
+	code := int32(192)
+	if req.GetCode() >= 0 && req.GetCode() <= 192 {
+		code = req.GetCode()
+	}
+	w.exitCh <- code
+	return a, syscall.KernelErr_NoError
+}
+
 func (w *wheeler) Run() {
 	for {
 		in := <-w.ch
@@ -139,6 +173,8 @@ func (w *wheeler) Run() {
 		var err syscall.KernelErr
 		switch desc.FullName() {
 		case "syscall.v1.ExportRequest":
+			result, err = w.export((*syscall.ExportRequest)(in.Msg.(*syscall.ExportRequest)))
+		case "syscall.v1.ExitRequest":
 			result, err = w.export((*syscall.ExportRequest)(in.Msg.(*syscall.ExportRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())

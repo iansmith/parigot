@@ -14,7 +14,7 @@ const name2 = "quux"
 
 func TestExportDirect(t *testing.T) {
 
-	w := newWheeler()
+	w := newWheeler(nil)
 	sid := id.NewServiceId()
 	hid := id.NewHostId()
 
@@ -37,7 +37,7 @@ func TestExportDirect(t *testing.T) {
 
 func TestExportThroughChan(t *testing.T) {
 
-	w := newWheeler()
+	w := newWheeler(nil)
 	sid := id.NewServiceId()
 	hid := id.NewHostId()
 
