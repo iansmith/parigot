@@ -262,6 +262,10 @@ message ExitRequest {
   int32 code = 1;
 }
 
+// ExitResponse is needed because the exit request does
+// not cause the shutdown immediately. It causes the 
+// exit machinery to be invoked at some (soonish) point
+// in the future.
 message ExitResponse{
   int32 code = 1;
 }
