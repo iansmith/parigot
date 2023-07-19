@@ -6,6 +6,7 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type Wheeler interface {
@@ -20,7 +21,7 @@ var _wheeler = newWheeler()
 // If the err != 0, the msg should be ignored.   If the err
 // is 0, then the msg will be non-nil.
 type OutProtoPair struct {
-	Msg proto.Message
+	A   *anypb.Any
 	Err syscall.KernelErr
 }
 
@@ -79,7 +80,7 @@ func In() chan InProtoPair {
 // It binds each type to the hostname provided.  Note
 // that this may imply the creating of a service inside
 // the wheeler for a service that is not yet registered.
-func (w *wheeler) export(req *syscall.ExportRequest) (*syscall.ExportResponse, syscall.KernelErr) {
+func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.KernelErr) {
 	sid := id.UnmarshalServiceId(req.ServiceId)
 	hid := id.UnmarshalHostId(req.HostId)
 	w.addHost(hid, sid)
@@ -100,8 +101,14 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*syscall.ExportResponse, s
 			service: sid,
 			host:    hid,
 		})
+		pkg2map[name] = allBind
 	}
-	return &syscall.ExportResponse{}, syscall.KernelErr_NoError
+	var a anypb.Any
+	merr := a.MarshalFrom(&syscall.ExportResponse{})
+	if merr != nil {
+		return nil, syscall.KernelErr_MarshalFailed
+	}
+	return &a, syscall.KernelErr_NoError
 }
 
 func (w *wheeler) addHost(hid id.HostId, sid id.ServiceId) {
@@ -112,6 +119,8 @@ func (w *wheeler) addHost(hid id.HostId, sid id.ServiceId) {
 		w.hostToService[hid.String()] = []id.ServiceId{}
 	}
 	allSvc = append(allSvc, sid)
+	w.hostToService[hid.String()] = allSvc
+	w.checkHost(hid, allSvc)
 }
 
 func (w *wheeler) checkHost(hid id.HostId, allSvc []id.ServiceId) {
@@ -127,15 +136,24 @@ func (w *wheeler) Run() {
 		var err syscall.KernelErr
 		switch desc.FullName() {
 		case "syscall.v1.ExportRequest":
+			log.Printf("xxx -- reached wheeler: export\n")
 			result, err = w.export((*syscall.ExportRequest)(in.Msg.(*syscall.ExportRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue
 		}
+		var a anypb.Any
+		e := a.MarshalFrom(result)
+		if e != nil {
+			in.Ch <- OutProtoPair{nil, syscall.KernelErr_MarshalFailed}
+			return
+		}
 		outPair := OutProtoPair{
-			Msg: result,
+			A:   &a,
 			Err: err,
 		}
+		log.Printf("xxx -- reached wheeler: export sending result\n")
+
 		in.Ch <- outPair
 
 	}

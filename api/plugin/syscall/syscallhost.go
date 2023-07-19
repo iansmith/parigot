@@ -10,13 +10,13 @@ import (
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
-
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -61,17 +61,8 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 	hid := id.UnmarshalHostId(req.GetHostId())
 
 	///////
-	retCh := make(chan wheeler.OutProtoPair)
-	inPair := wheeler.InProtoPair{
-		Msg: req,
-		Ch:  retCh,
-	}
-	wheeler.In() <- inPair
-	out := <-retCh
-	if out.Err != 0 {
-		log.Printf("error in export impl: %s", syscall.KernelErr_name[int32(out.Err)])
-	}
-	log.Printf("xxxx --- %+v, %d", out.Msg, out.Err)
+	err := handleByWheeler(req, resp)
+	log.Printf("xxx -- wheeler error value: %d", err)
 	////
 	for _, fullyQualified := range req.GetService() {
 		sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
@@ -315,4 +306,22 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 
 func makeSidMidCombo(sid id.ServiceId, mid id.MethodId) string {
 	return sid.String() + "," + mid.String()
+}
+
+func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelErr {
+	retCh := make(chan wheeler.OutProtoPair)
+	inPair := wheeler.InProtoPair{
+		Ch: retCh,
+	}
+	inPair.Msg = t
+	wheeler.In() <- inPair
+	out := <-retCh
+	if out.Err != 0 {
+		log.Printf("error in wheeler impl: %T, %s", t, syscall.KernelErr_name[int32(out.Err)])
+	}
+	err := out.A.UnmarshalTo(u)
+	if err != nil {
+		return syscall.KernelErr_MarshalFailed
+	}
+	return out.Err
 }
