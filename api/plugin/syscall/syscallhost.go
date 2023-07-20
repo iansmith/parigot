@@ -13,6 +13,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/tetratelabs/wazero/api"
@@ -49,6 +50,20 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 
 func fqServiceName(p, s string) string {
 	return fmt.Sprintf("%s.%s", p, s)
+}
+
+func LocateOnHost(ctx context.Context, req *syscall.LocateRequest) (*syscall.LocateResponse, int32) {
+	resp := &syscall.LocateResponse{}
+	kerr := locateImpl(ctx, req, resp)
+
+	return resp, kerr
+}
+
+func DispatchOnHost(ctx context.Context, req *syscall.DispatchRequest) (*syscall.DispatchResponse, int32) {
+	resp := &syscall.DispatchResponse{}
+	kerr := dispatchImpl(ctx, req, resp)
+
+	return resp, kerr
 }
 
 //
