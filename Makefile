@@ -36,10 +36,11 @@ CTX_SRC=$(shell find context -type f -regex ".*\.go")
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
 
+GO_CLIENT_VERSION=go1.21rc3
 #
 # GO
 #
-GO_TO_WASM=GOROOT=/home/parigot/deps/go1.21 GOOS=wasip1 GOARCH=wasm go1.21
+GO_TO_WASM=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} GOOS=wasip1 GOARCH=wasm ${GO_CLIENT_VERSION}
 GO_TO_HOST=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
 GO_TO_PLUGIN=GOROOT=/home/parigot/deps/go1.20.4 go1.20.4
 
