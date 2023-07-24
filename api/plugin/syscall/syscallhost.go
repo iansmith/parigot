@@ -10,7 +10,6 @@ import (
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
@@ -57,7 +56,8 @@ func fqServiceName(p, s string) string {
 //
 
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
-	hid := id.UnmarshalHostId(req.GetHostId())
+	return int32(handleByWheeler(req, resp))
+	//hid := id.UnmarshalHostId(req.GetHostId())
 
 	///////
 	// retCh := make(chan wheeler.OutProtoPair)
@@ -72,29 +72,28 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 	// }
 	// log.Printf("xxxx --- %+v, %d", out.Msg, out.Err)
 	////
-	for _, fullyQualified := range req.GetService() {
-		sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
+	// for _, fullyQualified := range req.GetService() {
+	// 	sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
 
-		sid.Export()
+	// 	sid.Export()
 
-		fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-		if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
-			return int32(kerr)
-		}
-	}
+	// 	fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
+	// 	if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
+	// 		return int32(kerr)
+	// 	}
+	// }
 
-	return int32(syscall.KernelErr_NoError)
+	//return int32(syscall.KernelErr_NoError)
 }
 
 func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
-	//return handleByWheeler(req, resp)
+	return int32(handleByWheeler(req, resp))
 
-	return int32(0x7fffff00 | (req.Code & 0xff))
+	//return int32(0x7fffff00 | (req.Code & 0xff))
 }
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-	return int32(startCoordinator().Launch(ctx, sid))
+	return int32(handleByWheeler(req, resp))
 }
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 { //syscall.KernelErr {
@@ -174,48 +173,51 @@ func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp 
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
-	svc, ok := startCoordinator().SetService(ctx, req.GetPackageName(),
-		req.GetServiceName(), false)
-	if ok {
-		return int32(syscall.KernelErr_NotFound)
-	}
-	calledBy := id.UnmarshalServiceId(req.CalledBy)
-	if !startCoordinator().PathExists(ctx, calledBy.String(), svc.String()) {
-		return int32(syscall.KernelErr_NotRequired)
-	}
-	host := finder().FindByName(fqServiceName(req.GetPackageName(), req.GetServiceName()))
-	if host == nil {
-		return int32(syscall.KernelErr_NotFound)
-	}
-	svcId := svc.Id()
-	resp.ServiceId = svcId.Marshal()
-	resp.Binding = svc.Method()
-	resp.HostId = host.hid.Marshal()
-	return int32(syscall.KernelErr_NoError)
+	return int32(handleByWheeler(req, resp))
+
+	// svc, ok := startCoordinator().SetService(ctx, req.GetPackageName(),
+	// 	req.GetServiceName(), false)
+	// if ok {
+	// 	return int32(syscall.KernelErr_NotFound)
+	// }
+	// calledBy := id.UnmarshalServiceId(req.CalledBy)
+	// if !startCoordinator().PathExists(ctx, calledBy.String(), svc.String()) {
+	// 	return int32(syscall.KernelErr_NotRequired)
+	// }
+	// host := finder().FindByName(fqServiceName(req.GetPackageName(), req.GetServiceName()))
+	// if host == nil {
+	// 	return int32(syscall.KernelErr_NotFound)
+	// }
+	// svcId := svc.Id()
+	// resp.ServiceId = svcId.Marshal()
+	// resp.Binding = svc.Method()
+	// resp.HostId = host.hid.Marshal()
+	// return int32(syscall.KernelErr_NoError)
 }
 
 func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-	mid := id.UnmarshalMethodId(req.GetMethodId())
-	cid := id.UnmarshalCallId(req.GetCallId())
-	hid := id.UnmarshalHostId(req.GetHostId())
+	return int32(handleByWheeler(req, resp))
+	// sid := id.UnmarshalServiceId(req.GetServiceId())
+	// mid := id.UnmarshalMethodId(req.GetMethodId())
+	// cid := id.UnmarshalCallId(req.GetCallId())
+	// hid := id.UnmarshalHostId(req.GetHostId())
 
-	matcher().Dispatch(hid, cid)
+	// matcher().Dispatch(hid, cid)
 
-	target := pairIdToChannel[makeSidMidCombo(sid, mid)]
-	if target == nil {
-		// should this have a special error?
-		return int32(syscall.KernelErr_NotFound)
-	}
+	// target := pairIdToChannel[makeSidMidCombo(sid, mid)]
+	// if target == nil {
+	// 	// should this have a special error?
+	// 	return int32(syscall.KernelErr_NotFound)
+	// }
 
-	resp.CallId = cid.Marshal()
+	// resp.CallId = cid.Marshal()
 
-	cm := CallInfo{
-		cid:   cid,
-		param: req.GetParam(),
-	}
-	target <- cm
-	return int32(syscall.KernelErr_NoError)
+	// cm := CallInfo{
+	// 	cid:   cid,
+	// 	param: req.GetParam(),
+	// }
+	// target <- cm
+	// return int32(syscall.KernelErr_NoError)
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 { //syscall.KernelErr {
@@ -223,30 +225,18 @@ func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *sysca
 }
 
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
+	log.Printf("xxxx --- require impl called, calling wheeler")
 	if req.GetDest() == nil {
 		return 0
 	}
-	src := id.UnmarshalServiceId(req.GetSource())
-	fqn := req.GetDest()
-
-	for _, fullyQualified := range fqn {
-		dest, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
-		kerr := startCoordinator().Import(ctx, src, dest.Id())
-		if int32(kerr) != 0 {
-			pcontext.Errorf(ctx, "kernel error returned from import: %d", kerr)
-			return int32(kerr)
-		}
-	}
-	return int32(syscall.KernelErr_NoError)
+	return int32(handleByWheeler(req, resp))
 }
 
-//
 // Syscall marshal/unmarshal for each system call
-//
-
 func locate(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.LocateRequest{}
 	resp := &syscall.LocateResponse{}
+	log.Printf("xxxx --- locate called, unpacking args")
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
