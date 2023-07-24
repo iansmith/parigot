@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/sys"
@@ -41,6 +42,9 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
+	// create the syscall implementation
+	exitCh := make(chan int32)
+	wheeler.InstallWheeler(ctx, exitCh)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
