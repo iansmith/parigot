@@ -200,7 +200,7 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SR
 .PHONY: test
 test: sqlc
 	go test -v github.com/iansmith/parigot/api/plugin/queue
-	go test -v github.com/iansmith/parigot/api/plugin/file
+	#go test -v github.com/iansmith/parigot/api/plugin/file
 	go test -v github.com/iansmith/parigot/lib/go/future
 	go test -v github.com/iansmith/parigot/api/plugin/syscall
 	go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler

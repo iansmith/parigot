@@ -1,11 +1,7 @@
 ## Note that because this is consumed from the parigot root dir, the paths provided
 ## are relative to that dir, not this dir
 
-<<<<<<< HEAD
-=======
 [config.dev]
-
->>>>>>> 27c6d3a8 (going to try with parigot-example)
 ParigotLibPath="build/syscall.so"
 ParigotLibSymbol="ParigotInitialize"
 #ArrangementName = "localDocker" 
