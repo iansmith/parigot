@@ -54,11 +54,11 @@ func (c *callMatcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.K
 }
 
 func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
-	rc, ok := c.waiting[cid.String()]
+	_, ok := c.waiting[cid.String()]
 	if ok {
 		return syscall.KernelErr_BadCallId
 	}
-	rc = &syscall.ResolvedCall{
+	rc := &syscall.ResolvedCall{
 		HostId:      hid.Marshal(),
 		CallId:      cid.Marshal(),
 		Result:      nil,

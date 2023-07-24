@@ -56,7 +56,6 @@ func fqServiceName(p, s string) string {
 // Syscall host implementations
 //
 
-<<<<<<< HEAD
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
 	hid := id.UnmarshalHostId(req.GetHostId())
 
@@ -85,20 +84,12 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 	}
 
 	return int32(syscall.KernelErr_NoError)
-
 }
+
 func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
 	//return handleByWheeler(req, resp)
 
 	return int32(0x7fffff00 | (req.Code & 0xff))
-=======
-func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 { //syscall.KernelErr {
-	return int32(handleByWheeler(req, resp))
-
-}
-func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 { //syscall.KernelErr {
-	return int32(handleByWheeler(req, resp))
->>>>>>> d9183df8 (few calls implemented with wheeler)
 }
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
