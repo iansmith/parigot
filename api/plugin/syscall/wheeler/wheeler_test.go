@@ -315,11 +315,12 @@ func TestStartupSimple(t *testing.T) {
 			},
 			HostId: host[i].Marshal(),
 		}
-		regResp := &syscall.RegisterRequest{}
+		regResp := &syscall.RegisterResponse{}
 		if err := makeReqRespToWheeler(t, w, regReq, regResp); err != syscall.KernelErr_NoError {
 			t.Errorf("unable to make registration request for %s:%s", l, syscall.KernelErr_name[int32(err)])
 			return
 		}
+		svc[i] = id.UnmarshalServiceId(regResp.GetId())
 	}
 	for i := 0; i < len(letter); i++ {
 		exReq := &syscall.ExportRequest{
@@ -327,6 +328,7 @@ func TestStartupSimple(t *testing.T) {
 			HostId:    host[i].Marshal(),
 		}
 		exReq.Service = export[i]
+
 		exResp := &syscall.ExportResponse{}
 		if err := makeReqRespToWheeler(t, w, exReq, exResp); err != syscall.KernelErr_NoError {
 			t.Errorf("unable to make export request: %s", syscall.KernelErr_name[int32(err)])
