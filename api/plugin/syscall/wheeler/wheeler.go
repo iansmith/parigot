@@ -213,6 +213,9 @@ func (w *wheeler) isRunning(sid id.ServiceId) bool {
 func (w *wheeler) findRunnable() {
 	change := true
 	var result []launchData
+	if len(w.waitList) == 0 {
+		return
+	}
 	for change {
 		change = false
 		result = []launchData{}
@@ -321,6 +324,7 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 			host:    hid,
 		})
 		pkg2map[name] = allBind
+		w.pkgToServiceImpl[pkg] = pkg2map
 		w.serviceToFQName[sid.String()] = fqName{fqn.PackagePath, fqn.Service}
 	}
 	w.findRunnable()
@@ -339,6 +343,7 @@ func (w *wheeler) addHost(hid id.HostId, sid id.ServiceId) {
 		w.hostToService[hid.String()] = []id.ServiceId{}
 	}
 	allSvc = append(allSvc, sid)
+	w.hostToService[hid.String()] = allSvc
 }
 
 // checkHost should be called periodically to validate that the services

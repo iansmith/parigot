@@ -122,7 +122,6 @@ func TestStartupGates(t *testing.T) {
 		t.Errorf("only bar not started")
 		t.FailNow()
 	}
-	t.Logf("xxx just got out of wait group")
 	bar.Run(ctx) // should happen immediately, the test should finish normally
 }
 
