@@ -476,10 +476,22 @@ func (w *wheeler) require(req *syscall.RequireRequest) (*anypb.Any, syscall.Kern
 	if !ok {
 		wait = []fqName{}
 	}
+	for i := 0; i < len(dest); i++ {
+		wait = append(wait, dest[i])
+	}
 	wait = append(wait, dest...)
 	w.serviceToWaiting[src.String()] = wait
 
+	// if err := dfs(); err != syscall.KernelErr_NoError {
+	// 	return nil, err
+	// }
 	return returnResponseOrMarshalError(w, resp)
+}
+
+// dfs is a depth first search starting at the first parameter.  This checks
+// to see if the first parameter implies a loop because it includes itself.
+func dfs(current, target fqName, path []fqName, isStart bool) syscall.KernelErr {
+	return syscall.KernelErr_NoError
 }
 
 // returnResponseOrMarshalError is a convenience wrapper around marshalling
