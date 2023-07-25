@@ -71,7 +71,8 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl File) *lib.Ser
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on File failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
+				"unable to call Exit in Init")
 		}
 	})
 	return smmap
@@ -418,7 +419,8 @@ func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
 	if signal {
 		pcontext.Infof(ctx, "Open exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureOpen()
 	f.CompleteMethod(ctx,ret,raw)
@@ -434,7 +436,8 @@ func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
 	if signal {
 		pcontext.Infof(ctx, "Create exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureCreate()
 	f.CompleteMethod(ctx,ret,raw)
@@ -450,7 +453,8 @@ func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
 	if signal {
 		pcontext.Infof(ctx, "Close exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureClose()
 	f.CompleteMethod(ctx,ret,raw)
@@ -466,7 +470,8 @@ func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoa
 	if signal {
 		pcontext.Infof(ctx, "LoadTestData exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureLoadTestData()
 	f.CompleteMethod(ctx,ret,raw)
@@ -482,7 +487,8 @@ func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
 	if signal {
 		pcontext.Infof(ctx, "Read exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureRead()
 	f.CompleteMethod(ctx,ret,raw)
@@ -498,7 +504,8 @@ func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
 	if signal {
 		pcontext.Infof(ctx, "Write exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureWrite()
 	f.CompleteMethod(ctx,ret,raw)
@@ -514,7 +521,8 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 	if signal {
 		pcontext.Infof(ctx, "Delete exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw)

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -95,7 +96,10 @@ func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.Servi
 // want to create their own request structure.
 func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture {
 	req := &syscall.LaunchRequest{
+		HostId:    CurrentHostId().Marshal(),
 		ServiceId: myId.Marshal(),
+		CallId:    id.NewCallId().Marshal(),
+		MethodId:  apishared.LaunchMethod.Marshal(),
 	}
 	return syscallguest.Launch(req)
 }
@@ -103,8 +107,15 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 // ExitClient sends a request to exit and attaches hanndlers that print
 // the given strings. It only forces the exit if the Exit call itself
 // fails. Only the values from 0 to 192 are permissable as the code.
-func ExitClient(ctx context.Context, code int32, msgSuccess, msgFailure string) {
-	exitFut := syscallguest.Exit(code)
+func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string) {
+	req := &syscall.ExitRequest{
+		HostId:    CurrentHostId().Marshal(),
+		ServiceId: myId.Marshal(),
+		CallId:    id.NewCallId().Marshal(),
+		MethodId:  apishared.ExitMethod.Marshal(),
+		Code:      code,
+	}
+	exitFut := syscallguest.Exit(req)
 	exitFut.Failure(func(e syscall.KernelErr) {
 		pcontext.Errorf(ctx, msgFailure)
 		os.Exit(1)

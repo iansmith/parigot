@@ -71,7 +71,8 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Queue) *lib.Se
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on Queue failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
+				"unable to call Exit in Init")
 		}
 	})
 	return smmap
@@ -418,7 +419,8 @@ func CreateQueueHost(ctx context.Context,inPtr *CreateQueueRequest) *FutureCreat
 	if signal {
 		pcontext.Infof(ctx, "CreateQueue exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureCreateQueue()
 	f.CompleteMethod(ctx,ret,raw)
@@ -434,7 +436,8 @@ func LocateHost(ctx context.Context,inPtr *LocateRequest) *FutureLocate {
 	if signal {
 		pcontext.Infof(ctx, "Locate exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureLocate()
 	f.CompleteMethod(ctx,ret,raw)
@@ -450,7 +453,8 @@ func DeleteQueueHost(ctx context.Context,inPtr *DeleteQueueRequest) *FutureDelet
 	if signal {
 		pcontext.Infof(ctx, "DeleteQueue exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureDeleteQueue()
 	f.CompleteMethod(ctx,ret,raw)
@@ -466,7 +470,8 @@ func ReceiveHost(ctx context.Context,inPtr *ReceiveRequest) *FutureReceive {
 	if signal {
 		pcontext.Infof(ctx, "Receive exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureReceive()
 	f.CompleteMethod(ctx,ret,raw)
@@ -482,7 +487,8 @@ func MarkDoneHost(ctx context.Context,inPtr *MarkDoneRequest) *FutureMarkDone {
 	if signal {
 		pcontext.Infof(ctx, "MarkDone exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureMarkDone()
 	f.CompleteMethod(ctx,ret,raw)
@@ -498,7 +504,8 @@ func LengthHost(ctx context.Context,inPtr *LengthRequest) *FutureLength {
 	if signal {
 		pcontext.Infof(ctx, "Length exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureLength()
 	f.CompleteMethod(ctx,ret,raw)
@@ -514,7 +521,8 @@ func SendHost(ctx context.Context,inPtr *SendRequest) *FutureSend {
 	if signal {
 		pcontext.Infof(ctx, "Send exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureSend()
 	f.CompleteMethod(ctx,ret,raw)

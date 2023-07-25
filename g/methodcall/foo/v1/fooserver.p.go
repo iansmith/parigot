@@ -71,7 +71,8 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Foo) *lib.Serv
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on Foo failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
+				"unable to call Exit in Init")
 		}
 	})
 	return smmap
@@ -350,7 +351,8 @@ func AddMultiplyHost(ctx context.Context,inPtr *AddMultiplyRequest) *FutureAddMu
 	if signal {
 		pcontext.Infof(ctx, "AddMultiply exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureAddMultiply()
 	f.CompleteMethod(ctx,ret,raw)
@@ -366,7 +368,8 @@ func LucasSequenceHost(ctx context.Context,inPtr *LucasSequenceRequest) *FutureL
 	if signal {
 		pcontext.Infof(ctx, "LucasSequence exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureLucasSequence()
 	f.CompleteMethod(ctx,ret,raw)
@@ -382,7 +385,8 @@ func WritePiHost(ctx context.Context,inPtr *WritePiRequest) *FutureWritePi {
 	if signal {
 		pcontext.Infof(ctx, "WritePi exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureWritePi()
 	f.CompleteMethod(ctx,ret,raw)

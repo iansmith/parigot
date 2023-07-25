@@ -72,7 +72,8 @@ func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) *lib
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on Test failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitTest",
+				"unable to call Exit in InitTest")
 		}
 	})
 	return smmap
@@ -334,7 +335,8 @@ func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *Futur
 	if signal {
 		pcontext.Infof(ctx, "AddTestSuite exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureTestAddTestSuite()
 	f.CompleteMethod(ctx,ret,raw)
@@ -350,7 +352,8 @@ func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
 	if signal {
 		pcontext.Infof(ctx, "Start exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureTestStart()
 	f.CompleteMethod(ctx,ret,raw)
@@ -445,7 +448,8 @@ func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on MethodCallSuite failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitMethodCallSuite",
+				"unable to call Exit in InitMethodCallSuite")
 		}
 	})
 	return smmap
@@ -707,7 +711,8 @@ func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMeth
 	if signal {
 		pcontext.Infof(ctx, "Exec exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureMethodCallSuiteExec()
 	f.CompleteMethod(ctx,ret,raw)
@@ -723,7 +728,8 @@ func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportReques
 	if signal {
 		pcontext.Infof(ctx, "SuiteReport exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureMethodCallSuiteSuiteReport()
 	f.CompleteMethod(ctx,ret,raw)
@@ -818,7 +824,8 @@ func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl Under
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on UnderTest failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitUnderTest",
+				"unable to call Exit in InitUnderTest")
 		}
 	})
 	return smmap
@@ -1063,7 +1070,8 @@ func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureU
 	if signal {
 		pcontext.Infof(ctx, "ExecUnderTest exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureUnderTestExec()
 	f.CompleteMethod(ctx,ret,raw)

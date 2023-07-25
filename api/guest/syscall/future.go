@@ -1,7 +1,6 @@
 package syscall
 
 import (
-	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
 )
@@ -11,8 +10,7 @@ import (
 // and Failure() funcs as needed.  If the Completed() call is true, the methods
 // added in Success() or Failure() will be called immediately.
 type LaunchFuture struct {
-	fut    *future.Method[*syscall.LaunchResponse, syscall.KernelErr]
-	callId id.CallId
+	fut *future.Method[*syscall.LaunchResponse, syscall.KernelErr]
 }
 
 // Success should be called to add a function to be called when the Launch()
@@ -37,10 +35,9 @@ func (l *LaunchFuture) Completed() bool {
 	return l.fut.Completed()
 }
 
-func NewLaunchFuture(cid id.CallId) *LaunchFuture {
+func NewLaunchFuture() *LaunchFuture {
 	return &LaunchFuture{
-		fut:    future.NewMethod[*syscall.LaunchResponse, syscall.KernelErr](nil, nil),
-		callId: cid,
+		fut: future.NewMethod[*syscall.LaunchResponse, syscall.KernelErr](nil, nil),
 	}
 }
 
@@ -48,8 +45,7 @@ func NewLaunchFuture(cid id.CallId) *LaunchFuture {
 // because it is not certain exactly when the Exit will actually occur.  Further,
 // the exit itself might fail, so the program may not exit at all.
 type ExitFuture struct {
-	fut    *future.Method[*syscall.ExitResponse, syscall.KernelErr]
-	callId id.CallId
+	fut *future.Method[*syscall.ExitResponse, syscall.KernelErr]
 }
 
 // Success should be called to add a function to be called when the Exit()
@@ -74,9 +70,8 @@ func (l *ExitFuture) Failure(fn func(syscall.KernelErr)) {
 // NewExitFuture returns an initialized exit future.  It is not useful to
 // attempt to determine if the exit has "completed" as the program would no
 // longer exit.
-func NewExitFuture(cid id.CallId) *ExitFuture {
+func NewExitFuture() *ExitFuture {
 	return &ExitFuture{
-		fut:    future.NewMethod[*syscall.ExitResponse, syscall.KernelErr](nil, nil),
-		callId: cid,
+		fut: future.NewMethod[*syscall.ExitResponse, syscall.KernelErr](nil, nil),
 	}
 }
