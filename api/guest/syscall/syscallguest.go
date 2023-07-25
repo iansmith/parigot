@@ -89,12 +89,23 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	ctx := ManufactureGuestContext("[syscall]Launch")
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
+	hid := id.UnmarshalHostId(inPtr.GetHostId())
+	cid := id.UnmarshalCallId(inPtr.GetHostId())
+	mid := id.UnmarshalMethodId(inPtr.GetMethodId())
+
+	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
+		lf := NewLaunchFuture()
+		lf.fut.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
+	}
+
+	inPtr.CallId = cid.Marshal()
+	inPtr.HostId = hid.Marshal()
 	if sid.IsZeroOrEmptyValue() {
 		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
 		m.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
 	}
 	log.Printf("xxx -->> Launch BOX 0")
-	rr, err, signal :=
+	_, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Launch_)
 	log.Printf("xxx -->> Launch BOX 1")
 	if signal {
@@ -105,8 +116,7 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
 		m.CompleteMethod(ctx, nil, syscall.KernelErr(err))
 	}
-	cid := id.UnmarshalCallId(rr.GetCallId())
-	return NewLaunchFuture(cid)
+	return NewLaunchFuture()
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -150,19 +160,28 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(err int32) *ExitFuture {
-	inPtr := &syscall.ExitRequest{
-		Code: err,
+func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
+	ctx := ManufactureGuestContext("[syscall]Exit")
+
+	sid := id.UnmarshalServiceId(exitReq.GetServiceId())
+	hid := id.UnmarshalHostId(exitReq.GetHostId())
+	cid := id.UnmarshalCallId(exitReq.GetHostId())
+	mid := id.UnmarshalMethodId(exitReq.GetMethodId())
+
+	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
+		lf := NewExitFuture()
+		lf.fut.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
+
 	}
+
 	outProtoPtr := &syscall.ExitResponse{}
-	errResp := standardGuestSide(inPtr, outProtoPtr, Exit_, "Exit")
+	errResp := standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
 	if errResp != 0 {
-		fut := NewExitFuture(id.CallIdZeroValue())
+		fut := NewExitFuture()
 		fut.fut.CompleteMethod(context.Background(), nil, errResp)
 		return fut
 	}
-	cid := id.UnmarshalCallId(outProtoPtr.CallId)
-	fut := NewExitFuture(cid)
+	fut := NewExitFuture()
 	return fut
 }
 

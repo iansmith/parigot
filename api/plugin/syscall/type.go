@@ -5,7 +5,6 @@ import (
 
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Service is the logical representation of a service. This is
@@ -100,27 +99,6 @@ type SyscallData interface {
 	//of the service id.  If the service cannot be found ServiceByIdString
 	//returns nil.
 	ServiceByIdString(ctx context.Context, str string) Service
-}
-
-// CallMatcher is an internal data structure object that
-// connects calls to Dispatch (the call) with the response
-// which are created by ReturnValue requests.
-type CallMatcher interface {
-	// Response is called when a return value is
-	// being processed. Any value that
-	// is returned is NOT from the execution but from
-	// the Response call itself.  Be aware that the
-	// Response call is likely to be from a different
-	// host than the original Dispatch call.
-	Response(cid id.CallId, a *anypb.Any, err int32) syscall.KernelErr
-	// Dispatch creates the necessary entries to handle
-	// a future call to Response.  The value returned is
-	// related to the Dispatch itself, it is not related
-	// to the execution of the call being registered.
-	Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr
-	// Ready returns a resolved call or nil if no Promises are
-	// resolved for the given host.
-	Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)
 }
 
 // HostFinder returns information about a host in the format used

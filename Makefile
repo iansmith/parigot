@@ -10,7 +10,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
-guest: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
+guest: build/file.p.wasm  build/queue.p.wasm  #build/test.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: api/plugin/queue/db.go
@@ -235,10 +235,10 @@ docs:
 	rm $(PROTOROOT)/api.md
 
 	## guest docs
+	#github.com/iansmith/parigot/api/guest/test 
 	GOFLAGS= gomarkdoc -o $(GUESTROOT)/guest.md \
 	github.com/iansmith/parigot/api/guest/queue/lib \
 	github.com/iansmith/parigot/api/guest/syscall \
-	github.com/iansmith/parigot/api/guest/test \
 	github.com/iansmith/parigot/lib/go \
 	github.com/iansmith/parigot/lib/go/client \
 	github.com/iansmith/parigot/lib/go/future \

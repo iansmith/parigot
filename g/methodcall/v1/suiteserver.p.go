@@ -71,7 +71,8 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl MethodCallSuit
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on MethodCallSuite failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
+				"unable to call Exit in Init")
 		}
 	})
 	return smmap
@@ -333,7 +334,8 @@ func ExecHost(ctx context.Context,inPtr *ExecRequest) *FutureExec {
 	if signal {
 		pcontext.Infof(ctx, "Exec exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureExec()
 	f.CompleteMethod(ctx,ret,raw)
@@ -349,7 +351,8 @@ func SuiteReportHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureSuite
 	if signal {
 		pcontext.Infof(ctx, "SuiteReport exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureSuiteReport()
 	f.CompleteMethod(ctx,ret,raw)

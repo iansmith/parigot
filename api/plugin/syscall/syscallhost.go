@@ -9,22 +9,12 @@ import (
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
-	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
-
-var pairIdToChannel = make(map[string]chan CallInfo)
-
-// CallInfo is sent to the channels that represent service/method calls.
-type CallInfo struct {
-	cid   id.CallId
-	param *anypb.Any
-}
 
 type SyscallPlugin struct {
 }
@@ -91,13 +81,6 @@ func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitR
 	if err != syscall.KernelErr_NoError {
 		return int32(err)
 	}
-	hid := id.UnmarshalHostId(resp.GetHostId())
-	cid := id.UnmarshalCallId(resp.GetCallId())
-
-	if err := matcher().Dispatch(hid, cid); err != syscall.KernelErr_NoError {
-		return int32(err)
-	}
-
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -106,13 +89,7 @@ func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.L
 	if err != syscall.KernelErr_NoError {
 		return int32(err)
 	}
-	hid := id.UnmarshalHostId(resp.GetHostId())
-	cid := id.UnmarshalCallId(resp.GetCallId())
-	if !resp.IsRunning {
-		if err := matcher().Dispatch(hid, cid); err != syscall.KernelErr_NoError {
-			return int32(err)
-		}
-	}
+
 	return int32(syscall.KernelErr_NoError)
 }
 
@@ -121,75 +98,11 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 }
 
 func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
-	hid := id.UnmarshalHostId(req.HostId)
-	rc, err := matcher().Ready(hid)
-	if err != syscall.KernelErr_NoError { // error with ready() itself
-		return int32(err)
-	}
-	// we favor resolving calls, which may be a terrible idea
-	if rc != nil {
-		resp.Timeout = false
-		resp.Call = nil
-		resp.Param = nil
-		resp.Resolved = rc
-		return int32(syscall.KernelErr_NoError)
-	}
-
-	cases := []reflect.SelectCase{}
-	// now we are going to listen for a message on one of the channels
-	// we can also timeout.  the order of these, sadly, matters and
-	// the service/method listeners must go first because the index
-	// of the channel is how we figure out how to dispatch the method.
-	timeoutChoice, exitChoice := -1, -1
-
-	mcl := newMethodCallListener(req)
-	cases = append(cases, mcl.Case()...)
-
-	tl := newTimeoutListener(req.TimeoutInMillis)
-	c := tl.Case()
-	if len(c) != 0 {
-		timeoutChoice = len(cases) // we are about to fill the spot
-	}
-	cases = append(cases, c...)
-
-	exitChannel := (chan int32)(nil)
-	el := NewExitListener(exitChannel)
-	c = el.Case()
-	if len(c) != 0 {
-		exitChoice = len(cases)
-	}
-	cases = append(cases, c...)
-
-	if len(cases) == 0 { // very unlikely since there is the possibility of exit
-		resp.Call = nil
-		resp.Param = nil
-		resp.Timeout = false
-		resp.Exit = false
-		return int32(syscall.KernelErr_NoError)
-	}
-
-	// run the select
-	chosen, value, ok := reflect.Select(cases)
-	// ok will be true if the channel has not been closed.
-	if !ok {
-		return int32(syscall.KernelErr_KernelConnectionFailed)
-	}
-	switch chosen {
-	case timeoutChoice:
-		tl.Handle(value, chosen, resp)
-	case exitChoice:
-		el.Handle(value, chosen, resp)
-	default:
-		mcl.Handle(value, chosen, resp)
-	}
-
-	return int32(syscall.KernelErr_NoError)
+	return int32(handleByWheeler(req, resp))
 }
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
-	cid := id.UnmarshalCallId(req.GetCallId())
-	kerr := matcher().Response(cid, req.Result, req.ResultError)
-	return int32(kerr)
+	return int32(handleByWheeler(req, resp))
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
@@ -315,10 +228,6 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ExitRequest{}
 	resp := &syscall.ExitResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, exitImpl, req, resp)
-}
-
-func makeSidMidCombo(sid id.ServiceId, mid id.MethodId) string {
-	return sid.String() + "," + mid.String()
 }
 
 func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelErr {

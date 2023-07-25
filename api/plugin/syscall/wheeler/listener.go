@@ -1,4 +1,4 @@
-package syscall
+package wheeler
 
 import (
 	"log"
@@ -18,24 +18,15 @@ const (
 	Exit
 )
 
-// Listener is a type that is used when we are running
-type Listener interface {
-	Case() []reflect.SelectCase
-	// Handle sets up the return value whose pointer is
-	// given in the params.  The first parameter is the value
-	// sent through the channel.  The second parameter is the choice
-	// number of the case selected--this probably only matters
-	// a methodRequestListener.
-	Handle(reflect.Value, int, *syscall.ReadOneResponse)
-}
-
 type methodCallListener struct {
-	req *syscall.ReadOneRequest
+	req             *syscall.ReadOneRequest
+	pairIdToChannel map[string]chan CallInfo
 }
 
 func newMethodCallListener(req *syscall.ReadOneRequest) *methodCallListener {
 	mcl := &methodCallListener{
-		req: req,
+		req:             req,
+		pairIdToChannel: make(map[string]chan CallInfo),
 	}
 	return mcl
 }
@@ -45,8 +36,8 @@ func (m *methodCallListener) Case() []reflect.SelectCase {
 	for i, pair := range m.req.Call {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
-		combo := makeSidMidCombo(svc, meth)
-		ch := pairIdToChannel[combo]
+		combo := MakeSidMidCombo(svc, meth)
+		ch := m.pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
 	return cases
@@ -68,10 +59,6 @@ func (m *methodCallListener) Handle(value reflect.Value, chosen int, resp *sysca
 //
 // ExitListener
 //
-
-type ExitListener struct {
-	ch chan int32
-}
 
 func NewExitListener(ch chan int32) *ExitListener {
 	return &ExitListener{ch}

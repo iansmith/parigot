@@ -71,7 +71,8 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Bar) *lib.Serv
 	launchF.Handle(func (ready bool) {
 		if !ready {
 			pcontext.Errorf(ctx, "ready call on Bar failed")
-			syscallguest.Exit(1)
+			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
+				"unable to call Exit in Init")
 		}
 	})
 	return smmap
@@ -316,7 +317,8 @@ func AccumulateHost(ctx context.Context,inPtr *AccumulateRequest) *FutureAccumul
 	if signal {
 		pcontext.Infof(ctx, "Accumulate exiting because of parigot signal")
 		pcontext.Dump(ctx)
-		syscallguest.Exit(1)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
 	f:=NewFutureAccumulate()
 	f.CompleteMethod(ctx,ret,raw)

@@ -3,6 +3,8 @@ package apishared
 import (
 	"hash/crc32"
 	"unsafe"
+
+	"github.com/iansmith/parigot/api/shared/id"
 )
 
 // constants in this package are ones that _MUST_ be synchronized
@@ -67,3 +69,9 @@ var FunctionTimeoutInMillis = int64(3000)
 const FileServiceMaxBufSize = 2048
 const FileServicePathPrefix = "/parigot/app/"
 const FileServiceMaxPathPart = 20
+
+// all calls to launch use the same Id
+var LaunchMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff0))
+
+// all calls to exit use the same Id
+var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff1))

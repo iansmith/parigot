@@ -1,17 +1,10 @@
-package syscall
+package wheeler
 
 import (
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-var _matcher CallMatcher = newCallMatcher()
-
-// matcher returns the only instance of the CallMatcher.
-func matcher() CallMatcher {
-	return _matcher
-}
 
 type callMatcher struct {
 	// waiting and ready are maps from hostId to call id to matchingInfo

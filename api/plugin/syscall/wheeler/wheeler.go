@@ -4,17 +4,17 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"reflect"
 	"strings"
 	"time"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-type serviceState int8
 
 // Wheeler is an opaque interface that talk to over the provided
 // channel.  It implements the system calls for parigot.
@@ -84,8 +84,9 @@ type fqName struct {
 // complete the launch request when th
 type launchData struct {
 	sid  id.ServiceId
-	resp *syscall.LaunchResponse // currently empty
-	ch   chan OutProtoPair
+	cid  id.CallId
+	hid  id.HostId
+	resp *syscall.LaunchResponse
 }
 
 // wheeler is the type that implements system calls.  It actually
@@ -108,6 +109,7 @@ type wheeler struct {
 	serviceToWaiting     map[string][]fqName
 	serviceToFulfillment map[string]map[string]map[string]hostServiceBinding
 	serviceIsLaunched    map[string]struct{}
+	matchImpl            CallMatcher
 	waitList             []launchData
 	runList              []id.ServiceId
 }
@@ -132,6 +134,7 @@ func newWheeler(ctx context.Context, exitCh chan int32) *wheeler {
 		serviceToFulfillment: make(map[string]map[string]map[string]hostServiceBinding),
 		waitList:             []launchData{},
 		runList:              []id.ServiceId{},
+		matchImpl:            newCallMatcher(),
 	}
 	go w.Run()
 	return w
@@ -244,11 +247,11 @@ func (w *wheeler) findRunnable() {
 			if w.requirementsMet(wait.sid) {
 				change = true
 				w.runList = append(w.runList, wait.sid)
-				if !w.notifyRun(wait) {
-					w.errorf("unable to send response back to client via the launch response channel")
+				if err := w.notifyRun(wait); err != syscall.KernelErr_NoError {
+					w.errorf("unable to send response back to client via the ReturnValue mechanism: %s", syscall.KernelErr_name[int32(err)])
 					return
 				}
-				log.Printf("xxx -- we moved %s to run list", wait.sid.Short())
+				log.Printf("xxx -- we moved %s to run list and completed the future", wait.sid.Short())
 			} else {
 				result = append(result, wait)
 			}
@@ -262,67 +265,57 @@ func (w *wheeler) findRunnable() {
 
 }
 
-// launch causes the calling service to be put on the waiting list. It
-// will check to see if there are any eligible to run services at that point.
-// This function return NoError to indicate to the caller that no
-// value should be returned to the caller, as the finish of this
-// is handled by findRunnable.
-func (w *wheeler) launch(req *syscall.LaunchRequest, respChan chan OutProtoPair) (*anypb.Any, syscall.KernelErr) {
+// launch causes the calling service to be put on the waiting list. This function
+// returns ok unless the attempt to put it on the waiting list failed.  This
+// call is a special front end for dispatch().
+func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.KernelErr) {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
-	if sid.IsZeroOrEmptyValue() {
+	cid := id.UnmarshalCallId(req.GetCallId())
+	hid := id.UnmarshalHostId(req.GetHostId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+	if sid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || hid.IsEmptyValue() {
+		return nil, syscall.KernelErr_BadId
+	}
+	if !mid.Equal(apishared.LaunchMethod) {
 		return nil, syscall.KernelErr_BadId
 	}
 	ld := launchData{
-		sid:  sid,
-		ch:   respChan,
-		resp: &syscall.LaunchResponse{},
+		sid: sid,
+		cid: cid,
+		hid: hid,
 	}
+	w.matcher().Dispatch(hid, cid)
+
 	w.waitList = append(w.waitList, ld)
 	w.serviceIsLaunched[sid.String()] = struct{}{}
-	log.Printf("xxxx ---  we are checking to see if the newly launched service is is runnable (%s)", sid.Short())
+	log.Printf("xxxx ---  we are checking to see if the newly launched service is is already runnable (%s)", sid.Short())
 	w.findRunnable()
-	if w.isRunning(sid) {
-		resp := &syscall.LaunchResponse{}
-		resp.IsRunning = true
-		resp.CallId = id.CallIdZeroValue().Marshal()
-		resp.HostId = id.HostIdZeroValue().Marshal()
-		return returnResponseOrMarshalError(w, resp)
-	}
 	resp := &syscall.LaunchResponse{}
-	resp.IsRunning = false
-	resp.CallId = id.NewCallId().Marshal()
-	hid, ok := w.serviceToHost[sid.String()]
-	if !ok {
-		return nil, syscall.KernelErr_NotFound
+	if w.isRunning(sid) {
+		resp.IsRunning = true
+	} else {
+		resp.IsRunning = false
 	}
-	resp.HostId = hid.Marshal()
+	ld.resp = resp
 	return returnResponseOrMarshalError(w, resp)
 }
 
-// notifyRun creates the response bundle, an OutProtoPair, and
-// sends it to the code that is waiting on the result.  This returns
-// false if there was a problem, meaning that the service that is
-// being notified should be removed from the run list (since we could
-// not tell it that it is now running).
-func (w *wheeler) notifyRun(launch launchData) bool {
-	pair := OutProtoPair{}
+// notifyRun is the code that finishes up the call to Launch that was started
+// earlier.  It will find the appropriate call id and then use ReturnValue
+// to do the work of tellig the future what is up.
+func (w *wheeler) notifyRun(launch launchData) syscall.KernelErr {
 
-	pair.Err = syscall.KernelErr_NoError
-	pair.A = &anypb.Any{}
-	result := true
-
-	err := pair.A.MarshalFrom(launch.resp)
+	req := syscall.ReturnValueRequest{}
+	req.CallId = launch.cid.Marshal()
+	req.HostId = launch.hid.Marshal()
+	a := &anypb.Any{}
+	err := a.MarshalFrom(launch.resp)
 	if err != nil {
 		w.errorf("unable to start service %s, failed to marshal for launch response: %s",
 			launch.sid.Short(), err.Error())
-		pair.A = nil
-		pair.Err = syscall.KernelErr_MarshalFailed
-		result = false
+		return w.matcher().Response(launch.cid, nil, int32(syscall.KernelErr_MarshalFailed))
 	}
-	log.Printf("telling %s that the launch data is %+v, and go for launch", launch.sid.Short(), pair.A)
-	// send them their package
-	launch.ch <- pair
-	return result
+	return w.matcher().Response(launch.cid, a, int32(syscall.KernelErr_MarshalFailed))
 }
 
 // export implements the export for all the given types.
@@ -505,6 +498,89 @@ func (w *wheeler) serviceByName(req *syscall.ServiceByNameRequest) (*anypb.Any, 
 	resp := &syscall.ServiceByNameResponse{}
 	resp.Binding = hb
 	return returnResponseOrMarshalError(w, resp)
+}
+
+func (w *wheeler) returnValue(req *syscall.ReturnValueRequest) (*anypb.Any, syscall.KernelErr) {
+	cid := id.UnmarshalCallId(req.GetCallId())
+	kerr := w.matcher().Response(cid, req.Result, req.ResultError)
+	if kerr != syscall.KernelErr_NoError {
+		return nil, kerr
+	}
+
+	return returnResponseOrMarshalError(w, &syscall.ReturnValueResponse{})
+}
+
+func (w *wheeler) matcher() CallMatcher {
+	return w.matchImpl
+}
+
+// readOne is the method that is called to read the next request from the channels.
+func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.KernelErr) {
+	resp := &syscall.ReadOneResponse{}
+	hid := id.UnmarshalHostId(req.HostId)
+	rc, err := w.matcher().Ready(hid)
+	if err != syscall.KernelErr_NoError { // error with ready() itself
+		return nil, err
+	}
+	// we favor resolving calls, which may be a terrible idea
+	if rc != nil {
+		resp.Timeout = false
+		resp.Call = nil
+		resp.Param = nil
+		resp.Resolved = rc
+		return returnResponseOrMarshalError(w, resp)
+	}
+
+	cases := []reflect.SelectCase{}
+	// now we are going to listen for a message on one of the channels
+	// we can also timeout.  the order of these, sadly, matters and
+	// the service/method listeners must go first because the index
+	// of the channel is how we figure out how to dispatch the method.
+	timeoutChoice, exitChoice := -1, -1
+
+	mcl := newMethodCallListener(req)
+	cases = append(cases, mcl.Case()...)
+
+	tl := newTimeoutListener(req.TimeoutInMillis)
+	c := tl.Case()
+	if len(c) != 0 {
+		timeoutChoice = len(cases) // we are about to fill the spot
+	}
+	cases = append(cases, c...)
+
+	exitChannel := (chan int32)(nil)
+	el := NewExitListener(exitChannel)
+	c = el.Case()
+	if len(c) != 0 {
+		exitChoice = len(cases)
+	}
+	cases = append(cases, c...)
+
+	if len(cases) == 0 { // very unlikely since there is the possibility of exit
+		resp.Call = nil
+		resp.Param = nil
+		resp.Timeout = false
+		resp.Exit = false
+		return returnResponseOrMarshalError(w, resp)
+	}
+
+	// run the select
+	chosen, value, ok := reflect.Select(cases)
+	// ok will be true if the channel has not been closed.
+	if !ok {
+		return nil, syscall.KernelErr_KernelConnectionFailed
+	}
+	switch chosen {
+	case timeoutChoice:
+		tl.Handle(value, chosen, resp)
+	case exitChoice:
+		el.Handle(value, chosen, resp)
+	default:
+		mcl.Handle(value, chosen, resp)
+	}
+
+	return returnResponseOrMarshalError(w, resp)
+
 }
 
 // require is the way a service expresses what _other_ services it needs.
@@ -690,7 +766,11 @@ func (w *wheeler) Run() {
 		case "syscall.v1.LocateRequest":
 			result, err = w.locate((*syscall.LocateRequest)(in.Msg.(*syscall.LocateRequest)))
 		case "syscall.v1.LaunchRequest":
-			result, err = w.launch((*syscall.LaunchRequest)(in.Msg.(*syscall.LaunchRequest)), in.Ch)
+			result, err = w.launch((*syscall.LaunchRequest)(in.Msg.(*syscall.LaunchRequest)))
+		case "syscall.v1.ReadOneRequest":
+			result, err = w.readOne((*syscall.ReadOneRequest)(in.Msg.(*syscall.ReadOneRequest)))
+		case "syscall.v1.ReturnValueRequest":
+			result, err = w.returnValue((*syscall.ReturnValueRequest)(in.Msg.(*syscall.ReturnValueRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue
