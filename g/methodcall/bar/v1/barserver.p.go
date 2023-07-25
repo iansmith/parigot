@@ -63,7 +63,7 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Bar) *lib.Serv
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustWaitSatisfied(ctx, myId, impl)
+	smmap:=MustLaunchService(ctx, myId, impl)
 	launchF:=Launch(ctx, myId, impl)
 
 	// kinda tricky: if this get resolved this exit occurs on the
@@ -238,6 +238,7 @@ func Register(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "bar",
 	}
 	req.Fqs = fqs
+	req.HostId = lib.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -279,7 +280,7 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func WaitSatisfied(ctx context.Context, sid id.ServiceId, impl Bar) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchService(ctx context.Context, sid id.ServiceId, impl Bar) (*lib.ServiceMethodMap,syscall.KernelErr) {
 	smmap, err:=bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,syscall.KernelErr(err)
@@ -291,10 +292,10 @@ func WaitSatisfied(ctx context.Context, sid id.ServiceId, impl Bar) (*lib.Servic
     return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfied(ctx context.Context, sid id.ServiceId, impl Bar) *lib.ServiceMethodMap {
-    smmap,err:=WaitSatisfied(ctx,sid,impl)
+func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Bar) *lib.ServiceMethodMap {
+    smmap,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
-        panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
+        panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
     return smmap
 }

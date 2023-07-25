@@ -2,13 +2,13 @@ package syscall
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/lib/go/future"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,11 +26,13 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 	ctx := ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
+	log.Printf("xxxx locate in client side: %+v", inPtr)
 	lr, errIdRaw, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+	log.Printf("xxxx locate in client side, syscall complete %+v", outProtoPtr)
+
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
-		pcontext.Fatalf(ctx, "xxxx Locate exiting due to signal")
 		pcontext.Dump(ctx)
 		os.Exit(1)
 	}
@@ -82,24 +84,29 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 //
 //go:wasmimport parigot launch_
 func Launch_(int32, int32, int32, int32) int64
-func Launch(inPtr *syscall.LaunchRequest) (*syscall.LaunchResponse, syscall.KernelErr) {
+func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	outProtoPtr := (*syscall.LaunchResponse)(nil)
-	ctx := ManufactureGuestContext("[syscall]Run")
+	ctx := ManufactureGuestContext("[syscall]Launch")
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
 	if sid.IsZeroOrEmptyValue() {
-		return nil, syscall.KernelErr_BadId
+		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
+		m.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
 	}
+	log.Printf("xxx -->> Launch BOX 0")
 	rr, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Launch_)
+	log.Printf("xxx -->> Launch BOX 1")
 	if signal {
-		log.Printf("xxx Run exiting due to signal")
+		log.Printf("xxx Launch exiting due to signal")
 		os.Exit(1)
 	}
 	if err != 0 {
-		return nil, syscall.KernelErr(err)
+		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
+		m.CompleteMethod(ctx, nil, syscall.KernelErr(err))
 	}
-	return rr, syscall.KernelErr_NoError
+	cid := id.UnmarshalCallId(rr.GetCallId())
+	return NewLaunchFuture(cid)
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -143,12 +150,20 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(err int32) (*syscall.ExitResponse, syscall.KernelErr) {
-	in := &syscall.ExitRequest{
+func Exit(err int32) *ExitFuture {
+	inPtr := &syscall.ExitRequest{
 		Code: err,
 	}
-	out := &syscall.ExitResponse{}
-	return out, standardGuestSide(in, out, Exit_, "Exit")
+	outProtoPtr := &syscall.ExitResponse{}
+	errResp := standardGuestSide(inPtr, outProtoPtr, Exit_, "Exit")
+	if errResp != 0 {
+		fut := NewExitFuture(id.CallIdZeroValue())
+		fut.fut.CompleteMethod(context.Background(), nil, errResp)
+		return fut
+	}
+	cid := id.UnmarshalCallId(outProtoPtr.CallId)
+	fut := NewExitFuture(cid)
+	return fut
 }
 
 // Register should be called before any other services are
@@ -160,21 +175,6 @@ func Register_(int32, int32, int32, int32) int64
 func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.RegisterResponse{}
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Register_, "Register")
-}
-
-// MustSatisfyWait is a convenience wrapper around creating a RunRequest and
-// using the Run syscall.  MustSatisfyWait is a better name for what goes on
-// in the course of a Run() call.
-func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
-	req := &syscall.LaunchRequest{
-		ServiceId: sid.Marshal(),
-	}
-	_, err := Launch(req)
-	if err != 0 {
-		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])
-		panic(fmt.Sprintf("failed to run successfully:%s",
-			syscall.KernelErr_name[int32(err)]))
-	}
 }
 
 //

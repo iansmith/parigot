@@ -271,7 +271,7 @@ func (s *rawLocal) PathExists(ctx context.Context, src, dest string) bool {
 	destV := s.vertexName[dest]
 
 	if !s.searchEdges(srcV, destV) {
-		pcontext.Errorf(ctx, "locate called, but no require given: %s -> %s", src, dest)
+		pcontext.Errorf(ctx, "XXXlocate called, but no require given: %s -> %s", src, dest)
 		return false
 	}
 	return true

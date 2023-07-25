@@ -3,7 +3,9 @@ package lib
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
@@ -85,18 +87,31 @@ func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.Servi
 	for _, f := range requirement {
 		f(ctx, myId)
 	}
-	syscallguest.MustSatisfyWait(ctx, myId)
+	log.Printf("xxxx --- MustInitClient, finished reg")
+	return myId
+}
 
-	launchreq := &syscall.LaunchRequest{
+// LaunchClient is a convienence wrapper around Launch() for clients that don't
+// want to create their own request structure.
+func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture {
+	req := &syscall.LaunchRequest{
 		ServiceId: myId.Marshal(),
 	}
-	_, err := syscallguest.Launch(launchreq)
-	if err != syscall.KernelErr_NoError {
-		panic(fmt.Sprintf("unable to launch client service: %s",
-			syscall.KernelErr_name[int32(err)]))
-	}
+	return syscallguest.Launch(req)
+}
 
-	return myId
+// ExitClient sends a request to exit and attaches hanndlers that print
+// the given strings. It only forces the exit if the Exit call itself
+// fails. Only the values from 0 to 192 are permissable as the code.
+func ExitClient(ctx context.Context, code int32, msgSuccess, msgFailure string) {
+	exitFut := syscallguest.Exit(code)
+	exitFut.Failure(func(e syscall.KernelErr) {
+		pcontext.Errorf(ctx, msgFailure)
+		os.Exit(1)
+	})
+	exitFut.Success(func(e *syscall.ExitResponse) {
+		pcontext.Errorf(ctx, msgSuccess)
+	})
 }
 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {

@@ -34,7 +34,7 @@ func main() {
 		myId: myId,
 	}
 
-	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
+	binding := test.MustLaunchServiceTest(ctx, myId, server)
 	launchFuture := test.LaunchTest(ctx, myId, server)
 	launchFuture.Handle(func(ok bool) {
 		if !ok {

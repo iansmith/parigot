@@ -8,6 +8,7 @@ import (
 
 var _matcher CallMatcher = newCallMatcher()
 
+// matcher returns the only instance of the CallMatcher.
 func matcher() CallMatcher {
 	return _matcher
 }
@@ -20,6 +21,9 @@ type callMatcher struct {
 	ready   map[string]map[string]*syscall.ResolvedCall
 }
 
+// newCallMatcher returns a  new instance of CallMatcher. It should not be
+// called by outside (user level) code.  There is only one CallMatcher in
+// the system.
 func newCallMatcher() *callMatcher {
 	return &callMatcher{
 		waiting: make(map[string]*syscall.ResolvedCall),
@@ -33,7 +37,7 @@ func (c *callMatcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.K
 	}
 	rc, ok := c.waiting[cid.String()]
 	if !ok {
-		return syscall.KernelErr_BadCallId
+		return syscall.KernelErr_BadId
 	}
 	delete(c.waiting, cid.String())
 	rc.Result = a
@@ -47,13 +51,18 @@ func (c *callMatcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.K
 	}
 	_, ok = cidMap[cid.String()]
 	if ok {
-		return syscall.KernelErr_BadCallId
+		return syscall.KernelErr_BadId
 	}
 	cidMap[cid.String()] = rc
 	return syscall.KernelErr_NoError
 }
 
 func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
+
+	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() {
+		return syscall.KernelErr_BadId
+	}
+
 	_, ok := c.waiting[cid.String()]
 	if ok {
 		return syscall.KernelErr_BadCallId

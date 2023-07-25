@@ -87,13 +87,33 @@ func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.E
 }
 
 func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	err := handleByWheeler(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+	hid := id.UnmarshalHostId(resp.GetHostId())
+	cid := id.UnmarshalCallId(resp.GetCallId())
 
-	//return int32(0x7fffff00 | (req.Code & 0xff))
+	if err := matcher().Dispatch(hid, cid); err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+
+	return int32(syscall.KernelErr_NoError)
 }
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	err := handleByWheeler(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return int32(err)
+	}
+	hid := id.UnmarshalHostId(resp.GetHostId())
+	cid := id.UnmarshalCallId(resp.GetCallId())
+	if !resp.IsRunning {
+		if err := matcher().Dispatch(hid, cid); err != syscall.KernelErr_NoError {
+			return int32(err)
+		}
+	}
+	return int32(syscall.KernelErr_NoError)
 }
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 { //syscall.KernelErr {
@@ -103,7 +123,7 @@ func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *s
 func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
 	hid := id.UnmarshalHostId(req.HostId)
 	rc, err := matcher().Ready(hid)
-	if err != syscall.KernelErr_NoError {
+	if err != syscall.KernelErr_NoError { // error with ready() itself
 		return int32(err)
 	}
 	// we favor resolving calls, which may be a terrible idea
@@ -173,6 +193,7 @@ func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp 
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
+	log.Printf("xxx -- locate impl about to send to wheeler for true")
 	return int32(handleByWheeler(req, resp))
 
 	// svc, ok := startCoordinator().SetService(ctx, req.GetPackageName(),
@@ -236,7 +257,7 @@ func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall
 func locate(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.LocateRequest{}
 	resp := &syscall.LocateResponse{}
-	log.Printf("xxxx --- locate called, unpacking args")
+	log.Printf("xxxx --- locate called, unpacking args, about to call locateImpl")
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
@@ -258,7 +279,7 @@ func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 func launch(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.LaunchRequest{}
 	resp := (*syscall.LaunchResponse)(nil)
-	apiplugin.InvokeImplFromStack(ctx, "[syscall]export", m, stack, launchImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]launch", m, stack, launchImpl, req, resp)
 }
 func export(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ExportRequest{}
@@ -306,14 +327,25 @@ func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelE
 		Ch: retCh,
 	}
 	inPair.Msg = t
+	log.Printf("xxx -->> Box 2A about to send wheeler msg %T", t)
 	wheeler.In() <- inPair
+	log.Printf("xxx -->> Box 2 sent wheeler message in channel %T", t)
 	out := <-retCh
+	log.Printf("xxx -->> Box 3 got wheeler message from channel %T", u)
 	if out.Err != 0 {
 		log.Printf("error in wheeler impl: %T, %s", t, syscall.KernelErr_name[int32(out.Err)])
+		return out.Err
 	}
-	err := out.A.UnmarshalTo(u)
-	if err != nil {
-		return syscall.KernelErr_MarshalFailed
+
+	log.Printf("xxxx -- computing result of handleByWheeler %+v -- %+v", u, out.A)
+	if out.A != nil {
+		r := reflect.ValueOf(u)
+		if !r.IsNil() {
+			err := out.A.UnmarshalTo(u)
+			if err != nil {
+				return syscall.KernelErr_MarshalFailed
+			}
+		}
 	}
 	return out.Err
 }
