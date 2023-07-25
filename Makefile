@@ -9,7 +9,7 @@ all: commands \
 # GROUPS OF TARGETS
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
-methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
+methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
 guest: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so

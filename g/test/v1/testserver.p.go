@@ -64,7 +64,7 @@ func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) *lib
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustWaitSatisfiedTest(ctx, myId, impl)
+	smmap:=MustLaunchServiceTest(ctx, myId, impl)
 	launchF:=LaunchTest(ctx, myId, impl)
 
 	// kinda tricky: if this get resolved this exit occurs on the
@@ -256,6 +256,7 @@ func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "test",
 	}
 	req.Fqs = fqs
+	req.HostId = lib.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -297,7 +298,7 @@ func MustExportTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func WaitSatisfiedTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap,syscall.KernelErr) {
 	smmap, err:=testbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,syscall.KernelErr(err)
@@ -309,10 +310,10 @@ func WaitSatisfiedTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.S
     return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfiedTest(ctx context.Context, sid id.ServiceId, impl Test) *lib.ServiceMethodMap {
-    smmap,err:=WaitSatisfiedTest(ctx,sid,impl)
+func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) *lib.ServiceMethodMap {
+    smmap,err:=LaunchServiceTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
-        panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
+        panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
     return smmap
 }
@@ -436,7 +437,7 @@ func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustWaitSatisfiedMethodCallSuite(ctx, myId, impl)
+	smmap:=MustLaunchServiceMethodCallSuite(ctx, myId, impl)
 	launchF:=LaunchMethodCallSuite(ctx, myId, impl)
 
 	// kinda tricky: if this get resolved this exit occurs on the
@@ -628,6 +629,7 @@ func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelE
 		Service:     "method_call_suite",
 	}
 	req.Fqs = fqs
+	req.HostId = lib.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -669,7 +671,7 @@ func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func WaitSatisfiedMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap,syscall.KernelErr) {
 	smmap, err:=methodCallSuitebind(ctx,sid, impl)
 	if err!=0{
 		return  nil,syscall.KernelErr(err)
@@ -681,10 +683,10 @@ func WaitSatisfiedMethodCallSuite(ctx context.Context, sid id.ServiceId, impl Me
     return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfiedMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *lib.ServiceMethodMap {
-    smmap,err:=WaitSatisfiedMethodCallSuite(ctx,sid,impl)
+func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *lib.ServiceMethodMap {
+    smmap,err:=LaunchServiceMethodCallSuite(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
-        panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
+        panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
     return smmap
 }
@@ -808,7 +810,7 @@ func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl Under
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustWaitSatisfiedUnderTest(ctx, myId, impl)
+	smmap:=MustLaunchServiceUnderTest(ctx, myId, impl)
 	launchF:=LaunchUnderTest(ctx, myId, impl)
 
 	// kinda tricky: if this get resolved this exit occurs on the
@@ -983,6 +985,7 @@ func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "under_test",
 	}
 	req.Fqs = fqs
+	req.HostId = lib.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -1024,7 +1027,7 @@ func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func WaitSatisfiedUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap,syscall.KernelErr) {
 	smmap, err:=underTestbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,syscall.KernelErr(err)
@@ -1036,10 +1039,10 @@ func WaitSatisfiedUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTes
     return smmap,syscall.KernelErr_NoError
 }
 
-func MustWaitSatisfiedUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *lib.ServiceMethodMap {
-    smmap,err:=WaitSatisfiedUnderTest(ctx,sid,impl)
+func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *lib.ServiceMethodMap {
+    smmap,err:=LaunchServiceUnderTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
-        panic("Unable to call WaitSatisfied successfully: "+syscall.KernelErr_name[int32(err)])
+        panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
     return smmap
 }

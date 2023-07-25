@@ -3,6 +3,9 @@ package wheeler
 import (
 	"context"
 	"log"
+	"math/rand"
+	"strings"
+	"time"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
@@ -104,6 +107,7 @@ type wheeler struct {
 	stringToService      map[string]id.ServiceId
 	serviceToWaiting     map[string][]fqName
 	serviceToFulfillment map[string]map[string]map[string]hostServiceBinding
+	serviceIsLaunched    map[string]struct{}
 	waitList             []launchData
 	runList              []id.ServiceId
 }
@@ -124,9 +128,10 @@ func newWheeler(ctx context.Context, exitCh chan int32) *wheeler {
 		hostToRegistration:   make(map[string][]id.ServiceId),
 		stringToService:      make(map[string]id.ServiceId),
 		serviceToWaiting:     make(map[string][]fqName),
+		serviceIsLaunched:    make(map[string]struct{}),
 		serviceToFulfillment: make(map[string]map[string]map[string]hostServiceBinding),
-		waitList:             make([]launchData, maxWaitListSize),
-		runList:              make([]id.ServiceId, maxRunListSize),
+		waitList:             []launchData{},
+		runList:              []id.ServiceId{},
 	}
 	go w.Run()
 	return w
@@ -151,29 +156,42 @@ func (w *wheeler) errorf(spec string, rest ...interface{}) {
 // requirementsMet checks to see if there are services that
 // meet the requirements requested *and* these services are
 // in the run list.
-func (w *wheeler) requirementsMet(sid id.ServiceId) map[string]map[string]hostServiceBinding {
+func (w *wheeler) requirementsMet(sid id.ServiceId) bool {
+	//if you are not launched, then your requirements cannot be met
+	_, ok := w.serviceIsLaunched[sid.String()]
+	if !ok {
+		log.Printf("xxx -- can't be ready to run (%s) because not launched yet", sid.String())
+		return false
+	}
+
 	neededList := w.serviceToWaiting[sid.String()]
 	fulfilled := make(map[string]map[string]hostServiceBinding)
+	log.Printf("xxxx -- checking requirements (0) %s has %+v", sid.Short(), neededList)
 	for _, need := range neededList {
+		log.Printf("xxx -- checking requirements (1) %s who needs %s.%s", sid.Short(), need.pkg, need.name)
 		smap, ok := w.pkgToServiceImpl[need.pkg]
 		if !ok {
-			return nil
+			return false
 		}
 		implList, ok := smap[need.name]
 		if !ok {
-			return nil
+			return false
 		}
 		running := false
 		var winner hostServiceBinding
 		for _, impl := range implList {
 			if w.isRunning(impl.service) {
+				log.Printf("xxx -- %s has dep [%s,%s] that is running (searching for %s.%s)", sid.Short(), impl.host.Short(), impl.service.Short(), need.pkg, need.name)
 				winner = impl
 				running = true
 				break
+			} else {
+				log.Printf("xxx -- %s has dep [%s,%s] that is NOT running (searchin for %s.%s)", sid.Short(), impl.host.Short(), impl.service.Short(), need.pkg, need.name)
+				running = false
 			}
 		}
 		if !running {
-			return nil
+			return false
 		}
 		s, ok := fulfilled[need.pkg]
 		if !ok {
@@ -186,12 +204,13 @@ func (w *wheeler) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 		} else {
 			w.errorf("unexpected already existing fulfilled value for %s.%s", need.pkg, need.name)
 		}
-
 	}
-	if len(fulfilled) == 0 {
-		fulfilled = nil
-	}
-	return fulfilled
+	// if len(fulfilled) == 0 {
+	// 	log.Printf("xxx requirements met, would have nulled fulfilled")
+	// 	fulfilled = nil
+	// }
+	// return fulfilled
+	return true
 }
 
 // isRunning checks to see if a particular service is on the running list.
@@ -211,6 +230,7 @@ func (w *wheeler) isRunning(sid id.ServiceId) bool {
 // list and notifies the channel that is waiting on the response.
 // This function runs until there are no more changes.
 func (w *wheeler) findRunnable() {
+	log.Printf("xxxx --- find Runnable")
 	change := true
 	var result []launchData
 	if len(w.waitList) == 0 {
@@ -219,24 +239,27 @@ func (w *wheeler) findRunnable() {
 	for change {
 		change = false
 		result = []launchData{}
+		log.Printf("xxxx --- find Runnable: waitlist size %d", len(w.waitList))
 		for _, wait := range w.waitList {
-			if f := w.requirementsMet(wait.sid); f != nil {
+			if w.requirementsMet(wait.sid) {
 				change = true
 				w.runList = append(w.runList, wait.sid)
 				if !w.notifyRun(wait) {
-					// failed to notify, so we gotta back the runlist item out
-					if len(w.runList) == 1 {
-						w.runList = nil
-					} else {
-						w.runList = w.runList[0 : len(w.runList)-1]
-					}
+					w.errorf("unable to send response back to client via the launch response channel")
+					return
 				}
+				log.Printf("xxx -- we moved %s to run list", wait.sid.Short())
 			} else {
 				result = append(result, wait)
 			}
 		}
+		w.waitList = result
+		if change {
+			log.Printf("xxx -- something is ready now, go through all waiting again")
+		}
 	}
-	w.waitList = result
+	log.Printf("xxxx --- find Runnable: finished with waitlist of %d", len(w.waitList))
+
 }
 
 // launch causes the calling service to be put on the waiting list. It
@@ -255,8 +278,25 @@ func (w *wheeler) launch(req *syscall.LaunchRequest, respChan chan OutProtoPair)
 		resp: &syscall.LaunchResponse{},
 	}
 	w.waitList = append(w.waitList, ld)
+	w.serviceIsLaunched[sid.String()] = struct{}{}
+	log.Printf("xxxx ---  we are checking to see if the newly launched service is is runnable (%s)", sid.Short())
 	w.findRunnable()
-	return nil, syscall.KernelErr_NoError
+	if w.isRunning(sid) {
+		resp := &syscall.LaunchResponse{}
+		resp.IsRunning = true
+		resp.CallId = id.CallIdZeroValue().Marshal()
+		resp.HostId = id.HostIdZeroValue().Marshal()
+		return returnResponseOrMarshalError(w, resp)
+	}
+	resp := &syscall.LaunchResponse{}
+	resp.IsRunning = false
+	resp.CallId = id.NewCallId().Marshal()
+	hid, ok := w.serviceToHost[sid.String()]
+	if !ok {
+		return nil, syscall.KernelErr_NotFound
+	}
+	resp.HostId = hid.Marshal()
+	return returnResponseOrMarshalError(w, resp)
 }
 
 // notifyRun creates the response bundle, an OutProtoPair, and
@@ -279,6 +319,7 @@ func (w *wheeler) notifyRun(launch launchData) bool {
 		pair.Err = syscall.KernelErr_MarshalFailed
 		result = false
 	}
+	log.Printf("telling %s that the launch data is %+v, and go for launch", launch.sid.Short(), pair.A)
 	// send them their package
 	launch.ch <- pair
 	return result
@@ -291,6 +332,7 @@ func (w *wheeler) notifyRun(launch launchData) bool {
 func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.KernelErr) {
 	sid := id.UnmarshalServiceId(req.ServiceId)
 	hid := id.UnmarshalHostId(req.HostId)
+	resp := &syscall.ExportResponse{}
 
 	if hid.IsZeroOrEmptyValue() {
 		return nil, syscall.KernelErr_BadId
@@ -298,7 +340,6 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 	if sid.IsZeroOrEmptyValue() {
 		return nil, syscall.KernelErr_BadId
 	}
-
 	// not registered
 	if _, ok := w.stringToService[sid.String()]; !ok {
 		return nil, syscall.KernelErr_BadId
@@ -309,6 +350,7 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 	for _, fqn := range req.GetService() {
 		pkg := fqn.GetPackagePath()
 		name := fqn.GetService()
+		log.Printf("xxx --- export %s: %s.%s", sid.Short(), pkg, name)
 		pkg2map, ok := w.pkgToServiceImpl[pkg]
 		if !ok {
 			pkg2map = make(map[string][]hostServiceBinding)
@@ -328,7 +370,7 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 		w.serviceToFQName[sid.String()] = fqName{fqn.PackagePath, fqn.Service}
 	}
 	w.findRunnable()
-	return returnResponseOrMarshalError(w, &syscall.ExportResponse{})
+	return returnResponseOrMarshalError(w, resp)
 }
 
 // addHost adds the given hid to our to list of hosts if we have
@@ -379,6 +421,7 @@ func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.Ke
 	hid := id.UnmarshalHostId(req.GetHostId())
 
 	if hid.IsZeroOrEmptyValue() {
+		w.errorf("host Id in register() is zero or empty: %s", hid.Short())
 		return nil, syscall.KernelErr_BadId
 	}
 
@@ -418,6 +461,11 @@ func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.Ke
 // a given (concrete) service has.  This registration should be done
 func (w *wheeler) bindMethod(req *syscall.BindMethodRequest) (*anypb.Any, syscall.KernelErr) {
 	sid := id.UnmarshalServiceId(req.GetServiceId())
+
+	if sid.IsZeroOrEmptyValue() {
+		return nil, syscall.KernelErr_BadId
+	}
+
 	methName := req.GetMethodName()
 	resp := &syscall.BindMethodResponse{}
 
@@ -427,6 +475,7 @@ func (w *wheeler) bindMethod(req *syscall.BindMethodRequest) (*anypb.Any, syscal
 		w.serviceToMethMap[sid.String()] = methMap
 	}
 	mid, ok := methMap[methName]
+	log.Printf("xxxx -- method map %+v (%v)", methMap, ok)
 	if !ok {
 		mid = id.NewMethodId()
 		methMap[methName] = mid
@@ -465,6 +514,7 @@ func (w *wheeler) require(req *syscall.RequireRequest) (*anypb.Any, syscall.Kern
 	resp := &syscall.RequireResponse{}
 	src := id.UnmarshalServiceId(req.GetSource())
 	dest := make([]fqName, len(req.GetDest()))
+	log.Printf("xxxx -- require: source %s has %d targets", src.Short(), len(dest))
 	for i, d := range req.GetDest() {
 		curr := fqName{
 			pkg:  d.PackagePath,
@@ -479,7 +529,6 @@ func (w *wheeler) require(req *syscall.RequireRequest) (*anypb.Any, syscall.Kern
 	for i := 0; i < len(dest); i++ {
 		wait = append(wait, dest[i])
 	}
-	wait = append(wait, dest...)
 	w.serviceToWaiting[src.String()] = wait
 
 	// if err := dfs(); err != syscall.KernelErr_NoError {
@@ -505,6 +554,56 @@ func returnResponseOrMarshalError[T proto.Message](w *wheeler, resp T) (*anypb.A
 		return nil, syscall.KernelErr_MarshalFailed
 	}
 	return a, syscall.KernelErr_NoError
+}
+
+// locate is a foundational call in parigot. It converts a fully qualified
+// string (like foo.v1.Foo) into a reference to service and host.  This call
+// fails if nobody has exported the service requested.  Since you should always
+// call Launch() before Locate() there is no issue with timing.  Launch blocks
+// until all dependencies are met.
+func (w *wheeler) locate(req *syscall.LocateRequest) (*anypb.Any, syscall.KernelErr) {
+	resp := &syscall.LocateResponse{}
+	sid := id.UnmarshalServiceId(req.GetCalledBy())
+	pkg := req.GetPackageName()
+	name := req.GetServiceName()
+	log.Printf("xxx -- locate! %s trying to locate %s.%s", sid.Short(), pkg, name)
+	sMap, ok := w.pkgToServiceImpl[pkg]
+	if !ok {
+		w.errorf("failed to find service that was requested in Locate (0): %s.%s", strings.ToUpper(pkg), name)
+		return nil, syscall.KernelErr_NotFound
+	}
+	target, ok := sMap[name]
+	if !ok {
+		w.errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, strings.ToUpper(name))
+		return nil, syscall.KernelErr_NotFound
+	}
+	if len(target) == 0 {
+		w.errorf("failed to find service that was requested in Locate (2): %s.%s", strings.ToUpper(pkg), strings.ToUpper(name))
+		return nil, syscall.KernelErr_NotFound
+
+	}
+	chosen := target[0]
+	if len(target) > 1 {
+		n := rand.Intn(len(target))
+		chosen = target[n]
+	}
+
+	resp.ServiceId = chosen.service.Marshal()
+	resp.HostId = chosen.host.Marshal()
+	meth, ok := w.serviceToMethMap[chosen.service.String()]
+	if !ok {
+		// no methods?
+		w.errorf("unable to find any methods associated with service %s (%s.%s)", chosen.service.Short(), pkg, name)
+	}
+	resp.Binding = []*syscall.MethodBinding{}
+	for name, meth := range meth {
+		mb := &syscall.MethodBinding{
+			MethodName: name,
+			MethodId:   meth.Marshal(),
+		}
+		resp.Binding = append(resp.Binding, mb)
+	}
+	return returnResponseOrMarshalError(w, resp)
 }
 
 // dependencyExists is a means of  requesting to know what dependencies
@@ -588,11 +687,10 @@ func (w *wheeler) Run() {
 			result, err = w.require((*syscall.RequireRequest)(in.Msg.(*syscall.RequireRequest)))
 		case "syscall.v1.DependencyExistsRequest":
 			result, err = w.dependencyExists((*syscall.DependencyExistsRequest)(in.Msg.(*syscall.DependencyExistsRequest)))
+		case "syscall.v1.LocateRequest":
+			result, err = w.locate((*syscall.LocateRequest)(in.Msg.(*syscall.LocateRequest)))
 		case "syscall.v1.LaunchRequest":
 			result, err = w.launch((*syscall.LaunchRequest)(in.Msg.(*syscall.LaunchRequest)), in.Ch)
-			if err == syscall.KernelErr_NoError {
-				continue // because we need somebody else to get us out of waiting
-			}
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue
@@ -600,13 +698,23 @@ func (w *wheeler) Run() {
 		var a anypb.Any
 		e := a.MarshalFrom(result)
 		if e != nil {
-			in.Ch <- OutProtoPair{nil, syscall.KernelErr_MarshalFailed}
+			select {
+			case in.Ch <- OutProtoPair{nil, syscall.KernelErr_MarshalFailed}:
+			case <-time.After(1 * time.Second):
+				w.errorf("unable to reach client (0) that requested respose (%s) with marshal failed error %s", desc.FullName(), e.Error())
+				close(in.Ch)
+			}
 			return
 		}
 		outPair := OutProtoPair{
 			A:   result,
 			Err: err,
 		}
-		in.Ch <- outPair
+		select {
+		case in.Ch <- outPair:
+		case <-time.After(1 * time.Second):
+			w.errorf("unable to reach client (1) that requested response (%T) with response %+v", result, result)
+			close(in.Ch)
+		}
 	}
 }

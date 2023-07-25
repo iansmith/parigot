@@ -254,6 +254,10 @@ message LaunchRequest {
 }
 
 message LaunchResponse {
+	bool is_running = 1;
+	protosupport.v1.IdRaw call_id = 2; // reserved for internal use
+	protosupport.v1.IdRaw host_id = 3; // reserved for internal use
+
 }
 
 // ExitRequest is how you can request for your wasm program to exit. In some cases, this will not terminate
@@ -269,6 +273,9 @@ message ExitRequest {
 // in the future.
 message ExitResponse{
   int32 code = 1;
+  protosupport.v1.IdRaw call_id = 2; // reserved for internal use
+  protosupport.v1.IdRaw host_id = 3; // reserved for internal use
+  
 }
 
 // Register informs the kernel you are one of the known services
