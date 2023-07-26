@@ -17,6 +17,7 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/api/shared/id"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
 
@@ -48,7 +49,9 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Queue) *future.Base[bool
 	return readyResult
 }
 
-func Init(ctx context.Context,require []lib.MustRequireFunc, impl Queue) *lib.ServiceMethodMap{
+// Note that  Init returns a future, but the case of failure is covered
+// by this definition so the caller need only deal with Success case.
+func Init(ctx context.Context,require []lib.MustRequireFunc, impl Queue) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "InitQueue: trapped a panic in the guest side: %v", r)
@@ -63,19 +66,14 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Queue) *lib.Se
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustLaunchService(ctx, myId, impl)
-	launchF:=Launch(ctx, myId, impl)
-
-	// kinda tricky: if this get resolved this exit occurs on the
-	// call stack of the code that called Set().
-	launchF.Handle(func (ready bool) {
-		if !ready {
-			pcontext.Errorf(ctx, "ready call on Queue failed")
-			lib.ExitClient(ctx, 1, myId, "unable to Launch in Init",
-				"unable to call Exit in Init")
-		}
+	smmap, launchF:=MustLaunchService(ctx, myId, impl)
+	launchF.Failure(func (err syscall.KernelErr) {
+		t:=syscall.KernelErr_name[int32(err)]
+		pcontext.Errorf(ctx, "launch failure on call Queue:%s",t)
+		lib.ExitClient(ctx, 1, myId, "unable to Launch in Init:"+t,
+			"unable to call Exit in Init:"+t)
 	})
-	return smmap
+	return smmap,launchF, myId
 }
 func Run(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
@@ -109,7 +107,7 @@ func Run(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillis = int32(500)
+var TimeoutInMillis = int32(10000)
 
 func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -132,12 +130,12 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	lib.ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		lib.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
@@ -383,24 +381,29 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl Queue) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchService(ctx context.Context, sid id.ServiceId, impl Queue) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=bind(ctx,sid, impl)
 	if err!=0{
-		return  nil,syscall.KernelErr(err)
+		return  nil,nil,syscall.KernelErr(err)
 	}
+	cid:=id.NewCallId()
+	req:=&syscall.LaunchRequest{
+		ServiceId: sid.Marshal(),
+		CallId: cid.Marshal(),
+		HostId: lib.CurrentHostId().Marshal(),
+		MethodId: apishared.LaunchMethod.Marshal(),
+	}
+	fut:=syscallguest.Launch(req)
 
-    s:=sid.Marshal()
-	syscallguest.Launch(&syscall.LaunchRequest{ServiceId:s })
-
-    return smmap,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 }
 
-func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Queue) *lib.ServiceMethodMap {
-    smmap,err:=LaunchService(ctx,sid,impl)
+func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Queue) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+    smmap,fut,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
-    return smmap
+    return smmap,fut
 }
 
 

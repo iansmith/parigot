@@ -106,52 +106,11 @@ func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp 
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
-	log.Printf("xxx -- locate impl about to send to wheeler for true")
 	return int32(handleByWheeler(req, resp))
-
-	// svc, ok := startCoordinator().SetService(ctx, req.GetPackageName(),
-	// 	req.GetServiceName(), false)
-	// if ok {
-	// 	return int32(syscall.KernelErr_NotFound)
-	// }
-	// calledBy := id.UnmarshalServiceId(req.CalledBy)
-	// if !startCoordinator().PathExists(ctx, calledBy.String(), svc.String()) {
-	// 	return int32(syscall.KernelErr_NotRequired)
-	// }
-	// host := finder().FindByName(fqServiceName(req.GetPackageName(), req.GetServiceName()))
-	// if host == nil {
-	// 	return int32(syscall.KernelErr_NotFound)
-	// }
-	// svcId := svc.Id()
-	// resp.ServiceId = svcId.Marshal()
-	// resp.Binding = svc.Method()
-	// resp.HostId = host.hid.Marshal()
-	// return int32(syscall.KernelErr_NoError)
 }
 
 func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
 	return int32(handleByWheeler(req, resp))
-	// sid := id.UnmarshalServiceId(req.GetServiceId())
-	// mid := id.UnmarshalMethodId(req.GetMethodId())
-	// cid := id.UnmarshalCallId(req.GetCallId())
-	// hid := id.UnmarshalHostId(req.GetHostId())
-
-	// matcher().Dispatch(hid, cid)
-
-	// target := pairIdToChannel[makeSidMidCombo(sid, mid)]
-	// if target == nil {
-	// 	// should this have a special error?
-	// 	return int32(syscall.KernelErr_NotFound)
-	// }
-
-	// resp.CallId = cid.Marshal()
-
-	// cm := CallInfo{
-	// 	cid:   cid,
-	// 	param: req.GetParam(),
-	// }
-	// target <- cm
-	// return int32(syscall.KernelErr_NoError)
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 { //syscall.KernelErr {
@@ -159,7 +118,6 @@ func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *sysca
 }
 
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
-	log.Printf("xxxx --- require impl called, calling wheeler")
 	if req.GetDest() == nil {
 		return 0
 	}
@@ -170,7 +128,6 @@ func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall
 func locate(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.LocateRequest{}
 	resp := &syscall.LocateResponse{}
-	log.Printf("xxxx --- locate called, unpacking args, about to call locateImpl")
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]locate", m, stack, locateImpl, req, resp)
 }
 
@@ -236,17 +193,13 @@ func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelE
 		Ch: retCh,
 	}
 	inPair.Msg = t
-	log.Printf("xxx -->> Box 2A about to send wheeler msg %T", t)
 	wheeler.In() <- inPair
-	log.Printf("xxx -->> Box 2 sent wheeler message in channel %T", t)
 	out := <-retCh
-	log.Printf("xxx -->> Box 3 got wheeler message from channel %T", u)
 	if out.Err != 0 {
 		log.Printf("error in wheeler impl: %T, %s", t, syscall.KernelErr_name[int32(out.Err)])
 		return out.Err
 	}
 
-	log.Printf("xxxx -- computing result of handleByWheeler %+v -- %+v", u, out.A)
 	if out.A != nil {
 		r := reflect.ValueOf(u)
 		if !r.IsNil() {

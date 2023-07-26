@@ -260,8 +260,9 @@ message LaunchRequest {
 
 }
 
+// LaunchResponse has nothing in it because the action will be handled by
+// a future created as a result of LaunchRequest.
 message LaunchResponse {
-	bool is_running = 1;
 }
 
 // ExitRequest is how you can request for your wasm program to exit. In some cases, this will not terminate

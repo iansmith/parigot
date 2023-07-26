@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"log"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
@@ -28,7 +27,6 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 		CalledBy:    calledBy.Marshal(),
 	}
 
-	log.Printf("xxxx --- in client.Locate for %s: %s.%s", calledBy.Short(), protoPkg, serviceName)
 	resp, kerr := syscallguest.Locate(req)
 	if kerr != syscall.KernelErr_NoError {
 		pcontext.Errorf(ctx, "UnmarshalServiceId failed: %s", syscall.KernelErr_name[int32(kerr)])
@@ -36,7 +34,6 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 	}
 	serviceId := id.UnmarshalServiceId(resp.GetServiceId())
 	smmap := lib.NewServiceMethodMap()
-	log.Printf("xxxx --- in client.Locate for %s: found the type %s.%s", calledBy.Short(), protoPkg, serviceName)
 
 	for _, pair := range resp.GetBinding() {
 		mid := id.UnmarshalMethodId(pair.MethodId)

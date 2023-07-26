@@ -10,11 +10,11 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
 
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
@@ -54,8 +54,10 @@ type FutureAccumulate struct {
 // execution of the user level code.
 func (f * FutureAccumulate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&AccumulateResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,BarErr(e)) 
     return syscall.KernelErr_NoError
@@ -92,6 +94,6 @@ func (i *Client_) Accumulate(ctx context.Context, in *AccumulateRequest) *Future
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  

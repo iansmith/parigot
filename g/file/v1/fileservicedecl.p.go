@@ -10,11 +10,11 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
 
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
@@ -66,8 +66,10 @@ type FutureOpen struct {
 // execution of the user level code.
 func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&OpenResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -104,7 +106,7 @@ func (i *Client_) Open(ctx context.Context, in *OpenRequest) *FutureOpen {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -120,8 +122,10 @@ type FutureCreate struct {
 // execution of the user level code.
 func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&CreateResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -158,7 +162,7 @@ func (i *Client_) Create(ctx context.Context, in *CreateRequest) *FutureCreate {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -174,8 +178,10 @@ type FutureClose struct {
 // execution of the user level code.
 func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&CloseResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -212,7 +218,7 @@ func (i *Client_) Close(ctx context.Context, in *CloseRequest) *FutureClose {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -228,8 +234,10 @@ type FutureLoadTestData struct {
 // execution of the user level code.
 func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LoadTestDataResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -266,7 +274,7 @@ func (i *Client_) LoadTestData(ctx context.Context, in *LoadTestDataRequest) *Fu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -282,8 +290,10 @@ type FutureRead struct {
 // execution of the user level code.
 func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ReadResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -320,7 +330,7 @@ func (i *Client_) Read(ctx context.Context, in *ReadRequest) *FutureRead {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -336,8 +346,10 @@ type FutureWrite struct {
 // execution of the user level code.
 func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&WriteResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -374,7 +386,7 @@ func (i *Client_) Write(ctx context.Context, in *WriteRequest) *FutureWrite {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -390,8 +402,10 @@ type FutureDelete struct {
 // execution of the user level code.
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&DeleteResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
     return syscall.KernelErr_NoError
@@ -428,6 +442,6 @@ func (i *Client_) Delete(ctx context.Context, in *DeleteRequest) *FutureDelete {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  

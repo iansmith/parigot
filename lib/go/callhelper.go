@@ -3,7 +3,6 @@ package lib
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 
@@ -88,17 +87,17 @@ func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.Servi
 	for _, f := range requirement {
 		f(ctx, myId)
 	}
-	log.Printf("xxxx --- MustInitClient, finished reg")
 	return myId
 }
 
 // LaunchClient is a convienence wrapper around Launch() for clients that don't
 // want to create their own request structure.
 func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture {
+	cid := id.NewCallId()
 	req := &syscall.LaunchRequest{
 		HostId:    CurrentHostId().Marshal(),
 		ServiceId: myId.Marshal(),
-		CallId:    id.NewCallId().Marshal(),
+		CallId:    cid.Marshal(),
 		MethodId:  apishared.LaunchMethod.Marshal(),
 	}
 	return syscallguest.Launch(req)
@@ -128,7 +127,7 @@ func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {
 	var err syscall.KernelErr
 	for {
-		err = clientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
+		err = ClientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
 		if err != syscall.KernelErr_NoError && err != syscall.KernelErr_ReadOneTimeout {
 			break
 		}
@@ -136,7 +135,12 @@ func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr
 	return err
 }
 
-func clientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
+// ClientOnlyReadOneAndCall does the waiting for an incoming call and if one
+// arrives, it dispatches the call to the appropriate method.  Similarly, it
+// will detect and respond to finished futures.  It returns KernelErr_ReadOneTimeout
+// if the waiting timed out, otherwise the value should be KernelErr_NoError or
+// an appropriate error code.
+func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 	timeoutInMillis int32) syscall.KernelErr {
 	req := syscall.ReadOneRequest{}
 
@@ -153,12 +157,12 @@ func clientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r := resp.GetResolved(); r != nil {
 		cid := id.UnmarshalCallId(r.GetCallId())
-		CompleteCall(ctx, cid, r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid, r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 

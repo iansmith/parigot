@@ -2,9 +2,11 @@ package wheeler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"reflect"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -83,10 +85,13 @@ type fqName struct {
 // the waiting state.  We need the information here so we can
 // complete the launch request when th
 type launchData struct {
-	sid  id.ServiceId
-	cid  id.CallId
-	hid  id.HostId
-	resp *syscall.LaunchResponse
+	sid id.ServiceId
+	cid id.CallId
+	hid id.HostId
+}
+
+func (l *launchData) String() string {
+	return fmt.Sprintf("LaunchData[%s, %s, %s]", l.cid.Short(), l.sid.Short(), l.hid.Short())
 }
 
 // wheeler is the type that implements system calls.  It actually
@@ -169,9 +174,7 @@ func (w *wheeler) requirementsMet(sid id.ServiceId) bool {
 
 	neededList := w.serviceToWaiting[sid.String()]
 	fulfilled := make(map[string]map[string]hostServiceBinding)
-	log.Printf("xxxx -- checking requirements (0) %s has %+v", sid.Short(), neededList)
 	for _, need := range neededList {
-		log.Printf("xxx -- checking requirements (1) %s who needs %s.%s", sid.Short(), need.pkg, need.name)
 		smap, ok := w.pkgToServiceImpl[need.pkg]
 		if !ok {
 			return false
@@ -184,12 +187,10 @@ func (w *wheeler) requirementsMet(sid id.ServiceId) bool {
 		var winner hostServiceBinding
 		for _, impl := range implList {
 			if w.isRunning(impl.service) {
-				log.Printf("xxx -- %s has dep [%s,%s] that is running (searching for %s.%s)", sid.Short(), impl.host.Short(), impl.service.Short(), need.pkg, need.name)
 				winner = impl
 				running = true
 				break
 			} else {
-				log.Printf("xxx -- %s has dep [%s,%s] that is NOT running (searchin for %s.%s)", sid.Short(), impl.host.Short(), impl.service.Short(), need.pkg, need.name)
 				running = false
 			}
 		}
@@ -233,7 +234,6 @@ func (w *wheeler) isRunning(sid id.ServiceId) bool {
 // list and notifies the channel that is waiting on the response.
 // This function runs until there are no more changes.
 func (w *wheeler) findRunnable() {
-	log.Printf("xxxx --- find Runnable")
 	change := true
 	var result []launchData
 	if len(w.waitList) == 0 {
@@ -242,7 +242,6 @@ func (w *wheeler) findRunnable() {
 	for change {
 		change = false
 		result = []launchData{}
-		log.Printf("xxxx --- find Runnable: waitlist size %d", len(w.waitList))
 		for _, wait := range w.waitList {
 			if w.requirementsMet(wait.sid) {
 				change = true
@@ -251,17 +250,12 @@ func (w *wheeler) findRunnable() {
 					w.errorf("unable to send response back to client via the ReturnValue mechanism: %s", syscall.KernelErr_name[int32(err)])
 					return
 				}
-				log.Printf("xxx -- we moved %s to run list and completed the future", wait.sid.Short())
 			} else {
 				result = append(result, wait)
 			}
 		}
 		w.waitList = result
-		if change {
-			log.Printf("xxx -- something is ready now, go through all waiting again")
-		}
 	}
-	log.Printf("xxxx --- find Runnable: finished with waitlist of %d", len(w.waitList))
 
 }
 
@@ -274,9 +268,13 @@ func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.Kernel
 	hid := id.UnmarshalHostId(req.GetHostId())
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 	if sid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || hid.IsEmptyValue() {
+		log.Printf("XXX -- launch failed because of bad id %s,%s,%s,%s",
+			sid.Short(), cid.Short(), hid.Short(), mid.Short())
 		return nil, syscall.KernelErr_BadId
 	}
 	if !mid.Equal(apishared.LaunchMethod) {
+		log.Printf("XXX -- launch failed because method id doesn't match %s,%s",
+			mid.Short(), apishared.LaunchMethod.Short())
 		return nil, syscall.KernelErr_BadId
 	}
 	ld := launchData{
@@ -288,15 +286,8 @@ func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.Kernel
 
 	w.waitList = append(w.waitList, ld)
 	w.serviceIsLaunched[sid.String()] = struct{}{}
-	log.Printf("xxxx ---  we are checking to see if the newly launched service is is already runnable (%s)", sid.Short())
 	w.findRunnable()
 	resp := &syscall.LaunchResponse{}
-	if w.isRunning(sid) {
-		resp.IsRunning = true
-	} else {
-		resp.IsRunning = false
-	}
-	ld.resp = resp
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -304,18 +295,17 @@ func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.Kernel
 // earlier.  It will find the appropriate call id and then use ReturnValue
 // to do the work of tellig the future what is up.
 func (w *wheeler) notifyRun(launch launchData) syscall.KernelErr {
-
 	req := syscall.ReturnValueRequest{}
 	req.CallId = launch.cid.Marshal()
 	req.HostId = launch.hid.Marshal()
 	a := &anypb.Any{}
-	err := a.MarshalFrom(launch.resp)
+	err := a.MarshalFrom(&syscall.LaunchResponse{})
 	if err != nil {
 		w.errorf("unable to start service %s, failed to marshal for launch response: %s",
 			launch.sid.Short(), err.Error())
 		return w.matcher().Response(launch.cid, nil, int32(syscall.KernelErr_MarshalFailed))
 	}
-	return w.matcher().Response(launch.cid, a, int32(syscall.KernelErr_MarshalFailed))
+	return w.matcher().Response(launch.cid, a, int32(syscall.KernelErr_NoError))
 }
 
 // export implements the export for all the given types.
@@ -343,7 +333,6 @@ func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.Kernel
 	for _, fqn := range req.GetService() {
 		pkg := fqn.GetPackagePath()
 		name := fqn.GetService()
-		log.Printf("xxx --- export %s: %s.%s", sid.Short(), pkg, name)
 		pkg2map, ok := w.pkgToServiceImpl[pkg]
 		if !ok {
 			pkg2map = make(map[string][]hostServiceBinding)
@@ -468,12 +457,12 @@ func (w *wheeler) bindMethod(req *syscall.BindMethodRequest) (*anypb.Any, syscal
 		w.serviceToMethMap[sid.String()] = methMap
 	}
 	mid, ok := methMap[methName]
-	log.Printf("xxxx -- method map %+v (%v)", methMap, ok)
 	if !ok {
 		mid = id.NewMethodId()
 		methMap[methName] = mid
 	}
 	resp.MethodId = mid.Marshal()
+	pairIdToChannel[MakeSidMidCombo(sid, mid)] = make(chan CallInfo, 8)
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -512,6 +501,38 @@ func (w *wheeler) returnValue(req *syscall.ReturnValueRequest) (*anypb.Any, sysc
 
 func (w *wheeler) matcher() CallMatcher {
 	return w.matchImpl
+}
+
+// dispatch is called for the first phase of an RPC.  This creates the structures
+// to handle completing the call later.
+func (w *wheeler) dispatch(req *syscall.DispatchRequest) (*anypb.Any, syscall.KernelErr) {
+	sid := id.UnmarshalServiceId(req.GetServiceId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+	cid := id.UnmarshalCallId(req.GetCallId())
+	hid := id.UnmarshalHostId(req.GetHostId())
+	resp := &syscall.DispatchResponse{}
+
+	if kerr := w.matcher().Dispatch(hid, cid); kerr != syscall.KernelErr_NoError {
+		log.Printf("dispatch error in wheeler: %s", syscall.KernelErr_name[int32(kerr)])
+		return nil, kerr
+	}
+
+	target, ok := pairIdToChannel[MakeSidMidCombo(sid, mid)]
+	if !ok {
+		// should this have a special error?
+		log.Printf("xxx -- unable to find a match for pair %s", MakeSidMidCombo(sid, mid))
+		return nil, syscall.KernelErr_NotFound
+	}
+
+	resp.CallId = req.GetCallId()
+
+	cm := CallInfo{
+		cid:   cid,
+		param: req.GetParam(),
+	}
+	target <- cm
+	return returnResponseOrMarshalError(w, resp)
+
 }
 
 // readOne is the method that is called to read the next request from the channels.
@@ -570,6 +591,7 @@ func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.Kern
 	if !ok {
 		return nil, syscall.KernelErr_KernelConnectionFailed
 	}
+
 	switch chosen {
 	case timeoutChoice:
 		tl.Handle(value, chosen, resp)
@@ -590,7 +612,6 @@ func (w *wheeler) require(req *syscall.RequireRequest) (*anypb.Any, syscall.Kern
 	resp := &syscall.RequireResponse{}
 	src := id.UnmarshalServiceId(req.GetSource())
 	dest := make([]fqName, len(req.GetDest()))
-	log.Printf("xxxx -- require: source %s has %d targets", src.Short(), len(dest))
 	for i, d := range req.GetDest() {
 		curr := fqName{
 			pkg:  d.PackagePath,
@@ -639,10 +660,9 @@ func returnResponseOrMarshalError[T proto.Message](w *wheeler, resp T) (*anypb.A
 // until all dependencies are met.
 func (w *wheeler) locate(req *syscall.LocateRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.LocateResponse{}
-	sid := id.UnmarshalServiceId(req.GetCalledBy())
+	//sid := id.UnmarshalServiceId(req.GetCalledBy())
 	pkg := req.GetPackageName()
 	name := req.GetServiceName()
-	log.Printf("xxx -- locate! %s trying to locate %s.%s", sid.Short(), pkg, name)
 	sMap, ok := w.pkgToServiceImpl[pkg]
 	if !ok {
 		w.errorf("failed to find service that was requested in Locate (0): %s.%s", strings.ToUpper(pkg), name)
@@ -741,6 +761,13 @@ func (w *wheeler) serviceById(req *syscall.ServiceByIdRequest) (*anypb.Any, sysc
 // them up into an OutProtoPair and sends through the channel to the originator
 // of the call.
 func (w *wheeler) Run() {
+	defer func() {
+		r := recover()
+		if r != nil {
+			log.Printf("wheeler generated an internal panic: %s", r)
+			debug.PrintStack()
+		}
+	}()
 	for {
 		in := <-w.ch
 		desc := in.Msg.ProtoReflect().Descriptor()
@@ -771,6 +798,8 @@ func (w *wheeler) Run() {
 			result, err = w.readOne((*syscall.ReadOneRequest)(in.Msg.(*syscall.ReadOneRequest)))
 		case "syscall.v1.ReturnValueRequest":
 			result, err = w.returnValue((*syscall.ReturnValueRequest)(in.Msg.(*syscall.ReturnValueRequest)))
+		case "syscall.v1.DispatchRequest":
+			result, err = w.dispatch((*syscall.DispatchRequest)(in.Msg.(*syscall.DispatchRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue

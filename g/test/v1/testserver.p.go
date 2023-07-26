@@ -17,6 +17,7 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/api/shared/id"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
 
@@ -49,7 +50,9 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 	return readyResult
 }
 
-func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) *lib.ServiceMethodMap{
+// Note that  InitTest returns a future, but the case of failure is covered
+// by this definition so the caller need only deal with Success case.
+func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "InitTest: trapped a panic in the guest side: %v", r)
@@ -64,19 +67,14 @@ func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) *lib
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustLaunchServiceTest(ctx, myId, impl)
-	launchF:=LaunchTest(ctx, myId, impl)
-
-	// kinda tricky: if this get resolved this exit occurs on the
-	// call stack of the code that called Set().
-	launchF.Handle(func (ready bool) {
-		if !ready {
-			pcontext.Errorf(ctx, "ready call on Test failed")
-			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitTest",
-				"unable to call Exit in InitTest")
-		}
+	smmap, launchF:=MustLaunchServiceTest(ctx, myId, impl)
+	launchF.Failure(func (err syscall.KernelErr) {
+		t:=syscall.KernelErr_name[int32(err)]
+		pcontext.Errorf(ctx, "launch failure on call Test:%s",t)
+		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitTest:"+t,
+			"unable to call Exit in InitTest:"+t)
 	})
-	return smmap
+	return smmap,launchF, myId
 }
 func RunTest(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
@@ -110,7 +108,7 @@ func RunTest(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisTest = int32(500)
+var TimeoutInMillisTest = int32(10000)
 
 func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -133,12 +131,12 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	lib.ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		lib.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
@@ -299,24 +297,29 @@ func MustExportTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=testbind(ctx,sid, impl)
 	if err!=0{
-		return  nil,syscall.KernelErr(err)
+		return  nil,nil,syscall.KernelErr(err)
 	}
+	cid:=id.NewCallId()
+	req:=&syscall.LaunchRequest{
+		ServiceId: sid.Marshal(),
+		CallId: cid.Marshal(),
+		HostId: lib.CurrentHostId().Marshal(),
+		MethodId: apishared.LaunchMethod.Marshal(),
+	}
+	fut:=syscallguest.Launch(req)
 
-    s:=sid.Marshal()
-	syscallguest.Launch(&syscall.LaunchRequest{ServiceId:s })
-
-    return smmap,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 }
 
-func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) *lib.ServiceMethodMap {
-    smmap,err:=LaunchServiceTest(ctx,sid,impl)
+func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+    smmap,fut,err:=LaunchServiceTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
-    return smmap
+    return smmap,fut
 }
 
 
@@ -425,7 +428,9 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 	return readyResult
 }
 
-func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl MethodCallSuite) *lib.ServiceMethodMap{
+// Note that  InitMethodCallSuite returns a future, but the case of failure is covered
+// by this definition so the caller need only deal with Success case.
+func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "InitMethodCallSuite: trapped a panic in the guest side: %v", r)
@@ -440,19 +445,14 @@ func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustLaunchServiceMethodCallSuite(ctx, myId, impl)
-	launchF:=LaunchMethodCallSuite(ctx, myId, impl)
-
-	// kinda tricky: if this get resolved this exit occurs on the
-	// call stack of the code that called Set().
-	launchF.Handle(func (ready bool) {
-		if !ready {
-			pcontext.Errorf(ctx, "ready call on MethodCallSuite failed")
-			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitMethodCallSuite",
-				"unable to call Exit in InitMethodCallSuite")
-		}
+	smmap, launchF:=MustLaunchServiceMethodCallSuite(ctx, myId, impl)
+	launchF.Failure(func (err syscall.KernelErr) {
+		t:=syscall.KernelErr_name[int32(err)]
+		pcontext.Errorf(ctx, "launch failure on call MethodCallSuite:%s",t)
+		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitMethodCallSuite:"+t,
+			"unable to call Exit in InitMethodCallSuite:"+t)
 	})
-	return smmap
+	return smmap,launchF, myId
 }
 func RunMethodCallSuite(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
@@ -486,7 +486,7 @@ func RunMethodCallSuite(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisMethodCallSuite = int32(500)
+var TimeoutInMillisMethodCallSuite = int32(10000)
 
 func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -509,12 +509,12 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	}
 
 	// check for finished futures from within our address space
-	lib.ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		lib.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
@@ -675,24 +675,29 @@ func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=methodCallSuitebind(ctx,sid, impl)
 	if err!=0{
-		return  nil,syscall.KernelErr(err)
+		return  nil,nil,syscall.KernelErr(err)
 	}
+	cid:=id.NewCallId()
+	req:=&syscall.LaunchRequest{
+		ServiceId: sid.Marshal(),
+		CallId: cid.Marshal(),
+		HostId: lib.CurrentHostId().Marshal(),
+		MethodId: apishared.LaunchMethod.Marshal(),
+	}
+	fut:=syscallguest.Launch(req)
 
-    s:=sid.Marshal()
-	syscallguest.Launch(&syscall.LaunchRequest{ServiceId:s })
-
-    return smmap,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 }
 
-func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *lib.ServiceMethodMap {
-    smmap,err:=LaunchServiceMethodCallSuite(ctx,sid,impl)
+func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+    smmap,fut,err:=LaunchServiceMethodCallSuite(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
-    return smmap
+    return smmap,fut
 }
 
 
@@ -801,7 +806,9 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 	return readyResult
 }
 
-func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl UnderTest) *lib.ServiceMethodMap{
+// Note that  InitUnderTest returns a future, but the case of failure is covered
+// by this definition so the caller need only deal with Success case.
+func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "InitUnderTest: trapped a panic in the guest side: %v", r)
@@ -816,19 +823,14 @@ func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl Under
 			f(ctx, myId)
 		}
 	}
-	smmap:=MustLaunchServiceUnderTest(ctx, myId, impl)
-	launchF:=LaunchUnderTest(ctx, myId, impl)
-
-	// kinda tricky: if this get resolved this exit occurs on the
-	// call stack of the code that called Set().
-	launchF.Handle(func (ready bool) {
-		if !ready {
-			pcontext.Errorf(ctx, "ready call on UnderTest failed")
-			lib.ExitClient(ctx, 1, myId, "unable to Launch in InitUnderTest",
-				"unable to call Exit in InitUnderTest")
-		}
+	smmap, launchF:=MustLaunchServiceUnderTest(ctx, myId, impl)
+	launchF.Failure(func (err syscall.KernelErr) {
+		t:=syscall.KernelErr_name[int32(err)]
+		pcontext.Errorf(ctx, "launch failure on call UnderTest:%s",t)
+		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitUnderTest:"+t,
+			"unable to call Exit in InitUnderTest:"+t)
 	})
-	return smmap
+	return smmap,launchF, myId
 }
 func RunUnderTest(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
@@ -862,7 +864,7 @@ func RunUnderTest(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisUnderTest = int32(500)
+var TimeoutInMillisUnderTest = int32(10000)
 
 func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -885,12 +887,12 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	lib.ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		lib.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
@@ -1034,24 +1036,29 @@ func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap,syscall.KernelErr) {
+func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=underTestbind(ctx,sid, impl)
 	if err!=0{
-		return  nil,syscall.KernelErr(err)
+		return  nil,nil,syscall.KernelErr(err)
 	}
+	cid:=id.NewCallId()
+	req:=&syscall.LaunchRequest{
+		ServiceId: sid.Marshal(),
+		CallId: cid.Marshal(),
+		HostId: lib.CurrentHostId().Marshal(),
+		MethodId: apishared.LaunchMethod.Marshal(),
+	}
+	fut:=syscallguest.Launch(req)
 
-    s:=sid.Marshal()
-	syscallguest.Launch(&syscall.LaunchRequest{ServiceId:s })
-
-    return smmap,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 }
 
-func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *lib.ServiceMethodMap {
-    smmap,err:=LaunchServiceUnderTest(ctx,sid,impl)
+func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+    smmap,fut,err:=LaunchServiceUnderTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
     }
-    return smmap
+    return smmap,fut
 }
 
 
