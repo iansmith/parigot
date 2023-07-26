@@ -107,7 +107,7 @@ func Run(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillis = int32(10000)
+var TimeoutInMillis = int32(500)
 
 func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{

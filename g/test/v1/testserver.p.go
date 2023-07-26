@@ -108,7 +108,7 @@ func RunTest(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisTest = int32(10000)
+var TimeoutInMillisTest = int32(500)
 
 func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -486,7 +486,7 @@ func RunMethodCallSuite(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisMethodCallSuite = int32(10000)
+var TimeoutInMillisMethodCallSuite = int32(500)
 
 func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -864,7 +864,7 @@ func RunUnderTest(ctx context.Context,
 	return kerr
 }
 
-var TimeoutInMillisUnderTest = int32(10000)
+var TimeoutInMillisUnderTest = int32(500)
 
 func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
