@@ -45,6 +45,7 @@ func main() {
 	// create the syscall implementation
 	exitCh := make(chan int32)
 	wheeler.InstallWheeler(ctx, exitCh)
+	go monitorExit(exitCh)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
@@ -111,4 +112,11 @@ func main() {
 
 	}
 	os.Exit(8)
+}
+
+// monitor watches the exit channel for messages from a running process.
+// it then sends the UnsolicitedExit message.  This is returned via the
+// normal readOne processing and the
+func monitorExit(exitCh chan int32) {
+
 }

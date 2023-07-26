@@ -65,6 +65,8 @@ type Process struct {
 	argc       int32
 	argvBuffer *bytes.Buffer
 
+	exitChan chan int32
+
 	runCh chan bool
 }
 
@@ -86,6 +88,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		exited:          false,
 		microservice:    m,
 		path:            m.GetWasmPath(),
+		exitChan:        make(chan int32),
 	}
 
 	if m.GetPluginPath() != "" {
