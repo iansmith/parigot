@@ -1,6 +1,8 @@
 package syscall
 
 import (
+	"context"
+
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
 )
@@ -16,13 +18,13 @@ type LaunchFuture struct {
 // Success should be called to add a function to be called when the Launch()
 // has fully completed and did so successfully.
 func (l *LaunchFuture) Success(fn func(*syscall.LaunchResponse)) {
-	l.Success(fn)
+	l.fut.Success(fn)
 }
 
 // Failure should be called to add a function to be called when the Launch()
 // has fully completed and was unsuccessful.
 func (l *LaunchFuture) Failure(fn func(syscall.KernelErr)) {
-	l.Failure(fn)
+	l.fut.Failure(fn)
 }
 
 // Completed returns if the given LaunchFuture has already been completed.
@@ -41,6 +43,12 @@ func NewLaunchFuture() *LaunchFuture {
 	}
 }
 
+// CompleteMethod fills in the results for a Method future and it works the
+// same for LaunchResponse.
+func (l *LaunchFuture) CompleteMethod(ctx context.Context, lr *syscall.LaunchResponse, err syscall.KernelErr) {
+	l.fut.CompleteMethod(ctx, lr, err)
+}
+
 // ExitFuture is the return type of Exit() on the guest side.  This is a future
 // because it is not certain exactly when the Exit will actually occur.  Further,
 // the exit itself might fail, so the program may not exit at all.
@@ -55,7 +63,7 @@ type ExitFuture struct {
 // call like os.Exit(1), this will happen once all the Success functions on
 // the ExitFuture have been called.
 func (l *ExitFuture) Success(fn func(*syscall.ExitResponse)) {
-	l.Success(fn)
+	l.fut.Success(fn)
 }
 
 // Failure should be called to add a function to be called when the Exit()
@@ -64,7 +72,7 @@ func (l *ExitFuture) Success(fn func(*syscall.ExitResponse)) {
 // It is appropriate to take drastic measures like `os.Exit(1)` to force the
 // abort of the program.
 func (l *ExitFuture) Failure(fn func(syscall.KernelErr)) {
-	l.Failure(fn)
+	l.fut.Failure(fn)
 }
 
 // NewExitFuture returns an initialized exit future.  It is not useful to
@@ -74,4 +82,9 @@ func NewExitFuture() *ExitFuture {
 	return &ExitFuture{
 		fut: future.NewMethod[*syscall.ExitResponse, syscall.KernelErr](nil, nil),
 	}
+}
+
+// CompleteMethod is used to complete a previously defined future of type ExitFuture.
+func (l *ExitFuture) CompleteMethod(ctx context.Context, lr *syscall.ExitResponse, err syscall.KernelErr) {
+	l.fut.CompleteMethod(ctx, lr, err)
 }

@@ -10,11 +10,11 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
 
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
@@ -66,8 +66,10 @@ type FutureCreateQueue struct {
 // execution of the user level code.
 func (f * FutureCreateQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&CreateQueueResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -104,7 +106,7 @@ func (i *Client_) CreateQueue(ctx context.Context, in *CreateQueueRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -120,8 +122,10 @@ type FutureLocate struct {
 // execution of the user level code.
 func (f * FutureLocate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LocateResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -158,7 +162,7 @@ func (i *Client_) Locate(ctx context.Context, in *LocateRequest) *FutureLocate {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -174,8 +178,10 @@ type FutureDeleteQueue struct {
 // execution of the user level code.
 func (f * FutureDeleteQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&DeleteQueueResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -212,7 +218,7 @@ func (i *Client_) DeleteQueue(ctx context.Context, in *DeleteQueueRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -228,8 +234,10 @@ type FutureReceive struct {
 // execution of the user level code.
 func (f * FutureReceive) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ReceiveResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -266,7 +274,7 @@ func (i *Client_) Receive(ctx context.Context, in *ReceiveRequest) *FutureReceiv
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -282,8 +290,10 @@ type FutureMarkDone struct {
 // execution of the user level code.
 func (f * FutureMarkDone) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&MarkDoneResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -320,7 +330,7 @@ func (i *Client_) MarkDone(ctx context.Context, in *MarkDoneRequest) *FutureMark
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -336,8 +346,10 @@ type FutureLength struct {
 // execution of the user level code.
 func (f * FutureLength) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LengthResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -374,7 +386,7 @@ func (i *Client_) Length(ctx context.Context, in *LengthRequest) *FutureLength {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -390,8 +402,10 @@ type FutureSend struct {
 // execution of the user level code.
 func (f * FutureSend) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&SendResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
@@ -428,6 +442,6 @@ func (i *Client_) Send(ctx context.Context, in *SendRequest) *FutureSend {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  

@@ -1,6 +1,8 @@
 package wheeler
 
 import (
+	"log"
+
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -42,6 +44,7 @@ func (c *callMatcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.K
 		c.ready[hid.String()] = make(map[string]*syscall.ResolvedCall)
 		cidMap = c.ready[hid.String()]
 	}
+
 	_, ok = cidMap[cid.String()]
 	if ok {
 		return syscall.KernelErr_BadId
@@ -58,6 +61,7 @@ func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
 
 	_, ok := c.waiting[cid.String()]
 	if ok {
+		log.Printf("xxx --- got a call id that we have seen before: %s", cid.Short())
 		return syscall.KernelErr_BadCallId
 	}
 	rc := &syscall.ResolvedCall{
@@ -71,10 +75,11 @@ func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
 }
 func (c *callMatcher) Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr) {
 	cid, ok := c.ready[hid.String()]
-	if !ok {
+	if !ok || len(cid) == 0 {
 		return nil, syscall.KernelErr_NoError
 	}
-	for _, rc := range cid {
+	for key, rc := range cid {
+		delete(cid, key)
 		return rc, syscall.KernelErr_NoError
 	}
 	return nil, syscall.KernelErr_BadCallId

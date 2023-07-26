@@ -8,7 +8,7 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/lib/go/future"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -26,10 +26,8 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 	ctx := ManufactureGuestContext("[syscall]Locate")
 	defer pcontext.Dump(ctx)
 
-	log.Printf("xxxx locate in client side: %+v", inPtr)
 	lr, errIdRaw, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Locate_)
-	log.Printf("xxxx locate in client side, syscall complete %+v", outProtoPtr)
 
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
@@ -64,6 +62,7 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
+		log.Printf("xxx -- ERROR IN DISPATCH %s", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 
@@ -73,7 +72,6 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 		os.Exit(1)
 	}
 
-	// normal case
 	return dr, syscall.KernelErr_NoError
 }
 
@@ -90,7 +88,7 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
 	hid := id.UnmarshalHostId(inPtr.GetHostId())
-	cid := id.UnmarshalCallId(inPtr.GetHostId())
+	cid := id.UnmarshalCallId(inPtr.GetCallId())
 	mid := id.UnmarshalMethodId(inPtr.GetMethodId())
 
 	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
@@ -100,23 +98,21 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 
 	inPtr.CallId = cid.Marshal()
 	inPtr.HostId = hid.Marshal()
-	if sid.IsZeroOrEmptyValue() {
-		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
-		m.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
-	}
-	log.Printf("xxx -->> Launch BOX 0")
 	_, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Launch_)
-	log.Printf("xxx -->> Launch BOX 1")
 	if signal {
 		log.Printf("xxx Launch exiting due to signal")
 		os.Exit(1)
 	}
 	if err != 0 {
-		m := future.NewMethod[*syscall.LaunchRequest, syscall.KernelErr](nil, nil)
+		m := NewLaunchFuture()
 		m.CompleteMethod(ctx, nil, syscall.KernelErr(err))
+		return m
 	}
-	return NewLaunchFuture()
+	fut := NewLaunchFuture()
+	comp := NewLaunchCompleter(fut)
+	MatchCompleter(cid, comp)
+	return fut
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -165,7 +161,7 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 
 	sid := id.UnmarshalServiceId(exitReq.GetServiceId())
 	hid := id.UnmarshalHostId(exitReq.GetHostId())
-	cid := id.UnmarshalCallId(exitReq.GetHostId())
+	cid := id.UnmarshalCallId(exitReq.GetCallId())
 	mid := id.UnmarshalMethodId(exitReq.GetMethodId())
 
 	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
@@ -177,12 +173,14 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	outProtoPtr := &syscall.ExitResponse{}
 	errResp := standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
 	if errResp != 0 {
-		fut := NewExitFuture()
-		fut.fut.CompleteMethod(context.Background(), nil, errResp)
-		return fut
+		ef := NewExitFuture()
+		ef.fut.CompleteMethod(context.Background(), nil, errResp)
+		return ef
 	}
-	fut := NewExitFuture()
-	return fut
+	ef := NewExitFuture()
+	comp := NewExitCompleter(ef)
+	MatchCompleter(cid, comp)
+	return ef
 }
 
 // Register should be called before any other services are

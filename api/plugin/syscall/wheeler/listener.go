@@ -18,15 +18,15 @@ const (
 	Exit
 )
 
+var pairIdToChannel = make(map[string]chan CallInfo)
+
 type methodCallListener struct {
-	req             *syscall.ReadOneRequest
-	pairIdToChannel map[string]chan CallInfo
+	req *syscall.ReadOneRequest
 }
 
 func newMethodCallListener(req *syscall.ReadOneRequest) *methodCallListener {
 	mcl := &methodCallListener{
-		req:             req,
-		pairIdToChannel: make(map[string]chan CallInfo),
+		req: req,
 	}
 	return mcl
 }
@@ -37,7 +37,7 @@ func (m *methodCallListener) Case() []reflect.SelectCase {
 		svc := id.UnmarshalServiceId(pair.ServiceId)
 		meth := id.UnmarshalMethodId(pair.MethodId)
 		combo := MakeSidMidCombo(svc, meth)
-		ch := m.pairIdToChannel[combo]
+		ch := pairIdToChannel[combo]
 		cases[i] = reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(ch)}
 	}
 	return cases

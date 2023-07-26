@@ -117,7 +117,6 @@ func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, e
 		log.Printf("undecoded %d,%+v", i, j.String())
 	}
 
-	log.Printf("xxx -- parse %#v\n", deployment)
 	if chosen == "" {
 		chosen = "dev"
 	}
@@ -125,7 +124,6 @@ func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, e
 	if !ok {
 		return nil, fmt.Errorf("unable to find deployment '%s' in deployment descriptor '%s", chosen, path)
 	}
-	log.Printf("%s:got a config %+v", chosen, result)
 	// copied from user input
 	result.Flag = flag
 	// loop over the configs making text -> int conversions
@@ -140,7 +138,6 @@ func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, e
 			return nil, err
 		}
 	}
-	log.Printf("xxx %d microservices\n", len(result.Microservice))
 	for name, m := range result.Microservice {
 		// these are just copied to the microservice for convience
 		m.name = name
