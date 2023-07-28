@@ -111,9 +111,9 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		name := f.Name()
 		if f.Server {
 			go func(p *Process, serverProcessName string) {
-				pcontext.Debugf(ctx, "goroutine for '%s' starting", serverProcessName)
+				//pcontext.Debugf(ctx, "goroutine for '%s' starting", serverProcessName)
 				code := p.Start(ctx)
-				pcontext.Debugf(ctx, "inside the gofunc for %s, got code %d", serverProcessName, code)
+				//pcontext.Debugf(ctx, "inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
 				pcontext.Debugf(ctx, "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)

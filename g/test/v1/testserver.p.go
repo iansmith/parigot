@@ -120,7 +120,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -156,7 +156,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -169,7 +169,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -188,7 +188,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 //
 
 	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "AddTestSuite"
 	resp, err=syscallguest.BindMethod(bindReq)
@@ -205,7 +205,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 //
 
 	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Start"
 	resp, err=syscallguest.BindMethod(bindReq)
@@ -255,7 +255,7 @@ func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "test",
 	}
 	req.Fqs = fqs
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -306,7 +306,7 @@ func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.S
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
 		CallId: cid.Marshal(),
-		HostId: lib.CurrentHostId().Marshal(),
+		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
 	fut:=syscallguest.Launch(req)
@@ -498,7 +498,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	}
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -534,7 +534,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -547,7 +547,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -566,7 +566,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 //
 
 	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Exec"
 	resp, err=syscallguest.BindMethod(bindReq)
@@ -583,7 +583,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 //
 
 	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "SuiteReport"
 	resp, err=syscallguest.BindMethod(bindReq)
@@ -633,7 +633,7 @@ func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelE
 		Service:     "method_call_suite",
 	}
 	req.Fqs = fqs
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -684,7 +684,7 @@ func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl Me
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
 		CallId: cid.Marshal(),
-		HostId: lib.CurrentHostId().Marshal(),
+		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
 	fut:=syscallguest.Launch(req)
@@ -876,7 +876,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -912,7 +912,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -925,7 +925,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= lib.CurrentHostId().Marshal()
+		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -944,7 +944,7 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 //
 
 	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = lib.CurrentHostId().Marshal()
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Exec"
 	resp, err=syscallguest.BindMethod(bindReq)
@@ -994,7 +994,7 @@ func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 		Service:     "under_test",
 	}
 	req.Fqs = fqs
-	req.HostId = lib.CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
@@ -1045,7 +1045,7 @@ func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTes
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
 		CallId: cid.Marshal(),
-		HostId: lib.CurrentHostId().Marshal(),
+		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
 	fut:=syscallguest.Launch(req)

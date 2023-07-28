@@ -24,7 +24,7 @@ func Export1(pkg, name string, serviceId id.ServiceId) (*syscall.ExportResponse,
 	in := &syscall.ExportRequest{
 		ServiceId: serviceId.Marshal(),
 		Service:   []*syscall.FullyQualifiedService{fqs},
-		HostId:    CurrentHostId().Marshal(),
+		HostId:    syscallguest.CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Export(in)
 	return resp, kerr
@@ -48,7 +48,7 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 		Service:     name,
 	}
 	req.Fqs = fqs
-	req.HostId = CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err := syscallguest.Register(req)
 	if err != 0 {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name,
@@ -95,7 +95,7 @@ func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.Servi
 func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture {
 	cid := id.NewCallId()
 	req := &syscall.LaunchRequest{
-		HostId:    CurrentHostId().Marshal(),
+		HostId:    syscallguest.CurrentHostId().Marshal(),
 		ServiceId: myId.Marshal(),
 		CallId:    cid.Marshal(),
 		MethodId:  apishared.LaunchMethod.Marshal(),
@@ -109,7 +109,7 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 // values will be changed to 192.
 func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string) {
 	req := &syscall.ExitRequest{
-		HostId: CurrentHostId().Marshal(),
+		HostId: syscallguest.CurrentHostId().Marshal(),
 		Pair: &syscall.ExitPair{
 			ServiceId: myId.Marshal(),
 			Code:      code,
@@ -123,7 +123,8 @@ func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, 
 		os.Exit(1)
 	})
 	exitFut.Success(func(e *syscall.ExitResponse) {
-		pcontext.Errorf(ctx, msgSuccess)
+		syscallguest.SynchronousExit(&syscall.SynchronousExitRequest{Pair: e.GetPair()})
+		// wont reach here unless there is a serious error
 	})
 }
 
@@ -149,7 +150,7 @@ func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 
 	// setup a request to read an incoming message
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err := syscallguest.ReadOne(&req)
 	if err != syscall.KernelErr_NoError {
 		return err
