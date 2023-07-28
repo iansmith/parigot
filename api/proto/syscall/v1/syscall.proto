@@ -300,7 +300,7 @@ message ExitRequest {
 // in the future.  Note that due to concurrent calls to Exit() the exit
 // code received may not be the same as the one sent via ExitRequest!
 message ExitResponse{
-  int32 code = 1;
+ ExitPair pair = 1;
 }
 
 // Register informs the kernel you are one of the known services

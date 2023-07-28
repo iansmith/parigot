@@ -303,7 +303,7 @@ func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.Kernel
 	cid := id.UnmarshalCallId(req.GetCallId())
 	hid := id.UnmarshalHostId(req.GetHostId())
 	mid := id.UnmarshalMethodId(req.GetMethodId())
-	if sid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || hid.IsEmptyValue() {
+	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || sid.IsEmptyValue() {
 		w.errorf("launch failed because of bad id %s,%s,%s,%s",
 			sid.Short(), cid.Short(), hid.Short(), mid.Short())
 		return nil, syscall.KernelErr_BadId
@@ -424,12 +424,35 @@ func (w *wheeler) checkHost(hid id.HostId, allSvc []id.ServiceId) {
 // provided at creation time.  The caller (receiver) should take
 // actions to gracefully shutdown the appropriate services.
 func (w *wheeler) exit(req *syscall.ExitRequest) (*anypb.Any, syscall.KernelErr) {
-	resp := &syscall.ExitResponse{}
-
+	resp := &syscall.ExitResponse{Pair: req.GetPair()}
 	if req.Pair.GetCode() >= 0 && req.Pair.GetCode() <= 192 {
 		req.Pair.Code = 192
 	}
-	w.exitCh <- req.Pair
+	sid := id.UnmarshalServiceId(req.GetPair().GetServiceId())
+	cid := id.UnmarshalCallId(req.GetCallId())
+	hid := id.UnmarshalHostId(req.GetHostId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || sid.IsEmptyValue() {
+		w.errorf("exit failed because of bad id %s,%s,%s,%s",
+			sid.Short(), cid.Short(), hid.Short(), mid.Short())
+		return nil, syscall.KernelErr_BadId
+	}
+	if !mid.Equal(apishared.ExitMethod) {
+		w.errorf("launch failed because method id doesn't match %s,%s",
+			mid.Short(), apishared.LaunchMethod.Short())
+		return nil, syscall.KernelErr_BadId
+	}
+
+	// we call dispatch() (to create call) and then response() (to inject
+	// the value for the response) in quick succession here because we want
+	// the future on the guest side to run immediately
+	w.matcher().Dispatch(hid, cid)
+	a := &anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		w.errorf("unable to marshal response to exit request:%s", err.Error())
+		return nil, syscall.KernelErr_MarshalFailed
+	}
+	w.matcher().Response(cid, a, 0)
 
 	return returnResponseOrMarshalError(w, resp)
 }

@@ -9,15 +9,10 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/lib/go/exit"
 
 	"google.golang.org/protobuf/proto"
 )
-
-// exitFunc is the type of the function used during atExit cleanup.
-type exitFunc func(ctx context.Context)
-
-// atExit is the list of exit funcs to run, registered with AtExit()
-var atExit = []exitFunc{}
 
 // Locate is the means of aquiring a handle to a particular service.
 // Most users will not want this interface, but rather will use the
@@ -166,19 +161,15 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
 func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
-	ctx := ManufactureGuestContext("[syscall]Exit")
+	//	ctx := ManufactureGuestContext("[syscall]Exit")
 
-	sid := id.UnmarshalServiceId(exitReq.GetPair().GetServiceId())
-	hid := id.UnmarshalHostId(exitReq.GetHostId())
-	cid := id.UnmarshalCallId(exitReq.GetCallId())
-	mid := id.UnmarshalMethodId(exitReq.GetMethodId())
+	hid := CurrentHostId()
+	cid := id.NewCallId()
+	mid := apishared.ExitMethod
 
-	// mid can be zero value
-	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsEmptyValue() {
-		lf := NewExitFuture()
-		lf.fut.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
-
-	}
+	exitReq.CallId = cid.Marshal()
+	exitReq.HostId = hid.Marshal()
+	exitReq.MethodId = mid.Marshal()
 
 	outProtoPtr := &syscall.ExitResponse{}
 	errResp := standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
@@ -247,20 +238,13 @@ func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousEx
 	out := &syscall.SynchronousExitResponse{}
 
 	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
-	standardGuestSide(in, out, SynchronousExit_, "SyncExit")
-	for i := len(atExit) - 1; i >= 0; i++ {
-		atExit[i](ctx)
+	if standardGuestSide(in, out, SynchronousExit_, "SyncExit") != syscall.KernelErr_NoError {
+		pcontext.Errorf(ctx, "unable to exit cleanly, aborting")
+		pcontext.Dump(ctx)
+		os.Exit(1)
 	}
+	exit.ExecuteAtExit(ctx)
 	panic(apishared.ControlledExit)
-}
-
-// Call AtExit() with a function to call to clean up resources. AtExit functions
-// are called in reverse order to their registration.  Note than AtExit function
-// should not run for a long period of time (say, more than 50 milliseconds) because
-// the program's termination is imminent and the number of AtExit functions that
-// need to run can be large.
-func AtExit(fn exitFunc) {
-	atExit = append(atExit, fn)
 }
 
 // standardGuestSide is a wrapper around ClientSide that knows how

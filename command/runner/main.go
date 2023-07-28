@@ -1,5 +1,6 @@
 package main
 
+// at no point can this package or anything it depends on import anything in api/guest
 import (
 	"context"
 	"flag"
@@ -8,9 +9,7 @@ import (
 	"os"
 	"os/signal"
 
-	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
-	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -31,11 +30,6 @@ func main() {
 	flg := &runner.DeployFlag{
 		TestMode: *testMode,
 	}
-	defer func() {
-		// if r := recover(); r != nil {
-		// 	print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
-		// }
-	}()
 	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
 	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
 	defer pcontext.Dump(ctx)
@@ -54,7 +48,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
-	go monitorExit(exitCh, deployCtx)
 
 	if err := deployCtx.CreateAllProcess(ctx); err != nil {
 		log.Fatalf("unable to create process in main: %v", err)
@@ -79,7 +72,7 @@ func main() {
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
 		if code == 253 && err == nil {
-			pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
+			//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
 		} else if code != 0 {
 			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
 		} else {
@@ -99,17 +92,4 @@ func main() {
 
 	}
 	os.Exit(8)
-}
-
-// monitor watches the exit channel for messages from a running process.
-// it then sends the SynchronousdExit message.  This is returned via the
-// normal readOne processing and the
-func monitorExit(exitCh chan *syscall.ExitPair, depCtx *sys.DeployContext) {
-	for {
-		pair := <-exitCh
-		sid := id.UnmarshalServiceId(pair.GetServiceId())
-		log.Printf("got a exit notification: %s,%d", sid.Short(), pair.GetCode())
-		syscallguest.SynchronousdExit(&syscall.SynchronousExitRequest{Pair: pair})
-	}
-
 }

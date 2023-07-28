@@ -95,7 +95,7 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		MethodId:  method.Marshal(),
 		CallId:    cid.Marshal(),
 		Param:     a,
-		HostId:    lib.CurrentHostId().Marshal(),
+		HostId:    syscallguest.CurrentHostId().Marshal(),
 	}
 
 	resp, kerr := syscallguest.Dispatch(in)

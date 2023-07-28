@@ -48,33 +48,6 @@ func fqServiceName(p, s string) string {
 
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
 	return int32(handleByWheeler(req, resp))
-	//hid := id.UnmarshalHostId(req.GetHostId())
-
-	///////
-	// retCh := make(chan wheeler.OutProtoPair)
-	// inPair := wheeler.InProtoPair{
-	// 	Msg: req,
-	// 	Ch:  retCh,
-	// }
-	// wheeler.In() <- inPair
-	// out := <-retCh
-	// if out.Err != 0 {
-	// 	log.Printf("error in export impl: %s", syscall.KernelErr_name[int32(out.Err)])
-	// }
-	// log.Printf("xxxx --- %+v, %d", out.Msg, out.Err)
-	////
-	// for _, fullyQualified := range req.GetService() {
-	// 	sid, _ := startCoordinator().SetService(ctx, fullyQualified.GetPackagePath(), fullyQualified.GetService(), false)
-
-	// 	sid.Export()
-
-	// 	fqs := fqServiceName(fullyQualified.GetPackagePath(), fullyQualified.GetService())
-	// 	if kerr := finder().AddHost(fqs, hid); kerr != syscall.KernelErr_NoError {
-	// 		return int32(kerr)
-	// 	}
-	// }
-
-	//return int32(syscall.KernelErr_NoError)
 }
 
 func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
