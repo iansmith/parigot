@@ -33,6 +33,7 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "register_", register)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
 	e.AddSupportedFunc(ctx, "parigot", "read_one_", readOne)
+	e.AddSupportedFunc(ctx, "parigot", "synchronous_exit_", syncExit)
 
 	return true
 }
@@ -94,6 +95,10 @@ func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.L
 }
 
 func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 { //syscall.KernelErr {
+	return int32(handleByWheeler(req, resp))
+}
+
+func syncExitImpl(ctx context.Context, req *syscall.SynchronousExitRequest, resp *syscall.SynchronousExitResponse) int32 { //syscall.KernelErr {
 	return int32(handleByWheeler(req, resp))
 }
 
@@ -173,6 +178,12 @@ func readOne(ctx context.Context, m api.Module, stack []uint64) {
 	resp := &syscall.ReadOneResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]readOne", m, stack, readOneImpl, req, resp)
 
+}
+
+func syncExit(ctx context.Context, m api.Module, stack []uint64) {
+	req := &syscall.SynchronousExitRequest{}
+	resp := &syscall.SynchronousExitResponse{}
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]syncExit", m, stack, syncExitImpl, req, resp)
 }
 
 func register(ctx context.Context, m api.Module, stack []uint64) {
