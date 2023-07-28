@@ -48,7 +48,7 @@ var _wheeler *wheeler
 //
 // The context provided is saved and used for all calls on the
 // wheeler.
-func InstallWheeler(ctx context.Context, exitCh chan int32) {
+func InstallWheeler(ctx context.Context, exitCh chan *syscall.ExitPair) {
 	_wheeler = newWheeler(ctx, exitCh)
 }
 
@@ -94,6 +94,15 @@ func (l *launchData) String() string {
 	return fmt.Sprintf("LaunchData[%s, %s, %s]", l.cid.Short(), l.sid.Short(), l.hid.Short())
 }
 
+// exitInfo is the info needed to complete the exit call that made at registration
+// time.
+type exitInfo struct {
+	hid       id.HostId
+	cid       id.CallId
+	result    *anypb.Any
+	resultErr int32
+}
+
 // wheeler is the type that implements system calls.  It actually
 // reads a channel and responds to the requests one by one.
 // One can think of it as a wheel in that multiple different
@@ -102,7 +111,7 @@ func (l *launchData) String() string {
 type wheeler struct {
 	ch                   chan InProtoPair
 	ctx                  context.Context
-	exitCh               chan int32
+	exitCh               chan *syscall.ExitPair
 	pkgToServiceImpl     map[string]map[string][]hostServiceBinding
 	hostToService        map[string][]id.ServiceId
 	serviceToHost        map[string]id.HostId
@@ -116,13 +125,14 @@ type wheeler struct {
 	serviceToExports     map[string][]fqName
 	serviceIsLaunched    map[string]struct{}
 	matchImpl            CallMatcher
+	serviceToExit        map[string]exitInfo
 	waitList             []launchData
 	runList              []id.ServiceId
 }
 
 // newWheeler returns a Wheeler and should only be called--
 // exactly one time--from  InstallWheeler.
-func newWheeler(ctx context.Context, exitCh chan int32) *wheeler {
+func newWheeler(ctx context.Context, exitCh chan *syscall.ExitPair) *wheeler {
 	w := &wheeler{
 		exitCh:               exitCh,
 		ctx:                  ctx,
@@ -139,6 +149,7 @@ func newWheeler(ctx context.Context, exitCh chan int32) *wheeler {
 		serviceIsLaunched:    make(map[string]struct{}),
 		serviceToFulfillment: make(map[string]map[string]map[string]hostServiceBinding),
 		serviceToExports:     make(map[string][]fqName),
+		serviceToExit:        make(map[string]exitInfo),
 		waitList:             []launchData{},
 		runList:              []id.ServiceId{},
 		matchImpl:            newCallMatcher(),
@@ -415,13 +426,11 @@ func (w *wheeler) checkHost(hid id.HostId, allSvc []id.ServiceId) {
 func (w *wheeler) exit(req *syscall.ExitRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.ExitResponse{}
 
-	code := int32(192)
-	if req.GetCode() >= 0 && req.GetCode() <= 192 {
-		code = req.GetCode()
+	if req.Pair.GetCode() >= 0 && req.Pair.GetCode() <= 192 {
+		req.Pair.Code = 192
 	}
-	w.exitCh <- code
+	w.exitCh <- req.Pair
 
-	resp.Code = code
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -467,6 +476,19 @@ func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.Ke
 	resp.ExistedPreviously = existedPreviously
 	resp.Id = sid.Marshal()
 
+	// register the early part of the exit machinery
+	cid := id.NewCallId()
+	info := exitInfo{
+		hid:       hid,
+		cid:       cid,
+		result:    nil,
+		resultErr: 0,
+	}
+	if kerr := w.matcher().Dispatch(hid, cid); kerr != syscall.KernelErr_NoError {
+		w.errorf("unable to create information needed for a controlled exit")
+		return nil, kerr
+	}
+	w.serviceToExit[sid.String()] = info
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -564,6 +586,41 @@ func (w *wheeler) dispatch(req *syscall.DispatchRequest) (*anypb.Any, syscall.Ke
 	target <- cm
 	return returnResponseOrMarshalError(w, resp)
 
+}
+
+// syncExitWrites to the channel that will cause the exit handlers to run.
+func (w *wheeler) syncExit(req *syscall.SynchronousExitRequest) (*anypb.Any, syscall.KernelErr) {
+	sid := id.UnmarshalServiceId(req.GetPair().GetServiceId())
+	if sid.IsEmptyValue() {
+		w.errorf("unable to perform exit, given service id is empty")
+		return nil, syscall.KernelErr_BadId
+	}
+	a := &anypb.Any{}
+	if err := a.MarshalFrom(req.GetPair()); err != nil {
+		w.errorf("unable to marshal exit information for ext handlers:%s", err.Error())
+		return nil, syscall.KernelErr_MarshalFailed
+	}
+	if sid.IsZeroValue() {
+		for s, info := range w.serviceToExit {
+			if kerr := w.matcher().Response(info.cid, a, 0); kerr != syscall.KernelErr_NoError {
+				w.errorf("failed to send exit notification to %s: %s", s, syscall.KernelErr_name[int32(kerr)])
+			}
+		}
+	} else {
+		info, ok := w.serviceToExit[sid.String()]
+		if !ok {
+			w.errorf("ignoring attempt to exit %s, key not found in exit structures", sid.String())
+			return nil, syscall.KernelErr_NotFound
+		}
+		if kerr := w.matcher().Response(info.cid, a, 0); kerr != syscall.KernelErr_NoError {
+			w.errorf("failed to send exit notification to %s: %s", sid.Short(), syscall.KernelErr_name[int32(kerr)])
+		}
+	}
+	resp := &syscall.SynchronousExitResponse{
+		Pair: req.GetPair(),
+	}
+
+	return returnResponseOrMarshalError(w, resp)
 }
 
 // readOne is the method that is called to read the next request from the channels.
@@ -852,6 +909,8 @@ func (w *wheeler) Run() {
 			result, err = w.returnValue((*syscall.ReturnValueRequest)(in.Msg.(*syscall.ReturnValueRequest)))
 		case "syscall.v1.DispatchRequest":
 			result, err = w.dispatch((*syscall.DispatchRequest)(in.Msg.(*syscall.DispatchRequest)))
+		case "syscall.v1.SynchronousExitRequest":
+			result, err = w.syncExit((*syscall.SynchronousExitRequest)(in.Msg.(*syscall.SynchronousExitRequest)))
 		default:
 			log.Printf("ERROR! wheeler received unknown type %s", desc.FullName())
 			continue

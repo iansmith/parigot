@@ -246,9 +246,9 @@ func (p *Process) Start(ctx context.Context) (code int) {
 			e, ok := r.(*syscall.ExitRequest)
 			procPrint(ctx, "Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscall.ExitRequest), ok)
 			if ok {
-				code = int(e.GetCode())
+				code = int(e.Pair.GetCode())
 				proc.SetExitCode(code)
-				procPrint(ctx, "Start/Exit", "INSIDE DEFER exiting with code %d", e.GetCode())
+				procPrint(ctx, "Start/Exit", "INSIDE DEFER exiting with code %d", e.Pair.GetCode())
 			} else {
 				p.SetExitCode(int(ExitCodePanic))
 				code = int(ExitCodePanic)

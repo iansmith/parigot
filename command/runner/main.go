@@ -8,9 +8,12 @@ import (
 	"os"
 	"os/signal"
 
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys"
 )
 
@@ -43,15 +46,15 @@ func main() {
 
 	}
 	// create the syscall implementation
-	exitCh := make(chan int32)
+	exitCh := make(chan *syscall.ExitPair)
 	wheeler.InstallWheeler(ctx, exitCh)
-	go monitorExit(exitCh)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
+	go monitorExit(exitCh, deployCtx)
 
 	if err := deployCtx.CreateAllProcess(ctx); err != nil {
 		log.Fatalf("unable to create process in main: %v", err)
@@ -72,22 +75,6 @@ func main() {
 		}
 		log.Printf("goroutine exited")
 	}(ctx)
-
-	// go func() {
-	// 	var buf bytes.Buffer
-	// 	for {
-	// 		buf.Reset()
-	// 		time.Sleep(60 * time.Second)
-	// 		deployCtx.Process().Range(func(keyAny, valueAny any) bool {
-	// 			key := keyAny.(string)
-	// 			proc := valueAny.(*sys.Process)
-	// 			buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
-	// 				key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
-	// 			return true
-	// 		})
-	// 		print("periodic check:-----------\n", buf.String(), "\n")
-	// 	}
-	// }()
 
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
@@ -115,8 +102,14 @@ func main() {
 }
 
 // monitor watches the exit channel for messages from a running process.
-// it then sends the UnsolicitedExit message.  This is returned via the
+// it then sends the SynchronousdExit message.  This is returned via the
 // normal readOne processing and the
-func monitorExit(exitCh chan int32) {
+func monitorExit(exitCh chan *syscall.ExitPair, depCtx *sys.DeployContext) {
+	for {
+		pair := <-exitCh
+		sid := id.UnmarshalServiceId(pair.GetServiceId())
+		log.Printf("got a exit notification: %s,%d", sid.Short(), pair.GetCode())
+		syscallguest.SynchronousdExit(&syscall.SynchronousExitRequest{Pair: pair})
+	}
 
 }

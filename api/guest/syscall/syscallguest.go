@@ -5,12 +5,19 @@ import (
 	"log"
 	"os"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
+
+// exitFunc is the type of the function used during atExit cleanup.
+type exitFunc func(ctx context.Context)
+
+// atExit is the list of exit funcs to run, registered with AtExit()
+var atExit = []exitFunc{}
 
 // Locate is the means of aquiring a handle to a particular service.
 // Most users will not want this interface, but rather will use the
@@ -150,21 +157,24 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Require_, "Require")
 }
 
-// Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
-// the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
-// will marke it dead and so forth.
+// Exit is called from the WASM side to cause the WASM program, or all the WASM
+// programs, to exit.  The future the future is called when the exit is recognized,
+// but it is not called when the actual shutdown occurs.  The future given here
+// is called when the Exit() itself as has been completed.  For something run
+// just before the program stops, use AtExit.
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
 func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	ctx := ManufactureGuestContext("[syscall]Exit")
 
-	sid := id.UnmarshalServiceId(exitReq.GetServiceId())
+	sid := id.UnmarshalServiceId(exitReq.GetPair().GetServiceId())
 	hid := id.UnmarshalHostId(exitReq.GetHostId())
 	cid := id.UnmarshalCallId(exitReq.GetCallId())
 	mid := id.UnmarshalMethodId(exitReq.GetMethodId())
 
-	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
+	// mid can be zero value
+	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsEmptyValue() {
 		lf := NewExitFuture()
 		lf.fut.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
 
@@ -192,27 +202,6 @@ func Register_(int32, int32, int32, int32) int64
 func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.RegisterResponse{}
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Register_, "Register")
-}
-
-//
-// unused?
-//
-
-// BlockUntilCall is used to block a process until a request is received from another process.  Even when
-// all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
-//
-// func BlockUntilCall(*syscall.BlockUntilCallRequest) *syscall.BlockUntilCallResponse
-//
-//go:wasmimport parigot block_until_call_
-func BlockUntilCall_(int32, int32) int32
-
-func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error) {
-	out := &syscall.BlockUntilCallResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // BindMethod is the way that a particular service gets associated with
@@ -246,6 +235,32 @@ func ReadOne_(int32, int32, int32, int32) int64
 func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
 	out := &syscall.ReadOneResponse{}
 	return out, standardGuestSide(in, out, ReadOne_, "ReadOne")
+}
+
+// SynchronousExit is a request that is sent to a service to tell the service it will
+// exit shortly (order of milliseconds) and resources should be cleaned up.
+// Note that this can happen when another service actually made the Exit() call.
+//
+//go:wasmimport parigot synchronous_exit_
+func SynchronousExit_(int32, int32, int32, int32) int64
+func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr) {
+	out := &syscall.SynchronousExitResponse{}
+
+	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
+	standardGuestSide(in, out, SynchronousExit_, "SyncExit")
+	for i := len(atExit) - 1; i >= 0; i++ {
+		atExit[i](ctx)
+	}
+	panic(apishared.ControlledExit)
+}
+
+// Call AtExit() with a function to call to clean up resources. AtExit functions
+// are called in reverse order to their registration.  Note than AtExit function
+// should not run for a long period of time (say, more than 50 milliseconds) because
+// the program's termination is imminent and the number of AtExit functions that
+// need to run can be large.
+func AtExit(fn exitFunc) {
+	atExit = append(atExit, fn)
 }
 
 // standardGuestSide is a wrapper around ClientSide that knows how

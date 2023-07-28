@@ -105,14 +105,17 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 
 // ExitClient sends a request to exit and attaches hanndlers that print
 // the given strings. It only forces the exit if the Exit call itself
-// fails. Only the values from 0 to 192 are permissable as the code.
+// fails. Only the values from 0 to 192 are permissable as the code; other
+// values will be changed to 192.
 func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string) {
 	req := &syscall.ExitRequest{
-		HostId:    CurrentHostId().Marshal(),
-		ServiceId: myId.Marshal(),
-		CallId:    id.NewCallId().Marshal(),
-		MethodId:  apishared.ExitMethod.Marshal(),
-		Code:      code,
+		HostId: CurrentHostId().Marshal(),
+		Pair: &syscall.ExitPair{
+			ServiceId: myId.Marshal(),
+			Code:      code,
+		},
+		CallId:   id.NewCallId().Marshal(),
+		MethodId: apishared.ExitMethod.Marshal(),
 	}
 	exitFut := syscallguest.Exit(req)
 	exitFut.Failure(func(e syscall.KernelErr) {

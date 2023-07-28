@@ -75,3 +75,6 @@ var LaunchMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffff
 
 // all calls to exit use the same Id
 var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff1))
+
+// this is the value used for a panic that is intended to be a controlled exit
+var ControlledExit = "controlled exit via panic:"
