@@ -10,7 +10,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
-guest: build/file.p.wasm  build/queue.p.wasm  #build/test.p.wasm
+guest: build/file.p.wasm  build/queue.p.wasm build/http.p.wasm  #build/test.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: api/plugin/queue/db.go
@@ -124,6 +124,11 @@ TEST_SERVICE=$(shell find api/guest/test -type f -regex ".*\.go")
 build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/test/v1/testid.go $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/test
+
+HTTP_SERVICE=$(shell find api/guest/http -type f -regex ".*\.go")
+build/http.p.wasm: $(HTTP_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
+	@rm -f $@
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/http
 
 #id cruft
 g/queue/v1/queueid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 

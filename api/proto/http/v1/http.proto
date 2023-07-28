@@ -1,0 +1,38 @@
+syntax="proto3";
+package http.v1;
+option go_package="github.com/iansmith/parigot/g/http/v1;http";
+import "protosupport/v1/protosupport.proto";
+
+// This is the http service for parigot
+
+service Http {
+	//
+	rpc Get(GetRequest) returns (GetResponse);
+}
+
+message StringList {
+	repeated string stringlist = 1;
+}
+
+message GetRequest {
+	string url = 1;
+	map<string, StringList> header = 2;
+	bytes body = 3;
+	map<string,StringList> trailer = 4;
+}
+
+message GetResponse {
+	int32 status_code = 2; // e.g. 200
+	map<string, StringList> header = 3;
+	bytes body = 4;
+	int32 content_length = 5;
+	map<string, StringList> trailer = 6;
+}
+
+enum HttpErr {
+	option (protosupport.v1.parigot_error) = true;
+	NoError = 0; // mandatory
+	DispatchError = 1; //mandatory
+	UnmarshalError = 2; // mandatory
+	MarshalError = 3; // mandatory
+}
