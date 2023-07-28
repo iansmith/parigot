@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"context"
-	"log"
 
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	future "github.com/iansmith/parigot/lib/go/future"
@@ -47,7 +46,6 @@ type ExitCompleter struct {
 }
 
 func (l *ExitCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr {
-	log.Printf("xxxx -- complete method of exit future called")
 	out := &syscall.ExitResponse{}
 	if err := a.(*anypb.Any).UnmarshalTo(out); err != nil {
 		return syscall.KernelErr_UnmarshalFailed
