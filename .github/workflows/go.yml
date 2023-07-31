@@ -1,0 +1,40 @@
+# This workflow will build a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Go
+
+on:
+  push:
+    branches: [ "bhs/gotest" ]
+  pull_request:
+    branches: [ "bhs/gotest" ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Build
+      run: make build
+
+    - name: Test
+      run: go test -v github.com/iansmith/parigot/api/plugin/queue
+      
+    - name: Test
+      run: go test -v github.com/iansmith/parigot/api/plugin/file
+      
+    - name: Test
+      run: go test -v github.com/iansmith/parigot/lib/go/future
+      
+    - name: Test
+      run: go test -v github.com/iansmith/parigot/api/plugin/syscall
+      
+    - name: Test
+      run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
