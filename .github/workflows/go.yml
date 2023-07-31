@@ -27,7 +27,7 @@ jobs:
     - name: Test
       uses: ./
       with: 
-        working-directory: api/plugin
+        working-directory: parigot/lapi/plugin
         build: queue
       #run: go test -v github.com/iansmith/parigot/api/plugin/queue
       
