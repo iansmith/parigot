@@ -15,24 +15,14 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
+	ctx := pcontext.NewContextWithContainer(context.Background(), "[fileguest]main")
 	f := &myFileSvc{}
 	binding, fut, _ := file.Init(ctx, []lib.MustRequireFunc{}, f)
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		var kerr syscall.KernelErr
-		for {
-			kerr = file.ReadOneAndCall(ctx, binding, file.TimeoutInMillis)
-			if kerr == syscall.KernelErr_ReadOneTimeout {
-				pcontext.Infof(ctx, "waiting for calls to file service")
-				continue
-			}
-			if kerr == syscall.KernelErr_NoError {
-				continue
-			}
-			break
-		}
-		pcontext.Errorf(ctx, "error while waiting for file service calls: %s", syscall.KernelErr_name[int32(kerr)])
+		pcontext.Infof(ctx, "file service guest side started correctly")
 	})
+	kerr := file.Run(ctx, binding, file.TimeoutInMillis, nil)
+	pcontext.Errorf(ctx, "error while waiting for file service calls: %s", syscall.KernelErr_name[int32(kerr)])
 }
 
 type myFileSvc struct{}

@@ -1,7 +1,6 @@
 package wheeler
 
 import (
-	"log"
 	"sync"
 	"testing"
 
@@ -408,7 +407,6 @@ func checkHostToService(t *testing.T, w *wheeler, hid id.HostId, sid id.ServiceI
 		t.Errorf("did not find host key in the hostToService")
 	}
 	if len(svc) != 1 {
-		log.Printf("xxxx --- %+v", w.hostToService)
 		t.Errorf("wrong length for svcs of host, expected 1 but got %d", len(svc))
 		return
 	}

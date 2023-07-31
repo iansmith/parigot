@@ -79,7 +79,7 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 		m := c.config.Microservice[name]
 		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
 		if err != nil {
-			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
+			return fmt.Errorf("unable to create process from module '%s': %v", name, err)
 		}
 		c.process.Store(name, p)
 		ch := make(chan bool)

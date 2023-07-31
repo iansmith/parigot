@@ -107,8 +107,9 @@ func RunTest(ctx context.Context,
 	pcontext.Errorf(ctx, "error while waiting for Test service calls: %s", syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
-
-var TimeoutInMillisTest = int32(500)
+// Increase this value at your peril!
+// Decreasing this value may make your overall program more responsive if you have many services.
+var TimeoutInMillisTest = int32(50)
 
 func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -485,8 +486,9 @@ func RunMethodCallSuite(ctx context.Context,
 	pcontext.Errorf(ctx, "error while waiting for MethodCallSuite service calls: %s", syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
-
-var TimeoutInMillisMethodCallSuite = int32(500)
+// Increase this value at your peril!
+// Decreasing this value may make your overall program more responsive if you have many services.
+var TimeoutInMillisMethodCallSuite = int32(50)
 
 func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
@@ -863,8 +865,9 @@ func RunUnderTest(ctx context.Context,
 	pcontext.Errorf(ctx, "error while waiting for UnderTest service calls: %s", syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
-
-var TimeoutInMillisUnderTest = int32(500)
+// Increase this value at your peril!
+// Decreasing this value may make your overall program more responsive if you have many services.
+var TimeoutInMillisUnderTest = int32(50)
 
 func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{

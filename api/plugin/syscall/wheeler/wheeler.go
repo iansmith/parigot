@@ -6,7 +6,9 @@ import (
 	"log"
 	"math/rand"
 	"reflect"
+	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,7 +138,7 @@ func newWheeler(ctx context.Context, exitCh chan *syscall.ExitPair) *wheeler {
 	w := &wheeler{
 		exitCh:               exitCh,
 		ctx:                  ctx,
-		ch:                   make(chan InProtoPair),
+		ch:                   make(chan InProtoPair, 8),
 		pkgToServiceImpl:     make(map[string]map[string][]hostServiceBinding),
 		hostToService:        make(map[string][]id.ServiceId),
 		serviceToHost:        make(map[string]id.HostId),
@@ -443,18 +445,23 @@ func (w *wheeler) exit(req *syscall.ExitRequest) (*anypb.Any, syscall.KernelErr)
 		return nil, syscall.KernelErr_BadId
 	}
 
-	// we call dispatch() (to create call) and then response() (to inject
-	// the value for the response) in quick succession here because we want
-	// the future on the guest side to run immediately
+	if kerr := w.bothDispatchAndResponse(hid, cid, resp); kerr != syscall.KernelErr_NoError {
+		return nil, kerr
+	}
+	return returnResponseOrMarshalError(w, resp)
+}
+
+// bothDispatchAndResponse are used for requests made by a client that we can
+// immediately respond to.
+func (w *wheeler) bothDispatchAndResponse(hid id.HostId, cid id.CallId, resp proto.Message) syscall.KernelErr {
 	w.matcher().Dispatch(hid, cid)
 	a := &anypb.Any{}
 	if err := a.MarshalFrom(resp); err != nil {
 		w.errorf("unable to marshal response to exit request:%s", err.Error())
-		return nil, syscall.KernelErr_MarshalFailed
+		return syscall.KernelErr_MarshalFailed
 	}
 	w.matcher().Response(cid, a, 0)
-
-	return returnResponseOrMarshalError(w, resp)
+	return syscall.KernelErr_NoError
 }
 
 // register creates an entry in wheeler data structures that
@@ -646,6 +653,17 @@ func (w *wheeler) syncExit(req *syscall.SynchronousExitRequest) (*anypb.Any, sys
 	return returnResponseOrMarshalError(w, resp)
 }
 
+func Goid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
+}
+
 // readOne is the method that is called to read the next request from the channels.
 func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.ReadOneResponse{}
@@ -698,6 +716,7 @@ func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.Kern
 
 	// run the select
 	chosen, value, ok := reflect.Select(cases)
+
 	// ok will be true if the channel has not been closed.
 	if !ok {
 		return nil, syscall.KernelErr_KernelConnectionFailed
@@ -715,6 +734,10 @@ func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.Kern
 	return returnResponseOrMarshalError(w, resp)
 
 }
+
+// func newOutPair(origin string, resp anypb.Any) OutProtoPair {
+
+// }
 
 // require is the way a service expresses what _other_ services it needs.
 // any service name that is going to be looked up with "Locate" should have

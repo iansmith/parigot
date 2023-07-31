@@ -38,6 +38,15 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	return true
 }
 
+// channel structure for output, including debugging
+var debugOutChan = true
+
+type OutChannel struct {
+	ch     chan wheeler.OutProtoPair
+	origin string
+	num    int
+}
+
 func fqServiceName(p, s string) string {
 	return fmt.Sprintf("%s.%s", p, s)
 }
@@ -172,7 +181,7 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelErr {
-	retCh := make(chan wheeler.OutProtoPair)
+	retCh := make(chan wheeler.OutProtoPair, 1)
 	inPair := wheeler.InProtoPair{
 		Ch: retCh,
 	}
