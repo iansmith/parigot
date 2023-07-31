@@ -14,4 +14,5 @@ var ParigotInitialize apiplugin.ParigotInit = &file.FilePlugin{}
 // is used directly when in "noplugin" mode.
 func main() {
 	// we are connected to the runner via a symbol lookup
+	// the guest is running the event loop
 }

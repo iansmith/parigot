@@ -106,8 +106,9 @@ func Run(ctx context.Context,
 	pcontext.Errorf(ctx, "error while waiting for  service calls: %s", syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
-
-var TimeoutInMillis = int32(500)
+// Increase this value at your peril!
+// Decreasing this value may make your overall program more responsive if you have many services.
+var TimeoutInMillis = int32(50)
 
 func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{

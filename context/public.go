@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 	_ "time/tzdata"
@@ -70,6 +71,7 @@ func Dump(ctx context.Context) {
 	cont := GetContainer(ctx)
 	if cont == nil {
 		log.Println("no log container present inside context")
+		debug.PrintStack()
 		return
 	}
 	cont.Dump(ctx)

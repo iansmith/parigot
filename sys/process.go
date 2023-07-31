@@ -103,6 +103,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	if err != nil {
 		return nil, err
 	}
+
 	proc.instance = instance
 	return proc, nil
 }
@@ -124,7 +125,6 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		pcontext.Dump(ctx)
 		return fmt.Errorf("instantiate host module failed: %s", err.Error())
 	}
-
 	pcontext.Dump(ctx)
 	return nil
 }
