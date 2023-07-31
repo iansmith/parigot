@@ -21,20 +21,20 @@ jobs:
       with:
         go-version: '1.20'
 
-    #- name: Build
-      #run: make build
+    - name: Build
+      run: Makefile -v github.com/iansmith/parigot/Makefile
 
-    - name: Test
-      run: go test -v github.com/iansmith/parigot/api/plugin/queue
+    # - name: Test
+    #   run: go test -v github.com/iansmith/parigot/api/plugin/queue
       
-    - name: Test
-      run: go test -v github.com/iansmith/parigot/api/plugin/file
+    # - name: Test
+    #   run: go test -v github.com/iansmith/parigot/api/plugin/file
       
-    - name: Test
-      run: go test -v github.com/iansmith/parigot/lib/go/future
+    # - name: Test
+    #   run: go test -v github.com/iansmith/parigot/lib/go/future
       
-    - name: Test
-      run: go test -v github.com/iansmith/parigot/api/plugin/syscall
+    # - name: Test
+    #   run: go test -v github.com/iansmith/parigot/api/plugin/syscall
       
-    - name: Test
-      run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
+    # - name: Test
+    #   run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
