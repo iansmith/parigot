@@ -21,11 +21,15 @@ jobs:
       with:
         go-version: '1.20'
 
-    - name: Build
-      run: test -v github.com/iansmith/parigot/Makefile
+    # - name: Build
+    #   run: 
 
-    # - name: Test
-    #   run: go test -v github.com/iansmith/parigot/api/plugin/queue
+    - name: Test
+      uses: ./
+      with: 
+        working-directory: api/plugin
+        build: queue
+      #run: go test -v github.com/iansmith/parigot/api/plugin/queue
       
     # - name: Test
     #   run: go test -v github.com/iansmith/parigot/api/plugin/file
