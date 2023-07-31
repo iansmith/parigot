@@ -20,7 +20,7 @@ type httpSvcImpl struct {
 var httpSvc *httpSvcImpl
 
 func (*HttpPlugin) Init(ctx context.Context, e eng.Engine) bool {
-	e.AddSupportedFunc(ctx, "http", "get_http_", getHost)
+	e.AddSupportedFunc(ctx, "http", "get_", getHost)
 
 	newHttpSvc(ctx)
 	return true

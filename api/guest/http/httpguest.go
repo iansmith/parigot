@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"unsafe"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -16,16 +15,14 @@ import (
 var _ = unsafe.Sizeof([]byte{})
 
 func main() {
-	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "httpguest.Main")
-
+	ctx := pcontext.NewContextWithContainer(context.Background(), "[httpguest]main")
 	h := &myHttpSvc{}
-
-	_, fut, _ := http.Init(ctx, []lib.MustRequireFunc{}, h)
-
-	panic("test1")
+	binding, fut, _ := http.Init(ctx, []lib.MustRequireFunc{}, h)
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		log.Println("http service launched successfully")
+		pcontext.Infof(ctx, "http service guest side started correctly")
 	})
+	kerr := http.Run(ctx, binding, http.TimeoutInMillis, nil)
+	pcontext.Errorf(ctx, "error while waiting for http service calls: %s", syscall.KernelErr_name[int32(kerr)])
 }
 
 type myHttpSvc struct{}

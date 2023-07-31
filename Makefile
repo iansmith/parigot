@@ -12,7 +12,7 @@ protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all bei
 methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
 guest: build/file.p.wasm  build/queue.p.wasm build/http.p.wasm  #build/test.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
-plugins: build/queue.so build/file.so build/syscall.so
+plugins: build/queue.so build/file.so build/syscall.so build/http.so
 sqlc: api/plugin/queue/db.go
 
 #
@@ -199,6 +199,11 @@ SYSCALL_PLUGIN=$(shell find api/plugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
+
+HTTP_PLUGIN=$(shell find api/plugin/http -type f -regex ".*\.go")
+build/http.so: $(HTTP_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) 
+	@rm -f $@
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/http/main
 
 #
 # TEST
