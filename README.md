@@ -1,7 +1,7 @@
 # parigot
 parigot is an adjective in French that mean _parisien_.  In english, one might use "NewYork-ish" in the same way.
 
-If you just have experience and want to check out the basic info in the shortest possible time, check out [I know how this works](https://parigot.info/docs/knowhowitworks/)
+If you just have experience with microservices or RPC systems, and want to check out the basic info in the shortest possible time, check out [I know how this works](https://parigot.info/docs/knowhowitworks/)
 
 Our docs are kept at [parigot.info](https://parigot.info).
 
