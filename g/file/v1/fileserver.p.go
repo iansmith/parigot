@@ -301,7 +301,24 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Delete",
-		GenerateDeleteInvoker(impl)) 
+		GenerateDeleteInvoker(impl))
+//
+// file.v1.File.Stat
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Stat"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"File","Stat",
+		GenerateStatInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
@@ -531,6 +548,23 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
+} 
+
+//go:wasmimport file stat_
+func Stat_(int32,int32,int32,int32) int64
+func StatHost(ctx context.Context,inPtr *StatRequest) *FutureStat {
+	outProtoPtr := (*StatResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Stat_)
+	if signal {
+		pcontext.Infof(ctx, "Stat exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureStat()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
 }  
 
 // This is interface for invocation.
@@ -678,4 +712,25 @@ func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer
 
 func GenerateDeleteInvoker(impl File) future.Invoker {
 	return &invokeDelete{fn:impl.Delete} 
+}
+
+// This is interface for invocation.
+type invokeStat struct {
+    fn func(context.Context,*StatRequest) *FutureStat
+}
+
+func (t *invokeStat) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx StatRequest and 'StatRequest{}' why empty?
+    in:=&StatRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateStatInvoker(impl File) future.Invoker {
+	return &invokeStat{fn:impl.Stat} 
 }  
