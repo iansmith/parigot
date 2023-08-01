@@ -51,7 +51,7 @@ func openHookForFiles(path string) (io.ReadCloser, error) {
 	return f, nil
 }
 
-type OpenHook func(pathOrString string) (io.ReadCloser, error)
+type openHook func(pathOrString string) (io.ReadCloser, error)
 
 // Create hook
 func createHookForStrings(str string) (io.WriteCloser, error) {
