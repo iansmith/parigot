@@ -28,13 +28,13 @@ func main() {
 	ctx := pcontext.CallTo(pcontext.GuestContext(pcontext.NewContextWithContainer(context.Background(), "[testwasm]main")), "[testwasm].main")
 	myId := test.MustRegisterUnderTest(ctx)
 	queue.MustRequire(ctx, myId)
-	test.MustExportTest(ctx)
+	test.MustExportTest(ctx, myId)
 
 	server := &myTestServer{
 		myId: myId,
 	}
 
-	binding := test.MustWaitSatisfiedTest(ctx, myId, server)
+	binding := test.MustLaunchServiceTest(ctx, myId, server)
 	launchFuture := test.LaunchTest(ctx, myId, server)
 	launchFuture.Handle(func(ok bool) {
 		if !ok {

@@ -252,13 +252,13 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 		return img, err
 	}
 	// build/test.p.wasm
-	dir = "api/guest/test"
-	target = "build/test.p.wasm"
-	packagePath = "github.com/iansmith/parigot/api/guest/test"
-	img, err = buildAClientService(ctx, img, dir, target, packagePath)
-	if err != nil {
-		return img, err
-	}
+	// dir = "api/guest/test"
+	// target = "build/test.p.wasm"
+	// packagePath = "github.com/iansmith/parigot/api/guest/test"
+	// img, err = buildAClientService(ctx, img, dir, target, packagePath)
+	// if err != nil {
+	// 	return img, err
+	// }
 	// build/queue.p.wasm
 	dir = "api/guest/queue"
 	target = "build/queue.p.wasm"

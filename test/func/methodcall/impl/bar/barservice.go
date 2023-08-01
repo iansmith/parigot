@@ -25,9 +25,11 @@ func main() {
 	}
 	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "barservice.Main")
 	bServer := &barServer{}
-	binding := bar.Init(ctx, req, bServer)
-	kerr := bar.Run(ctx, binding, bar.TimeoutInMillis, nil)
-	pcontext.Fatalf(ctx, "Run in Bar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
+	binding, fut, _ := bar.Init(ctx, req, bServer)
+	fut.Success(func(_ *syscall.LaunchResponse) {
+		kerr := bar.Run(ctx, binding, bar.TimeoutInMillis, nil)
+		pcontext.Fatalf(ctx, "Run in Bar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
+	})
 
 }
 

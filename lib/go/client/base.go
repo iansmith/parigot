@@ -95,12 +95,14 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 		MethodId:  method.Marshal(),
 		CallId:    cid.Marshal(),
 		Param:     a,
-		HostId:    lib.CurrentHostId().Marshal(),
+		HostId:    syscallguest.CurrentHostId().Marshal(),
 	}
+
 	resp, kerr := syscallguest.Dispatch(in)
 	if kerr != syscall.KernelErr_NoError {
 		return id.CallIdZeroValue(), kerr
 	}
+
 	cid2 := id.UnmarshalCallId(resp.GetCallId())
 	if !cid.Equal(cid2) {
 		panic("mismatched call ids in dispatch")

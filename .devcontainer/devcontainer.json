@@ -1,6 +1,6 @@
 {
-	//"build": { "dockerfile": "Dockerfile" },
-	"image": "docker.io/iansmith/parigot-atlanta-dev:manifest-0.3",
+	"build": { "dockerfile": "Dockerfile" },
+	//"image": "docker.io/iansmith/parigot-atlanta-dev:manifest-0.3",
 	"customizations": {
 	  "vscode": {
 		"extensions": ["golang.go","ms-vscode.makefile-tools","ms-azuretools.vscode-docker",
@@ -8,6 +8,5 @@
 	  }
 	},
 	"mounts":[],
-
 	"forwardPorts": []
   }

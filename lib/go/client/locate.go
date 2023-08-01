@@ -34,6 +34,7 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 	}
 	serviceId := id.UnmarshalServiceId(resp.GetServiceId())
 	smmap := lib.NewServiceMethodMap()
+
 	for _, pair := range resp.GetBinding() {
 		mid := id.UnmarshalMethodId(pair.MethodId)
 		smmap.AddServiceMethod(serviceId, mid,

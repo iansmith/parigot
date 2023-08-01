@@ -3,6 +3,7 @@ package syscall
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -12,7 +13,7 @@ import (
 )
 
 //
-// startupCoordinator
+// rawLocal
 //
 
 // The default lock discipline for this type is that you should call a method
@@ -20,7 +21,7 @@ import (
 // DO have the lock are demarcated by the NoLock suffix. Any function that
 // does assert the lock should make sure to release it before returning.
 
-type startupCoordinator struct {
+type rawLocal struct {
 	sidStringToService          map[string]Service
 	packageNameToServiceNameMap map[string]map[string]Service
 	depGraph                    *graph.Mutable
@@ -28,9 +29,9 @@ type startupCoordinator struct {
 	lock                        *sync.Mutex
 }
 
-func newSyscallDataImpl() *startupCoordinator {
+func newSyscallDataImpl() *rawLocal {
 	g := graph.New(0)
-	impl := &startupCoordinator{
+	impl := &rawLocal{
 		sidStringToService:          make(map[string]Service),
 		packageNameToServiceNameMap: make(map[string]map[string]Service),
 		depGraph:                    g,
@@ -45,7 +46,7 @@ func newSyscallDataImpl() *startupCoordinator {
 // in one function.  If the service is found as already existing, it returns the
 // service and false.  If the service is not found it is created and the service
 // is returned and the value false.
-func (s *startupCoordinator) SetService(ctx context.Context, package_, name string, client bool) (Service, bool) {
+func (s *rawLocal) SetService(ctx context.Context, package_, name string, client bool) (Service, bool) {
 
 	svc := s.ServiceByName(ctx, package_, name)
 	if svc != nil {
@@ -86,7 +87,7 @@ func (s *startupCoordinator) SetService(ctx context.Context, package_, name stri
 // ServiceByName takes the full name of a service as a package and a service name
 // and returns the Service that represents that name.  If the given package and
 // name cannot be found it returns nil.
-func (s *startupCoordinator) ServiceByName(ctx context.Context, package_, name string) Service {
+func (s *rawLocal) ServiceByName(ctx context.Context, package_, name string) Service {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.serviceByNameNoLock(ctx, package_, name)
@@ -95,7 +96,7 @@ func (s *startupCoordinator) ServiceByName(ctx context.Context, package_, name s
 // serviceByNameNoLock returns the startupService that represents the service
 // id given.  The service given is the String() value of the service id.  This
 // function must be called with the lock held, since it does not lock itself.
-func (s *startupCoordinator) serviceByNameNoLock(ctx context.Context, package_, name string) Service {
+func (s *rawLocal) serviceByNameNoLock(ctx context.Context, package_, name string) Service {
 	nameMap, ok := s.packageNameToServiceNameMap[package_]
 	if !ok {
 		return nil
@@ -109,10 +110,10 @@ func (s *startupCoordinator) serviceByNameNoLock(ctx context.Context, package_, 
 
 // ServiceById is just a convenience wrapper for ServiceByIdString for folks that
 // have the service id they want to convert to a startupService.
-func (s *startupCoordinator) ServiceById(ctx context.Context, sid id.ServiceId) Service {
+func (s *rawLocal) ServiceById(ctx context.Context, sid id.ServiceId) Service {
 	return s.ServiceByIdString(ctx, sid.String())
 }
-func (s *startupCoordinator) serviceByIdStringNoLock(ctx context.Context, sid string) Service {
+func (s *rawLocal) serviceByIdStringNoLock(ctx context.Context, sid string) Service {
 	svc, ok := s.sidStringToService[sid]
 	if !ok {
 		return nil
@@ -120,7 +121,7 @@ func (s *startupCoordinator) serviceByIdStringNoLock(ctx context.Context, sid st
 	return svc
 }
 
-func (s *startupCoordinator) ServiceByIdString(ctx context.Context, sid string) Service {
+func (s *rawLocal) ServiceByIdString(ctx context.Context, sid string) Service {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	return s.serviceByIdStringNoLock(ctx, sid)
@@ -129,13 +130,13 @@ func (s *startupCoordinator) ServiceByIdString(ctx context.Context, sid string) 
 // Export causes the service given (in the id form) to marked as exported.
 // It returns nil if the service is not found, otherwise it returns the startupService
 // that represents the given id.
-func (s *startupCoordinator) Export(ctx context.Context, svcId id.ServiceId) Service {
+func (s *rawLocal) Export(ctx context.Context, svcId id.ServiceId) Service {
 	svc := s.ServiceByIdString(ctx, svcId.String())
 	if svc == nil {
 		return nil
 	}
 
-	svc.(*startupService).export()
+	svc.Export()
 
 	return svc
 }
@@ -143,7 +144,7 @@ func (s *startupCoordinator) Export(ctx context.Context, svcId id.ServiceId) Ser
 // Import adds an edge in the dependency graph between src and dest.
 // It returns a kerr if either the source or dest cannot be found; it
 // returns a kerr if the new edge would create a cycle.
-func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr {
+func (s *rawLocal) Import(ctx context.Context, src, dest id.ServiceId) syscall.KernelErr {
 	serviceSource := s.ServiceByIdString(ctx, src.String())
 	if serviceSource == nil {
 		sid, ok := s.SetService(ctx, serviceSource.Package(), serviceSource.Name(), false)
@@ -194,10 +195,10 @@ func (s *startupCoordinator) Import(ctx context.Context, src, dest id.ServiceId)
 
 // removeEdge is really only useful when you have introduced an edge that
 // creates a cycle.
-func (s *startupCoordinator) removeEdge(ctx context.Context, v, u int) {
+func (s *rawLocal) removeEdge(ctx context.Context, v, u int) {
 	s.depGraph.Delete(v, u)
 }
-func (s *startupCoordinator) addVertex(ctx context.Context, name string) bool {
+func (s *rawLocal) addVertex(ctx context.Context, name string) bool {
 	prevOrder := s.depGraph.Order()
 	newG := graph.New(prevOrder + 1)
 	for v := 0; v < prevOrder; v++ {
@@ -219,7 +220,7 @@ func (s *startupCoordinator) addVertex(ctx context.Context, name string) bool {
 
 // addEdge adds an edge to the dependency graph from src to dest.  This edge
 // represents the idea that src cannot start until dest is started.
-func (s *startupCoordinator) addEdge(ctx context.Context, src, dest string) bool {
+func (s *rawLocal) addEdge(ctx context.Context, src, dest string) bool {
 	srcV, srcOk := s.vertexName[src]
 	destV, destOk := s.vertexName[dest]
 	if !srcOk || !destOk {
@@ -239,7 +240,7 @@ func (s *startupCoordinator) addEdge(ctx context.Context, src, dest string) bool
 
 // Launch blocks the caller on a particular service being ready to run.  Note that
 // this function does not assert the lock.
-func (s *startupCoordinator) Launch(ctx context.Context, sid id.ServiceId) syscall.KernelErr {
+func (s *rawLocal) Launch(ctx context.Context, sid id.ServiceId) syscall.KernelErr {
 	service := s.ServiceById(ctx, sid)
 	if service == nil {
 		return syscall.KernelErr_NotFound
@@ -261,7 +262,7 @@ func (s *startupCoordinator) Launch(ctx context.Context, sid id.ServiceId) sysca
 // return true for a call for PathExists(source,bar).
 // This means that carefully crafted require's that know the
 // depgraph of other services will work, but seems wildly unnecessary.
-func (s *startupCoordinator) PathExists(ctx context.Context, src, dest string) bool {
+func (s *rawLocal) PathExists(ctx context.Context, src, dest string) bool {
 
 	// lock for the graph
 	s.lock.Lock()
@@ -270,7 +271,7 @@ func (s *startupCoordinator) PathExists(ctx context.Context, src, dest string) b
 	destV := s.vertexName[dest]
 
 	if !s.searchEdges(srcV, destV) {
-		pcontext.Errorf(ctx, "locate called, but no require given: %s -> %s", src, dest)
+		pcontext.Errorf(ctx, "XXXlocate called, but no require given: %s -> %s", src, dest)
 		return false
 	}
 	return true
@@ -312,9 +313,10 @@ func inboundEdges(g graph.Iterator, target int) []int {
 }
 
 // This function assumes that callers are HOLDING the lock.
-func (s *startupCoordinator) mustVertexNumToService(ctx context.Context, v int) Service {
-	n, ok := reverseMap(_coord.vertexName, v)
+func (s *rawLocal) mustVertexNumToService(ctx context.Context, v int) Service {
+	n, ok := reverseMap(s.vertexName, v)
 	if !ok {
+		fmt.Printf("xxxx looking for=>%d search failed, %+v\n", v, s.vertexName)
 		panic("unable to find vertex name for index")
 	}
 	svc := s.serviceByIdStringNoLock(ctx, n)
@@ -326,7 +328,7 @@ func (s *startupCoordinator) mustVertexNumToService(ctx context.Context, v int) 
 
 // tricky: we use the lock in this function because we
 // call a function that uses the lock.
-func (s *startupCoordinator) mustServiceToVertexNum(ctx context.Context, svc Service) int {
+func (s *rawLocal) mustServiceToVertexNum(ctx context.Context, svc Service) int {
 	str := svc.String()
 	i, ok := s.vertexName[str]
 	if !ok {
@@ -337,7 +339,7 @@ func (s *startupCoordinator) mustServiceToVertexNum(ctx context.Context, svc Ser
 
 // This function is recursive and assumes the lock is NOT
 // held when it is entered.
-func (s *startupCoordinator) dependenciesStarted(ctx context.Context, v int) []int {
+func (s *rawLocal) dependenciesStarted(ctx context.Context, v int) []int {
 	fail := []int{}
 	s.depGraph.Visit(v, func(w int, c int64) (skip bool) {
 		cand := s.mustVertexNumToService(ctx, w)
@@ -355,7 +357,7 @@ func (s *startupCoordinator) dependenciesStarted(ctx context.Context, v int) []i
 // all started. If any are not started, it returns false.
 // This is called from the startupService and it assumes
 // the downstream functions are not touching the lock.
-func (s *startupCoordinator) dfsDeps(ctx context.Context, sid Service) bool {
+func (s *rawLocal) dfsDeps(ctx context.Context, sid Service) bool {
 
 	i := s.mustServiceToVertexNum(ctx, sid)
 
@@ -369,7 +371,7 @@ func (s *startupCoordinator) dfsDeps(ctx context.Context, sid Service) bool {
 // notifyIncomingNeighbors sends the wake up signal to
 // to any node that has a dependecy on the node given. This is
 // called when have successfully started up service sid.
-func (s *startupCoordinator) notifyIncomingNeighbors(ctx context.Context, sid Service) {
+func (s *rawLocal) notifyIncomingNeighbors(ctx context.Context, sid Service) {
 	i := s.mustServiceToVertexNum(ctx, sid)
 
 	s.lock.Lock()
@@ -379,13 +381,13 @@ func (s *startupCoordinator) notifyIncomingNeighbors(ctx context.Context, sid Se
 	for _, c := range in {
 		// mustVertex below asserts the lock
 		svc := s.mustVertexNumToService(ctx, c)
-		svc.(*startupService).wakeUp()
+		svc.WakeUp()
 	}
 }
 
 // searchEdges looks for a path from source to dest.  It returns true
 // if there such a path, otherwise false.
-func (s *startupCoordinator) searchEdges(source, dest int) bool {
+func (s *rawLocal) searchEdges(source, dest int) bool {
 	found := false
 	s.depGraph.Visit(source, func(w int, c int64) (skip bool) {
 		if w == dest {

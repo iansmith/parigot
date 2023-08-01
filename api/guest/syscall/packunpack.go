@@ -58,7 +58,6 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 			signal = true
 		}
 	}()
-
 	wrapped := fn(length, req, out, errPtr)
 	if int32(outErr) != 0 {
 		pcontext.Dump(ctx)

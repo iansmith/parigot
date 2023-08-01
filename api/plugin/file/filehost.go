@@ -92,12 +92,12 @@ func (fs FileStatus) String() string {
 }
 
 func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
-	e.AddSupportedFunc(ctx, "file", "open_file_", openFileHost) // this should call the "wrapper"
-	e.AddSupportedFunc(ctx, "file", "create_file_", createFileHost)
-	e.AddSupportedFunc(ctx, "file", "close_file_", closeFileHost)
-	e.AddSupportedFunc(ctx, "file", "read_file_", readFileHost)
-	e.AddSupportedFunc(ctx, "file", "delete_file_", deleteFileHost)
-	e.AddSupportedFunc(ctx, "file", "write_file_", writeFileHost)
+	e.AddSupportedFunc(ctx, "file", "open_", openFileHost) // this should call the "wrapper"
+	e.AddSupportedFunc(ctx, "file", "create_", createFileHost)
+	e.AddSupportedFunc(ctx, "file", "close_", closeFileHost)
+	e.AddSupportedFunc(ctx, "file", "read_", readFileHost)
+	e.AddSupportedFunc(ctx, "file", "delete_", deleteFileHost)
+	e.AddSupportedFunc(ctx, "file", "write_", writeFileHost)
 	e.AddSupportedFunc(ctx, "file", "load_test_data_", loadTestDataHost)
 	e.AddSupportedFunc(ctx, "file", "stat_", statHost)
 

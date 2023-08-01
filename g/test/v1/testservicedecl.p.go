@@ -10,11 +10,11 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
 
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
@@ -56,8 +56,10 @@ type FutureTestAddTestSuite struct {
 // execution of the user level code.
 func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&AddTestSuiteResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
@@ -94,7 +96,7 @@ func (i *ClientTest_) TestAddTestSuite(ctx context.Context, in *AddTestSuiteRequ
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -110,8 +112,10 @@ type FutureTestStart struct {
 // execution of the user level code.
 func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&StartResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
@@ -148,7 +152,7 @@ func (i *ClientTest_) TestStart(ctx context.Context, in *StartRequest) *FutureTe
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  
 //
@@ -185,8 +189,10 @@ type FutureMethodCallSuiteExec struct {
 // execution of the user level code.
 func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ExecResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
@@ -223,7 +229,7 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteExec(ctx context.Context, in *Ex
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }
 
@@ -270,7 +276,7 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteSuiteReport(ctx context.Context,
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  
 //
@@ -305,8 +311,10 @@ type FutureUnderTestExec struct {
 // execution of the user level code.
 func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ExecResponse{}
-    if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-        return syscall.KernelErr_UnmarshalFailed
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
@@ -343,6 +351,6 @@ func (i *ClientUnderTest_) UnderTestExec(ctx context.Context, in *ExecRequest) *
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    lib.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(cid,f)
     return f
 }  

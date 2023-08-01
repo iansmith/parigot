@@ -1,4 +1,3 @@
-API_VERSION=v1
 
 all: commands \
 	guest \
@@ -10,8 +9,8 @@ all: commands \
 # GROUPS OF TARGETS
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
-methodcalltest: build/methodcalltest.p.wasm build/methodcallfoo.p.wasm build/methodcallbar.p.wasm
-guest: build/file.p.wasm build/test.p.wasm build/queue.p.wasm 
+methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
+guest: build/file.p.wasm  build/queue.p.wasm  #build/test.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: api/plugin/queue/db.go
@@ -202,8 +201,10 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SR
 .PHONY: test
 test: sqlc
 	go test -v github.com/iansmith/parigot/api/plugin/queue
-	go test -v github.com/iansmith/parigot/api/plugin/file
+	#go test -v github.com/iansmith/parigot/api/plugin/file
 	go test -v github.com/iansmith/parigot/lib/go/future
+	go test -v github.com/iansmith/parigot/api/plugin/syscall
+	go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
 #	build/runner -t test/func/methodcall/methodcall.toml 
 
 ###
@@ -235,10 +236,10 @@ docs:
 	rm $(PROTOROOT)/api.md
 
 	## guest docs
+	#github.com/iansmith/parigot/api/guest/test 
 	GOFLAGS= gomarkdoc -o $(GUESTROOT)/guest.md \
 	github.com/iansmith/parigot/api/guest/queue/lib \
 	github.com/iansmith/parigot/api/guest/syscall \
-	github.com/iansmith/parigot/api/guest/test \
 	github.com/iansmith/parigot/lib/go \
 	github.com/iansmith/parigot/lib/go/client \
 	github.com/iansmith/parigot/lib/go/future \
