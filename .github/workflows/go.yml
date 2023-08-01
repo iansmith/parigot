@@ -23,11 +23,8 @@ jobs:
 
     # - name: Test
     #   run: go test -v github.com/iansmith/parigot/api/plugin/file
-     echo go future test
-    - name: Test
+    - name: Go Future Test
       run: go test -v github.com/iansmith/parigot/lib/go/future
 
-     echo plugin syscall 
-
-    - name: Test
+    - name: Plugin Syscall Test
       run: go test -v github.com/iansmith/parigot/api/plugin/syscall
