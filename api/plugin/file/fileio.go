@@ -9,34 +9,34 @@ import (
 )
 
 // String readcloser
-type StringReaderWrapper struct {
+type stringReaderWrapper struct {
 	io.Reader
 }
 
-func NewStringReaderWrapper(r io.Reader) *StringReaderWrapper {
-	return &StringReaderWrapper{r}
+func newStringReaderWrapper(r io.Reader) *stringReaderWrapper {
+	return &stringReaderWrapper{r}
 }
 
-func (s *StringReaderWrapper) Close() error {
+func (s *stringReaderWrapper) Close() error {
 	// We do nothing here, since the string is some data in memory
 	// and the error is initialized to no-error
 	return nil
 }
 
 // Buffer writecloser
-type BytesBufferWrapper struct {
+type bytesBufferWrapper struct {
 	*bytes.Buffer
 }
 
-func NewBytesBufferWrapper(b *bytes.Buffer) *BytesBufferWrapper {
-	return &BytesBufferWrapper{b}
+func newBytesBufferWrapper(b *bytes.Buffer) *bytesBufferWrapper {
+	return &bytesBufferWrapper{b}
 }
 
-func (b *BytesBufferWrapper) Close() error { return nil }
+func (b *bytesBufferWrapper) Close() error { return nil }
 
 // Open hook
 func openHookForStrings(str string) (io.ReadCloser, error) {
-	return NewStringReaderWrapper(strings.NewReader(str)), nil
+	return newStringReaderWrapper(strings.NewReader(str)), nil
 }
 
 func openHookForFiles(path string) (io.ReadCloser, error) {
@@ -55,7 +55,7 @@ type OpenHook func(pathOrString string) (io.ReadCloser, error)
 
 // Create hook
 func createHookForStrings(str string) (io.WriteCloser, error) {
-	return NewBytesBufferWrapper(&bytes.Buffer{}), nil
+	return newBytesBufferWrapper(&bytes.Buffer{}), nil
 }
 
 func createHookForFiles(path string) (io.WriteCloser, error) {
@@ -77,4 +77,4 @@ func createHookForFiles(path string) (io.WriteCloser, error) {
 	return f, nil
 }
 
-type CreateHook func(path string) (io.WriteCloser, error)
+type createHook func(path string) (io.WriteCloser, error)

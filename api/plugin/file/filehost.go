@@ -75,7 +75,7 @@ type fileSvcImpl struct {
 	isTesting  bool
 
 	defaultOpenHook   OpenHook
-	defaultCreateHook CreateHook
+	defaultCreateHook createHook
 }
 
 // enum for file status
