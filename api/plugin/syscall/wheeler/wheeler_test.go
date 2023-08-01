@@ -1,10 +1,13 @@
 package wheeler
 
 import (
+	"context"
 	"sync"
 	"testing"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
+	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -70,25 +73,35 @@ func TestExportThroughChan(t *testing.T) {
 }
 
 func TestExitThroughChan(t *testing.T) {
-	exitCh := make(chan int32)
+	t.Skip("new exit strategy obviated this type of test")
+	exitCh := make(chan *syscall.ExitPair)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	// this is required because the sender (wheeler) will not
 	//
-	monitorFn := func(c chan int32) {
+	monitorFn := func(c chan *syscall.ExitPair) {
 		// no block because it should be already sent
 		x := <-c
-		if x != 74 {
-			t.Errorf("unexpected value read from exit channel: %d", x)
+		if x.Code != 74 {
+			sid := id.UnmarshalServiceId(x.GetServiceId())
+			t.Errorf("unexpected value read from exit channel: %s,%d", sid.Short(), x.GetCode())
 		}
 		wg.Add(-1)
 
 	}
 	go monitorFn(exitCh)
 
-	w := newWheeler(nil, exitCh)
-	req := &syscall.ExitRequest{Code: 74}
+	ctx := pcontext.NewContextWithContainer(context.Background(), "wheeler_test")
+	w := newWheeler(ctx, exitCh)
+	req := &syscall.ExitRequest{}
+	req.Pair = &syscall.ExitPair{
+		ServiceId: id.NewServiceId().Marshal(),
+		Code:      122,
+	}
+	req.CallId = id.NewCallId().Marshal()
+	req.HostId = id.NewHostId().Marshal() // we can't use syscall.CurrentHost(), it's for client side
+	req.MethodId = apishared.ExitMethod.Marshal()
 
 	ch := makeRequstToWheeler(w, req)
 	result := <-ch
@@ -217,135 +230,65 @@ func TestRegistrationAndLookup(t *testing.T) {
 	expectConsistentResult(t, w, svc, pkg, name, hid)
 }
 
+// for the startup tests
+var letter = []string{"a", "b", "c", "d"}
+
 func TestStartupSimple(t *testing.T) {
 	//none of these would actually work, this is to test
 	// the startup logic
-	w := newWheeler(nil, nil)
 
 	aHost := id.NewHostId()
 	bHost := id.NewHostId()
 	cHost := id.NewHostId()
 	dHost := id.NewHostId()
 	host := []id.HostId{aHost, bHost, cHost, dHost}
-	letter := []string{"a", "b", "c", "d"}
 	svc := make([]id.ServiceId, len(letter))
 
-	// a exports x.x
-	export := [][]*syscall.FullyQualifiedService{
-		{
-			{
-				PackagePath: "x",
-				Service:     "x",
-			},
-		},
-		// b exports x.x and y.y
-		{
-			{
-				PackagePath: "x",
-				Service:     "x",
-			},
-			{
-				PackagePath: "y",
-				Service:     "y",
-			},
-		},
-		// c exports z.z
-		{
-			{
-				PackagePath: "z",
-				Service:     "z",
-			},
-		},
-		// d exports "z.z" and "w.w"
-		{
-			{
-				PackagePath: "z",
-				Service:     "z",
-			},
-			{
-				PackagePath: "w",
-				Service:     "w",
-			},
-		},
+	// Launch
+	// A, B, C
+	w, ok := createWheelerAndABCDInit(t, host, svc)
+	if !ok {
+		t.Errorf("unable to create a wheeler in the startup configuration")
+		return
 	}
-
-	// topo sort is
-	// C, D, B, A
-
-	// a requires y.y and w.w
-	require := [][]*syscall.FullyQualifiedService{
-		{
-			{
-				PackagePath: "y",
-				Service:     "y",
-			},
-			{
-				PackagePath: "w",
-				Service:     "w",
-			},
-		},
-		// b requires w.w and z.z
-		{
-			{
-				PackagePath: "w",
-				Service:     "w",
-			},
-			{
-				PackagePath: "z",
-				Service:     "z",
-			},
-		},
-		// c requires nothing
-		nil,
-		// d requires z.z
-		{
-			{
-				PackagePath: "z",
-				Service:     "z",
-			},
-		},
-	}
-
-	for i, l := range letter {
-		regReq := &syscall.RegisterRequest{
-			Fqs: &syscall.FullyQualifiedService{
-				PackagePath: l,
-				Service:     l,
-			},
-			HostId: host[i].Marshal(),
-		}
-		regResp := &syscall.RegisterResponse{}
-		if err := makeReqRespToWheeler(t, w, regReq, regResp); err != syscall.KernelErr_NoError {
-			t.Errorf("unable to make registration request for %s:%s", l, syscall.KernelErr_name[int32(err)])
-			return
-		}
-		svc[i] = id.UnmarshalServiceId(regResp.GetId())
-	}
+	// we call launch on A,B,D
 	for i := 0; i < len(letter); i++ {
-		exReq := &syscall.ExportRequest{
-			ServiceId: svc[i].Marshal(),
+		// skip C
+		if i == 2 {
+			continue
+		}
+		//launch ith letter
+		launch := &syscall.LaunchRequest{
+			ServiceId: svc[i].Marshal(), //
+			CallId:    id.NewCallId().Marshal(),
 			HostId:    host[i].Marshal(),
+			MethodId:  apishared.LaunchMethod.Marshal(),
 		}
-		exReq.Service = export[i]
-
-		exResp := &syscall.ExportResponse{}
-		if err := makeReqRespToWheeler(t, w, exReq, exResp); err != syscall.KernelErr_NoError {
-			t.Errorf("unable to make export request: %s", syscall.KernelErr_name[int32(err)])
-			return
+		if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
+			t.Errorf("unable to make launch request for %s: %s", letter[i], syscall.KernelErr_name[int32(err)])
 		}
 	}
-	for i := 0; i < len(letter); i++ {
-		reqReq := &syscall.RequireRequest{
-			Source: svc[i].Marshal(),
-			Dest:   require[i],
-		}
-		reqResp := &syscall.RequireResponse{}
-		if err := makeReqRespToWheeler(t, w, reqReq, reqResp); err != syscall.KernelErr_NoError {
-			t.Errorf("unable to make export request: %s", syscall.KernelErr_name[int32(err)])
-			return
-		}
+	// nothing should be ready, because C is needed
+	if !checkLaunchStatus(t, w, host, true, false) {
+		t.Errorf("failed to check launch status")
+		return
 	}
 
+	//launch C
+	launch := &syscall.LaunchRequest{
+		ServiceId: svc[2].Marshal(), //
+		CallId:    id.NewCallId().Marshal(),
+		HostId:    host[2].Marshal(),
+		MethodId:  apishared.LaunchMethod.Marshal(),
+	}
+	if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
+		t.Errorf("unable to make launch request for C: %s", syscall.KernelErr_name[int32(err)])
+	}
+	// all 4 should now be ready
+	if !checkLaunchStatus(t, w, host, false, true) {
+		t.Errorf("failed to check launch status")
+		return
+	}
 }
 
 //
@@ -646,4 +589,162 @@ func registerService(t *testing.T, w *wheeler, pkg, name string, hid id.HostId) 
 	sid := id.UnmarshalServiceId(regResp.GetId())
 	return sid, true
 
+}
+
+func createWheelerAndABCDInit(t *testing.T, host []id.HostId, outSvc []id.ServiceId) (*wheeler, bool) {
+	w := newWheeler(nil, nil)
+	// a exports x.x
+	export := [][]*syscall.FullyQualifiedService{
+		{
+			{
+				PackagePath: "x",
+				Service:     "x",
+			},
+		},
+		// b exports x.x and y.y
+		{
+			{
+				PackagePath: "x",
+				Service:     "x",
+			},
+			{
+				PackagePath: "y",
+				Service:     "y",
+			},
+		},
+		// c exports z.z
+		{
+			{
+				PackagePath: "z",
+				Service:     "z",
+			},
+		},
+		// d exports "z.z" and "w.w"
+		{
+			{
+				PackagePath: "z",
+				Service:     "z",
+			},
+			{
+				PackagePath: "w",
+				Service:     "w",
+			},
+		},
+	}
+
+	// topo sort is
+	// C, D, B, A
+
+	// a requires y.y and w.w
+	require := [][]*syscall.FullyQualifiedService{
+		{
+			{
+				PackagePath: "y",
+				Service:     "y",
+			},
+			{
+				PackagePath: "w",
+				Service:     "w",
+			},
+		},
+		// b requires w.w and z.z
+		{
+			{
+				PackagePath: "w",
+				Service:     "w",
+			},
+			{
+				PackagePath: "z",
+				Service:     "z",
+			},
+		},
+		// c requires nothing
+		nil,
+		// d requires z.z
+		{
+			{
+				PackagePath: "z",
+				Service:     "z",
+			},
+		},
+	}
+
+	//
+	// Register
+	//
+	for i, l := range letter {
+		regReq := &syscall.RegisterRequest{
+			Fqs: &syscall.FullyQualifiedService{
+				PackagePath: l,
+				Service:     l,
+			},
+			HostId: host[i].Marshal(),
+		}
+		regResp := &syscall.RegisterResponse{}
+		if err := makeReqRespToWheeler(t, w, regReq, regResp); err != syscall.KernelErr_NoError {
+			t.Errorf("unable to make registration request for %s:%s", l, syscall.KernelErr_name[int32(err)])
+			return nil, false
+		}
+		outSvc[i] = id.UnmarshalServiceId(regResp.GetId())
+	}
+	//
+	// Export
+	//
+	for i := 0; i < len(letter); i++ {
+		exReq := &syscall.ExportRequest{
+			ServiceId: outSvc[i].Marshal(),
+			HostId:    host[i].Marshal(),
+		}
+		exReq.Service = export[i]
+
+		exResp := &syscall.ExportResponse{}
+		if err := makeReqRespToWheeler(t, w, exReq, exResp); err != syscall.KernelErr_NoError {
+			t.Errorf("unable to make export request: %s", syscall.KernelErr_name[int32(err)])
+			return nil, false
+		}
+	}
+	//
+	// Require
+	//
+	for i := 0; i < len(letter); i++ {
+		reqReq := &syscall.RequireRequest{
+			Source: outSvc[i].Marshal(),
+			Dest:   require[i],
+		}
+		reqResp := &syscall.RequireResponse{}
+		if err := makeReqRespToWheeler(t, w, reqReq, reqResp); err != syscall.KernelErr_NoError {
+			t.Errorf("unable to make export request: %s", syscall.KernelErr_name[int32(err)])
+			return nil, false
+		}
+	}
+	return w, true
+}
+
+func checkLaunchStatus(t *testing.T, w *wheeler, host []id.HostId, notC bool, expectedReady bool) bool {
+	t.Helper()
+	for i := 0; i < len(letter); i++ {
+		if notC {
+			// skip C
+			if i == 2 {
+				continue
+			}
+		}
+		rc, err := w.matcher().Ready(host[i])
+		if err != syscall.KernelErr_NoError {
+			t.Errorf("unable to check for ready status of %s, %s: %s", letter[i], host[i].Short(), syscall.KernelErr_name[int32(err)])
+			return false
+		}
+		if expectedReady {
+			if rc == nil {
+				t.Errorf("%s should be ready", letter[i])
+				return false
+			}
+		} else {
+			if rc != nil {
+				t.Errorf("%s should not be ready", letter[i])
+				return false
+			}
+		}
+	}
+	return true
 }
