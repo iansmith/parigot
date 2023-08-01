@@ -1,5 +1,6 @@
 package main
 
+// at no point can this package or anything it depends on import anything in api/guest
 import (
 	"context"
 	"flag"
@@ -8,8 +9,10 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys"
 )
 
@@ -26,21 +29,19 @@ func main() {
 	}
 	flg := &runner.DeployFlag{
 		TestMode: *testMode,
-		Remote:   *remote,
-	}
-	defer func() {
-		// if r := recover(); r != nil {
-		// 	print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
-		// }
-	}()
-	config, err := runner.Parse(flag.Arg(0), flg)
-	if err != nil {
-		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
-
 	}
 	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
 	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
 	defer pcontext.Dump(ctx)
+
+	config, err := runner.Parse(ctx, flag.Arg(0), flg)
+	if err != nil {
+		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
+
+	}
+	// create the syscall implementation
+	exitCh := make(chan *syscall.ExitPair)
+	wheeler.InstallWheeler(ctx, exitCh)
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
@@ -68,26 +69,10 @@ func main() {
 		log.Printf("goroutine exited")
 	}(ctx)
 
-	// go func() {
-	// 	var buf bytes.Buffer
-	// 	for {
-	// 		buf.Reset()
-	// 		time.Sleep(60 * time.Second)
-	// 		deployCtx.Process().Range(func(keyAny, valueAny any) bool {
-	// 			key := keyAny.(string)
-	// 			proc := valueAny.(*sys.Process)
-	// 			buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
-	// 				key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
-	// 			return true
-	// 		})
-	// 		print("periodic check:-----------\n", buf.String(), "\n")
-	// 	}
-	// }()
-
 	for _, mainProg := range main {
 		code, err := deployCtx.StartMain(ctx, mainProg)
 		if code == 253 && err == nil {
-			pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
+			//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
 		} else if code != 0 {
 			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
 		} else {

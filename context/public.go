@@ -6,6 +6,7 @@ import (
 	"log"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 	_ "time/tzdata"
@@ -70,6 +71,7 @@ func Dump(ctx context.Context) {
 	cont := GetContainer(ctx)
 	if cont == nil {
 		log.Println("no log container present inside context")
+		debug.PrintStack()
 		return
 	}
 	cont.Dump(ctx)
@@ -99,6 +101,13 @@ func Fatalf(ctx context.Context, spec string, rest ...interface{}) {
 // log level being Error.
 func Errorf(ctx context.Context, spec string, rest ...interface{}) {
 	LogFullf(ctx, Error, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
+		spec, rest...)
+}
+
+// Warnf is a shorthand for a call to LogFull with the currently set source in ctx, and
+// log level being Warn.
+func Warnf(ctx context.Context, spec string, rest ...interface{}) {
+	LogFullf(ctx, Warn, PullSource(ctx, UnknownS), pullFunc(ctx, ""),
 		spec, rest...)
 }
 

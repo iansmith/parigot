@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -14,14 +16,15 @@ import (
 // Export1 is a thin wrapper over syscall.Export so it's easy
 // to export things by their name.  This is used by the code generator
 // primarily.
-func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr) {
+func Export1(pkg, name string, serviceId id.ServiceId) (*syscall.ExportResponse, syscall.KernelErr) {
 	fqs := &syscall.FullyQualifiedService{
 		PackagePath: pkg,
 		Service:     name,
 	}
 	in := &syscall.ExportRequest{
-		Service: []*syscall.FullyQualifiedService{fqs},
-		HostId:  CurrentHostId().Marshal(),
+		ServiceId: serviceId.Marshal(),
+		Service:   []*syscall.FullyQualifiedService{fqs},
+		HostId:    syscallguest.CurrentHostId().Marshal(),
 	}
 	resp, kerr := syscallguest.Export(in)
 	return resp, kerr
@@ -45,7 +48,7 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 		Service:     name,
 	}
 	req.Fqs = fqs
-	req.IsClient = isClient
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err := syscallguest.Register(req)
 	if err != 0 {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name,
@@ -84,24 +87,51 @@ func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.Servi
 	for _, f := range requirement {
 		f(ctx, myId)
 	}
-	syscallguest.MustSatisfyWait(ctx, myId)
-
-	launchreq := &syscall.LaunchRequest{
-		ServiceId: myId.Marshal(),
-	}
-	_, err := syscallguest.Launch(launchreq)
-	if err != syscall.KernelErr_NoError {
-		panic(fmt.Sprintf("unable to launch client service: %s",
-			syscall.KernelErr_name[int32(err)]))
-	}
-
 	return myId
+}
+
+// LaunchClient is a convienence wrapper around Launch() for clients that don't
+// want to create their own request structure.
+func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture {
+	cid := id.NewCallId()
+	req := &syscall.LaunchRequest{
+		HostId:    syscallguest.CurrentHostId().Marshal(),
+		ServiceId: myId.Marshal(),
+		CallId:    cid.Marshal(),
+		MethodId:  apishared.LaunchMethod.Marshal(),
+	}
+	return syscallguest.Launch(req)
+}
+
+// ExitClient sends a request to exit and attaches hanndlers that print
+// the given strings. It only forces the exit if the Exit call itself
+// fails. Only the values from 0 to 192 are permissable as the code; other
+// values will be changed to 192.
+func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string) {
+	req := &syscall.ExitRequest{
+		HostId: syscallguest.CurrentHostId().Marshal(),
+		Pair: &syscall.ExitPair{
+			ServiceId: myId.Marshal(),
+			Code:      code,
+		},
+		CallId:   id.NewCallId().Marshal(),
+		MethodId: apishared.ExitMethod.Marshal(),
+	}
+	exitFut := syscallguest.Exit(req)
+	exitFut.Failure(func(e syscall.KernelErr) {
+		pcontext.Errorf(ctx, msgFailure)
+		os.Exit(1)
+	})
+	exitFut.Success(func(e *syscall.ExitResponse) {
+		syscallguest.SynchronousExit(&syscall.SynchronousExitRequest{Pair: e.GetPair()})
+		// wont reach here unless there is a serious error
+	})
 }
 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {
 	var err syscall.KernelErr
 	for {
-		err = clientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
+		err = ClientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
 		if err != syscall.KernelErr_NoError && err != syscall.KernelErr_ReadOneTimeout {
 			break
 		}
@@ -109,13 +139,18 @@ func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr
 	return err
 }
 
-func clientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
+// ClientOnlyReadOneAndCall does the waiting for an incoming call and if one
+// arrives, it dispatches the call to the appropriate method.  Similarly, it
+// will detect and respond to finished futures.  It returns KernelErr_ReadOneTimeout
+// if the waiting timed out, otherwise the value should be KernelErr_NoError or
+// an appropriate error code.
+func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 	timeoutInMillis int32) syscall.KernelErr {
 	req := syscall.ReadOneRequest{}
 
 	// setup a request to read an incoming message
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = CurrentHostId().Marshal()
+	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err := syscallguest.ReadOne(&req)
 	if err != syscall.KernelErr_NoError {
 		return err
@@ -126,12 +161,12 @@ func clientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	ExpireMethod(ctx)
+	syscallguest.ExpireMethod(ctx)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r := resp.GetResolved(); r != nil {
 		cid := id.UnmarshalCallId(r.GetCallId())
-		CompleteCall(ctx, cid, r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, cid, r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 

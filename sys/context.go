@@ -10,6 +10,7 @@ import (
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
+
 	"github.com/tetratelabs/wazero"
 )
 
@@ -78,7 +79,7 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 		m := c.config.Microservice[name]
 		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
 		if err != nil {
-			return fmt.Errorf("unable to create process from module (%s): %v", name, err)
+			return fmt.Errorf("unable to create process from module '%s': %v", name, err)
 		}
 		c.process.Store(name, p)
 		ch := make(chan bool)
@@ -110,11 +111,11 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		name := f.Name()
 		if f.Server {
 			go func(p *Process, serverProcessName string) {
-				contextPrint(ctx, pcontext.Debug, "StartingServer ", "goroutine for '%s' starting", serverProcessName)
+				//pcontext.Debugf(ctx, "goroutine for '%s' starting", serverProcessName)
 				code := p.Start(ctx)
-				contextPrint(ctx, pcontext.Debug, "StartingServer ", "inside the gofunc for %s, got code %d", serverProcessName, code)
+				//pcontext.Debugf(ctx, "inside the gofunc for %s, got code %d", serverProcessName, code)
 				p.SetExitCode(code)
-				contextPrint(ctx, pcontext.Debug, "StartingServer", "server process '%s' exited with code %d", serverProcessName, code)
+				pcontext.Debugf(ctx, "server process '%s' exited with code %d", serverProcessName, code)
 			}(procAny.(*Process), name)
 		}
 	}

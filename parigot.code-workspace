@@ -25,6 +25,9 @@
 		"go.buildTags": "wasip1",
 		"editor.insertSpaces": false,
 		"workbench.editor.closeEmptyGroups": false,
+		"workbench.colorTheme": "Default Dark+",
+		"workbench.preferredDarkColorTheme": "Default Dark+",
+		"workbench.preferredLightColorTheme": "Default Dark+",
 	},
 	"launch": {
 		"version": "0.2.0",

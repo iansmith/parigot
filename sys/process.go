@@ -65,6 +65,8 @@ type Process struct {
 	argc       int32
 	argvBuffer *bytes.Buffer
 
+	exitChan chan int32
+
 	runCh chan bool
 }
 
@@ -86,6 +88,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 		exited:          false,
 		microservice:    m,
 		path:            m.GetWasmPath(),
+		exitChan:        make(chan int32),
 	}
 
 	if m.GetPluginPath() != "" {
@@ -100,6 +103,7 @@ func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service,
 	if err != nil {
 		return nil, err
 	}
+
 	proc.instance = instance
 	return proc, nil
 }
@@ -121,7 +125,6 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 		pcontext.Dump(ctx)
 		return fmt.Errorf("instantiate host module failed: %s", err.Error())
 	}
-
 	pcontext.Dump(ctx)
 	return nil
 }
@@ -243,9 +246,9 @@ func (p *Process) Start(ctx context.Context) (code int) {
 			e, ok := r.(*syscall.ExitRequest)
 			procPrint(ctx, "Start/Exit ", "INSIDE defer exit req %+v, ok %v", r.(*syscall.ExitRequest), ok)
 			if ok {
-				code = int(e.GetCode())
+				code = int(e.Pair.GetCode())
 				proc.SetExitCode(code)
-				procPrint(ctx, "Start/Exit", "INSIDE DEFER exiting with code %d", e.GetCode())
+				procPrint(ctx, "Start/Exit", "INSIDE DEFER exiting with code %d", e.Pair.GetCode())
 			} else {
 				p.SetExitCode(int(ExitCodePanic))
 				code = int(ExitCodePanic)

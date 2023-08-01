@@ -2,13 +2,15 @@ package syscall
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/lib/go/exit"
+
 	"google.golang.org/protobuf/proto"
 )
 
@@ -28,9 +30,9 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 
 	lr, errIdRaw, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Locate_)
+
 	kerr := syscall.KernelErr(errIdRaw)
 	if signal {
-		pcontext.Fatalf(ctx, "xxxx Locate exiting due to signal")
 		pcontext.Dump(ctx)
 		os.Exit(1)
 	}
@@ -62,6 +64,7 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
+		log.Printf("xxx -- ERROR IN DISPATCH %s", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 
@@ -71,7 +74,6 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 		os.Exit(1)
 	}
 
-	// normal case
 	return dr, syscall.KernelErr_NoError
 }
 
@@ -82,24 +84,37 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 //
 //go:wasmimport parigot launch_
 func Launch_(int32, int32, int32, int32) int64
-func Launch(inPtr *syscall.LaunchRequest) (*syscall.LaunchResponse, syscall.KernelErr) {
+func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	outProtoPtr := (*syscall.LaunchResponse)(nil)
-	ctx := ManufactureGuestContext("[syscall]Run")
+	ctx := ManufactureGuestContext("[syscall]Launch")
 	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
-	if sid.IsZeroOrEmptyValue() {
-		return nil, syscall.KernelErr_BadId
+	hid := id.UnmarshalHostId(inPtr.GetHostId())
+	cid := id.UnmarshalCallId(inPtr.GetCallId())
+	mid := id.UnmarshalMethodId(inPtr.GetMethodId())
+
+	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
+		lf := NewLaunchFuture()
+		lf.fut.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
 	}
-	rr, err, signal :=
+
+	inPtr.CallId = cid.Marshal()
+	inPtr.HostId = hid.Marshal()
+	_, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Launch_)
 	if signal {
-		log.Printf("xxx Run exiting due to signal")
+		log.Printf("xxx Launch exiting due to signal")
 		os.Exit(1)
 	}
 	if err != 0 {
-		return nil, syscall.KernelErr(err)
+		m := NewLaunchFuture()
+		m.CompleteMethod(ctx, nil, syscall.KernelErr(err))
+		return m
 	}
-	return rr, syscall.KernelErr_NoError
+	fut := NewLaunchFuture()
+	comp := NewLaunchCompleter(fut)
+	MatchCompleter(cid, comp)
+	return fut
 }
 
 // Export is a declaration that a service implements a particular interface.
@@ -137,18 +152,36 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Require_, "Require")
 }
 
-// Exit is called from the WASM side to cause the WASM program to exit.  This is implemented by causing
-// the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel
-// will marke it dead and so forth.
+// Exit is called from the WASM side to cause the WASM program, or all the WASM
+// programs, to exit.  The future the future is called when the exit is recognized,
+// but it is not called when the actual shutdown occurs.  The future given here
+// is called when the Exit() itself as has been completed.  For something run
+// just before the program stops, use AtExit.
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(err int32) (*syscall.ExitResponse, syscall.KernelErr) {
-	in := &syscall.ExitRequest{
-		Code: err,
+func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
+	//	ctx := ManufactureGuestContext("[syscall]Exit")
+
+	hid := CurrentHostId()
+	cid := id.NewCallId()
+	mid := apishared.ExitMethod
+
+	exitReq.CallId = cid.Marshal()
+	exitReq.HostId = hid.Marshal()
+	exitReq.MethodId = mid.Marshal()
+
+	outProtoPtr := &syscall.ExitResponse{}
+	errResp := standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
+	if errResp != 0 {
+		ef := NewExitFuture()
+		ef.fut.CompleteMethod(context.Background(), nil, errResp)
+		return ef
 	}
-	out := &syscall.ExitResponse{}
-	return out, standardGuestSide(in, out, Exit_, "Exit")
+	ef := NewExitFuture()
+	comp := NewExitCompleter(ef)
+	MatchCompleter(cid, comp)
+	return ef
 }
 
 // Register should be called before any other services are
@@ -160,42 +193,6 @@ func Register_(int32, int32, int32, int32) int64
 func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.RegisterResponse{}
 	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Register_, "Register")
-}
-
-// MustSatisfyWait is a convenience wrapper around creating a RunRequest and
-// using the Run syscall.  MustSatisfyWait is a better name for what goes on
-// in the course of a Run() call.
-func MustSatisfyWait(ctx context.Context, sid id.ServiceId) {
-	req := &syscall.LaunchRequest{
-		ServiceId: sid.Marshal(),
-	}
-	_, err := Launch(req)
-	if err != 0 {
-		pcontext.Errorf(ctx, "Run failed of syscall.MustSatisfy wait: %s", syscall.KernelErr_name[int32(err)])
-		panic(fmt.Sprintf("failed to run successfully:%s",
-			syscall.KernelErr_name[int32(err)]))
-	}
-}
-
-//
-// unused?
-//
-
-// BlockUntilCall is used to block a process until a request is received from another process.  Even when
-// all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
-//
-// func BlockUntilCall(*syscall.BlockUntilCallRequest) *syscall.BlockUntilCallResponse
-//
-//go:wasmimport parigot block_until_call_
-func BlockUntilCall_(int32, int32) int32
-
-func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error) {
-	out := &syscall.BlockUntilCallResponse{}
-	err := error(nil)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // BindMethod is the way that a particular service gets associated with
@@ -229,6 +226,25 @@ func ReadOne_(int32, int32, int32, int32) int64
 func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
 	out := &syscall.ReadOneResponse{}
 	return out, standardGuestSide(in, out, ReadOne_, "ReadOne")
+}
+
+// SynchronousExit is a request that is sent to a service to tell the service it will
+// exit shortly (order of milliseconds) and resources should be cleaned up.
+// Note that this can happen when another service actually made the Exit() call.
+//
+//go:wasmimport parigot synchronous_exit_
+func SynchronousExit_(int32, int32, int32, int32) int64
+func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr) {
+	out := &syscall.SynchronousExitResponse{}
+
+	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
+	if standardGuestSide(in, out, SynchronousExit_, "SyncExit") != syscall.KernelErr_NoError {
+		pcontext.Errorf(ctx, "unable to exit cleanly, aborting")
+		pcontext.Dump(ctx)
+		os.Exit(1)
+	}
+	exit.ExecuteAtExit(ctx)
+	panic(apishared.ControlledExit)
 }
 
 // standardGuestSide is a wrapper around ClientSide that knows how

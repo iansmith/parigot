@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/g/test/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"
@@ -43,8 +43,14 @@ func main() {
 	test.MustRequireTest(ctx, myServiceId)
 	bar.MustRequire(ctx, myServiceId)
 
-	syscall.MustSatisfyWait(ctx, myServiceId)
+	lauchFut := lib.LaunchClient(ctx, myServiceId)
 
+	launchFut.Success(func(_ *syscall.LaunchResponse) {
+	}
+	
+	launchFut.Success(func(_ *syscall.LaunchResponse) {
+
+	})
 	underTestServer.testSvc = test.MustLocateTest(ctx, myServiceId)
 	underTestServer.fooClient = foo.MustLocate(ctx, myServiceId)
 	underTestServer.barClient = bar.MustLocate(ctx, myServiceId)

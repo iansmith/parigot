@@ -1,7 +1,8 @@
-package lib
+package syscall
 
 import (
 	"context"
+	"os"
 	"time"
 
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -9,6 +10,7 @@ import (
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -25,12 +27,19 @@ func MatchCompleter(cid id.CallId, comp future.Completer) {
 	cidToCompleter[cid.String()] = comp
 }
 
-// CompleteCall is called from the CallOne handler to cause a
+var iter = 0
+
+// CompleteCall is called from the ReadOneAndCall handler to cause a
 // prior dispatch call to be completed. The matching is done
 // based on the cid.
 func CompleteCall(ctx context.Context, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
+	iter++
+	if iter == 20 {
+		os.Exit(1)
+	}
 	comp, ok := cidToCompleter[cid.String()]
 	if !ok {
+		pcontext.Errorf(ctx, " no way to complete complete call: %s", cid.Short())
 		return syscall.KernelErr_NotFound
 	}
 	delete(cidToCompleter, cid.String())
@@ -76,6 +85,6 @@ func ExpireMethod(ctx context.Context) {
 
 // AddServerReturn is called to register a server side function
 // result as a future.
-func AddServerReturn(fut future.Method[proto.Message, int32]) {
+// func AddServerReturn(fut future.Method[proto.Message, int32]) {
 
-}
+// }

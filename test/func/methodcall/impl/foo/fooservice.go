@@ -22,9 +22,11 @@ func main() {
 	require := []lib.MustRequireFunc{}
 	ctx := pcontext.CallTo(pcontext.SourceContext(pcontext.NewContextWithContainer(context.Background(), "fooservice.Main"), pcontext.Guest), "fooservice.Main")
 	fooServ := &fooServer{}
-	binding := foo.Init(ctx, require, fooServ)
-	kerr := foo.Run(ctx, binding, foo.TimeoutInMillis, nil)
-	pcontext.Errorf(ctx, "error while waiting for foo service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	binding, fut, _ := foo.Init(ctx, require, fooServ)
+	fut.Success(func(_ *syscall.LaunchResponse) {
+		kerr := foo.Run(ctx, binding, foo.TimeoutInMillis, nil)
+		pcontext.Errorf(ctx, "error while waiting for foo service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	})
 }
 
 // this type better implement methodcall.v1.FooService

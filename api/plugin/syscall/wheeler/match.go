@@ -1,4 +1,4 @@
-package syscall
+package wheeler
 
 import (
 	"github.com/iansmith/parigot/api/shared/id"
@@ -6,24 +6,21 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var _matcher CallMatcher = newCallMatcher()
-
-func matcher() CallMatcher {
-	return _matcher
-}
-
 type callMatcher struct {
 	// waiting and ready are maps from hostId to call id to matchingInfo
 	// waiting is only a partially filled structure, it is completed
 	// and then moved to ready by Response()
 	waiting map[string]*syscall.ResolvedCall
-	ready   map[string]map[string]*syscall.ResolvedCall
+	ready   map[string][]*syscall.ResolvedCall
 }
 
+// newCallMatcher returns a  new instance of CallMatcher. It should not be
+// called by outside (user level) code.  There is only one CallMatcher in
+// the system.
 func newCallMatcher() *callMatcher {
 	return &callMatcher{
 		waiting: make(map[string]*syscall.ResolvedCall),
-		ready:   make(map[string]map[string]*syscall.ResolvedCall),
+		ready:   make(map[string][]*syscall.ResolvedCall),
 	}
 }
 
@@ -33,32 +30,41 @@ func (c *callMatcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.K
 	}
 	rc, ok := c.waiting[cid.String()]
 	if !ok {
-		return syscall.KernelErr_BadCallId
+		return syscall.KernelErr_BadId
 	}
 	delete(c.waiting, cid.String())
 	rc.Result = a
 	rc.ResultError = err
 	hid := id.UnmarshalHostId(rc.HostId)
 	// we are now ready to move to the ready list
-	cidMap, ok := c.ready[hid.String()]
+	cidList, ok := c.ready[hid.String()]
 	if !ok {
-		c.ready[hid.String()] = make(map[string]*syscall.ResolvedCall)
-		cidMap = c.ready[hid.String()]
+		c.ready[hid.String()] = []*syscall.ResolvedCall{}
+		cidList = c.ready[hid.String()]
 	}
-	_, ok = cidMap[cid.String()]
-	if ok {
-		return syscall.KernelErr_BadCallId
+
+	for _, candidate := range cidList {
+		cand := id.UnmarshalCallId(candidate.CallId)
+		if cand.Equal(cid) {
+			return syscall.KernelErr_BadId
+		}
 	}
-	cidMap[cid.String()] = rc
+	c.ready[hid.String()] = append(cidList, rc)
 	return syscall.KernelErr_NoError
 }
 
 func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
-	rc, ok := c.waiting[cid.String()]
+
+	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() {
+		return syscall.KernelErr_BadId
+	}
+
+	_, ok := c.waiting[cid.String()]
 	if ok {
 		return syscall.KernelErr_BadCallId
 	}
-	rc = &syscall.ResolvedCall{
+
+	rc := &syscall.ResolvedCall{
 		HostId:      hid.Marshal(),
 		CallId:      cid.Marshal(),
 		Result:      nil,
@@ -68,12 +74,12 @@ func (c *callMatcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
 	return syscall.KernelErr_NoError
 }
 func (c *callMatcher) Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr) {
-	cid, ok := c.ready[hid.String()]
-	if !ok {
+	cidList, ok := c.ready[hid.String()]
+	if !ok || len(cidList) == 0 {
 		return nil, syscall.KernelErr_NoError
 	}
-	for _, rc := range cid {
-		return rc, syscall.KernelErr_NoError
-	}
-	return nil, syscall.KernelErr_BadCallId
+	rc := cidList[0]
+	cidList = cidList[1:]
+	c.ready[hid.String()] = cidList
+	return rc, syscall.KernelErr_NoError
 }

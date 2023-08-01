@@ -218,6 +218,7 @@ func (f *Method[T, U]) Failure(fn func(U)) {
 	last := f.findLast(false)
 	next := NewMethod[T, U](nil, fn)
 	last.rejectSucc = next
+
 }
 
 // WasSuccess returns true if the Method is completed and finished

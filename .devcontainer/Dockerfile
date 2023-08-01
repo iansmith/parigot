@@ -15,6 +15,7 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## golang version
 ENV GOLANG_VERSION_HOST="1.20.4"
+ENV GOLANG_VERSION_GUEST="1.21rc3"
 ## wasmtime version
 ENV WASMTIME_VERSION=10.0.1
 
@@ -33,10 +34,12 @@ RUN set -e; \
 	fi ;\
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
+		wget -O go-guest.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_GUEST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
+		wget -O go-guest.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_GUEST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
@@ -47,17 +50,11 @@ RUN set -e; \
 RUN tar xzf go.tar.gz
 RUN rm go.tar.gz 
 RUN mv go go${GOLANG_VERSION_HOST}
+
 # client side go install
-WORKDIR /home/parigot/deps
-RUN git clone --depth 1 https://github.com/golang/go.git
-ENV GOLANG_VERSION_GUEST="1.21"
+RUN tar xzf go-guest.tar.gz
+RUN rm go-guest.tar.gz 
 RUN mv go go${GOLANG_VERSION_GUEST}
-WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
-ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_GUEST}
-ENV GOROOT_BOOTSTRAP=/home/parigot/deps/go${GOLANG_VERSION_HOST}
-RUN  ./make.bash
-ENV GOROOT=
-ENV GOROOT_BOOTSTRAP=
 
 # install Hugo
 WORKDIR /home/parigot/deps
