@@ -23,8 +23,14 @@ jobs:
 
     # - name: Test
     #   run: go test -v github.com/iansmith/parigot/api/plugin/file
+
+    #test below is suceeding
     - name: Go Future Test
       run: go test -v github.com/iansmith/parigot/lib/go/future
 
+    #test below is suceeding
     - name: Plugin Syscall Test
       run: go test -v github.com/iansmith/parigot/api/plugin/syscall
+
+    - name: Syscall Wheller
+      run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
