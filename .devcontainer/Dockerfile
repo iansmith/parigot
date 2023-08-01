@@ -180,7 +180,7 @@ RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@v1.17
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
-RUN go${GOLANG_VERSION_HOST} install github.com/kyleconroy/sqlc/cmd/sqlc@latest
+RUN go${GOLANG_VERSION_HOST} install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
 
