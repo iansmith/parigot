@@ -2,6 +2,7 @@ package wheeler
 
 import (
 	"context"
+	"log"
 	"runtime/debug"
 	"sync"
 	"testing"
@@ -74,7 +75,6 @@ func TestExportThroughChan(t *testing.T) {
 }
 
 func TestExitThroughChan(t *testing.T) {
-	t.Skip("new exit strategy obviated this type of test")
 	exitCh := make(chan *syscall.ExitPair)
 
 	wg := sync.WaitGroup{}
@@ -117,6 +117,8 @@ func TestExitThroughChan(t *testing.T) {
 	if result.Err != syscall.KernelErr_NoError {
 		t.Errorf("unexpected  error from Exit call: %s", syscall.KernelErr_name[int32(result.Err)])
 	}
+	log.Printf("xxx -- about to wait")
+
 	// should return pretty much immediately because the reader and
 	// writer have already run
 	wg.Wait()
