@@ -11,6 +11,10 @@ weight= 2
 This assumes you have a lot of experience and significant knowlege of computer science.
 It is not for beginners.
 
+### What it is
+parigot is an RPC toolkit for building microservices.  By virtue of its API, it ran run a collection of microservices
+as a single process (e.g. a debugger works) or a separate processes connected by a network.
+
 #### Setup
 * Start with the hello world [Makefile](https://github.com/iansmith/parigot-example/blob/master/helloworld/Makefile)
 * Use `make tools` from the Makefile to download a copy of program `runner`, a copy of
@@ -31,7 +35,7 @@ the protobuf plugin `protoc-gen-parigot` and the library `syscall.so`.
 * A simple service should probably start with [greenting/main.go](https://github.com/iansmith/parigot-example/blob/master/helloworld/greeting/main.go)
 * As above, you need to launch the service and deal with the future on startup.
 * If you need references to other services to implement your services, do that
-in the ]Ready](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/greeting/main.go#L87) method that is called just after launch. 
+in the [Ready](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/greeting/main.go#L87) method that is called just after launch. 
 	* Use `Locate()`to find the other service. Locate is defined by the generated code of
 	the other service.
 * Implement the methods from the .proto.  It's best to do them with the 
@@ -45,7 +49,6 @@ programs call them.
 ### Notes
 * A service or program is single threaded, but _different_ services can and do run in parallel.
 * We use [futures](https://github.com/iansmith/parigot/blob/master/lib/go/future/doc.go) to deal
-with the single-threadedness.  Within a service or program you need not lock.
+with the single-threadedness.  Within a service call or the body of a program you must not block.
 * Methods in a service need to return in <50ms or it should it return an id
-that be "polled" later.  Services that have methods that take too long may be
-killed by parigot.
+that can be "polled" later.  Services that have methods that take too long may be killed by parigot.
