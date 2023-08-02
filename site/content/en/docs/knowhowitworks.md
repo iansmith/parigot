@@ -31,6 +31,7 @@ the protobuf plugin `protoc-gen-parigot` and the library `syscall.so`.
 	[MustRunClient](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/main.go#L55) is the usual approach.
 	* Use the `Exit()` and its returned future to exit.
 
+
 #### a simple service
 * A simple service should probably start with [greenting/main.go](https://github.com/iansmith/parigot-example/blob/master/helloworld/greeting/main.go)
 * As above, you need to launch the service and deal with the future on startup.
@@ -46,9 +47,25 @@ the implementations of your methods will be called when other services or
 programs call them.
 
 
-### Notes
+#### notes
+##### parallelism
 * A service or program is single threaded, but _different_ services can and do run in parallel.
 * We use [futures](https://github.com/iansmith/parigot/blob/master/lib/go/future/doc.go) to deal
-with the single-threadedness.  Within a service call or the body of a program you must not block.
+with the single-threadedness.  Within a service or program you should not block.  Nor
+should you bother with locks.
 * Methods in a service need to return in <50ms or it should it return an id
-that can be "polled" later.  Services that have methods that take too long may be killed by parigot.
+that be "polled" later.  Services that have methods that take too long may be
+killed by parigot.
+##### WASM
+* Client programs are WASM executable programs 
+	* Currently only golang support, but that's not not for long.
+	* No built in support for WASI or WASIX.
+##### ids
+* Numerous built-in types are `<BLAH>Id` like `HostId`,`ServiceId`, etc. These
+	are typed, random, 112 bit values.  Two 64bit unsigned ints - 2 bytes for
+	typing.
+* There is a tool, `boilerplateid` that can create new types of Ids if you want
+your own.  See the [Makefile](https://github.com/iansmith/parigot/blob/master/Makefile) 
+of parigot for examples.
+
+
