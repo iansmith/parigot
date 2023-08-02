@@ -17,43 +17,18 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.20'
-    #test below failed with the following errors:
-      #Error: api/plugin/queue/queuehost.go:39:11: undefined: Queries
-      # Error: api/plugin/queue/queuehost.go:145:14: undefined: New
-      # Error: api/plugin/queue/queuehost.go:178:11: undefined: CreateIdToKeyMappingParams
-      # Error: api/plugin/queue/queuehost.go:201:3: undefined: getKeyFromQueueIdParams
-      # Error: api/plugin/queue/queuehost.go:224:7: undefined: getKeyFromQueueIdParams
-      # Error: api/plugin/queue/queuehost.go:296:13: undefined: CreateMessageParams
-      # Error: api/plugin/queue/queuehost.go:370:8: undefined: MarkDoneParams
-      # Error: api/plugin/queue/queuehost.go:428:7: undefined: RetrieveMessageParams
-      # Error: api/plugin/queue/queuehost.go:500:9: undefined: UpdateMessageRetrievedParams
-      # Error: Process completed with exit code 1.
-    # - name: Plugin Queue Test
-    #   run: go test -v github.com/iansmith/parigot/api/plugin/queue
-      # test below failed with the following errors:
-      #   Error: api/plugin/file/filehost.go:251:21: undefined: file.FileErr_OpenError
-      #   Error: api/plugin/file/filehost.go:306:22: undefined: file.FileErr_CreateError
-      #   Error: api/plugin/file/filehost.go:397:21: undefined: file.FileErr_ReadError
-      #   Error: api/plugin/file/filehost.go:406:21: undefined: file.FileErr_EOFError
-      #   Error: api/plugin/file/filehost.go:446:22: undefined: file.FileErr_DeleteError
-      #   Error: api/plugin/file/filehost.go:499:21: undefined: file.FileErr_WriteError
-      #   Error: api/plugin/file/file_test.go:140:20: undefined: file.FileErr_EOFError
-      #   Error: Process completed with exit code 1.
+
+    - name: Plugin Queue Test
+      run: go test -v github.com/iansmith/parigot/api/plugin/queue
+
     - name: Plugin File Test
       run: go test -v github.com/iansmith/parigot/api/plugin/file
 
-    #test below is suceeding
     - name: Go Future Test
       run: go test -v github.com/iansmith/parigot/lib/go/future
 
-    #test below is suceeding
     - name: Plugin Syscall Test
       run: go test -v github.com/iansmith/parigot/api/plugin/syscall
 
-    #test below failed with the following error:
-      # no required module provides package github.com/iansmith/parigot/api/plugin/syscall/wheeler; to add it:
-      # go get github.com/iansmith/parigot/api/plugin/syscall/wheeler
-      # Error: Process completed with exit code 1.
-
-    # - name: Syscall Wheller
-    #   run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
+    - name: Syscall Wheller
+      run: go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
