@@ -2,9 +2,8 @@ name: Go
 
 on:
   push:
-    branches: [ "xinyu/httpserver" ]
+    
   pull_request:
-    branches: [ "xinyu/httpserver" ]
 
 jobs:
 
