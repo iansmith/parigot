@@ -33,7 +33,8 @@ type File interface {
     LoadTestData(ctx context.Context,in *LoadTestDataRequest) *FutureLoadTestData  
     Read(ctx context.Context,in *ReadRequest) *FutureRead  
     Write(ctx context.Context,in *WriteRequest) *FutureWrite  
-    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete   
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Stat(ctx context.Context,in *StatRequest) *FutureStat   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
@@ -44,7 +45,8 @@ type Client interface {
     LoadTestData(ctx context.Context,in *LoadTestDataRequest) *FutureLoadTestData  
     Read(ctx context.Context,in *ReadRequest) *FutureRead  
     Write(ctx context.Context,in *WriteRequest) *FutureWrite  
-    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete   
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Stat(ctx context.Context,in *StatRequest) *FutureStat   
 }
 
 // Client difference from File: Ready() 
@@ -438,6 +440,62 @@ func (i *Client_) Delete(ctx context.Context, in *DeleteRequest) *FutureDelete {
     }
     cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureDelete()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: File.Stat 
+//
+type FutureStat struct {
+    Method *future.Method[*StatResponse,FileErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureStat) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&StatResponse{}
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,FileErr(e)) 
+    return syscall.KernelErr_NoError
+
+}
+func (f *FutureStat)Success(sfn func (proto.Message)) {
+    x:=func(m *StatResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureStat)Failure(ffn func (int32)) {
+    x:=func(err FileErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureStat() *FutureStat {
+    f:=&FutureStat{
+        Method: future.NewMethod[*StatResponse,FileErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Stat(ctx context.Context, in *StatRequest) *FutureStat { 
+    mid, ok := i.BaseService.MethodIdByName("Stat")
+    if !ok {
+        f:=NewFutureStat()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureStat()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
