@@ -1,0 +1,26 @@
+syntax="proto3";
+package httpconnector.v1;
+option go_package="github.com/iansmith/parigot/g/httpconnector/v1;httpconnector";
+import "protosupport/v1/protosupport.proto";
+
+// This is the httpconnector service for parigot
+
+service HttpConnector {
+	rpc Check(CheckRequest) returns (CheckResponse);
+}
+
+message CheckRequest {
+	protosupport.v1.IdRaw id = 1;
+}
+
+message CheckResponse {
+	protosupport.v1.IdRaw id = 1;
+}
+
+enum HttpConnectorErr {
+	option (protosupport.v1.parigot_error) = true;
+	NoError = 0; // mandatory
+	DispatchError = 1; //mandatory
+	UnmarshalError = 2; // mandatory
+	MarshalError = 3; // mandatory
+}
