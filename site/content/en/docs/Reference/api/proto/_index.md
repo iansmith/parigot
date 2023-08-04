@@ -486,6 +486,7 @@ The file is already being used. |
 | Read | [ReadRequest](#file-v1-ReadRequest) | [ReadResponse](#file-v1-ReadResponse) |  |
 | Write | [WriteRequest](#file-v1-WriteRequest) | [WriteResponse](#file-v1-WriteResponse) |  |
 | Delete | [DeleteRequest](#file-v1-DeleteRequest) | [DeleteResponse](#file-v1-DeleteResponse) | Delete free a file from memory (datacache) or delete it from the disk |
+| Stat | [StatRequest](#file-v1-StatRequest) | [StatResponse](#file-v1-StatResponse) |  |
 
  
 
@@ -696,6 +697,8 @@ not cause the shutdown immediately. It causes the
 exit machinery to be invoked at some (soonish) point
 in the future.  Note that due to concurrent calls to Exit() the exit
 code received may not be the same as the one sent via ExitRequest!
+Note that _only_ the caller of Exit() receives this response; if other
+processes need to be shutdown, that is handled via SynchExit.
 
 
 | Field | Type | Label | Description |
