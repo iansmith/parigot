@@ -1,6 +1,6 @@
 ---
 title: Guest APIs
-date: _2023-07-04
+date: _2023-08-04
 ---
 
 Guest APIs are the guest side APIs (your program) of the built-in services
@@ -38,22 +38,23 @@ import "github.com/iansmith/parigot/api/guest/syscall"
 
 - [func BindMethod\(in \*syscall.BindMethodRequest\) \(\*syscall.BindMethodResponse, syscall.KernelErr\)](<#BindMethod>)
 - [func BindMethod\_\(int32, int32, int32, int32\) int64](<#BindMethod_>)
-- [func BlockUntilCall\(in \*syscall.BlockUntilCallRequest\) \(\*syscall.BlockUntilCallResponse, error\)](<#BlockUntilCall>)
-- [func BlockUntilCall\_\(int32, int32\) int32](<#BlockUntilCall_>)
 - [func ClientSide\[T proto.Message, U proto.Message\]\(ctx context.Context, t T, u U, fn func\(int32, int32, int32, int32\) int64\) \(outU U, outId int32, signal bool\)](<#ClientSide>)
+- [func CompleteCall\(ctx context.Context, cid id.CallId, result \*anypb.Any, resultErr int32\) syscall.KernelErr](<#CompleteCall>)
+- [func CurrentHostId\(\) id.HostId](<#CurrentHostId>)
 - [func Dispatch\(inPtr \*syscall.DispatchRequest\) \(\*syscall.DispatchResponse, syscall.KernelErr\)](<#Dispatch>)
 - [func Dispatch\_\(int32, int32, int32, int32\) int64](<#Dispatch_>)
-- [func Exit\(err int32\) \(\*syscall.ExitResponse, syscall.KernelErr\)](<#Exit>)
 - [func Exit\_\(int32, int32, int32, int32\) int64](<#Exit_>)
+- [func ExpireMethod\(ctx context.Context\)](<#ExpireMethod>)
 - [func Export\(inPtr \*syscall.ExportRequest\) \(\*syscall.ExportResponse, syscall.KernelErr\)](<#Export>)
 - [func Export\_\(int32, int32, int32, int32\) int64](<#Export_>)
-- [func Launch\(inPtr \*syscall.LaunchRequest\) \(\*syscall.LaunchResponse, syscall.KernelErr\)](<#Launch>)
 - [func Launch\_\(int32, int32, int32, int32\) int64](<#Launch_>)
 - [func Locate\(inPtr \*syscall.LocateRequest\) \(\*syscall.LocateResponse, syscall.KernelErr\)](<#Locate>)
 - [func Locate\_\(int32, int32, int32, int32\) int64](<#Locate_>)
 - [func ManufactureGuestContext\(fn string\) context.Context](<#ManufactureGuestContext>)
+- [func MatchCompleter\(cid id.CallId, comp future.Completer\)](<#MatchCompleter>)
 - [func MustBindMethodName\(in \*syscall.BindMethodRequest\) id.MethodId](<#MustBindMethodName>)
-- [func MustSatisfyWait\(ctx context.Context, sid id.ServiceId\)](<#MustSatisfyWait>)
+- [func NewExitCompleter\(f \*ExitFuture\) future.Completer](<#NewExitCompleter>)
+- [func NewLaunchCompleter\(f \*LaunchFuture\) future.Completer](<#NewLaunchCompleter>)
 - [func ReadOne\(in \*syscall.ReadOneRequest\) \(\*syscall.ReadOneResponse, syscall.KernelErr\)](<#ReadOne>)
 - [func ReadOne\_\(int32, int32, int32, int32\) int64](<#ReadOne_>)
 - [func Register\(inPtr \*syscall.RegisterRequest\) \(\*syscall.RegisterResponse, syscall.KernelErr\)](<#Register>)
@@ -62,6 +63,29 @@ import "github.com/iansmith/parigot/api/guest/syscall"
 - [func Require\_\(int32, int32, int32, int32\) int64](<#Require_>)
 - [func ReturnValue\(in \*syscall.ReturnValueRequest\) syscall.KernelErr](<#ReturnValue>)
 - [func ReturnValue\_\(int32, int32, int32, int32\) int64](<#ReturnValue_>)
+- [func SynchronousExit\(in \*syscall.SynchronousExitRequest\) \(\*syscall.SynchronousExitResponse, syscall.KernelErr\)](<#SynchronousExit>)
+- [func SynchronousExit\_\(int32, int32, int32, int32\) int64](<#SynchronousExit_>)
+- [type ExitCompleter](<#ExitCompleter>)
+  - [func \(l \*ExitCompleter\) CompleteMethod\(ctx context.Context, a proto.Message, e int32\) syscall.KernelErr](<#ExitCompleter.CompleteMethod>)
+  - [func \(l \*ExitCompleter\) Failure\(failFunc func\(int32\)\)](<#ExitCompleter.Failure>)
+  - [func \(l \*ExitCompleter\) Success\(succFunc func\(proto.Message\)\)](<#ExitCompleter.Success>)
+- [type ExitFuture](<#ExitFuture>)
+  - [func Exit\(exitReq \*syscall.ExitRequest\) \*ExitFuture](<#Exit>)
+  - [func NewExitFuture\(\) \*ExitFuture](<#NewExitFuture>)
+  - [func \(l \*ExitFuture\) CompleteMethod\(ctx context.Context, lr \*syscall.ExitResponse, err syscall.KernelErr\)](<#ExitFuture.CompleteMethod>)
+  - [func \(l \*ExitFuture\) Failure\(fn func\(syscall.KernelErr\)\)](<#ExitFuture.Failure>)
+  - [func \(l \*ExitFuture\) Success\(fn func\(\*syscall.ExitResponse\)\)](<#ExitFuture.Success>)
+- [type LaunchCompleter](<#LaunchCompleter>)
+  - [func \(l \*LaunchCompleter\) CompleteMethod\(ctx context.Context, a proto.Message, e int32\) syscall.KernelErr](<#LaunchCompleter.CompleteMethod>)
+  - [func \(l \*LaunchCompleter\) Failure\(failFunc func\(int32\)\)](<#LaunchCompleter.Failure>)
+  - [func \(l \*LaunchCompleter\) Success\(succFunc func\(proto.Message\)\)](<#LaunchCompleter.Success>)
+- [type LaunchFuture](<#LaunchFuture>)
+  - [func Launch\(inPtr \*syscall.LaunchRequest\) \*LaunchFuture](<#Launch>)
+  - [func NewLaunchFuture\(\) \*LaunchFuture](<#NewLaunchFuture>)
+  - [func \(l \*LaunchFuture\) CompleteMethod\(ctx context.Context, lr \*syscall.LaunchResponse, err syscall.KernelErr\)](<#LaunchFuture.CompleteMethod>)
+  - [func \(l \*LaunchFuture\) Completed\(\) bool](<#LaunchFuture.Completed>)
+  - [func \(l \*LaunchFuture\) Failure\(fn func\(syscall.KernelErr\)\)](<#LaunchFuture.Failure>)
+  - [func \(l \*LaunchFuture\) Success\(fn func\(\*syscall.LaunchResponse\)\)](<#LaunchFuture.Success>)
 
 
 <a name="BindMethod"></a>
@@ -84,26 +108,6 @@ BindMethod is the way that a particular service gets associated with a given met
 
 func BindMethod\(\*syscall.BindMethodRequest\) \*syscall.BindMethodResponse
 
-<a name="BlockUntilCall"></a>
-## func BlockUntilCall
-
-```go
-func BlockUntilCall(in *syscall.BlockUntilCallRequest) (*syscall.BlockUntilCallResponse, error)
-```
-
-
-
-<a name="BlockUntilCall_"></a>
-## func BlockUntilCall\_
-
-```go
-func BlockUntilCall_(int32, int32) int32
-```
-
-BlockUntilCall is used to block a process until a request is received from another process. Even when all the "processes" are in a single process for debugging, the BlockUntilCall is for the same purpose.
-
-func BlockUntilCall\(\*syscall.BlockUntilCallRequest\) \*syscall.BlockUntilCallResponse
-
 <a name="ClientSide"></a>
 ## func ClientSide
 
@@ -112,6 +116,24 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 ```
 
 ClientSide does the marshalling and unmarshalling needed to read the T given, write the U given, and return the KernelErrId properly. It does these manipulations so you can call a lower level function that is implemented by the host. The final bool is a meta indicator about if we detected a crash and the client side of the program should exit.
+
+<a name="CompleteCall"></a>
+## func CompleteCall
+
+```go
+func CompleteCall(ctx context.Context, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr
+```
+
+CompleteCall is called from the ReadOneAndCall handler to cause a prior dispatch call to be completed. The matching is done based on the cid.
+
+<a name="CurrentHostId"></a>
+## func CurrentHostId
+
+```go
+func CurrentHostId() id.HostId
+```
+
+
 
 <a name="Dispatch"></a>
 ## func Dispatch
@@ -131,15 +153,6 @@ func Dispatch_(int32, int32, int32, int32) int64
 
 Dispatch is the primary means that a caller can send an RPC message. If you are in local development mode, this call is handled by the kernel itself, otherwise it implies a remote procedure call. This method checks the returned response for errors. If there are errors inside the result they are pulled out and returned in the error parameter. Thus if the error parameter is nil, the Dispatch\(\) occurred successfully. This is code that runs on the WASM side.
 
-<a name="Exit"></a>
-## func Exit
-
-```go
-func Exit(err int32) (*syscall.ExitResponse, syscall.KernelErr)
-```
-
-
-
 <a name="Exit_"></a>
 ## func Exit\_
 
@@ -147,7 +160,16 @@ func Exit(err int32) (*syscall.ExitResponse, syscall.KernelErr)
 func Exit_(int32, int32, int32, int32) int64
 ```
 
-Exit is called from the WASM side to cause the WASM program to exit. This is implemented by causing the WASM code to panic and then using recover to catch it and then the program is stopped and the kernel will marke it dead and so forth.
+Exit is called from the WASM side to cause the WASM program, or all the WASM programs, to exit. The future the future is called when the exit is recognized, but it is not called when the actual shutdown occurs. The future given here is called when the Exit\(\) itself as has been completed. For something run just before the program stops, use AtExit.
+
+<a name="ExpireMethod"></a>
+## func ExpireMethod
+
+```go
+func ExpireMethod(ctx context.Context)
+```
+
+ExpireMethod\(\) checks the internal list of guest side futures that have no call id associated with them. These futures come about when a implementation of a server function returns a future that is not completed. This future likely exists because the implementation of the server function called another service and the result of the server function thus cannot be calculated immediately. When the call is completed, the Success or Failure functions will be called on the original future. This function exists to maintain a list so that we can expire and cancel futures that have waiting longer than the timeout time.
 
 <a name="Export"></a>
 ## func Export
@@ -166,15 +188,6 @@ func Export_(int32, int32, int32, int32) int64
 ```
 
 Export is a declaration that a service implements a particular interface. This is not needed by most user code that will use queue.ExportQueueServiceOrPanic\(\) to export itself as the queue service.
-
-<a name="Launch"></a>
-## func Launch
-
-```go
-func Launch(inPtr *syscall.LaunchRequest) (*syscall.LaunchResponse, syscall.KernelErr)
-```
-
-
 
 <a name="Launch_"></a>
 ## func Launch\_
@@ -214,6 +227,15 @@ func ManufactureGuestContext(fn string) context.Context
 
 Manufacture context is used to setup the context for a given state that makes sense for this, the Guest side of the wire. You pass the name of the function you are constructing this in.
 
+<a name="MatchCompleter"></a>
+## func MatchCompleter
+
+```go
+func MatchCompleter(cid id.CallId, comp future.Completer)
+```
+
+MatchCompleter is a utility for adding a new cid and completer to the tables used to look up the location where response values should be sent.
+
 <a name="MustBindMethodName"></a>
 ## func MustBindMethodName
 
@@ -223,14 +245,23 @@ func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId
 
 
 
-<a name="MustSatisfyWait"></a>
-## func MustSatisfyWait
+<a name="NewExitCompleter"></a>
+## func NewExitCompleter
 
 ```go
-func MustSatisfyWait(ctx context.Context, sid id.ServiceId)
+func NewExitCompleter(f *ExitFuture) future.Completer
 ```
 
-MustSatisfyWait is a convenience wrapper around creating a RunRequest and using the Run syscall. MustSatisfyWait is a better name for what goes on in the course of a Run\(\) call.
+
+
+<a name="NewLaunchCompleter"></a>
+## func NewLaunchCompleter
+
+```go
+func NewLaunchCompleter(f *LaunchFuture) future.Completer
+```
+
+
 
 <a name="ReadOne"></a>
 ## func ReadOne
@@ -304,15 +335,220 @@ func ReturnValue_(int32, int32, int32, int32) int64
 
 ReturnValue is for providing return values for calls that have been made on the local service.
 
-# test
+<a name="SynchronousExit"></a>
+## func SynchronousExit
 
 ```go
-import "github.com/iansmith/parigot/api/guest/test"
+func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr)
 ```
 
-## Index
 
 
+<a name="SynchronousExit_"></a>
+## func SynchronousExit\_
+
+```go
+func SynchronousExit_(int32, int32, int32, int32) int64
+```
+
+SynchronousExit is a request that is sent to a service to tell the service it will exit shortly \(order of milliseconds\) and resources should be cleaned up. Note that this can happen when another service actually made the Exit\(\) call.
+
+<a name="ExitCompleter"></a>
+## type ExitCompleter
+
+
+
+```go
+type ExitCompleter struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="ExitCompleter.CompleteMethod"></a>
+### func \(\*ExitCompleter\) CompleteMethod
+
+```go
+func (l *ExitCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr
+```
+
+
+
+<a name="ExitCompleter.Failure"></a>
+### func \(\*ExitCompleter\) Failure
+
+```go
+func (l *ExitCompleter) Failure(failFunc func(int32))
+```
+
+
+
+<a name="ExitCompleter.Success"></a>
+### func \(\*ExitCompleter\) Success
+
+```go
+func (l *ExitCompleter) Success(succFunc func(proto.Message))
+```
+
+
+
+<a name="ExitFuture"></a>
+## type ExitFuture
+
+ExitFuture is the return type of Exit\(\) on the guest side. This is a future because it is not certain exactly when the Exit will actually occur. Further, the exit itself might fail, so the program may not exit at all.
+
+```go
+type ExitFuture struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="Exit"></a>
+### func Exit
+
+```go
+func Exit(exitReq *syscall.ExitRequest) *ExitFuture
+```
+
+
+
+<a name="NewExitFuture"></a>
+### func NewExitFuture
+
+```go
+func NewExitFuture() *ExitFuture
+```
+
+NewExitFuture returns an initialized exit future. It is not useful to attempt to determine if the exit has "completed" as the program would no longer exit.
+
+<a name="ExitFuture.CompleteMethod"></a>
+### func \(\*ExitFuture\) CompleteMethod
+
+```go
+func (l *ExitFuture) CompleteMethod(ctx context.Context, lr *syscall.ExitResponse, err syscall.KernelErr)
+```
+
+CompleteMethod is used to complete a previously defined future of type ExitFuture.
+
+<a name="ExitFuture.Failure"></a>
+### func \(\*ExitFuture\) Failure
+
+```go
+func (l *ExitFuture) Failure(fn func(syscall.KernelErr))
+```
+
+Failure should be called to add a function to be called when the Exit\(\) has fully completed and was unsuccessful. Note that this situation is a serious internal error in parigot when the given method fn is called. It is appropriate to take drastic measures like \`os.Exit\(1\)\` to force the abort of the program.
+
+<a name="ExitFuture.Success"></a>
+### func \(\*ExitFuture\) Success
+
+```go
+func (l *ExitFuture) Success(fn func(*syscall.ExitResponse))
+```
+
+Success should be called to add a function to be called when the Exit\(\) has fully completed and did so successfully. Adding an exit function here can useful to clean up resources, with the understanding that the program is \_about\_ to exit. The function fn should NOT exit the program with a call like os.Exit\(1\), this will happen once all the Success functions on the ExitFuture have been called.
+
+<a name="LaunchCompleter"></a>
+## type LaunchCompleter
+
+
+
+```go
+type LaunchCompleter struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="LaunchCompleter.CompleteMethod"></a>
+### func \(\*LaunchCompleter\) CompleteMethod
+
+```go
+func (l *LaunchCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr
+```
+
+
+
+<a name="LaunchCompleter.Failure"></a>
+### func \(\*LaunchCompleter\) Failure
+
+```go
+func (l *LaunchCompleter) Failure(failFunc func(int32))
+```
+
+
+
+<a name="LaunchCompleter.Success"></a>
+### func \(\*LaunchCompleter\) Success
+
+```go
+func (l *LaunchCompleter) Success(succFunc func(proto.Message))
+```
+
+
+
+<a name="LaunchFuture"></a>
+## type LaunchFuture
+
+LaunchFuture is the return type of Launch\(\) on the guest side. The guest receives the future in response to a Launch\(\) call and should attach Success\(\) and Failure\(\) funcs as needed. If the Completed\(\) call is true, the methods added in Success\(\) or Failure\(\) will be called immediately.
+
+```go
+type LaunchFuture struct {
+    // contains filtered or unexported fields
+}
+```
+
+<a name="Launch"></a>
+### func Launch
+
+```go
+func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture
+```
+
+
+
+<a name="NewLaunchFuture"></a>
+### func NewLaunchFuture
+
+```go
+func NewLaunchFuture() *LaunchFuture
+```
+
+
+
+<a name="LaunchFuture.CompleteMethod"></a>
+### func \(\*LaunchFuture\) CompleteMethod
+
+```go
+func (l *LaunchFuture) CompleteMethod(ctx context.Context, lr *syscall.LaunchResponse, err syscall.KernelErr)
+```
+
+CompleteMethod fills in the results for a Method future and it works the same for LaunchResponse.
+
+<a name="LaunchFuture.Completed"></a>
+### func \(\*LaunchFuture\) Completed
+
+```go
+func (l *LaunchFuture) Completed() bool
+```
+
+Completed returns if the given LaunchFuture has already been completed. This might be interesting for some guests if they wish to bypass the futures mechanism in the case where the Launch\(\) has already finished. Note that quick completion of Launch\(\) is NOT guaranteed in all cases so clients that use this method to bypass futures must also have a backup approach for when the Launch\(\) takes some time to complete.
+
+<a name="LaunchFuture.Failure"></a>
+### func \(\*LaunchFuture\) Failure
+
+```go
+func (l *LaunchFuture) Failure(fn func(syscall.KernelErr))
+```
+
+Failure should be called to add a function to be called when the Launch\(\) has fully completed and was unsuccessful.
+
+<a name="LaunchFuture.Success"></a>
+### func \(\*LaunchFuture\) Success
+
+```go
+func (l *LaunchFuture) Success(fn func(*syscall.LaunchResponse))
+```
+
+Success should be called to add a function to be called when the Launch\(\) has fully completed and did so successfully.
 
 # lib
 
@@ -322,15 +558,13 @@ import "github.com/iansmith/parigot/lib/go"
 
 ## Index
 
-- [func AddServerReturn\(fut future.Method\[proto.Message, int32\]\)](<#AddServerReturn>)
-- [func CompleteCall\(ctx context.Context, cid id.CallId, result \*anypb.Any, resultErr int32\) syscall.KernelErr](<#CompleteCall>)
-- [func CurrentHostId\(\) id.HostId](<#CurrentHostId>)
-- [func ExpireMethod\(ctx context.Context\)](<#ExpireMethod>)
-- [func Export1\(pkg, name string\) \(\*syscall.ExportResponse, syscall.KernelErr\)](<#Export1>)
+- [func ClientOnlyReadOneAndCall\(ctx context.Context, binding \*ServiceMethodMap, timeoutInMillis int32\) syscall.KernelErr](<#ClientOnlyReadOneAndCall>)
+- [func ExitClient\(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string\)](<#ExitClient>)
+- [func Export1\(pkg, name string, serviceId id.ServiceId\) \(\*syscall.ExportResponse, syscall.KernelErr\)](<#Export1>)
 - [func FlagParseCreateEnv\(\)](<#FlagParseCreateEnv>)
 - [func Getenv\(envvar string\) string](<#Getenv>)
+- [func LaunchClient\(ctx context.Context, myId id.ServiceId\) \*syscallguest.LaunchFuture](<#LaunchClient>)
 - [func LookupEnv\(envvar string\) \(string, bool\)](<#LookupEnv>)
-- [func MatchCompleter\(cid id.CallId, comp future.Completer\)](<#MatchCompleter>)
 - [func MustInitClient\(ctx context.Context, requirement \[\]MustRequireFunc\) id.ServiceId](<#MustInitClient>)
 - [func MustRegisterClient\(ctx context.Context\) id.ServiceId](<#MustRegisterClient>)
 - [func MustRunClient\(ctx context.Context, timeoutInMillis int32\) syscall.KernelErr](<#MustRunClient>)
@@ -350,47 +584,29 @@ import "github.com/iansmith/parigot/lib/go"
   - [func \(s \*ServiceMethodMap\) MethodNameToId\(sid id.ServiceId, methodName string\) id.MethodId](<#ServiceMethodMap.MethodNameToId>)
 
 
-<a name="AddServerReturn"></a>
-## func AddServerReturn
+<a name="ClientOnlyReadOneAndCall"></a>
+## func ClientOnlyReadOneAndCall
 
 ```go
-func AddServerReturn(fut future.Method[proto.Message, int32])
+func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap, timeoutInMillis int32) syscall.KernelErr
 ```
 
-AddServerReturn is called to register a server side function result as a future.
+ClientOnlyReadOneAndCall does the waiting for an incoming call and if one arrives, it dispatches the call to the appropriate method. Similarly, it will detect and respond to finished futures. It returns KernelErr\_ReadOneTimeout if the waiting timed out, otherwise the value should be KernelErr\_NoError or an appropriate error code.
 
-<a name="CompleteCall"></a>
-## func CompleteCall
+<a name="ExitClient"></a>
+## func ExitClient
 
 ```go
-func CompleteCall(ctx context.Context, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr
+func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string)
 ```
 
-CompleteCall is called from the CallOne handler to cause a prior dispatch call to be completed. The matching is done based on the cid.
-
-<a name="CurrentHostId"></a>
-## func CurrentHostId
-
-```go
-func CurrentHostId() id.HostId
-```
-
-
-
-<a name="ExpireMethod"></a>
-## func ExpireMethod
-
-```go
-func ExpireMethod(ctx context.Context)
-```
-
-ExpireMethod\(\) checks the internal list of guest side futures that have no call id associated with them. These futures come about when a implementation of a server function returns a future that is not completed. This future likely exists because the implementation of the server function called another service and the result of the server function thus cannot be calculated immediately. When the call is completed, the Success or Failure functions will be called on the original future. This function exists to maintain a list so that we can expire and cancel futures that have waiting longer than the timeout time.
+ExitClient sends a request to exit and attaches hanndlers that print the given strings. It only forces the exit if the Exit call itself fails. Only the values from 0 to 192 are permissable as the code; other values will be changed to 192.
 
 <a name="Export1"></a>
 ## func Export1
 
 ```go
-func Export1(pkg, name string) (*syscall.ExportResponse, syscall.KernelErr)
+func Export1(pkg, name string, serviceId id.ServiceId) (*syscall.ExportResponse, syscall.KernelErr)
 ```
 
 Export1 is a thin wrapper over syscall.Export so it's easy to export things by their name. This is used by the code generator primarily.
@@ -413,6 +629,15 @@ func Getenv(envvar string) string
 
 This is a workalike for os.Getenv\(\)
 
+<a name="LaunchClient"></a>
+## func LaunchClient
+
+```go
+func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFuture
+```
+
+LaunchClient is a convienence wrapper around Launch\(\) for clients that don't want to create their own request structure.
+
 <a name="LookupEnv"></a>
 ## func LookupEnv
 
@@ -421,15 +646,6 @@ func LookupEnv(envvar string) (string, bool)
 ```
 
 This is a workalike for os.LookupEnv\(\). It can be used to differentiate an empty, but set, environment variable from the an enviroment variable that is simply not present.
-
-<a name="MatchCompleter"></a>
-## func MatchCompleter
-
-```go
-func MatchCompleter(cid id.CallId, comp future.Completer)
-```
-
-MatchCompleter is a utility for adding a new cid and completer to the tables used to look up the location where response values should be sent.
 
 <a name="MustInitClient"></a>
 ## func MustInitClient
@@ -1048,6 +1264,12 @@ const ExpectedStackDumpSize = 4096 * 2
 const FileServiceMaxBufSize = 2048
 ```
 
+<a name="FileServiceMaxPathPart"></a>
+
+```go
+const FileServiceMaxPathPart = 20
+```
+
 <a name="FileServicePathPrefix"></a>
 
 ```go
@@ -1068,6 +1290,18 @@ const WasmPageSize = 4096
 
 ## Variables
 
+<a name="ControlledExit"></a>this is the value used for a panic that is intended to be a controlled exit
+
+```go
+var ControlledExit = "controlled exit via panic:"
+```
+
+<a name="ExitMethod"></a>all calls to exit use the same Id
+
+```go
+var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff1))
+```
+
 <a name="FunctionTimeoutInMillis"></a>The amount of time we will wait for a function call to be completed.
 
 ```go
@@ -1078,6 +1312,12 @@ var FunctionTimeoutInMillis = int64(3000)
 
 ```go
 var KoopmanTable = crc32.MakeTable(crc32.Koopman)
+```
+
+<a name="LaunchMethod"></a>all calls to launch use the same Id
+
+```go
+var LaunchMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff0))
 ```
 
 <a name="MagicStringOfBytes"></a>In parigot the 8 byte magic value, when needed, is the date of the french and us revolutions, in hex.

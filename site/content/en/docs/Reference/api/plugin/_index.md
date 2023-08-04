@@ -1,6 +1,6 @@
 ---
 title: Plugin APIs
-date: _2023-07-04
+date: _2023-08-04
 ---
 
 Plugins are used to build parigot services that are "outside" the WASM
@@ -129,7 +129,7 @@ func (b *BytesBufferWrapper) Close() error
 
 
 ```go
-type CreateHook func(path string) io.WriteCloser
+type CreateHook func(path string) (io.WriteCloser, error)
 ```
 
 <a name="FilePlugin"></a>
@@ -184,7 +184,7 @@ func (fs FileStatus) String() string
 
 
 ```go
-type OpenHook func(pathOrString string) io.ReadCloser
+type OpenHook func(pathOrString string) (io.ReadCloser, error)
 ```
 
 <a name="StringReaderWrapper"></a>
@@ -543,9 +543,8 @@ import "github.com/iansmith/parigot/api/plugin/syscall"
 ## Index
 
 - [Variables](<#variables>)
-- [type CallInfo](<#CallInfo>)
-- [type CallMatcher](<#CallMatcher>)
 - [type HostFinder](<#HostFinder>)
+- [type OutChannel](<#OutChannel>)
 - [type Service](<#Service>)
 - [type SyscallData](<#SyscallData>)
 - [type SyscallPlugin](<#SyscallPlugin>)
@@ -558,42 +557,6 @@ import "github.com/iansmith/parigot/api/plugin/syscall"
 
 ```go
 var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
-```
-
-<a name="CallInfo"></a>
-## type CallInfo
-
-CallInfo is sent to the channels that represent service/method calls.
-
-```go
-type CallInfo struct {
-    // contains filtered or unexported fields
-}
-```
-
-<a name="CallMatcher"></a>
-## type CallMatcher
-
-CallMatcher is an internal data structure object that connects calls to Dispatch \(the call\) with the response which are created by ReturnValue requests.
-
-```go
-type CallMatcher interface {
-    // Response is called when a return value is
-    // being processed. Any value that
-    // is returned is NOT from the execution but from
-    // the Response call itself.  Be aware that the
-    // Response call is likely to be from a different
-    // host than the original Dispatch call.
-    Response(cid id.CallId, a *anypb.Any, err int32) syscall.KernelErr
-    // Dispatch creates the necessary entries to handle
-    // a future call to Response.  The value returned is
-    // related to the Dispatch itself, it is not related
-    // to the execution of the call being registered.
-    Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr
-    // Ready returns a resolved call or nil if no Promises are
-    // resolved for the given host.
-    Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)
-}
 ```
 
 <a name="HostFinder"></a>
@@ -613,6 +576,17 @@ type HostFinder interface {
     // that are know. This call will panic if either the
     // name or id is not set.
     AddHost(name string, hid id.HostId) syscall.KernelErr
+}
+```
+
+<a name="OutChannel"></a>
+## type OutChannel
+
+
+
+```go
+type OutChannel struct {
+    // contains filtered or unexported fields
 }
 ```
 
@@ -643,6 +617,12 @@ type Service interface {
     // Exported returns true if some service provider has said that
     // they implement this service.
     Exported() bool
+    // Export causes this service to be marked as exported, thus
+    // future calls to Exported() will return true.  This should
+    // called in response to the system call of the same name only.
+    // The value returned is the previous value of the exported flag,
+    // or false when Export() is called the first time.
+    Export() bool
     // Method returns all the pairs of MethodName and MethodId
     // for a service known to the SyscallData.  You provide the
     // service to this method to know which set of pairs you want.
@@ -653,28 +633,24 @@ type Service interface {
     //Run is badly named. This really means "block until everything
     //I need is ready."
     Run(context.Context) syscall.KernelErr
+    // WakeUp can be called to have this service check to see if the
+    // dependencies it has are met.  Note that this need not be called
+    // from the "outside" (user code, or even syscall code) because if
+    // the graph has no cycles, the calls on this method due to other
+    // services finding their requirements have been met is sufficient.
+    // A call on this method does not guarantee that the service will start
+    // to run, only that it will _check_ to see if that is possible.
+    WakeUp()
 }
 ```
 
 <a name="SyscallData"></a>
 ## type SyscallData
 
-
+SyscallData is the interface used by the kernel methods \(syscallhost.go\) to get information about the status of a startup sequence.
 
 ```go
 type SyscallData interface {
-    //ServiceByName looks up a service and returns it based on the
-    //values package_ and name.  If this returns nil, the service could
-    //not be found.
-    ServiceByName(ctx context.Context, package_, name string) Service
-    //ServiceById looks up a service and returns it based on the
-    //value sid.  If this returns nil, the service could
-    //not be found.
-    ServiceById(ctx context.Context, sid id.ServiceId) Service
-    //ServiceByIdString looks up a service based on the printed representation
-    //of the service id.  If the service cannot be found ServiceByIdString
-    //returns nil.
-    ServiceByIdString(ctx context.Context, str string) Service
     // SetService puts a service into SyscallData.  This should only be
     // called once for each package_ and name pair. It returns the
     // ServiceId for the service named, creating a new one if necessary.
@@ -702,6 +678,18 @@ type SyscallData interface {
     // PathExists returns true if there is a sequence of dependency
     // graph vertices that eventually leads from source to target.
     PathExists(ctx context.Context, source, target string) bool
+    //ServiceByName looks up a service and returns it based on the
+    //values package_ and name.  If this returns nil, the service could
+    //not be found.
+    ServiceByName(ctx context.Context, package_, name string) Service
+    //ServiceById looks up a service and returns it based on the
+    //value sid.  If this returns nil, the service could
+    //not be found.
+    ServiceById(ctx context.Context, sid id.ServiceId) Service
+    //ServiceByIdString looks up a service based on the printed representation
+    //of the service id.  If the service cannot be found ServiceByIdString
+    //returns nil.
+    ServiceByIdString(ctx context.Context, str string) Service
 }
 ```
 
