@@ -79,7 +79,7 @@ dependencies in the Makefile.
 This `all` target's command in the Makefile would be the part that would be
 replaced by a call to other go compilers (gccgo, tinygo) or compilers for other
 compiled programming lanugages like C#, Java, or Rust.  The output files are
-suffixed with ".p.wasm" to indicate that are intended to be dynamically linked
+suffixed with ".p.wasm" to indicate that they are intended to be dynamically linked
 against parigot; without parigot, these programs will not execute in any Host.
 
 {{% alert title="Deep Cut" color="info" %}} 
@@ -203,9 +203,9 @@ runs parigot binaries and the latter generates the stubs referred to in the
 again if you change versions of parigot or relaunch the dev container since that
 starts with a fresh filesystem.
 
-The above statement is not __quite__ true.  `make tools` also installs the
-parigot system's key host-side library `syscall.so` in the `build` directory.
-At the moment, if you remove `build/syscall.so` you have to `make tools` again.
+`make tools` also installs the
+parigot system's key host-side library `syscall.so` in the `plugin` directory.
+At the moment, if you remove `plugin/syscall.so` you have to `make tools` again.
 
 ### buf.gen.yaml, buf.work.yaml
 Both of
@@ -299,17 +299,21 @@ just "exist", this program runs to completion.
 ```go
 	package main
 
-	import (
-		"context"
-		"runtime/debug"
+import (
+	"context"
+	"log"
+	"runtime/debug"
 
-		"github.com/iansmith/parigot-example/helloworld/g/greeting/v1"
-
-		syscallguest "github.com/iansmith/parigot/api/guest/syscall"
-		pcontext "github.com/iansmith/parigot/context"
-		"github.com/iansmith/parigot/g/syscall/v1"
-		lib "github.com/iansmith/parigot/lib/go"
-	)
+	"github.com/iansmith/parigot-example/helloworld/g/greeting/v1"
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
+	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
+	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/g/file/v1"
+	"github.com/iansmith/parigot/g/syscall/v1"
+	lib "github.com/iansmith/parigot/lib/go"
+	"github.com/iansmith/parigot/lib/go/exit"
+)
 ```
 
 The imports are quite straightforward and should be supplied automatically by
@@ -324,9 +328,6 @@ has the implementation to the system calls (of parigot) for guest code in
 golang. The syscall one is the definitions of the system calls generated from
 [the proto
 spec](https://github.com/iansmith/parigot/blob/master/api/proto/syscall/v1/syscall.proto).
-
-* pcontext: This is our standard alias to avoid a conflict between parigot's [context manipulation code](https://github.com/iansmith/parigot/tree/master/context)
-and standard library's  `context`.
 
 * pcontext: This is our standard alias to avoid a conflict between parigot's [context manipulation code](https://github.com/iansmith/parigot/tree/master/context)
 and standard library's  `context`.
@@ -352,51 +353,33 @@ library will remain as a model for other implementors of language bindings.
 
 #### hello world code proper
 
-This code sample has been shortened a bit for clarity.
+In the initialization part of `helloworld` there is one key thing to notice:
 
-```go
-	myId := lib.MustInitClient(ctx, []lib.MustRequireFunc{greeting.MustRequire})
-	greetService := greeting.MustLocate(ctx, myId)
+[futures in launch](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L46)
 
-	req := &greeting.FetchGreetingRequest{
-		Tongue: greeting.Tongue_French,
-	}
+The call to `Launch()` in theory would block the code from proceeding until all of it is
+dependencies listed above `MustInitClient` are up and running.  Since in practice
+we cannot block, the returned value is a future that we attach success and failure
+functions to.
 
-	// Make the call to the greeting service.
-	greetFuture := greetService.FetchGreeting(ctx, req)
+[MustRunClient](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L61)
 
-	// Handle positive outcome.
-	greetFuture.Method.Success(func(response *greeting.FetchGreetingResponse) {
-		pcontext.Infof(ctx, "%s, world", response.Greeting)
-	})
+`MustRunClient` is the "main loop" of the program.  It is constantly checking to see if there
+are incoming requests or responses to previous calls.  
 
-	//Handle negative outcome.
-	greetFuture.Method.Failure(func(err greeting.GreetErr) {
-		pcontext.Errorf(ctx, "failed to fetch greeting: %s", greeting.GreetErr_name[int32(err)])
-	})
+[afterLaunch](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L68)
 
-	// MustRunClient should never return.  Timeout in millis is used
-	// for the question of how long should we "wait" for a network call
-	// before doing something else.
-	err := lib.MustRunClient(ctx, timeoutInMillis)
-```
+`afterLaunch()` is called from the success branch of the launch future.  It does two things. One, it "locates" 
+some service that implements the greeting service protocol.  It then calls the method `FetchGreeting()` on the located
+service, and associates success and failure functions to the future resulting from call to `FetchGreeting()`.
 
-The first and last calls (`MustInitClient` and `MustRunClient`) in that snippet
-are the "initialize me with the defaults" and "run the mainloop with the defaults"
-functions.  These functions are automatically generated by parigot for convenience
-of developers.
-
-A side note about the parameter to `MustInitClient` which is the literal for an
-array of "require" functions.  The only service utilized by this main program is
-the greeting service, expressed in this array as  `greeting.MustRequire` which
-is generated by parigot from [greeting's protobuf
-specification](https://github.com/iansmith/parigot-example/blob/master/helloworld/proto/greeting/v1/greeting.proto).
-You must "require" any service that will later use.  parigot uses this
-information to ensure a predictable startup ordering of the services and if no
-such ordering can be found, it aborts with an error.  Further, this information
-is used to insure that you have not forgotten to require something, because the
-the list of required service is cross-checked against services passed to `Locate`
-(explained below).
+"Locate" is a key operation in parigot. Locate is the one that one turns the abstraction of a interface name, like
+"file.v1.File" into an object which obeys the protocol defined to be implemented by that interface.  Typically, the
+file `file.proto` is going to have the functions and data associated with all the operations of a "file.v1.File".  The
+true implementation of the interface "file.v1.File" may be in a different program, a different container, or a different
+machine.  This does not matter to the caller, as it is only concerned that the object that it has a reference to and names a 
+"file.v1.File" is something that can understands the methods defined in the file.proto specification.
+has the functions
 
 Per our exposition above, this version of the library uses [continuations]({{<
 ref"continuations" >}}) and you seem them in action with the method call of
@@ -406,41 +389,31 @@ This continuation, in short, means that we do not yet know the outcome of the
 call, so you need to handle both the `Success` and `Failure` cases.  In this
 example, it just prints out a message on the terminal.
 
-The second line of the code snippet uses the `MustLocate` function which is a
-critical one in parigot and is machine generated from [greeting's protobuf
-specification](https://github.com/iansmith/parigot-example/blob/master/helloworld/proto/greeting/v1/greeting.proto).  When you want to get a handle to a type that
-has the same API as defined in the protobuf specification you use `MustLocate`
-or `Locate`.  
-
 #### Greeting service implementation
 
 ##### "main" of Greeting
 
-This code snippet has been shortened a bit for clarity.
-```go
-	// All services have a main.  The services should not really "start", however
-	// until Ready() is called because their dependencies are only guaranteed
-	// to be up when Ready() is reached.
-	func main() {
-		// the implementation of the service (no state right now)
-		impl := &myService{}
+Every service--and every program like helloworld--has a `main()` function to initialize
+data structures and the like at startup.
 
-		// Init initiaizes a service and normally receives a list of functions
-		// that indicate dependencies, but we don't have any here.
-		binding := greeting.Init(ctx, []lib.MustRequireFunc{}, impl)
+[Init](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L27)
 
-		// Run waits for calls to our single method and should not return.
-		kerr := greeting.Run(ctx, binding, greeting.TimeoutInMillis, nil)
+The service implementation of greet uses the generated function Init() to initialize and
+launch itself.  As we saw with the `main()` function of helloworld, we are returned
+a future that represents the success or failure of launching the program (and waiting
+on its dependencies). An additional paramater returned from `Init()` is a set of
+method bindings called `bindings`.  This set of bindings is only useful if you want
+to manipulate the set of methods that this service responds to.  It is not something
+that many programs will ever need.
 
-}
-```
-
-The code above is from [greeting/main.go](https://github.com/iansmith/parigot-example/blob/master/helloworld/greeting/main.go).
-It is worth mentiong that all services have a main, as was 
-[seen before](http://localhost:1313/docs/examples/helloworld/#hello-world-code-proper), there is a
-call to the an "Init" function (`greeting.Init`) and a "Run" function (`greeting.Run`).
-For services these are machine generated by parigot from the specification in the
-.proto file.
+[fetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L59) and
+[FetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L75) are
+now defined by the implementation of the greeting service.  Because the greeting service has a 
+known method, `FetchGreeting`, no futher initialization work is needed and the method can be implemented as `FetchGreeting`
+(as seen in the greeting.proto file).  The of the "split" versions of "FetchGreeting" is so that the true call implementation,
+`fetchGreeting()` can be called directly from a test.  The return value of `FetchGreeting` is naturally a future and these
+can be hard to test without running the "main loop" of parigot.  See `greeting_test` for how a method like `fetchGreeting`
+is tested without using futures.  
 
 ## The Big Trick
 
@@ -451,7 +424,7 @@ means that both of these are running single-threaded.... but, wait
 we cannot have two programs _both_ running singly threaded can we?!?
 
 parigot makes each program that has a "main" function a single-threaded guest
-program.  In parigot terminology, each of these two singly threaded programs
+program, in WASM terminology.  In parigot terminology, each of these two singly threaded programs
 is a _process_.  They behave much like processes in Unix/Linux for several reasons:
 
 * Each process runs until it finishes or exits due to an error (perhaps due to `panic`).
@@ -471,114 +444,20 @@ you can run your application as these "guest" processes inside a single WASM Hos
 machines, each with a single service. In this latter case, all the calls between services
 are network calls. That's a microservice architecture!
 
-##### greeting implementation
-
-Returning to our discussion of the greeting service's implementation, we can
-see in the snippet below the true implementation of the service.  This snippet
-has been edited for clarity.
-
-```go
-
-	// myService is the true implementation of the greeting service.
-	type myService struct{}
-
-	// the values by the language number
-	var resultByLang = map[int32]string{
-		1: "hello",
-		2: "bonjour",
-		3: "guten tag",
-	}
-
-// fetchGreeting (with a lowercase f) is here because it is easier
-// to unit test the service with this structure.  The "real" FetchGreeting
-// just calls this one and deals with the returning of futures
-// which are required for the real service.
-func (m *myService) fetchGreeting(ctx context.Context, req *greeting.FetchGreetingRequest) (*greeting.FetchGreetingResponse, greeting.GreetErr) {
-	max := len(greeting.Tongue_value) - 1 // -1 because it has a zero in it
-
-	// protoc generates 32 bit ints for every enum value
-	if req.GetTongue() < 1 || int(req.GetTongue()) > max {
-		return nil, greeting.GreetErr_UnknownLang
-	}
-	resp := &greeting.FetchGreetingResponse{}
-	resp.Greeting = resultByLang[int32(req.GetTongue())]
-	return resp, greeting.GreetErr_NoError
-}
-
-// FetchGreeting returns a string that is a greeting for the
-// given Tongue in the request. The future returned is already
-// completed because there is no need to wait for any
-// result.
-func (m *myService) FetchGreeting(ctx context.Context, req *greeting.FetchGreetingRequest) *greeting.FutureFetchGreeting {
-	resp, err := m.fetchGreeting(ctx, req)
-	fut := greeting.NewFutureFetchGreeting()
-
-	if err != greeting.GreetErr_NoError {
-		fut.Method.CompleteMethod(ctx, nil, err)
-	} else {
-		// err is NoError
-		fut.Method.CompleteMethod(ctx, resp, err)
-	}
-	return fut
-}
-
-// Ready simply returns an already completed future with the value
-// false because it does not have anything to do.  Many Ready()
-// functions use this function to do MustLocateXXX() calls to obtain
-// references to other services.  The second parameter is
-// passed here with the ServiceId of myService (the receiver
-// of this method call) but it is not needed.
-func (m *myService) Ready(_ context.Context, _ id.ServiceId) *future.Base[bool] {
-	fut := future.NewBase[bool]()
-	fut.Set(true)
-	return fut
-}
-```
-
-Most of the key points about this code is explained inline in the code.
-The most important structural thing in this snippet is the use of the
-`FetchGreeting` public function and the `fetchGreeting` private function.
-The former returns a future, as is required by the API.  However, the
-private version `fetchGreeting` returns "the actual results" immediately.
-For methods whose implementations do not have to make network calls, this
-structure makes testing vastly simpler.
 
 ##### greeting_test.go
 
 The greeting test is quite simple: send one request (not using any
-parigot machinery) to the private, implementation function `fetchGreeting`.
+parigot machinery) to the private, implementation function 
+[fetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/greeting_test.go#L11).
+
 We test that we got back what we expected in terms of the response object
 and the error code.  Then we repeat the test, but with an out of bounds
 language number (defined as zero in the enum definition).
 
-```go
-func TestBounds(t *testing.T) {
-	svc := &myService{}
-
-	ctx := pcontext.DevNullContext(context.Background())
-
-	req := &greeting.FetchGreetingRequest{
-		Tongue: greeting.Tongue_English,
-	}
-	resp, err := svc.fetchGreeting(ctx, req)
-	if err != greeting.GreetErr_NoError || resp.GetGreeting() == "" {
-		t.Errorf("failed to get a response for english: %s, %s",
-			greeting.Tongue_name[int32(greeting.Tongue_English)],
-			greeting.GreetErr_name[int32(err)])
-	}
-
-	// out of bounds request
-	req.Tongue = greeting.Tongue_Unspecified
-	_, err = svc.fetchGreeting(ctx, req)
-	if err == greeting.GreetErr_NoError {
-		t.Errorf("expected error when doing fetchGreeting() with unspecified language")
-	}
-}
-```
-
 This test can run in pure WASM as a guest program, as we mentioned before.
 From a quality and ease of testing standpoint, the fact that this test does
-not require  *any* booted-up service to be running makes this a true unit test.
+not require  *any* booted-up service to be running makes it a true unit test.
 
 ## Decorative files
 

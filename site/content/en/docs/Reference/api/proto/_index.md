@@ -1,11 +1,10 @@
 ---
 title: Protobuf Schema
 date: _2023-08-04
+description: These are the protobuf definitions for [parigot itself]({{< ref "#syscall_v1_syscall-proto" >}}) and the built in services. 
+
 ---
 
-These are the protobuf definitions for [parigot
-itself]({{< ref "#syscall_v1_syscall-proto" >}})
-and the built in services. 
 # Protocol Documentation
 <a name="top"></a>
 
