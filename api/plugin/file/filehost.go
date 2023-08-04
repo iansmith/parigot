@@ -74,8 +74,8 @@ type fileSvcImpl struct {
 	fpathTofid *map[string]file.FileId
 	isTesting  bool
 
-	defaultOpenHook   OpenHook
-	defaultCreateHook CreateHook
+	defaultOpenHook   openHook
+	defaultCreateHook createHook
 }
 
 // enum for file status
