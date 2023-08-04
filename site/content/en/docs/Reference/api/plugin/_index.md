@@ -80,57 +80,11 @@ import "github.com/iansmith/parigot/api/plugin/file"
 
 ## Index
 
-- [type BytesBufferWrapper](<#BytesBufferWrapper>)
-  - [func NewBytesBufferWrapper\(b \*bytes.Buffer\) \*BytesBufferWrapper](<#NewBytesBufferWrapper>)
-  - [func \(b \*BytesBufferWrapper\) Close\(\) error](<#BytesBufferWrapper.Close>)
-- [type CreateHook](<#CreateHook>)
 - [type FilePlugin](<#FilePlugin>)
   - [func \(\*FilePlugin\) Init\(ctx context.Context, e eng.Engine\) bool](<#FilePlugin.Init>)
 - [type FileStatus](<#FileStatus>)
   - [func \(fs FileStatus\) String\(\) string](<#FileStatus.String>)
-- [type OpenHook](<#OpenHook>)
-- [type StringReaderWrapper](<#StringReaderWrapper>)
-  - [func NewStringReaderWrapper\(r io.Reader\) \*StringReaderWrapper](<#NewStringReaderWrapper>)
-  - [func \(s \*StringReaderWrapper\) Close\(\) error](<#StringReaderWrapper.Close>)
 
-
-<a name="BytesBufferWrapper"></a>
-## type BytesBufferWrapper
-
-Buffer writecloser
-
-```go
-type BytesBufferWrapper struct {
-    *bytes.Buffer
-}
-```
-
-<a name="NewBytesBufferWrapper"></a>
-### func NewBytesBufferWrapper
-
-```go
-func NewBytesBufferWrapper(b *bytes.Buffer) *BytesBufferWrapper
-```
-
-
-
-<a name="BytesBufferWrapper.Close"></a>
-### func \(\*BytesBufferWrapper\) Close
-
-```go
-func (b *BytesBufferWrapper) Close() error
-```
-
-
-
-<a name="CreateHook"></a>
-## type CreateHook
-
-
-
-```go
-type CreateHook func(path string) (io.WriteCloser, error)
-```
 
 <a name="FilePlugin"></a>
 ## type FilePlugin
@@ -174,44 +128,6 @@ const (
 
 ```go
 func (fs FileStatus) String() string
-```
-
-
-
-<a name="OpenHook"></a>
-## type OpenHook
-
-
-
-```go
-type OpenHook func(pathOrString string) (io.ReadCloser, error)
-```
-
-<a name="StringReaderWrapper"></a>
-## type StringReaderWrapper
-
-String readcloser
-
-```go
-type StringReaderWrapper struct {
-    io.Reader
-}
-```
-
-<a name="NewStringReaderWrapper"></a>
-### func NewStringReaderWrapper
-
-```go
-func NewStringReaderWrapper(r io.Reader) *StringReaderWrapper
-```
-
-
-
-<a name="StringReaderWrapper.Close"></a>
-### func \(\*StringReaderWrapper\) Close
-
-```go
-func (s *StringReaderWrapper) Close() error
 ```
 
 
