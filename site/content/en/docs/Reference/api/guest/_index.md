@@ -1,8 +1,7 @@
 ---
 title: Guest APIs
 date: _2023-08-04
-description: >
-Guest APIs are the guest side APIs (your program) of the built-in services and parigot proper.
+description: Guest APIs are the guest side APIs (your program) of the built-in services and parigot proper.  APIs listed as `syscall` are the calls to the pubilc API of parigot.
 weight: 5
 ---
 
