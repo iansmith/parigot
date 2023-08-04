@@ -27,6 +27,12 @@ type CallMatcher interface {
 	// Ready returns a resolved call or nil if no Promises are
 	// resolved for the given host.
 	Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)
+	// ReadyLen returns how many items are ready.  This is usueful
+	// primarily for debugging.
+	ReadyLen(hid id.HostId) int
+	// ReadyLen returns the front item from the ready list, but leaves
+	// it still in the list. This is primarily for debugging.
+	ReadyPeek(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)
 }
 
 // Listener is a type that is used when we are running

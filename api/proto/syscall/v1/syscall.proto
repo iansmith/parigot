@@ -299,6 +299,8 @@ message ExitRequest {
 // exit machinery to be invoked at some (soonish) point
 // in the future.  Note that due to concurrent calls to Exit() the exit
 // code received may not be the same as the one sent via ExitRequest!
+// Note that _only_ the caller of Exit() receives this response; if other
+// processes need to be shutdown, that is handled via SynchExit.
 message ExitResponse{
  ExitPair pair = 1;
 }

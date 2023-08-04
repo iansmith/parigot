@@ -2,6 +2,8 @@ package wheeler
 
 import (
 	"context"
+	"log"
+	"runtime/debug"
 	"sync"
 	"testing"
 
@@ -73,7 +75,6 @@ func TestExportThroughChan(t *testing.T) {
 }
 
 func TestExitThroughChan(t *testing.T) {
-	t.Skip("new exit strategy obviated this type of test")
 	exitCh := make(chan *syscall.ExitPair)
 
 	wg := sync.WaitGroup{}
@@ -116,6 +117,8 @@ func TestExitThroughChan(t *testing.T) {
 	if result.Err != syscall.KernelErr_NoError {
 		t.Errorf("unexpected  error from Exit call: %s", syscall.KernelErr_name[int32(result.Err)])
 	}
+	log.Printf("xxx -- about to wait")
+
 	// should return pretty much immediately because the reader and
 	// writer have already run
 	wg.Wait()
@@ -244,51 +247,77 @@ func TestStartupSimple(t *testing.T) {
 	host := []id.HostId{aHost, bHost, cHost, dHost}
 	svc := make([]id.ServiceId, len(letter))
 
-	// Launch
-	// A, B, C
-	w, ok := createWheelerAndABCDInit(t, host, svc)
+	// launch everything but C
+	w, ok := createAndLaunch(t, host, svc, []bool{false, false, true, false})
 	if !ok {
-		t.Errorf("unable to create a wheeler in the startup configuration")
+		t.Errorf("unable to create a wheeler and launch configuration")
 		return
 	}
-	// we call launch on A,B,D
-	for i := 0; i < len(letter); i++ {
-		// skip C
-		if i == 2 {
-			continue
-		}
-		//launch ith letter
-		launch := &syscall.LaunchRequest{
-			ServiceId: svc[i].Marshal(), //
-			CallId:    id.NewCallId().Marshal(),
-			HostId:    host[i].Marshal(),
-			MethodId:  apishared.LaunchMethod.Marshal(),
-		}
-		if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
-			t.Errorf("unable to make launch request for %s: %s", letter[i], syscall.KernelErr_name[int32(err)])
-		}
-	}
-	// nothing should be ready, because C is needed
-	if !checkLaunchStatus(t, w, host, true, false) {
+	// the three we launched are not ready
+	if !checkLaunchStatus(t, w, host, []bool{false, false, true, false}, false) {
 		t.Errorf("failed to check launch status")
 		return
 	}
 
 	//launch C
-	launch := &syscall.LaunchRequest{
-		ServiceId: svc[2].Marshal(), //
-		CallId:    id.NewCallId().Marshal(),
-		HostId:    host[2].Marshal(),
-		MethodId:  apishared.LaunchMethod.Marshal(),
+	if !launchOne(t, w, host, svc, 2) {
+		t.Errorf("launchOne failed to launch c")
 	}
-	if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
-		t.Errorf("unable to make launch request for C: %s", syscall.KernelErr_name[int32(err)])
-	}
+
 	// all 4 should now be ready
-	if !checkLaunchStatus(t, w, host, false, true) {
+	if !checkLaunchStatus(t, w, host, []bool{false, false, false, false}, true) {
 		t.Errorf("failed to check launch status")
 		return
 	}
+}
+
+func TestStartupScrambled(t *testing.T) {
+	aHost := id.NewHostId()
+	bHost := id.NewHostId()
+	cHost := id.NewHostId()
+	dHost := id.NewHostId()
+	host := []id.HostId{aHost, bHost, cHost, dHost}
+	svc := make([]id.ServiceId, len(letter))
+
+	// launch C & A
+	w, ok := createAndLaunch(t, host, svc, []bool{false, true, false, true})
+	if !ok {
+		t.Errorf("unable to create a wheeler and launch configuration")
+		return
+	}
+	// only C should be ready
+	if !checkLaunchStatus(t, w, host, []bool{true, true, false, true}, true) {
+		t.Errorf("failed to check launch status (C only)")
+		return
+	}
+	// A is not ready
+	if !checkLaunchStatus(t, w, host, []bool{false, true, true, true}, false) {
+		t.Errorf("failed to check launch status (A only)")
+		return
+	}
+	if !launchOne(t, w, host, svc, 1) {
+		t.Errorf("failed to launch B")
+	}
+	// A & B not ready
+	if !checkLaunchStatus(t, w, host, []bool{false, false, true, true}, false) {
+		t.Errorf("failed to check launch status")
+		return
+	}
+	// c still ready
+	if !checkLaunchStatus(t, w, host, []bool{true, true, false, true}, true) {
+		t.Errorf("failed to check launch status (C only)")
+		return
+	}
+	// launch D
+	if !launchOne(t, w, host, svc, 3) {
+		t.Errorf("failed to launch D")
+	}
+	// everybody is ready
+	if !checkLaunchStatus(t, w, host, []bool{false, false, false, false}, true) {
+		t.Errorf("failed to check launch status (all four expected to be launched)")
+		return
+	}
+
 }
 
 //
@@ -591,7 +620,44 @@ func registerService(t *testing.T, w *wheeler, pkg, name string, hid id.HostId) 
 
 }
 
-func createWheelerAndABCDInit(t *testing.T, host []id.HostId, outSvc []id.ServiceId) (*wheeler, bool) {
+func createAndLaunch(t *testing.T, outHost []id.HostId, outSvc []id.ServiceId, skip []bool) (*wheeler, bool) {
+	//none of these would actually work, this is to test
+	// the startup logic
+
+	outHost[0] = id.NewHostId()
+	outHost[1] = id.NewHostId()
+	outHost[2] = id.NewHostId()
+	outHost[3] = id.NewHostId()
+
+	// setup the data for
+	// A, B, C, D
+	w, ok := createWheelerAndABCDInit(t, outHost, outSvc, []bool{false, false, false, false})
+	if !ok {
+		t.Errorf("unable to create a wheeler in the startup configuration")
+		return nil, false
+	}
+	// we call launch on A,B,D
+	for i := 0; i < len(letter); i++ {
+		// skip C
+		if skip[i] {
+			continue
+		}
+		//launch ith letter
+		launch := &syscall.LaunchRequest{
+			ServiceId: outSvc[i].Marshal(), //
+			CallId:    id.NewCallId().Marshal(),
+			HostId:    outHost[i].Marshal(),
+			MethodId:  apishared.LaunchMethod.Marshal(),
+		}
+		if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
+			t.Errorf("unable to make launch request for %s: %s", letter[i], syscall.KernelErr_name[int32(err)])
+			return nil, false
+		}
+	}
+	return w, true
+}
+
+func createWheelerAndABCDInit(t *testing.T, host []id.HostId, outSvc []id.ServiceId, skip []bool) (*wheeler, bool) {
 	w := newWheeler(nil, nil)
 	// a exports x.x
 	export := [][]*syscall.FullyQualifiedService{
@@ -673,6 +739,9 @@ func createWheelerAndABCDInit(t *testing.T, host []id.HostId, outSvc []id.Servic
 	// Register
 	//
 	for i, l := range letter {
+		if skip[i] {
+			continue
+		}
 		regReq := &syscall.RegisterRequest{
 			Fqs: &syscall.FullyQualifiedService{
 				PackagePath: l,
@@ -720,31 +789,47 @@ func createWheelerAndABCDInit(t *testing.T, host []id.HostId, outSvc []id.Servic
 	return w, true
 }
 
-func checkLaunchStatus(t *testing.T, w *wheeler, host []id.HostId, notC bool, expectedReady bool) bool {
-	t.Helper()
+func checkLaunchStatus(t *testing.T, w *wheeler, host []id.HostId, skip []bool, expectedReady bool) bool {
 	for i := 0; i < len(letter); i++ {
-		if notC {
-			// skip C
-			if i == 2 {
-				continue
-			}
+		if skip[i] {
+			continue
 		}
-		rc, err := w.matcher().Ready(host[i])
+		rc, err := w.matcher().ReadyPeek(host[i])
 		if err != syscall.KernelErr_NoError {
 			t.Errorf("unable to check for ready status of %s, %s: %s", letter[i], host[i].Short(), syscall.KernelErr_name[int32(err)])
 			return false
 		}
 		if expectedReady {
 			if rc == nil {
-				t.Errorf("%s should be ready", letter[i])
+				t.Errorf("%s should be ready (number of ready %d)", letter[i],
+					(w.matcher().ReadyLen(host[i])))
 				return false
 			}
 		} else {
 			if rc != nil {
+				debug.PrintStack()
+
 				t.Errorf("%s should not be ready", letter[i])
 				return false
 			}
 		}
+	}
+	return true
+}
+
+func launchOne(t *testing.T, w *wheeler, host []id.HostId, svc []id.ServiceId, target int) bool {
+	t.Helper()
+
+	//launch C
+	launch := &syscall.LaunchRequest{
+		ServiceId: svc[target].Marshal(), //
+		CallId:    id.NewCallId().Marshal(),
+		HostId:    host[target].Marshal(),
+		MethodId:  apishared.LaunchMethod.Marshal(),
+	}
+	if err := makeReqRespToWheeler(t, w, launch, &syscall.LaunchResponse{}); err != syscall.KernelErr_NoError {
+		t.Errorf("unable to make launch request %d: %s", target, syscall.KernelErr_name[int32(err)])
+		return false
 	}
 	return true
 }

@@ -39,6 +39,8 @@ service File {
 
   // Delete free a file from memory (datacache) or delete it from the disk
   rpc Delete(DeleteRequest) returns (DeleteResponse);
+
+  rpc Stat(StatRequest) returns (StatResponse);
 }
 
 
