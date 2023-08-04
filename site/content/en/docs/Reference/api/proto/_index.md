@@ -1,6 +1,6 @@
 ---
 title: Protobuf Schema
-date: _2023-07-04
+date: _2023-08-04
 ---
 
 These are the protobuf definitions for [parigot
@@ -18,12 +18,15 @@ and the built in services.
     - [CreateResponse](#file-v1-CreateResponse)
     - [DeleteRequest](#file-v1-DeleteRequest)
     - [DeleteResponse](#file-v1-DeleteResponse)
+    - [FileInfo](#file-v1-FileInfo)
     - [LoadTestDataRequest](#file-v1-LoadTestDataRequest)
     - [LoadTestDataResponse](#file-v1-LoadTestDataResponse)
     - [OpenRequest](#file-v1-OpenRequest)
     - [OpenResponse](#file-v1-OpenResponse)
     - [ReadRequest](#file-v1-ReadRequest)
     - [ReadResponse](#file-v1-ReadResponse)
+    - [StatRequest](#file-v1-StatRequest)
+    - [StatResponse](#file-v1-StatResponse)
     - [WriteRequest](#file-v1-WriteRequest)
     - [WriteResponse](#file-v1-WriteResponse)
   
@@ -36,13 +39,17 @@ and the built in services.
     - [BindMethodResponse](#syscall-v1-BindMethodResponse)
     - [BlockUntilCallRequest](#syscall-v1-BlockUntilCallRequest)
     - [BlockUntilCallResponse](#syscall-v1-BlockUntilCallResponse)
+    - [DependencyExistsRequest](#syscall-v1-DependencyExistsRequest)
+    - [DependencyExistsResponse](#syscall-v1-DependencyExistsResponse)
     - [DispatchRequest](#syscall-v1-DispatchRequest)
     - [DispatchResponse](#syscall-v1-DispatchResponse)
+    - [ExitPair](#syscall-v1-ExitPair)
     - [ExitRequest](#syscall-v1-ExitRequest)
     - [ExitResponse](#syscall-v1-ExitResponse)
     - [ExportRequest](#syscall-v1-ExportRequest)
     - [ExportResponse](#syscall-v1-ExportResponse)
     - [FullyQualifiedService](#syscall-v1-FullyQualifiedService)
+    - [HostBinding](#syscall-v1-HostBinding)
     - [LaunchRequest](#syscall-v1-LaunchRequest)
     - [LaunchResponse](#syscall-v1-LaunchResponse)
     - [LocateRequest](#syscall-v1-LocateRequest)
@@ -57,7 +64,13 @@ and the built in services.
     - [ResolvedCall](#syscall-v1-ResolvedCall)
     - [ReturnValueRequest](#syscall-v1-ReturnValueRequest)
     - [ReturnValueResponse](#syscall-v1-ReturnValueResponse)
+    - [ServiceByIdRequest](#syscall-v1-ServiceByIdRequest)
+    - [ServiceByIdResponse](#syscall-v1-ServiceByIdResponse)
+    - [ServiceByNameRequest](#syscall-v1-ServiceByNameRequest)
+    - [ServiceByNameResponse](#syscall-v1-ServiceByNameResponse)
     - [ServiceMethodCall](#syscall-v1-ServiceMethodCall)
+    - [SynchronousExitRequest](#syscall-v1-SynchronousExitRequest)
+    - [SynchronousExitResponse](#syscall-v1-SynchronousExitResponse)
   
     - [KernelErr](#syscall-v1-KernelErr)
     - [MethodDirection](#syscall-v1-MethodDirection)
@@ -218,7 +231,7 @@ to the system operators.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| path | [string](#string) |  |  |
 
 
 
@@ -233,7 +246,27 @@ to the system operators.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
+| path | [string](#string) |  |  |
 | id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+
+
+
+
+
+
+<a name="file-v1-FileInfo"></a>
+
+### FileInfo
+Define the FileInfo struct
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| path | [string](#string) |  |  |
+| is_dir | [bool](#bool) |  |  |
+| size | [int32](#int32) |  |  |
+| create_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | creation time |
+| mod_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | modification time |
 
 
 
@@ -249,7 +282,7 @@ of the test filesystem (in memory).   This is only intended to be use for test c
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| path | [string](#string) |  | path is a path to a directory on the _host_ filesystem that is to be loaded in /app |
+| dir_path | [string](#string) |  | path is a path to a directory on the _host_ filesystem that is to be loaded in /app |
 | mount_location | [string](#string) |  | where this new file will exist in the in-memory filesystem... this path will be cleaned lexically and then joined to /app. Note that it is possible create paths with this parameter that cannot be opened because of restrictions on the path in open. |
 | return_on_fail | [bool](#bool) |  | returnOnFail should be set to true if you do NOT want the normal behavior of using panic on error. If this value is set to true, the paths that cause an error on import are return in the TestDataResponse. |
 
@@ -338,6 +371,36 @@ false since by definition the error_path will be empty.
 
 
 
+<a name="file-v1-StatRequest"></a>
+
+### StatRequest
+StatRequest asks for the information about a file
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| path | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="file-v1-StatResponse"></a>
+
+### StatResponse
+Use the FileInfo struct in the StatResponse message
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| file_info | [FileInfo](#file-v1-FileInfo) |  |  |
+
+
+
+
+
+
 <a name="file-v1-WriteRequest"></a>
 
 ### WriteRequest
@@ -383,12 +446,25 @@ false since by definition the error_path will be empty.
 | DispatchError | 1 | mandatory |
 | UnmarshalError | 2 | mandatory |
 | MarshalError | 3 | mandatory |
-| InvalidPathError | 4 | InvalidPathError indicates that the provided path name is not a valid identifier. Identifiers must be the shortest path name equivalent to the given path, derived through pure lexical processing. Specifically, it should start with specific prefix, and any usage of &#39;.&#39; or &#39;..&#39; in the path is disallowed. |
-| AlreadyInUseError | 5 | AlreadyInUseError means that the file is already being used. |
-| NotExistError | 6 | NotExistError means that the file does not exist |
-| FileClosedError | 7 | FileClosedError means that the status of the file is CLOSED, hence it cannot be accessed by a read or write request. |
-| LargeBufError | 8 |  |
-| InternalError | 9 | InternalError means that there are issues with the file service. |
+| InvalidPathError | 4 | InvalidPathError: Provided path name is not valid based on following rules: 1. The separator should be &#34;/&#34; 2. It should start with specific prefix -&gt; &#39;/parigot/app/&#39; 3. It should not contain any &#34;.&#34; or &#34;..&#34; in the path 4. It should not exceed a specific value for the number (max is 20) of parts in the path 5. It should avoid certain special characters, including: Asterisk (*)					Question mark (?)		Greater than (&gt;) Less than (&lt;)				Pipe symbol (|)			Ampersand (&amp;) Semicolon (;)				Dollar sign ($)			Backtick (`) Double quotation marks (&#34;)	Single quotation mark (&#39;)
+
+Invalid example:
+
+	&#39;/parigot/app/..&#39; -&gt; &#39;..&#39; is not allowed 	&#39;/parigot/app/./&#39; -&gt; &#39;.&#39; is not allowed 	&#39;/parigot/app/foo\bar&#39; -&gt; &#39;\&#39; is not allowed 	&#39;//parigot/app/foo&#39;, &#39;/parigot/app&#39; -&gt; prefix should be &#39;/parigot/app/&#39; |
+| AlreadyInUseError | 5 | File status related errors
+
+The file is already being used. |
+| NotExistError | 6 | The file/path does not exist |
+| FileClosedError | 7 | The file status is CLOSED, cannot be accessed by a read or write request |
+| EOFError | 8 | The file is at the end of the file |
+| ReadError | 9 | Some error happened during reading a file |
+| WriteError | 10 | Some error happened during writing a file |
+| OpenError | 11 | Some error happened during opening a file |
+| DeleteError | 12 | Some error happened during deleting a file |
+| CreateError | 13 | Some error happened during creating a file |
+| NoDataFoundError | 14 | No data file found in the directory |
+| LargeBufError | 15 | The buffer for the file is too large |
+| InternalError | 16 | There are internal issues with the file service |
 
 
  
@@ -425,7 +501,12 @@ false since by definition the error_path will be empty.
 <a name="syscall-v1-BindMethodRequest"></a>
 
 ### BindMethodRequest
-
+BindMethodRequest is used to tell parigot that the given service_id (located
+at host_id) has an implementation for the given method name.  This will create
+the mapping to a method_id, which is in the response.  The direction parameter
+is either METHOD_DIRECTION_IN, OUT, or BOTH.  IN means thath the method has
+no output parameter (the result is ignored), OUT means the method has no input
+parameters, and BOTH means that both input and output parameters are used.
 
 
 | Field | Type | Label | Description |
@@ -443,7 +524,8 @@ false since by definition the error_path will be empty.
 <a name="syscall-v1-BindMethodResponse"></a>
 
 ### BindMethodResponse
-
+BindMethodResponse is the method_id of the service and method name provided
+in the request.
 
 
 | Field | Type | Label | Description |
@@ -488,6 +570,48 @@ false since by definition the error_path will be empty.
 
 
 
+<a name="syscall-v1-DependencyExistsRequest"></a>
+
+### DependencyExistsRequest
+DependencyExistsRequest is used to check if there a dependency
+path from source to destination.  Callers should use either
+a target service or a target service name, not both. 
+The semantics are slightly different.  When you ask about the
+name of a service, it is a question about what the service
+has declared with require calls.   When you ask about a specific
+service you are asking if a dependency path between the two services
+exists and thus the dest service must be started before the
+source.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| source_service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| dest_service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| service_name | [FullyQualifiedService](#syscall-v1-FullyQualifiedService) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-DependencyExistsResponse"></a>
+
+### DependencyExistsResponse
+DependencyExistsResponse has the exists field set to 
+true if there exists a sequence of dependencies that
+join source and dest (from the request).
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| exists | [bool](#bool) |  |  |
+
+
+
+
+
+
 <a name="syscall-v1-DispatchRequest"></a>
 
 ### DispatchRequest
@@ -499,8 +623,8 @@ DispatchRequest is a request by a client to invoke a particular method with the 
 | service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | param | [google.protobuf.Any](#google-protobuf-Any) |  | inside is another Request object, but we don&#39;t know its type |
-| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
-| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 
 
 
@@ -518,7 +642,26 @@ to map to additional info about the call.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+
+
+
+
+
+
+<a name="syscall-v1-ExitPair"></a>
+
+### ExitPair
+ExitPair is a structure that is a service that is requesting
+an exit and the exit code desired.  The service can be empty
+if the caller wants the entire suite of services to be exited.
+Code will be in the &#34;allowed&#34; range of 0 to 192.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| code | [int32](#int32) |  |  |
 
 
 
@@ -528,13 +671,17 @@ to map to additional info about the call.
 <a name="syscall-v1-ExitRequest"></a>
 
 ### ExitRequest
-ExitRequest is how you can request for your wasm program to exit. In some cases, this will not terminate
-the process because there may be other services running in the same process.
+ExitRequest is how you can request for your wasm program, or the whole system
+to exit. This will not terminate the process immediately as there may be other 
+services running that need to be notified.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| code | [int32](#int32) |  | valid values here are 0...192 and values&gt;192 or &lt;0 will be set to 192 |
+| pair | [ExitPair](#syscall-v1-ExitPair) |  | For the code in the ExitPair, the valid values here are 0...192 and values&gt;192 or &lt;0 will be set to 192. The valid values for the service are a service id (typically the service making this request) or an zero valued service, indicating that the entire system should be brought down. |
+| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 
 
 
@@ -544,12 +691,16 @@ the process because there may be other services running in the same process.
 <a name="syscall-v1-ExitResponse"></a>
 
 ### ExitResponse
-
+ExitResponse is needed because the exit request does
+not cause the shutdown immediately. It causes the 
+exit machinery to be invoked at some (soonish) point
+in the future.  Note that due to concurrent calls to Exit() the exit
+code received may not be the same as the one sent via ExitRequest!
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| code | [int32](#int32) |  |  |
+| pair | [ExitPair](#syscall-v1-ExitPair) |  |  |
 
 
 
@@ -559,11 +710,15 @@ the process because there may be other services running in the same process.
 <a name="syscall-v1-ExportRequest"></a>
 
 ### ExportRequest
-
+ExportRequest informs the kernel that the given
+service id implements the named services on the
+host given.  Note that the services provided must be
+distinct.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
+| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | service | [FullyQualifiedService](#syscall-v1-FullyQualifiedService) | repeated |  |
 | host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 
@@ -575,7 +730,7 @@ the process because there may be other services running in the same process.
 <a name="syscall-v1-ExportResponse"></a>
 
 ### ExportResponse
-
+Nothing to return.
 
 
 
@@ -585,7 +740,10 @@ the process because there may be other services running in the same process.
 <a name="syscall-v1-FullyQualifiedService"></a>
 
 ### FullyQualifiedService
-
+FullyQualified service is the complete (protobuf) name of a service as a
+a string.  This is typically something like &#34;foo.v1&#34; for the package and
+the service name is &#34;Foo&#34;.  These are the names used by the export, require,
+and locate calls.
 
 
 | Field | Type | Label | Description |
@@ -598,15 +756,38 @@ the process because there may be other services running in the same process.
 
 
 
-<a name="syscall-v1-LaunchRequest"></a>
+<a name="syscall-v1-HostBinding"></a>
 
-### LaunchRequest
-
+### HostBinding
+HostBinding is the mapping between a service and a host. Note that a given
+host may be bound to many services, but a single service is always bound
+to exactly one host.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-LaunchRequest"></a>
+
+### LaunchRequest
+LaunchRequest is used to block a service until its depnedencies are ready.
+It returns a future to the guest that can be used to take action once
+launch is completed.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 
 
 
@@ -616,7 +797,8 @@ the process because there may be other services running in the same process.
 <a name="syscall-v1-LaunchResponse"></a>
 
 ### LaunchResponse
-
+LaunchResponse has nothing in it because the action will be handled by
+a future created as a result of LaunchRequest.
 
 
 
@@ -633,7 +815,7 @@ LocateRequest is a read from the kernel of the service id associated with a pack
 | ----- | ---- | ----- | ----------- |
 | package_name | [string](#string) |  |  |
 | service_name | [string](#string) |  |  |
-| called_by | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| called_by | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | called_by is only needed for true clients. If you are doing a call to locate with a service that you did not and could not have known beforehand you should leave this empty. |
 
 
 
@@ -737,6 +919,7 @@ it may be nil.
 | call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | param | [google.protobuf.Any](#google-protobuf-Any) |  |  |
 | resolved | [ResolvedCall](#syscall-v1-ResolvedCall) |  |  |
+| exit | [bool](#bool) |  |  |
 
 
 
@@ -754,7 +937,7 @@ in the dependency graph for startup order.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | fqs | [FullyQualifiedService](#syscall-v1-FullyQualifiedService) |  |  |
-| is_client | [bool](#bool) |  |  |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 
 
 
@@ -764,7 +947,8 @@ in the dependency graph for startup order.
 <a name="syscall-v1-RegisterResponse"></a>
 
 ### RegisterResponse
-
+RegisterResponse indicates if the registering caller has created
+the new service or not.
 
 
 | Field | Type | Label | Description |
@@ -780,7 +964,10 @@ in the dependency graph for startup order.
 <a name="syscall-v1-RequireRequest"></a>
 
 ### RequireRequest
-
+Require establishes that the source given is going to import the service
+given by dest.  It is not required that the source locate the dest, although
+if one does call locate, a check is done to insure require was called previously.
+This check is done to prevent a common programming mistake.
 
 
 | Field | Type | Label | Description |
@@ -796,7 +983,7 @@ in the dependency graph for startup order.
 <a name="syscall-v1-RequireResponse"></a>
 
 ### RequireResponse
-
+RequireResponse is currently empty.
 
 
 
@@ -806,7 +993,8 @@ in the dependency graph for startup order.
 <a name="syscall-v1-ResolvedCall"></a>
 
 ### ResolvedCall
-
+ResolvedCall is used to hold the output of a service/method call while we
+are waiting for the future to be resolved.
 
 
 | Field | Type | Label | Description |
@@ -851,16 +1039,116 @@ ReturnValueResponse is currently empty.
 
 
 
+<a name="syscall-v1-ServiceByIdRequest"></a>
+
+### ServiceByIdRequest
+ServiceByIdRequest looks up the given service by
+its string representation.  This is probably only
+useful for passing service objects over the wire.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| service_id | [string](#string) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-ServiceByIdResponse"></a>
+
+### ServiceByIdResponse
+ServiceByIdResponse returns host binding for the
+service or nothing.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| binding | [HostBinding](#syscall-v1-HostBinding) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-ServiceByNameRequest"></a>
+
+### ServiceByNameRequest
+ServiceByName looks up the given service and returns all
+the host bindings associated with it.   This does
+change the internal data structures, only reports on them.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| fqs | [FullyQualifiedService](#syscall-v1-FullyQualifiedService) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-ServiceByNameResponse"></a>
+
+### ServiceByNameResponse
+ServiceByNameResponse returns the list, possibly empty,
+that has all the host bindings for the named service.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| binding | [HostBinding](#syscall-v1-HostBinding) | repeated |  |
+
+
+
+
+
+
 <a name="syscall-v1-ServiceMethodCall"></a>
 
 ### ServiceMethodCall
-
+ServiceMethodCall is the structure that holds &#34;what&#39;s been called&#34; in a service.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-SynchronousExitRequest"></a>
+
+### SynchronousExitRequest
+SynchronousExit is sent to a program (a service) that is being told
+by the parigot system to run its cleanup (AtExit) handlers because it
+is going down.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pair | [ExitPair](#syscall-v1-ExitPair) |  |  |
+
+
+
+
+
+
+<a name="syscall-v1-SynchronousExitResponse"></a>
+
+### SynchronousExitResponse
+Synchronous exit response is sent to the at exit handlers for a service or
+program.  There is no way to stop the shutdown once this is received, it
+can be used only to clean up resources that need to be released.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| pair | [ExitPair](#syscall-v1-ExitPair) |  |  |
 
 
 
@@ -897,7 +1185,6 @@ ReturnValueResponse is currently empty.
 | ExecError | 18 | ExecError means that we received a response from the implenter of a particular service&#39;s function and the execution of that function failed. |
 | KernelDependencyFailure | 19 | DependencyFailure means that the dependency infrastructure has failed. This is different than when a user creates bad set of depedencies (KernelDependencyCycle). This an internal to the kernel error. |
 | AbortRequest | 20 | AbortRequest indicates that the program that receives this error should exit because the nameserver has asked it to do so. This means that some _other_ program has failed to start correctly, so this deployment cannot succeed. |
-| ExitRequested | 21 | ExitRequested indicates that the program that receives this error should exit because the nameserver permitted it to do so. This is not really an &#34;error&#34; but rather an indication that the caller who requested the exit may do so immediately. |
 | EncodeError | 22 | EncodeError indicates that an attempt encode a protobuf with header and CRC has failed. |
 | ClosedErr | 23 | ClosedErr indicates that that object is now closed. This is used as a signal when writing data between the guest and host. |
 | GuestReadFailed | 24 | GuestReadFailed indicates that we did not successfully read from guest memory. This is usually caused by the proposed address to read from being out of bounds. |
