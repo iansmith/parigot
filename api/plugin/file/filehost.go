@@ -101,7 +101,7 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "file", "load_test_data_", loadTestDataHost)
 	e.AddSupportedFunc(ctx, "file", "stat_", statHost)
 
-	_ = newFileSvc(ctx)
+	fileSvc = newFileSvc(ctx)
 
 	return true
 }

@@ -9,12 +9,12 @@ service HttpConnector {
 	rpc Check(CheckRequest) returns (CheckResponse);
 }
 
-message CheckRequest {
-	protosupport.v1.IdRaw id = 1;
+message CheckRequest{
+	string method = 1;
 }
 
 message CheckResponse {
-	protosupport.v1.IdRaw id = 1;
+	string method = 1;
 }
 
 enum HttpConnectorErr {
@@ -23,4 +23,5 @@ enum HttpConnectorErr {
 	DispatchError = 1; //mandatory
 	UnmarshalError = 2; // mandatory
 	MarshalError = 3; // mandatory
+	InternalError = 4; // There are internal issues with the httpconnector service
 }

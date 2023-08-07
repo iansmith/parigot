@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	pcontext "github.com/iansmith/parigot/context"
@@ -24,13 +23,13 @@ type httpConnectorImpl struct {
 	httpChan chan *http.Request
 }
 
-// var httpChan = make(chan *http.Request)
-
 func (*HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "httpconnector", "check_", checkHost)
 
-	newHttpCntSvc(ctx)
-	go runHttpListener()
+	httpCnt = newHttpCntSvc(ctx)
+	go runHttpListener(httpCnt)
+
+	pcontext.Infof(ctx, "httpconnector plugin initialized, Init() in host")
 
 	return true
 }
@@ -38,17 +37,19 @@ func (*HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
 func newHttpCntSvc(ctx context.Context) *httpConnectorImpl {
 	newCtx := pcontext.ServerGoContext(ctx)
 
-	hCnt := &httpConnectorImpl{
+	c := &httpConnectorImpl{
 		ctx:      newCtx,
 		httpChan: make(chan *http.Request),
 	}
 
-	return hCnt
+	return c
 }
 
-func runHttpListener() {
+func runHttpListener(hCnt *httpConnectorImpl) {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
-		// hCnt.httpChan <- req
+		if req != nil {
+			hCnt.httpChan <- req
+		}
 		io.WriteString(w, "listening!")
 	}
 	http.HandleFunc("/", h1)
@@ -74,11 +75,26 @@ func checkHost(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func (hCnt *httpConnectorImpl) check(ctx context.Context, req *httpconnector.CheckRequest, resp *httpconnector.CheckResponse) int32 {
+	resp.Method = "test"
+
+	pcontext.Infof(ctx, "http connector check is called %+v", req)
+
+	if hCnt == nil {
+		log.Println("http connector is nil")
+		return int32(httpconnector.HttpConnectorErr_InternalError)
+	}
+
+	if hCnt.httpChan == nil {
+		log.Println("httpChan is nil")
+		return int32(httpconnector.HttpConnectorErr_InternalError)
+	}
 	select {
 	case <-hCnt.httpChan:
-		log.Println("req is")
-	case <-time.After(10 * time.Second):
-		log.Println("http connector time out")
+		log.Println("req is ready")
+	// case <-time.After(10 * time.Second):
+	// 	log.Println("http connector time out")
+	default:
+		log.Println("the channel is not ready to receive the data")
 	}
 	return int32(httpconnector.HttpConnectorErr_NoError)
 }

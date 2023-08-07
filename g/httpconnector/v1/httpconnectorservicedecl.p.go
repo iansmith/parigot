@@ -55,13 +55,17 @@ type FutureCheck struct {
 func (f * FutureCheck) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&CheckResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpConnectorErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureCheck)Success(sfn func (proto.Message)) {
     x:=func(m *CheckResponse){
