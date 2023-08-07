@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -116,6 +117,7 @@ func (f *Method[T, U]) findLast(isSuccess bool) *Method[T, U] {
 // method directly in tests.  Calling this method on completed Method
 // future will be ignored.
 func (f *Method[T, U]) CompleteMethod(ctx context.Context, result T, resultErr U) {
+	log.Printf("CompleteMethod in lib/go/future/future.go: %v, %v", result, resultErr)
 	if f.completed {
 		return
 	}

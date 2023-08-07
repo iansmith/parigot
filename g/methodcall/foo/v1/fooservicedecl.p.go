@@ -59,13 +59,17 @@ type FutureAddMultiply struct {
 func (f * FutureAddMultiply) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&AddMultiplyResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,FooErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureAddMultiply)Success(sfn func (proto.Message)) {
     x:=func(m *AddMultiplyResponse){
@@ -115,13 +119,17 @@ type FutureLucasSequence struct {
 func (f * FutureLucasSequence) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LucasSequenceResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,FooErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureLucasSequence)Success(sfn func (proto.Message)) {
     x:=func(m *LucasSequenceResponse){
@@ -171,7 +179,6 @@ type FutureWritePi struct {
 func (f * FutureWritePi) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(FooErr(e)) 
     return syscall.KernelErr_NoError
-
 } 
 func (f *FutureWritePi)Success(sfn func (proto.Message)) {
     // no way for this to be called

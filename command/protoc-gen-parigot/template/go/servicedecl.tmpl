@@ -119,8 +119,13 @@ func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,{{$errId}}(e))
@@ -128,7 +133,6 @@ func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a
     f.Base.Set({{$errId}}(e))
 {{- end }} {{/* end output needed */}}
     return syscall.KernelErr_NoError
-
 }
 
 {{- if .OutputCodeNeeded}}

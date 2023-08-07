@@ -57,13 +57,17 @@ type FutureExec struct {
 func (f * FutureExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,MethodCallSuiteErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){
@@ -113,7 +117,6 @@ type FutureSuiteReport struct {
 func (f * FutureSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(MethodCallSuiteErr(e)) 
     return syscall.KernelErr_NoError
-
 } 
 func (f *FutureSuiteReport)Success(sfn func (proto.Message)) {
     // no way for this to be called

@@ -57,13 +57,17 @@ type FutureTestAddTestSuite struct {
 func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&AddTestSuiteResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureTestAddTestSuite)Success(sfn func (proto.Message)) {
     x:=func(m *AddTestSuiteResponse){
@@ -113,13 +117,17 @@ type FutureTestStart struct {
 func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&StartResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureTestStart)Success(sfn func (proto.Message)) {
     x:=func(m *StartResponse){
@@ -190,13 +198,17 @@ type FutureMethodCallSuiteExec struct {
 func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureMethodCallSuiteExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){
@@ -246,7 +258,6 @@ type FutureMethodCallSuiteSuiteReport struct {
 func (f * FutureMethodCallSuiteSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     f.Base.Set(TestErr(e)) 
     return syscall.KernelErr_NoError
-
 } 
 func (f *FutureMethodCallSuiteSuiteReport)Success(sfn func (proto.Message)) {
     // no way for this to be called
@@ -312,13 +323,17 @@ type FutureUnderTestExec struct {
 func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureUnderTestExec)Success(sfn func (proto.Message)) {
     x:=func(m *ExecResponse){

@@ -67,13 +67,17 @@ type FutureCreateQueue struct {
 func (f * FutureCreateQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&CreateQueueResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureCreateQueue)Success(sfn func (proto.Message)) {
     x:=func(m *CreateQueueResponse){
@@ -123,13 +127,17 @@ type FutureLocate struct {
 func (f * FutureLocate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LocateResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureLocate)Success(sfn func (proto.Message)) {
     x:=func(m *LocateResponse){
@@ -179,13 +187,17 @@ type FutureDeleteQueue struct {
 func (f * FutureDeleteQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&DeleteQueueResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureDeleteQueue)Success(sfn func (proto.Message)) {
     x:=func(m *DeleteQueueResponse){
@@ -235,13 +247,17 @@ type FutureReceive struct {
 func (f * FutureReceive) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&ReceiveResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureReceive)Success(sfn func (proto.Message)) {
     x:=func(m *ReceiveResponse){
@@ -291,13 +307,17 @@ type FutureMarkDone struct {
 func (f * FutureMarkDone) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&MarkDoneResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureMarkDone)Success(sfn func (proto.Message)) {
     x:=func(m *MarkDoneResponse){
@@ -347,13 +367,17 @@ type FutureLength struct {
 func (f * FutureLength) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&LengthResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureLength)Success(sfn func (proto.Message)) {
     x:=func(m *LengthResponse){
@@ -403,13 +427,17 @@ type FutureSend struct {
 func (f * FutureSend) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&SendResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureSend)Success(sfn func (proto.Message)) {
     x:=func(m *SendResponse){
