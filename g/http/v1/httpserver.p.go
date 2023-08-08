@@ -199,7 +199,143 @@ func bind(ctx context.Context,sid id.ServiceId, impl Http) (*lib.ServiceMethodMa
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Http","Get",
-		GenerateGetInvoker(impl)) 
+		GenerateGetInvoker(impl))
+//
+// http.v1.Http.Post
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Post"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Post",
+		GeneratePostInvoker(impl))
+//
+// http.v1.Http.Put
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Put"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Put",
+		GeneratePutInvoker(impl))
+//
+// http.v1.Http.Delete
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Delete"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Delete",
+		GenerateDeleteInvoker(impl))
+//
+// http.v1.Http.Head
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Head"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Head",
+		GenerateHeadInvoker(impl))
+//
+// http.v1.Http.Options
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Options"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Options",
+		GenerateOptionsInvoker(impl))
+//
+// http.v1.Http.Patch
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Patch"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Patch",
+		GeneratePatchInvoker(impl))
+//
+// http.v1.Http.Connect
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Connect"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Connect",
+		GenerateConnectInvoker(impl))
+//
+// http.v1.Http.Trace
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Trace"
+	resp, err=syscallguest.BindMethod(bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Http","Trace",
+		GenerateTraceInvoker(impl)) 
 	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
@@ -327,6 +463,142 @@ func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
 	f:=NewFutureGet()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
+} 
+
+//go:wasmimport http post_
+func Post_(int32,int32,int32,int32) int64
+func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
+	outProtoPtr := (*PostResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
+	if signal {
+		pcontext.Infof(ctx, "Post exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFuturePost()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http put_
+func Put_(int32,int32,int32,int32) int64
+func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
+	outProtoPtr := (*PutResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
+	if signal {
+		pcontext.Infof(ctx, "Put exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFuturePut()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http delete_
+func Delete_(int32,int32,int32,int32) int64
+func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
+	outProtoPtr := (*DeleteResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
+	if signal {
+		pcontext.Infof(ctx, "Delete exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureDelete()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http head_
+func Head_(int32,int32,int32,int32) int64
+func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
+	outProtoPtr := (*HeadResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
+	if signal {
+		pcontext.Infof(ctx, "Head exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureHead()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http options_
+func Options_(int32,int32,int32,int32) int64
+func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
+	outProtoPtr := (*OptionsResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
+	if signal {
+		pcontext.Infof(ctx, "Options exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureOptions()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http patch_
+func Patch_(int32,int32,int32,int32) int64
+func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
+	outProtoPtr := (*PatchResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
+	if signal {
+		pcontext.Infof(ctx, "Patch exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFuturePatch()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http connect_
+func Connect_(int32,int32,int32,int32) int64
+func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
+	outProtoPtr := (*ConnectResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
+	if signal {
+		pcontext.Infof(ctx, "Connect exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureConnect()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport http trace_
+func Trace_(int32,int32,int32,int32) int64
+func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
+	outProtoPtr := (*TraceResponse)(nil)
+	defer pcontext.Dump(ctx)
+	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
+	if signal {
+		pcontext.Infof(ctx, "Trace exiting because of parigot signal")
+		pcontext.Dump(ctx)
+		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
+			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
+	}
+	f:=NewFutureTrace()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
 }  
 
 // This is interface for invocation.
@@ -348,4 +620,172 @@ func (t *invokeGet) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
 
 func GenerateGetInvoker(impl Http) future.Invoker {
 	return &invokeGet{fn:impl.Get} 
+}
+
+// This is interface for invocation.
+type invokePost struct {
+    fn func(context.Context,*PostRequest) *FuturePost
+}
+
+func (t *invokePost) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx PostRequest and 'PostRequest{}' why empty?
+    in:=&PostRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePostInvoker(impl Http) future.Invoker {
+	return &invokePost{fn:impl.Post} 
+}
+
+// This is interface for invocation.
+type invokePut struct {
+    fn func(context.Context,*PutRequest) *FuturePut
+}
+
+func (t *invokePut) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx PutRequest and 'PutRequest{}' why empty?
+    in:=&PutRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePutInvoker(impl Http) future.Invoker {
+	return &invokePut{fn:impl.Put} 
+}
+
+// This is interface for invocation.
+type invokeDelete struct {
+    fn func(context.Context,*DeleteRequest) *FutureDelete
+}
+
+func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx DeleteRequest and 'DeleteRequest{}' why empty?
+    in:=&DeleteRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateDeleteInvoker(impl Http) future.Invoker {
+	return &invokeDelete{fn:impl.Delete} 
+}
+
+// This is interface for invocation.
+type invokeHead struct {
+    fn func(context.Context,*HeadRequest) *FutureHead
+}
+
+func (t *invokeHead) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx HeadRequest and 'HeadRequest{}' why empty?
+    in:=&HeadRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateHeadInvoker(impl Http) future.Invoker {
+	return &invokeHead{fn:impl.Head} 
+}
+
+// This is interface for invocation.
+type invokeOptions struct {
+    fn func(context.Context,*OptionsRequest) *FutureOptions
+}
+
+func (t *invokeOptions) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx OptionsRequest and 'OptionsRequest{}' why empty?
+    in:=&OptionsRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateOptionsInvoker(impl Http) future.Invoker {
+	return &invokeOptions{fn:impl.Options} 
+}
+
+// This is interface for invocation.
+type invokePatch struct {
+    fn func(context.Context,*PatchRequest) *FuturePatch
+}
+
+func (t *invokePatch) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx PatchRequest and 'PatchRequest{}' why empty?
+    in:=&PatchRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePatchInvoker(impl Http) future.Invoker {
+	return &invokePatch{fn:impl.Patch} 
+}
+
+// This is interface for invocation.
+type invokeConnect struct {
+    fn func(context.Context,*ConnectRequest) *FutureConnect
+}
+
+func (t *invokeConnect) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx ConnectRequest and 'ConnectRequest{}' why empty?
+    in:=&ConnectRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateConnectInvoker(impl Http) future.Invoker {
+	return &invokeConnect{fn:impl.Connect} 
+}
+
+// This is interface for invocation.
+type invokeTrace struct {
+    fn func(context.Context,*TraceRequest) *FutureTrace
+}
+
+func (t *invokeTrace) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+	// xxx TraceRequest and 'TraceRequest{}' why empty?
+    in:=&TraceRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateTraceInvoker(impl Http) future.Invoker {
+	return &invokeTrace{fn:impl.Trace} 
 }  

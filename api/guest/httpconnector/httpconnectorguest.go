@@ -21,12 +21,7 @@ func main() {
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		pcontext.Infof(ctx, "httpconnector service guest side started correctly")
 	})
-
-	pcontext.Infof(ctx, "start Run in httpconnector guest side")
 	kerr := httpconnector.Run(ctx, binding, httpconnector.TimeoutInMillis, nil)
-
-	pcontext.Infof(ctx, "reach the point after Run in httpconnector guest side %s", syscall.KernelErr_name[int32(kerr)])
-
 	pcontext.Errorf(ctx, "error while waiting for httpconnector service calls: %s", syscall.KernelErr_name[int32(kerr)])
 }
 

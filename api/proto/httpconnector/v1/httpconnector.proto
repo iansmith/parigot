@@ -3,18 +3,22 @@ package httpconnector.v1;
 option go_package="github.com/iansmith/parigot/g/httpconnector/v1;httpconnector";
 import "protosupport/v1/protosupport.proto";
 
-// This is the httpconnector service for parigot
+// This is the httpconnector service for parigot. It provides an api that
+// inspects external http requests and converts them into parigot's internal
+// http requests
 
 service HttpConnector {
+	// Check incoming HTTP requests from outside
 	rpc Check(CheckRequest) returns (CheckResponse);
 }
 
 message CheckRequest{
-	string method = 1;
+	bool success = 1;
 }
 
 message CheckResponse {
-	string method = 1;
+	// Whether receive a http request from outside
+	bool success = 1;
 }
 
 enum HttpConnectorErr {

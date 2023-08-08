@@ -27,12 +27,28 @@ import(
 //
 //service interface
 type Http interface {
-    Get(ctx context.Context,in *GetRequest) *FutureGet   
+    Get(ctx context.Context,in *GetRequest) *FutureGet  
+    Post(ctx context.Context,in *PostRequest) *FuturePost  
+    Put(ctx context.Context,in *PutRequest) *FuturePut  
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Head(ctx context.Context,in *HeadRequest) *FutureHead  
+    Options(ctx context.Context,in *OptionsRequest) *FutureOptions  
+    Patch(ctx context.Context,in *PatchRequest) *FuturePatch  
+    Connect(ctx context.Context,in *ConnectRequest) *FutureConnect  
+    Trace(ctx context.Context,in *TraceRequest) *FutureTrace   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Get(ctx context.Context,in *GetRequest) *FutureGet   
+    Get(ctx context.Context,in *GetRequest) *FutureGet  
+    Post(ctx context.Context,in *PostRequest) *FuturePost  
+    Put(ctx context.Context,in *PutRequest) *FuturePut  
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Head(ctx context.Context,in *HeadRequest) *FutureHead  
+    Options(ctx context.Context,in *OptionsRequest) *FutureOptions  
+    Patch(ctx context.Context,in *PatchRequest) *FuturePatch  
+    Connect(ctx context.Context,in *ConnectRequest) *FutureConnect  
+    Trace(ctx context.Context,in *TraceRequest) *FutureTrace   
 }
 
 // Client difference from Http: Ready() 
@@ -55,13 +71,17 @@ type FutureGet struct {
 func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
     out:=&GetResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
     return syscall.KernelErr_NoError
-
 }
 func (f *FutureGet)Success(sfn func (proto.Message)) {
     x:=func(m *GetResponse){
@@ -90,6 +110,486 @@ func (i *Client_) Get(ctx context.Context, in *GetRequest) *FutureGet {
     }
     cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureGet()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Post 
+//
+type FuturePost struct {
+    Method *future.Method[*PostResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&PostResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FuturePost)Success(sfn func (proto.Message)) {
+    x:=func(m *PostResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FuturePost)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFuturePost() *FuturePost {
+    f:=&FuturePost{
+        Method: future.NewMethod[*PostResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Post(ctx context.Context, in *PostRequest) *FuturePost { 
+    mid, ok := i.BaseService.MethodIdByName("Post")
+    if !ok {
+        f:=NewFuturePost()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFuturePost()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Put 
+//
+type FuturePut struct {
+    Method *future.Method[*PutResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&PutResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FuturePut)Success(sfn func (proto.Message)) {
+    x:=func(m *PutResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FuturePut)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFuturePut() *FuturePut {
+    f:=&FuturePut{
+        Method: future.NewMethod[*PutResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Put(ctx context.Context, in *PutRequest) *FuturePut { 
+    mid, ok := i.BaseService.MethodIdByName("Put")
+    if !ok {
+        f:=NewFuturePut()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFuturePut()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Delete 
+//
+type FutureDelete struct {
+    Method *future.Method[*DeleteResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&DeleteResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FutureDelete)Success(sfn func (proto.Message)) {
+    x:=func(m *DeleteResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureDelete)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureDelete() *FutureDelete {
+    f:=&FutureDelete{
+        Method: future.NewMethod[*DeleteResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Delete(ctx context.Context, in *DeleteRequest) *FutureDelete { 
+    mid, ok := i.BaseService.MethodIdByName("Delete")
+    if !ok {
+        f:=NewFutureDelete()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureDelete()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Head 
+//
+type FutureHead struct {
+    Method *future.Method[*HeadResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&HeadResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FutureHead)Success(sfn func (proto.Message)) {
+    x:=func(m *HeadResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureHead)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureHead() *FutureHead {
+    f:=&FutureHead{
+        Method: future.NewMethod[*HeadResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Head(ctx context.Context, in *HeadRequest) *FutureHead { 
+    mid, ok := i.BaseService.MethodIdByName("Head")
+    if !ok {
+        f:=NewFutureHead()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureHead()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Options 
+//
+type FutureOptions struct {
+    Method *future.Method[*OptionsResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&OptionsResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FutureOptions)Success(sfn func (proto.Message)) {
+    x:=func(m *OptionsResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureOptions)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureOptions() *FutureOptions {
+    f:=&FutureOptions{
+        Method: future.NewMethod[*OptionsResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Options(ctx context.Context, in *OptionsRequest) *FutureOptions { 
+    mid, ok := i.BaseService.MethodIdByName("Options")
+    if !ok {
+        f:=NewFutureOptions()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureOptions()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Patch 
+//
+type FuturePatch struct {
+    Method *future.Method[*PatchResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&PatchResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FuturePatch)Success(sfn func (proto.Message)) {
+    x:=func(m *PatchResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FuturePatch)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFuturePatch() *FuturePatch {
+    f:=&FuturePatch{
+        Method: future.NewMethod[*PatchResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Patch(ctx context.Context, in *PatchRequest) *FuturePatch { 
+    mid, ok := i.BaseService.MethodIdByName("Patch")
+    if !ok {
+        f:=NewFuturePatch()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFuturePatch()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Connect 
+//
+type FutureConnect struct {
+    Method *future.Method[*ConnectResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&ConnectResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FutureConnect)Success(sfn func (proto.Message)) {
+    x:=func(m *ConnectResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureConnect)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureConnect() *FutureConnect {
+    f:=&FutureConnect{
+        Method: future.NewMethod[*ConnectResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Connect(ctx context.Context, in *ConnectRequest) *FutureConnect { 
+    mid, ok := i.BaseService.MethodIdByName("Connect")
+    if !ok {
+        f:=NewFutureConnect()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureConnect()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+    syscallguest.MatchCompleter(cid,f)
+    return f
+}
+
+//
+// method: Http.Trace 
+//
+type FutureTrace struct {
+    Method *future.Method[*TraceResponse,HttpErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&TraceResponse{}
+    if a!=nil {
+        if any, ok := a.(*anypb.Any); ok {
+            if err:= any.UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
+        } else {
+            // `a` and `out` are the same type, so we can assign the values of a to out
+            proto.Merge(out, a.(proto.Message))
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
+    return syscall.KernelErr_NoError
+}
+func (f *FutureTrace)Success(sfn func (proto.Message)) {
+    x:=func(m *TraceResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureTrace)Failure(ffn func (int32)) {
+    x:=func(err HttpErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+func NewFutureTrace() *FutureTrace {
+    f:=&FutureTrace{
+        Method: future.NewMethod[*TraceResponse,HttpErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Trace(ctx context.Context, in *TraceRequest) *FutureTrace { 
+    mid, ok := i.BaseService.MethodIdByName("Trace")
+    if !ok {
+        f:=NewFutureTrace()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    f:=NewFutureTrace()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
