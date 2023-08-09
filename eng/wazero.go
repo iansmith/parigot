@@ -353,7 +353,6 @@ func wazeroContext(ctx context.Context) context.Context {
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	pcontext.Infof(ctx, "Run", "running entry point... in eng/wazero.go")
 	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(
 		pcontext.GuestContext(ctx), "call of run():"+e.name))
 	if err != nil {
