@@ -35,16 +35,13 @@ service Http {
 	rpc Trace(TraceRequest) returns (TraceResponse);
 }
 
-message StringList {
-	repeated string stringlist = 1;
-}
 
 // Common message for fields that are used in method requests
 message HttpRequest {
 	string url = 1;
-	map<string, StringList> header = 2;
+	map<string, string> header = 2;
 	bytes body = 3;
-	map<string,StringList> trailer = 4;
+	map<string,string> trailer = 4;
 }
 
 message GetRequest {
@@ -86,10 +83,10 @@ message TraceRequest {
 // Common message for fields that are used in method responses
 message HttpResponse {
 	int32 status_code = 1; // e.g. 200
-	map<string, StringList> header = 2;
+	map<string, string> header = 2;
 	bytes body = 3;
-	int32 content_length = 4;
-	map<string, StringList> trailer = 5;
+	int32 content_length = 4; // Note: This could also be inferred from 'body' length.
+	map<string, string> trailer = 5;
 }
 
 message GetResponse {

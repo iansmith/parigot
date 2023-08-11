@@ -2,7 +2,6 @@ package httpconnector
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"time"
 
@@ -51,11 +50,14 @@ func runHttpListener(hCnt *httpConnectorImpl) {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
 		if req != nil {
 			hCnt.httpChan <- req
+			pcontext.Infof(hCnt.ctx, "sends an HTTP request to the channel of http connector")
+			pcontext.Dump(hCnt.ctx)
 		}
-		io.WriteString(w, "start running HTTP listener!")
 	}
 	http.HandleFunc("/", h1)
 
+	pcontext.Infof(httpCnt.ctx, "start the HTTP listerner")
+	pcontext.Dump(httpCnt.ctx)
 	http.ListenAndServe(port, nil)
 }
 
@@ -94,5 +96,6 @@ func (hCnt *httpConnectorImpl) check(ctx context.Context, req *httpconnector.Che
 	case <-time.After(time.Millisecond * 40):
 		pcontext.Infof(ctx, "http connector time out")
 	}
+	pcontext.Dump(ctx)
 	return int32(httpconnector.HttpConnectorErr_NoError)
 }
