@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
@@ -77,7 +78,8 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 	// create processes
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
-		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c)
+		hid := id.NewHostId()
+		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c, hid)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module '%s': %v", name, err)
 		}

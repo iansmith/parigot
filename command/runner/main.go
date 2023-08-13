@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/command/runner/runner"
 	pcontext "github.com/iansmith/parigot/context"
@@ -42,6 +43,11 @@ func main() {
 	// create the syscall implementation
 	exitCh := make(chan *syscall.ExitPair)
 	wheeler.InstallWheeler(ctx, exitCh)
+	ok := false
+	kernel.K, ok = kernel.InitSingle()
+	if !ok {
+		log.Fatalf("unable to create kernel, aborting")
+	}
 
 	// the deploy context creation also creates any needed nameservers
 	deployCtx, err := sys.NewDeployContext(ctx, config)
@@ -91,5 +97,5 @@ func main() {
 	for {
 
 	}
-	os.Exit(8)
+	//os.Exit(8)
 }

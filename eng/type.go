@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/tetratelabs/wazero/api"
 )
 
@@ -15,8 +16,17 @@ var ErrNotFound = errors.New("unable to find requested object")
 // addresses that are out of range.
 var ErrOutOfRange = errors.New("attempted to read memory that is out of range")
 
+// Environment is an interface that allows a module to be initialized properly.
+// This should contain inofrmation that would normally come from the environment
+// has to be explicitly created because we are in a wasm container.
+type Environment interface {
+	Host() id.HostId
+	Environment() map[string]string
+	Arg() []string
+}
+
 type Engine interface {
-	NewModuleFromFile(ctx context.Context, path string) (Module, error)
+	NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error)
 	// AddSupportedFunc defines a function that is implemented on the host.
 	// The only version AddSupportedFunc() that does not have the suffix
 	// is the one that is the "standard" one for exchanging protobufs.

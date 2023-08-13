@@ -30,7 +30,8 @@ enum KernelErr{
     // a request or result, the protobuf layer returned an error.
     UnmarshalFailed = 2;
     // IdDispatch means that a dispatch call failed due to an
-    // MethodId or ServiceId was not found.
+    // MethodId or ServiceId was not found.  This is also used when
+	// binding a method if the name is invalid.
     IdDispatch = 3;
     // NamespaceExhausted is returned when the kernel can no
 	  // along accept additional packages, services, or methods.  This is used
@@ -128,13 +129,31 @@ enum KernelErr{
 	  // ReadOneTimeout means that the program was trying to request
 	  // a service/method pair to invoke, but the request timed out.
 	  ReadOneTimeout = 30;
+	  // WriteTimeout means that the program was trying to send
+	  // a request to another service, but timed out before it could do so.
+	  WriteTimeout = 31;
 	  // BadCallId is returned when trying to match up the results
 	  // and the call of a function resulting in a promise. It is returned
 	  // if either there is no such cid registered yet or the cid
 	  // is already in use.
-	  BadCallId = 31;
+	  BadCallId = 32;
+	  // ChannelClosed indicates that one of the internal channels used in
+	  // waiting for input has been closed unexpectedly.
+	  // is already in use.
+	  ChannelClosed = 33;
 
 };
+
+// MessageBundle tells the receiver all the necessary info to make a call
+// on a method.  Note that when this is sent to a particular server, the HostId
+// is the host id of the _caller_ not the place where the service is implemented.
+message MethodBundle {
+	protosupport.v1.IdRaw host_id = 1;
+	protosupport.v1.IdRaw service_id = 2;
+	protosupport.v1.IdRaw method_id = 3;
+	protosupport.v1.IdRaw call_id = 4;
+
+}
 
 message MethodBinding {
 	string method_name = 1;
@@ -162,11 +181,8 @@ message LocateResponse {
 
 // DispatchRequest is a request by a client to invoke a particular method with the parameters provided.
 message DispatchRequest {
-    protosupport.v1.IdRaw service_id = 1; 
-    protosupport.v1.IdRaw method_id = 2;
+	MethodBundle bundle = 1;
     google.protobuf.Any  param = 3;  // inside is another Request object, but we don't know its type
-	protosupport.v1.IdRaw call_id = 4; // reserved for internal use
-	protosupport.v1.IdRaw host_id = 5; // reserved for internal use
 }
 
 // DispatchResponse sent by the server back to a client.  This what is returned
@@ -181,10 +197,9 @@ message DispatchResponse {
 // function back to the caller. It is the result information
 // of a call to a service/method function.
 message ReturnValueRequest{
-	protosupport.v1.IdRaw host_id = 1;
-	protosupport.v1.IdRaw call_id = 2;
-	google.protobuf.Any result = 3;
-	int32 result_error = 4;
+	MethodBundle bundle = 1;
+	google.protobuf.Any result = 2;
+	int32 result_error = 3;
 }
 
 // ReturnValueResponse is currently empty.
@@ -305,19 +320,18 @@ message ExitResponse{
  ExitPair pair = 1;
 }
 
-// Register informs the kernel you are one of the known services
-// that can be accessed.  Clients use this so they can participate
-// in the dependency graph for startup order.
+// Register informs the kernel you are one of the running services
+// and you want a service id.
 message RegisterRequest {
-    FullyQualifiedService fqs=1;
-    protosupport.v1.IdRaw host_id =2;
+    protosupport.v1.IdRaw host_id =1;
+	string debug_name = 2;
 
 }
 
 // RegisterResponse indicates if the registering caller has created
 // the new service or not.
 message RegisterResponse {
-    protosupport.v1.IdRaw id =1;
+    protosupport.v1.IdRaw service_id =1;
 	bool existed_previously = 2;
 }
 
@@ -384,7 +398,9 @@ message ServiceMethodCall {
 }
 
 // ResolvedCall is used to hold the output of a service/method call while we
-// are waiting for the future to be resolved.
+// are waiting for the future to be resolved.  Note that the host_id here is the
+// host id of the SENDER of this message, so the place that the result was
+// calculated.
 message ResolvedCall {
 	protosupport.v1.IdRaw host_id = 1;
 	protosupport.v1.IdRaw call_id =2;
@@ -404,9 +420,8 @@ message ResolvedCall {
 // return value represents a completed call from a previous
 // point in the execution of the calling program.
 message ReadOneRequest {
-	repeated ServiceMethodCall call = 1;
-	int32 timeout_in_millis = 2;
-	protosupport.v1.IdRaw  host_id = 3;
+	int32 timeout_in_millis = 1;
+	protosupport.v1.IdRaw host_id = 2;
 }
 
 // ReadOneResponse is returned when the control
@@ -434,11 +449,11 @@ message ReadOneRequest {
 // it may be nil.  
 message ReadOneResponse {
     bool timeout =1;
-    ServiceMethodCall call =2;
-	protosupport.v1.IdRaw  call_id = 3;
-	google.protobuf.Any param = 4; 
+	MethodBundle bundle = 2;
+	google.protobuf.Any param_or_result = 3; 
+	int32 result_err = 4;
 	ResolvedCall resolved = 5;
-    bool exit =6;
+    ExitPair exit =6;
 }
 
 // ExitPair is a structure that is a service that is requesting
@@ -446,7 +461,7 @@ message ReadOneResponse {
 // if the caller wants the entire suite of services to be exited.
 // Code will be in the "allowed" range of 0 to 192.
 message ExitPair {
-	protosupport.v1.IdRaw  service_id = 1;
+	protosupport.v1.IdRaw service_id = 1;
 	int32 code  = 2;
 }
 

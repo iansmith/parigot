@@ -158,9 +158,9 @@ func (s *ServiceMethodMap) Enable(sid id.ServiceId, mid id.MethodId) {
 	}
 }
 
-// Func returns the FuncAnyIO object associated with the sid and mid pair. If
+// Func returns the Invoker associated with the sid and mid pair. If
 // either sid or mid cannot be found, it returns nil.
-func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoker {
+func (s *ServiceMethodMap) xxxFunc(sid id.ServiceId, mid id.MethodId) future.Invoker {
 	m := s.forward[sid.String()]
 	if m == nil {
 		return nil
