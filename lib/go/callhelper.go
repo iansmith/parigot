@@ -43,19 +43,15 @@ func MustRegisterClient(ctx context.Context) id.ServiceId {
 
 func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId {
 	req := &syscall.RegisterRequest{}
-	fqs := &syscall.FullyQualifiedService{
-		PackagePath: pkg,
-		Service:     name,
-	}
-	req.Fqs = fqs
 	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.DebugName = fmt.Sprintf("%s.%s", pkg, name)
 	resp, err := syscallguest.Register(req)
 	if err != 0 {
 		pcontext.Fatalf(ctx, "unable to register %s.%s: %s", pkg, name,
 			syscall.KernelErr_name[int32(err)])
 		panic("registration error")
 	}
-	sid := id.UnmarshalServiceId(resp.GetId())
+	sid := id.UnmarshalServiceId(resp.GetServiceId())
 	return sid
 
 }

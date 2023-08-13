@@ -8,6 +8,7 @@ import (
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -101,6 +102,9 @@ func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *sysca
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 { //syscall.KernelErr {
+	log.Printf("yyy -- register")
+	kerr := kernel.K.Register(req, resp)
+	log.Printf("yyy -- register done %d", kerr)
 	return int32(handleByWheeler(req, resp))
 }
 
@@ -127,6 +131,7 @@ func dispatch(ctx context.Context, m api.Module, stack []uint64) {
 func blockUntilCall(ctx context.Context, m api.Module, stack []uint64) {
 	log.Printf("blockUntilCall 0x%x", stack)
 }
+
 func bindMethod(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.BindMethodRequest{}
 	resp := &syscall.BindMethodResponse{}
@@ -155,6 +160,7 @@ func require(ctx context.Context, m api.Module, stack []uint64) {
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]require", m, stack, requireImpl, req, resp)
 
 }
+
 func readOne(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ReadOneRequest{}
 	resp := &syscall.ReadOneResponse{}

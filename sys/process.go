@@ -1,7 +1,6 @@
 package sys
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -9,6 +8,7 @@ import (
 	"plugin"
 	"sync"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -55,15 +55,17 @@ type Process struct {
 
 	microservice Service
 
-	requirementsMet bool
-	reachedRunBlock bool
-	running         bool
-	exited          bool
-	exitCode_       int //really only 0-192
+	hid id.HostId // our name
 
-	argv       int32 //ptr
-	argc       int32
-	argvBuffer *bytes.Buffer
+	// requirementsMet bool
+	// reachedRunBlock bool
+	running   bool
+	exited    bool
+	exitCode_ int //really only 0-192
+
+	// argv       int32 //ptr
+	// argc       int32
+	// argvBuffer *bytes.Buffer
 
 	exitChan chan int32
 
@@ -74,21 +76,22 @@ type Process struct {
 // method is called from the same thread/goroutine, in sequence.  This is, effectively,
 // a loader for the os.  xxxfixme this really should be safe to use in multiple go routines ... then we
 // could have a repl??
-func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service, ctx *DeployContext) (*Process, error) {
+func NewProcessFromMicroservice(c context.Context, engine eng.Engine, m Service, ctx *DeployContext, hid id.HostId) (*Process, error) {
 
 	lastProcessId++
 	id := lastProcessId
 	proc := &Process{
-		id:              id,
-		engine:          engine,
-		module:          m.GetModule(),
-		instance:        nil,
-		running:         false,
-		reachedRunBlock: false,
-		exited:          false,
-		microservice:    m,
-		path:            m.GetWasmPath(),
-		exitChan:        make(chan int32),
+		id:       id,
+		engine:   engine,
+		module:   m.GetModule(),
+		instance: nil,
+		running:  false,
+		//reachedRunBlock: false,
+		exited:       false,
+		microservice: m,
+		path:         m.GetWasmPath(),
+		exitChan:     make(chan int32),
+		hid:          hid,
 	}
 
 	if m.GetPluginPath() != "" {
@@ -129,9 +132,10 @@ func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymb
 	return nil
 }
 
-func (p *Process) RequirementsMet() bool {
-	return p.requirementsMet
-}
+// func (p *Process) RequirementsMet() bool {
+// 	return p.requirementsMet
+// }
+
 func (p *Process) IsServer() bool {
 	// if we have a remote spec, then we are remote
 	return p.microservice.IsServer()
@@ -155,19 +159,21 @@ func (p *Process) String() string {
 
 	return fmt.Sprintf("[proc-%d:%s:%s]", p.id, p.microservice.GetName(), file)
 }
-func (p *Process) SetReachedRunBlock(r bool) {
-	p.lock.Lock()
-	defer p.lock.Unlock()
 
-	p.reachedRunBlock = r
-}
+// func (p *Process) SetReachedRunBlock(r bool) {
+// 	p.lock.Lock()
+// 	defer p.lock.Unlock()
 
-func (p *Process) ReachedRunBlock() bool {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+// 	p.reachedRunBlock = r
+// }
 
-	return p.reachedRunBlock
-}
+// func (p *Process) ReachedRunBlock() bool {
+// 	p.lock.Lock()
+// 	defer p.lock.Unlock()
+
+// 	return p.reachedRunBlock
+// }
+
 func (p *Process) Running() bool {
 	p.lock.Lock()
 	defer p.lock.Unlock()

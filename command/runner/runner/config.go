@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 )
@@ -220,12 +221,42 @@ func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, e
 	return result, nil
 }
 
+type simpleEnv struct {
+	argv []string
+	envp map[string]string
+	hid  id.HostId
+}
+
+func (s *simpleEnv) Arg() []string                  { return s.argv }
+func (s *simpleEnv) Environment() map[string]string { return s.envp }
+func (s *simpleEnv) Host() id.HostId                { return s.hid }
+
 func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, name string) (eng.Module, error) {
 	m, ok := c.Microservice[name]
 	if !ok {
 		panic(fmt.Sprintf("unable to find microservice with name '%s", name))
 	}
-	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath)
+	argv := []string{name}
+	argv = append(argv, m.GetArg()...)
+	envp := make(map[string]string)
+	raw := m.GetEnv()
+	for _, s := range raw {
+		part := strings.SplitN(s, "=", 2)
+		if len(part) == 0 {
+			continue
+		}
+		if len(part) == 1 {
+			envp[part[0]] = ""
+		} else {
+			envp[part[0]] = strings.Join(part[1:], "")
+		}
+	}
+	env := simpleEnv{
+		argv: argv,
+		envp: envp,
+		hid:  id.NewHostId(),
+	}
+	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath, &env)
 	if err != nil {
 		pcontext.Errorf(ctx, "new module failed to create from file %s: %v", m.WasmPath, err.Error())
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",

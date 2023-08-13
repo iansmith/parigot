@@ -1,0 +1,30 @@
+package kernel
+
+import (
+	"github.com/iansmith/parigot/api/shared/id"
+	"github.com/iansmith/parigot/g/syscall/v1"
+)
+
+// fromNetworkToMethodBundle transforms something from the network format of
+// a message bundle to the local, in-memory representation.  This returns the
+// translated methodBundle and an indicator if there was a callId present in
+// the original. This can be used to distinguish Dispatch from ReturnValue.
+func fromNetworkToMethodBundle(b *syscall.MethodBundle) (MethodBundle, bool) {
+	hid := id.UnmarshalHostId(b.HostId)
+	sid := id.UnmarshalServiceId(b.ServiceId)
+	mid := id.UnmarshalMethodId(b.MethodId)
+
+	cid := id.UnmarshalCallId(b.CallId)
+	result := MethodBundle{
+		Hid: hid,
+		Sid: sid,
+		Mid: mid,
+		Cid: cid,
+	}
+
+	if cid.IsZeroOrEmptyValue() {
+		// this is a dispatch
+		return result, true
+	}
+	return result, false
+}

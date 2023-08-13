@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/rand"
-	"reflect"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -70,13 +70,6 @@ type InProtoPair struct {
 	Ch  chan OutProtoPair
 }
 
-// hostServiceBinding creates a connection between a given
-// service id and the host that it lives on.
-type hostServiceBinding struct {
-	service id.ServiceId
-	host    id.HostId
-}
-
 // fqName is a fully qualified name of a service, analagous to
 // syscall.FullyQualifiedName.
 type fqName struct {
@@ -103,6 +96,13 @@ type exitInfo struct {
 	cid       id.CallId
 	result    *anypb.Any
 	resultErr int32
+}
+
+// hostServiceBinding creates a connection between a given
+// service id and the host that it lives on.
+type hostServiceBinding struct {
+	service id.ServiceId
+	host    id.HostId
 }
 
 // wheeler is the type that implements system calls.  It actually
@@ -176,9 +176,57 @@ func (w *wheeler) errorf(spec string, rest ...interface{}) {
 	pcontext.Dump(w.ctx)
 }
 
+// isRunning checks to see if a particular service is on the running list.
+func (w *wheeler) isRunning(sid id.ServiceId) bool {
+	running := false
+	for _, r := range w.runList {
+		if r.Equal(sid) {
+			running = true
+			break
+		}
+	}
+	return running
+}
+
+// findRunnable walks the waiting list and if the service on the
+// waiting list is ready to run, it moves the service to the running
+// list and notifies the channel that is waiting on the response.
+// This function runs until there are no more changes.
+func (w *wheeler) findRunnable() {
+	change := true
+	var result []launchData
+	if len(w.waitList) == 0 {
+		return
+	}
+	for change {
+		change = false
+		result = []launchData{}
+		for _, wait := range w.waitList {
+			fulfillment := w.requirementsMet(wait.sid)
+			if fulfillment != nil {
+				change = true
+				w.serviceToFulfillment[wait.sid.String()] = fulfillment
+				w.runList = append(w.runList, wait.sid)
+				if err := w.notifyRun(wait); err != syscall.KernelErr_NoError {
+					w.errorf("unable to send response back to client via the ReturnValue mechanism: %s", syscall.KernelErr_name[int32(err)])
+					return
+				}
+			} else {
+				result = append(result, wait)
+			}
+		}
+		w.waitList = result
+	}
+
+}
+
 // requirementsMet checks to see if there are services that
 // meet the requirements requested *and* these services are
-// in the run list.
+// in the run list.  The return value is nil in the case where
+// the sid has not had it its requirements met.  Otherwise,
+// the return value is a map of maps whose keys are the package
+// name and service name of a requirement and the final value
+// is the hostServiceBinding that fulfilled the requirement.
 func (w *wheeler) requirementsMet(sid id.ServiceId) map[string]map[string]hostServiceBinding {
 	//if you are not launched, then your requirements cannot be met
 	_, ok := w.serviceIsLaunched[sid.String()]
@@ -227,76 +275,6 @@ func (w *wheeler) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 	return fulfilled
 }
 
-func (w *wheeler) detectCycle(sid id.ServiceId) bool {
-	export := w.serviceToExports[sid.String()]
-	if len(export) == 0 { // no exports
-		return false
-	}
-	for svc, fulfilled := range w.serviceToFulfillment {
-		for pkg, nMap := range fulfilled {
-			for _, ex := range export {
-				if ex.pkg == pkg {
-					for name, candidate := range nMap {
-						if name == ex.name {
-							if sid.Equal(candidate.service) &&
-								w.serviceToHost[sid.String()].Equal(candidate.host) {
-								w.errorf("cycle detected between %s and %s, because %s imports %s.%s and %s exports that service",
-									sid.Short(), svc, svc, pkg, name, sid.Short())
-								return true
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return false
-}
-
-// isRunning checks to see if a particular service is on the running list.
-func (w *wheeler) isRunning(sid id.ServiceId) bool {
-	running := false
-	for _, r := range w.runList {
-		if r.Equal(sid) {
-			running = true
-			break
-		}
-	}
-	return running
-}
-
-// findRunnable walks the waiting list and if the service on the
-// waiting list is ready to run, it moves the service to the running
-// list and notifies the channel that is waiting on the response.
-// This function runs until there are no more changes.
-func (w *wheeler) findRunnable() {
-	change := true
-	var result []launchData
-	if len(w.waitList) == 0 {
-		return
-	}
-	for change {
-		change = false
-		result = []launchData{}
-		for _, wait := range w.waitList {
-			fulfillment := w.requirementsMet(wait.sid)
-			if fulfillment != nil {
-				change = true
-				w.serviceToFulfillment[wait.sid.String()] = fulfillment
-				w.runList = append(w.runList, wait.sid)
-				if err := w.notifyRun(wait); err != syscall.KernelErr_NoError {
-					w.errorf("unable to send response back to client via the ReturnValue mechanism: %s", syscall.KernelErr_name[int32(err)])
-					return
-				}
-			} else {
-				result = append(result, wait)
-			}
-		}
-		w.waitList = result
-	}
-
-}
-
 // launch causes the calling service to be put on the waiting list. This function
 // returns ok unless the attempt to put it on the waiting list failed.  This
 // call is a special front end for dispatch().
@@ -333,9 +311,9 @@ func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.Kernel
 // earlier.  It will find the appropriate call id and then use ReturnValue
 // to do the work of tellig the future what is up.
 func (w *wheeler) notifyRun(launch launchData) syscall.KernelErr {
-	req := syscall.ReturnValueRequest{}
-	req.CallId = launch.cid.Marshal()
-	req.HostId = launch.hid.Marshal()
+	//req := syscall.ReturnValueRequest{}
+	// req.CallId = launch.cid.Marshal()
+	// req.HostId = launch.hid.Marshal()
 
 	if w.detectCycle(launch.sid) {
 		w.errorf("unable to start service %s, cycle detected in depndencies",
@@ -350,6 +328,32 @@ func (w *wheeler) notifyRun(launch launchData) syscall.KernelErr {
 		return w.matcher().Response(launch.cid, nil, int32(syscall.KernelErr_MarshalFailed))
 	}
 	return w.matcher().Response(launch.cid, a, int32(syscall.KernelErr_NoError))
+}
+
+func (w *wheeler) detectCycle(sid id.ServiceId) bool {
+	export := w.serviceToExports[sid.String()]
+	if len(export) == 0 { // no exports
+		return false
+	}
+	for svc, fulfilled := range w.serviceToFulfillment {
+		for pkg, nMap := range fulfilled {
+			for _, ex := range export {
+				if ex.pkg == pkg {
+					for name, candidate := range nMap {
+						if name == ex.name {
+							if sid.Equal(candidate.service) &&
+								w.serviceToHost[sid.String()].Equal(candidate.host) {
+								w.errorf("cycle detected between %s and %s, because %s imports %s.%s and %s exports that service",
+									sid.Short(), svc, svc, pkg, name, sid.Short())
+								return true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // export implements the export for all the given types.
@@ -467,85 +471,69 @@ func (w *wheeler) bothDispatchAndResponse(hid id.HostId, cid id.CallId, resp pro
 // register creates an entry in wheeler data structures that
 // are per-service.  It must be called by a service before that
 // service can export interfaces or launch.
-func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.KernelErr) {
-	pkg := req.Fqs.GetPackagePath()
-	name := req.Fqs.GetService()
-	hid := id.UnmarshalHostId(req.GetHostId())
+// func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.KernelErr) {
+// 	pkg := req.Get.GetPackagePath()
+// 	name := req.Fqs.GetService()
+// 	hid := id.UnmarshalHostId(req.GetHostId())
 
-	if hid.IsZeroOrEmptyValue() {
-		w.errorf("host Id in register() is zero or empty: %s", hid.Short())
-		return nil, syscall.KernelErr_BadId
-	}
+// 	if hid.IsZeroOrEmptyValue() {
+// 		w.errorf("host Id in register() is zero or empty: %s", hid.Short())
+// 		return nil, syscall.KernelErr_BadId
+// 	}
 
-	sMap, ok := w.pkgToRegistration[pkg]
-	if !ok {
-		sMap = make(map[string][]hostServiceBinding)
-		w.pkgToRegistration[pkg] = sMap
-	}
-	b, ok := sMap[name]
-	if !ok {
-		b = []hostServiceBinding{}
-		sMap[name] = b
-	}
-	sid := id.NewServiceId()
-	existedPreviously := false
-	//check it's not already there
-	for _, bind := range b {
-		if bind.host.Equal(hid) {
-			sid = bind.service
-			existedPreviously = true
-			break
-		}
-	}
-	if !existedPreviously {
-		b = append(b, hostServiceBinding{host: hid, service: sid})
-		sMap[name] = b
-		w.stringToService[sid.String()] = sid
-	}
-	resp := &syscall.RegisterResponse{}
-	resp.ExistedPreviously = existedPreviously
-	resp.Id = sid.Marshal()
+// 	sMap, ok := w.pkgToRegistration[pkg]
+// 	if !ok {
+// 		sMap = make(map[string][]hostServiceBinding)
+// 		w.pkgToRegistration[pkg] = sMap
+// 	}
+// 	b, ok := sMap[name]
+// 	if !ok {
+// 		b = []hostServiceBinding{}
+// 		sMap[name] = b
+// 	}
+// 	sid := id.NewServiceId()
+// 	existedPreviously := false
+// 	//check it's not already there
+// 	for _, bind := range b {
+// 		if bind.host.Equal(hid) {
+// 			sid = bind.service
+// 			existedPreviously = true
+// 			break
+// 		}
+// 	}
+// 	if !existedPreviously {
+// 		b = append(b, hostServiceBinding{host: hid, service: sid})
+// 		sMap[name] = b
+// 		w.stringToService[sid.String()] = sid
+// 	}
+// 	resp := &syscall.RegisterResponse{}
+// 	resp.ExistedPreviously = existedPreviously
+// 	resp.Id = sid.Marshal()
 
-	// register the early part of the exit machinery
-	cid := id.NewCallId()
-	info := exitInfo{
-		hid:       hid,
-		cid:       cid,
-		result:    nil,
-		resultErr: 0,
-	}
-	if kerr := w.matcher().Dispatch(hid, cid); kerr != syscall.KernelErr_NoError {
-		w.errorf("unable to create information needed for a controlled exit")
-		return nil, kerr
-	}
-	w.serviceToExit[sid.String()] = info
-	return returnResponseOrMarshalError(w, resp)
-}
+// 	// register the early part of the exit machinery
+// 	cid := id.NewCallId()
+// 	info := exitInfo{
+// 		hid:       hid,
+// 		cid:       cid,
+// 		result:    nil,
+// 		resultErr: 0,
+// 	}
+// 	if kerr := w.matcher().Dispatch(hid, cid); kerr != syscall.KernelErr_NoError {
+// 		w.errorf("unable to create information needed for a controlled exit")
+// 		return nil, kerr
+// 	}
+// 	w.serviceToExit[sid.String()] = info
+// 	return returnResponseOrMarshalError(w, resp)
+// }
 
 // bindMethod creates a mapping in the tables about what methods
 // a given (concrete) service has.  This registration should be done
 func (w *wheeler) bindMethod(req *syscall.BindMethodRequest) (*anypb.Any, syscall.KernelErr) {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-
-	if sid.IsZeroOrEmptyValue() {
-		return nil, syscall.KernelErr_BadId
-	}
-
-	methName := req.GetMethodName()
 	resp := &syscall.BindMethodResponse{}
-
-	methMap, ok := w.serviceToMethMap[sid.String()]
-	if !ok {
-		methMap = make(map[string]id.MethodId)
-		w.serviceToMethMap[sid.String()] = methMap
+	err := kernel.K.BindMethod(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
-	mid, ok := methMap[methName]
-	if !ok {
-		mid = id.NewMethodId()
-		methMap[methName] = mid
-	}
-	resp.MethodId = mid.Marshal()
-	pairIdToChannel[MakeSidMidCombo(sid, mid)] = make(chan CallInfo, 8)
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -573,7 +561,7 @@ func (w *wheeler) serviceByName(req *syscall.ServiceByNameRequest) (*anypb.Any, 
 }
 
 func (w *wheeler) returnValue(req *syscall.ReturnValueRequest) (*anypb.Any, syscall.KernelErr) {
-	cid := id.UnmarshalCallId(req.GetCallId())
+	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
 	kerr := w.matcher().Response(cid, req.Result, req.ResultError)
 	if kerr != syscall.KernelErr_NoError {
 		return nil, kerr
@@ -589,33 +577,12 @@ func (w *wheeler) matcher() CallMatcher {
 // dispatch is called for the first phase of an RPC.  This creates the structures
 // to handle completing the call later.
 func (w *wheeler) dispatch(req *syscall.DispatchRequest) (*anypb.Any, syscall.KernelErr) {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-	mid := id.UnmarshalMethodId(req.GetMethodId())
-	cid := id.UnmarshalCallId(req.GetCallId())
-	hid := id.UnmarshalHostId(req.GetHostId())
 	resp := &syscall.DispatchResponse{}
-
-	if kerr := w.matcher().Dispatch(hid, cid); kerr != syscall.KernelErr_NoError {
-		log.Printf("dispatch error in wheeler: %s", syscall.KernelErr_name[int32(kerr)])
-		return nil, kerr
+	err := kernel.K.Dispatch(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
-
-	target, ok := pairIdToChannel[MakeSidMidCombo(sid, mid)]
-	if !ok {
-		// should this have a special error?
-		log.Printf("xxx -- unable to find a match for pair %s", MakeSidMidCombo(sid, mid))
-		return nil, syscall.KernelErr_NotFound
-	}
-
-	resp.CallId = req.GetCallId()
-
-	cm := CallInfo{
-		cid:   cid,
-		param: req.GetParam(),
-	}
-	target <- cm
 	return returnResponseOrMarshalError(w, resp)
-
 }
 
 // syncExitWrites to the channel that will cause the exit handlers to run.
@@ -667,104 +634,33 @@ func Goid() int {
 // readOne is the method that is called to read the next request from the channels.
 func (w *wheeler) readOne(req *syscall.ReadOneRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.ReadOneResponse{}
-	hid := id.UnmarshalHostId(req.HostId)
-	rc, err := w.matcher().Ready(hid)
-	if err != syscall.KernelErr_NoError { // error with ready() itself
+	err := kernel.K.ReadOne(req, resp)
+	if err != syscall.KernelErr_NoError {
 		return nil, err
 	}
-	// we favor resolving calls, which may be a terrible idea
-	if rc != nil {
-		resp.Timeout = false
-		resp.Call = nil
-		resp.Param = nil
-		resp.Resolved = rc
-		return returnResponseOrMarshalError(w, resp)
-	}
-
-	cases := []reflect.SelectCase{}
-	// now we are going to listen for a message on one of the channels
-	// we can also timeout.  the order of these, sadly, matters and
-	// the service/method listeners must go first because the index
-	// of the channel is how we figure out how to dispatch the method.
-	timeoutChoice, exitChoice := -1, -1
-
-	mcl := newMethodCallListener(req)
-	cases = append(cases, mcl.Case()...)
-
-	tl := newTimeoutListener(req.TimeoutInMillis)
-	c := tl.Case()
-	if len(c) != 0 {
-		timeoutChoice = len(cases) // we are about to fill the spot
-	}
-	cases = append(cases, c...)
-
-	exitChannel := (chan int32)(nil)
-	el := NewExitListener(exitChannel)
-	c = el.Case()
-	if len(c) != 0 {
-		exitChoice = len(cases)
-	}
-	cases = append(cases, c...)
-
-	if len(cases) == 0 { // very unlikely since there is the possibility of exit
-		resp.Call = nil
-		resp.Param = nil
-		resp.Timeout = false
-		resp.Exit = false
-		return returnResponseOrMarshalError(w, resp)
-	}
-
-	// run the select
-	chosen, value, ok := reflect.Select(cases)
-
-	// ok will be true if the channel has not been closed.
-	if !ok {
-		return nil, syscall.KernelErr_KernelConnectionFailed
-	}
-
-	switch chosen {
-	case timeoutChoice:
-		tl.Handle(value, chosen, resp)
-	case exitChoice:
-		el.Handle(value, chosen, resp)
-	default:
-		mcl.Handle(value, chosen, resp)
-	}
-
 	return returnResponseOrMarshalError(w, resp)
 
 }
-
-// func newOutPair(origin string, resp anypb.Any) OutProtoPair {
-
-// }
 
 // require is the way a service expresses what _other_ services it needs.
 // any service name that is going to be looked up with "Locate" should have
 // had the service doing said lookup require it beforehand.
 func (w *wheeler) require(req *syscall.RequireRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.RequireResponse{}
-	src := id.UnmarshalServiceId(req.GetSource())
-	dest := make([]fqName, len(req.GetDest()))
-	for i, d := range req.GetDest() {
-		curr := fqName{
-			pkg:  d.PackagePath,
-			name: d.Service,
-		}
-		dest[i] = curr
+	err := kernel.K.Require(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
-	wait, ok := w.serviceToWaiting[src.String()]
-	if !ok {
-		wait = []fqName{}
-	}
-	for i := 0; i < len(dest); i++ {
-		wait = append(wait, dest[i])
-	}
-	w.serviceToWaiting[src.String()] = wait
+	return returnResponseOrMarshalError(w, resp)
+}
 
-	// if err := dfs(); err != syscall.KernelErr_NoError {
-	// 	return nil, err
-	// }
+// register
+func (w *wheeler) register(req *syscall.RegisterRequest) (*anypb.Any, syscall.KernelErr) {
+	resp := &syscall.RegisterResponse{}
+	err := kernel.K.Register(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
+	}
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -808,51 +704,9 @@ func (w *wheeler) checkAlreadyRequired(sid id.ServiceId, pkg, name string) bool 
 // until all dependencies are met.
 func (w *wheeler) locate(req *syscall.LocateRequest) (*anypb.Any, syscall.KernelErr) {
 	resp := &syscall.LocateResponse{}
-	sid := id.UnmarshalServiceId(req.GetCalledBy())
-	pkg := req.GetPackageName()
-	name := req.GetServiceName()
-	sMap, ok := w.pkgToServiceImpl[pkg]
-
-	if !w.checkAlreadyRequired(sid, pkg, name) {
-		w.errorf("service %s did not require service %s.%s but imports it", sid.Short(),
-			pkg, name)
-		return nil, syscall.KernelErr_NotRequired
-	}
-
-	if !ok {
-		w.errorf("failed to find service that was requested in Locate (0): %s.%s", strings.ToUpper(pkg), name)
-		return nil, syscall.KernelErr_NotFound
-	}
-	target, ok := sMap[name]
-	if !ok {
-		w.errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, strings.ToUpper(name))
-		return nil, syscall.KernelErr_NotFound
-	}
-	if len(target) == 0 {
-		w.errorf("failed to find service that was requested in Locate (2): %s.%s", strings.ToUpper(pkg), strings.ToUpper(name))
-		return nil, syscall.KernelErr_NotFound
-
-	}
-	chosen := target[0]
-	if len(target) > 1 {
-		n := rand.Intn(len(target))
-		chosen = target[n]
-	}
-
-	resp.ServiceId = chosen.service.Marshal()
-	resp.HostId = chosen.host.Marshal()
-	meth, ok := w.serviceToMethMap[chosen.service.String()]
-	if !ok {
-		// no methods?
-		w.errorf("unable to find any methods associated with service %s (%s.%s)", chosen.service.Short(), pkg, name)
-	}
-	resp.Binding = []*syscall.MethodBinding{}
-	for name, meth := range meth {
-		mb := &syscall.MethodBinding{
-			MethodName: name,
-			MethodId:   meth.Marshal(),
-		}
-		resp.Binding = append(resp.Binding, mb)
+	err := kernel.K.Locate(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
 	return returnResponseOrMarshalError(w, resp)
 }

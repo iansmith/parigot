@@ -7,9 +7,11 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"unsafe"
 
 	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 
 	"github.com/tetratelabs/wazero"
@@ -36,6 +38,7 @@ type wazeroModule struct {
 	cm     wazero.CompiledModule
 	name   string
 	host   bool
+	env    Environment
 }
 
 type wazeroInstance struct {
@@ -161,7 +164,7 @@ func (e *wazeroMemoryExtern) WriteUint64LittleEndian(memoryOffset uint32, value 
 	e.m.WriteUint64Le(memoryOffset, value)
 }
 
-func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string) (Module, error) {
+func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -183,7 +186,7 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string) (Module,
 	if err != nil {
 		return nil, err
 	}
-	return &wazeroModule{cm: mod, parent: e, name: path}, nil
+	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 
 func (i *wazeroInstance) addMemory(ctx context.Context) error {
@@ -290,6 +293,19 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 
 func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	fsConfig := wazero.NewFSConfig()
+	args := []string{}
+	envp := make(map[string]string)
+	hid := id.HostIdZeroValue()
+	if m.env != nil {
+		args = m.env.Arg()
+		envp = m.env.Environment()
+		envp["HOSTID_HIGH"] = fmt.Sprintf("%x", m.env.Host().High())
+		envp["HOSTID_LOW"] = fmt.Sprintf("%x", m.env.Host().Low())
+	} else {
+		envp["HOSTID_HIGH"] = fmt.Sprintf("%x", hid.High())
+		envp["HOSTID_LOW"] = fmt.Sprintf("%x", hid.Low())
+
+	}
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
@@ -300,7 +316,12 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 		WithFSConfig(fsConfig).
 		WithSysNanosleep().
 		WithSysNanotime().
-		WithSysWalltime()
+		WithSysWalltime().
+		WithArgs(strings.Join(append([]string{m.name}, args...), " "))
+
+	for k, v := range envp {
+		conf.WithEnv(k, v)
+	}
 
 	mod, err := m.parent.r.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
