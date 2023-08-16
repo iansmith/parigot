@@ -37,6 +37,10 @@ func (l *LaunchFuture) Completed() bool {
 	return l.fut.Completed()
 }
 
+func (l *LaunchFuture) Cancel() {
+	l.fut.Cancel()
+}
+
 func NewLaunchFuture() *LaunchFuture {
 	return &LaunchFuture{
 		fut: future.NewMethod[*syscall.LaunchResponse, syscall.KernelErr](nil, nil),
@@ -82,6 +86,14 @@ func NewExitFuture() *ExitFuture {
 	return &ExitFuture{
 		fut: future.NewMethod[*syscall.ExitResponse, syscall.KernelErr](nil, nil),
 	}
+}
+
+func (l *ExitFuture) Cancel() {
+	l.fut.Cancel()
+}
+
+func (l *ExitFuture) Completed() bool {
+	return l.fut.Completed()
 }
 
 // CompleteMethod is used to complete a previously defined future of type ExitFuture.

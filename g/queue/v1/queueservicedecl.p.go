@@ -88,6 +88,14 @@ func (f *FutureCreateQueue)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureCreateQueue)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureCreateQueue)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureCreateQueue() *FutureCreateQueue {
     f:=&FutureCreateQueue{
         Method: future.NewMethod[*CreateQueueResponse,QueueErr](nil,nil),
@@ -106,7 +114,7 @@ func (i *Client_) CreateQueue(ctx context.Context, in *CreateQueueRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -144,6 +152,14 @@ func (f *FutureLocate)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureLocate)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureLocate)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureLocate() *FutureLocate {
     f:=&FutureLocate{
         Method: future.NewMethod[*LocateResponse,QueueErr](nil,nil),
@@ -162,7 +178,7 @@ func (i *Client_) Locate(ctx context.Context, in *LocateRequest) *FutureLocate {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -200,6 +216,14 @@ func (f *FutureDeleteQueue)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureDeleteQueue)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureDeleteQueue)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureDeleteQueue() *FutureDeleteQueue {
     f:=&FutureDeleteQueue{
         Method: future.NewMethod[*DeleteQueueResponse,QueueErr](nil,nil),
@@ -218,7 +242,7 @@ func (i *Client_) DeleteQueue(ctx context.Context, in *DeleteQueueRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -256,6 +280,14 @@ func (f *FutureReceive)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureReceive)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureReceive)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureReceive() *FutureReceive {
     f:=&FutureReceive{
         Method: future.NewMethod[*ReceiveResponse,QueueErr](nil,nil),
@@ -274,7 +306,7 @@ func (i *Client_) Receive(ctx context.Context, in *ReceiveRequest) *FutureReceiv
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -312,6 +344,14 @@ func (f *FutureMarkDone)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureMarkDone)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureMarkDone)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureMarkDone() *FutureMarkDone {
     f:=&FutureMarkDone{
         Method: future.NewMethod[*MarkDoneResponse,QueueErr](nil,nil),
@@ -330,7 +370,7 @@ func (i *Client_) MarkDone(ctx context.Context, in *MarkDoneRequest) *FutureMark
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -368,6 +408,14 @@ func (f *FutureLength)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureLength)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureLength)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureLength() *FutureLength {
     f:=&FutureLength{
         Method: future.NewMethod[*LengthResponse,QueueErr](nil,nil),
@@ -386,7 +434,7 @@ func (i *Client_) Length(ctx context.Context, in *LengthRequest) *FutureLength {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -424,6 +472,14 @@ func (f *FutureSend)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureSend)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureSend)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureSend() *FutureSend {
     f:=&FutureSend{
         Method: future.NewMethod[*SendResponse,QueueErr](nil,nil),
@@ -442,6 +498,6 @@ func (i *Client_) Send(ctx context.Context, in *SendRequest) *FutureSend {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

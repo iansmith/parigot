@@ -80,7 +80,6 @@ func (s *starter) Export(req *syscall.ExportRequest, resp *syscall.ExportRespons
 	for _, fqn := range req.GetService() {
 		pkg := fqn.GetPackagePath()
 		name := fqn.GetService()
-		log.Printf("xxx -- Export in starter: sid=%s, hid=%s: %s.%s", sid.Short(), hid.Short(), pkg, name)
 		pkg2map, ok := s.pkgToServiceImpl[pkg]
 		if !ok {
 			pkg2map = make(map[string][]hostServiceBinding)
@@ -120,7 +119,6 @@ func (s *starter) Launch(sid id.ServiceId, cid id.CallId, hid id.HostId, mid id.
 	}
 
 	s.waitList = append(s.waitList, ld)
-	log.Printf("zzz -- starter Launch, %s added to wait list %d", ld.String(), len(s.waitList))
 	s.serviceIsLaunched[sid.String()] = struct{}{}
 	s.findRunnable()
 
@@ -175,19 +173,13 @@ func (s *starter) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 		return nil
 	}
 
-	log.Printf("zzz -- sid %s, checking to see if requirements met", sid.Short())
 	neededList := s.serviceToWaiting[sid.String()]
-	log.Printf(" zzz --- for sid %s, neededList %+v", sid.Short(), neededList)
 	fulfilled := make(map[string]map[string]hostServiceBinding)
 	for _, need := range neededList {
-		log.Printf(" zzz --- for sid %s, searching for package %s.%s", sid.Short(), need.pkg, need.name)
-
 		smap, ok := s.pkgToServiceImpl[need.pkg]
 		if !ok {
 			return nil
 		}
-		log.Printf(" zzz --- for sid %s, looking for name %s in %+v", sid.Short(), need.name, smap)
-
 		implList, ok := smap[need.name]
 		if !ok {
 			return nil
@@ -276,13 +268,11 @@ func (s *starter) findRunnable() {
 	for change {
 		change = false
 		result = []launchData{}
-		log.Printf("zzz -- checking waiting list of size %d for runnable", len(s.waitList))
 		for _, wait := range s.waitList {
 			fulfillment := s.requirementsMet(wait.sid)
 			if fulfillment != nil {
 				change = true
 				s.serviceToFulfillment[wait.sid.String()] = fulfillment
-				log.Printf("zzz -- moving %s to pending list", wait.sid.Short())
 				s.moveToPending(wait)
 			} else {
 				result = append(result, wait)

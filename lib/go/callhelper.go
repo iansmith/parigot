@@ -3,7 +3,6 @@ package lib
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 
@@ -53,7 +52,6 @@ func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId
 		panic("registration error")
 	}
 	sid := id.UnmarshalServiceId(resp.GetServiceId())
-	log.Printf("register of %s.%s returned %s", pkg, name, sid.Short())
 	return sid
 
 }
@@ -98,7 +96,6 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 		CallId:    cid.Marshal(),
 		MethodId:  apishared.LaunchMethod.Marshal(),
 	}
-	log.Printf("LaunchClient with sid %s", myId.Short())
 	return syscallguest.Launch(req)
 }
 

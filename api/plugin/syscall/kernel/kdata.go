@@ -121,7 +121,6 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
 	k.matcher().Dispatch(hid, cid)
-	log.Printf("xxx --- dispatch noted as %s,%s (target is %s)", hid.Short(), cid.Short(), targetHid.Short())
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
 	resp.CallId = cid.Marshal()
@@ -155,7 +154,6 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 
 	// save for later
 	k.matcher().Dispatch(hid, cid)
-	log.Printf("xxx -- kdata save a launch dispatch %s,%s on %s", hid.Short(), cid.Short(), sid.Short())
 	return k.start.Launch(sid, cid, hid, mid)
 }
 

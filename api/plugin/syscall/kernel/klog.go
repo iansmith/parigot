@@ -23,6 +23,6 @@ func (k *kernelLogger) Infof(spec string, rest ...interface{}) {
 
 func newKernelLogger() KLog {
 	return &kernelLogger{
-		Logger: log.New(os.Stdout, "kernel", log.Default().Flags()),
+		Logger: log.New(os.Stdout, "kernel:", log.Default().Flags()),
 	}
 }

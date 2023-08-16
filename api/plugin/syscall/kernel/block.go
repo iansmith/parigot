@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"time"
@@ -36,7 +37,11 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 		} else {
 			k.matcher().Response(lcb.cid, a, int32(launchErr))
 		}
-		klog.Infof("launch completed for %s, %d remaining", lcb.sid.Short(), remaining)
+		suffix := fmt.Sprintf("(%d services waiting to be launched)", remaining)
+		if remaining == 0 {
+			suffix = ""
+		}
+		klog.Infof("launch completed for %s %s", lcb.sid.Short(), suffix)
 	}
 
 	// we favor completing futures over reading in new requests

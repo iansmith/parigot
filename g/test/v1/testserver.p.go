@@ -200,7 +200,6 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestAddTestSuite",
@@ -218,7 +217,6 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestStart",
@@ -578,7 +576,6 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteExec",
@@ -596,7 +593,6 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteSuiteReport",
@@ -956,7 +952,6 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"UnderTest","UnderTestExec",

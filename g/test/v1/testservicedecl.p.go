@@ -78,6 +78,14 @@ func (f *FutureTestAddTestSuite)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureTestAddTestSuite)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureTestAddTestSuite)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureTestAddTestSuite() *FutureTestAddTestSuite {
     f:=&FutureTestAddTestSuite{
         Method: future.NewMethod[*AddTestSuiteResponse,TestErr](nil,nil),
@@ -96,7 +104,7 @@ func (i *ClientTest_) TestAddTestSuite(ctx context.Context, in *AddTestSuiteRequ
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -134,6 +142,14 @@ func (f *FutureTestStart)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureTestStart)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureTestStart)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureTestStart() *FutureTestStart {
     f:=&FutureTestStart{
         Method: future.NewMethod[*StartResponse,TestErr](nil,nil),
@@ -152,7 +168,7 @@ func (i *ClientTest_) TestStart(ctx context.Context, in *StartRequest) *FutureTe
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  
 //
@@ -211,6 +227,14 @@ func (f *FutureMethodCallSuiteExec)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureMethodCallSuiteExec)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureMethodCallSuiteExec)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureMethodCallSuiteExec() *FutureMethodCallSuiteExec {
     f:=&FutureMethodCallSuiteExec{
         Method: future.NewMethod[*ExecResponse,TestErr](nil,nil),
@@ -229,7 +253,7 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteExec(ctx context.Context, in *Ex
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -258,6 +282,14 @@ func (f *FutureMethodCallSuiteSuiteReport)Failure(ffn func (int32)) {
     }
     f.Base.Handle(x) 
 }
+
+func (f *FutureMethodCallSuiteSuiteReport)Completed() bool  {
+    return f.Base.Completed()
+
+}
+func (f *FutureMethodCallSuiteSuiteReport)Cancel()   {
+    f.Base.Cancel()
+}
 func NewFutureMethodCallSuiteSuiteReport() *FutureMethodCallSuiteSuiteReport {
     f:=&FutureMethodCallSuiteSuiteReport{
         Base: future.NewBase[TestErr](),
@@ -276,7 +308,7 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteSuiteReport(ctx context.Context,
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  
 //
@@ -333,6 +365,14 @@ func (f *FutureUnderTestExec)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureUnderTestExec)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureUnderTestExec)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureUnderTestExec() *FutureUnderTestExec {
     f:=&FutureUnderTestExec{
         Method: future.NewMethod[*ExecResponse,TestErr](nil,nil),
@@ -351,6 +391,6 @@ func (i *ClientUnderTest_) UnderTestExec(ctx context.Context, in *ExecRequest) *
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

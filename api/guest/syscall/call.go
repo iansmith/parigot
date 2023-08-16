@@ -13,7 +13,6 @@ import (
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -22,31 +21,30 @@ var cidToCompleter = make(map[string]future.Completer)
 // MatchCompleter is a utility for adding a new
 // cid and completer to the tables used to look up
 // the location where response values should be sent.
-func MatchCompleter(hid id.HostId, cid id.CallId, comp future.Completer) {
+func MatchCompleter(ctx context.Context, hid id.HostId, cid id.CallId, comp future.Completer) {
 	if getCompleter(hid, cid) != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
-	setCompleter(hid, cid, comp)
+	setCompleter(ctx, hid, cid, comp)
 }
 
 func completerKey(hid id.HostId, cid id.CallId) string {
-	return fmt.Sprintf("%s;%s", hid.Short(), cid.String())
+	return fmt.Sprintf("%s;%s", hid.Short(), cid.Short())
 }
 func getCompleter(hid id.HostId, cid id.CallId) future.Completer {
-	log.Printf("xxx getCompleter: %s, %s", hid.Short(), cid.Short())
 	key := completerKey(hid, cid)
 	return cidToCompleter[key]
 }
-func setCompleter(hid id.HostId, cid id.CallId, f future.Completer) {
-	log.Printf("xxx setCompleter: %s, %s", hid.Short(), cid.Short())
+func setCompleter(ctx context.Context, hid id.HostId, cid id.CallId, f future.Completer) {
 	key := completerKey(hid, cid)
+	t := pcontext.CurrentTime(ctx)
+	internalFuture[key] = t
 	cidToCompleter[key] = f
 }
 func delCompleted(hid id.HostId, cid id.CallId) {
-	log.Printf("xxx delCompleter: %s, %s", hid.Short(), cid.Short())
 	key := completerKey(hid, cid)
 	delete(cidToCompleter, key)
-
+	delete(internalFuture, key)
 }
 
 var iter = 0
@@ -65,15 +63,12 @@ func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *any
 		log.Printf("xxx -- cidToCompleter after failure: %+v (on %s)", cidToCompleter, CurrentHostId().Short())
 		return syscall.KernelErr_NotFound
 	}
-	log.Printf("xxx -- about to delete the cidToCompleter entry from %+v", cidToCompleter)
 	delCompleted(hid, cid)
-	log.Printf("xxxx --- complete method call %s", cid.Short())
 	comp.CompleteMethod(ctx, result, resultErr)
 	return syscall.KernelErr_NoError
 }
 
 var internalFuture = make(map[string]time.Time)
-var keyToRealFuture = make(map[string]*future.Method[proto.Message, int32])
 
 // ExpireMethod() checks the internal list of guest side futures
 // that have no call id associated with them.  These futures come about
@@ -87,10 +82,13 @@ var keyToRealFuture = make(map[string]*future.Method[proto.Message, int32])
 // that have waiting longer than the timeout time.
 func ExpireMethod(ctx context.Context) {
 	dead := make([]string, 0)
-	log.Printf("xxx -- expire method total size %d", len(internalFuture))
 	for key, elem := range internalFuture {
-		future := keyToRealFuture[key]
-		if !future.Completed() {
+		comp, ok := cidToCompleter[key]
+		if !ok {
+			log.Printf("unable to find matching completer for key %s", key)
+			continue
+		}
+		if !comp.Completed() {
 			curr := pcontext.CurrentTime(ctx)
 			diff := curr.Sub(elem)
 			if diff.Milliseconds() > apishared.FunctionTimeoutInMillis {
@@ -103,8 +101,9 @@ func ExpireMethod(ctx context.Context) {
 	}
 	// don't want delete as we iterate on internalFuture
 	for _, key := range dead {
-		f := keyToRealFuture[key]
+		f := cidToCompleter[key]
 		delete(internalFuture, key)
 		f.Cancel()
+		delete(cidToCompleter, key)
 	}
 }

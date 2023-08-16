@@ -162,16 +162,14 @@ func (s *ServiceMethodMap) Enable(sid id.ServiceId, mid id.MethodId) {
 func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoker {
 	m := s.forward[sid.String()]
 	if m == nil {
-		log.Printf("xxx --> Func, no such service %s", sid.Short())
-
+		log.Printf("Func, no such service %s", sid.Short())
 		return nil
 	}
 	fn, ok := m[mid.String()]
 	if !ok {
-		log.Printf("xxx --> Func, no such method %s", mid.Short())
+		log.Printf("Func, no such method %s", mid.Short())
 		return nil
 	}
-	log.Printf("xxx --> Func, success calling %s,%s", sid.Short(), mid.Short())
 	return fn
 }
 

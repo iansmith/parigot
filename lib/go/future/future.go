@@ -18,6 +18,8 @@ type Completer interface {
 	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32) syscall.KernelErr
 	Success(func(proto.Message))
 	Failure(func(int32))
+	Completed() bool
+	Cancel()
 }
 
 // Invoker is the interface that means that a given

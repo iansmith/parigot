@@ -80,6 +80,14 @@ func (f *FutureAddMultiply)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureAddMultiply)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureAddMultiply)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureAddMultiply() *FutureAddMultiply {
     f:=&FutureAddMultiply{
         Method: future.NewMethod[*AddMultiplyResponse,FooErr](nil,nil),
@@ -98,7 +106,7 @@ func (i *Client_) AddMultiply(ctx context.Context, in *AddMultiplyRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -136,6 +144,14 @@ func (f *FutureLucasSequence)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureLucasSequence)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureLucasSequence)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureLucasSequence() *FutureLucasSequence {
     f:=&FutureLucasSequence{
         Method: future.NewMethod[*LucasSequenceResponse,FooErr](nil,nil),
@@ -154,7 +170,7 @@ func (i *Client_) LucasSequence(ctx context.Context) *FutureLucasSequence {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -183,6 +199,14 @@ func (f *FutureWritePi)Failure(ffn func (int32)) {
     }
     f.Base.Handle(x) 
 }
+
+func (f *FutureWritePi)Completed() bool  {
+    return f.Base.Completed()
+
+}
+func (f *FutureWritePi)Cancel()   {
+    f.Base.Cancel()
+}
 func NewFutureWritePi() *FutureWritePi {
     f:=&FutureWritePi{
         Base: future.NewBase[FooErr](),
@@ -201,6 +225,6 @@ func (i *Client_) WritePi(ctx context.Context, in *WritePiRequest) *FutureWriteP
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  
