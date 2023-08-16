@@ -191,6 +191,7 @@ message DispatchRequest {
 // to map to additional info about the call.
 message DispatchResponse {
     protosupport.v1.IdRaw call_id = 1; // reserved for internal use
+	protosupport.v1.IdRaw target_host_id = 2; // reserved for internal use
 }
 
 // ReturnValueRequest is used to return the result of a

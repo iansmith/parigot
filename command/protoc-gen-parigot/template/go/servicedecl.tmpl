@@ -183,16 +183,16 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
 {{- if .InputCodeNeeded }}
-    cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
+    _,cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
 {{- else }}
-    cid,kerr:= i.BaseService.Dispatch(mid,nil)
+    _,cid,kerr:= i.BaseService.Dispatch(mid,nil)
 {{- end }} {{/* end of input needed */}}
     f:=NewFuture{{$svcDiff}}{{$methCamel}}()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 {{- end}} {{/*ranging over methods*/}}

@@ -95,11 +95,11 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 		return syscall.KernelErr_ChannelClosed
 	}
 	// timeout?
-	if chosen == len(unified)-1 {
+	if chosen == count-1 {
 		return syscall.KernelErr_ReadOneTimeout
 	}
 	// cancel?
-	if chosen == len(unified)-2 {
+	if chosen == count-2 {
 		// somebody trying to stop this method running
 		return syscall.KernelErr_NoError
 	}

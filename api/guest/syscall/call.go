@@ -2,6 +2,8 @@ package syscall
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -20,11 +22,31 @@ var cidToCompleter = make(map[string]future.Completer)
 // MatchCompleter is a utility for adding a new
 // cid and completer to the tables used to look up
 // the location where response values should be sent.
-func MatchCompleter(cid id.CallId, comp future.Completer) {
-	if cidToCompleter[cid.String()] != nil {
+func MatchCompleter(hid id.HostId, cid id.CallId, comp future.Completer) {
+	if getCompleter(hid, cid) != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
-	cidToCompleter[cid.String()] = comp
+	setCompleter(hid, cid, comp)
+}
+
+func completerKey(hid id.HostId, cid id.CallId) string {
+	return fmt.Sprintf("%s;%s", hid.Short(), cid.String())
+}
+func getCompleter(hid id.HostId, cid id.CallId) future.Completer {
+	log.Printf("xxx getCompleter: %s, %s", hid.Short(), cid.Short())
+	key := completerKey(hid, cid)
+	return cidToCompleter[key]
+}
+func setCompleter(hid id.HostId, cid id.CallId, f future.Completer) {
+	log.Printf("xxx setCompleter: %s, %s", hid.Short(), cid.Short())
+	key := completerKey(hid, cid)
+	cidToCompleter[key] = f
+}
+func delCompleted(hid id.HostId, cid id.CallId) {
+	log.Printf("xxx delCompleter: %s, %s", hid.Short(), cid.Short())
+	key := completerKey(hid, cid)
+	delete(cidToCompleter, key)
+
 }
 
 var iter = 0
@@ -32,17 +54,20 @@ var iter = 0
 // CompleteCall is called from the ReadOneAndCall handler to cause a
 // prior dispatch call to be completed. The matching is done
 // based on the cid.
-func CompleteCall(ctx context.Context, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
+func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
 	iter++
 	if iter == 20 {
 		os.Exit(1)
 	}
-	comp, ok := cidToCompleter[cid.String()]
-	if !ok {
-		pcontext.Errorf(ctx, " no way to complete complete call: %s", cid.Short())
+	comp := getCompleter(hid, cid)
+	if comp == nil {
+		pcontext.Errorf(ctx, " no way to complete complete call: %s (on host %s)", cid.Short(), CurrentHostId().Short())
+		log.Printf("xxx -- cidToCompleter after failure: %+v (on %s)", cidToCompleter, CurrentHostId().Short())
 		return syscall.KernelErr_NotFound
 	}
-	delete(cidToCompleter, cid.String())
+	log.Printf("xxx -- about to delete the cidToCompleter entry from %+v", cidToCompleter)
+	delCompleted(hid, cid)
+	log.Printf("xxxx --- complete method call %s", cid.Short())
 	comp.CompleteMethod(ctx, result, resultErr)
 	return syscall.KernelErr_NoError
 }
@@ -62,6 +87,7 @@ var keyToRealFuture = make(map[string]*future.Method[proto.Message, int32])
 // that have waiting longer than the timeout time.
 func ExpireMethod(ctx context.Context) {
 	dead := make([]string, 0)
+	log.Printf("xxx -- expire method total size %d", len(internalFuture))
 	for key, elem := range internalFuture {
 		future := keyToRealFuture[key]
 		if !future.Completed() {
@@ -82,9 +108,3 @@ func ExpireMethod(ctx context.Context) {
 		f.Cancel()
 	}
 }
-
-// AddServerReturn is called to register a server side function
-// result as a future.
-// func AddServerReturn(fut future.Method[proto.Message, int32]) {
-
-// }

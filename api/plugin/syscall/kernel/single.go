@@ -2,14 +2,15 @@ package kernel
 
 import (
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 const timeout = 50
 
 type SingleApproach struct {
 	init   bool
-	chRecv <-chan *syscall.ReadOneResponse
-	chFin  <-chan *syscall.ReadOneResponse
+	chRecv chan *syscall.ReadOneResponse
+	chFin  chan *syscall.ReadOneResponse
 }
 
 func NewSingleApproach() *SingleApproach {
@@ -31,10 +32,8 @@ func (s *SingleApproach) Init() bool {
 	// writing to the chRecv and if that blocks we are hosed in
 	// great many ways
 
-	s.chRecv = make(<-chan *syscall.ReadOneResponse, maxConcRecv)
-	s.chFin = make(<-chan *syscall.ReadOneResponse, maxConcRecv)
-
-	//s.chOut = make(<-chan *syscall.ReadOneResponse)
+	s.chRecv = make(chan *syscall.ReadOneResponse, maxConcRecv)
+	s.chFin = make(chan *syscall.ReadOneResponse, maxConcRecv)
 
 	s.init = true
 	return true
@@ -52,22 +51,28 @@ func (s *SingleApproach) Cancel(k Kernel) {
 	k.CancelRead()
 }
 
-func (s *SingleApproach) HandleDispatch(req *syscall.DispatchRequest, resp *syscall.ReadOneResponse) syscall.KernelErr {
-	*resp.Bundle = *req.GetBundle()
+func (s *SingleApproach) HandleDispatch(req *syscall.DispatchRequest) syscall.KernelErr {
+	resp := &syscall.ReadOneResponse{}
+	resp.Bundle = &syscall.MethodBundle{}
+	proto.Merge(resp.Bundle, req.Bundle)
 	resp.Timeout = false
 	resp.ParamOrResult = req.Param
 	resp.Resolved = nil
 	resp.Exit = nil
+	s.chRecv <- resp
 	return syscall.KernelErr_NoError
 }
 
-func (s *SingleApproach) HandleReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReadOneResponse) syscall.KernelErr {
-	*resp.Bundle = *req.GetBundle()
+func (s *SingleApproach) HandleReturnValue(req *syscall.ReturnValueRequest) syscall.KernelErr {
+	resp := &syscall.ReadOneResponse{}
+	resp.Bundle = &syscall.MethodBundle{}
+	proto.Merge(resp.Bundle, req.Bundle)
 	resp.Timeout = false
 	resp.ParamOrResult = req.Result
 	resp.ResultErr = req.ResultError
 	resp.Resolved = nil
 	resp.Exit = nil
+	s.chFin <- resp
 	return syscall.KernelErr_NoError
 }
 
@@ -81,7 +86,7 @@ type recvAdapter struct {
 	inner *SingleApproach
 }
 
-func (r *recvAdapter) Ch() <-chan *syscall.ReadOneResponse {
+func (r *recvAdapter) Ch() chan *syscall.ReadOneResponse {
 	return r.inner.chRecv
 }
 
@@ -93,7 +98,7 @@ type retvalAdapter struct {
 	inner *SingleApproach
 }
 
-func (r *retvalAdapter) Ch() <-chan *syscall.ReadOneResponse {
+func (r *retvalAdapter) Ch() chan *syscall.ReadOneResponse {
 	return r.inner.chFin
 }
 

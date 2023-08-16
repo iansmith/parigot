@@ -90,13 +90,13 @@ func (i *Client_) Exec(ctx context.Context, in *ExecRequest) *FutureExec {
         f:=NewFutureExec()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureExec()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -137,12 +137,12 @@ func (i *Client_) SuiteReport(ctx context.Context, in *SuiteReportRequest) *Futu
         f:=NewFutureSuiteReport()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureSuiteReport()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  

@@ -88,12 +88,12 @@ func (i *Client_) Accumulate(ctx context.Context, in *AccumulateRequest) *Future
         f:=NewFutureAccumulate()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureAccumulate()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  

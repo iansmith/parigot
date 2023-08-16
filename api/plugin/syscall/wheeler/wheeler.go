@@ -279,31 +279,10 @@ func (w *wheeler) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 // returns ok unless the attempt to put it on the waiting list failed.  This
 // call is a special front end for dispatch().
 func (w *wheeler) launch(req *syscall.LaunchRequest) (*anypb.Any, syscall.KernelErr) {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-	cid := id.UnmarshalCallId(req.GetCallId())
-	hid := id.UnmarshalHostId(req.GetHostId())
-	mid := id.UnmarshalMethodId(req.GetMethodId())
-	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || sid.IsEmptyValue() {
-		w.errorf("launch failed because of bad id %s,%s,%s,%s",
-			sid.Short(), cid.Short(), hid.Short(), mid.Short())
-		return nil, syscall.KernelErr_BadId
-	}
-	if !mid.Equal(apishared.LaunchMethod) {
-		w.errorf("launch failed because method id doesn't match %s,%s",
-			mid.Short(), apishared.LaunchMethod.Short())
-		return nil, syscall.KernelErr_BadId
-	}
-	ld := launchData{
-		sid: sid,
-		cid: cid,
-		hid: hid,
-	}
-	w.matcher().Dispatch(hid, cid)
-
-	w.waitList = append(w.waitList, ld)
-	w.serviceIsLaunched[sid.String()] = struct{}{}
-	w.findRunnable()
 	resp := &syscall.LaunchResponse{}
+	if err := kernel.K.Launch(req, resp); err != syscall.KernelErr_NoError {
+		return nil, err
+	}
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -361,45 +340,11 @@ func (w *wheeler) detectCycle(sid id.ServiceId) bool {
 // a check of the runnable services, since calling export on a service
 // can change the state of _others_ dependencies.
 func (w *wheeler) export(req *syscall.ExportRequest) (*anypb.Any, syscall.KernelErr) {
-	sid := id.UnmarshalServiceId(req.ServiceId)
-	hid := id.UnmarshalHostId(req.HostId)
 	resp := &syscall.ExportResponse{}
-
-	if hid.IsZeroOrEmptyValue() {
-		return nil, syscall.KernelErr_BadId
+	err := kernel.K.Export(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
-	if sid.IsZeroOrEmptyValue() {
-		return nil, syscall.KernelErr_BadId
-	}
-	// not registered
-	if _, ok := w.stringToService[sid.String()]; !ok {
-		return nil, syscall.KernelErr_BadId
-	}
-
-	w.addHost(hid, sid)
-
-	for _, fqn := range req.GetService() {
-		pkg := fqn.GetPackagePath()
-		name := fqn.GetService()
-		pkg2map, ok := w.pkgToServiceImpl[pkg]
-		if !ok {
-			pkg2map = make(map[string][]hostServiceBinding)
-			w.pkgToServiceImpl[pkg] = pkg2map
-		}
-		allBind, ok := pkg2map[name]
-		if !ok {
-			allBind = []hostServiceBinding{}
-			pkg2map[name] = allBind
-		}
-		allBind = append(allBind, hostServiceBinding{
-			service: sid,
-			host:    hid,
-		})
-		pkg2map[name] = allBind
-		w.pkgToServiceImpl[pkg] = pkg2map
-		w.serviceToFQName[sid.String()] = fqName{fqn.PackagePath, fqn.Service}
-	}
-	w.findRunnable()
 	return returnResponseOrMarshalError(w, resp)
 }
 
@@ -561,13 +506,12 @@ func (w *wheeler) serviceByName(req *syscall.ServiceByNameRequest) (*anypb.Any, 
 }
 
 func (w *wheeler) returnValue(req *syscall.ReturnValueRequest) (*anypb.Any, syscall.KernelErr) {
-	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	kerr := w.matcher().Response(cid, req.Result, req.ResultError)
-	if kerr != syscall.KernelErr_NoError {
-		return nil, kerr
+	resp := &syscall.ReturnValueResponse{}
+	err := kernel.K.ReturnValue(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
-
-	return returnResponseOrMarshalError(w, &syscall.ReturnValueResponse{})
+	return returnResponseOrMarshalError(w, resp)
 }
 
 func (w *wheeler) matcher() CallMatcher {

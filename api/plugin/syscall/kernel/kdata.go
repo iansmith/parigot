@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -13,7 +14,6 @@ import (
 type kdata struct {
 	lock sync.Mutex
 
-	//rawSend []GeneralSender
 	rawRecv []GeneralReceiver
 
 	// computed based on what we actually get passed
@@ -42,6 +42,7 @@ func newKData() *kdata {
 	return &kdata{
 		cancel:        make(chan bool),
 		serviceIdToWG: make(map[string]sync.WaitGroup),
+		match:         newCallMatcher(),
 	}
 }
 
@@ -66,7 +67,6 @@ func (k *kdata) SetApproach(r GeneralReceiver, f GeneralReceiver, n Nameserver, 
 
 	for _, candidate := range []interface{}{r, f, n, st} {
 		if reg, ok := candidate.(Registrar); ok {
-			klog.Infof("found register: %T", candidate)
 			k.reg = append(k.reg, reg)
 		}
 	}
@@ -85,17 +85,20 @@ func (k *kdata) Register(req *syscall.RegisterRequest, resp *syscall.RegisterRes
 	hid := id.UnmarshalHostId(req.GetHostId())
 	sid := id.NewServiceId()
 	debugName := req.GetDebugName()
+	result := syscall.KernelErr_NoError
 	for _, r := range k.reg {
 		if kerr := r.Register(hid, sid, debugName); kerr != syscall.KernelErr_NoError {
-			return kerr
+			klog.Errorf("unexpected failure in registrar: %s", syscall.KernelErr_name[int32(kerr)])
+			result = kerr
 		}
 	}
-	return newService(hid, sid, debugName)
+	resp.ServiceId = sid.Marshal()
+	return result
 }
 
-func newService(hid id.HostId, sid id.ServiceId, debugName string) syscall.KernelErr {
-	return syscall.KernelErr_NoError
-}
+// func newService(hid id.HostId, sid id.ServiceId, debugName string) syscall.KernelErr {
+// 	return syscall.KernelErr_NoError
+// }
 
 func (k *kdata) matcher() callMatcher {
 	return k.match
@@ -110,14 +113,31 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 	defer k.lock.Unlock()
 
 	sid := id.UnmarshalServiceId(req.GetBundle().GetServiceId())
+	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
 	targetHid := k.Nameserver().FindHost(sid)
 	if targetHid.IsZeroOrEmptyValue() {
+		log.Printf("xxx --- nameserver lookup of %s failed", sid.Short())
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	k.matcher().Dispatch(targetHid, cid)
+	k.matcher().Dispatch(hid, cid)
+	log.Printf("xxx --- dispatch noted as %s,%s (target is %s)", hid.Short(), cid.Short(), targetHid.Short())
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
+	resp.CallId = cid.Marshal()
+	resp.TargetHostId = targetHid.Marshal()
+	return syscall.KernelErr_NoError
+}
+
+// ReturnValue is used to finish a previous Dispatch call.  This is where the
+// original caller will get his call completed.
+func (k *kdata) ReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) syscall.KernelErr {
+	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
+	kerr := k.matcher().Response(cid, req.Result, req.ResultError)
+	if kerr != syscall.KernelErr_NoError {
+		return kerr
+	}
+
 	return syscall.KernelErr_NoError
 }
 
@@ -125,6 +145,9 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 // be ready.  In practice, it returns immediately and then finishes the
 // process later.
 func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse) syscall.KernelErr {
+	k.lock.Lock()
+	defer k.lock.Unlock()
+
 	sid := id.UnmarshalServiceId(req.GetServiceId())
 	cid := id.UnmarshalCallId(req.GetCallId())
 	hid := id.UnmarshalHostId(req.GetHostId())
@@ -132,6 +155,7 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 
 	// save for later
 	k.matcher().Dispatch(hid, cid)
+	log.Printf("xxx -- kdata save a launch dispatch %s,%s on %s", hid.Short(), cid.Short(), sid.Short())
 	return k.start.Launch(sid, cid, hid, mid)
 }
 

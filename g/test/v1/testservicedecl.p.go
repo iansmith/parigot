@@ -90,13 +90,13 @@ func (i *ClientTest_) TestAddTestSuite(ctx context.Context, in *AddTestSuiteRequ
         f:=NewFutureTestAddTestSuite()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureTestAddTestSuite()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -146,13 +146,13 @@ func (i *ClientTest_) TestStart(ctx context.Context, in *StartRequest) *FutureTe
         f:=NewFutureTestStart()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureTestStart()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  
 //
@@ -223,13 +223,13 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteExec(ctx context.Context, in *Ex
         f:=NewFutureMethodCallSuiteExec()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureMethodCallSuiteExec()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -270,13 +270,13 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteSuiteReport(ctx context.Context,
         f:=NewFutureMethodCallSuiteSuiteReport()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureMethodCallSuiteSuiteReport()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  
 //
@@ -345,12 +345,12 @@ func (i *ClientUnderTest_) UnderTestExec(ctx context.Context, in *ExecRequest) *
         f:=NewFutureUnderTestExec()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureUnderTestExec()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  

@@ -10,6 +10,9 @@ package test
 
 import (
 	"context"
+	"runtime/debug"
+	"log"
+	"fmt"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
@@ -82,6 +85,7 @@ func RunTest(ctx context.Context,
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "RunTest: trapped a panic in the guest side: %v", r)
 		}
+		debug.PrintStack()
 		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
@@ -115,11 +119,6 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
 
-	// makes a copy
-	for _, c := range binding.Call() {
-		req.Call=append(req.Call, c)
-	}
-
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
@@ -137,27 +136,29 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
 	// its a method call from another address space
-	sid:=id.UnmarshalServiceId(resp.GetCall().GetServiceId())
-	mid:=id.UnmarshalMethodId(resp.GetCall().GetMethodId())
-	cid:=id.UnmarshalCallId(resp.GetCallId())
-	fn:=binding.Func(sid,mid)
-	if fn==nil {
-		pcontext.Errorf(ctx,"unable to find service/method pair binding: service=%s, method=%s",
-			sid.Short(), mid.Short())
-		return syscall.KernelErr_NotFound
-	}
+	sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
-	fut:=fn.Invoke(ctx,resp.GetParam())
+	fn:=binding.Func(sid,mid)
+	if fn==nil {
+		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		return syscall.KernelErr_NoError
+	}
+	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -169,8 +170,10 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -197,6 +200,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
+	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestAddTestSuite",
@@ -214,6 +218,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
+	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestStart",
@@ -251,18 +256,15 @@ func MustLocateTest(ctx context.Context, sid id.ServiceId) ClientTest {
 
 func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
-	fqs := &syscall.FullyQualifiedService{
-		PackagePath: "test.v1",
-		Service:     "test",
-	}
-	req.Fqs = fqs
+	debugName:=fmt.Sprintf("%s.%s","test.v1","test")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.DebugName = debugName
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
-    sid:=id.UnmarshalServiceId(resp.Id)
+    sid:=id.UnmarshalServiceId(resp.ServiceId)
     if sid.IsZeroOrEmptyValue() {
         panic("received bad service Id from register")
     }
@@ -461,6 +463,7 @@ func RunMethodCallSuite(ctx context.Context,
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "RunMethodCallSuite: trapped a panic in the guest side: %v", r)
 		}
+		debug.PrintStack()
 		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
@@ -494,11 +497,6 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
 
-	// makes a copy
-	for _, c := range binding.Call() {
-		req.Call=append(req.Call, c)
-	}
-
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
@@ -516,27 +514,29 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
 	// its a method call from another address space
-	sid:=id.UnmarshalServiceId(resp.GetCall().GetServiceId())
-	mid:=id.UnmarshalMethodId(resp.GetCall().GetMethodId())
-	cid:=id.UnmarshalCallId(resp.GetCallId())
-	fn:=binding.Func(sid,mid)
-	if fn==nil {
-		pcontext.Errorf(ctx,"unable to find service/method pair binding: service=%s, method=%s",
-			sid.Short(), mid.Short())
-		return syscall.KernelErr_NotFound
-	}
+	sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
-	fut:=fn.Invoke(ctx,resp.GetParam())
+	fn:=binding.Func(sid,mid)
+	if fn==nil {
+		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		return syscall.KernelErr_NoError
+	}
+	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -548,8 +548,10 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -576,6 +578,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
+	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteExec",
@@ -593,6 +596,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
+	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteSuiteReport",
@@ -630,18 +634,15 @@ func MustLocateMethodCallSuite(ctx context.Context, sid id.ServiceId) ClientMeth
 
 func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
-	fqs := &syscall.FullyQualifiedService{
-		PackagePath: "test.v1",
-		Service:     "method_call_suite",
-	}
-	req.Fqs = fqs
+	debugName:=fmt.Sprintf("%s.%s","test.v1","method_call_suite")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.DebugName = debugName
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
-    sid:=id.UnmarshalServiceId(resp.Id)
+    sid:=id.UnmarshalServiceId(resp.ServiceId)
     if sid.IsZeroOrEmptyValue() {
         panic("received bad service Id from register")
     }
@@ -840,6 +841,7 @@ func RunUnderTest(ctx context.Context,
 		if r := recover(); r != nil {
 			pcontext.Infof(ctx, "RunUnderTest: trapped a panic in the guest side: %v", r)
 		}
+		debug.PrintStack()
 		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
@@ -873,11 +875,6 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
 
-	// makes a copy
-	for _, c := range binding.Call() {
-		req.Call=append(req.Call, c)
-	}
-
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	resp, err:=syscallguest.ReadOne(&req)
@@ -895,27 +892,29 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
-		syscallguest.CompleteCall(ctx, cid,r.GetResult(), r.GetResultError())
+		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
 
 	// its a method call from another address space
-	sid:=id.UnmarshalServiceId(resp.GetCall().GetServiceId())
-	mid:=id.UnmarshalMethodId(resp.GetCall().GetMethodId())
-	cid:=id.UnmarshalCallId(resp.GetCallId())
-	fn:=binding.Func(sid,mid)
-	if fn==nil {
-		pcontext.Errorf(ctx,"unable to find service/method pair binding: service=%s, method=%s",
-			sid.Short(), mid.Short())
-		return syscall.KernelErr_NotFound
-	}
+	sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
-	fut:=fn.Invoke(ctx,resp.GetParam())
+	fn:=binding.Func(sid,mid)
+	if fn==nil {
+		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		return syscall.KernelErr_NoError
+	}
+	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
 			pcontext.Errorf(ctx, "unable to marshal result for return value request")
@@ -927,8 +926,10 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
-		rvReq.CallId= cid.Marshal()
-		rvReq.HostId= syscallguest.CurrentHostId().Marshal()
+		rvReq.Bundle=&syscall.MethodBundle{}
+
+		rvReq.Bundle.CallId= cid.Marshal()
+		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
 		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
 	})
@@ -955,6 +956,7 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
+	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"UnderTest","UnderTestExec",
@@ -992,18 +994,15 @@ func MustLocateUnderTest(ctx context.Context, sid id.ServiceId) ClientUnderTest 
 
 func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
-	fqs := &syscall.FullyQualifiedService{
-		PackagePath: "test.v1",
-		Service:     "under_test",
-	}
-	req.Fqs = fqs
+	debugName:=fmt.Sprintf("%s.%s","test.v1","under_test")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.DebugName = debugName
 
 	resp, err := syscallguest.Register(req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
-    sid:=id.UnmarshalServiceId(resp.Id)
+    sid:=id.UnmarshalServiceId(resp.ServiceId)
     if sid.IsZeroOrEmptyValue() {
         panic("received bad service Id from register")
     }
