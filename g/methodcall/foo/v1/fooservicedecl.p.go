@@ -92,13 +92,13 @@ func (i *Client_) AddMultiply(ctx context.Context, in *AddMultiplyRequest) *Futu
         f:=NewFutureAddMultiply()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureAddMultiply()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -148,13 +148,13 @@ func (i *Client_) LucasSequence(ctx context.Context) *FutureLucasSequence {
         f:=NewFutureLucasSequence()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,nil) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,nil) 
     f:=NewFutureLucasSequence()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -195,12 +195,12 @@ func (i *Client_) WritePi(ctx context.Context, in *WritePiRequest) *FutureWriteP
         f:=NewFutureWritePi()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
     f:=NewFutureWritePi()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(cid,f)
+    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
     return f
 }  

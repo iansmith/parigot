@@ -61,10 +61,15 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 	dr, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
 
+	cid := id.UnmarshalCallId(dr.GetCallId())
+	targetHid := id.UnmarshalHostId(dr.GetTargetHostId())
+	log.Printf("xxx -- client side completed of dispatch finished (target=%s, current=%s): %+v, err=>%v", targetHid.Short(), CurrentHostId().Short(), cid.Short(), err)
+	comp := getCompleter(CurrentHostId(), cid)
+	log.Printf("xxx -- client side completed: (%s,%s)-> comp %v", CurrentHostId().Short(), cid.Short(), comp)
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
-		log.Printf("xxx -- ERROR IN DISPATCH %s", syscall.KernelErr_name[int32(kerr)])
+		log.Printf(" dispatch error in client side %s", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 
@@ -113,7 +118,7 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	}
 	fut := NewLaunchFuture()
 	comp := NewLaunchCompleter(fut)
-	MatchCompleter(cid, comp)
+	MatchCompleter(hid, cid, comp)
 	return fut
 }
 
@@ -180,7 +185,7 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	}
 	ef := NewExitFuture()
 	comp := NewExitCompleter(ef)
-	MatchCompleter(cid, comp)
+	MatchCompleter(hid, cid, comp)
 	return ef
 }
 

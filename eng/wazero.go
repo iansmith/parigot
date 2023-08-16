@@ -295,16 +295,10 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	fsConfig := wazero.NewFSConfig()
 	args := []string{}
 	envp := make(map[string]string)
-	hid := id.HostIdZeroValue()
+	hid := id.NewHostId()
 	if m.env != nil {
 		args = m.env.Arg()
 		envp = m.env.Environment()
-		envp["HOSTID_HIGH"] = fmt.Sprintf("%x", m.env.Host().High())
-		envp["HOSTID_LOW"] = fmt.Sprintf("%x", m.env.Host().Low())
-	} else {
-		envp["HOSTID_HIGH"] = fmt.Sprintf("%x", hid.High())
-		envp["HOSTID_LOW"] = fmt.Sprintf("%x", hid.Low())
-
 	}
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
@@ -317,12 +311,13 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 		WithSysNanosleep().
 		WithSysNanotime().
 		WithSysWalltime().
-		WithArgs(strings.Join(append([]string{m.name}, args...), " "))
+		WithArgs(strings.Join(append([]string{m.name}, args...), " ")).
+		WithEnv("HOSTID_HIGH", fmt.Sprintf("%x", hid.High())).
+		WithEnv("HOSTID_LOW", fmt.Sprintf("%x", hid.Low()))
 
 	for k, v := range envp {
 		conf.WithEnv(k, v)
 	}
-
 	mod, err := m.parent.r.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
 		pcontext.Errorf(ctx, "ERR IS %s", err.Error())

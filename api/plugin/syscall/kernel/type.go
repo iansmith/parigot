@@ -74,6 +74,10 @@ type Kernel interface {
 	// that service.
 	Locate(req *syscall.LocateRequest, resp *syscall.LocateResponse) syscall.KernelErr
 
+	// ReturnValue is used to finish a previous Dispatch call.  This is where the
+	// original caller will get his call completed.
+	ReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) syscall.KernelErr
+
 	// Nameserver gets the nameserver for the kernel.  This
 	// does not lock.
 	Nameserver() Nameserver
@@ -128,7 +132,7 @@ type Starter interface {
 }
 
 type GeneralReceiver interface {
-	Ch() <-chan *syscall.ReadOneResponse
+	Ch() chan *syscall.ReadOneResponse
 	TimeoutInMillis() int
 }
 

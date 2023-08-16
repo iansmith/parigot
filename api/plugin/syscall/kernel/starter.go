@@ -1,6 +1,8 @@
 package kernel
 
 import (
+	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 
@@ -36,12 +38,27 @@ type launchData struct {
 	hid id.HostId
 }
 
+func (l *launchData) String() string {
+	return fmt.Sprintf("LauchData{%s,%s,%s}", l.sid.Short(), l.cid.Short(), l.hid.Short())
+}
+
 var _ Starter = &starter{}
 
 // NewStarter returns an implementation of the starter that assumes
 // we have global knowlege.
 func NewStarter() *starter {
-	return &starter{}
+	return &starter{
+		serviceIsLaunched:    map[string]struct{}{},
+		serviceToWaiting:     map[string][]fqName{},
+		pkgToServiceImpl:     map[string]map[string][]hostServiceBinding{},
+		serviceToExports:     map[string][]fqName{},
+		serviceToFulfillment: map[string]map[string]map[string]hostServiceBinding{},
+		stringToService:      map[string]id.ServiceId{},
+		serviceToMethMap:     map[string]map[string]id.MethodId{},
+		waitList:             []launchData{},
+		pendingList:          []launchCompleteBundle{},
+		runList:              []id.ServiceId{},
+	}
 }
 
 func (s *starter) Export(req *syscall.ExportRequest, resp *syscall.ExportResponse) syscall.KernelErr {
@@ -56,12 +73,14 @@ func (s *starter) Export(req *syscall.ExportRequest, resp *syscall.ExportRespons
 	}
 	// not registered
 	if _, ok := s.stringToService[sid.String()]; !ok {
+		log.Printf("xxx -- failed to find string %s", sid.String())
 		return syscall.KernelErr_BadId
 	}
 
 	for _, fqn := range req.GetService() {
 		pkg := fqn.GetPackagePath()
 		name := fqn.GetService()
+		log.Printf("xxx -- Export in starter: sid=%s, hid=%s: %s.%s", sid.Short(), hid.Short(), pkg, name)
 		pkg2map, ok := s.pkgToServiceImpl[pkg]
 		if !ok {
 			pkg2map = make(map[string][]hostServiceBinding)
@@ -84,7 +103,6 @@ func (s *starter) Export(req *syscall.ExportRequest, resp *syscall.ExportRespons
 }
 
 func (s *starter) Launch(sid id.ServiceId, cid id.CallId, hid id.HostId, mid id.MethodId) syscall.KernelErr {
-
 	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || sid.IsEmptyValue() {
 		klog.Errorf("launch failed because of bad id (%s,%s,%s)",
 			sid.Short(), cid.Short(), hid.Short())
@@ -102,6 +120,7 @@ func (s *starter) Launch(sid id.ServiceId, cid id.CallId, hid id.HostId, mid id.
 	}
 
 	s.waitList = append(s.waitList, ld)
+	log.Printf("zzz -- starter Launch, %s added to wait list %d", ld.String(), len(s.waitList))
 	s.serviceIsLaunched[sid.String()] = struct{}{}
 	s.findRunnable()
 
@@ -110,6 +129,7 @@ func (s *starter) Launch(sid id.ServiceId, cid id.CallId, hid id.HostId, mid id.
 
 // Dead code?
 func (s *starter) Register(hid id.HostId, sid id.ServiceId, debugName string) syscall.KernelErr {
+	s.stringToService[sid.String()] = sid
 	return syscall.KernelErr_NoError
 }
 
@@ -155,13 +175,19 @@ func (s *starter) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 		return nil
 	}
 
+	log.Printf("zzz -- sid %s, checking to see if requirements met", sid.Short())
 	neededList := s.serviceToWaiting[sid.String()]
+	log.Printf(" zzz --- for sid %s, neededList %+v", sid.Short(), neededList)
 	fulfilled := make(map[string]map[string]hostServiceBinding)
 	for _, need := range neededList {
+		log.Printf(" zzz --- for sid %s, searching for package %s.%s", sid.Short(), need.pkg, need.name)
+
 		smap, ok := s.pkgToServiceImpl[need.pkg]
 		if !ok {
 			return nil
 		}
+		log.Printf(" zzz --- for sid %s, looking for name %s in %+v", sid.Short(), need.name, smap)
+
 		implList, ok := smap[need.name]
 		if !ok {
 			return nil
@@ -250,11 +276,13 @@ func (s *starter) findRunnable() {
 	for change {
 		change = false
 		result = []launchData{}
+		log.Printf("zzz -- checking waiting list of size %d for runnable", len(s.waitList))
 		for _, wait := range s.waitList {
 			fulfillment := s.requirementsMet(wait.sid)
 			if fulfillment != nil {
 				change = true
 				s.serviceToFulfillment[wait.sid.String()] = fulfillment
+				log.Printf("zzz -- moving %s to pending list", wait.sid.Short())
 				s.moveToPending(wait)
 			} else {
 				result = append(result, wait)
@@ -288,7 +316,9 @@ func (s *starter) moveToPending(launch launchData) syscall.KernelErr {
 func (s *starter) Bind(_ id.HostId, sid id.ServiceId, mid id.MethodId, methodName string) syscall.KernelErr {
 	sMap, ok := s.serviceToMethMap[sid.String()]
 	if !ok {
-		s.serviceToMethMap[sid.String()] = make(map[string]id.MethodId)
+		sMap = make(map[string]id.MethodId)
+		s.serviceToMethMap[sid.String()] = sMap
+
 	}
 	sMap[methodName] = mid
 	return syscall.KernelErr_NoError

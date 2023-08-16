@@ -2,13 +2,11 @@ package syscall
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"reflect"
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
-	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -37,19 +35,6 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "synchronous_exit_", syncExit)
 
 	return true
-}
-
-// channel structure for output, including debugging
-var debugOutChan = true
-
-type OutChannel struct {
-	ch     chan wheeler.OutProtoPair
-	origin string
-	num    int
-}
-
-func fqServiceName(p, s string) string {
-	return fmt.Sprintf("%s.%s", p, s)
 }
 
 //
@@ -102,9 +87,6 @@ func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *sysca
 }
 
 func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 { //syscall.KernelErr {
-	log.Printf("yyy -- register")
-	kerr := kernel.K.Register(req, resp)
-	log.Printf("yyy -- register done %d", kerr)
 	return int32(handleByWheeler(req, resp))
 }
 
@@ -195,7 +177,6 @@ func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelE
 	wheeler.In() <- inPair
 	out := <-retCh
 	if out.Err != 0 {
-		log.Printf("error in wheeler impl: %T, %s", t, syscall.KernelErr_name[int32(out.Err)])
 		return out.Err
 	}
 

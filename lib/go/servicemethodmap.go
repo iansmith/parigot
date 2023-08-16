@@ -3,12 +3,11 @@ package lib
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
-
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // MustRequireFunc is the type of the functions that are created
@@ -23,7 +22,7 @@ type MustRequireFunc func(context.Context, id.ServiceId)
 // defined on a service, it will have FuncAnyIO wrapper
 // that unmarshals input parameters and marshals the return
 // value.
-type FuncAnyIO func(*anypb.Any) future.Method[*anypb.Any, int32]
+//type FuncAnyIO func(*anypb.Any) future.Method[*anypb.Any, int32]
 
 // Backgrounder is an interface that can be implemented by
 // types that want to get period background calls when the
@@ -160,15 +159,19 @@ func (s *ServiceMethodMap) Enable(sid id.ServiceId, mid id.MethodId) {
 
 // Func returns the Invoker associated with the sid and mid pair. If
 // either sid or mid cannot be found, it returns nil.
-func (s *ServiceMethodMap) xxxFunc(sid id.ServiceId, mid id.MethodId) future.Invoker {
+func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoker {
 	m := s.forward[sid.String()]
 	if m == nil {
+		log.Printf("xxx --> Func, no such service %s", sid.Short())
+
 		return nil
 	}
 	fn, ok := m[mid.String()]
 	if !ok {
+		log.Printf("xxx --> Func, no such method %s", mid.Short())
 		return nil
 	}
+	log.Printf("xxx --> Func, success calling %s,%s", sid.Short(), mid.Short())
 	return fn
 }
 

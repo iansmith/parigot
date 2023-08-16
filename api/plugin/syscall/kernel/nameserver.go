@@ -92,8 +92,9 @@ func (n *ns) In() chan proto.Message {
 }
 
 // Register is called when any service registers. We copy in the host provided.
-func (n *ns) Register(hid id.HostId, _ id.ServiceId, _ string) syscall.KernelErr {
+func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelErr {
 	n.AddHost(hid)
+	n.serviceToHost[sid.String()] = hid
 	return syscall.KernelErr_NoError
 }
 

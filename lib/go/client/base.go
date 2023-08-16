@@ -70,7 +70,7 @@ func (c *BaseService) String() string {
 // Dispatch is called by every client side "method" on the client side
 // service. This funciton is the one that make a system call to the
 // kernel and prepares for handling the result.
-func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.CallId, syscall.KernelErr) {
+func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.HostId, id.CallId, syscall.KernelErr) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
@@ -79,7 +79,7 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 			ctx := pcontext.NewContextWithContainer(pcontext.GuestContext(context.Background()), "dispatch")
 			pcontext.Errorf(ctx, "failed in call to dispatch: %v", err)
 			pcontext.Dump(ctx)
-			return id.CallIdZeroValue(), syscall.KernelErr_MarshalFailed
+			return id.HostIdZeroValue(), id.CallIdZeroValue(), syscall.KernelErr_MarshalFailed
 		}
 	}
 	if c.svc.IsZeroOrEmptyValue() {
@@ -90,22 +90,27 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Call
 	}
 	// this is where it all begins
 	cid := id.NewCallId()
-	in := &syscall.DispatchRequest{
+	bundle := &syscall.MethodBundle{
 		ServiceId: c.svc.Marshal(),
 		MethodId:  method.Marshal(),
 		CallId:    cid.Marshal(),
-		Param:     a,
 		HostId:    syscallguest.CurrentHostId().Marshal(),
+	}
+	in := &syscall.DispatchRequest{
+		Bundle: bundle,
+		Param:  a,
 	}
 
 	resp, kerr := syscallguest.Dispatch(in)
 	if kerr != syscall.KernelErr_NoError {
-		return id.CallIdZeroValue(), kerr
+		return id.HostIdZeroValue(), id.CallIdZeroValue(), kerr
 	}
 
 	cid2 := id.UnmarshalCallId(resp.GetCallId())
+	targetHid := id.UnmarshalHostId(resp.GetTargetHostId())
 	if !cid.Equal(cid2) {
+		log.Printf("xxxx --- mismatched call id: %s vs %s", cid2.Short(), cid.Short())
 		panic("mismatched call ids in dispatch")
 	}
-	return cid, syscall.KernelErr_NoError
+	return targetHid, cid, syscall.KernelErr_NoError
 }

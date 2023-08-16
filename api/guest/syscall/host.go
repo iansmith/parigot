@@ -11,14 +11,13 @@ import (
 var _hostId id.HostId
 
 func CurrentHostId() id.HostId {
-	if _hostId.Equal(id.HostIdEmptyValue()) {
-		log.Printf("setting up host id %s,%s", os.Getenv("HOST_ID_HIGH"), os.Getenv("HOST_ID_LOW"))
-		high, err := strconv.ParseInt(os.Getenv("HOST_ID_HIGH"), 16, 64)
+	if _hostId.IsEmptyValue() {
+		high, err := strconv.ParseUint(os.Getenv("HOSTID_HIGH"), 16, 64)
 		if err != nil {
 			log.Printf("failed trying to parse high of host id: %v", err)
 			return id.HostIdZeroValue()
 		}
-		low, err := strconv.ParseInt(os.Getenv("HOST_ID_LOW"), 16, 64)
+		low, err := strconv.ParseUint(os.Getenv("HOSTID_LOW"), 16, 64)
 		if err != nil {
 			log.Printf("failed trying to parse low of host id: %v", err)
 			return id.HostIdZeroValue()
