@@ -90,6 +90,14 @@ func (f *FutureOpen)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureOpen)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureOpen)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureOpen() *FutureOpen {
     f:=&FutureOpen{
         Method: future.NewMethod[*OpenResponse,FileErr](nil,nil),
@@ -108,7 +116,7 @@ func (i *Client_) Open(ctx context.Context, in *OpenRequest) *FutureOpen {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -146,6 +154,14 @@ func (f *FutureCreate)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureCreate)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureCreate)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureCreate() *FutureCreate {
     f:=&FutureCreate{
         Method: future.NewMethod[*CreateResponse,FileErr](nil,nil),
@@ -164,7 +180,7 @@ func (i *Client_) Create(ctx context.Context, in *CreateRequest) *FutureCreate {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -202,6 +218,14 @@ func (f *FutureClose)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureClose)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureClose)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureClose() *FutureClose {
     f:=&FutureClose{
         Method: future.NewMethod[*CloseResponse,FileErr](nil,nil),
@@ -220,7 +244,7 @@ func (i *Client_) Close(ctx context.Context, in *CloseRequest) *FutureClose {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -258,6 +282,14 @@ func (f *FutureLoadTestData)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureLoadTestData)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureLoadTestData)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureLoadTestData() *FutureLoadTestData {
     f:=&FutureLoadTestData{
         Method: future.NewMethod[*LoadTestDataResponse,FileErr](nil,nil),
@@ -276,7 +308,7 @@ func (i *Client_) LoadTestData(ctx context.Context, in *LoadTestDataRequest) *Fu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -314,6 +346,14 @@ func (f *FutureRead)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureRead)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureRead)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureRead() *FutureRead {
     f:=&FutureRead{
         Method: future.NewMethod[*ReadResponse,FileErr](nil,nil),
@@ -332,7 +372,7 @@ func (i *Client_) Read(ctx context.Context, in *ReadRequest) *FutureRead {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -370,6 +410,14 @@ func (f *FutureWrite)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureWrite)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureWrite)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureWrite() *FutureWrite {
     f:=&FutureWrite{
         Method: future.NewMethod[*WriteResponse,FileErr](nil,nil),
@@ -388,7 +436,7 @@ func (i *Client_) Write(ctx context.Context, in *WriteRequest) *FutureWrite {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -426,6 +474,14 @@ func (f *FutureDelete)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureDelete)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureDelete)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureDelete() *FutureDelete {
     f:=&FutureDelete{
         Method: future.NewMethod[*DeleteResponse,FileErr](nil,nil),
@@ -444,7 +500,7 @@ func (i *Client_) Delete(ctx context.Context, in *DeleteRequest) *FutureDelete {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -482,6 +538,14 @@ func (f *FutureStat)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureStat)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureStat)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureStat() *FutureStat {
     f:=&FutureStat{
         Method: future.NewMethod[*StatResponse,FileErr](nil,nil),
@@ -500,6 +564,6 @@ func (i *Client_) Stat(ctx context.Context, in *StatRequest) *FutureStat {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

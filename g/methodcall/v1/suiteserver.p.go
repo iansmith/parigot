@@ -199,7 +199,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.Serv
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","Exec",
@@ -217,7 +216,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.Serv
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","SuiteReport",

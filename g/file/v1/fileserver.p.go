@@ -199,7 +199,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Open",
@@ -217,7 +216,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Create",
@@ -235,7 +233,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Close",
@@ -253,7 +250,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","LoadTestData",
@@ -271,7 +267,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Read",
@@ -289,7 +284,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Write",
@@ -307,7 +301,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Delete",
@@ -325,7 +318,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"File","Stat",

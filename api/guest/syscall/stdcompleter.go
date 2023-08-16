@@ -37,6 +37,14 @@ func (l *LaunchCompleter) Failure(failFunc func(int32)) {
 	l.fut.Failure(x)
 }
 
+func (l *LaunchCompleter) Cancel() {
+	l.fut.Cancel()
+}
+
+func (l *LaunchCompleter) Completed() bool {
+	return l.fut.Completed()
+}
+
 func NewLaunchCompleter(f *LaunchFuture) future.Completer {
 	return &LaunchCompleter{f}
 }
@@ -66,6 +74,14 @@ func (l *ExitCompleter) Failure(failFunc func(int32)) {
 		failFunc(int32(err))
 	}
 	l.fut.Failure(x)
+}
+
+func (l *ExitCompleter) Cancel() {
+	l.fut.Cancel()
+}
+
+func (l *ExitCompleter) Completed() bool {
+	return l.fut.Completed()
 }
 
 func NewExitCompleter(f *ExitFuture) future.Completer {

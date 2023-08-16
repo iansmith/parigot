@@ -61,11 +61,6 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 	dr, err, signal :=
 		ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
 
-	cid := id.UnmarshalCallId(dr.GetCallId())
-	targetHid := id.UnmarshalHostId(dr.GetTargetHostId())
-	log.Printf("xxx -- client side completed of dispatch finished (target=%s, current=%s): %+v, err=>%v", targetHid.Short(), CurrentHostId().Short(), cid.Short(), err)
-	comp := getCompleter(CurrentHostId(), cid)
-	log.Printf("xxx -- client side completed: (%s,%s)-> comp %v", CurrentHostId().Short(), cid.Short(), comp)
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
@@ -118,7 +113,7 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	}
 	fut := NewLaunchFuture()
 	comp := NewLaunchCompleter(fut)
-	MatchCompleter(hid, cid, comp)
+	MatchCompleter(ctx, hid, cid, comp)
 	return fut
 }
 
@@ -166,7 +161,7 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
 func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
-	//	ctx := ManufactureGuestContext("[syscall]Exit")
+	ctx := ManufactureGuestContext("[syscall]Exit")
 
 	hid := CurrentHostId()
 	cid := id.NewCallId()
@@ -185,7 +180,7 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	}
 	ef := NewExitFuture()
 	comp := NewExitCompleter(ef)
-	MatchCompleter(hid, cid, comp)
+	MatchCompleter(ctx, hid, cid, comp)
 	return ef
 }
 

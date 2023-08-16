@@ -199,7 +199,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","CreateQueue",
@@ -217,7 +216,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Locate",
@@ -235,7 +233,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","DeleteQueue",
@@ -253,7 +250,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Receive",
@@ -271,7 +267,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","MarkDone",
@@ -289,7 +284,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Length",
@@ -307,7 +301,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Queue) (*lib.ServiceMethodM
 		return nil, err
 	}
 	mid=id.UnmarshalMethodId(resp.GetMethodId())
-	log.Printf("xxx -- bind %s to %s",bindReq.MethodName,mid.Short())
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Queue","Send",

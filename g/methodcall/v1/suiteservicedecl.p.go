@@ -78,6 +78,14 @@ func (f *FutureExec)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureExec)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureExec)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureExec() *FutureExec {
     f:=&FutureExec{
         Method: future.NewMethod[*ExecResponse,MethodCallSuiteErr](nil,nil),
@@ -96,7 +104,7 @@ func (i *Client_) Exec(ctx context.Context, in *ExecRequest) *FutureExec {
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -125,6 +133,14 @@ func (f *FutureSuiteReport)Failure(ffn func (int32)) {
     }
     f.Base.Handle(x) 
 }
+
+func (f *FutureSuiteReport)Completed() bool  {
+    return f.Base.Completed()
+
+}
+func (f *FutureSuiteReport)Cancel()   {
+    f.Base.Cancel()
+}
 func NewFutureSuiteReport() *FutureSuiteReport {
     f:=&FutureSuiteReport{
         Base: future.NewBase[MethodCallSuiteErr](),
@@ -143,6 +159,6 @@ func (i *Client_) SuiteReport(ctx context.Context, in *SuiteReportRequest) *Futu
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

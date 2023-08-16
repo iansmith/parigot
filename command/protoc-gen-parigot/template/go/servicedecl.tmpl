@@ -158,6 +158,23 @@ func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func (int32)) {
 {{- end }} {{/* end of output code needed*/}}
 }
 
+func (f *Future{{$svcDiff}}{{$methCamel}})Completed() bool  {
+{{- if .OutputCodeNeeded }}
+    return f.Method.Completed()
+{{- else }}
+    return f.Base.Completed()
+{{- end }}
+
+}
+func (f *Future{{$svcDiff}}{{$methCamel}})Cancel()   {
+{{- if .OutputCodeNeeded }}
+    f.Method.Cancel()
+{{- else }}
+    f.Base.Cancel()
+{{- end }}
+}
+
+
 {{- if .OutputCodeNeeded }}
 func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
     f:=&Future{{$svcDiff}}{{$methCamel}}{
@@ -192,7 +209,7 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 {{- end}} {{/*ranging over methods*/}}

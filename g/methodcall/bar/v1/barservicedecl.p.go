@@ -76,6 +76,14 @@ func (f *FutureAccumulate)Failure(ffn func (int32)) {
     }
     f.Method.Failure(x) 
 }
+
+func (f *FutureAccumulate)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureAccumulate)Cancel()   {
+    f.Method.Cancel()
+}
 func NewFutureAccumulate() *FutureAccumulate {
     f:=&FutureAccumulate{
         Method: future.NewMethod[*AccumulateResponse,BarErr](nil,nil),
@@ -94,6 +102,6 @@ func (i *Client_) Accumulate(ctx context.Context, in *AccumulateRequest) *Future
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(syscallguest.CurrentHostId(),cid,f)
+    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
     return f
 }  
