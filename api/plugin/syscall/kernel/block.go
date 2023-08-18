@@ -108,6 +108,7 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 		// somebody trying to stop this method running
 		return syscall.KernelErr_NoError
 	}
+	// exit?
 
 	//
 	// All readers work the same way

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
@@ -375,27 +374,10 @@ func (w *wheeler) checkHost(hid id.HostId, allSvc []id.ServiceId) {
 // provided at creation time.  The caller (receiver) should take
 // actions to gracefully shutdown the appropriate services.
 func (w *wheeler) exit(req *syscall.ExitRequest) (*anypb.Any, syscall.KernelErr) {
-	resp := &syscall.ExitResponse{Pair: req.GetPair()}
-	if req.Pair.GetCode() >= 0 && req.Pair.GetCode() <= 192 {
-		req.Pair.Code = 192
-	}
-	sid := id.UnmarshalServiceId(req.GetPair().GetServiceId())
-	cid := id.UnmarshalCallId(req.GetCallId())
-	hid := id.UnmarshalHostId(req.GetHostId())
-	mid := id.UnmarshalMethodId(req.GetMethodId())
-	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || sid.IsEmptyValue() {
-		w.errorf("exit failed because of bad id %s,%s,%s,%s",
-			sid.Short(), cid.Short(), hid.Short(), mid.Short())
-		return nil, syscall.KernelErr_BadId
-	}
-	if !mid.Equal(apishared.ExitMethod) {
-		w.errorf("launch failed because method id doesn't match %s,%s",
-			mid.Short(), apishared.LaunchMethod.Short())
-		return nil, syscall.KernelErr_BadId
-	}
-
-	if kerr := w.bothDispatchAndResponse(hid, cid, resp); kerr != syscall.KernelErr_NoError {
-		return nil, kerr
+	resp := &syscall.ExitResponse{}
+	err := kernel.K.Exit(req, resp)
+	if err != syscall.KernelErr_NoError {
+		return nil, err
 	}
 	return returnResponseOrMarshalError(w, resp)
 }

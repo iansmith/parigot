@@ -165,7 +165,7 @@ func register(ctx context.Context, m api.Module, stack []uint64) {
 func exit(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ExitRequest{}
 	resp := &syscall.ExitResponse{}
-	apiplugin.InvokeImplFromStack(ctx, "[syscall]register", m, stack, exitImpl, req, resp)
+	apiplugin.InvokeImplFromStack(ctx, "[syscall]exit", m, stack, exitImpl, req, resp)
 }
 
 func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelErr {

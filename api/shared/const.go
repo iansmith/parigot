@@ -73,8 +73,11 @@ const FileServiceMaxPathPart = 20
 // all calls to launch use the same Id
 var LaunchMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff0))
 
-// all calls to exit use the same Id
-var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff1))
+// this is really a "phantom" serivce, used only for exiting
+var ExitService = id.ServiceId(id.NewIdTyped[id.DefService](^uint64(0), 0xfffffffffffffff1))
+
+// this is really a "phantom" serivce, used only for exiting
+var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffffffffff2))
 
 // this is the value used for a panic that is intended to be a controlled exit
 var ControlledExit = "controlled exit via panic:"

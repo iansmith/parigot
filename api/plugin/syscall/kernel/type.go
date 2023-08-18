@@ -78,6 +78,10 @@ type Kernel interface {
 	// original caller will get his call completed.
 	ReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) syscall.KernelErr
 
+	// Exit is a call that can be called to exit a single program
+	// or the whole network of services.
+	Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) syscall.KernelErr
+
 	// Nameserver gets the nameserver for the kernel.  This
 	// does not lock.
 	Nameserver() Nameserver
