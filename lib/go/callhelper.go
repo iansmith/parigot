@@ -3,8 +3,8 @@ package lib
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
-	"os"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -113,21 +113,13 @@ func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, 
 		CallId:   id.NewCallId().Marshal(),
 		MethodId: apishared.ExitMethod.Marshal(),
 	}
-	exitFut := syscallguest.Exit(req)
-	exitFut.Failure(func(e syscall.KernelErr) {
-		pcontext.Errorf(ctx, msgFailure)
-		os.Exit(1)
-	})
-	exitFut.Success(func(e *syscall.ExitResponse) {
-		syscallguest.SynchronousExit(&syscall.SynchronousExitRequest{Pair: e.GetPair()})
-		// wont reach here unless there is a serious error
-	})
+	syscallguest.Exit(req)
 }
 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {
 	var err syscall.KernelErr
 	for {
-		err = ClientOnlyReadOneAndCall(ctx, nil, timeoutInMillis)
+		err = ReadOneAndCallClient(ctx, nil, timeoutInMillis)
 		if err != syscall.KernelErr_NoError && err != syscall.KernelErr_ReadOneTimeout {
 			break
 		}
@@ -135,12 +127,12 @@ func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr
 	return err
 }
 
-// ClientOnlyReadOneAndCall does the waiting for an incoming call and if one
+// ReadOneAndCallClient does the waiting for an incoming call and if one
 // arrives, it dispatches the call to the appropriate method.  Similarly, it
 // will detect and respond to finished futures.  It returns KernelErr_ReadOneTimeout
 // if the waiting timed out, otherwise the value should be KernelErr_NoError or
 // an appropriate error code.
-func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
+func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 	timeoutInMillis int32) syscall.KernelErr {
 	req := syscall.ReadOneRequest{}
 
@@ -154,6 +146,12 @@ func ClientOnlyReadOneAndCall(ctx context.Context, binding *ServiceMethodMap,
 	// is timeout?
 	if resp.Timeout {
 		return syscall.KernelErr_ReadOneTimeout
+	}
+
+	if resp.Exit != nil && resp.Exit.ServiceId != nil {
+		sid := id.UnmarshalServiceId(resp.Exit.GetServiceId())
+		log.Printf("xxx %#v\n xxx -- %#v,,, %s", resp.Bundle, resp.Exit, sid.Short())
+		panic(apishared.ControlledExit)
 	}
 
 	// check for finished futures from within our address space

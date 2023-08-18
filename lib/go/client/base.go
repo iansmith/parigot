@@ -109,7 +109,6 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Host
 	cid2 := id.UnmarshalCallId(resp.GetCallId())
 	targetHid := id.UnmarshalHostId(resp.GetTargetHostId())
 	if !cid.Equal(cid2) {
-		log.Printf("xxxx --- mismatched call id: %s vs %s", cid2.Short(), cid.Short())
 		panic("mismatched call ids in dispatch")
 	}
 	return targetHid, cid, syscall.KernelErr_NoError

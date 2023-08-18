@@ -141,6 +141,9 @@ enum KernelErr{
 	  // waiting for input has been closed unexpectedly.
 	  // is already in use.
 	  ChannelClosed = 33;
+	  // ExitFailed means that we were tyring to send an orderly shutdown but 
+	  // could not reach all the of the hosts that we needed to notify.
+	  ExitFailed = 34;
 
 };
 
@@ -310,15 +313,9 @@ message ExitRequest {
   protosupport.v1.IdRaw method_id = 4; // reserved for internal use
 }
 
-// ExitResponse is needed because the exit request does
-// not cause the shutdown immediately. It causes the 
-// exit machinery to be invoked at some (soonish) point
-// in the future.  Note that due to concurrent calls to Exit() the exit
-// code received may not be the same as the one sent via ExitRequest!
-// Note that _only_ the caller of Exit() receives this response; if other
-// processes need to be shutdown, that is handled via SynchExit.
+// ExitResponse will not happen.  The stack will unwind before this 
+// message could be received.
 message ExitResponse{
- ExitPair pair = 1;
 }
 
 // Register informs the kernel you are one of the running services

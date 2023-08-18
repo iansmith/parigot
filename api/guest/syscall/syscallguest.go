@@ -1,7 +1,6 @@
 package syscall
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/lib/go/exit"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -153,15 +151,12 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 }
 
 // Exit is called from the WASM side to cause the WASM program, or all the WASM
-// programs, to exit.  The future the future is called when the exit is recognized,
-// but it is not called when the actual shutdown occurs.  The future given here
-// is called when the Exit() itself as has been completed.  For something run
-// just before the program stops, use AtExit.
+// programs, to exit. It does not return.
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
 func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
-	ctx := ManufactureGuestContext("[syscall]Exit")
+	//ctx := ManufactureGuestContext("[syscall]Exit")
 
 	hid := CurrentHostId()
 	cid := id.NewCallId()
@@ -170,18 +165,16 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	exitReq.CallId = cid.Marshal()
 	exitReq.HostId = hid.Marshal()
 	exitReq.MethodId = mid.Marshal()
-
 	outProtoPtr := &syscall.ExitResponse{}
-	errResp := standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
-	if errResp != 0 {
-		ef := NewExitFuture()
-		ef.fut.CompleteMethod(context.Background(), nil, errResp)
-		return ef
-	}
-	ef := NewExitFuture()
-	comp := NewExitCompleter(ef)
-	MatchCompleter(ctx, hid, cid, comp)
-	return ef
+	standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
+
+	processExit(exitReq.Pair)
+	//won't happen
+	return nil
+}
+
+func processExit(pair *syscall.ExitPair) {
+	panic(apishared.ControlledExit)
 }
 
 // Register should be called before any other services are
@@ -232,20 +225,20 @@ func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.Kern
 // exit shortly (order of milliseconds) and resources should be cleaned up.
 // Note that this can happen when another service actually made the Exit() call.
 //
-//go:wasmimport parigot synchronous_exit_
-func SynchronousExit_(int32, int32, int32, int32) int64
-func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr) {
-	out := &syscall.SynchronousExitResponse{}
+// ----  go:wasmimport parigot synchronous_exit_
+// func SynchronousExit_(int32, int32, int32, int32) int64
+// func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr) {
+// 	out := &syscall.SynchronousExitResponse{}
 
-	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
-	if standardGuestSide(in, out, SynchronousExit_, "SyncExit") != syscall.KernelErr_NoError {
-		pcontext.Errorf(ctx, "unable to exit cleanly, aborting")
-		pcontext.Dump(ctx)
-		os.Exit(1)
-	}
-	exit.ExecuteAtExit(ctx)
-	panic(apishared.ControlledExit)
-}
+// 	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
+// 	if standardGuestSide(in, out, SynchronousExit_, "SyncExit") != syscall.KernelErr_NoError {
+// 		pcontext.Errorf(ctx, "unable to exit cleanly, aborting")
+// 		pcontext.Dump(ctx)
+// 		os.Exit(1)
+// 	}
+// 	exit.ExecuteAtExit(ctx)
+// 	panic(apishared.ControlledExit)
+// }
 
 // standardGuestSide is a wrapper around ClientSide that knows how
 // to handle the error return to do an immediate exit.

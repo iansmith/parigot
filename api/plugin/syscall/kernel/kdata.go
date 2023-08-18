@@ -1,11 +1,12 @@
 package kernel
 
 import (
-	"log"
 	"sync"
 
+	sharedapi "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // kdata is one of the core kernel data structures. The data structures
@@ -114,9 +115,9 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 
 	sid := id.UnmarshalServiceId(req.GetBundle().GetServiceId())
 	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+
 	targetHid := k.Nameserver().FindHost(sid)
 	if targetHid.IsZeroOrEmptyValue() {
-		log.Printf("xxx --- nameserver lookup of %s failed", sid.Short())
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
@@ -216,5 +217,36 @@ func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) sysc
 	resp.Resolved = rc
 	resp.Exit = &syscall.ExitPair{}
 
+	return syscall.KernelErr_NoError
+}
+
+// exit does a dispatch, so it cannot lock
+
+func (k *kdata) Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) syscall.KernelErr {
+	all := k.ns.AllHosts()
+	a := &anypb.Any{}
+	err := a.MarshalFrom(req.Pair)
+	if err != nil {
+		klog.Errorf("unable to marshal pair into any: %v", err)
+		return syscall.KernelErr_MarshalFailed
+	}
+	bundle := &syscall.MethodBundle{
+		ServiceId: req.Pair.ServiceId,
+		MethodId:  sharedapi.ExitMethod.Marshal(),
+		CallId:    id.CallIdEmptyValue().Marshal(),
+	}
+	for _, host := range all {
+		bundle.HostId = host.Marshal()
+		dispatchReq := &syscall.DispatchRequest{
+			Bundle: bundle,
+			Param:  a,
+		}
+		resp := &syscall.DispatchResponse{}
+		kerr := k.Dispatch(dispatchReq, resp)
+		if err != nil {
+			klog.Errorf("unable to dispatch exit message: %s", syscall.KernelErr_name[int32(kerr)])
+			return syscall.KernelErr_ExitFailed
+		}
+	}
 	return syscall.KernelErr_NoError
 }

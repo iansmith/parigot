@@ -1,6 +1,10 @@
 package kernel
 
 import (
+	"log"
+
+	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -51,9 +55,32 @@ func (s *SingleApproach) Cancel(k Kernel) {
 	k.CancelRead()
 }
 
+// HandleDispatch is called to generate a ReadOneResponse given an input dispatch request.
+// It handles the exit call as a special case.
 func (s *SingleApproach) HandleDispatch(req *syscall.DispatchRequest) syscall.KernelErr {
 	resp := &syscall.ReadOneResponse{}
 	resp.Bundle = &syscall.MethodBundle{}
+
+	sid := id.UnmarshalServiceId(req.Bundle.ServiceId)
+	mid := id.UnmarshalMethodId(req.Bundle.MethodId)
+	//
+	// special case for exit
+	//
+	if sid.Equal(apishared.ExitService) && mid.Equal(id.MethodId(apishared.ExitMethod)) {
+		log.Printf("xxx -- got an exit request")
+		pair := syscall.ExitPair{}
+		if e := req.Param.UnmarshalTo(&pair); e != nil {
+			klog.Errorf("unable to unmarshal into exit pair: %v", e)
+		}
+		resp.Bundle = &syscall.MethodBundle{}
+		proto.Merge(resp.Bundle, req.Bundle)
+		resp.Exit = &pair
+		resp.ParamOrResult = nil
+		resp.Timeout = false
+		s.chRecv <- resp
+		return syscall.KernelErr_NoError
+	}
+	// anything other than exit comes through here
 	proto.Merge(resp.Bundle, req.Bundle)
 	resp.Timeout = false
 	resp.ParamOrResult = req.Param

@@ -145,6 +145,10 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
+	if mid.Equal(apishared.ExitMethod) {
+		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
+		panic(apishared.ControlledExit)
+	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -521,6 +525,10 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
+	if mid.Equal(apishared.ExitMethod) {
+		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
+		panic(apishared.ControlledExit)
+	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -897,6 +905,10 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
+	if mid.Equal(apishared.ExitMethod) {
+		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
+		panic(apishared.ControlledExit)
+	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
