@@ -1,7 +1,6 @@
 package wheeler
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"runtime"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -49,8 +47,8 @@ var _wheeler *wheeler
 //
 // The context provided is saved and used for all calls on the
 // wheeler.
-func InstallWheeler(ctx context.Context, exitCh chan *syscall.ExitPair) {
-	_wheeler = newWheeler(ctx, exitCh)
+func InstallWheeler(exitCh chan *syscall.ExitPair) {
+	_wheeler = newWheeler(exitCh)
 }
 
 // OutProtoPair is the return type of a message to the wheeler.
@@ -111,7 +109,6 @@ type hostServiceBinding struct {
 // is spinning around to take each one in turn.
 type wheeler struct {
 	ch                   chan InProtoPair
-	ctx                  context.Context
 	exitCh               chan *syscall.ExitPair
 	pkgToServiceImpl     map[string]map[string][]hostServiceBinding
 	hostToService        map[string][]id.ServiceId
@@ -133,10 +130,9 @@ type wheeler struct {
 
 // newWheeler returns a Wheeler and should only be called--
 // exactly one time--from  InstallWheeler.
-func newWheeler(ctx context.Context, exitCh chan *syscall.ExitPair) *wheeler {
+func newWheeler(exitCh chan *syscall.ExitPair) *wheeler {
 	w := &wheeler{
 		exitCh:               exitCh,
-		ctx:                  ctx,
 		ch:                   make(chan InProtoPair, 8),
 		pkgToServiceImpl:     make(map[string]map[string][]hostServiceBinding),
 		hostToService:        make(map[string][]id.ServiceId),
@@ -168,11 +164,7 @@ func In() chan InProtoPair {
 // errorf is a convenience for writing an error the context given to
 // us at creation. if the context is nil, this does nothing.
 func (w *wheeler) errorf(spec string, rest ...interface{}) {
-	if w.ctx == nil {
-		return
-	}
-	pcontext.Errorf(w.ctx, spec, rest...)
-	pcontext.Dump(w.ctx)
+	log.Printf(spec, rest...)
 }
 
 // isRunning checks to see if a particular service is on the running list.

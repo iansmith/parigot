@@ -4,8 +4,8 @@ import (
 	"context"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/methodcall/bar/v1"
 	"github.com/iansmith/parigot/g/methodcall/foo/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -23,12 +23,11 @@ func main() {
 	req := []lib.MustRequireFunc{
 		foo.MustRequire,
 	}
-	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "barservice.Main")
 	bServer := &barServer{}
-	binding, fut, _ := bar.Init(ctx, req, bServer)
+	binding, fut, ctx, _ := bar.Init(req, bServer)
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		kerr := bar.Run(ctx, binding, bar.TimeoutInMillis, nil)
-		pcontext.Fatalf(ctx, "Run in Bar exited with an error: %s", syscall.KernelErr_name[int32(kerr)])
+		guest.Log(ctx).Error("Run in Bar exited with an error", "kernel error", syscall.KernelErr_name[int32(kerr)])
 	})
 
 }
@@ -81,7 +80,7 @@ func (b *barServer) succFn(ctx context.Context, req *bar.AccumulateRequest, resp
 	}
 	// finished all the given elements in req.GetValue()
 	result.Method.Success(func(resp *bar.AccumulateResponse) {
-		pcontext.Infof(ctx, "success for sum! %d", resp.GetSum())
+		guest.Log(ctx).Info("success for sum!", "sum", resp.GetSum())
 	})
 	return nil // wont be consumed
 }
@@ -102,7 +101,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) 
 
 	// if anything goes wrong, we alse fail the finalFut
 	finalFut.Method.Failure(func(err bar.BarErr) {
-		pcontext.Errorf(ctx, "unable to compute accumulation sum: %s", bar.BarErr_name[int32(err)])
+		guest.Log(ctx).Error("unable to compute accumulation sum", "bar error", bar.BarErr_name[int32(err)])
 	})
 
 	// initial startup

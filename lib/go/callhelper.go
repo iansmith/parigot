@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 
+	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
@@ -34,13 +35,16 @@ func Export1(pkg, name string, serviceId id.ServiceId) (*syscall.ExportResponse,
 // program that is not service itself, in other words it is a client only.
 // If you are a service, you should use the automagically generated code
 // MustRegister<BLAH>().
-func MustRegisterClient(ctx context.Context) id.ServiceId {
+func MustRegisterClient() (context.Context, id.ServiceId) {
 	pkg := "Client"
 	name := fmt.Sprintf("program%03d", rand.Intn(999))
-	sid := register(ctx, pkg, name, true)
-	return sid
+	sid := register(context.Background(), pkg, name, true)
+	ctx := guest.NewContextWithLogger(sid)
+	return ctx, sid
 }
 
+// register is the setup of the guest-side registration. It uses
+// syscall lib to actually make the call.
 func register(ctx context.Context, pkg, name string, isClient bool) id.ServiceId {
 	req := &syscall.RegisterRequest{}
 	req.HostId = syscallguest.CurrentHostId().Marshal()
@@ -77,13 +81,13 @@ func Require1(pkg, name string, source id.ServiceId) (*syscall.RequireResponse, 
 // use them.  A common case of this is a demo program or a program
 // that performs a one off task.  This function wraps MustRegisterClient
 // and panics if things go wrong.
-func MustInitClient(ctx context.Context, requirement []MustRequireFunc) id.ServiceId {
+func MustInitClient(requirement []MustRequireFunc) (context.Context, id.ServiceId) {
 
-	myId := MustRegisterClient(ctx)
+	ctx, myId := MustRegisterClient()
 	for _, f := range requirement {
 		f(ctx, myId)
 	}
-	return myId
+	return ctx, myId
 }
 
 // LaunchClient is a convienence wrapper around Launch() for clients that don't

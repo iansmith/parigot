@@ -1,0 +1,33 @@
+## Note that because this is consumed from the hello-world root dir, the paths 
+## are relative to that dir.
+
+## Load parigot code
+[config.dev]
+ParigotLibPath="/workspaces/parigot/build/syscall.so"
+ParigotLibSymbol="ParigotInitialize"
+
+# greeting service
+[config.dev.microservice.greet]
+WasmPath="/workspaces/parigot/example/helloworld/build/greeting.p.wasm"
+Arg=[]
+Env=[]
+
+# test that we can start up another service along with running helloworld.
+# this uses the built in file service as the test service.
+#[config.dev.microservice.file]
+#WasmPath="/workspaces/parigot/build/file.p.wasm"
+##PluginPath="/workspaces/parigot/build/file.so"
+#PluginSymbol="ParigotInitialize"
+#Arg=[]
+#Env=[]
+
+
+# helloworld, it has no services that it implements, it just consumes greet and
+# runs to the end of main.
+[config.dev.microservice.helloworld]
+WasmPath="/workspaces/parigot/example/helloworld/build/hello.p.wasm"
+Arg=[]
+Env=[]
+# this is the crucial line for parigot. "this is just a client and should run to completion".
+Main=true
+

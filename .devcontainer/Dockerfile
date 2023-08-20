@@ -1,8 +1,17 @@
+
 FROM ubuntu:22.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
-RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
-    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
-	clang-15 wabt ack dpkg zip unzip
+RUN apt-get clean
+#RUN apt-get install -y curl 
+RUN apt-get install -y wget
+RUN apt-get install -y git
+RUN apt-get install -y xz-utils nano 
+RUN apt-get install sudo ca-certificates file \
+	dpkg zip unzip zsh
+
+#RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
+#    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
+#	clang-15 wabt ack dpkg zip unzip
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -14,8 +23,7 @@ RUN mkdir /home/parigot/tmp
 WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## golang version
-ENV GOLANG_VERSION_HOST="1.20.4"
-ENV GOLANG_VERSION_GUEST="1.21rc3"
+ENV GOLANG_VERSION_HOST="1.21.0"
 ## wasmtime version
 ENV WASMTIME_VERSION=10.0.1
 
@@ -34,27 +42,32 @@ RUN set -e; \
 	fi ;\
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
-		wget -O go-guest.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_GUEST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
-		wget -O go-guest.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_GUEST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
 
-## install golang
-RUN tar xzf go.tar.gz
-RUN rm go.tar.gz 
-RUN mv go go${GOLANG_VERSION_HOST}
+#RUN tar xzf go.tar.gz
+#RUN rm go.tar.gz 
+#RUN mv go go${GOLANG_VERSION_HOST}
+## client side go install
+WORKDIR /home/parigot/deps
 
-# client side go install
-RUN tar xzf go-guest.tar.gz
-RUN rm go-guest.tar.gz 
-RUN mv go go${GOLANG_VERSION_GUEST}
+#install from source
+#RUN git clone --depth 1 https://github.com/golang/go.git
+#ENV GOLANG_VERSION_GUEST="1.21.0"
+#RUN mv go go${GOLANG_VERSION_GUEST}
+#WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
+#ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_GUEST}
+#ENV GOROOT_BOOTSTRAP=/home/parigot/deps/go${GOLANG_VERSION_HOST}
+#RUN  ./make.bash
+ENV GOROOT=
+ENV GOROOT_BOOTSTRAP=
 
 # install Hugo
 WORKDIR /home/parigot/deps
@@ -69,10 +82,10 @@ RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
 
 ## install wasmtime
-WORKDIR /home/parigot/deps
-RUN unxz wasmtime.tar.xz
-RUN tar xf wasmtime.tar
-RUN rm wasmtime.tar
+#WORKDIR /home/parigot/deps
+#RUN unxz wasmtime.tar.xz
+#RUN tar xf wasmtime.tar
+#RUN rm wasmtime.tar
 
 #RUN mkdir /home/parigot/deps/bin
 #WORKDIR /home/parigot/deps/bin
@@ -112,10 +125,12 @@ ENV PB_REL=""
 # symlink all the single binaries in tools/bin
 RUN mkdir /home/parigot/tools/bin
 WORKDIR /home/parigot/tools/bin
+
+#RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST} /home/parigot/tools
+#RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_GUEST}
+
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST} /home/parigot/tools
-RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST} /home/parigot/tools
-RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_GUEST}
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_HOST}
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
@@ -138,19 +153,20 @@ RUN set -eux \
 	ls -l /home/parigot/tools/bin
 
 
-# antlr 4.11 is a platform-neutral lib (java)
-ENV ANTLR_VERSION=4.11.1
-RUN mkdir -p /home/parigot/tools/lib
-WORKDIR /home/parigot/tools/lib
-RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
+# antlr 4.11 is a platform-neutral lib (java)... need to change apt-get above if you want this
+#ENV ANTLR_VERSION=4.11.1
+#RUN mkdir -p /home/parigot/tools/lib
+#WORKDIR /home/parigot/tools/lib
+#RUN wget -q https://www.antlr.org/download/antlr-${ANTLR_VERSION}-complete.jar
 
-ADD zshrc /home/parigot/.zshrc
-ADD p10k.zsh /home/parigot/.p10k.zsh
-ADD ohmyzsh /home/parigot/.oh-my-zsh
-RUN chown -R parigot /home/parigot/.zshrc  /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
-RUN chgrp -R parigot /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
+#ADD zshrc /home/parigot/.zshrc
+#ADD p10k.zsh /home/parigot/.p10k.zsh
+#ADD ohmyzsh /home/parigot/.oh-my-zsh
+#RUN chown -R parigot /home/parigot/.zshrc  /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
+#RUN chgrp -R parigot /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 #RUN chmod -R g+w /home/parigot/.zshrc /home/parigot/.p10k.zsh /home/parigot/.oh-my-zsh
 
+# docker socket dir?
 RUN mkdir /var/run/parigot
 RUN chown parigot /var/run/parigot
 RUN chgrp parigot /var/run/parigot
@@ -166,7 +182,7 @@ RUN chsh -s /usr/bin/zsh parigot
 
 #temporary PATH hack
 USER parigot
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/bin:/home/parigot/.local/bin
+ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/bin
 
 RUN echo $PATH
 RUN file  /home/parigot/deps/go1.21/bin/go
@@ -202,7 +218,7 @@ ENV TOOLS=/home/parigot/tools
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV PARIGOT_TOOLS=/home/parigot/tools
 ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
-ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
+ENV PATH=/workspaces/parigot/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 ENV CC=/usr/lib/llvm-15/bin/clang
 ENV GOFLAGS="-buildvcs=false"
 

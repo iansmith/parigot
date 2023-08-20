@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	queue "github.com/iansmith/parigot/g/queue/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -14,16 +15,19 @@ import (
 
 var _ = unsafe.Sizeof([]byte{})
 
+var logger *slog.Logger
+
 func main() {
-	ctx := pcontext.CallTo(pcontext.SourceContext(context.Background(), pcontext.Guest), "fileguest.Main")
 	f := &myQueueSvc{}
-	binding, fut, _ := queue.Init(ctx, []lib.MustRequireFunc{}, f)
+	binding, fut, ctx, sid := queue.Init([]lib.MustRequireFunc{}, f)
+	logger = slog.New(guest.NewParigotHandler(sid))
+
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		var kerr syscall.KernelErr
 		for {
 			kerr = queue.ReadOneAndCall(ctx, binding, queue.TimeoutInMillis)
 			if kerr == syscall.KernelErr_ReadOneTimeout {
-				pcontext.Infof(ctx, "waiting for calls to queue service")
+				logger.Info("waiting for calls to queue service")
 				continue
 			}
 			if kerr == syscall.KernelErr_NoError {
@@ -31,7 +35,7 @@ func main() {
 			}
 			break
 		}
-		pcontext.Errorf(ctx, "error while waiting for queue service calls: %s", syscall.KernelErr_name[int32(kerr)])
+		guest.Log(ctx).Error("error while waiting for queue service calls", slog.String("syscall.KernelErr", syscall.KernelErr_name[int32(kerr)]))
 	})
 }
 

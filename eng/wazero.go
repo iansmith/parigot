@@ -139,7 +139,7 @@ func (e *wazeroExtern) Name() string {
 }
 
 // // Note that in wasm the name of the function can be "".
-func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExtern, error) {
+func (e *wazeroInstance) Function(name string) (FunctionExtern, error) {
 	f := e.m.ExportedFunction(name)
 	if f == nil {
 		log.Printf("unable to find exported Function %s in inst '%s' mod '%s'", name, e.Name(), e.parent.Name())
@@ -155,8 +155,11 @@ func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExt
 func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
 	result, err := e.fn.Call(ctx, param...)
 	if err != nil {
-		pcontext.Errorf(ctx, "call returned an err >>> %s", err.Error())
-		return nil, err
+		// xxxx I hate this
+		if err.Error() != "module closed with exit_code(0)" {
+			log.Printf("call returned an err >>> %s", err.Error())
+			return nil, err
+		}
 	}
 	return result, nil
 }
@@ -303,9 +306,11 @@ func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
-		WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
-		WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
-		WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		// WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
+		// WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
+		// WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
 		WithRandSource(rand.Reader).
 		WithFSConfig(fsConfig).
 		WithSysNanosleep().
@@ -369,16 +374,16 @@ func wazeroContext(ctx context.Context) context.Context {
 }
 
 func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(
-		pcontext.GuestContext(ctx), "call of run():"+e.name))
+	result, err := e.wazeroFunctionExtern.Call(ctx)
 	if err != nil {
 		return nil, err
 	}
-	pcontext.Debugf(ctx, "Run", "got a return value from entry point... ")
-	for i, r := range result {
-		pcontext.Debugf(ctx, "Run", "result %02d:%x", i, r)
+	if len(result) > 0 {
+		log.Printf("got a return value from entry point... ")
+		for i, r := range result {
+			log.Printf("result %02d:%x", i, r)
+		}
 	}
-	pcontext.Dump(rawLineContext)
 	return nil, nil
 }
 
