@@ -6,13 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 
 	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/command/runner/runner"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys"
 )
@@ -31,18 +31,15 @@ func main() {
 	flg := &runner.DeployFlag{
 		TestMode: *testMode,
 	}
-	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
-	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
-	defer pcontext.Dump(ctx)
 
-	config, err := runner.Parse(ctx, flag.Arg(0), flg)
+	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
 	// create the syscall implementation
 	exitCh := make(chan *syscall.ExitPair)
-	wheeler.InstallWheeler(ctx, exitCh)
+	wheeler.InstallWheeler(exitCh)
 	ok := false
 	kernel.K, ok = kernel.InitSingle()
 	if !ok {
@@ -50,16 +47,16 @@ func main() {
 	}
 
 	// the deploy context creation also creates any needed nameservers
-	deployCtx, err := sys.NewDeployContext(ctx, config)
+	deployCtx, err := sys.NewDeployContext(config)
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
 
-	if err := deployCtx.CreateAllProcess(ctx); err != nil {
+	if err := deployCtx.CreateAllProcess(); err != nil {
 		log.Fatalf("unable to create process in main: %v", err)
 	}
 
-	main, code := deployCtx.StartServer(pcontext.CallTo(ctx, "StartServer"))
+	main, code := deployCtx.StartServer(context.Background())
 	if main == nil {
 		if code != 0 {
 			log.Printf("server startup returned error code %d", code)
@@ -68,34 +65,25 @@ func main() {
 	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	go func(context context.Context) {
+	go func() {
 		for range c {
-			pcontext.Dump(context)
+			log.Printf("received signal")
 		}
 		log.Printf("goroutine exited")
-	}(ctx)
+	}()
 
 	for _, mainProg := range main {
-		code, err := deployCtx.StartMain(ctx, mainProg)
+		code, err := deployCtx.StartMain(mainProg)
 		if code == 253 && err == nil {
 			//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
 		} else if code != 0 {
-			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
-		} else {
-			pcontext.Infof(ctx, "program %s finished (code %d, error is not nil %v)", mainProg, code, err == nil)
+			slog.Info("main exited", "name", mainProg, "code", code, "error?", err != nil)
 		}
-		return
 	}
-	pcontext.Dump(ctx)
 	if len(main) > 1 {
-		pcontext.Logf(ctx, pcontext.Info,
+		log.Printf(
 			"all main programs completed successfully")
 	} else {
-		pcontext.Logf(ctx, pcontext.Info, "main program completed successfully")
+		log.Printf("main program '%s' completed successfully", main[0])
 	}
-	log.Printf("xxx main program exiting")
-	for {
-
-	}
-	//os.Exit(8)
 }

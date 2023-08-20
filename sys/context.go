@@ -32,10 +32,10 @@ var runnerVerbose = false || os.Getenv("PARIGOT_VERBOSE") != ""
 // of the deploy (runner.DeployConfig) and the running state of the deployment
 // which is represented by DeployContext.  This context can be used to create
 // processes and start them running.
-func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployContext, error) {
+func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 	// this config is for setting options that are global to the whole WASM world, like SetWasmThreads (ugh!)
 
-	engine := eng.NewWaZeroEngine(ctx, wazero.NewRuntimeConfig())
+	engine := eng.NewWaZeroEngine(context.Background(), wazero.NewRuntimeConfig())
 
 	// our notify map is shared by the nameserver
 	notifyMap := &sync.Map{}
@@ -51,8 +51,8 @@ func NewDeployContext(ctx context.Context, conf *runner.DeployConfig) (*DeployCo
 	return depCtx, nil
 }
 
-func (c *DeployContext) LoadAllModules(ctx context.Context, e eng.Engine) error {
-	return c.config.LoadAllModules(ctx, e)
+func (c *DeployContext) LoadAllModules(e eng.Engine) error {
+	return c.config.LoadAllModules(e)
 }
 
 func (c *DeployContext) Process() *sync.Map {
@@ -62,16 +62,16 @@ func (c *DeployContext) Process() *sync.Map {
 // CreateAllProcess returns an error if it could not create a process (and an underlying store) for each
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
-func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
+func (c *DeployContext) CreateAllProcess() error {
 	// load the parigot syscalls, this is done based on the config in the .toml file
-	err := LoadPluginAndAddHostFunc(pcontext.CallTo(ctx, "LoadPluginAndAddHostFunc"),
+	err := LoadPluginAndAddHostFunc(context.Background(),
 		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")
 	if err != nil {
 		return err
 	}
 
 	// load wasm files, implicitly checks them and converts them to binary
-	if err := c.LoadAllModules(ctx, c.engine); err != nil {
+	if err := c.LoadAllModules(c.engine); err != nil {
 		panic(fmt.Sprintf("unable to load modules in preparation for launch: %v", err))
 	}
 
@@ -79,7 +79,7 @@ func (c *DeployContext) CreateAllProcess(ctx context.Context) error {
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
 		hid := id.NewHostId()
-		p, err := NewProcessFromMicroservice(ctx, c.engine, m, c, hid)
+		p, err := NewProcessFromMicroservice(c.engine, m, c, hid)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module '%s': %v", name, err)
 		}
@@ -104,20 +104,18 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		if !ok {
 			panic("unable to find (internal) process for name " + f.Name())
 		}
-		if procAny == nil {
-			log.Printf("xxx proc any is nil")
-		}
 		if (c.config.Flag.TestMode && f.Test) || (!c.config.Flag.TestMode && f.Main) {
 			mainList = append(mainList, f.Name())
 		}
 		name := f.Name()
 		if f.Server {
 			go func(p *Process, serverProcessName string) {
-				//pcontext.Debugf(ctx, "goroutine for '%s' starting", serverProcessName)
-				code := p.Start(ctx)
-				//pcontext.Debugf(ctx, "inside the gofunc for %s, got code %d", serverProcessName, code)
+				code := p.Start()
 				p.SetExitCode(code)
-				pcontext.Debugf(ctx, "server process '%s' exited with code %d", serverProcessName, code)
+				if code != 0 {
+					log.Printf("service exited ", "name", serverProcessName, "code", code)
+				}
+
 			}(procAny.(*Process), name)
 		}
 	}
@@ -130,13 +128,13 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 // StartMain runs a main program (one that is not a server and usually expected
 // to terminate) and returns the error code provided by the main program.  Note
 // that this function is run synchronously, not on a goroutine.
-func (c *DeployContext) StartMain(ctx context.Context, mainProg string) (int, error) {
+func (c *DeployContext) StartMain(mainProg string) (int, error) {
 	procAny, ok := c.process.Load(mainProg)
 	if !ok {
 		return 0, fmt.Errorf("main program '%s' not found", mainProg)
 	}
 	proc := procAny.(*Process)
-	code := proc.Start(ctx)
+	code := proc.Start()
 	proc.SetExitCode(code)
 	return code, nil
 }

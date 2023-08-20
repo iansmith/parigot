@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	file "github.com/iansmith/parigot/g/file/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -13,22 +14,24 @@ import (
 )
 
 var _ = unsafe.Sizeof([]byte{})
+var logger *slog.Logger
 
 func main() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "[fileguest]main")
 	f := &myFileSvc{}
-	binding, fut, _ := file.Init(ctx, []lib.MustRequireFunc{}, f)
+	binding, fut, ctx, sid := file.Init([]lib.MustRequireFunc{}, f)
+	logger = slog.New(guest.NewParigotHandler(sid))
+
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		pcontext.Infof(ctx, "file service guest side started correctly")
+		logger.Info("file service guest side started correctly")
 	})
 	kerr := file.Run(ctx, binding, file.TimeoutInMillis, nil)
-	pcontext.Errorf(ctx, "error while waiting for file service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	logger.Error("error while waiting for file service calls", slog.String("syscall.KernelErr", syscall.KernelErr_name[int32(kerr)]))
 }
 
 type myFileSvc struct{}
 
 func (f *myFileSvc) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool] {
-	pcontext.Debugf(ctx, "Ready reached in file service")
+	logger.Debug("Ready reached in file service")
 	return future.NewBaseWithValue[bool](true)
 }
 

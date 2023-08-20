@@ -10,19 +10,17 @@ package test
 
 import (
 	"context"
-	"runtime/debug"
-	"log"
 	"fmt"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
-	pcontext "github.com/iansmith/parigot/context"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/api/shared/id"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
+	"github.com/iansmith/parigot/api/guest"  
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/proto"
@@ -33,10 +31,6 @@ var _ =  unsafe.Sizeof([]byte{})
  
 func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[bool] {
 
-	defer func() {
-		pcontext.Dump(ctx)
-	}()
-
 	readyResult:=future.NewBase[bool]()
 
 	ready:=impl.Ready(ctx,sid)
@@ -45,8 +39,7 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 			readyResult.Set(true)			
 			return
 		}
-		pcontext.Errorf(ctx,"Unable to start test.v1.Test, Ready returned false")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Error("Unable to start test.v1.Test, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -55,16 +48,18 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 
 // Note that  InitTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
-func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
+// The context passed here does not need to contain a logger, one will be created.
+func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "InitTest: trapped a panic in the guest side: %v", r)
+			guest.Log(context.Background()).Info("InitTest: trapped a panic in the guest side","recovered", r)
 		}
-		pcontext.Dump(ctx)
 	}()
 
-	myId := MustRegisterTest(ctx)
-	MustExportTest(ctx,myId)
+	// tricky, this context really should not be used but is
+	// passed so as to allow printing if things go wrong
+	ctx, myId := MustRegisterTest()
+	MustExportTest(context.Background(),myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -73,34 +68,31 @@ func InitTest(ctx context.Context,require []lib.MustRequireFunc, impl Test) (*li
 	smmap, launchF:=MustLaunchServiceTest(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		pcontext.Errorf(ctx, "launch failure on call Test:%s",t)
+		guest.Log(ctx).Error("launch failure on call Test","error",t)
 		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitTest:"+t,
 			"unable to call Exit in InitTest:"+t)
 	})
-	return smmap,launchF, myId
+	return smmap,launchF, ctx,myId
 }
 func RunTest(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "RunTest: trapped a panic in the guest side: %v", r)
+			s, ok:=r.(string)
+			if !ok && s!=apishared.ControlledExit {
+				guest.Log(ctx).Error("RunTest: trapped a panic in the guest side", "recovered", r)
+			}
 		}
-		debug.PrintStack()
-		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
 	for {
-		pctx:=pcontext.CallTo(ctx,"ReadOneAndCallTest")
-		kerr:=ReadOneAndCallTest(pctx, binding, timeoutInMillis)
-		pcontext.Dump(pctx)
+		kerr:=ReadOneAndCallTest(ctx, binding, timeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			if bg==nil {
 				continue
 			}
-			pcontext.Infof(ctx,"calling backgrounder of Test")
-			bgctx:=pcontext.CallTo(ctx,"Background")
-			bg.Background(bgctx)
-			pcontext.Dump(bgctx)
+			guest.Log(ctx).Info("calling backgrounder of Test")
+			bg.Background(ctx)
 			continue
 		}
 		if kerr == syscall.KernelErr_NoError {
@@ -108,7 +100,7 @@ func RunTest(ctx context.Context,
 		}
 		break
 	}
-	pcontext.Errorf(ctx, "error while waiting for Test service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	guest.Log(ctx).Error("error while waiting for Test service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -146,14 +138,13 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
 	if mid.Equal(apishared.ExitMethod) {
-		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
 		panic(apishared.ControlledExit)
 	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -165,7 +156,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			pcontext.Errorf(ctx, "unable to marshal result for return value request")
+			guest.Log(ctx).Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -225,7 +216,6 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Test","TestStart",
 		GenerateTestStartInvoker(impl)) 
-	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
 
@@ -245,9 +235,8 @@ func MustLocateTest(ctx context.Context, sid id.ServiceId) ClientTest {
     name:=syscall.KernelErr_name[int32(err)]
     normal:="unable to locate test.v1.test:"+name
     if err!=0 {
-        pcontext.Debugf(ctx,"kernel error was  %s",name)
         if err == syscall.KernelErr_NotRequired {
-            pcontext.Errorf(ctx,"service was located, but it was not required")
+            guest.Log(ctx).Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -256,7 +245,7 @@ func MustLocateTest(ctx context.Context, sid id.ServiceId) ClientTest {
 }
 
 
-func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
+func RegisterTest() (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
 	debugName:=fmt.Sprintf("%s.%s","test.v1","test")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
@@ -273,23 +262,23 @@ func RegisterTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 
     return sid,syscall.KernelErr_NoError
 }
-func MustRegisterTest(ctx context.Context) id.ServiceId {
-    sid, err:=RegisterTest(ctx)
+func MustRegisterTest() (context.Context,id.ServiceId) {
+    sid, err:=RegisterTest()
     if err!=syscall.KernelErr_NoError {
-        pcontext.Fatalf(ctx,"unable to register %s.%s","test.v1","test")
+        guest.Log(context.Background()).Error("unable to register","package","test.v1","service name","test")
         panic("unable to register "+"test")
     }
-    return sid
+    return guest.NewContextWithLogger(sid), sid
 }
 
 func MustRequireTest(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1("test.v1","test",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","test.v1","test",syscall.KernelErr_name[int32(err)])
+            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","test.v1","service name","test","error",syscall.KernelErr_name[int32(err)])
             panic("require test.v1.test creates a dependency loop")
         }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","test.v1","test",syscall.KernelErr_name[int32(err)])
+        guest.Log(ctx).Error("unable to require","package","test.v1","service name","test","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require test.v1.test:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -297,7 +286,7 @@ func MustRequireTest(ctx context.Context, sid id.ServiceId) {
 func MustExportTest(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1("test.v1","test",sid)
     if err!=syscall.KernelErr_NoError{
-        pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","test")
+        guest.Log(ctx).Error("unable to export","package","test.v1","service name","test")
         panic("not able to export test.v1.test:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -338,11 +327,9 @@ func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*l
 func AddTestSuite_(int32,int32,int32,int32) int64
 func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *FutureTestAddTestSuite {
 	outProtoPtr := (*AddTestSuiteResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddTestSuite_)
 	if signal {
-		pcontext.Infof(ctx, "AddTestSuite exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("AddTestSuite exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -355,11 +342,9 @@ func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *Futur
 func Start_(int32,int32,int32,int32) int64
 func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
 	outProtoPtr := (*StartResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Start_)
 	if signal {
-		pcontext.Infof(ctx, "Start exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("Start exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -378,7 +363,7 @@ func (t *invokeTestAddTestSuite) Invoke(ctx context.Context,a *anypb.Any) future
     in:=&AddTestSuiteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -399,7 +384,7 @@ func (t *invokeTestStart) Invoke(ctx context.Context,a *anypb.Any) future.Comple
     in:=&StartRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -413,10 +398,6 @@ func GenerateTestStartInvoker(impl Test) future.Invoker {
  
 func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *future.Base[bool] {
 
-	defer func() {
-		pcontext.Dump(ctx)
-	}()
-
 	readyResult:=future.NewBase[bool]()
 
 	ready:=impl.Ready(ctx,sid)
@@ -425,8 +406,7 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 			readyResult.Set(true)			
 			return
 		}
-		pcontext.Errorf(ctx,"Unable to start test.v1.MethodCallSuite, Ready returned false")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Error("Unable to start test.v1.MethodCallSuite, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -435,16 +415,18 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 
 // Note that  InitMethodCallSuite returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
-func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
+// The context passed here does not need to contain a logger, one will be created.
+func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "InitMethodCallSuite: trapped a panic in the guest side: %v", r)
+			guest.Log(context.Background()).Info("InitMethodCallSuite: trapped a panic in the guest side","recovered", r)
 		}
-		pcontext.Dump(ctx)
 	}()
 
-	myId := MustRegisterMethodCallSuite(ctx)
-	MustExportMethodCallSuite(ctx,myId)
+	// tricky, this context really should not be used but is
+	// passed so as to allow printing if things go wrong
+	ctx, myId := MustRegisterMethodCallSuite()
+	MustExportMethodCallSuite(context.Background(),myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -453,34 +435,31 @@ func InitMethodCallSuite(ctx context.Context,require []lib.MustRequireFunc, impl
 	smmap, launchF:=MustLaunchServiceMethodCallSuite(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		pcontext.Errorf(ctx, "launch failure on call MethodCallSuite:%s",t)
+		guest.Log(ctx).Error("launch failure on call MethodCallSuite","error",t)
 		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitMethodCallSuite:"+t,
 			"unable to call Exit in InitMethodCallSuite:"+t)
 	})
-	return smmap,launchF, myId
+	return smmap,launchF, ctx,myId
 }
 func RunMethodCallSuite(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "RunMethodCallSuite: trapped a panic in the guest side: %v", r)
+			s, ok:=r.(string)
+			if !ok && s!=apishared.ControlledExit {
+				guest.Log(ctx).Error("RunMethodCallSuite: trapped a panic in the guest side", "recovered", r)
+			}
 		}
-		debug.PrintStack()
-		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
 	for {
-		pctx:=pcontext.CallTo(ctx,"ReadOneAndCallMethodCallSuite")
-		kerr:=ReadOneAndCallMethodCallSuite(pctx, binding, timeoutInMillis)
-		pcontext.Dump(pctx)
+		kerr:=ReadOneAndCallMethodCallSuite(ctx, binding, timeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			if bg==nil {
 				continue
 			}
-			pcontext.Infof(ctx,"calling backgrounder of MethodCallSuite")
-			bgctx:=pcontext.CallTo(ctx,"Background")
-			bg.Background(bgctx)
-			pcontext.Dump(bgctx)
+			guest.Log(ctx).Info("calling backgrounder of MethodCallSuite")
+			bg.Background(ctx)
 			continue
 		}
 		if kerr == syscall.KernelErr_NoError {
@@ -488,7 +467,7 @@ func RunMethodCallSuite(ctx context.Context,
 		}
 		break
 	}
-	pcontext.Errorf(ctx, "error while waiting for MethodCallSuite service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	guest.Log(ctx).Error("error while waiting for MethodCallSuite service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -526,14 +505,13 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
 	if mid.Equal(apishared.ExitMethod) {
-		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
 		panic(apishared.ControlledExit)
 	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -545,7 +523,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			pcontext.Errorf(ctx, "unable to marshal result for return value request")
+			guest.Log(ctx).Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -605,7 +583,6 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"MethodCallSuite","MethodCallSuiteSuiteReport",
 		GenerateMethodCallSuiteSuiteReportInvoker(impl)) 
-	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
 
@@ -625,9 +602,8 @@ func MustLocateMethodCallSuite(ctx context.Context, sid id.ServiceId) ClientMeth
     name:=syscall.KernelErr_name[int32(err)]
     normal:="unable to locate test.v1.method_call_suite:"+name
     if err!=0 {
-        pcontext.Debugf(ctx,"kernel error was  %s",name)
         if err == syscall.KernelErr_NotRequired {
-            pcontext.Errorf(ctx,"service was located, but it was not required")
+            guest.Log(ctx).Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -636,7 +612,7 @@ func MustLocateMethodCallSuite(ctx context.Context, sid id.ServiceId) ClientMeth
 }
 
 
-func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelErr){
+func RegisterMethodCallSuite() (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
 	debugName:=fmt.Sprintf("%s.%s","test.v1","method_call_suite")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
@@ -653,23 +629,23 @@ func RegisterMethodCallSuite(ctx context.Context) (id.ServiceId, syscall.KernelE
 
     return sid,syscall.KernelErr_NoError
 }
-func MustRegisterMethodCallSuite(ctx context.Context) id.ServiceId {
-    sid, err:=RegisterMethodCallSuite(ctx)
+func MustRegisterMethodCallSuite() (context.Context,id.ServiceId) {
+    sid, err:=RegisterMethodCallSuite()
     if err!=syscall.KernelErr_NoError {
-        pcontext.Fatalf(ctx,"unable to register %s.%s","test.v1","method_call_suite")
+        guest.Log(context.Background()).Error("unable to register","package","test.v1","service name","method_call_suite")
         panic("unable to register "+"method_call_suite")
     }
-    return sid
+    return guest.NewContextWithLogger(sid), sid
 }
 
 func MustRequireMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1("test.v1","method_call_suite",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","test.v1","method_call_suite",syscall.KernelErr_name[int32(err)])
+            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","test.v1","service name","method_call_suite","error",syscall.KernelErr_name[int32(err)])
             panic("require test.v1.method_call_suite creates a dependency loop")
         }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","test.v1","method_call_suite",syscall.KernelErr_name[int32(err)])
+        guest.Log(ctx).Error("unable to require","package","test.v1","service name","method_call_suite","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require test.v1.method_call_suite:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -677,7 +653,7 @@ func MustRequireMethodCallSuite(ctx context.Context, sid id.ServiceId) {
 func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1("test.v1","method_call_suite",sid)
     if err!=syscall.KernelErr_NoError{
-        pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","method_call_suite")
+        guest.Log(ctx).Error("unable to export","package","test.v1","service name","method_call_suite")
         panic("not able to export test.v1.method_call_suite:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -718,11 +694,9 @@ func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, imp
 func Exec_(int32,int32,int32,int32) int64
 func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMethodCallSuiteExec {
 	outProtoPtr := (*ExecResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	if signal {
-		pcontext.Infof(ctx, "Exec exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("Exec exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -735,11 +709,9 @@ func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMeth
 func SuiteReport_(int32,int32,int32,int32) int64
 func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureMethodCallSuiteSuiteReport {
 	outProtoPtr := (*SuiteReportResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	if signal {
-		pcontext.Infof(ctx, "SuiteReport exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("SuiteReport exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -758,7 +730,7 @@ func (t *invokeMethodCallSuiteExec) Invoke(ctx context.Context,a *anypb.Any) fut
     in:=&ExecRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -779,7 +751,7 @@ func (t *invokeMethodCallSuiteSuiteReport) Invoke(ctx context.Context,a *anypb.A
     in:=&SuiteReportRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -793,10 +765,6 @@ func GenerateMethodCallSuiteSuiteReportInvoker(impl MethodCallSuite) future.Invo
  
 func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *future.Base[bool] {
 
-	defer func() {
-		pcontext.Dump(ctx)
-	}()
-
 	readyResult:=future.NewBase[bool]()
 
 	ready:=impl.Ready(ctx,sid)
@@ -805,8 +773,7 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 			readyResult.Set(true)			
 			return
 		}
-		pcontext.Errorf(ctx,"Unable to start test.v1.UnderTest, Ready returned false")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Error("Unable to start test.v1.UnderTest, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -815,16 +782,18 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 
 // Note that  InitUnderTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
-func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
+// The context passed here does not need to contain a logger, one will be created.
+func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "InitUnderTest: trapped a panic in the guest side: %v", r)
+			guest.Log(context.Background()).Info("InitUnderTest: trapped a panic in the guest side","recovered", r)
 		}
-		pcontext.Dump(ctx)
 	}()
 
-	myId := MustRegisterUnderTest(ctx)
-	MustExportUnderTest(ctx,myId)
+	// tricky, this context really should not be used but is
+	// passed so as to allow printing if things go wrong
+	ctx, myId := MustRegisterUnderTest()
+	MustExportUnderTest(context.Background(),myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -833,34 +802,31 @@ func InitUnderTest(ctx context.Context,require []lib.MustRequireFunc, impl Under
 	smmap, launchF:=MustLaunchServiceUnderTest(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		pcontext.Errorf(ctx, "launch failure on call UnderTest:%s",t)
+		guest.Log(ctx).Error("launch failure on call UnderTest","error",t)
 		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitUnderTest:"+t,
 			"unable to call Exit in InitUnderTest:"+t)
 	})
-	return smmap,launchF, myId
+	return smmap,launchF, ctx,myId
 }
 func RunUnderTest(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "RunUnderTest: trapped a panic in the guest side: %v", r)
+			s, ok:=r.(string)
+			if !ok && s!=apishared.ControlledExit {
+				guest.Log(ctx).Error("RunUnderTest: trapped a panic in the guest side", "recovered", r)
+			}
 		}
-		debug.PrintStack()
-		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
 	for {
-		pctx:=pcontext.CallTo(ctx,"ReadOneAndCallUnderTest")
-		kerr:=ReadOneAndCallUnderTest(pctx, binding, timeoutInMillis)
-		pcontext.Dump(pctx)
+		kerr:=ReadOneAndCallUnderTest(ctx, binding, timeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			if bg==nil {
 				continue
 			}
-			pcontext.Infof(ctx,"calling backgrounder of UnderTest")
-			bgctx:=pcontext.CallTo(ctx,"Background")
-			bg.Background(bgctx)
-			pcontext.Dump(bgctx)
+			guest.Log(ctx).Info("calling backgrounder of UnderTest")
+			bg.Background(ctx)
 			continue
 		}
 		if kerr == syscall.KernelErr_NoError {
@@ -868,7 +834,7 @@ func RunUnderTest(ctx context.Context,
 		}
 		break
 	}
-	pcontext.Errorf(ctx, "error while waiting for UnderTest service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	guest.Log(ctx).Error("error while waiting for UnderTest service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -906,14 +872,13 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
 	if mid.Equal(apishared.ExitMethod) {
-		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
 		panic(apishared.ControlledExit)
 	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -925,7 +890,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			pcontext.Errorf(ctx, "unable to marshal result for return value request")
+			guest.Log(ctx).Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -968,7 +933,6 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"UnderTest","UnderTestExec",
 		GenerateUnderTestExecInvoker(impl)) 
-	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
 
@@ -988,9 +952,8 @@ func MustLocateUnderTest(ctx context.Context, sid id.ServiceId) ClientUnderTest 
     name:=syscall.KernelErr_name[int32(err)]
     normal:="unable to locate test.v1.under_test:"+name
     if err!=0 {
-        pcontext.Debugf(ctx,"kernel error was  %s",name)
         if err == syscall.KernelErr_NotRequired {
-            pcontext.Errorf(ctx,"service was located, but it was not required")
+            guest.Log(ctx).Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -999,7 +962,7 @@ func MustLocateUnderTest(ctx context.Context, sid id.ServiceId) ClientUnderTest 
 }
 
 
-func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
+func RegisterUnderTest() (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
 	debugName:=fmt.Sprintf("%s.%s","test.v1","under_test")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
@@ -1016,23 +979,23 @@ func RegisterUnderTest(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 
     return sid,syscall.KernelErr_NoError
 }
-func MustRegisterUnderTest(ctx context.Context) id.ServiceId {
-    sid, err:=RegisterUnderTest(ctx)
+func MustRegisterUnderTest() (context.Context,id.ServiceId) {
+    sid, err:=RegisterUnderTest()
     if err!=syscall.KernelErr_NoError {
-        pcontext.Fatalf(ctx,"unable to register %s.%s","test.v1","under_test")
+        guest.Log(context.Background()).Error("unable to register","package","test.v1","service name","under_test")
         panic("unable to register "+"under_test")
     }
-    return sid
+    return guest.NewContextWithLogger(sid), sid
 }
 
 func MustRequireUnderTest(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1("test.v1","under_test",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","test.v1","under_test",syscall.KernelErr_name[int32(err)])
+            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","test.v1","service name","under_test","error",syscall.KernelErr_name[int32(err)])
             panic("require test.v1.under_test creates a dependency loop")
         }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","test.v1","under_test",syscall.KernelErr_name[int32(err)])
+        guest.Log(ctx).Error("unable to require","package","test.v1","service name","under_test","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require test.v1.under_test:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -1040,7 +1003,7 @@ func MustRequireUnderTest(ctx context.Context, sid id.ServiceId) {
 func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1("test.v1","under_test",sid)
     if err!=syscall.KernelErr_NoError{
-        pcontext.Fatalf(ctx, "unable to export %s.%s","test.v1","under_test")
+        guest.Log(ctx).Error("unable to export","package","test.v1","service name","under_test")
         panic("not able to export test.v1.under_test:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -1081,11 +1044,9 @@ func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl Unde
 func ExecUnderTest_(int32,int32,int32,int32) int64
 func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureUnderTestExec {
 	outProtoPtr := (*ExecResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	if signal {
-		pcontext.Infof(ctx, "ExecUnderTest exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("ExecUnderTest exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -1104,7 +1065,7 @@ func (t *invokeUnderTestExec) Invoke(ctx context.Context,a *anypb.Any) future.Co
     in:=&ExecRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 

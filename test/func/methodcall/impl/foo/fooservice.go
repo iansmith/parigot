@@ -5,6 +5,7 @@ import (
 	"math"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
 	foo "github.com/iansmith/parigot/g/methodcall/foo/v1"
@@ -20,9 +21,8 @@ const pathPrefix = "/parigotvirt/"
 
 func main() {
 	require := []lib.MustRequireFunc{}
-	ctx := pcontext.CallTo(pcontext.SourceContext(pcontext.NewContextWithContainer(context.Background(), "fooservice.Main"), pcontext.Guest), "fooservice.Main")
 	fooServ := &fooServer{}
-	binding, fut, _ := foo.Init(ctx, require, fooServ)
+	binding, fut, ctx, _ := foo.Init(require, fooServ)
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		kerr := foo.Run(ctx, binding, foo.TimeoutInMillis, nil)
 		pcontext.Errorf(ctx, "error while waiting for foo service calls: %s", syscall.KernelErr_name[int32(kerr)])
@@ -80,7 +80,7 @@ func (f *fooServer) WritePi(ctx context.Context, req *foo.WritePiRequest) *foo.F
 		runningTotal = runningTotal - math.Tan(runningTotal)
 		pcontext.Debugf(ctx, "WritePi", "%f", runningTotal)
 	}
-	pcontext.Infof(ctx, "WritePi result:", "%f", runningTotal)
+	guest.Log(ctx).Info("WritePi finished", "running total ", runningTotal)
 	fut.Base.Set(foo.FooErr_NoError)
 	return fut
 }

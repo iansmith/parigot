@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	pcontext "github.com/iansmith/parigot/context"
@@ -29,7 +30,7 @@ type BaseService struct {
 // NewBaseService creates.
 func NewBaseService(ctx context.Context, id id.ServiceId, sm *lib.ServiceMethodMap) *BaseService {
 	if len(sm.Call()) == 0 {
-		pcontext.Infof(ctx, "NewBaseService: binding size is zero")
+		guest.Log(ctx).Error("NewBaseService: binding size is zero")
 	}
 	return &BaseService{
 		svc:   id,

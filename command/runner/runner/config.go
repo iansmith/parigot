@@ -12,7 +12,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 )
 
@@ -108,7 +107,7 @@ func (m *Microservice) Module() eng.Module {
 
 const maxServer = 32
 
-func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, error) {
+func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	var deployment Deployment
 	md, err := toml.DecodeFile(path, &deployment)
 	if err != nil {
@@ -130,11 +129,11 @@ func Parse(ctx context.Context, path string, flag *DeployFlag) (*DeployConfig, e
 	// loop over the configs making text -> int conversions
 	for _, dc := range deployment.Config {
 		var err error
-		dc.Size, err = sizeToDeploySize(ctx, chosen, dc.SizeName, dc.Size)
+		dc.Size, err = sizeToDeploySize(chosen, dc.SizeName, dc.Size)
 		if err != nil {
 			return nil, err
 		}
-		dc.Arrangement, err = arrangementToDeployArrangement(ctx, chosen, dc.ArrangementName, dc.Arrangement)
+		dc.Arrangement, err = arrangementToDeployArrangement(chosen, dc.ArrangementName, dc.Arrangement)
 		if err != nil {
 			return nil, err
 		}
@@ -231,7 +230,7 @@ func (s *simpleEnv) Arg() []string                  { return s.argv }
 func (s *simpleEnv) Environment() map[string]string { return s.envp }
 func (s *simpleEnv) Host() id.HostId                { return s.hid }
 
-func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, name string) (eng.Module, error) {
+func (c *DeployConfig) LoadSingleModule(engine eng.Engine, name string) (eng.Module, error) {
 	m, ok := c.Microservice[name]
 	if !ok {
 		panic(fmt.Sprintf("unable to find microservice with name '%s", name))
@@ -256,25 +255,25 @@ func (c *DeployConfig) LoadSingleModule(ctx context.Context, engine eng.Engine, 
 		envp: envp,
 		hid:  id.NewHostId(),
 	}
-	mod, err := engine.NewModuleFromFile(ctx, m.WasmPath, &env)
+	mod, err := engine.NewModuleFromFile(context.Background(), m.WasmPath, &env)
 	if err != nil {
-		pcontext.Errorf(ctx, "new module failed to create from file %s: %v", m.WasmPath, err.Error())
+		log.Printf("new module failed to create from file %s: %v", m.WasmPath, err.Error())
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
 			m.name, m.WasmPath, err)
 	}
-	deployPrint(ctx, pcontext.Debug, "loadSingleModule", "loading module %s (with wasm code: %s)", m.name, m.WasmPath)
+	deployPrint("loadSingleModule", "loading module %s (with wasm code: %s)", m.name, m.WasmPath)
 	return mod, nil
 }
 
-func deployPrint(ctx context.Context, ll pcontext.LogLevel, method string, spec string, rest ...interface{}) {
+func deployPrint(spec string, rest ...interface{}) {
 	if deployVerbose {
-		pcontext.LogFullf(ctx, ll, pcontext.UnknownS, method, spec, rest...)
+		log.Printf(spec, rest...)
 	}
 }
 
-func (c *DeployConfig) LoadAllModules(ctx context.Context, engine eng.Engine) error {
+func (c *DeployConfig) LoadAllModules(engine eng.Engine) error {
 	for n, m := range c.Microservice {
-		mod, err := c.LoadSingleModule(ctx, engine, n)
+		mod, err := c.LoadSingleModule(engine, n)
 		if err != nil {
 			return err
 		}
@@ -365,7 +364,7 @@ func pathExists(serviceName, path string, isPlugin bool) error {
 	return nil
 }
 
-func arrangementToDeployArrangement(ctx context.Context, name string, s string, da DeployArrangement) (DeployArrangement, error) {
+func arrangementToDeployArrangement(name string, s string, da DeployArrangement) (DeployArrangement, error) {
 	daInRange := func(da DeployArrangement) bool {
 		if da&ArragementRemoteMarkerBit != 0 {
 			mask := ArragementRemoteMarkerBit - 1
@@ -412,7 +411,7 @@ func arrangementToDeployArrangement(ctx context.Context, name string, s string, 
 	return da, nil // it's ok
 }
 
-func sizeToDeploySize(ctx context.Context, name string, s string, ds DeploySize) (DeploySize, error) {
+func sizeToDeploySize(name string, s string, ds DeploySize) (DeploySize, error) {
 	isDev := strings.ToLower(name) == "dev"
 	if isDev {
 		return SizeNotSpecified, nil

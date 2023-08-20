@@ -10,19 +10,17 @@ package bar
 
 import (
 	"context"
-	"runtime/debug"
-	"log"
 	"fmt"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
-	pcontext "github.com/iansmith/parigot/context"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/api/shared/id"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
+	"github.com/iansmith/parigot/api/guest"  
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/proto"
@@ -32,10 +30,6 @@ var _ =  unsafe.Sizeof([]byte{})
  
 func Launch(ctx context.Context, sid id.ServiceId, impl Bar) *future.Base[bool] {
 
-	defer func() {
-		pcontext.Dump(ctx)
-	}()
-
 	readyResult:=future.NewBase[bool]()
 
 	ready:=impl.Ready(ctx,sid)
@@ -44,8 +38,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Bar) *future.Base[bool] 
 			readyResult.Set(true)			
 			return
 		}
-		pcontext.Errorf(ctx,"Unable to start methodcall.bar.v1.Bar, Ready returned false")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Error("Unable to start methodcall.bar.v1.Bar, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -54,16 +47,18 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Bar) *future.Base[bool] 
 
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
-func Init(ctx context.Context,require []lib.MustRequireFunc, impl Bar) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, id.ServiceId){
+// The context passed here does not need to contain a logger, one will be created.
+func Init(require []lib.MustRequireFunc, impl Bar) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "InitBar: trapped a panic in the guest side: %v", r)
+			guest.Log(context.Background()).Info("InitBar: trapped a panic in the guest side","recovered", r)
 		}
-		pcontext.Dump(ctx)
 	}()
 
-	myId := MustRegister(ctx)
-	MustExport(ctx,myId)
+	// tricky, this context really should not be used but is
+	// passed so as to allow printing if things go wrong
+	ctx, myId := MustRegister()
+	MustExport(context.Background(),myId)
 	if len(require)>0 {
 		for _, f := range require {
 			f(ctx, myId)
@@ -72,34 +67,31 @@ func Init(ctx context.Context,require []lib.MustRequireFunc, impl Bar) (*lib.Ser
 	smmap, launchF:=MustLaunchService(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		pcontext.Errorf(ctx, "launch failure on call Bar:%s",t)
+		guest.Log(ctx).Error("launch failure on call Bar","error",t)
 		lib.ExitClient(ctx, 1, myId, "unable to Launch in Init:"+t,
 			"unable to call Exit in Init:"+t)
 	})
-	return smmap,launchF, myId
+	return smmap,launchF, ctx,myId
 }
 func Run(ctx context.Context,
 	binding *lib.ServiceMethodMap, timeoutInMillis int32, bg lib.Backgrounder) syscall.KernelErr{
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Infof(ctx, "Run: trapped a panic in the guest side: %v", r)
+			s, ok:=r.(string)
+			if !ok && s!=apishared.ControlledExit {
+				guest.Log(ctx).Error("Run: trapped a panic in the guest side", "recovered", r)
+			}
 		}
-		debug.PrintStack()
-		pcontext.Dump(ctx)
 	}()
 	var kerr syscall.KernelErr
 	for {
-		pctx:=pcontext.CallTo(ctx,"ReadOneAndCall")
-		kerr:=ReadOneAndCall(pctx, binding, timeoutInMillis)
-		pcontext.Dump(pctx)
+		kerr:=ReadOneAndCall(ctx, binding, timeoutInMillis)
 		if kerr == syscall.KernelErr_ReadOneTimeout {
 			if bg==nil {
 				continue
 			}
-			pcontext.Infof(ctx,"calling backgrounder of Bar")
-			bgctx:=pcontext.CallTo(ctx,"Background")
-			bg.Background(bgctx)
-			pcontext.Dump(bgctx)
+			guest.Log(ctx).Info("calling backgrounder of Bar")
+			bg.Background(ctx)
 			continue
 		}
 		if kerr == syscall.KernelErr_NoError {
@@ -107,7 +99,7 @@ func Run(ctx context.Context,
 		}
 		break
 	}
-	pcontext.Errorf(ctx, "error while waiting for  service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	guest.Log(ctx).Error("error while waiting for  service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -145,14 +137,13 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
 	if mid.Equal(apishared.ExitMethod) {
-		log.Printf("exiting process on host %s",syscallguest.CurrentHostId().Short())
 		panic(apishared.ControlledExit)
 	}
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		log.Printf("unable to find binding for method %s on service %s, ignoring",mid.Short(), sid.Short())
+		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -164,7 +155,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			pcontext.Errorf(ctx, "unable to marshal result for return value request")
+			guest.Log(ctx).Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -207,7 +198,6 @@ func bind(ctx context.Context,sid id.ServiceId, impl Bar) (*lib.ServiceMethodMap
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"Bar","Accumulate",
 		GenerateAccumulateInvoker(impl)) 
-	pcontext.Dump(ctx)
 	return smmap,syscall.KernelErr_NoError
 }
 
@@ -227,9 +217,8 @@ func MustLocate(ctx context.Context, sid id.ServiceId) Client {
     name:=syscall.KernelErr_name[int32(err)]
     normal:="unable to locate methodcall.bar.v1.bar:"+name
     if err!=0 {
-        pcontext.Debugf(ctx,"kernel error was  %s",name)
         if err == syscall.KernelErr_NotRequired {
-            pcontext.Errorf(ctx,"service was located, but it was not required")
+            guest.Log(ctx).Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -238,7 +227,7 @@ func MustLocate(ctx context.Context, sid id.ServiceId) Client {
 }
 
 
-func Register(ctx context.Context) (id.ServiceId, syscall.KernelErr){
+func Register() (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
 	debugName:=fmt.Sprintf("%s.%s","methodcall.bar.v1","bar")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
@@ -255,23 +244,23 @@ func Register(ctx context.Context) (id.ServiceId, syscall.KernelErr){
 
     return sid,syscall.KernelErr_NoError
 }
-func MustRegister(ctx context.Context) id.ServiceId {
-    sid, err:=Register(ctx)
+func MustRegister() (context.Context,id.ServiceId) {
+    sid, err:=Register()
     if err!=syscall.KernelErr_NoError {
-        pcontext.Fatalf(ctx,"unable to register %s.%s","methodcall.bar.v1","bar")
+        guest.Log(context.Background()).Error("unable to register","package","methodcall.bar.v1","service name","bar")
         panic("unable to register "+"bar")
     }
-    return sid
+    return guest.NewContextWithLogger(sid), sid
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1("methodcall.bar.v1","bar",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","methodcall.bar.v1","bar",syscall.KernelErr_name[int32(err)])
+            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
             panic("require methodcall.bar.v1.bar creates a dependency loop")
         }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","methodcall.bar.v1","bar",syscall.KernelErr_name[int32(err)])
+        guest.Log(ctx).Error("unable to require","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require methodcall.bar.v1.bar:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -279,7 +268,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 func MustExport(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1("methodcall.bar.v1","bar",sid)
     if err!=syscall.KernelErr_NoError{
-        pcontext.Fatalf(ctx, "unable to export %s.%s","methodcall.bar.v1","bar")
+        guest.Log(ctx).Error("unable to export","package","methodcall.bar.v1","service name","bar")
         panic("not able to export methodcall.bar.v1.bar:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -320,11 +309,9 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Bar) (*lib.Se
 func Accumulate_(int32,int32,int32,int32) int64
 func AccumulateHost(ctx context.Context,inPtr *AccumulateRequest) *FutureAccumulate {
 	outProtoPtr := (*AccumulateResponse)(nil)
-	defer pcontext.Dump(ctx)
 	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Accumulate_)
 	if signal {
-		pcontext.Infof(ctx, "Accumulate exiting because of parigot signal")
-		pcontext.Dump(ctx)
+		guest.Log(ctx).Info("Accumulate exiting because of parigot signal")
 		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
 			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
 	}
@@ -343,7 +330,7 @@ func (t *invokeAccumulate) Invoke(ctx context.Context,a *anypb.Any) future.Compl
     in:=&AccumulateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        pcontext.Errorf(ctx,"unmarshal inside Invoke() failed: %s",err.Error())
+        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
