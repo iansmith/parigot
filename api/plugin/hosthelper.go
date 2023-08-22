@@ -151,7 +151,7 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 		return
 	}
 	kerr := fn(ctx, t, u)
-	badWrite := pushResponseToStack(ctx, m, u, kerr, stack)
+	badWrite := pushResponseToStack(ctx, m, u, int32(kerr), stack)
 	if badWrite {
 		panic("unable to push response back to guest memory")
 	}

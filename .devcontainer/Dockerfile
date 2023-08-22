@@ -218,7 +218,7 @@ ENV TOOLS=/home/parigot/tools
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV PARIGOT_TOOLS=/home/parigot/tools
 ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
-ENV PATH=/workspaces/parigot/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
+ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 ENV CC=/usr/lib/llvm-15/bin/clang
 ENV GOFLAGS="-buildvcs=false"
 
