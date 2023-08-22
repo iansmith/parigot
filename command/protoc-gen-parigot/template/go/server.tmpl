@@ -134,7 +134,7 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
-	resp, err:=syscallguest.ReadOne(&req)
+	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
 	}
@@ -144,7 +144,8 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 	}
 
 	// check for finished futures from within our address space
-	syscallguest.ExpireMethod(ctx)
+	ctx, t:=lib.CurrentTime(ctx)
+	syscallguest.ExpireMethod(ctx,t)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
@@ -182,7 +183,7 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 		}
 		rvReq.Result = &a
 		rvReq.ResultError = 0
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx, rvReq) // nowhere for return value to go
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
@@ -191,7 +192,7 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 		rvReq.Bundle.CallId= cid.Marshal()
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx,rvReq) // nowhere for return value to go
 	})
 	return syscall.KernelErr_NoError
 
@@ -218,7 +219,7 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "{{$methCamel}}"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -272,7 +273,7 @@ func Register{{$svcDiff}}() (id.ServiceId, syscall.KernelErr){
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	req.DebugName = debugName
 
-	resp, err := syscallguest.Register(req)
+	resp, err := syscallguest.Register(context.Background(), req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
@@ -293,7 +294,7 @@ func MustRegister{{$svcDiff}}() (context.Context,id.ServiceId) {
 }
 
 func MustRequire{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}",sid)
+    _, err:=lib.Require1(ctx, "{{.ProtoPackage}}","{{$svc}}",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
             guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","{{.ProtoPackage}}","service name","{{$svc}}","error",syscall.KernelErr_name[int32(err)])
@@ -305,7 +306,7 @@ func MustRequire{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
 }
 
 func MustExport{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}",sid)
+    _, err:=lib.Export1(ctx,"{{.ProtoPackage}}","{{$svc}}",sid)
     if err!=syscall.KernelErr_NoError{
         guest.Log(ctx).Error("unable to export","package","{{.ProtoPackage}}","service name","{{$svc}}")
         panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
@@ -324,7 +325,7 @@ func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$sv
 		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
-	fut:=syscallguest.Launch(req)
+	fut:=syscallguest.Launch(ctx,req)
 
     return smmap,fut,syscall.KernelErr_NoError
 }
@@ -361,12 +362,7 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 func {{$hostFuncName}}_(int32,int32,int32,int32) int64
 func {{$hostFuncName}}{{$svcDiff}}Host(ctx context.Context,inPtr *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}} {
 	outProtoPtr := (*{{$oParam}})(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, {{$methCamel}}_)
-	if signal {
-		guest.Log(ctx).Info("{{$hostFuncName}} exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, {{$methCamel}}_)
 	f:=NewFuture{{$svcDiff}}{{$methCamel}}()
 	f.CompleteMethod(ctx,ret,raw)
 	return f

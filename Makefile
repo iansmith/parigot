@@ -31,7 +31,6 @@ API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 
 CC=/usr/lib/llvm-15/bin/clang
-CTX_SRC=$(shell find context -type f -regex ".*\.go")
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
 
@@ -74,7 +73,7 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
 PLUGIN= build/queue.so build/file.so build/syscall.so
-build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(CTX_SRC) $(SHARED_SRC)
+build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
 
@@ -181,17 +180,17 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 # PLUGINS
 # 
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
-build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
+build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
-build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) 
+build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/file/main
 
 SYSCALL_PLUGIN=$(shell find api/plugin/syscall -type f -regex ".*\.go")
-build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID) 
+build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 

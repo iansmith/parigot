@@ -28,6 +28,21 @@ type Deployment struct {
 	Config map[string]*DeployConfig
 }
 
+// Timeout settings are to control timeouts within the system.  All
+// values in milliseconds.
+type Timeout struct {
+	// Startup is the amount of time to wait for services to launch and
+	// have all previously launched services start.  In other words, how
+	// long to wait to see if we can get everything in the deployment configuration
+	// running.
+	Startup int
+	// Complete is the length of time before a partially completed call will
+	// be considered failed. If you call method foo() on service bar, this is
+	// how long we will wait for bar to fulfull the call of foo() and provide
+	// the return value.
+	Complete int
+}
+
 // DeployConfig represents the microservices that the user has configured for this application.
 // Public fields in this struct are data that has been read from the user and has been
 // sanity checked.
@@ -40,6 +55,8 @@ type DeployConfig struct {
 	ArrangementName  string
 	Size             DeploySize
 	SizeName         string
+	Timezone         string
+	Timeout          Timeout
 }
 
 type DeploySize int
@@ -205,6 +222,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 			}
 		}
 	}
+
 	if len(result.Microservice) == 0 {
 		return nil, fmt.Errorf("no microservices found in configuration %s", path)
 	}

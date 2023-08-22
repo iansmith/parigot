@@ -1,12 +1,12 @@
 package syscall
 
 import (
-	"log"
-	"os"
+	"context"
+	"time"
 
+	"github.com/iansmith/parigot/api/guest"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
@@ -21,19 +21,13 @@ import (
 //
 //go:wasmimport parigot locate_
 func Locate_(int32, int32, int32, int32) int64
-func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.KernelErr) {
+func Locate(ctx context.Context, inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.LocateResponse{}
-	ctx := ManufactureGuestContext("[syscall]Locate")
-	defer pcontext.Dump(ctx)
 
-	lr, errIdRaw, signal :=
+	lr, errIdRaw, _ :=
 		ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 
 	kerr := syscall.KernelErr(errIdRaw)
-	if signal {
-		pcontext.Dump(ctx)
-		os.Exit(1)
-	}
 	if kerr != syscall.KernelErr_NoError {
 		return nil, kerr
 
@@ -51,28 +45,36 @@ func Locate(inPtr *syscall.LocateRequest) (*syscall.LocateResponse, syscall.Kern
 //
 //go:wasmimport parigot dispatch_
 func Dispatch_(int32, int32, int32, int32) int64
-func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscall.KernelErr) {
+func Dispatch(ctx context.Context, inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.DispatchResponse{}
-	ctx := ManufactureGuestContext("[syscall]Dispatch")
-	defer pcontext.Dump(ctx)
 
-	dr, err, signal :=
+	dr, err, _ :=
 		ClientSide(ctx, inPtr, outProtoPtr, Dispatch_)
 
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
-		log.Printf(" dispatch error in client side %s", syscall.KernelErr_name[int32(kerr)])
+		guest.Log(ctx).Error("dispatch error in client side", "kernel error", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 
-	// somebody else died?
-	if signal {
-		log.Printf("xxx Dispatch exiting due to signal")
-		os.Exit(1)
-	}
-
 	return dr, syscall.KernelErr_NoError
+}
+
+// xxx fixme(iansmith) this is horrible.
+// we have a loop in our deps, and this breaks it.
+func copyOfCurrentTime(ctx context.Context) time.Time {
+	t := ctx.Value("parigot_time")
+	if t != nil && !t.(time.Time).IsZero() {
+		if localTimeZone != nil {
+			return t.(time.Time).In(localTimeZone)
+		}
+		return t.(time.Time)
+	}
+	if localTimeZone != nil {
+		return time.Now().In(localTimeZone)
+	}
+	return time.Now()
 }
 
 // Run is starts a service (or a guest application) running. Note that
@@ -82,10 +84,8 @@ func Dispatch(inPtr *syscall.DispatchRequest) (*syscall.DispatchResponse, syscal
 //
 //go:wasmimport parigot launch_
 func Launch_(int32, int32, int32, int32) int64
-func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
+func Launch(ctx context.Context, inPtr *syscall.LaunchRequest) *LaunchFuture {
 	outProtoPtr := (*syscall.LaunchResponse)(nil)
-	ctx := ManufactureGuestContext("[syscall]Launch")
-	defer pcontext.Dump(ctx)
 	sid := id.UnmarshalServiceId(inPtr.GetServiceId())
 	hid := id.UnmarshalHostId(inPtr.GetHostId())
 	cid := id.UnmarshalCallId(inPtr.GetCallId())
@@ -98,12 +98,8 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 
 	inPtr.CallId = cid.Marshal()
 	inPtr.HostId = hid.Marshal()
-	_, err, signal :=
+	_, err, _ :=
 		ClientSide(ctx, inPtr, outProtoPtr, Launch_)
-	if signal {
-		log.Printf("xxx Launch exiting due to signal")
-		os.Exit(1)
-	}
 	if err != 0 {
 		m := NewLaunchFuture()
 		m.CompleteMethod(ctx, nil, syscall.KernelErr(err))
@@ -111,7 +107,7 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 	}
 	fut := NewLaunchFuture()
 	comp := NewLaunchCompleter(fut)
-	MatchCompleter(ctx, hid, cid, comp)
+	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, cid, comp)
 	return fut
 }
 
@@ -121,9 +117,9 @@ func Launch(inPtr *syscall.LaunchRequest) *LaunchFuture {
 //
 //go:wasmimport parigot export_
 func Export_(int32, int32, int32, int32) int64
-func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.KernelErr) {
+func Export(ctx context.Context, inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.ExportResponse)(nil)
-	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Export_, "Export")
+	return outProtoPtr, standardGuestSide(ctx, inPtr, outProtoPtr, Export_, "Export")
 }
 
 // ReturnValue is for providing return values for calls that have
@@ -131,9 +127,9 @@ func Export(inPtr *syscall.ExportRequest) (*syscall.ExportResponse, syscall.Kern
 //
 //go:wasmimport parigot return_value_
 func ReturnValue_(int32, int32, int32, int32) int64
-func ReturnValue(in *syscall.ReturnValueRequest) syscall.KernelErr {
+func ReturnValue(ctx context.Context, in *syscall.ReturnValueRequest) syscall.KernelErr {
 	out := &syscall.ReturnValueResponse{}
-	return standardGuestSide(in, out, ReturnValue_, "ReturnValue")
+	return standardGuestSide(ctx, in, out, ReturnValue_, "ReturnValue")
 }
 
 // Require is a declaration that a service needs a particular interface.
@@ -142,12 +138,12 @@ func ReturnValue(in *syscall.ReturnValueRequest) syscall.KernelErr {
 //
 //go:wasmimport parigot require_
 func Require_(int32, int32, int32, int32) int64
-func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.KernelErr) {
+func Require(ctx context.Context, inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.KernelErr) {
 	outProtoPtr := (*syscall.RequireResponse)(nil)
 	if len(inPtr.GetDest()) == 0 {
 		return nil, syscall.KernelErr_NoError
 	}
-	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Require_, "Require")
+	return outProtoPtr, standardGuestSide(ctx, inPtr, outProtoPtr, Require_, "Require")
 }
 
 // Exit is called from the WASM side to cause the WASM program, or all the WASM
@@ -155,8 +151,7 @@ func Require(inPtr *syscall.RequireRequest) (*syscall.RequireResponse, syscall.K
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
-	//ctx := ManufactureGuestContext("[syscall]Exit")
+func Exit(ctx context.Context, exitReq *syscall.ExitRequest) *ExitFuture {
 
 	hid := CurrentHostId()
 	cid := id.NewCallId()
@@ -166,7 +161,7 @@ func Exit(exitReq *syscall.ExitRequest) *ExitFuture {
 	exitReq.HostId = hid.Marshal()
 	exitReq.MethodId = mid.Marshal()
 	outProtoPtr := &syscall.ExitResponse{}
-	standardGuestSide(exitReq, outProtoPtr, Exit_, "Exit")
+	standardGuestSide(ctx, exitReq, outProtoPtr, Exit_, "Exit")
 
 	processExit(exitReq.Pair)
 	//won't happen
@@ -183,9 +178,9 @@ func processExit(pair *syscall.ExitPair) {
 //go:wasmimport parigot register_
 func Register_(int32, int32, int32, int32) int64
 
-func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
+func Register(ctx context.Context, inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.RegisterResponse{}
-	return outProtoPtr, standardGuestSide(inPtr, outProtoPtr, Register_, "Register")
+	return outProtoPtr, standardGuestSide(ctx, inPtr, outProtoPtr, Register_, "Register")
 }
 
 // BindMethod is the way that a particular service gets associated with
@@ -197,13 +192,13 @@ func Register(inPtr *syscall.RegisterRequest) (*syscall.RegisterResponse, syscal
 //go:wasmimport parigot bind_method_
 func BindMethod_(int32, int32, int32, int32) int64
 
-func BindMethod(in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, syscall.KernelErr) {
+func BindMethod(ctx context.Context, in *syscall.BindMethodRequest) (*syscall.BindMethodResponse, syscall.KernelErr) {
 	resp := &syscall.BindMethodResponse{}
-	return resp, standardGuestSide(in, resp, BindMethod_, "BindMethod")
+	return resp, standardGuestSide(ctx, in, resp, BindMethod_, "BindMethod")
 }
 
-func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
-	tmp, kerr := BindMethod(in)
+func MustBindMethodName(ctx context.Context, in *syscall.BindMethodRequest) id.MethodId {
+	tmp, kerr := BindMethod(ctx, in)
 	if kerr != syscall.KernelErr_NoError {
 		panic("failed to bind method:" + in.GetMethodName() + ", error " + syscall.KernelErr_name[int32(kerr)])
 	}
@@ -216,40 +211,14 @@ func MustBindMethodName(in *syscall.BindMethodRequest) id.MethodId {
 //
 //go:wasmimport parigot read_one_
 func ReadOne_(int32, int32, int32, int32) int64
-func ReadOne(in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
+func ReadOne(ctx context.Context, in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
 	out := &syscall.ReadOneResponse{}
-	return out, standardGuestSide(in, out, ReadOne_, "ReadOne")
+	return out, standardGuestSide(ctx, in, out, ReadOne_, "ReadOne")
 }
 
-// SynchronousExit is a request that is sent to a service to tell the service it will
-// exit shortly (order of milliseconds) and resources should be cleaned up.
-// Note that this can happen when another service actually made the Exit() call.
-//
-// ----  go:wasmimport parigot synchronous_exit_
-// func SynchronousExit_(int32, int32, int32, int32) int64
-// func SynchronousExit(in *syscall.SynchronousExitRequest) (*syscall.SynchronousExitResponse, syscall.KernelErr) {
-// 	out := &syscall.SynchronousExitResponse{}
-
-// 	ctx := pcontext.NewContextWithContainer(context.Background(), "SynchronousExit")
-// 	if standardGuestSide(in, out, SynchronousExit_, "SyncExit") != syscall.KernelErr_NoError {
-// 		pcontext.Errorf(ctx, "unable to exit cleanly, aborting")
-// 		pcontext.Dump(ctx)
-// 		os.Exit(1)
-// 	}
-// 	exit.ExecuteAtExit(ctx)
-// 	panic(apishared.ControlledExit)
-// }
-
 // standardGuestSide is a wrapper around ClientSide that knows how
-// to handle the error return to do an immediate exit.
-func standardGuestSide[T proto.Message, U proto.Message](in T, out U, fn func(int32, int32, int32, int32) int64, name string) syscall.KernelErr {
-	ctx := ManufactureGuestContext("[guest syscall]" + name)
-	defer pcontext.Dump(ctx)
-	_, err, signal := ClientSide(ctx, in, out, fn)
-	if signal {
-		pcontext.Fatalf(ctx, "(syscall guest) %s method exiting due to signal", name)
-		os.Exit(1)
-	}
-
+// to handle  error return among return values.
+func standardGuestSide[T proto.Message, U proto.Message](ctx context.Context, in T, out U, fn func(int32, int32, int32, int32) int64, name string) syscall.KernelErr {
+	_, err, _ := ClientSide(ctx, in, out, fn)
 	return syscall.KernelErr(err)
 }

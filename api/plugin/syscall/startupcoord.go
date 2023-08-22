@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/yourbasic/graph"
 )
@@ -73,13 +72,13 @@ func (s *rawLocal) SetService(ctx context.Context, package_, name string, client
 		return nil, false
 	}
 	s.sidStringToService[result.String()] = result
-	if result != nil {
-		if result.id.IsEmptyValue() || result.id.IsZeroValue() {
-			pcontext.Errorf(ctx, "Service Id error, bad id returned from syscall data")
-		}
-	} else {
-		pcontext.Errorf(ctx, "result of set service is nil?")
-	}
+	// if result != nil {
+	// 	if result.id.IsEmptyValue() || result.id.IsZeroValue() {
+	// 		pcontext.Errorf(ctx, "Service Id error, bad id returned from syscall data")
+	// 	}
+	// } else {
+	// 	pcontext.Errorf(ctx, "result of set service is nil?")
+	// }
 	return result, true
 
 }
@@ -149,7 +148,8 @@ func (s *rawLocal) Import(ctx context.Context, src, dest id.ServiceId) syscall.K
 	if serviceSource == nil {
 		sid, ok := s.SetService(ctx, serviceSource.Package(), serviceSource.Name(), false)
 		if ok {
-			pcontext.Infof(ctx, "startup coordinator: created service %s%s because of import", sid.Name(), sid.Short())
+			print("xxxx -- startup coord created service", sid, "\n")
+			// pcontext.Infof(ctx, "startup coordinator: created service %s%s because of import", sid.Name(), sid.Short())
 		}
 	}
 	serviceDest := s.ServiceByIdString(ctx, dest.String())
@@ -170,8 +170,8 @@ func (s *rawLocal) Import(ctx context.Context, src, dest id.ServiceId) syscall.K
 		return syscall.KernelErr_NotFound
 	}
 	if !graph.Acyclic(s.depGraph) {
-		pcontext.Errorf(ctx, "acyclic check failed, removing %s->%s",
-			src.Short(), dest.Short())
+		// pcontext.Errorf(ctx, "acyclic check failed, removing %s->%s",
+		// 	src.Short(), dest.Short())
 		// remove the edge so no cycles
 		s.removeEdge(ctx, s.vertexName[srcString], s.vertexName[destString])
 		// no need to check these again for existence, remove edge would not have worked
@@ -211,7 +211,7 @@ func (s *rawLocal) addVertex(ctx context.Context, name string) bool {
 
 	_, ok := s.vertexName[name]
 	if ok {
-		pcontext.Errorf(ctx, "attempt to add vertext %s ignored, vertex already in graph", name)
+		//pcontext.Errorf(ctx, "attempt to add vertext %s ignored, vertex already in graph", name)
 		return true
 	}
 	s.vertexName[name] = prevOrder
@@ -231,7 +231,8 @@ func (s *rawLocal) addEdge(ctx context.Context, src, dest string) bool {
 		if !srcOk && destOk {
 			text = "source not a graph vertex"
 		}
-		pcontext.Errorf(ctx, "attempt to create edge (%s,%s) rejected, %s", src, dest, text)
+		print("add edge ", text, "\n")
+		//pcontext.Errorf(ctx, "attempt to create edge (%s,%s) rejected, %s", src, dest, text)
 		return false
 	}
 	s.depGraph.Add(srcV, destV)
@@ -271,7 +272,7 @@ func (s *rawLocal) PathExists(ctx context.Context, src, dest string) bool {
 	destV := s.vertexName[dest]
 
 	if !s.searchEdges(srcV, destV) {
-		pcontext.Errorf(ctx, "XXXlocate called, but no require given: %s -> %s", src, dest)
+		//pcontext.Errorf(ctx, "XXXlocate called, but no require given: %s -> %s", src, dest)
 		return false
 	}
 	return true

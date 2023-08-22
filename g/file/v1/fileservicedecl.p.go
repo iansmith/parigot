@@ -10,6 +10,7 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
@@ -110,13 +111,15 @@ func (i *Client_) Open(ctx context.Context, in *OpenRequest) *FutureOpen {
         f:=NewFutureOpen()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureOpen()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -174,13 +177,15 @@ func (i *Client_) Create(ctx context.Context, in *CreateRequest) *FutureCreate {
         f:=NewFutureCreate()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureCreate()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -238,13 +243,15 @@ func (i *Client_) Close(ctx context.Context, in *CloseRequest) *FutureClose {
         f:=NewFutureClose()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureClose()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -302,13 +309,15 @@ func (i *Client_) LoadTestData(ctx context.Context, in *LoadTestDataRequest) *Fu
         f:=NewFutureLoadTestData()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureLoadTestData()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -366,13 +375,15 @@ func (i *Client_) Read(ctx context.Context, in *ReadRequest) *FutureRead {
         f:=NewFutureRead()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureRead()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -430,13 +441,15 @@ func (i *Client_) Write(ctx context.Context, in *WriteRequest) *FutureWrite {
         f:=NewFutureWrite()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureWrite()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -494,13 +507,15 @@ func (i *Client_) Delete(ctx context.Context, in *DeleteRequest) *FutureDelete {
         f:=NewFutureDelete()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureDelete()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -558,12 +573,14 @@ func (i *Client_) Stat(ctx context.Context, in *StatRequest) *FutureStat {
         f:=NewFutureStat()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureStat()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

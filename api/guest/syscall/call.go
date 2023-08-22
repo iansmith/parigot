@@ -9,7 +9,6 @@ import (
 
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
 
@@ -20,12 +19,13 @@ var cidToCompleter = make(map[string]future.Completer)
 
 // MatchCompleter is a utility for adding a new
 // cid and completer to the tables used to look up
-// the location where response values should be sent.
-func MatchCompleter(ctx context.Context, hid id.HostId, cid id.CallId, comp future.Completer) {
+// the location where response values should be sent.  The time value has
+// be passed in from the outside.
+func MatchCompleter(ctx context.Context, t time.Time, hid id.HostId, cid id.CallId, comp future.Completer) {
 	if getCompleter(hid, cid) != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
-	setCompleter(ctx, hid, cid, comp)
+	setCompleter(ctx, t, hid, cid, comp)
 }
 
 func completerKey(hid id.HostId, cid id.CallId) string {
@@ -35,12 +35,12 @@ func getCompleter(hid id.HostId, cid id.CallId) future.Completer {
 	key := completerKey(hid, cid)
 	return cidToCompleter[key]
 }
-func setCompleter(ctx context.Context, hid id.HostId, cid id.CallId, f future.Completer) {
+func setCompleter(ctx context.Context, t time.Time, hid id.HostId, cid id.CallId, f future.Completer) {
 	key := completerKey(hid, cid)
-	t := pcontext.CurrentTime(ctx)
 	internalFuture[key] = t
 	cidToCompleter[key] = f
 }
+
 func delCompleted(hid id.HostId, cid id.CallId) {
 	key := completerKey(hid, cid)
 	delete(cidToCompleter, key)
@@ -59,8 +59,6 @@ func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *any
 	}
 	comp := getCompleter(hid, cid)
 	if comp == nil {
-		pcontext.Errorf(ctx, " no way to complete complete call: %s (on host %s)", cid.Short(), CurrentHostId().Short())
-		log.Printf("xxx -- cidToCompleter after failure: %+v (on %s)", cidToCompleter, CurrentHostId().Short())
 		return syscall.KernelErr_NotFound
 	}
 	delCompleted(hid, cid)
@@ -80,7 +78,7 @@ var internalFuture = make(map[string]time.Time)
 // functions will be called on the original future.  This function
 // exists to maintain a list so that we can expire and cancel futures
 // that have waiting longer than the timeout time.
-func ExpireMethod(ctx context.Context) {
+func ExpireMethod(ctx context.Context, curr time.Time) {
 	dead := make([]string, 0)
 	for key, elem := range internalFuture {
 		comp, ok := cidToCompleter[key]
@@ -89,7 +87,6 @@ func ExpireMethod(ctx context.Context) {
 			continue
 		}
 		if !comp.Completed() {
-			curr := pcontext.CurrentTime(ctx)
 			diff := curr.Sub(elem)
 			if diff.Milliseconds() > apishared.FunctionTimeoutInMillis {
 				dead = append(dead, key)

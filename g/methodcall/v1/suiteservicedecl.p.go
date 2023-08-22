@@ -10,6 +10,7 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
@@ -98,13 +99,15 @@ func (i *Client_) Exec(ctx context.Context, in *ExecRequest) *FutureExec {
         f:=NewFutureExec()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureExec()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 
@@ -153,12 +156,14 @@ func (i *Client_) SuiteReport(ctx context.Context, in *SuiteReportRequest) *Futu
         f:=NewFutureSuiteReport()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureSuiteReport()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

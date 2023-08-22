@@ -112,7 +112,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
-	resp, err:=syscallguest.ReadOne(&req)
+	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
 	}
@@ -122,7 +122,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	syscallguest.ExpireMethod(ctx)
+	ctx, t:=lib.CurrentTime(ctx)
+	syscallguest.ExpireMethod(ctx,t)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
@@ -160,7 +161,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		}
 		rvReq.Result = &a
 		rvReq.ResultError = 0
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx, rvReq) // nowhere for return value to go
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
@@ -169,7 +170,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.CallId= cid.Marshal()
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx,rvReq) // nowhere for return value to go
 	})
 	return syscall.KernelErr_NoError
 
@@ -189,7 +190,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "AddMultiply"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -206,7 +207,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "LucasSequence"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -223,7 +224,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Foo) (*lib.ServiceMethodMap
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "WritePi"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -267,7 +268,7 @@ func Register() (id.ServiceId, syscall.KernelErr){
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	req.DebugName = debugName
 
-	resp, err := syscallguest.Register(req)
+	resp, err := syscallguest.Register(context.Background(), req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
@@ -288,7 +289,7 @@ func MustRegister() (context.Context,id.ServiceId) {
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1("methodcall.foo.v1","foo",sid)
+    _, err:=lib.Require1(ctx, "methodcall.foo.v1","foo",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
             guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","methodcall.foo.v1","service name","foo","error",syscall.KernelErr_name[int32(err)])
@@ -300,7 +301,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 }
 
 func MustExport(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Export1("methodcall.foo.v1","foo",sid)
+    _, err:=lib.Export1(ctx,"methodcall.foo.v1","foo",sid)
     if err!=syscall.KernelErr_NoError{
         guest.Log(ctx).Error("unable to export","package","methodcall.foo.v1","service name","foo")
         panic("not able to export methodcall.foo.v1.foo:"+syscall.KernelErr_name[int32(err)])
@@ -319,7 +320,7 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl Foo) (*lib.Servic
 		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
-	fut:=syscallguest.Launch(req)
+	fut:=syscallguest.Launch(ctx,req)
 
     return smmap,fut,syscall.KernelErr_NoError
 }
@@ -343,12 +344,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Foo) (*lib.Se
 func AddMultiply_(int32,int32,int32,int32) int64
 func AddMultiplyHost(ctx context.Context,inPtr *AddMultiplyRequest) *FutureAddMultiply {
 	outProtoPtr := (*AddMultiplyResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddMultiply_)
-	if signal {
-		guest.Log(ctx).Info("AddMultiply exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddMultiply_)
 	f:=NewFutureAddMultiply()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -358,12 +354,7 @@ func AddMultiplyHost(ctx context.Context,inPtr *AddMultiplyRequest) *FutureAddMu
 func LucasSequence_(int32,int32,int32,int32) int64
 func LucasSequenceHost(ctx context.Context,inPtr *LucasSequenceRequest) *FutureLucasSequence {
 	outProtoPtr := (*LucasSequenceResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LucasSequence_)
-	if signal {
-		guest.Log(ctx).Info("LucasSequence exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LucasSequence_)
 	f:=NewFutureLucasSequence()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -373,12 +364,7 @@ func LucasSequenceHost(ctx context.Context,inPtr *LucasSequenceRequest) *FutureL
 func WritePi_(int32,int32,int32,int32) int64
 func WritePiHost(ctx context.Context,inPtr *WritePiRequest) *FutureWritePi {
 	outProtoPtr := (*WritePiResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, WritePi_)
-	if signal {
-		guest.Log(ctx).Info("WritePi exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, WritePi_)
 	f:=NewFutureWritePi()
 	f.CompleteMethod(ctx,ret,raw)
 	return f

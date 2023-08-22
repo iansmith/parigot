@@ -96,7 +96,7 @@ func (i *Client_) FetchGreeting(ctx context.Context, in *FetchGreetingRequest) *
         f:=NewFutureFetchGreeting()
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(mid,in) 
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureFetchGreeting()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/

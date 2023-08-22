@@ -3,10 +3,10 @@ package plugin
 import (
 	"context"
 	"encoding/binary"
+	"log"
 	"runtime/debug"
 
 	apishared "github.com/iansmith/parigot/api/shared"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
@@ -64,7 +64,6 @@ func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, 
 	if respErr&0x7fffff00 != 0 {
 		errCopy := respErr
 		respErr = 0
-		pcontext.Dump(ctx)
 		if !writeErr32Guest(m.Memory(), errPtr, errCopy) {
 			return true
 		}
@@ -141,27 +140,19 @@ func pullRequestFromStack(ctx context.Context, m api.Module, req proto.Message, 
 // and decoding the values to/from the guest memory.
 func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, name string, m api.Module, stack []uint64,
 	fn func(context.Context, T, U) int32, t T, u U) {
-	currCtx := ManufactureHostContext(ctx, name)
+
 	defer func() {
 		if r := recover(); r != nil {
-			pcontext.Fatalf(currCtx, "host side panic from inside function %s: %v (%T)", name, r, t)
+			log.Printf("host side panic from inside function %s: %v (%T)", name, r, t)
 			debug.PrintStack()
 		}
-		pcontext.Dump(currCtx)
 	}()
-	if !pullRequestFromStack(currCtx, m, t, stack) { //consumes 0 and 1, 3 of stack
+	if !pullRequestFromStack(ctx, m, t, stack) { //consumes 0 and 1, 3 of stack
 		return
 	}
-	kerr := fn(currCtx, t, u)
-	badWrite := pushResponseToStack(currCtx, m, u, kerr, stack)
+	kerr := fn(ctx, t, u)
+	badWrite := pushResponseToStack(ctx, m, u, kerr, stack)
 	if badWrite {
 		panic("unable to push response back to guest memory")
 	}
-}
-
-// ManufactureHostContext is a helper to return a context
-// configured for the given function name and set the source to
-// ServerGo.
-func ManufactureHostContext(ctx context.Context, funcName string) context.Context {
-	return pcontext.CallTo(pcontext.ServerGoContext(pcontext.NewContextWithContainer(ctx, "ManufactureHostContext")), funcName)
 }

@@ -8,19 +8,10 @@ import (
 	"unsafe"
 
 	apishared "github.com/iansmith/parigot/api/shared"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
 )
-
-// Manufacture context is used to setup the context for a given state that makes sense for this, the
-// Guest side of the wire.  You pass the name of the function you are constructing this in.
-func ManufactureGuestContext(fn string) context.Context {
-	result := pcontext.NewContextWithContainer(context.Background(), fn)
-	result = pcontext.GuestContext(result)
-	return pcontext.CallTo(result, fn)
-}
 
 // ClientSide does the marshalling and unmarshalling needed to read the T given,
 // write the U given, and return the KernelErrId properly. It does these
@@ -60,7 +51,6 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	}()
 	wrapped := fn(length, req, out, errPtr)
 	if int32(outErr) != 0 {
-		pcontext.Dump(ctx)
 		if outErr&0x7fffff00 == 0x7fffff00 {
 			return nilU, outErr & 0xff, true
 		}

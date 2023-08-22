@@ -1,12 +1,12 @@
 package file
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
 
 	apishared "github.com/iansmith/parigot/api/shared"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/file/v1"
 )
 
@@ -17,18 +17,18 @@ const (
 
 func creatAGoodFile(svc *fileSvcImpl, fpath string, fcontent string) file.FileId {
 	// return svc.createANewFile(fpath, fcontent)
-	fid, err := svc.createANewFile(fpath, fcontent)
+	fid, err := svc.createANewFile(context.Background(), fpath, fcontent)
 	if err != nil {
 		log.Fatal("Failed to create a file: ", err)
 	}
 	return fid
 }
 
-func openAGoodFile(svc *fileSvcImpl) {
+func openAGoodFile(ctx context.Context, svc *fileSvcImpl) {
 	fid := (*svc.fpathTofid)[filePath]
 	myFileInfo := (*svc.fileDataCache)[fid]
 
-	myFileInfo.modTime = pcontext.CurrentTime(svc.ctx)
+	myFileInfo.modTime = currentTimeHost(ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error
