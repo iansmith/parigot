@@ -7,7 +7,7 @@ RUN apt-get install -y wget
 RUN apt-get install -y git
 RUN apt-get install -y xz-utils nano 
 RUN apt-get install sudo ca-certificates file \
-	dpkg zip unzip zsh
+	dpkg zip unzip zsh 
 
 #RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
 #    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
