@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	dagger.io/dagger v0.6.3
+	dagger.io/dagger v0.7.2
 	fyne.io/systray v1.10.1-0.20221115204952-d16a6177e6f1 // indirect
 	github.com/Khan/genqlient v0.5.0 // indirect
 	github.com/adrg/xdg v0.4.0 // indirect
@@ -62,12 +62,6 @@ require (
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/image v0.0.0-20220601225756-64ec528b34cd // indirect
 	golang.org/x/mobile v0.0.0-20211207041440-4e6c2922fdee // indirect
-	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/tools v0.2.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	honnef.co/go/js/dom v0.0.0-20210725211120-f030747120f2 // indirect

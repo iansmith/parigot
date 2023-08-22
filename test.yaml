@@ -1,0 +1,9 @@
+on:
+  pull_request:
+    types: 
+      - opened
+    branches: 
+      - 'master/**'
+run:
+  go run ci/main.go
+  
