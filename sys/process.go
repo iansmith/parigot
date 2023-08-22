@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
@@ -95,15 +94,14 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	}
 
 	if m.GetPluginPath() != "" {
-		c := context.Background()
-		err := LoadPluginAndAddHostFunc(pcontext.CallTo(c, "loadPluginAndAddHostFunc"),
+		err := LoadPluginAndAddHostFunc(context.Background(),
 			m.GetPluginPath(), m.GetPluginSymbol(), engine, m.GetName())
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	instance, err := proc.module.NewInstance(context.Background())
+	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone)
 	if err != nil {
 		return nil, err
 	}

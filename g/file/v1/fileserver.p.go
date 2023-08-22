@@ -112,7 +112,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
-	resp, err:=syscallguest.ReadOne(&req)
+	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
 	}
@@ -122,7 +122,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	}
 
 	// check for finished futures from within our address space
-	syscallguest.ExpireMethod(ctx)
+	ctx, t:=lib.CurrentTime(ctx)
+	syscallguest.ExpireMethod(ctx,t)
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
@@ -160,7 +161,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		}
 		rvReq.Result = &a
 		rvReq.ResultError = 0
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx, rvReq) // nowhere for return value to go
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
@@ -169,7 +170,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.CallId= cid.Marshal()
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx,rvReq) // nowhere for return value to go
 	})
 	return syscall.KernelErr_NoError
 
@@ -189,7 +190,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Open"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -206,7 +207,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Create"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -223,7 +224,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Close"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -240,7 +241,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "LoadTestData"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -257,7 +258,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Read"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -274,7 +275,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Write"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -291,7 +292,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Delete"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -308,7 +309,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "Stat"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -352,7 +353,7 @@ func Register() (id.ServiceId, syscall.KernelErr){
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	req.DebugName = debugName
 
-	resp, err := syscallguest.Register(req)
+	resp, err := syscallguest.Register(context.Background(), req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
@@ -373,7 +374,7 @@ func MustRegister() (context.Context,id.ServiceId) {
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1("file.v1","file",sid)
+    _, err:=lib.Require1(ctx, "file.v1","file",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
             guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","file.v1","service name","file","error",syscall.KernelErr_name[int32(err)])
@@ -385,7 +386,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 }
 
 func MustExport(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Export1("file.v1","file",sid)
+    _, err:=lib.Export1(ctx,"file.v1","file",sid)
     if err!=syscall.KernelErr_NoError{
         guest.Log(ctx).Error("unable to export","package","file.v1","service name","file")
         panic("not able to export file.v1.file:"+syscall.KernelErr_name[int32(err)])
@@ -404,7 +405,7 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.Servi
 		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
-	fut:=syscallguest.Launch(req)
+	fut:=syscallguest.Launch(ctx,req)
 
     return smmap,fut,syscall.KernelErr_NoError
 }
@@ -428,12 +429,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.S
 func Open_(int32,int32,int32,int32) int64
 func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
 	outProtoPtr := (*OpenResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Open_)
-	if signal {
-		guest.Log(ctx).Info("Open exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Open_)
 	f:=NewFutureOpen()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -443,12 +439,7 @@ func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
 func Create_(int32,int32,int32,int32) int64
 func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
 	outProtoPtr := (*CreateResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Create_)
-	if signal {
-		guest.Log(ctx).Info("Create exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Create_)
 	f:=NewFutureCreate()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -458,12 +449,7 @@ func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
 func Close_(int32,int32,int32,int32) int64
 func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
 	outProtoPtr := (*CloseResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Close_)
-	if signal {
-		guest.Log(ctx).Info("Close exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Close_)
 	f:=NewFutureClose()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -473,12 +459,7 @@ func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
 func LoadTestData_(int32,int32,int32,int32) int64
 func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoadTestData {
 	outProtoPtr := (*LoadTestDataResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LoadTestData_)
-	if signal {
-		guest.Log(ctx).Info("LoadTestData exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LoadTestData_)
 	f:=NewFutureLoadTestData()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -488,12 +469,7 @@ func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoa
 func Read_(int32,int32,int32,int32) int64
 func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
 	outProtoPtr := (*ReadResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Read_)
-	if signal {
-		guest.Log(ctx).Info("Read exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Read_)
 	f:=NewFutureRead()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -503,12 +479,7 @@ func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
 func Write_(int32,int32,int32,int32) int64
 func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
 	outProtoPtr := (*WriteResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Write_)
-	if signal {
-		guest.Log(ctx).Info("Write exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Write_)
 	f:=NewFutureWrite()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -518,12 +489,7 @@ func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
 func Delete_(int32,int32,int32,int32) int64
 func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 	outProtoPtr := (*DeleteResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
-	if signal {
-		guest.Log(ctx).Info("Delete exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
@@ -533,12 +499,7 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 func Stat_(int32,int32,int32,int32) int64
 func StatHost(ctx context.Context,inPtr *StatRequest) *FutureStat {
 	outProtoPtr := (*StatResponse)(nil)
-	ret, raw, signal:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Stat_)
-	if signal {
-		guest.Log(ctx).Info("Stat exiting because of parigot signal")
-		lib.ExitClient(ctx, 1, id.NewServiceId(), "xxx warning, no implementation of unsolicited exit",
-			"xxx warning, no implementation of unsolicited exit and failed trying to exit")
-	}
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Stat_)
 	f:=NewFutureStat()
 	f.CompleteMethod(ctx,ret,raw)
 	return f

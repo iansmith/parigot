@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	apishared "github.com/iansmith/parigot/api/shared"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/file/v1"
 )
 
@@ -44,7 +43,7 @@ func TestOpenClose(t *testing.T) {
 
 	// Create a good file
 	fid = creatAGoodFile(svc, filePath, fileContent)
-	openAGoodFile(svc)
+	openAGoodFile(context.Background(), svc)
 
 	// Test case: Open a file that is already open.
 	testFileOpen(t, svc, filePath, "open an already opened file", true, int32(file.FileErr_AlreadyInUseError))
@@ -84,7 +83,7 @@ func TestCreateClose(t *testing.T) {
 	testFileClose(t, svc, fid, "Test cases 4 in CreateClose", false, int32(file.FileErr_NoError))
 
 	// Test case 5: Create a file that is already in the read status
-	openAGoodFile(svc)
+	openAGoodFile(context.Background(), svc)
 	testFileCreate(t, svc, filePath, fileContent, "Test cases 5 in CreateClose",
 		true, int32(file.FileErr_AlreadyInUseError))
 	closeAGoodFile(svc)
@@ -116,7 +115,7 @@ func TestRead(t *testing.T) {
 	testFileRead(t, svc, fid, make([]byte, 2), "read a closed file",
 		true, int32(file.FileErr_FileClosedError))
 
-	openAGoodFile(svc)
+	openAGoodFile(context.Background(), svc)
 
 	// Test case: Read a file with 0 length buffer
 	testFileRead(t, svc, fid, make([]byte, 0), "read a file with 0 length buffer",
@@ -160,7 +159,7 @@ func TestWrite(t *testing.T) {
 		true, int32(file.FileErr_FileClosedError))
 
 	// Test case 3: Write a read file
-	openAGoodFile(svc)
+	openAGoodFile(context.Background(), svc)
 	testFileWrite(t, svc, fid, contentBuf, "Test cases 3 in Write",
 		true, int32(file.FileErr_AlreadyInUseError))
 
@@ -186,7 +185,7 @@ func TestDelete(t *testing.T) {
 	closeAGoodFile(svc)
 
 	// Test case 3: Delete a file that is already in the read status
-	openAGoodFile(svc)
+	openAGoodFile(context.Background(), svc)
 	testFileDelete(t, svc, filePath, "Test case 3 in TestDelete", true, int32(file.FileErr_AlreadyInUseError))
 
 	// Test case 4: Delete a file that is in the closed status
@@ -305,8 +304,8 @@ func TestRealFiles(t *testing.T) {
 func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string, msg string,
 	errExpected bool, expectedErrCode int32) file.FileId {
 
-	ctx := pcontext.DevNullContext(context.Background())
 	t.Helper()
+	ctx := context.Background()
 
 	req := &file.CreateRequest{
 		Path:    fpath,
@@ -333,7 +332,7 @@ func testFileCreate(t *testing.T, svc *fileSvcImpl, fpath string, content string
 func testFileClose(t *testing.T, svc *fileSvcImpl, fid file.FileId, msg string,
 	errExpected bool, expectedErrCode int32) {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.CloseRequest{
@@ -364,7 +363,7 @@ func testFileClose(t *testing.T, svc *fileSvcImpl, fid file.FileId, msg string,
 func testFileOpen(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	errExpected bool, expectedErrCode int32) file.FileId {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.OpenRequest{
@@ -391,7 +390,7 @@ func testFileOpen(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 	msg string, errExpected bool, expectedErrCode int32) (file.FileId, []byte) {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.ReadRequest{
@@ -418,7 +417,7 @@ func testFileRead(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 func testFileDelete(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	errExpected bool, expectedErrCode int32) {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.DeleteRequest{
@@ -443,7 +442,7 @@ func testFileDelete(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 func testFileWrite(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 	msg string, errExpected bool, expectedErrCode int32) file.FileId {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.WriteRequest{
@@ -469,7 +468,7 @@ func testFileWrite(t *testing.T, svc *fileSvcImpl, fid file.FileId, buf []byte,
 
 func testDataLoad(t *testing.T, svc *fileSvcImpl, dirPath string, mountLocation string, returnOnFail bool,
 	msg string, errExpected bool, expectedErrCode int32) []string {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.LoadTestDataRequest{
@@ -502,7 +501,7 @@ func testDataLoad(t *testing.T, svc *fileSvcImpl, dirPath string, mountLocation 
 func testFileStat(t *testing.T, svc *fileSvcImpl, fpath string, msg string,
 	errExpected bool, expectedErrCode int32) *file.FileInfo {
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 	t.Helper()
 
 	req := &file.StatRequest{

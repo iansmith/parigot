@@ -9,7 +9,6 @@ import (
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 
@@ -71,15 +70,12 @@ func (c *BaseService) String() string {
 // Dispatch is called by every client side "method" on the client side
 // service. This funciton is the one that make a system call to the
 // kernel and prepares for handling the result.
-func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.HostId, id.CallId, syscall.KernelErr) {
+func (c *BaseService) Dispatch(ctx context.Context, method id.MethodId, param proto.Message) (id.HostId, id.CallId, syscall.KernelErr) {
 	var a *anypb.Any
 	var err error
 	if param != nil {
 		a, err = anypb.New(param)
 		if err != nil {
-			ctx := pcontext.NewContextWithContainer(pcontext.GuestContext(context.Background()), "dispatch")
-			pcontext.Errorf(ctx, "failed in call to dispatch: %v", err)
-			pcontext.Dump(ctx)
 			return id.HostIdZeroValue(), id.CallIdZeroValue(), syscall.KernelErr_MarshalFailed
 		}
 	}
@@ -102,7 +98,7 @@ func (c *BaseService) Dispatch(method id.MethodId, param proto.Message) (id.Host
 		Param:  a,
 	}
 
-	resp, kerr := syscallguest.Dispatch(in)
+	resp, kerr := syscallguest.Dispatch(ctx, in)
 	if kerr != syscall.KernelErr_NoError {
 		return id.HostIdZeroValue(), id.CallIdZeroValue(), kerr
 	}

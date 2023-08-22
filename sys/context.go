@@ -9,7 +9,6 @@ import (
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/command/runner/runner"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 
 	"github.com/tetratelabs/wazero"
@@ -49,6 +48,10 @@ func NewDeployContext(conf *runner.DeployConfig) (*DeployContext, error) {
 	}
 
 	return depCtx, nil
+}
+
+func (c *DeployContext) Timezone() string {
+	return c.config.Timezone
 }
 
 func (c *DeployContext) LoadAllModules(e eng.Engine) error {
@@ -152,8 +155,8 @@ func (d *DeployContext) instantiateBuiltinHostFunc(ctx context.Context) error {
 	return nil
 }
 
-func contextPrint(ctx context.Context, level pcontext.LogLevel, method, spec string, arg ...interface{}) {
+func contextPrint(spec string, arg ...interface{}) {
 	if runnerVerbose {
-		pcontext.LogFullf(ctx, level, pcontext.Parigot, method, spec, arg...)
+		log.Printf(spec, arg...)
 	}
 }

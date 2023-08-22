@@ -17,6 +17,7 @@ import(
 {{- $info:=.info }}
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
@@ -200,16 +201,18 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
         f.CompleteMethod(ctx,nil,1)/*dispatch error*/
     }
 {{- if .InputCodeNeeded }}
-    _,cid,kerr:= i.BaseService.Dispatch(mid,{{$inbound}})
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,{{$inbound}})
 {{- else }}
-    _,cid,kerr:= i.BaseService.Dispatch(mid,nil)
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,nil)
 {{- end }} {{/* end of input needed */}}
     f:=NewFuture{{$svcDiff}}{{$methCamel}}()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }
 {{- end}} {{/*ranging over methods*/}}

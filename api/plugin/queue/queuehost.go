@@ -3,14 +3,13 @@ package queue
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"regexp"
 	"time"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
-
 	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 
@@ -23,6 +22,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+var queuelogger = slog.Default().With("source", "queue", "plugin", "true")
 
 //go:embed sqlc/schema.sql
 var ddl string
@@ -37,7 +38,6 @@ var queueSvc *queueSvcImpl
 type queueSvcImpl struct {
 	db      *sql.DB
 	queries *Queries
-	ctx     context.Context
 }
 
 type QueuePlugin struct{}
@@ -54,9 +54,9 @@ func (*QueuePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "queue", "send_", sendHost)
 
 	var errId queue.QueueErr
-	queueSvc, errId = newQueueSvc(ctx)
+	queueSvc, errId = newQueueSvc()
 	if int32(errId) != 0 {
-		pcontext.Fatalf(ctx, "QueueSvc: unable to start:%s", queue.QueueErr_name[int32(errId)])
+		queuelogger.Error("unable to start", "kernel error", queue.QueueErr_name[int32(errId)])
 		return false
 	}
 
@@ -67,7 +67,7 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 	m api.Module, stack []uint64, req T, resp U) {
 	defer func() {
 		if r := recover(); r != nil {
-			print(">>>>>>>> Trapped recover in set up for   ", fnName, "<<<<<<<<<<\n")
+			queuelogger.Error("trapped a panic", nil, "name", fnName, "recovered value", r)
 		}
 	}()
 	apiplugin.InvokeImplFromStack(ctx, fnName, m, stack, fn, req, resp)
@@ -127,9 +127,7 @@ func receiveHost(ctx context.Context, m api.Module, stack []uint64) {
 //
 
 // newQueueSvc returns an initialized Queue service.
-func newQueueSvc(ctx context.Context) (*queueSvcImpl, queue.QueueErr) {
-	newCtx := pcontext.ServerGoContext(ctx)
-
+func newQueueSvc() (*queueSvcImpl, queue.QueueErr) {
 	var err error
 	q := &queueSvcImpl{}
 	//open db
@@ -143,7 +141,6 @@ func newQueueSvc(ctx context.Context) (*queueSvcImpl, queue.QueueErr) {
 	}
 
 	q.queries = New(q.db)
-	q.ctx = newCtx
 	return q, queue.QueueErr_NoError
 }
 
@@ -159,13 +156,13 @@ func (q *queueSvcImpl) create(ctx context.Context, req *queue.CreateQueueRequest
 	resp *queue.CreateQueueResponse) int32 {
 
 	if !q.validateName(req.GetQueueName()) {
-		pcontext.Errorf(ctx, "queue name is not valid: '%s'", req.GetQueueName())
+		queuelogger.Error("queue name is not valid", "name", req.GetQueueName())
 		return int32(queue.QueueErr_NotFound)
 	}
 
 	rawErr := q.testNameExists(ctx, req.GetQueueName())
 	if rawErr != queue.QueueErr_NoError {
-		pcontext.Errorf(ctx, "unable to test if queue exists: %s: %v", req.GetQueueName(), rawErr.String())
+		queuelogger.Error("unable to test if queue exists", "name", req.GetQueueName(), "error", rawErr)
 		return int32(rawErr)
 	}
 
@@ -182,7 +179,7 @@ func (q *queueSvcImpl) create(ctx context.Context, req *queue.CreateQueueRequest
 	}
 	_, err = q.queries.CreateIdToKeyMapping(context.Background(), param)
 	if err != nil {
-		pcontext.Errorf(ctx, "unable to create id to key mapping: %s", err.Error())
+		queuelogger.Error("unable to create id to key mapping", "error", err)
 		return int32(queue.QueueErr_InternalError)
 	}
 	resp.Id = qid.Marshal()
@@ -203,12 +200,12 @@ func (q *queueSvcImpl) delete(ctx context.Context, req *queue.DeleteQueueRequest
 			IDHigh: sql.NullInt64{Int64: int64(qid.High()), Valid: true},
 		})
 	if err != nil {
-		pcontext.Errorf(ctx, "unable to find db key for %s, %v (assuming not found):", qid.Short(), err.Error())
+		queuelogger.Error("unable to find db key, (assuming not found):", "key", qid.Short(), "error", err)
 		return int32(queue.QueueErr_NotFound)
 	}
 	err = q.queries.DeleteQueue(context.Background(), r.QueueKey.Int64)
 	if err != nil {
-		pcontext.Errorf(ctx, "unable to delete row for key %s: %v:", qid.Short(), err.Error())
+		queuelogger.Error("unable to delete row for key", "key", qid.Short(), "error", err)
 		return int32(queue.QueueErr_InternalError)
 	}
 	// just return the internal id, not the row id
@@ -227,7 +224,7 @@ func (q *queueSvcImpl) getRowidForId(ctx context.Context, qid queue.QueueId) (qu
 	}
 	result, err := q.queries.getKeyFromQueueId(ctx, p)
 	if err != nil {
-		pcontext.Errorf(ctx, "unable to find internal key from id (%s): %v", qid.Short(), err)
+		queuelogger.Error("unable to find internal key from id", "key", qid.Short(), "error", err)
 		return queue.RowIdZeroValue(), queue.QueueErr_InternalError
 	}
 	//?? result.QueueKey.Int64,
@@ -239,11 +236,11 @@ func (q *queueSvcImpl) getRowidForId(ctx context.Context, qid queue.QueueId) (qu
 func (q *queueSvcImpl) testNameExists(ctx context.Context, name string) queue.QueueErr {
 	count, err := q.queries.TestNameExists(ctx, name)
 	if err != nil {
-		pcontext.Errorf(ctx, "unable to query table of queue names: %v", err)
+		queuelogger.Error("unable to query table of queue names", "error", err)
 		return queue.QueueErr_InternalError
 	}
 	if count != 0 {
-		pcontext.Errorf(ctx, "attempt to create queue 2nd time: %s", name)
+		queuelogger.Error("attempt to create queue 2nd time", "name", name)
 		return queue.QueueErr_AlreadyExists
 	}
 	return queue.QueueErr_NoError
@@ -280,7 +277,7 @@ func (q *queueSvcImpl) send(ctx context.Context, req *queue.SendRequest, resp *q
 		if current.GetSender() != nil {
 			senderBytes, err = proto.Marshal(current.GetSender())
 			if err != nil {
-				pcontext.Errorf(ctx, "unable to flatten sender: %v", err)
+				queuelogger.Error("unable to flatten sender", "error", err)
 				alreadyFailed = true
 				fail = append(fail, current)
 				failedOn = current.GetMsgId()
@@ -290,7 +287,7 @@ func (q *queueSvcImpl) send(ctx context.Context, req *queue.SendRequest, resp *q
 		// flatten payload
 		payloadBytes, err := proto.Marshal(current.GetPayload())
 		if err != nil {
-			pcontext.Errorf(ctx, "unable to flatten payload: %v", err)
+			queuelogger.Error("unable to flatten payload", "error", err)
 			return int32(queue.QueueErr_InternalError)
 		}
 		params := CreateMessageParams{
@@ -307,7 +304,7 @@ func (q *queueSvcImpl) send(ctx context.Context, req *queue.SendRequest, resp *q
 			alreadyFailed = true
 			fail = append(fail, current)
 			failedOn = mid.Marshal()
-			pcontext.Errorf(ctx, "could not create message: %v", err)
+			queuelogger.Error("could not create message", "error", err)
 			continue
 		}
 		succeed = append(succeed, mid.Marshal())
@@ -330,13 +327,13 @@ func (q *queueSvcImpl) length(ctx context.Context, req *queue.LengthRequest, res
 	qid := queue.UnmarshalQueueId(req.GetId())
 	rowId, err := q.getRowidForId(ctx, qid)
 	if err != queue.QueueErr_NoError {
-		pcontext.Errorf(ctx, "could not find the queue %s: %s", qid.Short(), queue.QueueErr_name[int32(err)])
+		queuelogger.Error("could not find the queue", "key", qid.Short(), "kernel error", queue.QueueErr_name[int32(err)])
 		return int32(err)
 	}
 
 	count, oldErr := q.queries.Length(ctx, sql.NullInt64{Int64: int64(rowId.Low()), Valid: true})
 	if oldErr != nil {
-		pcontext.Errorf(ctx, "failed length query: on queue:%s: %s", qid.Short(), oldErr.Error())
+		queuelogger.Error("failed length query: on queue", "key", qid.Short(), "error", oldErr)
 		return int32(queue.QueueErr_InternalError)
 	}
 	resp.Id = req.Id
@@ -374,7 +371,7 @@ func (q *queueSvcImpl) markDone(ctx context.Context, req *queue.MarkDoneRequest,
 		}
 		err := q.queries.MarkDone(ctx, p)
 		if err != nil {
-			pcontext.Errorf(ctx, "failed mark done: on queue:%s: %s", qid.Short(), err.Error())
+			queuelogger.Error("failed mark done on queue:", "key", qid.Short(), "error", err)
 			last = i
 			break
 		}
@@ -395,7 +392,7 @@ func (q *queueSvcImpl) markDone(ctx context.Context, req *queue.MarkDoneRequest,
 func (q queueSvcImpl) locate(ctx context.Context, req *queue.LocateRequest, resp *queue.LocateResponse) int32 {
 	row, err := q.queries.Locate(ctx, req.QueueName)
 	if err != nil {
-		pcontext.Errorf(ctx, "error trying to locate queue %s: %s", req.QueueName, err.Error())
+		queuelogger.Error("error trying to locate queue", "name", req.QueueName, "error", err.Error())
 		return int32(queue.QueueErr_NotFound)
 	}
 	h := uint64(row.IDHigh.Int64)
@@ -421,7 +418,7 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 	// we have to do this because we can't do UPDATE FROM in the sql queries with sqlc
 	rowId, errId := q.getRowidForId(ctx, qid)
 	if errId != queue.QueueErr_NoError {
-		pcontext.Errorf(ctx, "error trying to find row for queue %s: %s", qid.Short(), queue.QueueErr_name[int32(errId)])
+		queuelogger.Error("error trying to find row for queue", "key", qid.Short(), "kernel error", queue.QueueErr_name[int32(errId)])
 		return int32(errId)
 	}
 
@@ -431,7 +428,7 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 	}
 	resultMsg, err := q.queries.RetrieveMessage(context.Background(), p)
 	if err != nil {
-		pcontext.Errorf(ctx, "error trying retreive messages in send on queue %s: %s (db error:%s)", qid.Short(),
+		queuelogger.Error("error trying retreive messages in send on queue %s: %s (db error:%s)", qid.Short(),
 			queue.QueueErr_name[int32(errId)], err.Error())
 		return int32(queue.QueueErr_InternalError)
 	}
@@ -462,24 +459,24 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 		if result.LastReceived.String != "" {
 			recv, err = time.Parse(longForm, result.LastReceived.String)
 			if err != nil {
-				pcontext.Errorf(ctx, "failed to understand lastReceived time: %v", err)
+				queuelogger.Error("failed to understand lastReceived time", "error", err)
 				return int32(queue.QueueErr_InternalError)
 			}
 		}
 		sent, err := time.Parse(longForm, result.OriginalSent.String)
 		if err != nil {
-			pcontext.Errorf(ctx, "failed to understand lastReceived time: %v", err)
+			queuelogger.Error("failed to understand lastReceived time", "error", err)
 			return int32(queue.QueueErr_InternalError)
 		}
 		var senderAny, payloadAny anypb.Any
 		err = proto.Unmarshal(resultMsg[i].Sender, &senderAny)
 		if err != nil {
-			pcontext.Errorf(ctx, "unable to create sender proto: %v", err)
+			queuelogger.Error("unable to create sender proto", "error", err)
 			return int32(queue.QueueErr_InternalError)
 		}
 		err = proto.Unmarshal(resultMsg[i].Payload, &payloadAny)
 		if err != nil {
-			pcontext.Errorf(ctx, "unable to create payload proto: %v", err)
+			queuelogger.Error("unable to create payload proto", "error", err)
 			return int32(queue.QueueErr_UnmarshalFailed)
 		}
 
@@ -504,8 +501,8 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 		}
 		err = q.queries.UpdateMessageRetrieved(context.Background(), up)
 		if err != nil {
-			pcontext.Errorf(ctx, "unable to update message data %s: %s", messageId.Short(),
-				err.Error())
+			queuelogger.Error("unable to update message data", "message id", messageId.Short(),
+				"error", err)
 			return int32(queue.QueueErr_InternalError)
 		}
 	}

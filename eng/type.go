@@ -53,7 +53,9 @@ type Module interface {
 	// NewInstance creates an Intance in the host machine and
 	// if this returns without error that instance has been
 	// initialized, linked, and start_ called without error.
-	NewInstance(ctx context.Context) (Instance, error)
+	// XXX The timezone parameter must be passed in from the
+	// XXX outside.
+	NewInstance(ctx context.Context, timezone string) (Instance, error)
 	// Name returns the path of the binary that was loaded.
 	Name() string
 }

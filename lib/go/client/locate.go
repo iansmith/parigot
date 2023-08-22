@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 
+	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 )
@@ -27,9 +27,9 @@ func LocateDynamic(ctx context.Context, protoPkg, serviceName string, calledBy i
 		CalledBy:    calledBy.Marshal(),
 	}
 
-	resp, kerr := syscallguest.Locate(req)
+	resp, kerr := syscallguest.Locate(ctx, req)
 	if kerr != syscall.KernelErr_NoError {
-		pcontext.Errorf(ctx, "UnmarshalServiceId failed: %s", syscall.KernelErr_name[int32(kerr)])
+		guest.Log(ctx).Error("UnmarshalServiceId failed", "kernel error", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 	serviceId := id.UnmarshalServiceId(resp.GetServiceId())

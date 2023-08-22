@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 )
 
@@ -103,7 +102,7 @@ func (s *startupService) Exported() bool {
 // until all of its dependencies are fulfilled.
 func (s *startupService) Run(ctx context.Context) syscall.KernelErr {
 	s.RequestRun()
-	return s.waitToRun(pcontext.CallTo(ctx, "waitToRun")) // be sure this does not lock
+	return s.waitToRun(ctx) // be sure this does not lock
 }
 
 // canRun is true only if three conditions are met.  The service has been
@@ -118,7 +117,7 @@ func (s *startupService) canRun(ctx context.Context) bool {
 	if !s.RunRequested() {
 		return false
 	}
-	withFn := pcontext.CallTo(ctx, "notifyAllNodes")
+	withFn := ctx
 
 	result := s.parent.dfsDeps(withFn, s)
 	return result

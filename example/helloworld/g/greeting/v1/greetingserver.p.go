@@ -112,7 +112,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 
 	req.TimeoutInMillis = timeoutInMillis
 	req.HostId = syscallguest.CurrentHostId().Marshal()
-	resp, err:=syscallguest.ReadOne(&req)
+	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
 	}
@@ -160,7 +160,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		}
 		rvReq.Result = &a
 		rvReq.ResultError = 0
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx, rvReq) // nowhere for return value to go
 	})
 	fut.Failure(func (err int32) {
 		rvReq:=&syscall.ReturnValueRequest{}
@@ -169,7 +169,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.CallId= cid.Marshal()
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		rvReq.ResultError = err
-		syscallguest.ReturnValue(rvReq) // nowhere for return value to go
+		syscallguest.ReturnValue(ctx,rvReq) // nowhere for return value to go
 	})
 	return syscall.KernelErr_NoError
 
@@ -189,7 +189,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Greeting) (*lib.ServiceMeth
 	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
 	bindReq.ServiceId = sid.Marshal()
 	bindReq.MethodName = "FetchGreeting"
-	resp, err=syscallguest.BindMethod(bindReq)
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
 	if err!=syscall.KernelErr_NoError {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func Register() (id.ServiceId, syscall.KernelErr){
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	req.DebugName = debugName
 
-	resp, err := syscallguest.Register(req)
+	resp, err := syscallguest.Register(context.Background(), req)
     if err!=syscall.KernelErr_NoError{
         return id.ServiceIdZeroValue(), err
     }
@@ -254,7 +254,7 @@ func MustRegister() (context.Context,id.ServiceId) {
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1("greeting.v1","greeting",sid)
+    _, err:=lib.Require1(ctx, "greeting.v1","greeting",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
             guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","greeting.v1","service name","greeting","error",syscall.KernelErr_name[int32(err)])
@@ -266,7 +266,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 }
 
 func MustExport(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Export1("greeting.v1","greeting",sid)
+    _, err:=lib.Export1(ctx,"greeting.v1","greeting",sid)
     if err!=syscall.KernelErr_NoError{
         guest.Log(ctx).Error("unable to export","package","greeting.v1","service name","greeting")
         panic("not able to export greeting.v1.greeting:"+syscall.KernelErr_name[int32(err)])
@@ -285,7 +285,7 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl Greeting) (*lib.S
 		HostId: syscallguest.CurrentHostId().Marshal(),
 		MethodId: apishared.LaunchMethod.Marshal(),
 	}
-	fut:=syscallguest.Launch(req)
+	fut:=syscallguest.Launch(ctx,req)
 
     return smmap,fut,syscall.KernelErr_NoError
 }

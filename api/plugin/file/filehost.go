@@ -2,9 +2,10 @@ package file
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,6 @@ import (
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	apishared "github.com/iansmith/parigot/api/shared"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
 
@@ -22,6 +22,8 @@ import (
 
 	"github.com/tetratelabs/wazero/api"
 )
+
+var filelogger = slog.Default().With("source", "file", "plugin", "true")
 
 // make sure edit the makefile so you can have FileId and FileErrId, just like queue
 // you'll need to pick the short names and letters for them... I would
@@ -106,6 +108,18 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	return true
 }
 
+// xxx fixme(iansmith) should this be here? is it clear we want
+// to use the same mechanism as lib.CurrentTime()?  note this does
+// not deal with local timezone!
+func currentTimeHost(ctx context.Context) time.Time {
+	t := ctx.Value("parigot_time")
+	if t != nil && !t.(time.Time).IsZero() {
+		return t.(time.Time)
+	}
+	return time.Now()
+
+}
+
 func (fi *fileInfo) Read(p []byte) (n int, err error) {
 	return fi.rdClose.Read(p)
 }
@@ -188,11 +202,8 @@ func statHost(ctx context.Context, m api.Module, stack []uint64) {
 }
 
 func newFileSvc(ctx context.Context) *fileSvcImpl {
-	newCtx := pcontext.ServerGoContext(ctx)
-
 	f := &fileSvcImpl{
 		fileDataCache: &map[file.FileId]*fileInfo{},
-		ctx:           newCtx,
 		fpathTofid:    &map[string]file.FileId{},
 		isTesting:     false,
 
@@ -217,7 +228,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	// Validate the file path
 	if !valid {
-		pcontext.Errorf(ctx, "File path is not valid: %s", fpath)
+		filelogger.Error("File path is not valid", "path", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 	resp.Path = cleanPath
@@ -225,7 +236,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// Check if the file exists
 	fid, exist := (*f.fpathTofid)[cleanPath]
 	if !exist {
-		pcontext.Errorf(ctx, "File does not exist and cannot be opened: %s", fpath)
+		filelogger.Error("File does not exist and cannot be opened", "path", fpath)
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -234,20 +245,20 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 
 	// Check file status
 	if myFileInfo.status != Fs_Close {
-		pcontext.Errorf(ctx, "File is already in use: %s", fpath)
+		filelogger.Error("File is already in use", "path", fpath)
 		return int32(file.FileErr_AlreadyInUseError)
 	}
 
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.modTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = currentTimeHost(ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error
 	myFileInfo.rdClose, err = f.defaultOpenHook(cleanPath)
 	if err != nil {
-		pcontext.Errorf(ctx, "Failed to open file for reading: %s", fpath)
+		filelogger.Error("Failed to open file for reading", "path", fpath)
 		return int32(file.FileErr_OpenError)
 	}
 
@@ -261,7 +272,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	// Validate the file path
 	cleanPath, valid := isValidPath(fpath)
 	if !valid {
-		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
+		filelogger.Error("Invalid file path", "path", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
@@ -272,8 +283,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 	content := req.GetContent()
 	buf := []byte(content)
 	if !isValidBuf(buf) {
-		pcontext.Errorf(ctx, "Content size %d exceeds the maximum buffer size (%d) "+
-			"allowed", len(buf), maxBufSize)
+		filelogger.Error("Content size exceeds the maximum buffer size", "content size", len(buf), "maximum buffer size", maxBufSize)
 		return int32(file.FileErr_LargeBufError)
 	}
 
@@ -288,21 +298,21 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// The create request only applies to a closed file
 		if myFileInfo.status != Fs_Close {
-			pcontext.Errorf(ctx, "file is in use: %s", fpath)
+			filelogger.Error("file is in use", "path", fpath)
 			return int32(file.FileErr_AlreadyInUseError)
 		}
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.modTime = pcontext.CurrentTime(ctx)
+		myFileInfo.modTime = currentTimeHost(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
 	} else {
 		// If file/path does not exist, create a new file
-		fid, err := f.createANewFile(cleanPath, content)
+		fid, err := f.createANewFile(ctx, cleanPath, content)
 		if err != nil {
-			pcontext.Errorf(ctx, "Failed to create a new file: %s", fpath)
+			filelogger.Error("Failed to create a new file", "path", fpath)
 			return int32(file.FileErr_CreateError)
 		}
 		resp.Id = fid.Marshal()
@@ -322,13 +332,13 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// Validate if the file exists in the cache
 	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be closed: %d", fid)
+		filelogger.Error("File does not exist, cannot be closed", "file number", fid)
 		return int32(file.FileErr_NotExistError)
 	}
 
 	// Check if the file is already closed
 	if fileData.status == Fs_Close {
-		pcontext.Errorf(ctx, "File is already closed, cannot be closed again: %d", fid)
+		filelogger.Error("File is already closed, cannot be closed again", "file number", fid)
 		return int32(file.FileErr_FileClosedError)
 	}
 
@@ -336,7 +346,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].modTime = pcontext.CurrentTime(ctx)
+	(*f.fileDataCache)[fid].modTime = currentTimeHost(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -357,7 +367,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 
 	// Validate if the file exists in the cache
 	if _, exist := (*f.fileDataCache)[fid]; !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be read: %d", fid)
+		filelogger.Error("File does not exist, cannot be read", "file number", fid)
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -368,36 +378,36 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 	switch myFileInfo.status {
 	// If file status is "closed", log an error and return a file closed error code.
 	case Fs_Close:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is closed.", fid)
+		filelogger.Error("Operation aborted. File is closed.", "file number", fid)
 		return int32(file.FileErr_FileClosedError)
 	// If file status is "write", meaning it is currently being written by others,
 	// log an error and return a file already in use error code.
 	case Fs_Write:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is being written by others.", fid)
+		filelogger.Error("Operation aborted. File is being written by others.", "file number", fid)
 		return int32(file.FileErr_AlreadyInUseError)
 	}
 
 	// Check if the file's reader is initialized
 	if myFileInfo.rdClose == nil {
-		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
+		filelogger.Error("Internal Error in file service", "file naumber", fid)
 		return int32(file.FileErr_InternalError)
 	}
 
 	// Validate the requested buffer size
 	buf := req.GetBuf()
 	if !isValidBuf(buf) {
-		pcontext.Errorf(ctx, "The expected buffer size %d exceeds the maximum buffer"+
-			"size (%d) allowed", len(buf), maxBufSize)
+		filelogger.Error("The expected buffer size exceeds the maximum buffer",
+			"buffer size", len(buf), "max buffer size", maxBufSize)
 		return int32(file.FileErr_LargeBufError)
 	}
 
 	n, err := myFileInfo.Read(buf)
 	if err != nil && err != io.EOF {
-		pcontext.Errorf(ctx, "Failed to read: %d", fid)
+		filelogger.Error("Failed to read", "file number", fid)
 		return int32(file.FileErr_ReadError)
 	}
 
-	myFileInfo.modTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = currentTimeHost(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
@@ -415,7 +425,7 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	// Validate the file path
 	cleanPath, valid := isValidPath(fpath)
 	if !valid {
-		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
+		filelogger.Error("Invalid file path", "path", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
@@ -424,13 +434,13 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	// Validate if the file exists in the cache
 	fid, exist := (*f.fpathTofid)[cleanPath]
 	if !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be deleted: %s", cleanPath)
+		filelogger.Error("File does not exist, cannot be deleted", "path", cleanPath)
 		return int32(file.FileErr_NotExistError)
 	}
 
 	// Ensure the file is not currently in use
 	if (*f.fileDataCache)[fid].status != Fs_Close {
-		pcontext.Errorf(ctx, "File is in use, cannot be deleted currently: %d", fid)
+		filelogger.Error("File is in use, cannot be deleted currently", "file number", fid)
 		return int32(file.FileErr_AlreadyInUseError)
 	}
 
@@ -442,7 +452,7 @@ func (f *fileSvcImpl) delete(ctx context.Context, req *file.DeleteRequest,
 	} else {
 		err := deleteFileAndParentDirIfNeeded(fpath)
 		if err != nil {
-			pcontext.Errorf(ctx, "Error deleting file: %s", err.Error())
+			filelogger.Error("Error deleting file", "error", err)
 			return int32(file.FileErr_DeleteError)
 		}
 	}
@@ -458,7 +468,7 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 
 	// Validate if the file exists in the cache
 	if _, exist := fileDataCache[fid]; !exist {
-		pcontext.Errorf(ctx, "File does not exist, cannot be write: %d", fid)
+		filelogger.Error("File does not exist, cannot be written to", "file number", fid)
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -469,18 +479,18 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 	switch myFileInfo.status {
 	// If file status is "closed", log an error and return a file closed error code.
 	case Fs_Close:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is closed.", fid)
+		filelogger.Error("Operation aborted, file with ID, file is closed", "file id", fid.Short())
 		return int32(file.FileErr_FileClosedError)
 	// If file status is "read", meaning it is currently being read by others,
 	// log an error and return a file already in use error code.
 	case Fs_Read:
-		pcontext.Errorf(ctx, "Operation aborted. File with ID: %d is being read by others.", fid)
+		filelogger.Error("Operation aborted, file is being read by others", "file id", fid.Short())
 		return int32(file.FileErr_AlreadyInUseError)
 	}
 
 	// Check writer initialization, we cannot write a file without writer
 	if myFileInfo.wrClose == nil {
-		pcontext.Errorf(ctx, "Internal Error in file service: %d", fid)
+		filelogger.Error("Internal Error in file service", "file id", fid.Short())
 		return int32(file.FileErr_InternalError)
 	}
 
@@ -488,18 +498,18 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 	buf := req.GetBuf()
 	// Check is size of buf exceeds the maximum buffer size allowed
 	if !isValidBuf(buf) {
-		pcontext.Errorf(ctx, "the buffer size %d exceeds the maximum buffer"+
-			"size (%d) allowed", len(buf), maxBufSize)
+		filelogger.Error("the buffer size exceeds the maximum buffer"+
+			"size allowed", "buffer size", len(buf), "max buffer size", maxBufSize)
 		return int32(file.FileErr_LargeBufError)
 	}
 
 	n, err := myFileInfo.Write(buf)
 	if err != nil {
-		pcontext.Errorf(ctx, "Failed to write: %d", fid)
+		filelogger.Error("Failed to write", "file id", fid.Short(), "error", err)
 		return int32(file.FileErr_WriteError)
 	}
 
-	myFileInfo.modTime = pcontext.CurrentTime(ctx)
+	myFileInfo.modTime = currentTimeHost(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
@@ -513,20 +523,20 @@ func (f *fileSvcImpl) loadTestData(ctx context.Context, req *file.LoadTestDataRe
 
 	// Validate the directory path in the host machine
 	if valid, err := isValidDirOnHost(hostPath); !valid {
-		pcontext.Errorf(ctx, "Invalid directory path: %s, err: %s", hostPath, err.Error())
+		filelogger.Error("Invalid directory path", "path", hostPath, "error", err)
 		return int32(file.FileErr_NotExistError)
 	}
 
 	// Validate the directory path in the mount location
 	cleanPath, valid := isValidPath(dir)
 	if !valid {
-		pcontext.Errorf(ctx, "Invalid directory path: %s", dir)
+		filelogger.Error("Invalid directory path", "path", dir)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
 	resp.ErrorPath = []string{}
 
-	if !f.loadFilesFromHost(hostPath, cleanPath, req, resp) {
+	if !f.loadFilesFromHost(ctx, hostPath, cleanPath, req, resp) {
 		return int32(file.FileErr_NoDataFoundError)
 	}
 
@@ -540,7 +550,7 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 	// Validate the file path, host can only operate on files have specific prefix
 	cleanPath, valid := isValidPath(fpath)
 	if !valid {
-		pcontext.Errorf(ctx, "Invalid file path: %s", fpath)
+		filelogger.Error("Invalid file path", "path", fpath)
 		return int32(file.FileErr_InvalidPathError)
 	}
 
@@ -560,7 +570,7 @@ func (f *fileSvcImpl) stat(ctx context.Context, req *file.StatRequest,
 		}
 	}
 	if !exist {
-		pcontext.Errorf(ctx, "Path does not exist, cannot be stat: %s", cleanPath)
+		filelogger.Error("Path does not exist, cannot compute stat call", "path", cleanPath)
 		return int32(file.FileErr_NotExistError)
 	}
 
@@ -590,12 +600,12 @@ func updateTimestamp(t1 *timestamppb.Timestamp, t2 time.Time, isLatest bool) *ti
 }
 
 // A helper function to create a new file in the file service.
-func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) (file.FileId, error) {
+func (f *fileSvcImpl) createANewFile(ctx context.Context, fpath string, fcontent string) (file.FileId, error) {
 	if f.isTesting {
 		f.defaultCreateHook = createHookForStrings
 	}
 
-	currentTime := pcontext.CurrentTime(f.ctx)
+	currentTime := currentTimeHost(f.ctx)
 	fid := file.NewFileId()
 
 	newFileInfo := fileInfo{
@@ -623,7 +633,7 @@ func (f *fileSvcImpl) createANewFile(fpath string, fcontent string) (file.FileId
 // recursively load all files from the directory in the host machine
 // if such file already exists in the cache, rewrite it
 // otherwise, create a new file in the cache
-func (f *fileSvcImpl) loadFilesFromHost(hostPath string, cleanPath string, req *file.LoadTestDataRequest,
+func (f *fileSvcImpl) loadFilesFromHost(ctx context.Context, hostPath string, cleanPath string, req *file.LoadTestDataRequest,
 	resp *file.LoadTestDataResponse) bool {
 
 	getAnyData := false
@@ -634,7 +644,7 @@ func (f *fileSvcImpl) loadFilesFromHost(hostPath string, cleanPath string, req *
 		}
 		if !d.IsDir() {
 			getAnyData = true
-			if err := f.processFile(path, cleanPath, req); err != nil {
+			if err := f.processFile(ctx, path, cleanPath, req); err != nil {
 				return handleLoadTestFileError(path, req, resp, err)
 			}
 		}
@@ -644,12 +654,12 @@ func (f *fileSvcImpl) loadFilesFromHost(hostPath string, cleanPath string, req *
 	// If returnOnFail is false and there is an error in reading files,
 	// program will be panic immediately and there is no need to return the error to the client.
 	if err != nil {
-		log.Fatalf("Error in loading test data: %v", err)
+		panic(fmt.Sprintf("error loading test data: %v", err))
 	}
 
 	return getAnyData
 }
-func (f *fileSvcImpl) processFile(hostPath string, cleanPath string, req *file.LoadTestDataRequest) error {
+func (f *fileSvcImpl) processFile(ctx context.Context, hostPath string, cleanPath string, req *file.LoadTestDataRequest) error {
 	file, err := os.Open(hostPath)
 	if err != nil {
 		return err
@@ -667,7 +677,7 @@ func (f *fileSvcImpl) processFile(hostPath string, cleanPath string, req *file.L
 	if fid, exist := (*f.fpathTofid)[workPath]; exist {
 		delete(*f.fileDataCache, fid)
 	}
-	f.createANewFile(workPath, string(fcontent))
+	f.createANewFile(ctx, workPath, string(fcontent))
 
 	return nil
 }
