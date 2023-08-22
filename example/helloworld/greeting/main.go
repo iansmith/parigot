@@ -41,6 +41,7 @@ func main() {
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("error caused run to exit in greeting", "kernel error", syscall.KernelErr_name[int32(kerr)])
 	}
+
 }
 
 // myService is the true implementation of the greeting service.

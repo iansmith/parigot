@@ -45,8 +45,6 @@ type wazeroInstance struct {
 	parent     *wazeroModule
 	m          api.Module
 	returnData *wazeroFunctionExtern
-	main       *wazeroFunctionExtern
-	newString  *wazeroFunctionExtern
 	mem        []*wazeroMemoryExtern
 }
 
@@ -64,6 +62,13 @@ type wazeroFunctionExtern struct {
 	*wazeroExtern
 	parent *wazeroInstance
 	fn     api.Function
+}
+
+type wazeroValueExtern struct {
+	*wazeroExtern
+	parent    *wazeroInstance
+	valueName string
+	g         api.Global
 }
 
 type wazeroEntryPointExtern struct {
@@ -137,7 +142,7 @@ func (e *wazeroExtern) Name() string {
 func (e *wazeroInstance) Function(name string) (FunctionExtern, error) {
 	f := e.m.ExportedFunction(name)
 	if f == nil {
-		log.Printf("unable to find exported Function %s in inst '%s' mod '%s'", name, e.Name(), e.parent.Name())
+		wazerologger.Error("unable to find exported Function", "name", name, "instance", e.Name(), "module", e.parent.Name())
 		return nil, ErrNotFound
 	}
 	return &wazeroFunctionExtern{
@@ -242,10 +247,29 @@ func (i *wazeroInstance) Name() string {
 	return i.m.Name()
 }
 
+func (i *wazeroInstance) Value(ctx context.Context, valueName string) (ExternValue, error) {
+	g := i.m.ExportedGlobal(apishared.ExitCode)
+	if g == nil {
+		return nil, fmt.Errorf("unable to find value '%s' in module '%s' ",
+			valueName, i.parent.name)
+	}
+	return &wazeroValueExtern{g: g, valueName: valueName}, nil
+}
+
+func (e *wazeroValueExtern) GetU64() uint64 {
+	return e.g.Get()
+}
+
+func (e *wazeroValueExtern) GetU16() uint16 {
+	raw := e.g.Get()
+	u32 := api.DecodeU32(raw)
+	return uint16(u32 & 0xffff)
+}
+
 func (i *wazeroInstance) EntryPoint(ctx context.Context) (EntryPointExtern, error) {
 	fn := i.m.ExportedFunction(apishared.EntryPointSymbol)
 	if fn == nil {
-		wazerologger.Error("unable to find exported function", "name", apishared.EntryPointSymbol, "module", i.m.Name())
+		wazerologger.Error("unable to find exported entry point", "name", apishared.EntryPointSymbol, "module", i.m.Name())
 		return nil, ErrNotFound
 	}
 	ext := newFunctionExtern(fn, i, fn.Definition().DebugName()).(*wazeroFunctionExtern)

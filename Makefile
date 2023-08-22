@@ -3,7 +3,8 @@ all: commands \
 	guest \
 	methodcalltest \
 	sqlc \
-	plugins 
+	plugins \
+	helloworld
 	
 #
 # GROUPS OF TARGETS
@@ -14,6 +15,7 @@ guest: build/file.p.wasm  build/queue.p.wasm  #build/test.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so
 sqlc: api/plugin/queue/db.go
+helloworld: build/greeting.p.wasm build/helloworld.p.wasm
 
 #
 # EXTRA ARGS FOR BUILDING (placed after the "go build")
@@ -198,13 +200,11 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 # TEST
 #
 .PHONY: test
-test: sqlc
-	go test -v github.com/iansmith/parigot/api/plugin/queue
-	go test -v github.com/iansmith/parigot/api/plugin/file
-	go test -v github.com/iansmith/parigot/lib/go/future
-	go test -v github.com/iansmith/parigot/api/plugin/syscall
-	go test -v github.com/iansmith/parigot/api/plugin/syscall/wheeler
-#	build/runner -t test/func/methodcall/methodcall.toml 
+test: sqlc helloworldtest
+	#go test -v github.com/iansmith/parigot/api/plugin/queue
+	#go test -v github.com/iansmith/parigot/api/plugin/file
+	#go test -v github.com/iansmith/parigot/lib/go/future
+	#go test -v github.com/iansmith/parigot/api/plugin/syscall
 
 ###
 ### DOCS
@@ -261,6 +261,27 @@ docs:
 	cat $(PLUGINROOT)/frontmatter_date.md $(PLUGINROOT)/plugin.md > $(PLUGINROOT)/_index.md
 	rm $(PLUGINROOT)/frontmatter_date.md
 	rm $(PLUGINROOT)/plugin.md
+
+##
+## HELLOWORLD
+##
+build/helloworld.p.wasm: example/helloworld/main.go example/helloworld/g/greeting/v1/greetingserver.p.go
+	cd example/helloworld && ${GO_TO_WASM} build -o ../../build/HELLOWORLD.p.wasm ./main.go 
+
+build/greeting.p.wasm: example/helloworld/greeting/main.go example/helloworld/g/greeting/v1/greetingserver.p.go
+	cd example/helloworld && ${GO_TO_WASM} build -o ../../build/greeting.p.wasm ./greeting/main.go 
+
+example/helloworld/g/greeting/v1/greetingserver.p.go: example/helloworld/proto/greeting/v1/greeting.proto 
+	cd example/helloworld && make generate
+
+.PHONY: helloworldtest
+helloworldtest: 
+	GOOS=wasip1 GOARCH=wasm go test -exec 'wasmtime --' -v github.com/iansmith/parigot/example/helloworld/greeting
+
+build/tester: example/helloworld/greeting/greeting_test.go
+	${GO_TO_WASM} test -c -o build/tester github.com/iansmith/parigot/example/helloworld/greeting
+	
+
 
 # CLEAN
 #

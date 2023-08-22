@@ -10,6 +10,7 @@ import(
     "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    "github.com/iansmith/parigot/lib/go"  
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
@@ -102,6 +103,8 @@ func (i *Client_) FetchGreeting(ctx context.Context, in *FetchGreetingRequest) *
         f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
         return f
      }
-    syscallguest.MatchCompleter(ctx,syscallguest.CurrentHostId(),cid,f)
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
     return f
 }  

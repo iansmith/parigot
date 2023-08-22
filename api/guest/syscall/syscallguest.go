@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/iansmith/parigot/api/guest"
@@ -11,6 +12,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 )
+
+//go:wasmimport parigot exit_code_
+var _exitCode uint16
 
 // Locate is the means of aquiring a handle to a particular service.
 // Most users will not want this interface, but rather will use the
@@ -161,8 +165,11 @@ func Exit(ctx context.Context, exitReq *syscall.ExitRequest) *ExitFuture {
 	exitReq.HostId = hid.Marshal()
 	exitReq.MethodId = mid.Marshal()
 	outProtoPtr := &syscall.ExitResponse{}
+	log.Printf("xxx exit about to call std guest side")
 	standardGuestSide(ctx, exitReq, outProtoPtr, Exit_, "Exit")
 
+	log.Printf("xxx exit about to process pair")
+	_exitCode = uint16(exitReq.Pair.Code)
 	processExit(exitReq.Pair)
 	//won't happen
 	return nil
