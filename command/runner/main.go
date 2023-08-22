@@ -11,9 +11,7 @@ import (
 	"os/signal"
 
 	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
-	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
 	"github.com/iansmith/parigot/command/runner/runner"
-	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys"
 )
 
@@ -37,9 +35,6 @@ func main() {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	// create the syscall implementation
-	exitCh := make(chan *syscall.ExitPair)
-	wheeler.InstallWheeler(exitCh)
 	ok := false
 	kernel.K, ok = kernel.InitSingle()
 	if !ok {

@@ -3,16 +3,14 @@ package syscall
 import (
 	"context"
 	"log"
-	"reflect"
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
-	"github.com/iansmith/parigot/api/plugin/syscall/wheeler"
+	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
 	"github.com/tetratelabs/wazero/api"
-	"google.golang.org/protobuf/proto"
 )
 
 type SyscallPlugin struct {
@@ -32,7 +30,6 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	e.AddSupportedFunc(ctx, "parigot", "register_", register)
 	e.AddSupportedFunc(ctx, "parigot", "exit_", exit)
 	e.AddSupportedFunc(ctx, "parigot", "read_one_", readOne)
-	e.AddSupportedFunc(ctx, "parigot", "synchronous_exit_", syncExit)
 
 	return true
 }
@@ -42,59 +39,46 @@ func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
 //
 
 func exportImpl(ctx context.Context, req *syscall.ExportRequest, resp *syscall.ExportResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.Export(req, resp))
 }
 
 func exitImpl(ctx context.Context, req *syscall.ExitRequest, resp *syscall.ExitResponse) int32 {
-	err := handleByWheeler(req, resp)
-	if err != syscall.KernelErr_NoError {
-		return int32(err)
-	}
-	return int32(syscall.KernelErr_NoError)
+	return int32(kernel.K.Exit(req, resp))
 }
 
 func launchImpl(ctx context.Context, req *syscall.LaunchRequest, resp *syscall.LaunchResponse) int32 {
-	err := handleByWheeler(req, resp)
-	if err != syscall.KernelErr_NoError {
-		return int32(err)
-	}
-
-	return int32(syscall.KernelErr_NoError)
+	return int32(kernel.K.Launch(req, resp))
 }
 
-func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 { //syscall.KernelErr {
-	return int32(handleByWheeler(req, resp))
-}
-
-func syncExitImpl(ctx context.Context, req *syscall.SynchronousExitRequest, resp *syscall.SynchronousExitResponse) int32 { //syscall.KernelErr {
-	return int32(handleByWheeler(req, resp))
+func bindMethodImpl(ctx context.Context, req *syscall.BindMethodRequest, resp *syscall.BindMethodResponse) int32 {
+	return int32(kernel.K.BindMethod(req, resp))
 }
 
 func readOneImpl(ctx context.Context, req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.ReadOne(req, resp))
 }
 
 func returnValueImpl(ctx context.Context, req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.ReturnValue(req, resp))
 }
 
 func locateImpl(ctx context.Context, req *syscall.LocateRequest, resp *syscall.LocateResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.Locate(req, resp))
 }
 
 func dispatchImpl(ctx context.Context, req *syscall.DispatchRequest, resp *syscall.DispatchResponse) int32 {
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.Dispatch(req, resp))
 }
 
-func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 { //syscall.KernelErr {
-	return int32(handleByWheeler(req, resp))
+func registerImpl(ctx context.Context, req *syscall.RegisterRequest, resp *syscall.RegisterResponse) int32 {
+	return int32(kernel.K.Register(req, resp))
 }
 
 func requireImpl(ctx context.Context, req *syscall.RequireRequest, resp *syscall.RequireResponse) int32 {
 	if req.GetDest() == nil {
 		return 0
 	}
-	return int32(handleByWheeler(req, resp))
+	return int32(kernel.K.Require(req, resp))
 }
 
 // Syscall marshal/unmarshal for each system call
@@ -150,12 +134,6 @@ func readOne(ctx context.Context, m api.Module, stack []uint64) {
 
 }
 
-func syncExit(ctx context.Context, m api.Module, stack []uint64) {
-	req := &syscall.SynchronousExitRequest{}
-	resp := &syscall.SynchronousExitResponse{}
-	apiplugin.InvokeImplFromStack(ctx, "[syscall]syncExit", m, stack, syncExitImpl, req, resp)
-}
-
 func register(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.RegisterRequest{}
 	resp := &syscall.RegisterResponse{}
@@ -166,28 +144,4 @@ func exit(ctx context.Context, m api.Module, stack []uint64) {
 	req := &syscall.ExitRequest{}
 	resp := &syscall.ExitResponse{}
 	apiplugin.InvokeImplFromStack(ctx, "[syscall]exit", m, stack, exitImpl, req, resp)
-}
-
-func handleByWheeler[T proto.Message, U proto.Message](t T, u U) syscall.KernelErr {
-	retCh := make(chan wheeler.OutProtoPair, 1)
-	inPair := wheeler.InProtoPair{
-		Ch: retCh,
-	}
-	inPair.Msg = t
-	wheeler.In() <- inPair
-	out := <-retCh
-	if out.Err != 0 {
-		return out.Err
-	}
-
-	if out.A != nil {
-		r := reflect.ValueOf(u)
-		if !r.IsNil() {
-			err := out.A.UnmarshalTo(u)
-			if err != nil {
-				return syscall.KernelErr_MarshalFailed
-			}
-		}
-	}
-	return out.Err
 }
