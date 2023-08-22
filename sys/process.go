@@ -233,6 +233,10 @@ func (p *Process) Start() (code int) {
 	if err != nil {
 		panic(err)
 	}
+	// exitCode, err := p.instance.Value(context.Background(), "exit_code_")
+	// if err != nil {
+	// 	panic(err)
+	// }
 	procPrint("defer %s (%v)", p, start != nil)
 
 	defer func(proc *Process) {
@@ -260,6 +264,8 @@ func (p *Process) Start() (code int) {
 
 	retVal, err := start.Run(context.Background(), p.microservice.GetArg(), info)
 	procPrint("process %s has completed: result=%v, err=%v", p, retVal, err)
+
+	//procPrint("xxxx what is exit code?  %0xd", exitCode.GetU16())
 
 	if err != nil {
 		p.SetExitCode(int(ExitCodeTrapped))

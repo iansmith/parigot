@@ -27,7 +27,11 @@ func init() {
 
 // EntryPointSymbol is what should be used to start up a ready instance.  Note that we are turning
 // off the instantiation's normal call to start so that we can control the startup and its entry point.
+// In principle, this could vary by go compiler, but most use this C-originated convention.
 const EntryPointSymbol = "_start"
+
+// ExitCode is the name of a wasm symbol that holds the exit code of a process.
+const ExitCode = "exit_code_"
 
 // In parigot the 8 byte magic value, when needed, is the date of the french
 // and us revolutions, in hex.

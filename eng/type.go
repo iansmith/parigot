@@ -76,12 +76,22 @@ type Instance interface {
 	// GetEntryPointExport returns the entry point function
 	// even if you don't know its exact name.
 	EntryPoint(ctx context.Context) (EntryPointExtern, error)
+
+	// ValueReturns a reference to a value from the instance. This is
+	// used to grab values from a previously running instance.  Using this
+	// while the instance is running is undefined and a bad idea.
+	Value(ctx context.Context, name string) (ExternValue, error)
 }
 
 // Extern is the base interface all the Extern types.  It only
 // has a name for use in debugging.
 type Extern interface {
 	Name() string
+}
+
+type ExternValue interface {
+	GetU64() uint64
+	GetU16() uint16
 }
 
 // FunctionExtern represents an exposed function be the module.  Note that Go modules compiled by

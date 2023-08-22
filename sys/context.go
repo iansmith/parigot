@@ -113,7 +113,9 @@ func (c *DeployContext) StartServer(ctx context.Context) ([]string, int) {
 		name := f.Name()
 		if f.Server {
 			go func(p *Process, serverProcessName string) {
+				log.Printf("xxxx -- running %s", serverProcessName)
 				code := p.Start()
+				log.Printf("xxxx -- finished %s,%d", serverProcessName, code)
 				p.SetExitCode(code)
 				if code != 0 {
 					log.Printf("service exited ", "name", serverProcessName, "code", code)

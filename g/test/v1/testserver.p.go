@@ -11,6 +11,8 @@ package test
 import (
 	"context"
 	"fmt"
+	"log"
+	"runtime/debug"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
@@ -129,6 +131,21 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
+		defer func() {
+			if r:=recover(); r!=nil {
+				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
+					mid.Short(), sid.Short(), r)
+				debug.PrintStack()
+				syscallguest.Exit(ctx, &syscall.ExitRequest{
+					Pair: &syscall.ExitPair {
+						ServiceId: sid.Marshal(),
+						Code: 2,
+					},
+				})
+			}
+		}()
 		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
@@ -487,6 +504,21 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
+		defer func() {
+			if r:=recover(); r!=nil {
+				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
+					mid.Short(), sid.Short(), r)
+				debug.PrintStack()
+				syscallguest.Exit(ctx, &syscall.ExitRequest{
+					Pair: &syscall.ExitPair {
+						ServiceId: sid.Marshal(),
+						Code: 2,
+					},
+				})
+			}
+		}()
 		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}
@@ -845,6 +877,21 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// is a promise being completed that was fulfilled somewhere else
 	if r:=resp.GetResolved(); r!=nil {
 		cid:=id.UnmarshalCallId(r.GetCallId())
+		defer func() {
+			if r:=recover(); r!=nil {
+				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
+					mid.Short(), sid.Short(), r)
+				debug.PrintStack()
+				syscallguest.Exit(ctx, &syscall.ExitRequest{
+					Pair: &syscall.ExitPair {
+						ServiceId: sid.Marshal(),
+						Code: 2,
+					},
+				})
+			}
+		}()
 		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(),cid,r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError
 	}

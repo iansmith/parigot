@@ -53,7 +53,7 @@ func CurrentTimezone() *time.Location {
 		//should never happen
 		panic("unable to get UTC timezone:" + err.Error())
 	}
-	log.Printf("failed to find timezone %s, using UTC", raw)
+	log.Printf("%s failed to find timezone %s, using UTC", CurrentHostId().Short(), raw)
 	raw = ""
 	localTimeZone, err = time.LoadLocation(raw)
 	if err != nil {

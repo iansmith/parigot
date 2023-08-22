@@ -4,14 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/iansmith/parigot-example/helloworld/g/greeting/v1"
-	pcontext "github.com/iansmith/parigot/context"
+	"github.com/iansmith/parigot/example/helloworld/g/greeting/v1"
 )
 
 func TestBounds(t *testing.T) {
 	svc := &myService{}
 
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
 	req := &greeting.FetchGreetingRequest{
 		Tongue: greeting.Tongue_English,
