@@ -28,7 +28,7 @@ func openAGoodFile(ctx context.Context, svc *fileSvcImpl) {
 	fid := (*svc.fpathTofid)[filePath]
 	myFileInfo := (*svc.fileDataCache)[fid]
 
-	myFileInfo.modTime = currentTimeHost(ctx)
+	_, myFileInfo.modTime = currentTimeHost(ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error

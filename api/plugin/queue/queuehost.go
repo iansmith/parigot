@@ -67,7 +67,7 @@ func hostBase[T proto.Message, U proto.Message](ctx context.Context, fnName stri
 	m api.Module, stack []uint64, req T, resp U) {
 	defer func() {
 		if r := recover(); r != nil {
-			queuelogger.Error("trapped a panic", nil, "name", fnName, "recovered value", r)
+			queuelogger.Error("trapped a panic", "name", fnName, "recovered value", r)
 		}
 	}()
 	apiplugin.InvokeImplFromStack(ctx, fnName, m, stack, fn, req, resp)
@@ -428,8 +428,8 @@ func (q *queueSvcImpl) receive(ctx context.Context, req *queue.ReceiveRequest, r
 	}
 	resultMsg, err := q.queries.RetrieveMessage(context.Background(), p)
 	if err != nil {
-		queuelogger.Error("error trying retreive messages in send on queue %s: %s (db error:%s)", qid.Short(),
-			queue.QueueErr_name[int32(errId)], err.Error())
+		queuelogger.Error("error trying retreive messages in send on queue (db error)", "queue id", qid.Short(),
+			"kernel error", queue.QueueErr_name[int32(errId)], "db error", err.Error())
 		return int32(queue.QueueErr_InternalError)
 	}
 	if len(resultMsg) == 0 {
