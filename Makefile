@@ -201,9 +201,9 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 #
 .PHONY: test
 test: sqlc helloworldtest
-	#go test -v github.com/iansmith/parigot/api/plugin/queue
-	#go test -v github.com/iansmith/parigot/api/plugin/file
-	#go test -v github.com/iansmith/parigot/lib/go/future
+	go test -v github.com/iansmith/parigot/api/plugin/queue
+	go test -v github.com/iansmith/parigot/api/plugin/file
+	go test -v github.com/iansmith/parigot/lib/go/future
 	#go test -v github.com/iansmith/parigot/api/plugin/syscall
 
 ###

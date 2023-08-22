@@ -71,7 +71,6 @@ type fileInfo struct {
 
 type fileSvcImpl struct {
 	fileDataCache *map[file.FileId]*fileInfo
-	ctx           context.Context
 	// track fid based on file path
 	fpathTofid *map[string]file.FileId
 	isTesting  bool
@@ -108,16 +107,38 @@ func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
 	return true
 }
 
+var parigotTime = "parigot_time"
+var parigotTimeIndex = "parigot_time_index"
+
+var localTimeZone *time.Location
+
 // xxx fixme(iansmith) should this be here? is it clear we want
 // to use the same mechanism as lib.CurrentTime()?  note this does
-// not deal with local timezone!
-func currentTimeHost(ctx context.Context) time.Time {
-	t := ctx.Value("parigot_time")
-	if t != nil && !t.(time.Time).IsZero() {
-		return t.(time.Time)
+// not deal with local timezone!  This is running on the server side, so xxx?
+func currentTimeHost(ctx context.Context) (context.Context, time.Time) {
+	if localTimeZone == nil {
+		var err error
+		localTimeZone, err = time.LoadLocation("")
+		if err != nil {
+			panic("unable to load UTC time")
+		}
 	}
-	return time.Now()
-
+	if ctx == nil {
+		return ctx, time.Now()
+	}
+	raw := ctx.Value(parigotTime)
+	if raw != nil {
+		t, ok := raw.([]time.Time)
+		if ok {
+			i := ctx.Value(parigotTimeIndex).(int)
+			next := (i + 1) % (len(t))
+			result := context.WithValue(ctx, parigotTimeIndex, next)
+			now := t[i]
+			return result, now
+		}
+	}
+	// we got no value, just use clock
+	return ctx, time.Now().In(localTimeZone)
 }
 
 func (fi *fileInfo) Read(p []byte) (n int, err error) {
@@ -252,7 +273,7 @@ func (f *fileSvcImpl) open(ctx context.Context, req *file.OpenRequest,
 	// If the file is closed, update the file information and open it for reading
 	resp.Id = fid.Marshal()
 
-	myFileInfo.modTime = currentTimeHost(ctx)
+	ctx, myFileInfo.modTime = currentTimeHost(ctx)
 	myFileInfo.status = Fs_Read
 
 	var err error
@@ -304,7 +325,7 @@ func (f *fileSvcImpl) create(ctx context.Context, req *file.CreateRequest,
 
 		// Extend the file
 		myFileInfo.content += content
-		myFileInfo.modTime = currentTimeHost(ctx)
+		ctx, myFileInfo.modTime = currentTimeHost(ctx)
 		myFileInfo.status = Fs_Write
 		myFileInfo.Write(buf)
 
@@ -346,7 +367,7 @@ func (f *fileSvcImpl) close(ctx context.Context, req *file.CloseRequest,
 
 	// If the file exists and is not closed, change its status to "closed"
 	(*f.fileDataCache)[fid].status = Fs_Close
-	(*f.fileDataCache)[fid].modTime = currentTimeHost(ctx)
+	ctx, (*f.fileDataCache)[fid].modTime = currentTimeHost(ctx)
 
 	switch status {
 	case Fs_Read:
@@ -407,7 +428,7 @@ func (f *fileSvcImpl) read(ctx context.Context, req *file.ReadRequest,
 		return int32(file.FileErr_ReadError)
 	}
 
-	myFileInfo.modTime = currentTimeHost(ctx)
+	ctx, myFileInfo.modTime = currentTimeHost(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumRead = int32(n)
@@ -509,7 +530,7 @@ func (f *fileSvcImpl) write(ctx context.Context, req *file.WriteRequest,
 		return int32(file.FileErr_WriteError)
 	}
 
-	myFileInfo.modTime = currentTimeHost(ctx)
+	ctx, myFileInfo.modTime = currentTimeHost(ctx)
 
 	resp.Id = req.GetId()
 	resp.NumWrite = int32(n)
@@ -605,7 +626,7 @@ func (f *fileSvcImpl) createANewFile(ctx context.Context, fpath string, fcontent
 		f.defaultCreateHook = createHookForStrings
 	}
 
-	currentTime := currentTimeHost(f.ctx)
+	_, currentTime := currentTimeHost(ctx)
 	fid := file.NewFileId()
 
 	newFileInfo := fileInfo{

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/queue/v1"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -19,7 +18,7 @@ func isError(err queue.QueueErr) bool {
 }
 
 func TestCreateAndDelete(t *testing.T) {
-	svc, errId := newQueueSvc((context.Background()))
+	svc, errId := newQueueSvc()
 	if isError(errId) {
 		t.FailNow()
 	}
@@ -50,9 +49,9 @@ const payloadString = "this is a test"
 // a BoolValue as the "sender" of this message
 // a StringValue as the "payload" of this message
 func TestQueueHappyPath(t *testing.T) {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
-	svc, err := newQueueSvc((context.Background()))
+	svc, err := newQueueSvc()
 	if isError(err) {
 		t.FailNow()
 	}
@@ -120,9 +119,9 @@ func TestQueueHappyPath(t *testing.T) {
 }
 
 func TestLocateManyMessages(t *testing.T) {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
-	svc, err := newQueueSvc((context.Background()))
+	svc, err := newQueueSvc()
 	if isError(err) {
 		t.FailNow()
 	}
@@ -245,7 +244,7 @@ func TestLocateManyMessages(t *testing.T) {
 //
 
 func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg string, errorExpected bool, errorCode int32) {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
 	delReq := &queue.DeleteQueueRequest{}
 	delResp := &queue.DeleteQueueResponse{}
@@ -274,7 +273,7 @@ func testQueueDelete(t *testing.T, svc *queueSvcImpl, qid queue.QueueId, msg str
 }
 
 func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExpected bool, expectedCode queue.QueueErr) queue.QueueId {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
 	t.Helper()
 	create := &queue.CreateQueueRequest{}
@@ -302,7 +301,7 @@ func testQueueCreate(t *testing.T, svc *queueSvcImpl, name, msg string, errorExp
 
 func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 	t.Helper()
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
 	create := &queue.CreateQueueRequest{}
 	create.QueueName = queueNameInTest
@@ -316,7 +315,7 @@ func setupQueue(t *testing.T, svc *queueSvcImpl) queue.QueueId {
 }
 
 func testQueueLen(t *testing.T, svc *queueSvcImpl, qid queue.QueueId) int {
-	ctx := pcontext.DevNullContext(context.Background())
+	ctx := context.Background()
 
 	req := &queue.LengthRequest{
 		Id: qid.Marshal(),
