@@ -6,9 +6,9 @@ import (
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
-	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
+	"github.com/iansmith/parigot/sys/kernel"
 
 	"github.com/tetratelabs/wazero/api"
 )

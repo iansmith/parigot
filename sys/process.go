@@ -27,7 +27,7 @@ type Service interface {
 	GetPluginSymbol() string
 }
 
-type ParigotExitCode int
+type ParigotExitCode uint8
 
 const (
 	ExitCodeArgsTooLarge  ParigotExitCode = 252
@@ -263,16 +263,16 @@ func (p *Process) Start() (code int) {
 	var info interface{}
 
 	retVal, err := start.Run(context.Background(), p.microservice.GetArg(), info)
-	procPrint("process %s has completed: result=%v, err=%v", p, retVal, err)
+	log.Printf("process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	//procPrint("xxxx what is exit code?  %0xd", exitCode.GetU16())
 
 	if err != nil {
-		p.SetExitCode(int(ExitCodeTrapped))
+		p.SetExitCode(int(retVal))
 		procPrint("process %s trapped: %v, exit code %d", p, err, p.ExitCode())
 		return int(ExitCodeTrapped)
 	}
-	if retVal == nil {
+	if retVal != 255 {
 		procPrint("process %s finished w/no return value (exit code %d)", p, p.ExitCode())
 		p.SetExited(true)
 		return p.ExitCode()

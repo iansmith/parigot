@@ -1,9 +1,11 @@
 package kernel
 
 import (
+	"fmt"
+	"log"
 	"sync"
 
-	sharedapi "github.com/iansmith/parigot/api/shared"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -115,13 +117,14 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 
 	sid := id.UnmarshalServiceId(req.GetBundle().GetServiceId())
 	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+	mid := id.UnmarshalMethodId(req.GetBundle().GetMethodId())
 
 	targetHid := k.Nameserver().FindHost(sid)
 	if targetHid.IsZeroOrEmptyValue() {
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	k.matcher().Dispatch(hid, cid)
+	k.matcher().Dispatch(hid, cid, mid)
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
 	resp.CallId = cid.Marshal()
@@ -154,7 +157,7 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 
 	// save for later
-	k.matcher().Dispatch(hid, cid)
+	k.matcher().Dispatch(hid, cid, mid)
 	return k.start.Launch(sid, cid, hid, mid)
 }
 
@@ -201,6 +204,12 @@ func (k *kdata) Nameserver() Nameserver {
 	return k.ns
 }
 
+func dumpRC(rc *syscall.ResolvedCall) string {
+	hid := id.UnmarshalHostId(rc.GetHostId())
+	cid := id.UnmarshalCallId(rc.GetCallId())
+	mid := id.UnmarshalMethodId(rc.GetMethodId())
+	return fmt.Sprintf("RC[%s,%s,%s]", hid.Short(), cid.Short(), mid.Short())
+}
 func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) syscall.KernelErr {
 	rc, err := k.matcher().Ready(hid)
 	if err != syscall.KernelErr_NoError {
@@ -223,28 +232,39 @@ func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) sysc
 // exit does a dispatch, so it cannot lock
 
 func (k *kdata) Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) syscall.KernelErr {
-	all := k.ns.AllHosts()
-	a := &anypb.Any{}
-	err := a.MarshalFrom(req.Pair)
-	if err != nil {
-		klog.Errorf("unable to marshal pair into any: %v", err)
-		return syscall.KernelErr_MarshalFailed
-	}
+	var all []id.HostId
+	hid := id.UnmarshalHostId(req.GetHostId())
+	cid := id.UnmarshalCallId(req.GetCallId())
 	bundle := &syscall.MethodBundle{
 		ServiceId: req.Pair.ServiceId,
-		MethodId:  sharedapi.ExitMethod.Marshal(),
-		CallId:    id.CallIdEmptyValue().Marshal(),
+		MethodId:  apishared.ExitMethod.Marshal(),
+		CallId:    cid.Marshal(),
+		HostId:    hid.Marshal(),
 	}
+	resp.Bundle = bundle
+	resp.Pair = req.Pair
+	a := &anypb.Any{}
+	if err := a.MarshalFrom(resp); err != nil {
+		klog.Errorf("unable to marshal response in exit %v", err)
+		return syscall.KernelErr_MarshalFailed
+	}
+	if !req.GetShutdownAll() {
+		all = []id.HostId{hid}
+	} else {
+		all = k.ns.AllHosts()
+	}
+	log.Printf("xxx exit reached kernel, req on %s,%s -- len hosts %d", hid.Short(), cid.Short(), len(all))
+	// this is tricky, we are going to dispatch and match on hosts
+	// that may be not the same as the bundle info... the Pair is right in all cases, though
 	for _, host := range all {
-		bundle.HostId = host.Marshal()
-		dispatchReq := &syscall.DispatchRequest{
-			Bundle: bundle,
-			Param:  a,
-		}
-		resp := &syscall.DispatchResponse{}
-		kerr := k.Dispatch(dispatchReq, resp)
-		if err != nil {
+		kerr := k.matcher().Dispatch(host, cid, apishared.ExitMethod)
+		if kerr != syscall.KernelErr_NoError {
 			klog.Errorf("unable to dispatch exit message: %s", syscall.KernelErr_name[int32(kerr)])
+			return syscall.KernelErr_ExitFailed
+		}
+		kerr = k.matcher().Response(cid, a, int32(syscall.KernelErr_NoError))
+		if kerr != syscall.KernelErr_NoError {
+			klog.Errorf("unable to respond to exit message: %s", syscall.KernelErr_name[int32(kerr)])
 			return syscall.KernelErr_ExitFailed
 		}
 	}

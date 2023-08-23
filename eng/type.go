@@ -133,7 +133,7 @@ type MemoryExtern interface {
 type EntryPointExtern interface {
 	FunctionExtern
 	// Run has extra parameters that are specific to the paritcular wasm engine.
-	Run(ctx context.Context, argv []string, extra interface{}) (any, error)
+	Run(ctx context.Context, argv []string, extra interface{}) (uint8, error)
 }
 
 type Utility interface {

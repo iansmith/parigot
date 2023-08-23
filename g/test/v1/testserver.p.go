@@ -52,12 +52,6 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
 func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
-	defer func() {
-		if r := recover(); r != nil {
-			guest.Log(context.Background()).Info("InitTest: trapped a panic in the guest side","recovered", r)
-		}
-	}()
-
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterTest()
@@ -71,8 +65,7 @@ func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
 		guest.Log(ctx).Error("launch failure on call Test","error",t)
-		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitTest:"+t,
-			"unable to call Exit in InitTest:"+t)
+		lib.ExitClient(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -112,9 +105,10 @@ var TimeoutInMillisTest = int32(50)
 func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
+	hid:= syscallguest.CurrentHostId()
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.HostId = hid.Marshal()
 	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -155,9 +149,11 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-	if mid.Equal(apishared.ExitMethod) {
-		panic(apishared.ControlledExit)
-	}
+	//if mid.Equal(apishared.ExitMethod) {
+	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
+	//	os.Exit(51)
+	//}
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -425,12 +421,6 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
 func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
-	defer func() {
-		if r := recover(); r != nil {
-			guest.Log(context.Background()).Info("InitMethodCallSuite: trapped a panic in the guest side","recovered", r)
-		}
-	}()
-
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterMethodCallSuite()
@@ -444,8 +434,7 @@ func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
 		guest.Log(ctx).Error("launch failure on call MethodCallSuite","error",t)
-		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitMethodCallSuite:"+t,
-			"unable to call Exit in InitMethodCallSuite:"+t)
+		lib.ExitClient(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -485,9 +474,10 @@ var TimeoutInMillisMethodCallSuite = int32(50)
 func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
+	hid:= syscallguest.CurrentHostId()
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.HostId = hid.Marshal()
 	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -528,9 +518,11 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-	if mid.Equal(apishared.ExitMethod) {
-		panic(apishared.ControlledExit)
-	}
+	//if mid.Equal(apishared.ExitMethod) {
+	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
+	//	os.Exit(51)
+	//}
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -798,12 +790,6 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
 func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
-	defer func() {
-		if r := recover(); r != nil {
-			guest.Log(context.Background()).Info("InitUnderTest: trapped a panic in the guest side","recovered", r)
-		}
-	}()
-
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterUnderTest()
@@ -817,8 +803,7 @@ func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceM
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
 		guest.Log(ctx).Error("launch failure on call UnderTest","error",t)
-		lib.ExitClient(ctx, 1, myId, "unable to Launch in InitUnderTest:"+t,
-			"unable to call Exit in InitUnderTest:"+t)
+		lib.ExitClient(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -858,9 +843,10 @@ var TimeoutInMillisUnderTest = int32(50)
 func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
+	hid:= syscallguest.CurrentHostId()
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.HostId = hid.Marshal()
 	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -901,9 +887,11 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-	if mid.Equal(apishared.ExitMethod) {
-		panic(apishared.ControlledExit)
-	}
+	//if mid.Equal(apishared.ExitMethod) {
+	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
+	//	os.Exit(51)
+	//}
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)

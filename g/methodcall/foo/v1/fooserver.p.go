@@ -51,12 +51,6 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Foo) *future.Base[bool] 
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
 func Init(require []lib.MustRequireFunc, impl Foo) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
-	defer func() {
-		if r := recover(); r != nil {
-			guest.Log(context.Background()).Info("InitFoo: trapped a panic in the guest side","recovered", r)
-		}
-	}()
-
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister()
@@ -70,8 +64,7 @@ func Init(require []lib.MustRequireFunc, impl Foo) (*lib.ServiceMethodMap,*sysca
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
 		guest.Log(ctx).Error("launch failure on call Foo","error",t)
-		lib.ExitClient(ctx, 1, myId, "unable to Launch in Init:"+t,
-			"unable to call Exit in Init:"+t)
+		lib.ExitClient(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -111,9 +104,10 @@ var TimeoutInMillis = int32(50)
 func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap, 
 	timeoutInMillis int32) syscall.KernelErr{
 	req:=syscall.ReadOneRequest{}
+	hid:= syscallguest.CurrentHostId()
 
 	req.TimeoutInMillis = timeoutInMillis
-	req.HostId = syscallguest.CurrentHostId().Marshal()
+	req.HostId = hid.Marshal()
 	resp, err:=syscallguest.ReadOne(ctx, &req)
 	if err!=syscall.KernelErr_NoError {
 		return err
@@ -154,9 +148,11 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-	if mid.Equal(apishared.ExitMethod) {
-		panic(apishared.ControlledExit)
-	}
+	//if mid.Equal(apishared.ExitMethod) {
+	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
+	//	os.Exit(51)
+	//}
+
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)

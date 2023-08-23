@@ -311,11 +311,15 @@ message ExitRequest {
   protosupport.v1.IdRaw call_id = 2; // reserved for internal use
   protosupport.v1.IdRaw host_id = 3; // reserved for internal use
   protosupport.v1.IdRaw method_id = 4; // reserved for internal use
+  bool shutdown_all = 5;
+
 }
 
 // ExitResponse will not happen.  The stack will unwind before this 
 // message could be received.
 message ExitResponse{
+	ExitPair pair = 1;
+	MethodBundle bundle = 2;
 }
 
 // Register informs the kernel you are one of the running services
@@ -402,8 +406,9 @@ message ServiceMethodCall {
 message ResolvedCall {
 	protosupport.v1.IdRaw host_id = 1;
 	protosupport.v1.IdRaw call_id =2;
-	google.protobuf.Any result = 3;
-	int32 result_error = 4;
+	protosupport.v1.IdRaw method_id =3;
+	google.protobuf.Any result = 4;
+	int32 result_error = 5;
 }
 
 // ReadOneRequest gives a set of service/method pairs
@@ -463,17 +468,3 @@ message ExitPair {
 	int32 code  = 2;
 }
 
-// SynchronousExit is sent to a program (a service) that is being told
-// by the parigot system to run its cleanup (AtExit) handlers because it
-// is going down.
-message SynchronousExitRequest {
-	ExitPair pair = 1;
-} 
-
-// Synchronous exit response is sent to the at exit handlers for a service or
-// program.  There is no way to stop the shutdown once this is received, it
-// can be used only to clean up resources that need to be released.
-message SynchronousExitResponse {
-	ExitPair pair = 1;
-
-}
