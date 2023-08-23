@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
@@ -104,17 +105,37 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 // the given strings. It only forces the exit if the Exit call itself
 // fails. Only the values from 0 to 192 are permissable as the code; other
 // values will be changed to 192.
-func ExitClient(ctx context.Context, code int32, myId id.ServiceId, msgSuccess, msgFailure string) {
+func ExitClient(ctx context.Context, code int32, myId id.ServiceId) syscall.KernelErr {
+	hid := syscallguest.CurrentHostId()
+	cid := id.NewCallId()
+	log.Printf("xxx -- ExitClient reached on %s, exit call is %s", hid.Short(), cid.Short())
 	req := &syscall.ExitRequest{
-		HostId: syscallguest.CurrentHostId().Marshal(),
+		HostId: hid.Marshal(),
 		Pair: &syscall.ExitPair{
 			ServiceId: myId.Marshal(),
 			Code:      code,
 		},
-		CallId:   id.NewCallId().Marshal(),
+		CallId:   cid.Marshal(),
 		MethodId: apishared.ExitMethod.Marshal(),
 	}
 	syscallguest.Exit(ctx, req)
+	log.Printf("xxx -- finished call to Exit(), host %s, cid %s", hid.Short(), cid.Short())
+	// ctx, t := CurrentTime(ctx)
+	// syscallguest.MatchCompleter(ctx, t, hid, cid, &syscallguest.ExitCompleter{})
+	// resp := &syscall.ExitResponse{
+	// 	Pair: &syscall.ExitPair{
+	// 		ServiceId: myId.Marshal(),
+	// 		Code:      code,
+	// 	},
+	// }
+	// a := &anypb.Any{}
+	// if err := a.MarshalFrom(resp); err != nil {
+	// 	return syscall.KernelErr_MarshalFailed
+	// }
+	// log.Printf("xxx completing call on host %s, with host,cid of %s,%s",
+	// 	syscallguest.CurrentHostId().Short(), hid.Short(), cid.Short())
+	// syscallguest.CompleteCall(ctx, hid, cid, a, int32(syscall.KernelErr_NoError))
+	return syscall.KernelErr_NoError
 }
 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {
@@ -150,9 +171,8 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 	}
 
 	if resp.Exit != nil && resp.Exit.ServiceId != nil {
-		sid := id.UnmarshalServiceId(resp.Exit.GetServiceId())
-		log.Printf("xxx %#v\n xxx -- %#v,,, %s", resp.Bundle, resp.Exit, sid.Short())
-		panic(apishared.ControlledExit)
+		//sid := id.UnmarshalServiceId(resp.Exit.GetServiceId())
+		os.Exit(int(resp.Exit.GetCode()))
 	}
 
 	// check for finished futures from within our address space
@@ -161,6 +181,11 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 
 	// is a promise being completed that was fulfilled somewhere else
 	if r := resp.GetResolved(); r != nil {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("trapped xxx panic ---'%v' on %s", r, syscallguest.CurrentHostId())
+			}
+		}()
 		cid := id.UnmarshalCallId(r.GetCallId())
 		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(), cid, r.GetResult(), r.GetResultError())
 		return syscall.KernelErr_NoError

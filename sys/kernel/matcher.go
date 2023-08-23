@@ -1,6 +1,8 @@
 package kernel
 
 import (
+	"log"
+
 	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -55,7 +57,7 @@ func (c *matcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.Kerne
 	return syscall.KernelErr_NoError
 }
 
-func (c *matcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
+func (c *matcher) Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId) syscall.KernelErr {
 
 	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() {
 		return syscall.KernelErr_BadId
@@ -69,6 +71,7 @@ func (c *matcher) Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr {
 	rc := &syscall.ResolvedCall{
 		HostId:      hid.Marshal(),
 		CallId:      cid.Marshal(),
+		MethodId:    mid.Marshal(),
 		Result:      nil,
 		ResultError: 0,
 	}
@@ -93,12 +96,33 @@ func (c *matcher) ReadyPeek(hid id.HostId) (*syscall.ResolvedCall, syscall.Kerne
 	return c.readyImpl(hid, true)
 }
 
+func dumpReadyImpl(origHid id.HostId, ready map[string][]*syscall.ResolvedCall) {
+	first := true
+	for k, v := range ready {
+		if len(v) > 0 {
+			if first {
+				log.Printf("--- ready dump-- %s", origHid.Short())
+				first = false
+			}
+			log.Printf("---- > > > %s,%d", k, len(v))
+			for i := 0; i < len(v); i++ {
+				hid := id.UnmarshalHostId(v[0].HostId)
+				cid := id.UnmarshalCallId(v[0].CallId)
+				mid := id.UnmarshalMethodId(v[0].MethodId)
+				log.Printf("---- > > >  >>>>> %d,(%s,%s,%s)", i, hid.Short(), cid.Short(), mid.Short())
+			}
+		}
+	}
+}
+
 // readyImpl is the code for getting the next ready item. It is shared by Ready and ReadyPeek.
 func (c *matcher) readyImpl(hid id.HostId, isPeek bool) (*syscall.ResolvedCall, syscall.KernelErr) {
+	//dumpReadyImpl(hid, c.ready)
 	cidList, ok := c.ready[hid.String()]
 	if !ok || len(cidList) == 0 {
 		return nil, syscall.KernelErr_NoError
 	}
+	log.Printf("readyImpl called inside the matcher xxx %s", hid.Short())
 	rc := cidList[0]
 	if !isPeek {
 		cidList = cidList[1:]
@@ -122,7 +146,7 @@ type callMatcher interface {
 	// a future call to Response.  The value returned is
 	// related to the Dispatch itself, it is not related
 	// to the execution of the call being registered.
-	Dispatch(hid id.HostId, cid id.CallId) syscall.KernelErr
+	Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId) syscall.KernelErr
 	// Ready returns a resolved call or nil if no outstanding
 	// resolutions are ready.
 	Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)

@@ -16,6 +16,7 @@ import (
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/sys"
 )
 
 var wazerologger = slog.Default().With("source", "wazero")
@@ -153,12 +154,20 @@ func (e *wazeroInstance) Function(name string) (FunctionExtern, error) {
 }
 
 func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Call generated panic: %v", r)
+		}
+	}()
 	result, err := e.fn.Call(ctx, param...)
 	if err != nil {
-		// xxxx I hate this
-		if err.Error() != "module closed with exit_code(0)" {
-			log.Printf("call returned an err >>> %s", err.Error())
-			return nil, err
+		if exitErr, ok := err.(*sys.ExitError); ok {
+			// This means your module exited with non-zero code!
+			// You can get the code with exitErr.ExitCode()
+			wazerologger.Info("exit code returned", "code", exitErr.ExitCode(), "returned values", len(result))
+			return []uint64{uint64(exitErr.ExitCode())}, nil
+		} else {
+			wazerologger.Error("return value from process wasn't exit error", "type", fmt.Sprintf("%T", err))
 		}
 	}
 	return result, nil
@@ -248,7 +257,7 @@ func (i *wazeroInstance) Name() string {
 }
 
 func (i *wazeroInstance) Value(ctx context.Context, valueName string) (ExternValue, error) {
-	g := i.m.ExportedGlobal(apishared.ExitCode)
+	g := i.m.ExportedGlobal(valueName)
 	if g == nil {
 		return nil, fmt.Errorf("unable to find value '%s' in module '%s' ",
 			valueName, i.parent.name)
@@ -388,17 +397,21 @@ func (e *wazeroEng) AddSupportedFunc_7i32_v(ctx context.Context, pkg, name strin
 		api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}, nil)
 }
 
-func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	result, err := e.wazeroFunctionExtern.Call(ctx)
-	if err != nil {
-		return nil, err
+func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (uint8, error) {
+	retVal, err := e.wazeroFunctionExtern.Call(ctx)
+	if retVal[0] > 192 {
+		return uint8(retVal[0] & 0xff), err
 	}
-	if len(result) > 0 {
-		for i, r := range result {
-			wazerologger.Info("return value from entry point", "index", i, "result", r)
-		}
-	}
-	return nil, nil
+	// if err != nil {
+	// 	return psys.ExitCodeTrapped, err
+	// }
+	// if len(result) > 0 {
+	// 	for i, r := range result {
+	// 		wazerologger.Info("return value from entry point", "index", i, "result", r)
+	// 	}
+	// }
+	code := uint8(retVal[0] & 0xff)
+	return code, nil
 }
 
 // Utility

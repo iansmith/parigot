@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/iansmith/parigot/api/guest"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 
@@ -154,26 +153,9 @@ func Require(ctx context.Context, inPtr *syscall.RequireRequest) (*syscall.Requi
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(ctx context.Context, exitReq *syscall.ExitRequest) *ExitFuture {
-
-	hid := CurrentHostId()
-	cid := id.NewCallId()
-	mid := apishared.ExitMethod
-
-	exitReq.CallId = cid.Marshal()
-	exitReq.HostId = hid.Marshal()
-	exitReq.MethodId = mid.Marshal()
+func Exit(ctx context.Context, exitReq *syscall.ExitRequest) (*syscall.ExitResponse, syscall.KernelErr) {
 	outProtoPtr := &syscall.ExitResponse{}
-	standardGuestSide(ctx, exitReq, outProtoPtr, Exit_, "Exit")
-
-	_exitCode = uint16(exitReq.Pair.Code)
-	processExit(exitReq.Pair)
-	//won't happen
-	return nil
-}
-
-func processExit(pair *syscall.ExitPair) {
-	panic(apishared.ControlledExit)
+	return outProtoPtr, standardGuestSide(ctx, exitReq, outProtoPtr, Exit_, "Exit")
 }
 
 // Register should be called before any other services are

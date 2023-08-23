@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
@@ -51,7 +52,16 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 	if err != syscall.KernelErr_NoError {
 		return err
 	}
-	if resp.Resolved != nil {
+	if resp.GetResolved() != nil {
+		mid := id.UnmarshalMethodId(resp.GetResolved().GetMethodId())
+		if mid.Equal(apishared.ExitMethod) {
+			//xxxx how to get sid?
+			var sid id.ServiceId
+			resp.Exit = &syscall.ExitPair{
+				ServiceId: sid.Marshal(),
+				Code:      102,
+			}
+		}
 		// we got a resolution and we are done
 		return syscall.KernelErr_NoError
 	}

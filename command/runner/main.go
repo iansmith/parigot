@@ -10,9 +10,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/iansmith/parigot/api/plugin/syscall/kernel"
 	"github.com/iansmith/parigot/command/runner/runner"
 	"github.com/iansmith/parigot/sys"
+	"github.com/iansmith/parigot/sys/kernel"
 )
 
 var testMode *bool = flag.Bool("t", false, "turns testmode on, implies running services marked 'Test' in deploy config")
