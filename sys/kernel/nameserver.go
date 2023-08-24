@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -24,6 +25,8 @@ type ns struct {
 	hostSvcMethodToName map[string]string
 	hostSvcNameSet      map[string]id.MethodId
 
+	serviceNameToSidSet map[string][]id.ServiceId
+
 	host    hostSet
 	service serviceSet
 
@@ -43,6 +46,7 @@ func NewSimpleNameServer(net chan proto.Message) *ns {
 		serviceToHost:       make(map[string]id.HostId),
 		hostSvcMethodToName: make(map[string]string),
 		hostSvcNameSet:      make(map[string]id.MethodId),
+		serviceNameToSidSet: make(map[string][]id.ServiceId),
 		matcher:             *newCallMatcher(),
 		net:                 net,
 	}
@@ -86,6 +90,24 @@ func (n *ns) FindHostChan(hid id.HostId) chan<- proto.Message {
 	return n.net
 }
 
+// PickService will return one of the services that is registered
+// for a particular service name. It returns zero value if it cannot
+// find the name.
+func (n *ns) PickService(fqn FQName) id.ServiceId {
+	set, ok := n.serviceNameToSidSet[fqn.String()]
+	if !ok {
+		return id.ServiceIdZeroValue()
+	}
+	if len(set) == 0 {
+		panic("pick service should not have a zero length set of services")
+	}
+	if len(set) == 1 {
+		return set[0]
+	}
+	i := rand.Intn(len(set))
+	return set[i]
+}
+
 // In() returns the channel for reading input requests.
 func (n *ns) In() chan proto.Message {
 	return n.net
@@ -110,6 +132,36 @@ func (n *ns) Bind(hid id.HostId, sid id.ServiceId, mid id.MethodId, methName str
 	n.hostSvcMethodToName[key1] = methName
 	n.hostSvcNameSet[key2] = mid
 	return syscall.KernelErr_NoError
+}
+
+func (n *ns) Export(hid id.HostId, sid id.ServiceId, fqn FQName) syscall.KernelErr {
+	allSvc, ok := n.serviceNameToSidSet[fqn.String()]
+	if !ok {
+		n.serviceNameToSidSet[fqn.String()] = []id.ServiceId{}
+	}
+	allSvc = append(allSvc, sid)
+	n.serviceNameToSidSet[fqn.String()] = allSvc
+	return syscall.KernelErr_NoError
+}
+
+func (n *ns) MethodDetail(fqn FQName, methodName string) (id.HostId, id.ServiceId, id.MethodId, syscall.KernelErr) {
+	svc := n.PickService(fqn)
+	if svc.IsZeroValue() {
+		klog.Errorf("unable to find service for fully qualified name '%s'", fqn.String())
+		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), syscall.KernelErr_NotFound
+	}
+	host, ok := n.serviceToHost[svc.String()]
+	if !ok {
+		klog.Errorf("unable to find host for service '%s'", svc.String())
+		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), syscall.KernelErr_NotFound
+	}
+	key := keyOfTwoIdsAndName(host, svc, methodName)
+	meth, ok := n.hostSvcNameSet[key]
+	if !ok {
+		klog.Errorf("unable to find method for service '%s' method '%s'", svc.Short(), methodName)
+		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), syscall.KernelErr_NotFound
+	}
+	return host, svc, meth, syscall.KernelErr_NoError
 }
 
 func (n *ns) FindMethod(hid id.HostId, sid id.ServiceId, mid id.MethodId) string {
