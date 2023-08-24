@@ -35,7 +35,7 @@ func main() {
 			}
 			break
 		}
-		guest.Log(ctx).Error("error while waiting for queue service calls", slog.String("syscall.KernelErr", syscall.KernelErr_name[int32(kerr)]))
+		logger.Error("error while waiting for queue service calls", slog.String("syscall.KernelErr", syscall.KernelErr_name[int32(kerr)]))
 	})
 }
 

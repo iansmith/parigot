@@ -1,14 +1,10 @@
 package kernel
 
 import (
-	"fmt"
-	"log"
 	"sync"
 
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // kdata is one of the core kernel data structures. The data structures
@@ -204,12 +200,13 @@ func (k *kdata) Nameserver() Nameserver {
 	return k.ns
 }
 
-func dumpRC(rc *syscall.ResolvedCall) string {
-	hid := id.UnmarshalHostId(rc.GetHostId())
-	cid := id.UnmarshalCallId(rc.GetCallId())
-	mid := id.UnmarshalMethodId(rc.GetMethodId())
-	return fmt.Sprintf("RC[%s,%s,%s]", hid.Short(), cid.Short(), mid.Short())
-}
+// func dumpRC(rc *syscall.ResolvedCall) string {
+// 	hid := id.UnmarshalHostId(rc.GetHostId())
+// 	cid := id.UnmarshalCallId(rc.GetCallId())
+// 	mid := id.UnmarshalMethodId(rc.GetMethodId())
+// 	return fmt.Sprintf("RC[%s,%s,%s]", hid.Short(), cid.Short(), mid.Short())
+// }
+
 func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) syscall.KernelErr {
 	rc, err := k.matcher().Ready(hid)
 	if err != syscall.KernelErr_NoError {
@@ -229,44 +226,25 @@ func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) sysc
 	return syscall.KernelErr_NoError
 }
 
-// exit does a dispatch, so it cannot lock
-
 func (k *kdata) Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) syscall.KernelErr {
-	var all []id.HostId
-	hid := id.UnmarshalHostId(req.GetHostId())
+	k.lock.Lock()
+	defer k.lock.Unlock()
+
 	cid := id.UnmarshalCallId(req.GetCallId())
-	bundle := &syscall.MethodBundle{
-		ServiceId: req.Pair.ServiceId,
-		MethodId:  apishared.ExitMethod.Marshal(),
-		CallId:    cid.Marshal(),
-		HostId:    hid.Marshal(),
+	hid := id.UnmarshalHostId(req.GetHostId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+
+	// save for later
+	k.matcher().Dispatch(hid, cid, mid)
+	if req.ShutdownAll {
+		for _, host := range k.ns.AllHosts() {
+			kerr := k.matcher().Dispatch(host, cid, mid)
+			if kerr != syscall.KernelErr_NoError {
+				return syscall.KernelErr_ExitFailed
+			}
+		}
 	}
-	resp.Bundle = bundle
 	resp.Pair = req.Pair
-	a := &anypb.Any{}
-	if err := a.MarshalFrom(resp); err != nil {
-		klog.Errorf("unable to marshal response in exit %v", err)
-		return syscall.KernelErr_MarshalFailed
-	}
-	if !req.GetShutdownAll() {
-		all = []id.HostId{hid}
-	} else {
-		all = k.ns.AllHosts()
-	}
-	log.Printf("xxx exit reached kernel, req on %s,%s -- len hosts %d", hid.Short(), cid.Short(), len(all))
-	// this is tricky, we are going to dispatch and match on hosts
-	// that may be not the same as the bundle info... the Pair is right in all cases, though
-	for _, host := range all {
-		kerr := k.matcher().Dispatch(host, cid, apishared.ExitMethod)
-		if kerr != syscall.KernelErr_NoError {
-			klog.Errorf("unable to dispatch exit message: %s", syscall.KernelErr_name[int32(kerr)])
-			return syscall.KernelErr_ExitFailed
-		}
-		kerr = k.matcher().Response(cid, a, int32(syscall.KernelErr_NoError))
-		if kerr != syscall.KernelErr_NoError {
-			klog.Errorf("unable to respond to exit message: %s", syscall.KernelErr_name[int32(kerr)])
-			return syscall.KernelErr_ExitFailed
-		}
-	}
+
 	return syscall.KernelErr_NoError
 }

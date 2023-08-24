@@ -101,7 +101,7 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 		}
 	}
 
-	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone)
+	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone, ctx.config.TimezoneDir)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,6 @@ func (p *Process) Start() (code int) {
 	var info interface{}
 
 	retVal, err := start.Run(context.Background(), p.microservice.GetArg(), info)
-	log.Printf("process %s has completed: result=%v, err=%v", p, retVal, err)
 
 	//procPrint("xxxx what is exit code?  %0xd", exitCode.GetU16())
 

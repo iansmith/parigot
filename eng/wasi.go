@@ -112,7 +112,7 @@ func writeOffsetsAndNullTerminatedValues(mem api.Memory, values [][]byte, offset
 func fakeWasiAddFunc(e *wazeroEng) wazero.HostModuleBuilder {
 	//wasi_snapshot_preview1.MustInstantiate(ctx, e.r)
 	// Export the default WASI functions.
-	wasiBuilder := e.r.NewHostModuleBuilder("wasi_snapshot_preview1")
+	wasiBuilder := e.rt.NewHostModuleBuilder("wasi_snapshot_preview1")
 	wasi_snapshot_preview1.NewFunctionExporter().ExportFunctions(wasiBuilder)
 
 	// Subsequent calls to NewFunctionBuilder override built-in exports.

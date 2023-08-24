@@ -10,23 +10,27 @@ import (
 	"github.com/iansmith/parigot/example/helloworld/g/greeting/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+
+	_ "time/tzdata"
 )
 
 var timeoutInMillis = int32(50)
+var logger *slog.Logger
 
 func main() {
 
 	// get context and logger
 	ctx, myId := lib.MustInitClient([]lib.MustRequireFunc{greeting.MustRequire})
 	fut := lib.LaunchClient(ctx, myId)
+	logger = slog.New(guest.NewParigotHandler(myId))
 
 	fut.Failure(func(err syscall.KernelErr) {
-		guest.Log(ctx).Error("failed to launch the hello world service: %s", syscall.KernelErr_name[int32(err)])
-		lib.ExitClient(ctx, 1, myId)
+		logger.Error("failed to launch the hello world service: %s", syscall.KernelErr_name[int32(err)])
+		lib.ExitSelf(ctx, 1, myId)
 	})
 
 	fut.Success(func(resp *syscall.LaunchResponse) {
-		guest.Log(ctx).Info("hello world launched successfully",
+		logger.Info("hello world launched successfully",
 			slog.String("hello world host", syscallguest.CurrentHostId().Short()))
 		afterLaunch(ctx, resp, myId, fut)
 	})
@@ -41,11 +45,9 @@ func main() {
 			break
 		}
 	}
-	guest.Log(ctx).Error("we got an error that is not normal: %s", syscall.KernelErr_name[int32(err)])
+	logger.Error("we got an error that is not normal from ReadOneAndCallClient", "kernel error", syscall.KernelErr_name[int32(err)])
 
-	// Should not happen.
-	guest.Log(ctx).Error("failed inside run: %s", syscall.KernelErr_name[int32(err)])
-	lib.ExitClient(ctx, 1, myId)
+	lib.ExitSelf(ctx, 1, myId)
 }
 
 func afterLaunch(ctx context.Context, _ *syscall.LaunchResponse, myId id.ServiceId, fut *syscallguest.LaunchFuture) {
@@ -61,13 +63,17 @@ func afterLaunch(ctx context.Context, _ *syscall.LaunchResponse, myId id.Service
 
 	// Handle positive outcome.
 	greetFuture.Method.Success(func(response *greeting.FetchGreetingResponse) {
-		guest.Log(ctx).Info(response.GetGreeting() + " world")
-		lib.ExitClient(ctx, 41, myId)
+		logger.Info(response.GetGreeting() + " world")
+		// program will end when this is finished
+		fut := lib.ExitSelf(ctx, 0, myId)
+		fut.Success(func(resp *syscall.ExitResponse) {
+			// could run cleanup code here
+		})
 	})
 
 	//Handle negative outcome.
 	greetFuture.Method.Failure(func(err greeting.GreetErr) {
-		guest.Log(ctx).Error("failed to fetch greeting: %s", greeting.GreetErr_name[int32(err)])
-		lib.ExitClient(ctx, 42, myId)
+		logger.Error("failed to fetch greeting", "greeting error", greeting.GreetErr_name[int32(err)])
+		lib.ExitSelf(ctx, 1, myId)
 	})
 }

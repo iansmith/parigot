@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"runtime/debug"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
@@ -22,7 +23,6 @@ import (
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
-	"github.com/iansmith/parigot/api/guest"  
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/proto"
@@ -40,7 +40,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Bar) *future.Base[bool] 
 			readyResult.Set(true)			
 			return
 		}
-		guest.Log(ctx).Error("Unable to start methodcall.bar.v1.Bar, Ready returned false")
+		slog.Error("Unable to start methodcall.bar.v1.Bar, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -63,8 +63,8 @@ func Init(require []lib.MustRequireFunc, impl Bar) (*lib.ServiceMethodMap,*sysca
 	smmap, launchF:=MustLaunchService(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		guest.Log(ctx).Error("launch failure on call Bar","error",t)
-		lib.ExitClient(ctx, 1, myId)
+		slog.Error("launch failure on call Bar","error",t)
+		lib.ExitSelf(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -74,7 +74,7 @@ func Run(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				guest.Log(ctx).Error("Run: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run: trapped a panic in the guest side", "recovered", r)
 			}
 		}
 	}()
@@ -85,7 +85,7 @@ func Run(ctx context.Context,
 			if bg==nil {
 				continue
 			}
-			guest.Log(ctx).Info("calling backgrounder of Bar")
+			slog.Info("calling backgrounder of Bar")
 			bg.Background(ctx)
 			continue
 		}
@@ -94,7 +94,7 @@ func Run(ctx context.Context,
 		}
 		break
 	}
-	guest.Log(ctx).Error("error while waiting for  service calls", "error",syscall.KernelErr_name[int32(kerr)])
+	slog.Error("error while waiting for  service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -157,7 +157,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -169,7 +169,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			guest.Log(ctx).Error("unable to marshal result for return value request")
+			slog.Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -232,7 +232,7 @@ func MustLocate(ctx context.Context, sid id.ServiceId) Client {
     normal:="unable to locate methodcall.bar.v1.bar:"+name
     if err!=0 {
         if err == syscall.KernelErr_NotRequired {
-            guest.Log(ctx).Error("service was located, but it was not required")
+            slog.Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -261,20 +261,20 @@ func Register() (id.ServiceId, syscall.KernelErr){
 func MustRegister() (context.Context,id.ServiceId) {
     sid, err:=Register()
     if err!=syscall.KernelErr_NoError {
-        guest.Log(context.Background()).Error("unable to register","package","methodcall.bar.v1","service name","bar")
+        slog.Error("unable to register","package","methodcall.bar.v1","service name","bar")
         panic("unable to register "+"bar")
     }
-    return guest.NewContextWithLogger(sid), sid
+    return context.Background(), sid
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1(ctx, "methodcall.bar.v1","bar",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
+            slog.Error("unable to require because it creates a dependcy loop","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
             panic("require methodcall.bar.v1.bar creates a dependency loop")
         }
-        guest.Log(ctx).Error("unable to require","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
+        slog.Error("unable to require","package","methodcall.bar.v1","service name","bar","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require methodcall.bar.v1.bar:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -282,7 +282,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 func MustExport(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1(ctx,"methodcall.bar.v1","bar",sid)
     if err!=syscall.KernelErr_NoError{
-        guest.Log(ctx).Error("unable to export","package","methodcall.bar.v1","service name","bar")
+        slog.Error("unable to export","package","methodcall.bar.v1","service name","bar")
         panic("not able to export methodcall.bar.v1.bar:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -339,7 +339,7 @@ func (t *invokeAccumulate) Invoke(ctx context.Context,a *anypb.Any) future.Compl
     in:=&AccumulateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 

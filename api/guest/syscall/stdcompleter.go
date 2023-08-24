@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"context"
-	"log"
 
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	future "github.com/iansmith/parigot/lib/go/future"
@@ -51,45 +50,42 @@ func NewLaunchCompleter(f *LaunchFuture) future.Completer {
 }
 
 type ExitCompleter struct {
-	// fut *ExitFuture
+	fut *ExitFuture
 }
 
 func (l *ExitCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr {
-	// out := &syscall.ExitResponse{}
-	// if err := a.(*anypb.Any).UnmarshalTo(out); err != nil {
-	// 	return syscall.KernelErr_UnmarshalFailed
-	// }
-	// l.fut.CompleteMethod(ctx, out, syscall.KernelErr(e))
-	log.Printf("xxx Complete Method called on exit completer")
+	out := &syscall.ExitResponse{}
+	if err := a.(*anypb.Any).UnmarshalTo(out); err != nil {
+		return syscall.KernelErr_UnmarshalFailed
+	}
+	l.fut.CompleteMethod(ctx, out, syscall.KernelErr(e))
 	return syscall.KernelErr_NoError
 }
 
 func (l *ExitCompleter) Success(succFunc func(proto.Message)) {
-	// 	x := func(m *syscall.ExitResponse) {
-	// 		succFunc(m)
-	// 	}
-	// 	l.fut.Success(x)
+	x := func(m *syscall.ExitResponse) {
+		succFunc(m)
+	}
+	l.fut.Success(x)
 
 }
 
 func (l *ExitCompleter) Failure(failFunc func(int32)) {
-	//	x := func(err syscall.KernelErr) {
-	//		failFunc(int32(err))
-	//	}
-	//
-	// l.fut.Failure(x)
+	x := func(err syscall.KernelErr) {
+		failFunc(int32(err))
+	}
+
+	l.fut.Failure(x)
 }
 
 func (l *ExitCompleter) Cancel() {
-	// l.fut.Cancel()
+	l.fut.Cancel()
 }
 
 func (l *ExitCompleter) Completed() bool {
-	//return l.fut.Completed()
-	log.Printf("xxxx --- exit completer checking completed")
-	return true
+	return l.fut.Completed()
 }
 
-func NewExitCompleter( /*f *ExitFuture*/ ) future.Completer {
-	return &ExitCompleter{}
+func NewExitCompleter(f *ExitFuture) future.Completer {
+	return &ExitCompleter{f}
 }

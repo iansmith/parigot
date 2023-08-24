@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/fatih/color v1.15.0
 	github.com/mattn/go-sqlite3 v1.14.17
-	github.com/tetratelabs/wazero v1.2.1
+	github.com/tetratelabs/wazero v1.5.0
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
 	google.golang.org/protobuf v1.31.0
 //github.com/golang/protobuf v1.3.4

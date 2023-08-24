@@ -1,28 +1,29 @@
 package kernel
 
 import (
-	"log"
+	"log/slog"
 	"os"
 )
 
 var klog KLog = newKernelLogger()
 
 type kernelLogger struct {
-	*log.Logger
+	*slog.Logger
 }
 
 func (k *kernelLogger) Errorf(spec string, rest ...interface{}) {
-	k.Logger.Printf("ERR : "+spec, rest...)
+	k.Logger.Error(spec, rest...)
 }
 func (k *kernelLogger) Warnf(spec string, rest ...interface{}) {
-	k.Logger.Printf("WARN: "+spec, rest...)
+	k.Logger.Warn(spec, rest)
 }
 func (k *kernelLogger) Infof(spec string, rest ...interface{}) {
-	k.Logger.Printf("INFO: "+spec, rest...)
+	k.Logger.Info(spec, rest...)
 }
 
 func newKernelLogger() KLog {
-	return &kernelLogger{
-		Logger: log.New(os.Stdout, "kernel:", log.Default().Flags()),
-	}
+	opt := &slog.HandlerOptions{}
+	opt.Level = slog.LevelWarn
+	l := slog.New(slog.NewTextHandler(os.Stdout, opt)).With("kernel", true)
+	return &kernelLogger{Logger: l}
 }

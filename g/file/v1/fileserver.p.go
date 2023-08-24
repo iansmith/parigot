@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"runtime/debug"
     "unsafe" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
@@ -22,7 +23,6 @@ import (
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
 	"github.com/iansmith/parigot/lib/go/client"
-	"github.com/iansmith/parigot/api/guest"  
 
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/proto"
@@ -40,7 +40,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl File) *future.Base[bool]
 			readyResult.Set(true)			
 			return
 		}
-		guest.Log(ctx).Error("Unable to start file.v1.File, Ready returned false")
+		slog.Error("Unable to start file.v1.File, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -63,8 +63,8 @@ func Init(require []lib.MustRequireFunc, impl File) (*lib.ServiceMethodMap,*sysc
 	smmap, launchF:=MustLaunchService(ctx, myId, impl)
 	launchF.Failure(func (err syscall.KernelErr) {
 		t:=syscall.KernelErr_name[int32(err)]
-		guest.Log(ctx).Error("launch failure on call File","error",t)
-		lib.ExitClient(ctx, 1, myId)
+		slog.Error("launch failure on call File","error",t)
+		lib.ExitSelf(ctx, 1, myId)
 	})
 	return smmap,launchF, ctx,myId
 }
@@ -74,7 +74,7 @@ func Run(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				guest.Log(ctx).Error("Run: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run: trapped a panic in the guest side", "recovered", r)
 			}
 		}
 	}()
@@ -85,7 +85,7 @@ func Run(ctx context.Context,
 			if bg==nil {
 				continue
 			}
-			guest.Log(ctx).Info("calling backgrounder of File")
+			slog.Info("calling backgrounder of File")
 			bg.Background(ctx)
 			continue
 		}
@@ -94,7 +94,7 @@ func Run(ctx context.Context,
 		}
 		break
 	}
-	guest.Log(ctx).Error("error while waiting for  service calls", "error",syscall.KernelErr_name[int32(kerr)])
+	slog.Error("error while waiting for  service calls", "error",syscall.KernelErr_name[int32(kerr)])
 	return kerr
 }
 // Increase this value at your peril!
@@ -157,7 +157,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		guest.Log(ctx).Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -169,7 +169,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		rvReq.Bundle.HostId= syscallguest.CurrentHostId().Marshal()
 		var a anypb.Any
 		if err:=a.MarshalFrom(result); err!=nil {
-			guest.Log(ctx).Error("unable to marshal result for return value request")
+			slog.Error("unable to marshal result for return value request")
 			return
 		}
 		rvReq.Result = &a
@@ -351,7 +351,7 @@ func MustLocate(ctx context.Context, sid id.ServiceId) Client {
     normal:="unable to locate file.v1.file:"+name
     if err!=0 {
         if err == syscall.KernelErr_NotRequired {
-            guest.Log(ctx).Error("service was located, but it was not required")
+            slog.Error("service was located, but it was not required")
             panic("locate attempted on a service that was not required")
         }
         panic(normal)
@@ -380,20 +380,20 @@ func Register() (id.ServiceId, syscall.KernelErr){
 func MustRegister() (context.Context,id.ServiceId) {
     sid, err:=Register()
     if err!=syscall.KernelErr_NoError {
-        guest.Log(context.Background()).Error("unable to register","package","file.v1","service name","file")
+        slog.Error("unable to register","package","file.v1","service name","file")
         panic("unable to register "+"file")
     }
-    return guest.NewContextWithLogger(sid), sid
+    return context.Background(), sid
 }
 
 func MustRequire(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Require1(ctx, "file.v1","file",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            guest.Log(ctx).Error("unable to require because it creates a dependcy loop","package","file.v1","service name","file","error",syscall.KernelErr_name[int32(err)])
+            slog.Error("unable to require because it creates a dependcy loop","package","file.v1","service name","file","error",syscall.KernelErr_name[int32(err)])
             panic("require file.v1.file creates a dependency loop")
         }
-        guest.Log(ctx).Error("unable to require","package","file.v1","service name","file","error",syscall.KernelErr_name[int32(err)])
+        slog.Error("unable to require","package","file.v1","service name","file","error",syscall.KernelErr_name[int32(err)])
         panic("not able to require file.v1.file:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -401,7 +401,7 @@ func MustRequire(ctx context.Context, sid id.ServiceId) {
 func MustExport(ctx context.Context, sid id.ServiceId) {
     _, err:=lib.Export1(ctx,"file.v1","file",sid)
     if err!=syscall.KernelErr_NoError{
-        guest.Log(ctx).Error("unable to export","package","file.v1","service name","file")
+        slog.Error("unable to export","package","file.v1","service name","file")
         panic("not able to export file.v1.file:"+syscall.KernelErr_name[int32(err)])
     }
 }
@@ -528,7 +528,7 @@ func (t *invokeOpen) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
     in:=&OpenRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -549,7 +549,7 @@ func (t *invokeCreate) Invoke(ctx context.Context,a *anypb.Any) future.Completer
     in:=&CreateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -570,7 +570,7 @@ func (t *invokeClose) Invoke(ctx context.Context,a *anypb.Any) future.Completer 
     in:=&CloseRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -591,7 +591,7 @@ func (t *invokeLoadTestData) Invoke(ctx context.Context,a *anypb.Any) future.Com
     in:=&LoadTestDataRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -612,7 +612,7 @@ func (t *invokeRead) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
     in:=&ReadRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -633,7 +633,7 @@ func (t *invokeWrite) Invoke(ctx context.Context,a *anypb.Any) future.Completer 
     in:=&WriteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -654,7 +654,7 @@ func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer
     in:=&DeleteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 
@@ -675,7 +675,7 @@ func (t *invokeStat) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
     in:=&StatRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
-        guest.Log(ctx).Error("unmarshal inside Invoke() failed","error",err.Error())
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
         return nil
     }
     return t.fn(ctx,in) 

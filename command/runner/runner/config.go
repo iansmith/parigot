@@ -56,6 +56,7 @@ type DeployConfig struct {
 	Size             DeploySize
 	SizeName         string
 	Timezone         string
+	TimezoneDir      string
 	Timeout          Timeout
 }
 

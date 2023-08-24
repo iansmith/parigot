@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"unsafe"
 
 	"github.com/iansmith/parigot/api/guest"
@@ -19,15 +20,18 @@ type FullyQualifiedServiceName struct {
 	PackageName, ServiceName string
 }
 
+var logger *slog.Logger
+
 func main() {
 	req := []lib.MustRequireFunc{
 		foo.MustRequire,
 	}
 	bServer := &barServer{}
-	binding, fut, ctx, _ := bar.Init(req, bServer)
+	binding, fut, ctx, myId := bar.Init(req, bServer)
+	logger = slog.New(guest.NewParigotHandler(myId))
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		kerr := bar.Run(ctx, binding, bar.TimeoutInMillis, nil)
-		guest.Log(ctx).Error("Run in Bar exited with an error", "kernel error", syscall.KernelErr_name[int32(kerr)])
+		logger.Error("Run in Bar exited with an error", "kernel error", syscall.KernelErr_name[int32(kerr)])
 	})
 
 }
@@ -80,7 +84,7 @@ func (b *barServer) succFn(ctx context.Context, req *bar.AccumulateRequest, resp
 	}
 	// finished all the given elements in req.GetValue()
 	result.Method.Success(func(resp *bar.AccumulateResponse) {
-		guest.Log(ctx).Info("success for sum!", "sum", resp.GetSum())
+		logger.Info("success for sum!", "sum", resp.GetSum())
 	})
 	return nil // wont be consumed
 }
@@ -101,7 +105,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) 
 
 	// if anything goes wrong, we alse fail the finalFut
 	finalFut.Method.Failure(func(err bar.BarErr) {
-		guest.Log(ctx).Error("unable to compute accumulation sum", "bar error", bar.BarErr_name[int32(err)])
+		logger.Error("unable to compute accumulation sum", "bar error", bar.BarErr_name[int32(err)])
 	})
 
 	// initial startup
