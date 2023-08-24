@@ -3,9 +3,8 @@ all: commands \
 	guest \
 	methodcalltest \
 	sqlc \
-	plugins \
-	helloworld
-	
+	plugins 
+		
 #
 # GROUPS OF TARGETS
 #
@@ -266,7 +265,7 @@ docs:
 ## HELLOWORLD
 ##
 build/helloworld.p.wasm: example/helloworld/main.go example/helloworld/g/greeting/v1/greetingserver.p.go
-	cd example/helloworld && ${GO_TO_WASM} build -o ../../build/HELLOWORLD.p.wasm ./main.go 
+	cd example/helloworld && ${GO_TO_WASM} build -o ../../build/helloworld.p.wasm ./main.go 
 
 build/greeting.p.wasm: example/helloworld/greeting/main.go example/helloworld/g/greeting/v1/greetingserver.p.go
 	cd example/helloworld && ${GO_TO_WASM} build -o ../../build/greeting.p.wasm ./greeting/main.go 

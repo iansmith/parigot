@@ -5,11 +5,14 @@ import (
 	"log/slog"
 
 	"github.com/iansmith/parigot/api/guest"
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/example/helloworld/g/greeting/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"
+
+	_ "time/tzdata"
 )
 
 var logger *slog.Logger
@@ -30,7 +33,7 @@ func main() {
 
 	// Init() covers the case of a launch failure, so we only deal with success
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		logger.Info("greeting service launched successfully")
+		logger.Info("greeting service launched successfully", "greeting service host", syscallguest.CurrentHostId().Short())
 	})
 
 	// Run waits for calls to our single method and should not return.

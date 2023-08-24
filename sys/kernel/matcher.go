@@ -122,7 +122,6 @@ func (c *matcher) readyImpl(hid id.HostId, isPeek bool) (*syscall.ResolvedCall, 
 	if !ok || len(cidList) == 0 {
 		return nil, syscall.KernelErr_NoError
 	}
-	log.Printf("readyImpl called inside the matcher xxx %s", hid.Short())
 	rc := cidList[0]
 	if !isPeek {
 		cidList = cidList[1:]

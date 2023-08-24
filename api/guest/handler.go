@@ -75,33 +75,3 @@ func (p *ParigotHandler) WithGroup(g string) slog.Handler {
 	p.h = p.h.WithGroup(g)
 	return p
 }
-
-func NewContextWithLogger(sid id.ServiceId) context.Context {
-	logger := slog.New(NewParigotHandler(sid))
-	return context.WithValue(context.Background(), LoggerCtxKey, logger)
-}
-
-var warned = false
-
-func Log(ctx context.Context) *slog.Logger {
-	fromCtx := ctx.Value(LoggerCtxKey)
-	var candidate *slog.Logger
-	if fromCtx == nil {
-		candidate = slog.Default()
-		if !warned {
-			warned = true
-			slog.Error("using context to log without a logger")
-		}
-	} else {
-		var ok bool
-		candidate, ok = fromCtx.(*slog.Logger)
-		if !ok {
-			candidate = slog.Default()
-			if !warned {
-				warned = true
-				slog.Error("using context that does not contain a logger")
-			}
-		}
-	}
-	return candidate
-}

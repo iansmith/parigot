@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
@@ -39,8 +38,7 @@ func MustRegisterClient() (context.Context, id.ServiceId) {
 	pkg := "Client"
 	name := fmt.Sprintf("program%03d", rand.Intn(999))
 	sid := register(context.Background(), pkg, name, true)
-	ctx := guest.NewContextWithLogger(sid)
-	return ctx, sid
+	return context.Background(), sid
 }
 
 // register is the setup of the guest-side registration. It uses
@@ -101,41 +99,33 @@ func LaunchClient(ctx context.Context, myId id.ServiceId) *syscallguest.LaunchFu
 	return syscallguest.Launch(ctx, req)
 }
 
-// ExitClient sends a request to exit and attaches hanndlers that print
-// the given strings. It only forces the exit if the Exit call itself
-// fails. Only the values from 0 to 192 are permissable as the code; other
-// values will be changed to 192.
-func ExitClient(ctx context.Context, code int32, myId id.ServiceId) syscall.KernelErr {
+// ExitSelf sends a request to exit and when the future is completed it will
+// exit.  Valid code values must be in the range 0 to 192, inclusive.  If ExitSelf()
+// is called by the last running guest program then the entire process will exit.
+func ExitSelf(ctx context.Context, code int32, myId id.ServiceId) *syscallguest.ExitFuture {
+	return exitImpl(ctx, code, myId, false)
+}
+
+// ExitAll sends a request to exit on all hosts and when the future is completed, it
+// will exit.  Valid code values must be in the range 0 to 192, inclusive.
+func ExitAll(ctx context.Context, code int32, myId id.ServiceId) *syscallguest.ExitFuture {
+	return exitImpl(ctx, code, myId, true)
+}
+
+func exitImpl(ctx context.Context, code int32, myId id.ServiceId, all bool) *syscallguest.ExitFuture {
 	hid := syscallguest.CurrentHostId()
 	cid := id.NewCallId()
-	log.Printf("xxx -- ExitClient reached on %s, exit call is %s", hid.Short(), cid.Short())
 	req := &syscall.ExitRequest{
 		HostId: hid.Marshal(),
 		Pair: &syscall.ExitPair{
 			ServiceId: myId.Marshal(),
 			Code:      code,
 		},
-		CallId:   cid.Marshal(),
-		MethodId: apishared.ExitMethod.Marshal(),
+		CallId:      cid.Marshal(),
+		MethodId:    apishared.ExitMethod.Marshal(),
+		ShutdownAll: all,
 	}
-	syscallguest.Exit(ctx, req)
-	log.Printf("xxx -- finished call to Exit(), host %s, cid %s", hid.Short(), cid.Short())
-	// ctx, t := CurrentTime(ctx)
-	// syscallguest.MatchCompleter(ctx, t, hid, cid, &syscallguest.ExitCompleter{})
-	// resp := &syscall.ExitResponse{
-	// 	Pair: &syscall.ExitPair{
-	// 		ServiceId: myId.Marshal(),
-	// 		Code:      code,
-	// 	},
-	// }
-	// a := &anypb.Any{}
-	// if err := a.MarshalFrom(resp); err != nil {
-	// 	return syscall.KernelErr_MarshalFailed
-	// }
-	// log.Printf("xxx completing call on host %s, with host,cid of %s,%s",
-	// 	syscallguest.CurrentHostId().Short(), hid.Short(), cid.Short())
-	// syscallguest.CompleteCall(ctx, hid, cid, a, int32(syscall.KernelErr_NoError))
-	return syscall.KernelErr_NoError
+	return syscallguest.Exit(ctx, req)
 }
 
 func MustRunClient(ctx context.Context, timeoutInMillis int32) syscall.KernelErr {

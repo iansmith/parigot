@@ -319,7 +319,6 @@ message ExitRequest {
 // message could be received.
 message ExitResponse{
 	ExitPair pair = 1;
-	MethodBundle bundle = 2;
 }
 
 // Register informs the kernel you are one of the running services

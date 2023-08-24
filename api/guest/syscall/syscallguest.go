@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 //go:wasmimport parigot exit_code_
@@ -56,7 +56,6 @@ func Dispatch(ctx context.Context, inPtr *syscall.DispatchRequest) (*syscall.Dis
 	// in band error?
 	kerr := syscall.KernelErr(err)
 	if kerr != syscall.KernelErr_NoError {
-		guest.Log(ctx).Error("dispatch error in client side", "kernel error", syscall.KernelErr_name[int32(kerr)])
 		return nil, kerr
 	}
 
@@ -153,9 +152,53 @@ func Require(ctx context.Context, inPtr *syscall.RequireRequest) (*syscall.Requi
 //
 //go:wasmimport parigot exit_
 func Exit_(int32, int32, int32, int32) int64
-func Exit(ctx context.Context, exitReq *syscall.ExitRequest) (*syscall.ExitResponse, syscall.KernelErr) {
+func Exit(ctx context.Context, inPtr *syscall.ExitRequest) *ExitFuture {
 	outProtoPtr := &syscall.ExitResponse{}
-	return outProtoPtr, standardGuestSide(ctx, exitReq, outProtoPtr, Exit_, "Exit")
+	sid := id.UnmarshalServiceId(inPtr.GetPair().GetServiceId())
+	hid := id.UnmarshalHostId(inPtr.GetHostId())
+	cid := id.UnmarshalCallId(inPtr.GetCallId())
+	mid := id.UnmarshalMethodId(inPtr.GetMethodId())
+
+	if sid.IsZeroOrEmptyValue() || hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
+		f := NewExitFuture()
+		f.CompleteMethod(ctx, nil, syscall.KernelErr_BadId)
+		return f
+	}
+
+	inPtr.CallId = cid.Marshal()
+	inPtr.HostId = hid.Marshal()
+	_, err, _ :=
+		ClientSide(ctx, inPtr, outProtoPtr, Exit_)
+	if err != 0 {
+		f := NewExitFuture()
+		f.CompleteMethod(ctx, nil, syscall.KernelErr(err))
+		return f
+	}
+	fut := NewExitFuture()
+	comp := NewExitCompleter(fut)
+	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, cid, comp)
+
+	outProtoPtr.Pair = inPtr.GetPair()
+	a := &anypb.Any{}
+	if marshalError := a.MarshalFrom(outProtoPtr); marshalError != nil {
+		fut.CompleteMethod(ctx, nil, syscall.KernelErr_MarshalFailed)
+		return fut
+	}
+	retVal := &syscall.ReturnValueRequest{
+		Bundle: &syscall.MethodBundle{
+			HostId:    hid.Marshal(),
+			ServiceId: sid.Marshal(),
+			MethodId:  mid.Marshal(),
+			CallId:    cid.Marshal(),
+		},
+		Result:      a,
+		ResultError: int32(syscall.KernelErr_NoError),
+	}
+	kerr := ReturnValue(ctx, retVal)
+	if kerr != syscall.KernelErr_NoError {
+		fut.CompleteMethod(ctx, nil, kerr)
+	}
+	return fut
 }
 
 // Register should be called before any other services are

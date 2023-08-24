@@ -6,7 +6,7 @@
 ## Load parigot code from shared object
 ParigotLibPath="/workspaces/parigot/build/syscall.so"
 ParigotLibSymbol="ParigotInitialize"
-Timezone = "America/New_York"
+Timezone = "US/Eastern"
 [config.dev.Timeout]
 Startup = 100 # millis
 Complete = 20 # millis
@@ -17,16 +17,6 @@ Complete = 20 # millis
 WasmPath="/workspaces/parigot/example/helloworld/build/greeting.p.wasm"
 Arg=[]
 Env=[]
-
-# test that we can start up another service along with running helloworld.
-# this uses the built in file service as the test service.
-#[config.dev.microservice.file]
-#WasmPath="/workspaces/parigot/build/file.p.wasm"
-##PluginPath="/workspaces/parigot/build/file.so"
-#PluginSymbol="ParigotInitialize"
-#Arg=[]
-#Env=[]
-
 
 # helloworld, it has no services that it implements, it just consumes greet and
 # runs to the end of main.

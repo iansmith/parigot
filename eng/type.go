@@ -54,8 +54,10 @@ type Module interface {
 	// if this returns without error that instance has been
 	// initialized, linked, and start_ called without error.
 	// XXX The timezone parameter must be passed in from the
-	// XXX outside.
-	NewInstance(ctx context.Context, timezone string) (Instance, error)
+	// XXX outside.  The timezoneDir is a path on the _host_ that should be
+	// XXX mounted into the guest fs as /tz.  Usually want this to
+	// XXX to be GOROOT/lib/time.
+	NewInstance(ctx context.Context, timezone string, timezoneDir string) (Instance, error)
 	// Name returns the path of the binary that was loaded.
 	Name() string
 }

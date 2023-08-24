@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -41,7 +42,7 @@ func CurrentTimezone() *time.Location {
 	}
 	raw := strings.TrimSpace(os.Getenv("TZ"))
 	if raw == "local" {
-		log.Printf("Warning: local timezone is not supported because running in a WASM sandbox, using UTC")
+		slog.Error("Warning: local timezone is not supported (probably because running in a WASM sandbox), using UTC", "timezone", raw)
 		raw = "UTC"
 	}
 	var err error
