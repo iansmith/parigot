@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -18,6 +19,8 @@ type kdata struct {
 	// computed based on what we actually get passed
 	reg []Registrar
 
+	exporter []Exporter
+
 	// computed based on what we actually get passed
 	bind []Binder
 
@@ -25,10 +28,6 @@ type kdata struct {
 	start Starter
 
 	match callMatcher
-
-	// this is so we can dispatch multiple messages at a time but
-	// only one at a time PER GUEST
-	serviceIdToWG map[string]sync.WaitGroup
 
 	// useful channel
 	cancel chan bool
@@ -39,9 +38,8 @@ var _ Kernel = &kdata{}
 // newKData returns an initialized kernel
 func newKData() *kdata {
 	return &kdata{
-		cancel:        make(chan bool),
-		serviceIdToWG: make(map[string]sync.WaitGroup),
-		match:         newCallMatcher(),
+		cancel: make(chan bool),
+		match:  newCallMatcher(),
 	}
 }
 
@@ -72,6 +70,11 @@ func (k *kdata) SetApproach(r GeneralReceiver, f GeneralReceiver, n Nameserver, 
 	for _, candidate := range []interface{}{r, f, n, st} {
 		if b, ok := candidate.(Binder); ok {
 			k.bind = append(k.bind, b)
+		}
+	}
+	for _, candidate := range []interface{}{r, f, n, st} {
+		if e, ok := candidate.(Exporter); ok {
+			k.exporter = append(k.exporter, e)
 		}
 	}
 	return syscall.KernelErr_NoError
@@ -160,7 +163,29 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 // Export binds a particular serviceid to a given name.  The name is the name
 // of an interface that allows the service to be found by other services.
 func (k *kdata) Export(req *syscall.ExportRequest, resp *syscall.ExportResponse) syscall.KernelErr {
-	return k.start.Export(req, resp)
+	sid := id.UnmarshalServiceId(req.GetServiceId())
+	hid := id.UnmarshalHostId(req.GetHostId())
+	if hid.IsZeroOrEmptyValue() {
+		return syscall.KernelErr_BadId
+	}
+	if sid.IsZeroOrEmptyValue() {
+		return syscall.KernelErr_BadId
+	}
+
+	fqsn := req.GetService()
+	for _, fqs := range fqsn {
+		p := fqs.GetPackagePath()
+		n := fqs.GetService()
+		fqn := FQName{Pkg: p, Name: n}
+		for _, exp := range k.exporter {
+			log.Printf("xxx calling exporter: %s, %T", fqn.String(), exp)
+			kerr := exp.Export(hid, sid, fqn)
+			if kerr != syscall.KernelErr_NoError {
+				return kerr
+			}
+		}
+	}
+	return syscall.KernelErr_NoError
 }
 
 // Locate is the constructor for parigot types.

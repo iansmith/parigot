@@ -10,9 +10,9 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
-guest: build/file.p.wasm  build/queue.p.wasm  #build/test.p.wasm
+guest: build/file.p.wasm  build/queue.p.wasm build/httpconn.p.wasm #build/test.p.wasm
 commands: 	build/protoc-gen-parigot build/runner 
-plugins: build/queue.so build/file.so build/syscall.so
+plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
 
@@ -139,6 +139,12 @@ build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/queue
 
+## client side of service impl
+HTTPCON_SERVICE=$(shell find api/guest/httpconnector -type f -regex ".*\.go")
+build/httpconn.p.wasm: $(HTTPCON_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
+	@rm -f $@
+	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/httpconnector
+
 
 #
 # METHODCALL TEST
@@ -189,6 +195,11 @@ FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/file/main
+
+HTTPCON_PLUGIN=$(shell find api/plugin/httpconnector -type f -regex ".*\.go")
+build/httpconn.so: $(HTTPCON_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
+	@rm -f $@
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/httpconnector/main
 
 SYSCALL_PLUGIN=$(shell find api/plugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_ID) 
