@@ -1,3 +1,7 @@
+
+![Build and Tests]
+https://github.com/iansmith/parigot/actions/workflows/automake.yaml/badge.svg
+
 # parigot
 parigot is an adjective in French that mean _parisien_.  In english, one might use "NewYork-ish" in the same way.
 

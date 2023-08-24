@@ -1,0 +1,14 @@
+name: Tests and Build
+'on':
+  push:
+    branches:
+      - "*"
+    tags:
+      - v*
+jobs:
+  runs on: ubuntu-latest
+  steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+    - name: Run Unit Test
+      run: make test
