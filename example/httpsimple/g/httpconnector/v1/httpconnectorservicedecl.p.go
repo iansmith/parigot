@@ -7,10 +7,7 @@ package httpconnector
 
 
 import(
-    "context"
-
-    "github.com/iansmith/parigot/g/httpconnector/v1"
-  
+    "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -31,14 +28,14 @@ import(
 //
 //service interface
 type HttpConnector interface {
-    Check(ctx context.Context,in *httpconnector.CheckRequest) *FutureCheck  
-    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
+    Check(ctx context.Context,in *CheckRequest) *FutureCheck  
+    Handle(ctx context.Context,in *HandleRequest) *FutureHandle   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Check(ctx context.Context,in *httpconnector.CheckRequest) *FutureCheck  
-    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
+    Check(ctx context.Context,in *CheckRequest) *FutureCheck  
+    Handle(ctx context.Context,in *HandleRequest) *FutureHandle   
 }
 
 // Client difference from HttpConnector: Ready() 

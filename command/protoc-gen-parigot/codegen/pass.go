@@ -121,7 +121,7 @@ func MethodsPass(gen *GenInfo,
 func walkParametersPulled(m *WasmMethod,
 	fn func(method *WasmMethod, num int, parameter *CGParameter) string) string {
 	in := m.CGInput()
-	protoPkg := m.Parent().ProtoPackage()
+	protoPkg := m.Parent().GetProtoPackage()
 	paramList := ExpandParamInfoForInput(in, m, protoPkg)
 	result := ""
 	for i, cgp := range paramList {

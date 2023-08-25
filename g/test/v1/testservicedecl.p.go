@@ -7,10 +7,7 @@ package test
 
 
 import(
-    "context"
-
-    "github.com/iansmith/parigot/g/test/v1"
-  
+    "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -31,14 +28,14 @@ import(
 //
 //service interface
 type Test interface {
-    TestAddTestSuite(ctx context.Context,in *test.AddTestSuiteRequest) *FutureTestAddTestSuite  
-    TestStart(ctx context.Context,in *test.StartRequest) *FutureTestStart   
+    TestAddTestSuite(ctx context.Context,in *AddTestSuiteRequest) *FutureTestAddTestSuite  
+    TestStart(ctx context.Context,in *StartRequest) *FutureTestStart   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type ClientTest interface {
-    TestAddTestSuite(ctx context.Context,in *test.AddTestSuiteRequest) *FutureTestAddTestSuite  
-    TestStart(ctx context.Context,in *test.StartRequest) *FutureTestStart   
+    TestAddTestSuite(ctx context.Context,in *AddTestSuiteRequest) *FutureTestAddTestSuite  
+    TestStart(ctx context.Context,in *StartRequest) *FutureTestStart   
 }
 
 // ClientTest difference from Test: Ready() 
@@ -184,14 +181,14 @@ func (i *ClientTest_) TestStart(ctx context.Context, in *StartRequest) *FutureTe
 //
 //service interface
 type MethodCallSuite interface {
-    MethodCallSuiteExec(ctx context.Context,in *test.ExecRequest) *FutureMethodCallSuiteExec  
-    MethodCallSuiteSuiteReport(ctx context.Context,in *test.SuiteReportRequest) *FutureMethodCallSuiteSuiteReport   
+    MethodCallSuiteExec(ctx context.Context,in *ExecRequest) *FutureMethodCallSuiteExec  
+    MethodCallSuiteSuiteReport(ctx context.Context,in *SuiteReportRequest) *FutureMethodCallSuiteSuiteReport   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type ClientMethodCallSuite interface {
-    MethodCallSuiteExec(ctx context.Context,in *test.ExecRequest) *FutureMethodCallSuiteExec  
-    MethodCallSuiteSuiteReport(ctx context.Context,in *test.SuiteReportRequest) *FutureMethodCallSuiteSuiteReport   
+    MethodCallSuiteExec(ctx context.Context,in *ExecRequest) *FutureMethodCallSuiteExec  
+    MethodCallSuiteSuiteReport(ctx context.Context,in *SuiteReportRequest) *FutureMethodCallSuiteSuiteReport   
 }
 
 // ClientMethodCallSuite difference from MethodCallSuite: Ready() 
@@ -328,12 +325,12 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteSuiteReport(ctx context.Context,
 //
 //service interface
 type UnderTest interface {
-    UnderTestExec(ctx context.Context,in *test.ExecRequest) *FutureUnderTestExec   
+    UnderTestExec(ctx context.Context,in *ExecRequest) *FutureUnderTestExec   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type ClientUnderTest interface {
-    UnderTestExec(ctx context.Context,in *test.ExecRequest) *FutureUnderTestExec   
+    UnderTestExec(ctx context.Context,in *ExecRequest) *FutureUnderTestExec   
 }
 
 // ClientUnderTest difference from UnderTest: Ready() 

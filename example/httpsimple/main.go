@@ -6,6 +6,7 @@ import (
 
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/example/httpsimple/g/frontdoor/v1"
 	"github.com/iansmith/parigot/example/httpsimple/g/simple/v1"
 	"github.com/iansmith/parigot/g/httpconnector/v1"
@@ -37,7 +38,7 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	binding, fut, ctx, sid := frontdoor.Init([]lib.MustRequireFunc{simple.MustRequire}, impl)
+	_, fut, ctx, sid := frontdoor.Init([]lib.MustRequireFunc{simple.MustRequire}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 
@@ -67,11 +68,14 @@ func main() {
 }
 
 func (m *myService) handle(ctx context.Context, req *httpconnector.HandleRequest) (*httpconnector.HandleResponse, frontdoor.FrontdoorErr) {
+	return &httpconnector.HandleResponse{}, frontdoor.FrontdoorErr_NoError
 }
 
 func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest) *frontdoor.FutureHandle {
+	return frontdoor.NewFutureHandle()
 }
 
-func (m *myService) Ready(ctx context.Context, in *httpconnector.HandleRequest) *future.Base[bool] {
-	m.simple = simple.MustLocate()
+func (m *myService) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
+	m.simple = simple.MustLocate(ctx, sid)
+	return future.NewBaseWithValue[bool](true)
 }

@@ -319,20 +319,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Simple) (*lib
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input simple/v1/simple.proto
-//GetRequest
-
-// not equal simple/v1/simple.proto
-
-
-// pkg?? simple/v1/simple.proto, simple.v1
-// http.GetRequest
-// iparam http.GetRequest
-// oparam http.GetResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport simple get_
 func Get_(int32,int32,int32,int32) int64
@@ -345,12 +332,12 @@ func GetHost(ctx context.Context,inPtr *http.GetRequest) *FutureGet {
 }  
 
 // This is interface for invocation.
+
 type invokeGet struct {
     fn func(context.Context,*http.GetRequest) *FutureGet
 }
 
 func (t *invokeGet) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx http.GetRequest and 'http.GetRequest{}' why empty?
     in:=&http.GetRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {

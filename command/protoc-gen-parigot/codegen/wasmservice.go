@@ -26,7 +26,7 @@ func (w *WasmService) GetLanguage() LanguageText {
 	return w.lang
 }
 
-func (w *WasmService) ProtoPackage() string {
+func (w *WasmService) GetProtoPackage() string {
 	return w.GetParent().GetPackage()
 }
 func (w *WasmService) GetGoPackage() string {

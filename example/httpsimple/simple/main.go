@@ -7,7 +7,8 @@ import (
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
-	"github.com/iansmith/parigot/example/helloworld/g/greeting/v1"
+	"github.com/iansmith/parigot/example/httpsimple/g/simple/v1"
+	"github.com/iansmith/parigot/g/http/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"
@@ -27,22 +28,22 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	binding, fut, ctx, sid := greeting.Init([]lib.MustRequireFunc{}, impl)
+	binding, fut, ctx, sid := simple.Init([]lib.MustRequireFunc{}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 
 	// Init() covers the case of a launch failure, so we only deal with success
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		logger.Info("greeting service launched successfully", "greeting service host", syscallguest.CurrentHostId().Short())
+		logger.Info("simple service launched successfully", "simple service host", syscallguest.CurrentHostId().Short())
 	})
 
-	// Run waits for calls to our single method and should not return.
+	// Run waits for calls to our methods and should not return.
 	// The context provided here is passed through to calls on your methods.
-	kerr := greeting.Run(ctx, binding, greeting.TimeoutInMillis, nil)
+	kerr := simple.Run(ctx, binding, simple.TimeoutInMillis, nil)
 
 	// Should not happen.
 	if kerr != syscall.KernelErr_NoError {
-		logger.Error("error caused run to exit in greeting", "kernel error", syscall.KernelErr_name[int32(kerr)])
+		logger.Error("error caused run to exit in simple", "kernel error", syscall.KernelErr_name[int32(kerr)])
 	}
 
 }
@@ -51,39 +52,26 @@ func main() {
 type myService struct{}
 
 // test at compile time that myService has appropriate methods.
-var _ = greeting.Greeting(&myService{})
+var _ = simple.Simple(&myService{})
 
-// the values by the language number
-var resultByLang = map[int32]string{
-	1: "hello",
-	2: "bonjour",
-	3: "guten tag",
-}
-
-// fetchGreeting (with a lowercase f) is here because it is easier
-// to unit test the service with this structure.  The "real" FetchGreeting
-// just calls this one and deals with the returning of futures
-// which are required for the real service.
-func (m *myService) fetchGreeting(ctx context.Context, req *greeting.FetchGreetingRequest) (*greeting.FetchGreetingResponse, greeting.GreetErr) {
-	max := len(greeting.Tongue_value) - 1 // -1 because it has a zero in it
-
-	// protoc generates 32 bit ints for every enum value
-	if req.GetTongue() < 1 || int(req.GetTongue()) > max {
-		return nil, greeting.GreetErr_UnknownLang
+func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetResponse, simple.SimpleErr) {
+	msg := []byte("hello, http protocal")
+	resp := &http.GetResponse{
+		Response: &http.HttpResponse{
+			StatusCode:    200,
+			Header:        map[string]string{},
+			Body:          msg,
+			ContentLength: int32(len(msg)),
+			Trailer:       map[string]string{},
+		},
 	}
-	resp := &greeting.FetchGreetingResponse{}
-	resp.Greeting = resultByLang[int32(req.GetTongue())]
-	return resp, greeting.GreetErr_NoError
+	return resp, simple.SimpleErr_NoError
 }
 
-// FetchGreeting returns a string that is a greeting for the
-// given Tongue in the request. The future returned is already
-// completed because there is no need to wait for any
-// result.
-func (m *myService) FetchGreeting(ctx context.Context, req *greeting.FetchGreetingRequest) *greeting.FutureFetchGreeting {
-	resp, err := m.fetchGreeting(ctx, req)
-	fut := greeting.NewFutureFetchGreeting()
-	if err != greeting.GreetErr_NoError {
+func (m *myService) Get(ctx context.Context, req *http.GetRequest) *simple.FutureGet {
+	resp, err := m.get(ctx, req)
+	fut := simple.NewFutureGet()
+	if err != simple.SimpleErr_NoError {
 		fut.Method.CompleteMethod(ctx, nil, err)
 	} else {
 		// err is NoError

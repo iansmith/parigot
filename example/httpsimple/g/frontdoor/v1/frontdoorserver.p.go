@@ -319,20 +319,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input frontdoor/v1/frontdoor.proto
-//HandleRequest
-
-// not equal frontdoor/v1/frontdoor.proto
-
-
-// pkg?? frontdoor/v1/frontdoor.proto, frontdoor.v1
-// httpconnector.HandleRequest
-// iparam httpconnector.HandleRequest
-// oparam httpconnector.HandleResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport frontdoor handle_
 func Handle_(int32,int32,int32,int32) int64
@@ -345,12 +332,12 @@ func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureH
 }  
 
 // This is interface for invocation.
+
 type invokeHandle struct {
     fn func(context.Context,*httpconnector.HandleRequest) *FutureHandle
 }
 
 func (t *invokeHandle) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx httpconnector.HandleRequest and 'httpconnector.HandleRequest{}' why empty?
     in:=&httpconnector.HandleRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {

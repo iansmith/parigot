@@ -51,9 +51,18 @@ func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	return ""
 }
 func (w *WasmMethod) addImportForInput(comp *WasmMessage, imp map[string]struct{}) {
-	imp["\""+w.importForMessage(comp)+"\""] = struct{}{}
+	qn := w.importForMessage(comp)
+	if w.Parent().GetProtoPackage() == comp.GetProtoPackage() {
+		// cannot import self
+		return
+	}
+	imp["\""+qn+"\""] = struct{}{}
 }
 func (w *WasmMethod) addImportForOutput(comp *WasmMessage, imp map[string]struct{}) {
+	if w.Parent().GetProtoPackage() == comp.GetProtoPackage() {
+		// cannot import self
+		return
+	}
 	imp["\""+w.importForMessage(comp)+"\""] = struct{}{}
 }
 func (w *WasmMethod) AddImportsNeeded(imp map[string]struct{}) {
@@ -65,7 +74,7 @@ func (w *WasmMethod) ProtoPackage() string {
 	if w.protoPackageOverride != nil {
 		return *w.protoPackageOverride
 	}
-	return w.Parent().ProtoPackage()
+	return w.Parent().GetProtoPackage()
 }
 func (w *WasmMethod) Finder() Finder {
 	return w.Parent().Finder()

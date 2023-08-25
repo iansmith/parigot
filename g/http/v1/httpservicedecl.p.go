@@ -7,10 +7,7 @@ package http
 
 
 import(
-    "context"
-
-    "github.com/iansmith/parigot/g/http/v1"
-  
+    "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -31,28 +28,28 @@ import(
 //
 //service interface
 type Http interface {
-    Get(ctx context.Context,in *http.GetRequest) *FutureGet  
-    Post(ctx context.Context,in *http.PostRequest) *FuturePost  
-    Put(ctx context.Context,in *http.PutRequest) *FuturePut  
-    Delete(ctx context.Context,in *http.DeleteRequest) *FutureDelete  
-    Head(ctx context.Context,in *http.HeadRequest) *FutureHead  
-    Options(ctx context.Context,in *http.OptionsRequest) *FutureOptions  
-    Patch(ctx context.Context,in *http.PatchRequest) *FuturePatch  
-    Connect(ctx context.Context,in *http.ConnectRequest) *FutureConnect  
-    Trace(ctx context.Context,in *http.TraceRequest) *FutureTrace   
+    Get(ctx context.Context,in *GetRequest) *FutureGet  
+    Post(ctx context.Context,in *PostRequest) *FuturePost  
+    Put(ctx context.Context,in *PutRequest) *FuturePut  
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Head(ctx context.Context,in *HeadRequest) *FutureHead  
+    Options(ctx context.Context,in *OptionsRequest) *FutureOptions  
+    Patch(ctx context.Context,in *PatchRequest) *FuturePatch  
+    Connect(ctx context.Context,in *ConnectRequest) *FutureConnect  
+    Trace(ctx context.Context,in *TraceRequest) *FutureTrace   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Get(ctx context.Context,in *http.GetRequest) *FutureGet  
-    Post(ctx context.Context,in *http.PostRequest) *FuturePost  
-    Put(ctx context.Context,in *http.PutRequest) *FuturePut  
-    Delete(ctx context.Context,in *http.DeleteRequest) *FutureDelete  
-    Head(ctx context.Context,in *http.HeadRequest) *FutureHead  
-    Options(ctx context.Context,in *http.OptionsRequest) *FutureOptions  
-    Patch(ctx context.Context,in *http.PatchRequest) *FuturePatch  
-    Connect(ctx context.Context,in *http.ConnectRequest) *FutureConnect  
-    Trace(ctx context.Context,in *http.TraceRequest) *FutureTrace   
+    Get(ctx context.Context,in *GetRequest) *FutureGet  
+    Post(ctx context.Context,in *PostRequest) *FuturePost  
+    Put(ctx context.Context,in *PutRequest) *FuturePut  
+    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
+    Head(ctx context.Context,in *HeadRequest) *FutureHead  
+    Options(ctx context.Context,in *OptionsRequest) *FutureOptions  
+    Patch(ctx context.Context,in *PatchRequest) *FuturePatch  
+    Connect(ctx context.Context,in *ConnectRequest) *FutureConnect  
+    Trace(ctx context.Context,in *TraceRequest) *FutureTrace   
 }
 
 // Client difference from Http: Ready() 

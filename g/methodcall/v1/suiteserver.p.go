@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-"github.com/iansmith/parigot/g/methodcall/v1" 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -336,48 +336,22 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl MethodCallSui
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input methodcall/v1/suite.proto
-//ExecRequest
-
-// not equal methodcall/v1/suite.proto
-
-
-// pkg?? methodcall/v1/suite.proto, methodcall.v1
-// methodcall.ExecRequest
-// iparam methodcall.ExecRequest
-// oparam methodcall.ExecResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport methodcall exec_
 func Exec_(int32,int32,int32,int32) int64
-func ExecHost(ctx context.Context,inPtr *methodcall.ExecRequest) *FutureExec {
-	outProtoPtr := (*methodcall.ExecResponse)(nil)
+func ExecHost(ctx context.Context,inPtr *ExecRequest) *FutureExec {
+	outProtoPtr := (*ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureExec()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input methodcall/v1/suite.proto
-//SuiteReportRequest
-
-// not equal methodcall/v1/suite.proto
-
-
-// pkg?? methodcall/v1/suite.proto, methodcall.v1
-// methodcall.SuiteReportRequest
-// iparam methodcall.SuiteReportRequest
-// oparam methodcall.SuiteReportResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport methodcall suite_report_
 func SuiteReport_(int32,int32,int32,int32) int64
-func SuiteReportHost(ctx context.Context,inPtr *methodcall.SuiteReportRequest) *FutureSuiteReport {
-	outProtoPtr := (*methodcall.SuiteReportResponse)(nil)
+func SuiteReportHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureSuiteReport {
+	outProtoPtr := (*SuiteReportResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	f:=NewFutureSuiteReport()
 	f.CompleteMethod(ctx,ret,raw)
@@ -385,13 +359,13 @@ func SuiteReportHost(ctx context.Context,inPtr *methodcall.SuiteReportRequest) *
 }  
 
 // This is interface for invocation.
+
 type invokeExec struct {
-    fn func(context.Context,*methodcall.ExecRequest) *FutureExec
+    fn func(context.Context,*ExecRequest) *FutureExec
 }
 
 func (t *invokeExec) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx methodcall.ExecRequest and 'ExecRequest{}' why empty?
-    in:=&methodcall.ExecRequest{}
+    in:=&ExecRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -406,13 +380,13 @@ func GenerateExecInvoker(impl MethodCallSuite) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeSuiteReport struct {
-    fn func(context.Context,*methodcall.SuiteReportRequest) *FutureSuiteReport
+    fn func(context.Context,*SuiteReportRequest) *FutureSuiteReport
 }
 
 func (t *invokeSuiteReport) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx methodcall.SuiteReportRequest and '' why empty?
-    in:=&methodcall.SuiteReportRequest{}
+    in:=&SuiteReportRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

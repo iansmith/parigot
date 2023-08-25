@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"text/template"
 
@@ -43,7 +42,6 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 					meth.AddImportsNeeded(imp)
 				}
 			}
-			log.Printf("we have a map %s (%d,%s) %+v", toGen, i, n, imp)
 			if !strings.HasSuffix(toGen, ".proto") {
 				panic(fmt.Sprintf("unable to understand protocol buffer file with name %s, does not end in .proto", toGen))
 			}

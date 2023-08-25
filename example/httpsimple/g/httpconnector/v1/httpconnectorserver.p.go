@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-"github.com/iansmith/parigot/g/httpconnector/v1" 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -336,48 +336,22 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input httpconnector/v1/httpconnector.proto
-//CheckRequest
-
-// not equal httpconnector/v1/httpconnector.proto
-
-
-// pkg?? httpconnector/v1/httpconnector.proto, httpconnector.v1
-// httpconnector.CheckRequest
-// iparam httpconnector.CheckRequest
-// oparam httpconnector.CheckResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport httpconnector check_
 func Check_(int32,int32,int32,int32) int64
-func CheckHost(ctx context.Context,inPtr *httpconnector.CheckRequest) *FutureCheck {
-	outProtoPtr := (*httpconnector.CheckResponse)(nil)
+func CheckHost(ctx context.Context,inPtr *CheckRequest) *FutureCheck {
+	outProtoPtr := (*CheckResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Check_)
 	f:=NewFutureCheck()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input httpconnector/v1/httpconnector.proto
-//HandleRequest
-
-// not equal httpconnector/v1/httpconnector.proto
-
-
-// pkg?? httpconnector/v1/httpconnector.proto, httpconnector.v1
-// httpconnector.HandleRequest
-// iparam httpconnector.HandleRequest
-// oparam httpconnector.HandleResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport httpconnector handle_
 func Handle_(int32,int32,int32,int32) int64
-func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureHandle {
-	outProtoPtr := (*httpconnector.HandleResponse)(nil)
+func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
+	outProtoPtr := (*HandleResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
 	f:=NewFutureHandle()
 	f.CompleteMethod(ctx,ret,raw)
@@ -385,13 +359,13 @@ func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureH
 }  
 
 // This is interface for invocation.
+
 type invokeCheck struct {
-    fn func(context.Context,*httpconnector.CheckRequest) *FutureCheck
+    fn func(context.Context,*CheckRequest) *FutureCheck
 }
 
 func (t *invokeCheck) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx httpconnector.CheckRequest and 'CheckRequest{}' why empty?
-    in:=&httpconnector.CheckRequest{}
+    in:=&CheckRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -406,13 +380,13 @@ func GenerateCheckInvoker(impl HttpConnector) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeHandle struct {
-    fn func(context.Context,*httpconnector.HandleRequest) *FutureHandle
+    fn func(context.Context,*HandleRequest) *FutureHandle
 }
 
 func (t *invokeHandle) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx httpconnector.HandleRequest and 'HandleRequest{}' why empty?
-    in:=&httpconnector.HandleRequest{}
+    in:=&HandleRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

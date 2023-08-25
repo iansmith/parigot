@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-"github.com/iansmith/parigot/g/methodcall/bar/v1" 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -319,25 +319,12 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Bar) (*lib.Se
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input methodcall/bar/v1/bar.proto
-//AccumulateRequest
-
-// not equal methodcall/bar/v1/bar.proto
-
-
-// pkg?? methodcall/bar/v1/bar.proto, methodcall.bar.v1
-// bar.AccumulateRequest
-// iparam bar.AccumulateRequest
-// oparam bar.AccumulateResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport bar accumulate_
 func Accumulate_(int32,int32,int32,int32) int64
-func AccumulateHost(ctx context.Context,inPtr *bar.AccumulateRequest) *FutureAccumulate {
-	outProtoPtr := (*bar.AccumulateResponse)(nil)
+func AccumulateHost(ctx context.Context,inPtr *AccumulateRequest) *FutureAccumulate {
+	outProtoPtr := (*AccumulateResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Accumulate_)
 	f:=NewFutureAccumulate()
 	f.CompleteMethod(ctx,ret,raw)
@@ -345,13 +332,13 @@ func AccumulateHost(ctx context.Context,inPtr *bar.AccumulateRequest) *FutureAcc
 }  
 
 // This is interface for invocation.
+
 type invokeAccumulate struct {
-    fn func(context.Context,*bar.AccumulateRequest) *FutureAccumulate
+    fn func(context.Context,*AccumulateRequest) *FutureAccumulate
 }
 
 func (t *invokeAccumulate) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx bar.AccumulateRequest and 'AccumulateRequest{}' why empty?
-    in:=&bar.AccumulateRequest{}
+    in:=&AccumulateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
