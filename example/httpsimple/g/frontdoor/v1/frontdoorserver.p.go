@@ -150,6 +150,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
+	log.Printf("read one and call: %s,%s,%s",sid.Short(),mid.Short(),cid.Short())
 	//if mid.Equal(apishared.ExitMethod) {
 	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
 	//	os.Exit(51)

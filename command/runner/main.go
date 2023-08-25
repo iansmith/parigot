@@ -4,11 +4,11 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
 	"github.com/iansmith/parigot/sys"
@@ -52,12 +52,6 @@ func main() {
 	}
 
 	main, code := deployCtx.StartServer(context.Background())
-	if main == nil {
-		if code != 0 {
-			log.Printf("server startup returned error code %d", code)
-			panic("os.Exit() with code " + fmt.Sprint(code))
-		}
-	}
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -66,18 +60,28 @@ func main() {
 		os.Exit(1)
 	}()
 
-	for _, mainProg := range main {
-		code, err := deployCtx.StartMain(mainProg)
-		if code == 253 && err == nil {
-			//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
-		} else if code != 0 {
-			slog.Info("main exited", "name", mainProg, "code", code, "error?", err != nil)
+	if main == nil {
+		if code != 0 {
+			log.Printf("servers are running")
 		}
-	}
-	if len(main) > 1 {
-		log.Printf(
-			"all main programs completed successfully")
+		for {
+			// a year
+			time.Sleep(8760 * time.Hour)
+		}
 	} else {
-		log.Printf("main program '%s' completed successfully", main[0])
+		for _, mainProg := range main {
+			code, err := deployCtx.StartMain(mainProg)
+			if code == 253 && err == nil {
+				//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
+			} else if code != 0 {
+				slog.Info("main exited", "name", mainProg, "code", code, "error?", err != nil)
+			}
+		}
+		if len(main) > 1 {
+			log.Printf(
+				"all main programs completed successfully")
+		} else {
+			log.Printf("main program '%s' completed successfully", main[0])
+		}
 	}
 }

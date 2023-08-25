@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"log"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -178,7 +177,6 @@ func (k *kdata) Export(req *syscall.ExportRequest, resp *syscall.ExportResponse)
 		n := fqs.GetService()
 		fqn := FQName{Pkg: p, Name: n}
 		for _, exp := range k.exporter {
-			log.Printf("xxx calling exporter: %s, %T", fqn.String(), exp)
 			kerr := exp.Export(hid, sid, fqn)
 			if kerr != syscall.KernelErr_NoError {
 				return kerr
