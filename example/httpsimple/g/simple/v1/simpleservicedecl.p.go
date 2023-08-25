@@ -7,7 +7,10 @@ package simple
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/http/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,12 +31,12 @@ import(
 //
 //service interface
 type Simple interface {
-    Get(ctx context.Context,in *GetRequest) *FutureGet   
+    Get(ctx context.Context,in *http.GetRequest) *FutureGet   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Get(ctx context.Context,in *GetRequest) *FutureGet   
+    Get(ctx context.Context,in *http.GetRequest) *FutureGet   
 }
 
 // Client difference from Simple: Ready() 
@@ -47,14 +50,14 @@ var _ = Client(&Client_{})
 // method: Simple.Get 
 //
 type FutureGet struct {
-    Method *future.Method[*GetResponse,SimpleErr]
+    Method *future.Method[*http.GetResponse,SimpleErr]
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
 func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
-    out:=&GetResponse{}
+    out:=&http.GetResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
             return syscall.KernelErr_UnmarshalFailed
@@ -65,7 +68,7 @@ func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32
 
 }
 func (f *FutureGet)Success(sfn func (proto.Message)) {
-    x:=func(m *GetResponse){
+    x:=func(m *http.GetResponse){
         sfn(m)
     }
     f.Method.Success(x)
@@ -87,11 +90,11 @@ func (f *FutureGet)Cancel()   {
 }
 func NewFutureGet() *FutureGet {
     f:=&FutureGet{
-        Method: future.NewMethod[*GetResponse,SimpleErr](nil,nil),
+        Method: future.NewMethod[*http.GetResponse,SimpleErr](nil,nil),
     } 
     return f
 }
-func (i *Client_) Get(ctx context.Context, in *GetRequest) *FutureGet { 
+func (i *Client_) Get(ctx context.Context, in *http.GetRequest) *FutureGet { 
     mid, ok := i.BaseService.MethodIdByName("Get")
     if !ok {
         f:=NewFutureGet()

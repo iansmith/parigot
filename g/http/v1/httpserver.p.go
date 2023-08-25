@@ -14,7 +14,9 @@ import (
 	"log"
 	"log/slog"
 	"runtime/debug"
-    "unsafe" 
+    "unsafe"
+
+"github.com/iansmith/parigot/g/http/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -453,92 +455,209 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.S
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//
+
+//checking input http/v1/http.proto
+//GetRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.GetRequest
+// iparam http.GetRequest
+// oparam http.GetResponse
+
+// equal for input type 
 
 //go:wasmimport http get_
 func Get_(int32,int32,int32,int32) int64
-func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
-	outProtoPtr := (*GetResponse)(nil)
+func GetHost(ctx context.Context,inPtr *http.GetRequest) *FutureGet {
+	outProtoPtr := (*http.GetResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
 	f:=NewFutureGet()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//PostRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.PostRequest
+// iparam http.PostRequest
+// oparam http.PostResponse
+
+// equal for input type 
 
 //go:wasmimport http post_
 func Post_(int32,int32,int32,int32) int64
-func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
-	outProtoPtr := (*PostResponse)(nil)
+func PostHost(ctx context.Context,inPtr *http.PostRequest) *FuturePost {
+	outProtoPtr := (*http.PostResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
 	f:=NewFuturePost()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//PutRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.PutRequest
+// iparam http.PutRequest
+// oparam http.PutResponse
+
+// equal for input type 
 
 //go:wasmimport http put_
 func Put_(int32,int32,int32,int32) int64
-func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
-	outProtoPtr := (*PutResponse)(nil)
+func PutHost(ctx context.Context,inPtr *http.PutRequest) *FuturePut {
+	outProtoPtr := (*http.PutResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
 	f:=NewFuturePut()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//DeleteRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.DeleteRequest
+// iparam http.DeleteRequest
+// oparam http.DeleteResponse
+
+// equal for input type 
 
 //go:wasmimport http delete_
 func Delete_(int32,int32,int32,int32) int64
-func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
-	outProtoPtr := (*DeleteResponse)(nil)
+func DeleteHost(ctx context.Context,inPtr *http.DeleteRequest) *FutureDelete {
+	outProtoPtr := (*http.DeleteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//HeadRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.HeadRequest
+// iparam http.HeadRequest
+// oparam http.HeadResponse
+
+// equal for input type 
 
 //go:wasmimport http head_
 func Head_(int32,int32,int32,int32) int64
-func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
-	outProtoPtr := (*HeadResponse)(nil)
+func HeadHost(ctx context.Context,inPtr *http.HeadRequest) *FutureHead {
+	outProtoPtr := (*http.HeadResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
 	f:=NewFutureHead()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//OptionsRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.OptionsRequest
+// iparam http.OptionsRequest
+// oparam http.OptionsResponse
+
+// equal for input type 
 
 //go:wasmimport http options_
 func Options_(int32,int32,int32,int32) int64
-func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
-	outProtoPtr := (*OptionsResponse)(nil)
+func OptionsHost(ctx context.Context,inPtr *http.OptionsRequest) *FutureOptions {
+	outProtoPtr := (*http.OptionsResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
 	f:=NewFutureOptions()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//PatchRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.PatchRequest
+// iparam http.PatchRequest
+// oparam http.PatchResponse
+
+// equal for input type 
 
 //go:wasmimport http patch_
 func Patch_(int32,int32,int32,int32) int64
-func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
-	outProtoPtr := (*PatchResponse)(nil)
+func PatchHost(ctx context.Context,inPtr *http.PatchRequest) *FuturePatch {
+	outProtoPtr := (*http.PatchResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
 	f:=NewFuturePatch()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//ConnectRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.ConnectRequest
+// iparam http.ConnectRequest
+// oparam http.ConnectResponse
+
+// equal for input type 
 
 //go:wasmimport http connect_
 func Connect_(int32,int32,int32,int32) int64
-func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
-	outProtoPtr := (*ConnectResponse)(nil)
+func ConnectHost(ctx context.Context,inPtr *http.ConnectRequest) *FutureConnect {
+	outProtoPtr := (*http.ConnectResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
 	f:=NewFutureConnect()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input http/v1/http.proto
+//TraceRequest
+
+// not equal http/v1/http.proto
+
+
+// pkg?? http/v1/http.proto, http.v1
+// http.TraceRequest
+// iparam http.TraceRequest
+// oparam http.TraceResponse
+
+// equal for input type 
 
 //go:wasmimport http trace_
 func Trace_(int32,int32,int32,int32) int64
-func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
-	outProtoPtr := (*TraceResponse)(nil)
+func TraceHost(ctx context.Context,inPtr *http.TraceRequest) *FutureTrace {
+	outProtoPtr := (*http.TraceResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
 	f:=NewFutureTrace()
 	f.CompleteMethod(ctx,ret,raw)
@@ -547,12 +666,12 @@ func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
 
 // This is interface for invocation.
 type invokeGet struct {
-    fn func(context.Context,*GetRequest) *FutureGet
+    fn func(context.Context,*http.GetRequest) *FutureGet
 }
 
 func (t *invokeGet) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx GetRequest and 'GetRequest{}' why empty?
-    in:=&GetRequest{}
+	// xxx http.GetRequest and 'GetRequest{}' why empty?
+    in:=&http.GetRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -568,12 +687,12 @@ func GenerateGetInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokePost struct {
-    fn func(context.Context,*PostRequest) *FuturePost
+    fn func(context.Context,*http.PostRequest) *FuturePost
 }
 
 func (t *invokePost) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx PostRequest and 'PostRequest{}' why empty?
-    in:=&PostRequest{}
+	// xxx http.PostRequest and 'PostRequest{}' why empty?
+    in:=&http.PostRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -589,12 +708,12 @@ func GeneratePostInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokePut struct {
-    fn func(context.Context,*PutRequest) *FuturePut
+    fn func(context.Context,*http.PutRequest) *FuturePut
 }
 
 func (t *invokePut) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx PutRequest and 'PutRequest{}' why empty?
-    in:=&PutRequest{}
+	// xxx http.PutRequest and 'PutRequest{}' why empty?
+    in:=&http.PutRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -610,12 +729,12 @@ func GeneratePutInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokeDelete struct {
-    fn func(context.Context,*DeleteRequest) *FutureDelete
+    fn func(context.Context,*http.DeleteRequest) *FutureDelete
 }
 
 func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx DeleteRequest and 'DeleteRequest{}' why empty?
-    in:=&DeleteRequest{}
+	// xxx http.DeleteRequest and 'DeleteRequest{}' why empty?
+    in:=&http.DeleteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -631,12 +750,12 @@ func GenerateDeleteInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokeHead struct {
-    fn func(context.Context,*HeadRequest) *FutureHead
+    fn func(context.Context,*http.HeadRequest) *FutureHead
 }
 
 func (t *invokeHead) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx HeadRequest and 'HeadRequest{}' why empty?
-    in:=&HeadRequest{}
+	// xxx http.HeadRequest and 'HeadRequest{}' why empty?
+    in:=&http.HeadRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -652,12 +771,12 @@ func GenerateHeadInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokeOptions struct {
-    fn func(context.Context,*OptionsRequest) *FutureOptions
+    fn func(context.Context,*http.OptionsRequest) *FutureOptions
 }
 
 func (t *invokeOptions) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx OptionsRequest and 'OptionsRequest{}' why empty?
-    in:=&OptionsRequest{}
+	// xxx http.OptionsRequest and 'OptionsRequest{}' why empty?
+    in:=&http.OptionsRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -673,12 +792,12 @@ func GenerateOptionsInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokePatch struct {
-    fn func(context.Context,*PatchRequest) *FuturePatch
+    fn func(context.Context,*http.PatchRequest) *FuturePatch
 }
 
 func (t *invokePatch) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx PatchRequest and 'PatchRequest{}' why empty?
-    in:=&PatchRequest{}
+	// xxx http.PatchRequest and 'PatchRequest{}' why empty?
+    in:=&http.PatchRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -694,12 +813,12 @@ func GeneratePatchInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokeConnect struct {
-    fn func(context.Context,*ConnectRequest) *FutureConnect
+    fn func(context.Context,*http.ConnectRequest) *FutureConnect
 }
 
 func (t *invokeConnect) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx ConnectRequest and 'ConnectRequest{}' why empty?
-    in:=&ConnectRequest{}
+	// xxx http.ConnectRequest and 'ConnectRequest{}' why empty?
+    in:=&http.ConnectRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -715,12 +834,12 @@ func GenerateConnectInvoker(impl Http) future.Invoker {
 
 // This is interface for invocation.
 type invokeTrace struct {
-    fn func(context.Context,*TraceRequest) *FutureTrace
+    fn func(context.Context,*http.TraceRequest) *FutureTrace
 }
 
 func (t *invokeTrace) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx TraceRequest and 'TraceRequest{}' why empty?
-    in:=&TraceRequest{}
+	// xxx http.TraceRequest and 'TraceRequest{}' why empty?
+    in:=&http.TraceRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

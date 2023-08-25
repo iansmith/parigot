@@ -7,7 +7,10 @@ package file
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/file/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,26 +31,26 @@ import(
 //
 //service interface
 type File interface {
-    Open(ctx context.Context,in *OpenRequest) *FutureOpen  
-    Create(ctx context.Context,in *CreateRequest) *FutureCreate  
-    Close(ctx context.Context,in *CloseRequest) *FutureClose  
-    LoadTestData(ctx context.Context,in *LoadTestDataRequest) *FutureLoadTestData  
-    Read(ctx context.Context,in *ReadRequest) *FutureRead  
-    Write(ctx context.Context,in *WriteRequest) *FutureWrite  
-    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
-    Stat(ctx context.Context,in *StatRequest) *FutureStat   
+    Open(ctx context.Context,in *file.OpenRequest) *FutureOpen  
+    Create(ctx context.Context,in *file.CreateRequest) *FutureCreate  
+    Close(ctx context.Context,in *file.CloseRequest) *FutureClose  
+    LoadTestData(ctx context.Context,in *file.LoadTestDataRequest) *FutureLoadTestData  
+    Read(ctx context.Context,in *file.ReadRequest) *FutureRead  
+    Write(ctx context.Context,in *file.WriteRequest) *FutureWrite  
+    Delete(ctx context.Context,in *file.DeleteRequest) *FutureDelete  
+    Stat(ctx context.Context,in *file.StatRequest) *FutureStat   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Open(ctx context.Context,in *OpenRequest) *FutureOpen  
-    Create(ctx context.Context,in *CreateRequest) *FutureCreate  
-    Close(ctx context.Context,in *CloseRequest) *FutureClose  
-    LoadTestData(ctx context.Context,in *LoadTestDataRequest) *FutureLoadTestData  
-    Read(ctx context.Context,in *ReadRequest) *FutureRead  
-    Write(ctx context.Context,in *WriteRequest) *FutureWrite  
-    Delete(ctx context.Context,in *DeleteRequest) *FutureDelete  
-    Stat(ctx context.Context,in *StatRequest) *FutureStat   
+    Open(ctx context.Context,in *file.OpenRequest) *FutureOpen  
+    Create(ctx context.Context,in *file.CreateRequest) *FutureCreate  
+    Close(ctx context.Context,in *file.CloseRequest) *FutureClose  
+    LoadTestData(ctx context.Context,in *file.LoadTestDataRequest) *FutureLoadTestData  
+    Read(ctx context.Context,in *file.ReadRequest) *FutureRead  
+    Write(ctx context.Context,in *file.WriteRequest) *FutureWrite  
+    Delete(ctx context.Context,in *file.DeleteRequest) *FutureDelete  
+    Stat(ctx context.Context,in *file.StatRequest) *FutureStat   
 }
 
 // Client difference from File: Ready() 

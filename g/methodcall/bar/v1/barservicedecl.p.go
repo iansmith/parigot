@@ -7,7 +7,10 @@ package bar
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/methodcall/bar/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,12 +31,12 @@ import(
 //
 //service interface
 type Bar interface {
-    Accumulate(ctx context.Context,in *AccumulateRequest) *FutureAccumulate   
+    Accumulate(ctx context.Context,in *bar.AccumulateRequest) *FutureAccumulate   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Accumulate(ctx context.Context,in *AccumulateRequest) *FutureAccumulate   
+    Accumulate(ctx context.Context,in *bar.AccumulateRequest) *FutureAccumulate   
 }
 
 // Client difference from Bar: Ready() 

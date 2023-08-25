@@ -7,7 +7,10 @@ package foo
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/methodcall/foo/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,16 +31,16 @@ import(
 //
 //service interface
 type Foo interface {
-    AddMultiply(ctx context.Context,in *AddMultiplyRequest) *FutureAddMultiply   
+    AddMultiply(ctx context.Context,in *foo.AddMultiplyRequest) *FutureAddMultiply   
     LucasSequence(ctx context.Context) *FutureLucasSequence  
-    WritePi(ctx context.Context,in *WritePiRequest) *FutureWritePi   
+    WritePi(ctx context.Context,in *foo.WritePiRequest) *FutureWritePi   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    AddMultiply(ctx context.Context,in *AddMultiplyRequest) *FutureAddMultiply   
+    AddMultiply(ctx context.Context,in *foo.AddMultiplyRequest) *FutureAddMultiply   
     LucasSequence(ctx context.Context) *FutureLucasSequence  
-    WritePi(ctx context.Context,in *WritePiRequest) *FutureWritePi   
+    WritePi(ctx context.Context,in *foo.WritePiRequest) *FutureWritePi   
 }
 
 // Client difference from Foo: Ready() 

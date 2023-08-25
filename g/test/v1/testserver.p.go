@@ -14,7 +14,9 @@ import (
 	"log"
 	"log/slog"
 	"runtime/debug"
-    "unsafe" 
+    "unsafe"
+
+"github.com/iansmith/parigot/g/test/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -335,22 +337,48 @@ func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*l
 // Test<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//
+
+//checking input test/v1/test.proto
+//AddTestSuiteRequest
+
+// not equal test/v1/test.proto
+
+
+// pkg?? test/v1/test.proto, test.v1
+// test.AddTestSuiteRequest
+// iparam test.AddTestSuiteRequest
+// oparam test.AddTestSuiteResponse
+
+// equal for input type 
 
 //go:wasmimport test add_test_suiteTest_
 func AddTestSuite_(int32,int32,int32,int32) int64
-func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *FutureTestAddTestSuite {
-	outProtoPtr := (*AddTestSuiteResponse)(nil)
+func AddTestSuiteTestHost(ctx context.Context,inPtr *test.AddTestSuiteRequest) *FutureTestAddTestSuite {
+	outProtoPtr := (*test.AddTestSuiteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddTestSuite_)
 	f:=NewFutureTestAddTestSuite()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input test/v1/test.proto
+//StartRequest
+
+// not equal test/v1/test.proto
+
+
+// pkg?? test/v1/test.proto, test.v1
+// test.StartRequest
+// iparam test.StartRequest
+// oparam test.StartResponse
+
+// equal for input type 
 
 //go:wasmimport test startTest_
 func Start_(int32,int32,int32,int32) int64
-func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
-	outProtoPtr := (*StartResponse)(nil)
+func StartTestHost(ctx context.Context,inPtr *test.StartRequest) *FutureTestStart {
+	outProtoPtr := (*test.StartResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Start_)
 	f:=NewFutureTestStart()
 	f.CompleteMethod(ctx,ret,raw)
@@ -359,12 +387,12 @@ func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
 
 // This is interface for invocation.
 type invokeTestAddTestSuite struct {
-    fn func(context.Context,*AddTestSuiteRequest) *FutureTestAddTestSuite
+    fn func(context.Context,*test.AddTestSuiteRequest) *FutureTestAddTestSuite
 }
 
 func (t *invokeTestAddTestSuite) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx AddTestSuiteRequest and 'AddTestSuiteRequest{}' why empty?
-    in:=&AddTestSuiteRequest{}
+	// xxx test.AddTestSuiteRequest and 'AddTestSuiteRequest{}' why empty?
+    in:=&test.AddTestSuiteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -380,12 +408,12 @@ func GenerateTestAddTestSuiteInvoker(impl Test) future.Invoker {
 
 // This is interface for invocation.
 type invokeTestStart struct {
-    fn func(context.Context,*StartRequest) *FutureTestStart
+    fn func(context.Context,*test.StartRequest) *FutureTestStart
 }
 
 func (t *invokeTestStart) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx StartRequest and 'StartRequest{}' why empty?
-    in:=&StartRequest{}
+	// xxx test.StartRequest and 'StartRequest{}' why empty?
+    in:=&test.StartRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -704,22 +732,48 @@ func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, imp
 // MethodCallSuite<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//
+
+//checking input test/v1/test.proto
+//ExecRequest
+
+// not equal test/v1/test.proto
+
+
+// pkg?? test/v1/test.proto, test.v1
+// test.ExecRequest
+// iparam test.ExecRequest
+// oparam test.ExecResponse
+
+// equal for input type 
 
 //go:wasmimport test execMethodCallSuite_
 func Exec_(int32,int32,int32,int32) int64
-func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMethodCallSuiteExec {
-	outProtoPtr := (*ExecResponse)(nil)
+func ExecMethodCallSuiteHost(ctx context.Context,inPtr *test.ExecRequest) *FutureMethodCallSuiteExec {
+	outProtoPtr := (*test.ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureMethodCallSuiteExec()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-} 
+}
+
+//checking input test/v1/test.proto
+//SuiteReportRequest
+
+// not equal test/v1/test.proto
+
+
+// pkg?? test/v1/test.proto, test.v1
+// test.SuiteReportRequest
+// iparam test.SuiteReportRequest
+// oparam test.SuiteReportResponse
+
+// equal for input type 
 
 //go:wasmimport test suite_reportMethodCallSuite_
 func SuiteReport_(int32,int32,int32,int32) int64
-func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureMethodCallSuiteSuiteReport {
-	outProtoPtr := (*SuiteReportResponse)(nil)
+func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *test.SuiteReportRequest) *FutureMethodCallSuiteSuiteReport {
+	outProtoPtr := (*test.SuiteReportResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	f:=NewFutureMethodCallSuiteSuiteReport()
 	f.CompleteMethod(ctx,ret,raw)
@@ -728,12 +782,12 @@ func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportReques
 
 // This is interface for invocation.
 type invokeMethodCallSuiteExec struct {
-    fn func(context.Context,*ExecRequest) *FutureMethodCallSuiteExec
+    fn func(context.Context,*test.ExecRequest) *FutureMethodCallSuiteExec
 }
 
 func (t *invokeMethodCallSuiteExec) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx ExecRequest and 'ExecRequest{}' why empty?
-    in:=&ExecRequest{}
+	// xxx test.ExecRequest and 'ExecRequest{}' why empty?
+    in:=&test.ExecRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -749,12 +803,12 @@ func GenerateMethodCallSuiteExecInvoker(impl MethodCallSuite) future.Invoker {
 
 // This is interface for invocation.
 type invokeMethodCallSuiteSuiteReport struct {
-    fn func(context.Context,*SuiteReportRequest) *FutureMethodCallSuiteSuiteReport
+    fn func(context.Context,*test.SuiteReportRequest) *FutureMethodCallSuiteSuiteReport
 }
 
 func (t *invokeMethodCallSuiteSuiteReport) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx SuiteReportRequest and '' why empty?
-    in:=&SuiteReportRequest{}
+	// xxx test.SuiteReportRequest and '' why empty?
+    in:=&test.SuiteReportRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -1056,12 +1110,25 @@ func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl Unde
 // UnderTest<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//
+
+//checking input test/v1/test.proto
+//ExecRequest
+
+// not equal test/v1/test.proto
+
+
+// pkg?? test/v1/test.proto, test.v1
+// test.ExecRequest
+// iparam test.ExecRequest
+// oparam test.ExecResponse
+
+// equal for input type 
 
 //go:wasmimport test exec_under_testUnderTest_
 func ExecUnderTest_(int32,int32,int32,int32) int64
-func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureUnderTestExec {
-	outProtoPtr := (*ExecResponse)(nil)
+func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *test.ExecRequest) *FutureUnderTestExec {
+	outProtoPtr := (*test.ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureUnderTestExec()
 	f.CompleteMethod(ctx,ret,raw)
@@ -1070,12 +1137,12 @@ func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureU
 
 // This is interface for invocation.
 type invokeUnderTestExec struct {
-    fn func(context.Context,*ExecRequest) *FutureUnderTestExec
+    fn func(context.Context,*test.ExecRequest) *FutureUnderTestExec
 }
 
 func (t *invokeUnderTestExec) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx ExecRequest and 'ExecRequest{}' why empty?
-    in:=&ExecRequest{}
+	// xxx test.ExecRequest and 'ExecRequest{}' why empty?
+    in:=&test.ExecRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

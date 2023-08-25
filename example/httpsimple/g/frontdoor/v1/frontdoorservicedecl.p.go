@@ -7,7 +7,10 @@ package frontdoor
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/httpconnector/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,12 +31,12 @@ import(
 //
 //service interface
 type Frontdoor interface {
-    Handle(ctx context.Context,in *HandleRequest) *FutureHandle   
+    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Handle(ctx context.Context,in *HandleRequest) *FutureHandle   
+    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
 }
 
 // Client difference from Frontdoor: Ready() 
@@ -47,14 +50,14 @@ var _ = Client(&Client_{})
 // method: Frontdoor.Handle 
 //
 type FutureHandle struct {
-    Method *future.Method[*HandleResponse,FrontdoorErr]
+    Method *future.Method[*httpconnector.HandleResponse,FrontdoorErr]
 } 
 
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
 func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
-    out:=&HandleResponse{}
+    out:=&httpconnector.HandleResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
             return syscall.KernelErr_UnmarshalFailed
@@ -65,7 +68,7 @@ func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e in
 
 }
 func (f *FutureHandle)Success(sfn func (proto.Message)) {
-    x:=func(m *HandleResponse){
+    x:=func(m *httpconnector.HandleResponse){
         sfn(m)
     }
     f.Method.Success(x)
@@ -87,11 +90,11 @@ func (f *FutureHandle)Cancel()   {
 }
 func NewFutureHandle() *FutureHandle {
     f:=&FutureHandle{
-        Method: future.NewMethod[*HandleResponse,FrontdoorErr](nil,nil),
+        Method: future.NewMethod[*httpconnector.HandleResponse,FrontdoorErr](nil,nil),
     } 
     return f
 }
-func (i *Client_) Handle(ctx context.Context, in *HandleRequest) *FutureHandle { 
+func (i *Client_) Handle(ctx context.Context, in *httpconnector.HandleRequest) *FutureHandle { 
     mid, ok := i.BaseService.MethodIdByName("Handle")
     if !ok {
         f:=NewFutureHandle()
