@@ -1,7 +1,4 @@
-
-![Build and Tests]
-https://github.com/iansmith/parigot/actions/workflows/automake.yaml/badge.svg
-
+[![.github/workflows/automake.yaml](https://github.com/iansmith/parigot/actions/workflows/automake.yaml/badge.svg?branch=bhs%2Fdocker)](https://github.com/iansmith/parigot/actions/workflows/automake.yaml)
 # parigot
 parigot is an adjective in French that mean _parisien_.  In english, one might use "NewYork-ish" in the same way.
 
