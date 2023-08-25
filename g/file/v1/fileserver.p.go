@@ -16,6 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -437,186 +438,82 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.S
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input file/v1/file.proto
-//OpenRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.OpenRequest
-// iparam file.OpenRequest
-// oparam file.OpenResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport file open_
 func Open_(int32,int32,int32,int32) int64
-func OpenHost(ctx context.Context,inPtr *file.OpenRequest) *FutureOpen {
-	outProtoPtr := (*file.OpenResponse)(nil)
+func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
+	outProtoPtr := (*OpenResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Open_)
 	f:=NewFutureOpen()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//CreateRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.CreateRequest
-// iparam file.CreateRequest
-// oparam file.CreateResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file create_
 func Create_(int32,int32,int32,int32) int64
-func CreateHost(ctx context.Context,inPtr *file.CreateRequest) *FutureCreate {
-	outProtoPtr := (*file.CreateResponse)(nil)
+func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
+	outProtoPtr := (*CreateResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Create_)
 	f:=NewFutureCreate()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//CloseRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.CloseRequest
-// iparam file.CloseRequest
-// oparam file.CloseResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file close_
 func Close_(int32,int32,int32,int32) int64
-func CloseHost(ctx context.Context,inPtr *file.CloseRequest) *FutureClose {
-	outProtoPtr := (*file.CloseResponse)(nil)
+func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
+	outProtoPtr := (*CloseResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Close_)
 	f:=NewFutureClose()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//LoadTestDataRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.LoadTestDataRequest
-// iparam file.LoadTestDataRequest
-// oparam file.LoadTestDataResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file load_test_data_
 func LoadTestData_(int32,int32,int32,int32) int64
-func LoadTestDataHost(ctx context.Context,inPtr *file.LoadTestDataRequest) *FutureLoadTestData {
-	outProtoPtr := (*file.LoadTestDataResponse)(nil)
+func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoadTestData {
+	outProtoPtr := (*LoadTestDataResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LoadTestData_)
 	f:=NewFutureLoadTestData()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//ReadRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.ReadRequest
-// iparam file.ReadRequest
-// oparam file.ReadResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file read_
 func Read_(int32,int32,int32,int32) int64
-func ReadHost(ctx context.Context,inPtr *file.ReadRequest) *FutureRead {
-	outProtoPtr := (*file.ReadResponse)(nil)
+func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
+	outProtoPtr := (*ReadResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Read_)
 	f:=NewFutureRead()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//WriteRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.WriteRequest
-// iparam file.WriteRequest
-// oparam file.WriteResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file write_
 func Write_(int32,int32,int32,int32) int64
-func WriteHost(ctx context.Context,inPtr *file.WriteRequest) *FutureWrite {
-	outProtoPtr := (*file.WriteResponse)(nil)
+func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
+	outProtoPtr := (*WriteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Write_)
 	f:=NewFutureWrite()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//DeleteRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.DeleteRequest
-// iparam file.DeleteRequest
-// oparam file.DeleteResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file delete_
 func Delete_(int32,int32,int32,int32) int64
-func DeleteHost(ctx context.Context,inPtr *file.DeleteRequest) *FutureDelete {
-	outProtoPtr := (*file.DeleteResponse)(nil)
+func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
+	outProtoPtr := (*DeleteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input file/v1/file.proto
-//StatRequest
-
-// not equal file/v1/file.proto
-
-
-// pkg?? file/v1/file.proto, file.v1
-// file.StatRequest
-// iparam file.StatRequest
-// oparam file.StatResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport file stat_
 func Stat_(int32,int32,int32,int32) int64
-func StatHost(ctx context.Context,inPtr *file.StatRequest) *FutureStat {
-	outProtoPtr := (*file.StatResponse)(nil)
+func StatHost(ctx context.Context,inPtr *StatRequest) *FutureStat {
+	outProtoPtr := (*StatResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Stat_)
 	f:=NewFutureStat()
 	f.CompleteMethod(ctx,ret,raw)
@@ -624,13 +521,13 @@ func StatHost(ctx context.Context,inPtr *file.StatRequest) *FutureStat {
 }  
 
 // This is interface for invocation.
+
 type invokeOpen struct {
-    fn func(context.Context,*file.OpenRequest) *FutureOpen
+    fn func(context.Context,*OpenRequest) *FutureOpen
 }
 
 func (t *invokeOpen) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.OpenRequest and 'OpenRequest{}' why empty?
-    in:=&file.OpenRequest{}
+    in:=&OpenRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -645,13 +542,13 @@ func GenerateOpenInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeCreate struct {
-    fn func(context.Context,*file.CreateRequest) *FutureCreate
+    fn func(context.Context,*CreateRequest) *FutureCreate
 }
 
 func (t *invokeCreate) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.CreateRequest and 'CreateRequest{}' why empty?
-    in:=&file.CreateRequest{}
+    in:=&CreateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -666,13 +563,13 @@ func GenerateCreateInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeClose struct {
-    fn func(context.Context,*file.CloseRequest) *FutureClose
+    fn func(context.Context,*CloseRequest) *FutureClose
 }
 
 func (t *invokeClose) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.CloseRequest and 'CloseRequest{}' why empty?
-    in:=&file.CloseRequest{}
+    in:=&CloseRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -687,13 +584,13 @@ func GenerateCloseInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeLoadTestData struct {
-    fn func(context.Context,*file.LoadTestDataRequest) *FutureLoadTestData
+    fn func(context.Context,*LoadTestDataRequest) *FutureLoadTestData
 }
 
 func (t *invokeLoadTestData) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.LoadTestDataRequest and 'LoadTestDataRequest{}' why empty?
-    in:=&file.LoadTestDataRequest{}
+    in:=&LoadTestDataRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -708,13 +605,13 @@ func GenerateLoadTestDataInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeRead struct {
-    fn func(context.Context,*file.ReadRequest) *FutureRead
+    fn func(context.Context,*ReadRequest) *FutureRead
 }
 
 func (t *invokeRead) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.ReadRequest and 'ReadRequest{}' why empty?
-    in:=&file.ReadRequest{}
+    in:=&ReadRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -729,13 +626,13 @@ func GenerateReadInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeWrite struct {
-    fn func(context.Context,*file.WriteRequest) *FutureWrite
+    fn func(context.Context,*WriteRequest) *FutureWrite
 }
 
 func (t *invokeWrite) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.WriteRequest and 'WriteRequest{}' why empty?
-    in:=&file.WriteRequest{}
+    in:=&WriteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -750,13 +647,13 @@ func GenerateWriteInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeDelete struct {
-    fn func(context.Context,*file.DeleteRequest) *FutureDelete
+    fn func(context.Context,*DeleteRequest) *FutureDelete
 }
 
 func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.DeleteRequest and 'DeleteRequest{}' why empty?
-    in:=&file.DeleteRequest{}
+    in:=&DeleteRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -771,13 +668,13 @@ func GenerateDeleteInvoker(impl File) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeStat struct {
-    fn func(context.Context,*file.StatRequest) *FutureStat
+    fn func(context.Context,*StatRequest) *FutureStat
 }
 
 func (t *invokeStat) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx file.StatRequest and 'StatRequest{}' why empty?
-    in:=&file.StatRequest{}
+    in:=&StatRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

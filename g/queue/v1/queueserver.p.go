@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-"github.com/iansmith/parigot/g/queue/v1" 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -421,163 +421,72 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Queue) (*lib.
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input queue/v1/queue.proto
-//CreateQueueRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.CreateQueueRequest
-// iparam queue.CreateQueueRequest
-// oparam queue.CreateQueueResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport queue create_queue_
 func CreateQueue_(int32,int32,int32,int32) int64
-func CreateQueueHost(ctx context.Context,inPtr *queue.CreateQueueRequest) *FutureCreateQueue {
-	outProtoPtr := (*queue.CreateQueueResponse)(nil)
+func CreateQueueHost(ctx context.Context,inPtr *CreateQueueRequest) *FutureCreateQueue {
+	outProtoPtr := (*CreateQueueResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, CreateQueue_)
 	f:=NewFutureCreateQueue()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//LocateRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.LocateRequest
-// iparam queue.LocateRequest
-// oparam queue.LocateResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue locate_
 func Locate_(int32,int32,int32,int32) int64
-func LocateHost(ctx context.Context,inPtr *queue.LocateRequest) *FutureLocate {
-	outProtoPtr := (*queue.LocateResponse)(nil)
+func LocateHost(ctx context.Context,inPtr *LocateRequest) *FutureLocate {
+	outProtoPtr := (*LocateResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	f:=NewFutureLocate()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//DeleteQueueRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.DeleteQueueRequest
-// iparam queue.DeleteQueueRequest
-// oparam queue.DeleteQueueResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue delete_queue_
 func DeleteQueue_(int32,int32,int32,int32) int64
-func DeleteQueueHost(ctx context.Context,inPtr *queue.DeleteQueueRequest) *FutureDeleteQueue {
-	outProtoPtr := (*queue.DeleteQueueResponse)(nil)
+func DeleteQueueHost(ctx context.Context,inPtr *DeleteQueueRequest) *FutureDeleteQueue {
+	outProtoPtr := (*DeleteQueueResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, DeleteQueue_)
 	f:=NewFutureDeleteQueue()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//ReceiveRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.ReceiveRequest
-// iparam queue.ReceiveRequest
-// oparam queue.ReceiveResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue receive_
 func Receive_(int32,int32,int32,int32) int64
-func ReceiveHost(ctx context.Context,inPtr *queue.ReceiveRequest) *FutureReceive {
-	outProtoPtr := (*queue.ReceiveResponse)(nil)
+func ReceiveHost(ctx context.Context,inPtr *ReceiveRequest) *FutureReceive {
+	outProtoPtr := (*ReceiveResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Receive_)
 	f:=NewFutureReceive()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//MarkDoneRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.MarkDoneRequest
-// iparam queue.MarkDoneRequest
-// oparam queue.MarkDoneResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue mark_done_
 func MarkDone_(int32,int32,int32,int32) int64
-func MarkDoneHost(ctx context.Context,inPtr *queue.MarkDoneRequest) *FutureMarkDone {
-	outProtoPtr := (*queue.MarkDoneResponse)(nil)
+func MarkDoneHost(ctx context.Context,inPtr *MarkDoneRequest) *FutureMarkDone {
+	outProtoPtr := (*MarkDoneResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, MarkDone_)
 	f:=NewFutureMarkDone()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//LengthRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.LengthRequest
-// iparam queue.LengthRequest
-// oparam queue.LengthResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue length_
 func Length_(int32,int32,int32,int32) int64
-func LengthHost(ctx context.Context,inPtr *queue.LengthRequest) *FutureLength {
-	outProtoPtr := (*queue.LengthResponse)(nil)
+func LengthHost(ctx context.Context,inPtr *LengthRequest) *FutureLength {
+	outProtoPtr := (*LengthResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Length_)
 	f:=NewFutureLength()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input queue/v1/queue.proto
-//SendRequest
-
-// not equal queue/v1/queue.proto
-
-
-// pkg?? queue/v1/queue.proto, queue.v1
-// queue.SendRequest
-// iparam queue.SendRequest
-// oparam queue.SendResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport queue send_
 func Send_(int32,int32,int32,int32) int64
-func SendHost(ctx context.Context,inPtr *queue.SendRequest) *FutureSend {
-	outProtoPtr := (*queue.SendResponse)(nil)
+func SendHost(ctx context.Context,inPtr *SendRequest) *FutureSend {
+	outProtoPtr := (*SendResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Send_)
 	f:=NewFutureSend()
 	f.CompleteMethod(ctx,ret,raw)
@@ -585,13 +494,13 @@ func SendHost(ctx context.Context,inPtr *queue.SendRequest) *FutureSend {
 }  
 
 // This is interface for invocation.
+
 type invokeCreateQueue struct {
-    fn func(context.Context,*queue.CreateQueueRequest) *FutureCreateQueue
+    fn func(context.Context,*CreateQueueRequest) *FutureCreateQueue
 }
 
 func (t *invokeCreateQueue) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.CreateQueueRequest and 'CreateQueueRequest{}' why empty?
-    in:=&queue.CreateQueueRequest{}
+    in:=&CreateQueueRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -606,13 +515,13 @@ func GenerateCreateQueueInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeLocate struct {
-    fn func(context.Context,*queue.LocateRequest) *FutureLocate
+    fn func(context.Context,*LocateRequest) *FutureLocate
 }
 
 func (t *invokeLocate) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.LocateRequest and 'LocateRequest{}' why empty?
-    in:=&queue.LocateRequest{}
+    in:=&LocateRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -627,13 +536,13 @@ func GenerateLocateInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeDeleteQueue struct {
-    fn func(context.Context,*queue.DeleteQueueRequest) *FutureDeleteQueue
+    fn func(context.Context,*DeleteQueueRequest) *FutureDeleteQueue
 }
 
 func (t *invokeDeleteQueue) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.DeleteQueueRequest and 'DeleteQueueRequest{}' why empty?
-    in:=&queue.DeleteQueueRequest{}
+    in:=&DeleteQueueRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -648,13 +557,13 @@ func GenerateDeleteQueueInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeReceive struct {
-    fn func(context.Context,*queue.ReceiveRequest) *FutureReceive
+    fn func(context.Context,*ReceiveRequest) *FutureReceive
 }
 
 func (t *invokeReceive) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.ReceiveRequest and 'ReceiveRequest{}' why empty?
-    in:=&queue.ReceiveRequest{}
+    in:=&ReceiveRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -669,13 +578,13 @@ func GenerateReceiveInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeMarkDone struct {
-    fn func(context.Context,*queue.MarkDoneRequest) *FutureMarkDone
+    fn func(context.Context,*MarkDoneRequest) *FutureMarkDone
 }
 
 func (t *invokeMarkDone) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.MarkDoneRequest and 'MarkDoneRequest{}' why empty?
-    in:=&queue.MarkDoneRequest{}
+    in:=&MarkDoneRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -690,13 +599,13 @@ func GenerateMarkDoneInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeLength struct {
-    fn func(context.Context,*queue.LengthRequest) *FutureLength
+    fn func(context.Context,*LengthRequest) *FutureLength
 }
 
 func (t *invokeLength) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.LengthRequest and 'LengthRequest{}' why empty?
-    in:=&queue.LengthRequest{}
+    in:=&LengthRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -711,13 +620,13 @@ func GenerateLengthInvoker(impl Queue) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeSend struct {
-    fn func(context.Context,*queue.SendRequest) *FutureSend
+    fn func(context.Context,*SendRequest) *FutureSend
 }
 
 func (t *invokeSend) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx queue.SendRequest and 'SendRequest{}' why empty?
-    in:=&queue.SendRequest{}
+    in:=&SendRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

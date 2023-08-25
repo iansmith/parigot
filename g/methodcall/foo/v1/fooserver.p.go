@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-"github.com/iansmith/parigot/g/methodcall/foo/v1" 
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -353,71 +353,32 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Foo) (*lib.Se
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//
-
-//checking input methodcall/foo/v1/foo.proto
-//AddMultiplyRequest
-
-// not equal methodcall/foo/v1/foo.proto
-
-
-// pkg?? methodcall/foo/v1/foo.proto, methodcall.foo.v1
-// foo.AddMultiplyRequest
-// iparam foo.AddMultiplyRequest
-// oparam foo.AddMultiplyResponse
-
-// equal for input type 
+// 
 
 //go:wasmimport foo add_multiply_
 func AddMultiply_(int32,int32,int32,int32) int64
-func AddMultiplyHost(ctx context.Context,inPtr *foo.AddMultiplyRequest) *FutureAddMultiply {
-	outProtoPtr := (*foo.AddMultiplyResponse)(nil)
+func AddMultiplyHost(ctx context.Context,inPtr *AddMultiplyRequest) *FutureAddMultiply {
+	outProtoPtr := (*AddMultiplyResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddMultiply_)
 	f:=NewFutureAddMultiply()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input methodcall/foo/v1/foo.proto
-//LucasSequenceRequest
-
-// not equal methodcall/foo/v1/foo.proto
-
-
-// pkg?? methodcall/foo/v1/foo.proto, methodcall.foo.v1
-// foo.LucasSequenceRequest
-// iparam foo.LucasSequenceRequest
-// oparam foo.LucasSequenceResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport foo lucas_sequence_
 func LucasSequence_(int32,int32,int32,int32) int64
-func LucasSequenceHost(ctx context.Context,inPtr *foo.LucasSequenceRequest) *FutureLucasSequence {
-	outProtoPtr := (*foo.LucasSequenceResponse)(nil)
+func LucasSequenceHost(ctx context.Context,inPtr *LucasSequenceRequest) *FutureLucasSequence {
+	outProtoPtr := (*LucasSequenceResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LucasSequence_)
 	f:=NewFutureLucasSequence()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}
-
-//checking input methodcall/foo/v1/foo.proto
-//WritePiRequest
-
-// not equal methodcall/foo/v1/foo.proto
-
-
-// pkg?? methodcall/foo/v1/foo.proto, methodcall.foo.v1
-// foo.WritePiRequest
-// iparam foo.WritePiRequest
-// oparam foo.WritePiResponse
-
-// equal for input type 
+} 
 
 //go:wasmimport foo write_pi_
 func WritePi_(int32,int32,int32,int32) int64
-func WritePiHost(ctx context.Context,inPtr *foo.WritePiRequest) *FutureWritePi {
-	outProtoPtr := (*foo.WritePiResponse)(nil)
+func WritePiHost(ctx context.Context,inPtr *WritePiRequest) *FutureWritePi {
+	outProtoPtr := (*WritePiResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, WritePi_)
 	f:=NewFutureWritePi()
 	f.CompleteMethod(ctx,ret,raw)
@@ -425,13 +386,13 @@ func WritePiHost(ctx context.Context,inPtr *foo.WritePiRequest) *FutureWritePi {
 }  
 
 // This is interface for invocation.
+
 type invokeAddMultiply struct {
-    fn func(context.Context,*foo.AddMultiplyRequest) *FutureAddMultiply
+    fn func(context.Context,*AddMultiplyRequest) *FutureAddMultiply
 }
 
 func (t *invokeAddMultiply) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx foo.AddMultiplyRequest and 'AddMultiplyRequest{}' why empty?
-    in:=&foo.AddMultiplyRequest{}
+    in:=&AddMultiplyRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())
@@ -446,8 +407,9 @@ func GenerateAddMultiplyInvoker(impl Foo) future.Invoker {
 }
 
 // This is interface for invocation.
+
 type invokeLucasSequence struct {
-    fn func(context.Context,*foo.LucasSequenceRequest) *FutureLucasSequence
+    fn func(context.Context,*LucasSequenceRequest) *FutureLucasSequence
 }
 
 func (t *invokeLucasSequence) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
@@ -456,20 +418,20 @@ func (t *invokeLucasSequence) Invoke(ctx context.Context,a *anypb.Any) future.Co
 }
 
 func GenerateLucasSequenceInvoker(impl Foo) future.Invoker {
-	x:=func(ctx context.Context,_ *foo.LucasSequenceRequest) *FutureLucasSequence {
+	x:=func(ctx context.Context,_ *LucasSequenceRequest) *FutureLucasSequence {
 		return impl.LucasSequence(ctx)
 	}
 	return &invokeLucasSequence{fn:x} 
 }
 
 // This is interface for invocation.
+
 type invokeWritePi struct {
-    fn func(context.Context,*foo.WritePiRequest) *FutureWritePi
+    fn func(context.Context,*WritePiRequest) *FutureWritePi
 }
 
 func (t *invokeWritePi) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx foo.WritePiRequest and '' why empty?
-    in:=&foo.WritePiRequest{}
+    in:=&WritePiRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

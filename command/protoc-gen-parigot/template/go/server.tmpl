@@ -63,7 +63,7 @@ func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}
 			readyResult.Set(true)			
 			return
 		}
-		slog.Error("Unable to start {{.ProtoPackage}}.{{$svcCamel}}, Ready returned false")
+		slog.Error("Unable to start {{.GetProtoPackage}}.{{$svcCamel}}, Ready returned false")
 		readyResult.Set(false)
 	})
 
@@ -257,7 +257,7 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 
 // Locate finds a reference to the client interface of {{$svc}}.  
 func Locate{{$svcDiff}}(ctx context.Context,sid id.ServiceId) (Client{{$svcDiff}},syscall.KernelErr) {
-    cs, kerr:=client.LocateDynamic(ctx, "{{.ProtoPackage}}","{{$svc}}", sid)
+    cs, kerr:=client.LocateDynamic(ctx, "{{.GetProtoPackage}}","{{$svc}}", sid)
     if kerr!=syscall.KernelErr_NoError{
         return nil, kerr
     }
@@ -269,7 +269,7 @@ func Locate{{$svcDiff}}(ctx context.Context,sid id.ServiceId) (Client{{$svcDiff}
 func MustLocate{{$svcDiff}}(ctx context.Context, sid id.ServiceId) Client{{$svcDiff}} {
     result, err:=Locate{{$svcDiff}}(ctx, sid)
     name:=syscall.KernelErr_name[int32(err)]
-    normal:="unable to locate {{.ProtoPackage}}.{{$svc}}:"+name
+    normal:="unable to locate {{.GetProtoPackage}}.{{$svc}}:"+name
     if err!=0 {
         if err == syscall.KernelErr_NotRequired {
             slog.Error("service was located, but it was not required")
@@ -283,7 +283,7 @@ func MustLocate{{$svcDiff}}(ctx context.Context, sid id.ServiceId) Client{{$svcD
 
 func Register{{$svcDiff}}() (id.ServiceId, syscall.KernelErr){
     req := &syscall.RegisterRequest{}
-	debugName:=fmt.Sprintf("%s.%s","{{.ProtoPackage}}","{{$svc}}")
+	debugName:=fmt.Sprintf("%s.%s","{{.GetProtoPackage}}","{{$svc}}")
 	req.HostId = syscallguest.CurrentHostId().Marshal()
 	req.DebugName = debugName
 
@@ -301,29 +301,29 @@ func Register{{$svcDiff}}() (id.ServiceId, syscall.KernelErr){
 func MustRegister{{$svcDiff}}() (context.Context,id.ServiceId) {
     sid, err:=Register{{$svcDiff}}()
     if err!=syscall.KernelErr_NoError {
-        slog.Error("unable to register","package","{{.ProtoPackage}}","service name","{{$svc}}")
+        slog.Error("unable to register","package","{{.GetProtoPackage}}","service name","{{$svc}}")
         panic("unable to register "+"{{$svc}}")
     }
     return context.Background(), sid
 }
 
 func MustRequire{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1(ctx, "{{.ProtoPackage}}","{{$svc}}",sid)
+    _, err:=lib.Require1(ctx, "{{.GetProtoPackage}}","{{$svc}}",sid)
     if err!=syscall.KernelErr_NoError {
         if err==syscall.KernelErr_DependencyCycle{
-            slog.Error("unable to require because it creates a dependcy loop","package","{{.ProtoPackage}}","service name","{{$svc}}","error",syscall.KernelErr_name[int32(err)])
-            panic("require {{.ProtoPackage}}.{{$svc}} creates a dependency loop")
+            slog.Error("unable to require because it creates a dependcy loop","package","{{.GetProtoPackage}}","service name","{{$svc}}","error",syscall.KernelErr_name[int32(err)])
+            panic("require {{.GetProtoPackage}}.{{$svc}} creates a dependency loop")
         }
-        slog.Error("unable to require","package","{{.ProtoPackage}}","service name","{{$svc}}","error",syscall.KernelErr_name[int32(err)])
-        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
+        slog.Error("unable to require","package","{{.GetProtoPackage}}","service name","{{$svc}}","error",syscall.KernelErr_name[int32(err)])
+        panic("not able to require {{.GetProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
     }
 }
 
 func MustExport{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Export1(ctx,"{{.ProtoPackage}}","{{$svc}}",sid)
+    _, err:=lib.Export1(ctx,"{{.GetProtoPackage}}","{{$svc}}",sid)
     if err!=syscall.KernelErr_NoError{
-        slog.Error("unable to export","package","{{.ProtoPackage}}","service name","{{$svc}}")
-        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
+        slog.Error("unable to export","package","{{.GetProtoPackage}}","service name","{{$svc}}")
+        panic("not able to export {{.GetProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
     }
 }
 
@@ -359,25 +359,14 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 // implement everything on the guest side).
 //
 
-{{- $protoPkg:=.GetParent.GetName }}
+{{- $protoPkg:=.GetParent.GetPackage }}
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 
-//checking input {{$protoPkg}}
-//{{.InputParam.CGType.CompositeType.GetName}}
-{{if ne $protoPkg .InputParam.CGType.CompositeType.GetName }}
-// not equal {{$protoPkg}}
-{{ $iParam:=.InputParam.CGType.String $protoPkg}}
-{{ $oParam:=.OutputParam.CGType.String $protoPkg}}
-// pkg?? {{$protoPkg}}, {{.ProtoPackage}}
-// {{$iParam}}
-// iparam {{$iParam}}
-// oparam {{$oParam}}
-{{end}}
-// equal for input type
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- $myPkg:=.InputParam.CGType.CompositeType.GetProtoPackage}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 
 
 {{- $hostFuncName:= $methCamel}}
@@ -401,18 +390,19 @@ func {{$hostFuncName}}{{$svcDiff}}Host(ctx context.Context,inPtr *{{$iParam}}) *
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
-{{- $iParam:=.InputParam.CGType.StringNotInProto}}
-{{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+{{- $myPkg:=.InputParam.CGType.CompositeType.GetProtoPackage}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- $inParamDecl:=call .FuncChoice.InParamDecl .InputCodeNeeded .OutputCodeNeeded false false .}}
 
 // This is interface for invocation.
+
 type invoke{{$svcDiff}}{{$methCamel}} struct {
     fn func(context.Context,*{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 }
 
 func (t *invoke{{$svcDiff}}{{$methCamel}}) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
 {{- if .InputCodeNeeded }}
-	// xxx {{$iParam}} and '{{$inParamDecl}}' why empty?
     in:=&{{$iParam}}{}
     err:=a.UnmarshalTo(in)
     if err!=nil {

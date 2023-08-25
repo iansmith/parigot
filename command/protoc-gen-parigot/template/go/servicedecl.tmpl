@@ -51,13 +51,14 @@ import(
 // {{$svcCamel}} from {{$file}}
 //
 //service interface
+{{- $protoPkg:=.GetParent.GetPackage }}
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $iParam:=.InputParam.CGType.String $package}}
-{{- $oParam:=.OutputParam.CGType.String $package}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- if .InputCodeNeeded }}
     {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 
@@ -72,8 +73,8 @@ type Client{{$svcDiff}} interface {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $iParam:=.InputParam.CGType.String $package}}
-{{- $oParam:=.OutputParam.CGType.String $package}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- if .InputCodeNeeded }}
     {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 

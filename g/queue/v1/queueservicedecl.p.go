@@ -7,10 +7,7 @@ package queue
 
 
 import(
-    "context"
-
-    "github.com/iansmith/parigot/g/queue/v1"
-  
+    "context" 
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -31,24 +28,24 @@ import(
 //
 //service interface
 type Queue interface {
-    CreateQueue(ctx context.Context,in *queue.CreateQueueRequest) *FutureCreateQueue  
-    Locate(ctx context.Context,in *queue.LocateRequest) *FutureLocate  
-    DeleteQueue(ctx context.Context,in *queue.DeleteQueueRequest) *FutureDeleteQueue  
-    Receive(ctx context.Context,in *queue.ReceiveRequest) *FutureReceive  
-    MarkDone(ctx context.Context,in *queue.MarkDoneRequest) *FutureMarkDone  
-    Length(ctx context.Context,in *queue.LengthRequest) *FutureLength  
-    Send(ctx context.Context,in *queue.SendRequest) *FutureSend   
+    CreateQueue(ctx context.Context,in *CreateQueueRequest) *FutureCreateQueue  
+    Locate(ctx context.Context,in *LocateRequest) *FutureLocate  
+    DeleteQueue(ctx context.Context,in *DeleteQueueRequest) *FutureDeleteQueue  
+    Receive(ctx context.Context,in *ReceiveRequest) *FutureReceive  
+    MarkDone(ctx context.Context,in *MarkDoneRequest) *FutureMarkDone  
+    Length(ctx context.Context,in *LengthRequest) *FutureLength  
+    Send(ctx context.Context,in *SendRequest) *FutureSend   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    CreateQueue(ctx context.Context,in *queue.CreateQueueRequest) *FutureCreateQueue  
-    Locate(ctx context.Context,in *queue.LocateRequest) *FutureLocate  
-    DeleteQueue(ctx context.Context,in *queue.DeleteQueueRequest) *FutureDeleteQueue  
-    Receive(ctx context.Context,in *queue.ReceiveRequest) *FutureReceive  
-    MarkDone(ctx context.Context,in *queue.MarkDoneRequest) *FutureMarkDone  
-    Length(ctx context.Context,in *queue.LengthRequest) *FutureLength  
-    Send(ctx context.Context,in *queue.SendRequest) *FutureSend   
+    CreateQueue(ctx context.Context,in *CreateQueueRequest) *FutureCreateQueue  
+    Locate(ctx context.Context,in *LocateRequest) *FutureLocate  
+    DeleteQueue(ctx context.Context,in *DeleteQueueRequest) *FutureDeleteQueue  
+    Receive(ctx context.Context,in *ReceiveRequest) *FutureReceive  
+    MarkDone(ctx context.Context,in *MarkDoneRequest) *FutureMarkDone  
+    Length(ctx context.Context,in *LengthRequest) *FutureLength  
+    Send(ctx context.Context,in *SendRequest) *FutureSend   
 }
 
 // Client difference from Queue: Ready() 
