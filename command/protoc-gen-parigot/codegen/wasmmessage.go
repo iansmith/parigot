@@ -88,10 +88,6 @@ func (m *WasmMessage) GetFullName() string {
 	return m.GetParent().GetPackage() + "." + m.GetWasmMessageName()
 }
 
-func (m *WasmMessage) NotGoogleMessage() bool {
-	return m.GetProtoPackage() != "google.protobuf" && m.GetGoPackage() != "google.golang.org/protobuf/types/descriptorpb)"
-}
-
 func (m *WasmMessage) Collect() {
 	m.field = make([]*WasmField, len(m.DescriptorProto.GetField()))
 	for j, f := range m.DescriptorProto.GetField() {

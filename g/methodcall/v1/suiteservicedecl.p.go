@@ -7,7 +7,10 @@ package methodcall
 
 
 import(
-    "context" 
+    "context"
+
+    "github.com/iansmith/parigot/g/methodcall/v1"
+  
 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
     "github.com/iansmith/parigot/lib/go"  
@@ -28,14 +31,14 @@ import(
 //
 //service interface
 type MethodCallSuite interface {
-    Exec(ctx context.Context,in *ExecRequest) *FutureExec  
-    SuiteReport(ctx context.Context,in *SuiteReportRequest) *FutureSuiteReport   
+    Exec(ctx context.Context,in *methodcall.ExecRequest) *FutureExec  
+    SuiteReport(ctx context.Context,in *methodcall.SuiteReportRequest) *FutureSuiteReport   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
 type Client interface {
-    Exec(ctx context.Context,in *ExecRequest) *FutureExec  
-    SuiteReport(ctx context.Context,in *SuiteReportRequest) *FutureSuiteReport   
+    Exec(ctx context.Context,in *methodcall.ExecRequest) *FutureExec  
+    SuiteReport(ctx context.Context,in *methodcall.SuiteReportRequest) *FutureSuiteReport   
 }
 
 // Client difference from MethodCallSuite: Ready() 

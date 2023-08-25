@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
-{{- range $j,$i := .import  }}
+{{ range $j,$i := .import  }}
 	{{- $j -}}
 {{- end}} {{/* imports */}}
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
@@ -359,11 +359,26 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 // implement everything on the guest side).
 //
 
+{{- $protoPkg:=.GetParent.GetName }}
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
+
+//checking input {{$protoPkg}}
+//{{.InputParam.CGType.CompositeType.GetName}}
+{{if ne $protoPkg .InputParam.CGType.CompositeType.GetName }}
+// not equal {{$protoPkg}}
+{{ $iParam:=.InputParam.CGType.String $protoPkg}}
+{{ $oParam:=.OutputParam.CGType.String $protoPkg}}
+// pkg?? {{$protoPkg}}, {{.ProtoPackage}}
+// {{$iParam}}
+// iparam {{$iParam}}
+// oparam {{$oParam}}
+{{end}}
+// equal for input type
 {{- $iParam:=.InputParam.CGType.StringNotInProto}}
 {{- $oParam:=.OutputParam.CGType.StringNotInProto}}
+
 
 {{- $hostFuncName:= $methCamel}}
 {{- $hostFuncNameSnake:= $methSnake}}

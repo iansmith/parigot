@@ -14,7 +14,9 @@ import (
 	"log"
 	"log/slog"
 	"runtime/debug"
-    "unsafe" 
+    "unsafe"
+
+"github.com/iansmith/parigot/g/httpconnector/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -317,12 +319,25 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//
+
+//checking input frontdoor/v1/frontdoor.proto
+//HandleRequest
+
+// not equal frontdoor/v1/frontdoor.proto
+
+
+// pkg?? frontdoor/v1/frontdoor.proto, frontdoor.v1
+// httpconnector.HandleRequest
+// iparam httpconnector.HandleRequest
+// oparam httpconnector.HandleResponse
+
+// equal for input type 
 
 //go:wasmimport frontdoor handle_
 func Handle_(int32,int32,int32,int32) int64
-func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
-	outProtoPtr := (*HandleResponse)(nil)
+func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureHandle {
+	outProtoPtr := (*httpconnector.HandleResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
 	f:=NewFutureHandle()
 	f.CompleteMethod(ctx,ret,raw)
@@ -331,12 +346,12 @@ func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
 
 // This is interface for invocation.
 type invokeHandle struct {
-    fn func(context.Context,*HandleRequest) *FutureHandle
+    fn func(context.Context,*httpconnector.HandleRequest) *FutureHandle
 }
 
 func (t *invokeHandle) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx HandleRequest and 'HandleRequest{}' why empty?
-    in:=&HandleRequest{}
+	// xxx httpconnector.HandleRequest and 'httpconnector.HandleRequest{}' why empty?
+    in:=&httpconnector.HandleRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {
         slog.Error("unmarshal inside Invoke() failed","error",err.Error())

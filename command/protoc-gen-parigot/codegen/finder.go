@@ -258,4 +258,11 @@ func AddFileContentToFinder(f Finder, pr *descriptorpb.FileDescriptorProto, lang
 		svc := NewWasmService(pr, s, lang, f)
 		f.AddServiceType(s.GetName(), pr.GetPackage(), pr.GetOptions().GetGoPackage(), svc)
 	}
+	for _, s := range f.Service() {
+		meth := s.GetWasmMethod()
+		for _, m := range meth {
+			log.Printf("---> %s,%s", s.GetWasmServiceName(), m.WasmMethodName())
+		}
+
+	}
 }
