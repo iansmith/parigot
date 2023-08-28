@@ -9,19 +9,14 @@ package bar
 import(
     "context" 
 
-    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
     "github.com/iansmith/parigot/lib/go"  
+    syscall "github.com/iansmith/parigot/g/syscall/v1" 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
-    syscall "github.com/iansmith/parigot/g/syscall/v1" 
-    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
-
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
-
-
-
 )  
 //
 // Bar from methodcall/bar/v1/bar.proto

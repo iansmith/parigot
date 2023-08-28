@@ -28,7 +28,7 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	binding, fut, ctx, sid := simple.Init([]lib.MustRequireFunc{}, impl)
+	binding, fut, ctx, sid := simple.Init([]lib.MustRequireFunc{http.MustRequire}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 

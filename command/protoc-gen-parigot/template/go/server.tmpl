@@ -21,16 +21,14 @@ import (
 {{- end}} {{/* imports */}}
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
+	"github.com/iansmith/parigot/api/shared/id"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/api/shared/id"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
-	"github.com/iansmith/parigot/lib/go/client"
-
-	"google.golang.org/protobuf/types/known/anypb"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"google.golang.org/protobuf/proto"
-
+	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/iansmith/parigot/lib/go/client"
 )
 var _ =  unsafe.Sizeof([]byte{})
 
@@ -53,6 +51,7 @@ var _ =  unsafe.Sizeof([]byte{})
 {{- $svcDiff = $svcCamel }}
 {{- $svcDiffFL = $svcCamelFL }}
 {{end}} {{/* end of need differentiation */}}
+
 func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -73,7 +72,11 @@ func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}
 // Note that  Init{{$svcDiff}} returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
+
+{{- if .GetNoMethod}}
 func Init{{$svcDiff}}(require []lib.MustRequireFunc, impl {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+{{- else}}
+{{- end }} {{/* end of GetNoMethod */}}
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister{{$svcDiff}}()
@@ -212,6 +215,8 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 
 }
 
+{{if .NoMethod}}
+{{else}}
 func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
@@ -246,6 +251,7 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 {{- end }} {{/* end of range over methods */}}
 	return smmap,syscall.KernelErr_NoError
 }
+{{end}} {{/* no method*/}}
 
 {{- /* range over methods again to do the generated refs */}}
 {{- $goname:=packageToGoName .GetParent.Package}}
@@ -327,11 +333,14 @@ func MustExport{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl  {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+{{if .NoMethod}}
+{{else}}
 	smmap, err:={{$svcDiffFL}}bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+{{end}}{{/*no methods*/}}
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -341,7 +350,11 @@ func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$sv
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+{{if .NoMethod}}
+    return nil,fut,syscall.KernelErr_NoError
+{{else}}
     return smmap,fut,syscall.KernelErr_NoError
+{{end}}
 }
 
 func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -360,6 +373,8 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 //
 
 {{- $protoPkg:=.GetParent.GetPackage }}
+{{- if .NoMethod }} 
+{{- else }} {{/* other side of if nomethod */}}
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
@@ -386,6 +401,7 @@ func {{$hostFuncName}}{{$svcDiff}}Host(ctx context.Context,inPtr *{{$iParam}}) *
 	return f
 }
 {{- end }}  {{/* end range over methods */}}
+{{- end}} {{/* if .NoMethod */}} 
 
 {{- range .GetWasmMethod }}
 {{- $methSnake:=toSnakeCase .WasmMethodName}}
