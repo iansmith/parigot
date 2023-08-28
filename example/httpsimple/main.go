@@ -38,7 +38,8 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	_, fut, ctx, sid := frontdoor.Init([]lib.MustRequireFunc{simple.MustRequire}, impl)
+	_, fut, ctx, sid :=
+		frontdoor.Init([]lib.MustRequireFunc{simple.MustRequire, httpconnector.MustRequire}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 

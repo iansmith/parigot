@@ -19,19 +19,18 @@ import (
  
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
+	"github.com/iansmith/parigot/api/shared/id"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/api/shared/id"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
-	"github.com/iansmith/parigot/lib/go/client"
-
-	"google.golang.org/protobuf/types/known/anypb"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"google.golang.org/protobuf/proto"
-
+	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/iansmith/parigot/lib/go/client"
 )
 var _ =  unsafe.Sizeof([]byte{})
  
+
 func Launch(ctx context.Context, sid id.ServiceId, impl File) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -52,6 +51,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl File) *future.Base[bool]
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
+
 func Init(require []lib.MustRequireFunc, impl File) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
@@ -190,6 +190,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	return syscall.KernelErr_NoError
 
 }
+
 
 func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
@@ -335,6 +336,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 		GenerateStatInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
+ 
 
 // Locate finds a reference to the client interface of file.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
@@ -408,11 +410,13 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchService(ctx context.Context, sid id.ServiceId, impl  File) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+
 	smmap, err:=bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -422,7 +426,9 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.Servi
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+
     return smmap,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -438,7 +444,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.S
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//  
 
 //go:wasmimport file open_
 func Open_(int32,int32,int32,int32) int64
@@ -518,7 +524,7 @@ func StatHost(ctx context.Context,inPtr *StatRequest) *FutureStat {
 	f:=NewFutureStat()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}  
+}   
 
 // This is interface for invocation.
 

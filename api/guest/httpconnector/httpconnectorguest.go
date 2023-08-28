@@ -18,8 +18,8 @@ var _ = unsafe.Sizeof([]byte{})
 var logger *slog.Logger
 
 func main() {
-	hCnt := &myConnector{}
-	binding, fut, ctx, sid := httpconnector.Init([]lib.MustRequireFunc{}, hCnt)
+	//hCnt := &myConnector{}
+	binding, fut, ctx, sid := httpconnector.Init([]lib.MustRequireFunc{}, nil)
 	logger = slog.New(guest.NewParigotHandler(sid))
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		logger.Info("httpconnector service guest side started correctly")
@@ -33,12 +33,4 @@ type myConnector struct{}
 func (_ *myConnector) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool] {
 	logger.Info("Ready reached in httpconnector service")
 	return future.NewBaseWithValue[bool](true)
-}
-
-func (_ *myConnector) Check(ctx context.Context, in *httpconnector.CheckRequest) *httpconnector.FutureCheck {
-	return httpconnector.CheckHost(ctx, in)
-}
-
-func (_ *myConnector) Handle(ctx context.Context, in *httpconnector.HandleRequest) *httpconnector.FutureHandle {
-	return httpconnector.HandleHost(ctx, in)
 }

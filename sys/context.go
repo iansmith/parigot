@@ -82,6 +82,7 @@ func (c *DeployContext) CreateAllProcess() error {
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
 		hid := id.NewHostId()
+		log.Printf("yyy -- looping on microservices %s,%s", name, hid.Short())
 		p, err := NewProcessFromMicroservice(c.engine, m, c, hid)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module '%s': %v", name, err)

@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"unsafe"
 
+	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/api/shared/id"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/g/http/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
@@ -14,26 +15,30 @@ import (
 
 var _ = unsafe.Sizeof([]byte{})
 
+var logger *slog.Logger
+
 func main() {
-	ctx := pcontext.NewContextWithContainer(context.Background(), "[httpguest]main")
 	h := &myHttpSvc{}
 
-	binding, fut, _ := http.Init(ctx, []lib.MustRequireFunc{}, h)
+	binding, fut, ctx, sid := http.Init([]lib.MustRequireFunc{}, h)
+	logger = slog.New(guest.NewParigotHandler(sid))
+
 	fut.Success(func(_ *syscall.LaunchResponse) {
-		pcontext.Infof(ctx, "http service guest side started correctly")
+		logger.Info("http service guest side started correctly")
 	})
 
 	kerr := http.Run(ctx, binding, http.TimeoutInMillis, nil)
-	pcontext.Errorf(ctx, "error while waiting for http service calls: %s", syscall.KernelErr_name[int32(kerr)])
+	logger.Error("error while waiting for http service calls", "kernel error", syscall.KernelErr_name[int32(kerr)])
 }
 
 type myHttpSvc struct{}
 
 func (h *myHttpSvc) Ready(ctx context.Context, _ id.ServiceId) *future.Base[bool] {
-	pcontext.Debugf(ctx, "Ready reached in http service")
+	logger.Info("Ready reached in http service")
 	return future.NewBaseWithValue[bool](true)
 }
 
+/*
 // Call the real implementation of the Get method for the http service
 func (h *myHttpSvc) Get(ctx context.Context, in *http.GetRequest) *http.FutureGet {
 	return http.GetHost(ctx, in)
@@ -78,3 +83,4 @@ func (h *myHttpSvc) Patch(ctx context.Context, in *http.PatchRequest) *http.Futu
 func (h *myHttpSvc) Trace(ctx context.Context, in *http.TraceRequest) *http.FutureTrace {
 	return http.TraceHost(ctx, in)
 }
+*/

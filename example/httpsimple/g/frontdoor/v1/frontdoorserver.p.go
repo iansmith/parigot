@@ -19,19 +19,18 @@ import (
 "github.com/iansmith/parigot/g/httpconnector/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
+	"github.com/iansmith/parigot/api/shared/id"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/api/shared/id"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
-	"github.com/iansmith/parigot/lib/go/client"
-
-	"google.golang.org/protobuf/types/known/anypb"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"google.golang.org/protobuf/proto"
-
+	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/iansmith/parigot/lib/go/client"
 )
 var _ =  unsafe.Sizeof([]byte{})
  
+
 func Launch(ctx context.Context, sid id.ServiceId, impl Frontdoor) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -150,7 +149,6 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-	log.Printf("read one and call: %s,%s,%s",sid.Short(),mid.Short(),cid.Short())
 	//if mid.Equal(apishared.ExitMethod) {
 	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
 	//	os.Exit(51)
@@ -192,6 +190,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 
 }
 
+
 func bind(ctx context.Context,sid id.ServiceId, impl Frontdoor) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
@@ -217,6 +216,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Frontdoor) (*lib.ServiceMet
 		GenerateHandleInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
+ 
 
 // Locate finds a reference to the client interface of frontdoor.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
@@ -291,10 +291,12 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
 }
 
 func LaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+
 	smmap, err:=bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -304,7 +306,9 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*lib.
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+
     return smmap,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {

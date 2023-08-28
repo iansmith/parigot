@@ -19,20 +19,19 @@ import (
  
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
+	"github.com/iansmith/parigot/api/shared/id"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/api/shared/id"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
-	"github.com/iansmith/parigot/lib/go/client"
-
-	"google.golang.org/protobuf/types/known/anypb"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"google.golang.org/protobuf/proto"
-
+	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/iansmith/parigot/lib/go/client"
 )
 var _ =  unsafe.Sizeof([]byte{})
 
  
+
 func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -53,6 +52,7 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 // Note that  InitTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
+
 func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
@@ -192,6 +192,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 
 }
 
+
 func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
@@ -234,6 +235,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 		GenerateTestStartInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
+ 
 
 // Locate finds a reference to the client interface of test.  
 func LocateTest(ctx context.Context,sid id.ServiceId) (ClientTest,syscall.KernelErr) {
@@ -307,11 +309,13 @@ func MustExportTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl  Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+
 	smmap, err:=testbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -321,7 +325,9 @@ func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.S
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+
     return smmap,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -337,7 +343,7 @@ func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*l
 // Test<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//  
 
 //go:wasmimport test add_test_suiteTest_
 func AddTestSuite_(int32,int32,int32,int32) int64
@@ -357,7 +363,7 @@ func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
 	f:=NewFutureTestStart()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}  
+}   
 
 // This is interface for invocation.
 
@@ -402,6 +408,7 @@ func GenerateTestStartInvoker(impl Test) future.Invoker {
 } 
 
  
+
 func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -422,6 +429,7 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 // Note that  InitMethodCallSuite returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
+
 func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
@@ -561,6 +569,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 
 }
 
+
 func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
@@ -603,6 +612,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 		GenerateMethodCallSuiteSuiteReportInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
+ 
 
 // Locate finds a reference to the client interface of method_call_suite.  
 func LocateMethodCallSuite(ctx context.Context,sid id.ServiceId) (ClientMethodCallSuite,syscall.KernelErr) {
@@ -676,11 +686,13 @@ func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+
 	smmap, err:=methodCallSuitebind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -690,7 +702,9 @@ func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl Me
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+
     return smmap,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -706,7 +720,7 @@ func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, imp
 // MethodCallSuite<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//  
 
 //go:wasmimport test execMethodCallSuite_
 func Exec_(int32,int32,int32,int32) int64
@@ -726,7 +740,7 @@ func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportReques
 	f:=NewFutureMethodCallSuiteSuiteReport()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}  
+}   
 
 // This is interface for invocation.
 
@@ -771,6 +785,7 @@ func GenerateMethodCallSuiteSuiteReportInvoker(impl MethodCallSuite) future.Invo
 } 
 
  
+
 func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -791,6 +806,7 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 // Note that  InitUnderTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
+
 func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
@@ -930,6 +946,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 
 }
 
+
 func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap, syscall.KernelErr) {
 	smmap:=lib.NewServiceMethodMap()
 	var mid id.MethodId
@@ -955,6 +972,7 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 		GenerateUnderTestExecInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
+ 
 
 // Locate finds a reference to the client interface of under_test.  
 func LocateUnderTest(ctx context.Context,sid id.ServiceId) (ClientUnderTest,syscall.KernelErr) {
@@ -1028,11 +1046,13 @@ func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl  UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+
 	smmap, err:=underTestbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
 	}
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -1042,7 +1062,9 @@ func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTes
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
+
     return smmap,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -1058,7 +1080,7 @@ func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl Unde
 // UnderTest<methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-// 
+//  
 
 //go:wasmimport test exec_under_testUnderTest_
 func ExecUnderTest_(int32,int32,int32,int32) int64
@@ -1068,7 +1090,7 @@ func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureU
 	f:=NewFutureUnderTestExec()
 	f.CompleteMethod(ctx,ret,raw)
 	return f
-}  
+}   
 
 // This is interface for invocation.
 

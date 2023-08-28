@@ -3,8 +3,6 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"plugin"
 
 	"github.com/iansmith/parigot/eng"
@@ -37,24 +35,4 @@ func LoadAndReturnInit(ctx context.Context, pluginPath, pluginSymbol, _ string) 
 	}
 	initFn := sym.(*ParigotInit)
 	return *initFn, nil
-}
-
-type Plog struct {
-	*log.Logger
-}
-
-func (k *Plog) Errorf(spec string, rest ...interface{}) {
-	k.Logger.Printf("ERR : "+spec, rest...)
-}
-func (k *Plog) Warnf(spec string, rest ...interface{}) {
-	k.Logger.Printf("WARN: "+spec, rest...)
-}
-func (k *Plog) Infof(spec string, rest ...interface{}) {
-	k.Logger.Printf("INFO: "+spec, rest...)
-}
-
-func NewPluginLogger(pluginName string) *Plog {
-	return &Plog{
-		Logger: log.New(os.Stdout, pluginName+":", log.Default().Flags()),
-	}
 }

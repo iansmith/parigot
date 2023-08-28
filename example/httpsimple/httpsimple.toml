@@ -9,6 +9,7 @@
 ParigotLibPath="/workspaces/parigot/build/syscall.so"
 ParigotLibSymbol="ParigotInitialize"
 Timezone = "US/Eastern"
+
 [config.dev.Timeout]
 Startup = 100 # millis
 Complete = 20 # millis
@@ -25,3 +26,18 @@ WasmPath="/workspaces/parigot/example/httpsimple/build/frontdoor.p.wasm"
 Arg=[]
 Env=[]
 
+##
+## our dependencies
+##
+
+[config.dev.microservice.httpconnector]
+WasmPath="/workspaces/parigot/build/httpconn.p.wasm"
+PluginPath="/workspaces/parigot/build/httpconn.so"
+PluginSymbol="ParigotInitialize"
+Arg=[]
+Env=[]
+
+[config.dev.microservice.http]
+WasmPath="/workspaces/parigot/build/http.p.wasm"
+Arg=[]
+Env=[]

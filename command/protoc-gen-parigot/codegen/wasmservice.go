@@ -61,6 +61,10 @@ func (w *WasmService) GetWasmServiceName() string {
 	return w.wasmServiceName
 }
 
+func (w *WasmService) IsWasmServiceReverseAPI() bool {
+	return isWasmServiceReverseAPI(w.ServiceDescriptorProto.GetOptions().String())
+}
+
 // GetWasmServiceErrId gets the string that is the type name
 // of the return type of this service.  It will be
 // <serviceName>Err.  It caches this value after it is
@@ -79,6 +83,11 @@ func (w *WasmService) GetWasmServiceErrId() string {
 // GetWasmMethod returns all the wasm methods contained inside this service.
 func (s *WasmService) GetWasmMethod() []*WasmMethod {
 	return s.method
+}
+
+// NoMethod returns true if the length of the slice of Methods is zero.
+func (s *WasmService) NoMethod() bool {
+	return len(s.GetWasmMethod()) == 0 || s.IsWasmServiceReverseAPI()
 }
 
 // GetParent returns the parent of this wasm service, which is a descriptor

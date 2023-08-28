@@ -44,18 +44,21 @@ type ParigotRequestWrapper interface {
 
 func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	//????
-	//e.AddSupportedFunc(ctx, "httpconnector", "check_", checkHost)
+	//e.AddSupportedFunc(ctx, "httpconnector", "handle_", handleHost)
 
 	// setup logger
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})).With("plugin", "httpconnector")
+	logger.Info("about to create connector")
 
 	// create the connector
 	connector = newHtttpConnectorImpl()
 
 	// run the loop that is listening on the http port (9000)
+	logger.Info("about to run connector")
 	go runHttpListener(connector)
 
 	kernel.K.AddReceiver(connector)
+	logger.Info("httpconnecter Init() complete")
 
 	return true
 }
@@ -84,6 +87,7 @@ func runHttpListener(connector *httpConnectorImpl) {
 			}
 		}
 	}
+	logger.Info("setting up the handler")
 	http.HandleFunc("/", h1)
 
 	slog.Info("start the HTTP listerner")

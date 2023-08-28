@@ -19,19 +19,18 @@ import (
  
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
+	"github.com/iansmith/parigot/api/shared/id"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	"github.com/iansmith/parigot/api/shared/id"
-	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/lib/go/future"
-	"github.com/iansmith/parigot/lib/go/client"
-
-	"google.golang.org/protobuf/types/known/anypb"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"google.golang.org/protobuf/proto"
-
+	"google.golang.org/protobuf/types/known/anypb"
+	"github.com/iansmith/parigot/lib/go/client"
 )
 var _ =  unsafe.Sizeof([]byte{})
  
+
 func Launch(ctx context.Context, sid id.ServiceId, impl HttpConnector) *future.Base[bool] {
 
 	readyResult:=future.NewBase[bool]()
@@ -191,48 +190,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 
 }
 
-func bind(ctx context.Context,sid id.ServiceId, impl HttpConnector) (*lib.ServiceMethodMap, syscall.KernelErr) {
-	smmap:=lib.NewServiceMethodMap()
-	var mid id.MethodId
-	var bindReq *syscall.BindMethodRequest
-	var resp *syscall.BindMethodResponse
-	var err syscall.KernelErr
-//
-// httpconnector.v1.HttpConnector.Check
-//
 
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Check"
-	resp, err=syscallguest.BindMethod(ctx, bindReq)
-	if err!=syscall.KernelErr_NoError {
-		return nil, err
-	}
-	mid=id.UnmarshalMethodId(resp.GetMethodId())
-
-	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"HttpConnector","Check",
-		GenerateCheckInvoker(impl))
-//
-// httpconnector.v1.HttpConnector.Handle
-//
-
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "Handle"
-	resp, err=syscallguest.BindMethod(ctx, bindReq)
-	if err!=syscall.KernelErr_NoError {
-		return nil, err
-	}
-	mid=id.UnmarshalMethodId(resp.GetMethodId())
-
-	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"HttpConnector","Handle",
-		GenerateHandleInvoker(impl)) 
-	return smmap,syscall.KernelErr_NoError
-}
+ 
 
 // Locate finds a reference to the client interface of http_connector.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
@@ -307,10 +266,8 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
 }
 
 func LaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
-	smmap, err:=bind(ctx,sid, impl)
-	if err!=0{
-		return  nil,nil,syscall.KernelErr(err)
-	}
+
+
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
 		ServiceId: sid.Marshal(),
@@ -320,7 +277,9 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector) (*
 	}
 	fut:=syscallguest.Launch(ctx,req)
 
-    return smmap,fut,syscall.KernelErr_NoError
+
+    return nil,fut,syscall.KernelErr_NoError
+
 }
 
 func MustLaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
@@ -338,16 +297,6 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector
 // implement everything on the guest side).
 // 
 
-//go:wasmimport httpconnector check_
-func Check_(int32,int32,int32,int32) int64
-func CheckHost(ctx context.Context,inPtr *CheckRequest) *FutureCheck {
-	outProtoPtr := (*CheckResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Check_)
-	f:=NewFutureCheck()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
 //go:wasmimport httpconnector handle_
 func Handle_(int32,int32,int32,int32) int64
 func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
@@ -357,27 +306,6 @@ func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
 	f.CompleteMethod(ctx,ret,raw)
 	return f
 }  
-
-// This is interface for invocation.
-
-type invokeCheck struct {
-    fn func(context.Context,*CheckRequest) *FutureCheck
-}
-
-func (t *invokeCheck) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-    in:=&CheckRequest{}
-    err:=a.UnmarshalTo(in)
-    if err!=nil {
-        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
-        return nil
-    }
-    return t.fn(ctx,in) 
-
-}
-
-func GenerateCheckInvoker(impl HttpConnector) future.Invoker {
-	return &invokeCheck{fn:impl.Check} 
-}
 
 // This is interface for invocation.
 
