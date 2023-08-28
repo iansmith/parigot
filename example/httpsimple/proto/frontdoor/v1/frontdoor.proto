@@ -10,10 +10,6 @@ service Frontdoor {
   // This option binds the type "FrontdoorErr" to this Frontdoor service and
   // code generated will use FrontdoorErr as the type for error retuns.
   option (protosupport.v1.error_id_name) = "FrontdoorErr";
-
-  // Handle is the place that you can do various preprocessing before
-  // you delegate the payload to other service(s).
-  rpc Handle(httpconnector.v1.HandleRequest) returns (httpconnector.v1.HandleResponse);
 }
 
 // The first four values of any error enum are to be as shown below.

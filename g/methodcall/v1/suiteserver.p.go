@@ -51,8 +51,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) *future
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-
-func Init(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+func Init(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister()
@@ -76,7 +75,8 @@ func Run(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("Run: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run MethodCallSuite: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -159,7 +159,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("MethodCallSuite, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -308,8 +309,8 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
+func LaunchService(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
@@ -328,8 +329,8 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite)
     return smmap,fut,syscall.KernelErr_NoError
 
 }
-
 func MustLaunchService(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])

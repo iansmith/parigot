@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -18,6 +19,7 @@ type serviceSet map[string]struct{}
 type hostSet map[string]struct{}
 
 type ns struct {
+	lock           sync.Mutex
 	hostStrToId    map[string]id.HostId
 	serviceStrToId map[string]id.ServiceId
 	serviceToHost  map[string]id.HostId
@@ -55,6 +57,8 @@ func NewSimpleNameServer(net chan proto.Message) *ns {
 // AllHosts() returns all the known hosts.  This is useful for a
 // broadcast message, like Exit.
 func (n *ns) AllHosts() []id.HostId {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	result := make([]id.HostId, len(n.hostStrToId))
 	count := 0
 	for _, h := range n.hostStrToId {
@@ -67,6 +71,8 @@ func (n *ns) AllHosts() []id.HostId {
 // AddHost can be called by hand if there is a host we need to know about.
 // More frequently, it is automatically called by the use the Register() call.
 func (n *ns) AddHost(h id.HostId) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	s := h.String()
 	_, ok := n.hostStrToId[s]
 	if !ok {
@@ -77,6 +83,8 @@ func (n *ns) AddHost(h id.HostId) {
 // FindHost will return the Host that is running a particular service.
 // If the service cannot be found, it returns the Zero value of host.
 func (n *ns) FindHost(sid id.ServiceId) id.HostId {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	hid, ok := n.serviceToHost[sid.String()]
 	if !ok {
 		return id.HostIdZeroValue()
@@ -94,6 +102,8 @@ func (n *ns) FindHostChan(hid id.HostId) chan<- proto.Message {
 // for a particular service name. It returns zero value if it cannot
 // find the name.
 func (n *ns) PickService(fqn FQName) id.ServiceId {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	set, ok := n.serviceNameToSidSet[fqn.String()]
 	if !ok {
 		return id.ServiceIdZeroValue()
@@ -116,6 +126,11 @@ func (n *ns) In() chan proto.Message {
 // Register is called when any service registers. We copy in the host provided.
 func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelErr {
 	n.AddHost(hid)
+
+	// we have wait to lock because AddHost Locks
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
 	n.serviceToHost[sid.String()] = hid
 	return syscall.KernelErr_NoError
 }
@@ -123,6 +138,8 @@ func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelE
 // BindMethod is called when any service registers.  We are building the list
 // of known methods of a given service so we copy much of this info.
 func (n *ns) Bind(hid id.HostId, sid id.ServiceId, mid id.MethodId, methName string) syscall.KernelErr {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	methName = strings.TrimSpace(methName)
 	if methName == "" {
 		return syscall.KernelErr_IdDispatch
@@ -135,6 +152,8 @@ func (n *ns) Bind(hid id.HostId, sid id.ServiceId, mid id.MethodId, methName str
 }
 
 func (n *ns) Export(hid id.HostId, sid id.ServiceId, fqn FQName) syscall.KernelErr {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	allSvc, ok := n.serviceNameToSidSet[fqn.String()]
 	if !ok {
 		n.serviceNameToSidSet[fqn.String()] = []id.ServiceId{}
@@ -145,6 +164,8 @@ func (n *ns) Export(hid id.HostId, sid id.ServiceId, fqn FQName) syscall.KernelE
 }
 
 func (n *ns) MethodDetail(fqn FQName, methodName string) (id.HostId, id.ServiceId, id.MethodId, syscall.KernelErr) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	svc := n.PickService(fqn)
 	if svc.IsZeroValue() {
 		klog.Errorf("unable to find service for fully qualified name '%s'", fqn.String())
@@ -165,6 +186,8 @@ func (n *ns) MethodDetail(fqn FQName, methodName string) (id.HostId, id.ServiceI
 }
 
 func (n *ns) FindMethod(hid id.HostId, sid id.ServiceId, mid id.MethodId) string {
+	n.lock.Lock()
+	defer n.lock.Unlock()
 	key := keyOfThreeIds(hid, sid, mid)
 	return n.hostSvcMethodToName[key]
 }

@@ -3,7 +3,7 @@ package lib
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -160,16 +160,23 @@ func (s *ServiceMethodMap) Enable(sid id.ServiceId, mid id.MethodId) {
 // Func returns the Invoker associated with the sid and mid pair. If
 // either sid or mid cannot be found, it returns nil.
 func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoker {
-	m := s.forward[sid.String()]
-	if m == nil {
-		log.Printf("Func, no such service %s", sid.Short())
+	if s == nil {
+		slog.Warn("s in nil, so no service method map", "service ", sid.Short(), "method", mid.Short())
 		return nil
 	}
+	m := s.forward[sid.String()]
+
+	if m == nil {
+		slog.Info("Func, no such service", sid.Short(), "s.forward", fmt.Sprintf("%+v", s.forward))
+		return nil
+	}
+	slog.Info("service method map FUNC,found key in map", "s.forward", fmt.Sprintf("%+v", s.forward))
 	fn, ok := m[mid.String()]
 	if !ok {
-		log.Printf("Func, no such method %s", mid.Short())
+		slog.Info("Func, no such method", "method", mid.Short())
 		return nil
 	}
+	slog.Info("succeeded in finding the method in Func")
 	return fn
 }
 

@@ -1,6 +1,5 @@
 syntax ="proto3";
 import "protosupport/v1/protosupport.proto";
-import "http/v1/http.proto";
 package simple.v1;
 option go_package="simple/v1;simple";
 
@@ -9,8 +8,6 @@ service Simple {
   // Set the SimpleErr to be a parigot error.
   option (protosupport.v1.error_id_name) = "SimpleErr";
 
-	// Get should only retrieve data and should have no other effect.
-	rpc Get(http.v1.GetRequest) returns (http.v1.GetResponse);
 }
 
 

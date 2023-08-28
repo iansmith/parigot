@@ -309,21 +309,25 @@ func (s *starter) Bind(_ id.HostId, sid id.ServiceId, mid id.MethodId, methodNam
 // call Launch() before Locate() there is no issue with timing.  Launch blocks
 // until all dependencies are met.
 func (s *starter) Locate(req *syscall.LocateRequest, resp *syscall.LocateResponse) syscall.KernelErr {
-	sid := id.UnmarshalServiceId(req.GetCalledBy())
+	sid := id.ServiceIdEmptyValue()
+	if req.GetCalledBy() != nil {
+		sid = id.UnmarshalServiceId(req.GetCalledBy())
+	}
 	pkg := req.GetPackageName()
 	name := req.GetServiceName()
 	sMap, ok := s.pkgToServiceImpl[pkg]
-
-	if !s.checkAlreadyRequired(sid, pkg, name) {
-		klog.Errorf("service %s did not require service %s.%s but imports it", sid.Short(),
-			pkg, name)
-		return syscall.KernelErr_NotRequired
-	}
 
 	if !ok {
 		klog.Errorf("failed to find service that was requested in Locate (0): %s.%s", strings.ToUpper(pkg), name)
 		return syscall.KernelErr_NotFound
 	}
+
+	if !sid.IsEmptyValue() && !s.checkAlreadyRequired(sid, pkg, name) {
+		klog.Errorf("service %s did not require service %s.%s but imports it", sid.Short(),
+			pkg, name)
+		return syscall.KernelErr_NotRequired
+	}
+
 	target, ok := sMap[name]
 	if !ok {
 		klog.Errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, strings.ToUpper(name))

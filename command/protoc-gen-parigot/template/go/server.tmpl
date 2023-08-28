@@ -73,9 +73,10 @@ func Launch{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
 
-{{- if .GetNoMethod}}
-func Init{{$svcDiff}}(require []lib.MustRequireFunc, impl {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+{{- if .NoMethod}}
+func Init{{$svcDiff}}(require []lib.MustRequireFunc, impl lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 {{- else}}
+func Init{{$svcDiff}}(require []lib.MustRequireFunc, impl {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
 {{- end }} {{/* end of GetNoMethod */}}
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
@@ -100,7 +101,8 @@ func Run{{$svcDiff}}(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("Run{{$svcDiff}}: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run {{$svcCamel}}: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -183,7 +185,8 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("{{$svcCamel}}, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -333,9 +336,10 @@ func MustExport{{$svcDiff}}(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl  {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 {{if .NoMethod}}
+func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 {{else}}
+func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl  {{$svcCamel}}) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:={{$svcDiffFL}}bind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
@@ -357,7 +361,11 @@ func LaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl  {{$s
 {{end}}
 }
 
+{{- if .NoMethod}}
+func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl lib.ReadyChecker) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+{{- else }}
 func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {{$svcCamel}}) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+{{ end }} {{/* end of no method */}}
     smmap,fut,err:=LaunchService{{$svcDiff}}(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])

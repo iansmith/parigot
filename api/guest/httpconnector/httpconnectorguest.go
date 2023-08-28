@@ -24,6 +24,7 @@ func main() {
 	fut.Success(func(_ *syscall.LaunchResponse) {
 		logger.Info("httpconnector service guest side started correctly")
 	})
+	// this is effectively a useless loop but without it, we would exit
 	kerr := httpconnector.Run(ctx, binding, httpconnector.TimeoutInMillis, nil)
 	logger.Error("error while waiting for httpconnector service calls", "kernel error", syscall.KernelErr_name[int32(kerr)])
 }
