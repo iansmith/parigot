@@ -51,7 +51,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Http) *future.Base[bool]
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-func Init(require []lib.MustRequireFunc, impl Http) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+func Init(require []lib.MustRequireFunc, impl lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister()
@@ -75,7 +75,8 @@ func Run(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("Run: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run Http: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -158,7 +159,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("Http, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -265,8 +267,8 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
+func LaunchService(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
@@ -281,8 +283,7 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.Servi
     return nil,fut,syscall.KernelErr_NoError
 
 }
-
-func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+func MustLaunchService(ctx context.Context, sid id.ServiceId, impl lib.ReadyChecker) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) { 
     smmap,fut,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
@@ -296,96 +297,6 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.S
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
 // 
-
-//go:wasmimport http get_
-func Get_(int32,int32,int32,int32) int64
-func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
-	outProtoPtr := (*GetResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
-	f:=NewFutureGet()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http post_
-func Post_(int32,int32,int32,int32) int64
-func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
-	outProtoPtr := (*PostResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
-	f:=NewFuturePost()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http put_
-func Put_(int32,int32,int32,int32) int64
-func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
-	outProtoPtr := (*PutResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
-	f:=NewFuturePut()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http delete_
-func Delete_(int32,int32,int32,int32) int64
-func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
-	outProtoPtr := (*DeleteResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
-	f:=NewFutureDelete()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http head_
-func Head_(int32,int32,int32,int32) int64
-func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
-	outProtoPtr := (*HeadResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
-	f:=NewFutureHead()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http options_
-func Options_(int32,int32,int32,int32) int64
-func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
-	outProtoPtr := (*OptionsResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
-	f:=NewFutureOptions()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http patch_
-func Patch_(int32,int32,int32,int32) int64
-func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
-	outProtoPtr := (*PatchResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
-	f:=NewFuturePatch()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http connect_
-func Connect_(int32,int32,int32,int32) int64
-func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
-	outProtoPtr := (*ConnectResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
-	f:=NewFutureConnect()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-} 
-
-//go:wasmimport http trace_
-func Trace_(int32,int32,int32,int32) int64
-func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
-	outProtoPtr := (*TraceResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
-	f:=NewFutureTrace()
-	f.CompleteMethod(ctx,ret,raw)
-	return f
-}  
 
 // This is interface for invocation.
 

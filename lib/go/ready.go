@@ -1,4 +1,4 @@
-package guest
+package lib
 
 import (
 	"context"

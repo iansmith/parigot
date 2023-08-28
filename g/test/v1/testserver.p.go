@@ -52,8 +52,7 @@ func LaunchTest(ctx context.Context, sid id.ServiceId, impl Test) *future.Base[b
 // Note that  InitTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-
-func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+func InitTest(require []lib.MustRequireFunc, impl Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterTest()
@@ -77,7 +76,8 @@ func RunTest(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("RunTest: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run Test: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -160,7 +160,8 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("Test, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -309,8 +310,8 @@ func MustExportTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl  Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
+func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl  Test) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=testbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
@@ -329,8 +330,8 @@ func LaunchServiceTest(ctx context.Context, sid id.ServiceId, impl  Test) (*lib.
     return smmap,fut,syscall.KernelErr_NoError
 
 }
-
 func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchServiceTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
@@ -429,8 +430,7 @@ func LaunchMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCal
 // Note that  InitMethodCallSuite returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-
-func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+func InitMethodCallSuite(require []lib.MustRequireFunc, impl MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterMethodCallSuite()
@@ -454,7 +454,8 @@ func RunMethodCallSuite(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("RunMethodCallSuite: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run MethodCallSuite: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -537,7 +538,8 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("MethodCallSuite, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -686,8 +688,8 @@ func MustExportMethodCallSuite(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
+func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl  MethodCallSuite) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=methodCallSuitebind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
@@ -706,8 +708,8 @@ func LaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl  M
     return smmap,fut,syscall.KernelErr_NoError
 
 }
-
 func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, impl MethodCallSuite) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchServiceMethodCallSuite(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
@@ -806,8 +808,7 @@ func LaunchUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) *fut
 // Note that  InitUnderTest returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-
-func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){
+func InitUnderTest(require []lib.MustRequireFunc, impl UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegisterUnderTest()
@@ -831,7 +832,8 @@ func RunUnderTest(ctx context.Context,
 		if r := recover(); r != nil {
 			s, ok:=r.(string)
 			if !ok && s!=apishared.ControlledExit {
-				slog.Error("RunUnderTest: trapped a panic in the guest side", "recovered", r)
+				slog.Error("Run UnderTest: trapped a panic in the guest side", "recovered", r)
+				debug.PrintStack()
 			}
 		}
 	}()
@@ -914,7 +916,8 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
-		slog.Error("unable to find binding for method %s on service, ignoring","mid",mid.Short(),"sid", sid.Short())
+		slog.Error("UnderTest, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
+			"current host",syscallguest.CurrentHostId())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -1046,8 +1049,8 @@ func MustExportUnderTest(ctx context.Context, sid id.ServiceId) {
     }
 }
 
-func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl  UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 
+func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl  UnderTest) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
 	smmap, err:=underTestbind(ctx,sid, impl)
 	if err!=0{
 		return  nil,nil,syscall.KernelErr(err)
@@ -1066,8 +1069,8 @@ func LaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl  UnderTe
     return smmap,fut,syscall.KernelErr_NoError
 
 }
-
 func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl UnderTest) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchServiceUnderTest(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])

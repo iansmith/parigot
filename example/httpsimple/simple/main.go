@@ -54,7 +54,7 @@ type myService struct{}
 // test at compile time that myService has appropriate methods.
 var _ = simple.Simple(&myService{})
 
-func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetResponse, simple.SimpleErr) {
+func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetResponse, http.HttpErr) {
 	msg := []byte("hello, http protocal")
 	resp := &http.GetResponse{
 		Response: &http.HttpResponse{
@@ -65,13 +65,13 @@ func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetRes
 			Trailer:       map[string]string{},
 		},
 	}
-	return resp, simple.SimpleErr_NoError
+	return resp, http.HttpErr_NoError
 }
 
-func (m *myService) Get(ctx context.Context, req *http.GetRequest) *simple.FutureGet {
+func (m *myService) Get(ctx context.Context, req *http.GetRequest) *http.FutureGet {
 	resp, err := m.get(ctx, req)
-	fut := simple.NewFutureGet()
-	if err != simple.SimpleErr_NoError {
+	fut := http.NewFutureGet()
+	if err != http.HttpErr_NoError {
 		fut.Method.CompleteMethod(ctx, nil, err)
 	} else {
 		// err is NoError

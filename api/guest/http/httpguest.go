@@ -27,6 +27,7 @@ func main() {
 		logger.Info("http service guest side started correctly")
 	})
 
+	// useless loop, but we need it to make sure we keep running
 	kerr := http.Run(ctx, binding, http.TimeoutInMillis, nil)
 	logger.Error("error while waiting for http service calls", "kernel error", syscall.KernelErr_name[int32(kerr)])
 }

@@ -3,6 +3,7 @@ package httpconnector
 import (
 	"context"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"github.com/iansmith/parigot/eng"
 	phttp "github.com/iansmith/parigot/g/http/v1"
 	"github.com/iansmith/parigot/g/httpconnector/v1"
-	"github.com/iansmith/parigot/g/protosupport/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys/kernel"
 	"google.golang.org/protobuf/proto"
@@ -23,14 +23,11 @@ const bufferSizeOnChan = 8
 
 const port = ":9000"
 
-const timeoutInMillis = 40
-
-const maxBodySize = 0xffff
+const maxBodySize = 0xfffff // about a meg
 
 var logger *slog.Logger
 
 type HttpConnectorPlugin struct {
-	conn *httpConnectorImpl
 }
 
 type httpConnectorImpl struct {
@@ -41,6 +38,8 @@ type httpConnectorImpl struct {
 type ParigotRequestWrapper interface {
 	GetRequest() *phttp.HttpRequest
 }
+
+var handleMethod id.MethodId
 
 func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	//????
@@ -58,6 +57,7 @@ func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
 	go runHttpListener(connector)
 
 	kernel.K.AddReceiver(connector)
+
 	logger.Info("httpconnecter Init() complete")
 
 	return true
@@ -98,6 +98,7 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 
 	var parigotReq *anypb.Any
 	var err httpconnector.HttpConnectorErr
+	log.Printf("dispatching a call to %s", req.Method)
 	switch strings.ToUpper(req.Method) {
 	case "GET":
 		get := &phttp.GetRequest{Request: convertFieldsHttp(req)}
@@ -131,46 +132,59 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 		logger.Error("swallowing httpconnector error", "httpconnector error", httpconnector.HttpConnectorErr_name[int32(err)])
 		return nil
 	}
-
-	handleReq := &httpconnector.HandleRequest{
-		HttpMethod: req.Method,
-		ServiceId:  &protosupport.IdRaw{},
-		MethodId:   &protosupport.IdRaw{},
-		ReqAny:     parigotReq,
-	}
-
-	handleAny := &anypb.Any{}
-	if err := handleAny.MarshalFrom(handleReq); err != nil {
-		logger.Error("unable to marshal handle req into any", "error", err)
-	}
-
-	hid, sid, mid, kerr := kernel.K.Nameserver().MethodDetail(
-		kernel.FQName{Pkg: "httpconnector.v1", Name: "httpconnector"}, "Handle")
-
-	if kerr != syscall.KernelErr_NoError {
-		logger.Error("failed to get details about connector handle method", "kernel error", kerr)
+	hid, sid, mid, err := findHttpConnector()
+	logger.Info("finished finding HTTP connector")
+	if err != httpconnector.HttpConnectorErr_NoError {
 		return nil
 	}
+	handleReq := &httpconnector.HandleRequest{
+		HttpMethod: req.Method,
+		ServiceId:  sid.Marshal(),
+		MethodId:   mid.Marshal(),
+		ReqAny:     parigotReq,
+	}
+	slog.Info("created handle req", "method", mid.Short())
+
 	if hid.IsZeroOrEmptyValue() || sid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
 		logger.Error("failed to get id set back corectly from MethodDetail", "host", hid,
 			"service", sid, "method", mid)
 		return nil
 	}
 
-	resp := &syscall.ReadOneResponse{
-		Timeout: false,
-		Bundle: &syscall.MethodBundle{
-			HostId:    hid.Marshal(),
-			ServiceId: sid.Marshal(),
-			MethodId:  mid.Marshal(),
-			CallId:    id.NewCallId().Marshal(),
-		},
+	handleAny := &anypb.Any{}
+	if err := handleAny.MarshalFrom(handleReq); err != nil {
+		logger.Error("unable to marshal handle req into any", "error", err)
+	}
+	logger.Info("about to hit the response to the client side")
+	bundle := &syscall.MethodBundle{
+		HostId:    hid.Marshal(), // why is this needed?
+		ServiceId: sid.Marshal(),
+		MethodId:  mid.Marshal(),
+		CallId:    id.NewCallId().Marshal(),
+	}
+
+	// do we really need this dispatch?
+	dispReq := &syscall.DispatchRequest{
+		Bundle: bundle,
+		Param:  handleAny,
+	}
+	dispResp := &syscall.DispatchResponse{}
+	logger.Info("sending dispatch!")
+	kerr := kernel.K.Dispatch(dispReq, dispResp)
+	if kerr != syscall.KernelErr_NoError {
+		logger.Error("unable to dispatch Handle() message in httpconnector", "kernel error", kerr)
+	}
+	log.Printf("finished the send of the message")
+
+	rd := &syscall.ReadOneResponse{
+		Timeout:       false,
+		Bundle:        bundle,
 		ParamOrResult: handleAny,
 		ResultErr:     0,
 		Resolved:      nil,
 		Exit:          nil,
 	}
-	return resp
+	return rd
 }
 
 func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.HttpConnectorErr) {
@@ -186,73 +200,68 @@ func (h *httpConnectorImpl) TimeoutInMillis() int {
 	return 20
 }
 
-// func checkHost(ctx context.Context, m api.Module, stack []uint64) {
-// 	req := &httpconnector.CheckRequest{}
-// 	resp := &httpconnector.CheckResponse{}
-
-// 	hostBase(ctx, "[httpconnector]check", connector.check, m, stack, req, resp)
-// }
-
-// func handleHost(ctx context.Context, m api.Module, stack []uint64) {
-// 	req := &httpconnector.HandleRequest{}
-// 	resp := &httpconnector.HandleResponse{}
-
-// 	hostBase(ctx, "[httpconnector]handle", connector.handleImpl, m, stack, req, resp)
-// }
-
 func (h *httpConnectorImpl) Ch() chan *syscall.ReadOneResponse {
 	return h.kernelCh
 }
 
-// Check waits for a response from the http channel.
-// It sets the Success field of the CheckResponse to true if the http channel responds.
-// func (hCnt *httpConnectorImpl) check(ctx context.Context, req *httpconnector.CheckRequest, resp *httpconnector.CheckResponse) int32 {
-// 	resp.Success = false
-// 	// Check that the http connector and httpChannel are properly initialized.
-// 	// They are always good, just be careful
-// 	if hCnt == nil || hCnt.httpChan == nil {
-// 		logger.Error("HTTP connector is not properly initialized")
-// 		return int32(httpconnector.HttpConnectorErr_InternalError)
-// 	}
-
-// 	select {
-// 	case <-hCnt.httpChan:
-// 		logger.Info("req is ready")
-// 		resp.Success = true
-// 	case <-time.After(time.Millisecond * timeoutInMillis):
-// 		logger.Info("http connector time out")
-// 	}
-// 	return int32(httpconnector.HttpConnectorErr_NoError)
-// }
-
-// func (c *httpConnectorImpl) handleImpl(ctx context.Context, req *httpconnector.HandleRequest, resp *httpconnector.HandleResponse) int32 {
-
-// }
-
 func convertFieldsHttp(req *http.Request) *phttp.HttpRequest {
 	result := &phttp.HttpRequest{}
 	result.Url = req.URL.String()
-	hdr := req.Header
-	for key, values := range hdr {
+	result.Header = make(map[string]string)
+	for key, values := range req.Header {
 		value := values[0] // ignore dups
 		result.Header[key] = value
 	}
-	trailer := req.Trailer
-	for key, values := range trailer {
+	result.Trailer = make(map[string]string)
+	for key, values := range req.Trailer {
 		value := values[0] // ignore dups
 		result.Trailer[key] = value
 	}
-	body, err := req.GetBody()
-	if err != nil {
-		logger.Error("unable to get body from HTTP request", "error", err)
-		return nil
+	body := req.Body
+	if body != nil {
+		rd := io.LimitReader(body, maxBodySize)
+		buf, err := io.ReadAll(rd)
+		if err != nil {
+			logger.Error("unable to read body from HTTP request", "error", err)
+			return nil
+		}
+		result.Body = buf
+		body.Close()
 	}
-	rd := io.LimitReader(body, maxBodySize)
-	buf, err := io.ReadAll(rd)
-	if err != nil {
-		logger.Error("unable to read body from HTTP request", "error", err)
-		return nil
-	}
-	result.Body = buf
 	return result
+}
+
+// findHttpConnector attempts find some service that implements httpconnector
+func findHttpConnector() (id.HostId, id.ServiceId, id.MethodId, httpconnector.HttpConnectorErr) {
+	locReq := &syscall.LocateRequest{
+		PackageName: "httpconnector.v1",
+		ServiceName: "httpconnector",
+		CalledBy:    nil,
+	}
+	locResp := &syscall.LocateResponse{}
+	log.Printf("xxx -- about do real locate")
+	kerr := kernel.K.Locate(locReq, locResp)
+	if kerr != syscall.KernelErr_NoError {
+		logger.Error("unable to find service with (internal) Locate",
+			"package", locReq.GetPackageName(), "service", locReq.GetServiceName())
+		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), httpconnector.HttpConnectorErr_NoReceiver
+	}
+	hid := id.UnmarshalHostId(locResp.GetHostId())
+	sid := id.UnmarshalServiceId(locResp.GetServiceId())
+	methMap := locResp.GetBinding()
+	mid := id.MethodIdZeroValue()
+	for _, binding := range methMap {
+		if binding.GetMethodName() == "Handle" {
+			mid = id.UnmarshalMethodId(binding.MethodId)
+			break
+		}
+	}
+	if mid.IsZeroValue() {
+		logger.Error("unable to find method 'Handle' for service",
+			"package", locReq.GetPackageName(), "service", locReq.GetServiceName())
+		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), httpconnector.HttpConnectorErr_NoReceiver
+	}
+	logger.Info("xxx -- received locate", "host", hid.Short(), "service", sid.Short(),
+		"method", mid.Short())
+	return hid, sid, mid, httpconnector.HttpConnectorErr_NoError
 }

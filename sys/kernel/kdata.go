@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"log/slog"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -110,11 +111,11 @@ func (k *kdata) matcher() callMatcher {
 // not be made, not that the dispatch worked ok and an error was returned
 // by the remote code.
 func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse) syscall.KernelErr {
-	k.lock.Lock()
-	defer k.lock.Unlock()
+	// we don't want to lock here because we could block somebody
+	// else who is reading from the same channel
 
 	sid := id.UnmarshalServiceId(req.GetBundle().GetServiceId())
-	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+	//hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
 	mid := id.UnmarshalMethodId(req.GetBundle().GetMethodId())
 
 	targetHid := k.Nameserver().FindHost(sid)
@@ -122,9 +123,12 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	k.matcher().Dispatch(hid, cid, mid)
+	slog.Info("xxx got all the bundle", "sid", sid.Short(),
+		"mid", mid.Short(), "cid", cid.Short(), "target hid", targetHid.Short())
+	k.matcher().Dispatch(targetHid, cid, mid)
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
+	slog.Info("xxx fineshed write on channel")
 	resp.CallId = cid.Marshal()
 	resp.TargetHostId = targetHid.Marshal()
 	return syscall.KernelErr_NoError
