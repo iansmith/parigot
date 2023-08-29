@@ -9,6 +9,7 @@ service Frontdoor {
   // This option binds the type "FrontdoorErr" to this Frontdoor service and
   // code generated will use FrontdoorErr as the type for error retuns.
   option (protosupport.v1.error_id_name) = "FrontdoorErr";
+  option (protosupport.v1.implements_reverse_api) = "httpconnector.v1.HttpConnector";
 }
 
 // The first four values of any error enum are to be as shown below.

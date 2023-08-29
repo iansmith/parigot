@@ -8,8 +8,9 @@ import (
 
 // This file does lots of option processing.
 const (
-	serviceOptionForWasmName   = "543210"
-	serviceOptionForReverseAPI = "543214"
+	serviceOptionForWasmName          = "543210"
+	serviceOptionForReverseAPI        = "543214"
+	serviceOptionImplementsReverseAPI = "54213"
 
 	messageOptionForWasmName = "543210"
 	methodOptionForWasmName  = "543210"
@@ -19,7 +20,6 @@ const (
 
 	parigotOptionForHostFuncName = "543212"
 	parigotOptionForErrorIdName  = "543213"
-
 	// serviceOptionNoPackage        = "543211"
 	// serviceOptionAlwaysPullParams = "543212"
 	// serviceOptionAlwaysPullOutput = "543213"
@@ -93,68 +93,18 @@ func isWasmServiceReverseAPI(s string) bool {
 	return ok
 }
 
+// IsServiceOptionImplementsReverseAPI is the way to tell the code generator that
+// the given service implements an api defined in a different place.
+func IsServiceOptionImplementsReverseAPI(s string) (string, bool) {
+	return isStringOptionPresent(s, serviceOptionImplementsReverseAPI)
+}
+
 // isWasmServiceName looks for the option wasm_service_name inside the given string.
 func isWasmServiceName(s string) (string, bool) {
 	return isStringOptionPresent(s, serviceOptionForWasmName)
 }
 
-// isWasmServiceErrId looks for the option wasm_err_id inside the given string.
-// func isWasmServiceErrId(s string) (string, bool) {
-// 	return isStringOptionPresent(s, serviceOptionErrId)
-// }
-
 // isWasmMessageName looks for the option wasm_message_name inside the given string.
 func isWasmMessageName(s string) (string, bool) {
 	return isStringOptionPresent(s, messageOptionForWasmName)
 }
-
-// func isServiceMarkedParigot(s string) bool {
-// 	_, ok := isBooleanOptionPresent(s, messageOptionForWasmName)
-// 	return ok
-// }
-
-// func IsEnumMarkedParigot(s string) bool {
-// 	s, ok := isBooleanOptionPresent(s, parigotOptionForEnum)
-// 	if !ok {
-// 		return false
-// 	}
-// 	return s != ""
-// }
-
-// func hasNoPackageOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionNoPackage)
-// 	return b
-// }
-
-// func hasServiceTestOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionServiceTest)
-// 	return b
-// }
-// func hasMethodTestOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionMethodTest)
-// 	return b
-// }
-
-// func hasKernelOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionKernel)
-// 	return b
-// }
-
-// func alwaysPullParamsOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullParams)
-// 	return b
-// }
-
-// func alwaysPullOutputOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullOutput)
-// 	return b
-// }
-
-// func pullParamsOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionPullParams)
-// 	return b
-// }
-// func pullOutputOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionPullOutput)
-// 	return b
-// }
