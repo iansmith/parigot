@@ -1,9 +1,0 @@
-@wcl 0.7.0
-
-//
-// Fail if param name repeated
-//
-
-///////////////// TEXT /////////////////
-@text
-foo(bar string,bar string)<<Hello>>

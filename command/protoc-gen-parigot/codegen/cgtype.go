@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -14,6 +15,9 @@ type CGType struct {
 	hasValue  bool
 }
 
+func (c *CGType) Parts() string {
+	return fmt.Sprintf("CGTYPE[%s,%s (%s)]", c.protoPkg, *c.composite.Name, c.composite.GetProtoPackage())
+}
 func NewCGTypeFromComposite(m *WasmMessage, l LanguageText, f Finder,
 	protoPackage string) *CGType {
 	return &CGType{composite: m, lang: l, protoPkg: protoPackage, finder: f, hasValue: true}
@@ -126,10 +130,11 @@ func (c *CGType) String(from string) string {
 	if c.composite == nil {
 		return c.lang.BasicTypeToString(c.basic, true)
 	}
-	// addr := c.finder.AddressingNameFromMessage(from, c.composite)
-	// log.Printf("cgtype discovered %s FROM %s, and message %s", addr, from, c.composite.GetName())
+	addr := c.finder.AddressingNameFromMessage(from, c.composite)
+	//log.Printf("cgtype discovered %s FROM %s, and message %s", addr, from, c.composite.GetAddressableName(from))
 
-	return c.composite.GetWasmMessageName()
+	return addr
+	//return c.composite.GetWasmMessageName()
 }
 
 func (c *CGType) StringNotInProto() string {
@@ -144,6 +149,7 @@ func GetCGTypeForInputParam(i *InputParam) *CGType {
 	}
 	finder := i.GetParent().Finder()
 	protoPkg := i.GetParent().ProtoPackage()
+	log.Printf("GetCGTypeForInputParam i=%s -- protoPkg=%s inputName=", i.GetTypeName(), protoPkg, inputName)
 	lang := i.GetLanguage()
 	for _, s := range parigotTypeList {
 		if inputName == s {

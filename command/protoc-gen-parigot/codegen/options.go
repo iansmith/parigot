@@ -8,7 +8,9 @@ import (
 
 // This file does lots of option processing.
 const (
-	serviceOptionForWasmName = "543210"
+	serviceOptionForWasmName   = "543210"
+	serviceOptionForReverseAPI = "543214"
+
 	messageOptionForWasmName = "543210"
 	methodOptionForWasmName  = "543210"
 	fieldOptionForWasmName   = "543210"
@@ -85,6 +87,12 @@ func isStringOptionPresent(s, target string) (string, bool) {
 	return text, false
 }
 
+// IsReverseAPI looks for the option wasm_service_name inside the given string.
+func isWasmServiceReverseAPI(s string) bool {
+	_, ok := isBooleanOptionPresent(s, serviceOptionForReverseAPI)
+	return ok
+}
+
 // isWasmServiceName looks for the option wasm_service_name inside the given string.
 func isWasmServiceName(s string) (string, bool) {
 	return isStringOptionPresent(s, serviceOptionForWasmName)
@@ -100,17 +108,18 @@ func isWasmMessageName(s string) (string, bool) {
 	return isStringOptionPresent(s, messageOptionForWasmName)
 }
 
-func isServiceMarkedParigot(s string) bool {
-	_, ok := isBooleanOptionPresent(s, messageOptionForWasmName)
-	return ok
-}
-func IsEnumMarkedParigot(s string) bool {
-	s, ok := isBooleanOptionPresent(s, parigotOptionForEnum)
-	if !ok {
-		return false
-	}
-	return s != ""
-}
+// func isServiceMarkedParigot(s string) bool {
+// 	_, ok := isBooleanOptionPresent(s, messageOptionForWasmName)
+// 	return ok
+// }
+
+// func IsEnumMarkedParigot(s string) bool {
+// 	s, ok := isBooleanOptionPresent(s, parigotOptionForEnum)
+// 	if !ok {
+// 		return false
+// 	}
+// 	return s != ""
+// }
 
 // func hasNoPackageOption(s string) bool {
 // 	_, b := isBooleanOptionPresent(s, serviceOptionNoPackage)

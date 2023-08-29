@@ -1,16 +1,18 @@
 package main
 
+// at no point can this package or anything it depends on import anything in api/guest
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/iansmith/parigot/command/runner/runner"
-	pcontext "github.com/iansmith/parigot/context"
 	"github.com/iansmith/parigot/sys"
+	"github.com/iansmith/parigot/sys/kernel"
 )
 
 var testMode *bool = flag.Bool("t", false, "turns testmode on, implies running services marked 'Test' in deploy config")
@@ -26,81 +28,60 @@ func main() {
 	}
 	flg := &runner.DeployFlag{
 		TestMode: *testMode,
-		Remote:   *remote,
 	}
-	defer func() {
-		// if r := recover(); r != nil {
-		// 	print("runner crashed:", fmt.Sprintf("%T %v", r, r), "\n")
-		// }
-	}()
+
 	config, err := runner.Parse(flag.Arg(0), flg)
 	if err != nil {
 		log.Fatalf("failed to parse configuration file %s: %v", flag.Arg(0), err)
 
 	}
-	ctx := pcontext.NewContextWithContainer(context.Background(), "runner:main")
-	ctx = pcontext.CallTo(pcontext.InternalParigot(ctx), "main")
-	defer pcontext.Dump(ctx)
+	ok := false
+	kernel.K, ok = kernel.InitSingle()
+	if !ok {
+		log.Fatalf("unable to create kernel, aborting")
+	}
 
 	// the deploy context creation also creates any needed nameservers
-	deployCtx, err := sys.NewDeployContext(ctx, config)
+	deployCtx, err := sys.NewDeployContext(config)
 	if err != nil {
 		log.Fatalf("unable to create deploy context: %v", err)
 	}
 
-	if err := deployCtx.CreateAllProcess(ctx); err != nil {
+	if err := deployCtx.CreateAllProcess(); err != nil {
 		log.Fatalf("unable to create process in main: %v", err)
 	}
 
-	main, code := deployCtx.StartServer(pcontext.CallTo(ctx, "StartServer"))
-	if main == nil {
-		if code != 0 {
-			log.Printf("server startup returned error code %d", code)
-			panic("os.Exit() with code " + fmt.Sprint(code))
-		}
-	}
+	main, code := deployCtx.StartServer(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	go func(context context.Context) {
-		for range c {
-			pcontext.Dump(context)
-			os.Exit(2)
-		}
-	}(ctx)
+	go func() {
+		sig := <-c
+		log.Printf("received signal %+v", sig)
+		os.Exit(1)
+	}()
 
-	// go func() {
-	// 	var buf bytes.Buffer
-	// 	for {
-	// 		buf.Reset()
-	// 		time.Sleep(60 * time.Second)
-	// 		deployCtx.Process().Range(func(keyAny, valueAny any) bool {
-	// 			key := keyAny.(string)
-	// 			proc := valueAny.(*sys.Process)
-	// 			buf.WriteString(fmt.Sprintf("process %20s:block=%v,run=%v,req met=%v, exited=%v\n",
-	// 				key, proc.ReachedRunBlock(), proc.Running(), proc.RequirementsMet(), proc.Exited()))
-	// 			return true
-	// 		})
-	// 		print("periodic check:-----------\n", buf.String(), "\n")
-	// 	}
-	// }()
-
-	for _, mainProg := range main {
-		code, err := deployCtx.StartMain(ctx, mainProg)
-		if code == 253 && err == nil {
-			pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
-		} else if code != 0 {
-			pcontext.Infof(ctx, "main exited from %s with code %d and error? %v", mainProg, code, err != nil)
-		} else {
-			pcontext.Infof(ctx, "program %s finished (code %d, error is not nil %v)", mainProg, code, err == nil)
+	if main == nil {
+		if code != 0 {
+			log.Printf("servers are running")
 		}
-		return
-	}
-	pcontext.Dump(ctx)
-	if len(main) > 1 {
-		pcontext.Logf(ctx, pcontext.Info,
-			"all main programs completed successfully")
+		for {
+			// a year
+			time.Sleep(8760 * time.Hour)
+		}
 	} else {
-		pcontext.Logf(ctx, pcontext.Info, "main program completed successfully")
+		for _, mainProg := range main {
+			code, err := deployCtx.StartMain(mainProg)
+			if code == 253 && err == nil {
+				//pcontext.Fatalf(ctx, "code failed (usually a panic) in execution of  program %s (code %d) -- can be host or guest", mainProg, code)
+			} else if code != 0 {
+				slog.Info("main exited", "name", mainProg, "code", code, "error?", err != nil)
+			}
+		}
+		if len(main) > 1 {
+			log.Printf(
+				"all main programs completed successfully")
+		} else {
+			log.Printf("main program '%s' completed successfully", main[0])
+		}
 	}
-	os.Exit(8)
 }

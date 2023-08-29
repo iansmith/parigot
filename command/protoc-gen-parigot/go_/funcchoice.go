@@ -31,6 +31,7 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		NeedsRet:              funcChoicesNeedsRet,
 		InputParam:            funcChoicesInputParam,
 		OutputParam:           funcChoicesOutputParam,
+		OutParamDecl:          funcChoicesOutParamDecl,
 		NeedsPullApart:        funcChoicesNeedsPullApart,
 		Inbound:               funcChoicesInbound,
 		Outbound:              funcChoicesOutbound,
@@ -50,10 +51,11 @@ func (g *GoText) FuncChoice() *codegen.FuncChooser {
 		UsesReturnValuePtr:    funcChoicesUsesReturnValuePtr,
 		DispatchParam:         funcChoicesDispatchParam,
 		DispatchResult:        funcChoicesDispatchResult,
-		OutParamDecl:          funcChoicesOutParamDecl,
-		BindDirection:         funcChoicesBindDirection,
+		InParamDecl:           funcChoicesInParamDecl,
 		GenMethodPossibleTest: funcGenMethodPossibleTest,
+		BindDirection:         funcChoicesBindDirect,
 	}
+
 }
 
 // func collectImports(m *codegen.WasmMethod) {
@@ -99,7 +101,7 @@ func basicTypeRequiresDecode(s string) bool {
 	return false
 }
 
-func funcChoicesBindDirection(b1, b2, _, _ bool, m *codegen.WasmMethod) string {
+func funcChoicesBindDirect(b1, b2, _, _ bool, m *codegen.WasmMethod) string {
 	if !b1 && !b2 {
 		panic(fmt.Sprintf("method %s has neither input nor output!", m.WasmMethodName()))
 	}
@@ -459,7 +461,15 @@ func funcChoicesOutParamDecl(_, b2, _, _ bool, m *codegen.WasmMethod) string {
 	if !b2 {
 		return ""
 	}
+	// xxx fixme(iansmith) input is CGType but output is GetG
 	t := m.CGOutput().GetCGType()
+	return m.Language().ToTypeName(t.String(m.ProtoPackage()), false, m) + "{}"
+}
+func funcChoicesInParamDecl(_, b2, _, _ bool, m *codegen.WasmMethod) string {
+	if !b2 {
+		return ""
+	}
+	t := m.CGInput().CGType()
 	return m.Language().ToTypeName(t.String(m.ProtoPackage()), false, m) + "{}"
 }
 

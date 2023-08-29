@@ -1,0 +1,29 @@
+## Note that because this file is expected to be consumed in a dev container
+## so the files have absolute paths that are correct for the container.
+
+## dev configuration in general
+[config.dev]
+## Load parigot code from shared object
+ParigotLibPath="/workspaces/parigot/build/syscall.so"
+ParigotLibSymbol="ParigotInitialize"
+Timezone = "US/Eastern"
+[config.dev.Timeout]
+Startup = 100 # millis
+Complete = 20 # millis
+
+
+# greeting service
+[config.dev.microservice.greet]
+WasmPath="/workspaces/parigot/example/helloworld/build/greeting.p.wasm"
+Arg=[]
+Env=[]
+
+# helloworld, it has no services that it implements, it just consumes greet and
+# runs to the end of main.
+[config.dev.microservice.helloworld]
+WasmPath="/workspaces/parigot/example/helloworld/build/hello.p.wasm"
+Arg=[]
+Env=[]
+# this is the crucial line for parigot. "this is just a client and should run to completion".
+Main=true
+

@@ -6,17 +6,20 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
+	"strings"
 	"unsafe"
 
-	apishared "github.com/iansmith/parigot/apishared"
-	pcontext "github.com/iansmith/parigot/context"
+	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
-	"github.com/tetratelabs/wazero/experimental"
-	"github.com/tetratelabs/wazero/experimental/logging"
+	"github.com/tetratelabs/wazero/sys"
 )
+
+var wazerologger *slog.Logger
 
 var _ = unsafe.Pointer(nil)
 
@@ -26,10 +29,8 @@ const maxWasmFile = 0x1024 * 0x1024 * 0x20
 // a ReturnValue
 const ErrorOrIdOffset = 8
 
-var AsyncInteraction = NewAsyncClientInteraction(pcontext.ServerGoContext(pcontext.NewContextWithContainer(context.Background(), "asynchInteraction")))
-
 type wazeroEng struct {
-	r            wazero.Runtime
+	rt           wazero.Runtime
 	builder      map[string]wazero.HostModuleBuilder
 	instantiated map[string]api.Module
 }
@@ -38,14 +39,13 @@ type wazeroModule struct {
 	cm     wazero.CompiledModule
 	name   string
 	host   bool
+	env    Environment
 }
 
 type wazeroInstance struct {
 	parent     *wazeroModule
-	m          api.Module
+	mod        api.Module
 	returnData *wazeroFunctionExtern
-	main       *wazeroFunctionExtern
-	newString  *wazeroFunctionExtern
 	mem        []*wazeroMemoryExtern
 }
 
@@ -65,32 +65,39 @@ type wazeroFunctionExtern struct {
 	fn     api.Function
 }
 
+type wazeroValueExtern struct {
+	*wazeroExtern
+	parent    *wazeroInstance
+	valueName string
+	g         api.Global
+}
+
 type wazeroEntryPointExtern struct {
 	*wazeroFunctionExtern
 }
 
-var rawLineContext = pcontext.NewContextWithContainer(context.Background(), "var wazero:rawLineContext")
-var bridgeWriter = newRawLineReader(rawLineContext, pcontext.Wazero)
-var WithLogCtx = context.WithValue(context.Background(), experimental.FunctionListenerFactoryKey{},
-	logging.NewHostLoggingListenerFactory(bridgeWriter, logging.LogScopeAll))
-
 // NewWazeroEngine creates a new eng.Instance that uses wazer as the
 // underlying wasm compiler/interpreter.
-func NewWaZeroEngine(withLogContext context.Context, conf wazero.RuntimeConfig) Engine {
+func NewWaZeroEngine(ctx context.Context, conf wazero.RuntimeConfig) Engine {
 	e := &wazeroEng{
 		instantiated: make(map[string]api.Module),
 	}
+	opt := &slog.HandlerOptions{}
+	opt.Level = slog.LevelWarn
+	wazerologger = slog.New(slog.NewTextHandler(os.Stdout, opt)).With("wazero", true)
 
 	if conf != nil {
-		e.r = wazero.NewRuntimeWithConfig(withLogContext, conf)
+		e.rt = wazero.NewRuntimeWithConfig(ctx, conf)
+		//wasi_snapshot_preview1.MustInstantiate(ctx, e.rt)
 	} else {
-		e.r = wazero.NewRuntime(withLogContext)
+		e.rt = wazero.NewRuntime(ctx)
+		//wasi_snapshot_preview1.MustInstantiate(ctx, e.rt)
 	}
 
 	// XXX need to make wasi optional
 	wasiBuilder := fakeWasiAddFunc(e)
 
-	_, err := wasiBuilder.Instantiate(withLogContext)
+	_, err := wasiBuilder.Instantiate(ctx)
 	if err != nil {
 		log.Fatalf("failed to instantiate wasi override: %v", err)
 	}
@@ -113,12 +120,12 @@ func (w *wazeroModule) Name() string {
 func (e *wazeroEng) InstanceByName(ctx context.Context, name string) (Instance, error) {
 	mod, ok := e.instantiated[name]
 	if !ok {
-		pcontext.Errorf(ctx, "unable to find instance %s (%d entries)", name, len(e.instantiated))
+		wazerologger.Error("unable to find instance", "name", name, "num choices", len(e.instantiated))
 		return nil, ErrNotFound
 	}
 	inst := &wazeroInstance{
 		parent: nil,
-		m:      mod,
+		mod:    mod,
 	}
 	if err := inst.addInstanceInternalFunctions(ctx); err != nil {
 		return nil, err
@@ -138,10 +145,10 @@ func (e *wazeroExtern) Name() string {
 }
 
 // // Note that in wasm the name of the function can be "".
-func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExtern, error) {
-	f := e.m.ExportedFunction(name)
+func (e *wazeroInstance) Function(name string) (FunctionExtern, error) {
+	f := e.mod.ExportedFunction(name)
 	if f == nil {
-		log.Printf("unable to find exported Function %s in inst '%s' mod '%s'", name, e.Name(), e.parent.Name())
+		wazerologger.Error("unable to find exported Function", "name", name, "instance", e.Name(), "module", e.parent.Name())
 		return nil, ErrNotFound
 	}
 	return &wazeroFunctionExtern{
@@ -152,10 +159,21 @@ func (e *wazeroInstance) Function(ctx context.Context, name string) (FunctionExt
 }
 
 func (e *wazeroFunctionExtern) Call(ctx context.Context, param ...uint64) ([]uint64, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Call generated panic: %v", r)
+		}
+	}()
 	result, err := e.fn.Call(ctx, param...)
 	if err != nil {
-		pcontext.Errorf(ctx, "call returned an err >>> %s", err.Error())
-		return nil, err
+		if exitErr, ok := err.(*sys.ExitError); ok {
+			// This means your module exited with non-zero code!
+			// You can get the code with exitErr.ExitCode()
+			wazerologger.Info("exit code returned", "code", exitErr.ExitCode(), "returned values", len(result))
+			return []uint64{uint64(exitErr.ExitCode())}, nil
+		} else {
+			wazerologger.Error("return value from process wasn't exit error", "type", fmt.Sprintf("%T", err))
+		}
 	}
 	return result, nil
 }
@@ -163,7 +181,7 @@ func (e *wazeroMemoryExtern) WriteUint64LittleEndian(memoryOffset uint32, value 
 	e.m.WriteUint64Le(memoryOffset, value)
 }
 
-func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string) (Module, error) {
+func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error) {
 	fp, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -180,16 +198,17 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string) (Module,
 			return nil, fmt.Errorf("wasm file too large %s, file is %d bytes, limit is %d bytes", path, info.Size(), len(all))
 		}
 	}
-	mod, err := e.r.CompileModule(ctx, all)
+	mod, err := e.rt.CompileModule(ctx, all)
 
 	if err != nil {
 		return nil, err
 	}
-	return &wazeroModule{cm: mod, parent: e, name: path}, nil
+	log.Printf("yyy --- wazero module: %s", path)
+	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 
 func (i *wazeroInstance) addMemory(ctx context.Context) error {
-	ext, err := i.memoryExportJustOne(pcontext.CallTo(ctx, "memoryExportJustOne"))
+	ext, err := i.memoryExportJustOne(ctx)
 	if err != nil {
 		return err
 	}
@@ -212,14 +231,14 @@ func (i *wazeroMemoryExtern) ReadBytes(memoryOffset, length uint32) ([]byte, err
 }
 
 func (i *wazeroInstance) memoryExportJustOne(ctx context.Context) ([]MemoryExtern, error) {
-	def := i.m.ExportedMemoryDefinitions()
+	def := i.mod.ExportedMemoryDefinitions()
 	if def == nil {
 		return nil, fmt.Errorf("module '%s' has no exported memory definitions", i.Name())
 	}
 	if len(def) > 1 {
 		panic("parigot currently only supports one memory export, but you should file a ticket to remind us to fix that")
 	}
-	candidate := i.m.ExportedMemory("memory")
+	candidate := i.mod.ExportedMemory("memory")
 	if candidate == nil {
 		return nil, fmt.Errorf("can't find memory object 'memory'")
 	}
@@ -240,13 +259,32 @@ func (m *wazeroMemoryExtern) Name() string {
 }
 
 func (i *wazeroInstance) Name() string {
-	return i.m.Name()
+	return i.mod.Name()
+}
+
+func (i *wazeroInstance) Value(ctx context.Context, valueName string) (ExternValue, error) {
+	g := i.mod.ExportedGlobal(valueName)
+	if g == nil {
+		return nil, fmt.Errorf("unable to find value '%s' in module '%s' ",
+			valueName, i.parent.name)
+	}
+	return &wazeroValueExtern{g: g, valueName: valueName}, nil
+}
+
+func (e *wazeroValueExtern) GetU64() uint64 {
+	return e.g.Get()
+}
+
+func (e *wazeroValueExtern) GetU16() uint16 {
+	raw := e.g.Get()
+	u32 := api.DecodeU32(raw)
+	return uint16(u32 & 0xffff)
 }
 
 func (i *wazeroInstance) EntryPoint(ctx context.Context) (EntryPointExtern, error) {
-	fn := i.m.ExportedFunction(apishared.EntryPointSymbol)
+	fn := i.mod.ExportedFunction(apishared.EntryPointSymbol)
 	if fn == nil {
-		pcontext.Errorf(ctx, "unable to find exported function '%s' in module '%s'", apishared.EntryPointSymbol, i.m.Name())
+		wazerologger.Error("unable to find exported entry point", "name", apishared.EntryPointSymbol, "module", i.mod.Name())
 		return nil, ErrNotFound
 	}
 	ext := newFunctionExtern(fn, i, fn.Definition().DebugName()).(*wazeroFunctionExtern)
@@ -268,18 +306,18 @@ func newFunctionExtern(fn api.Function, i *wazeroInstance, name string) Function
 func (m *wazeroEng) InstantiateHostModule(ctx context.Context, pkg string) (Instance, error) {
 	b, ok := m.builder[pkg]
 	if !ok {
-		panic(fmt.Sprintf("unknown builder '%s'", pkg))
+		wazerologger.Info("not instantiating host module", "package", pkg)
+		return nil, nil // they have not declared any functions
 	}
 	inst, err := b.Instantiate(ctx)
 	if err != nil {
-		pcontext.Errorf(ctx, "failed to create instantiated host module '%s': %v", pkg, err)
+		wazerologger.Error("failed to create instantiated host module", err, "package", pkg)
 		return nil, err
 	}
-	pcontext.Logf(ctx, pcontext.Info, "created instantiated host module '%s'", pkg)
 	mod := &wazeroModule{parent: m, host: true}
 	return &wazeroInstance{
 		parent: mod,
-		m:      inst,
+		mod:    inst,
 	}, nil
 }
 
@@ -291,48 +329,83 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 	return result, nil
 }
 
-func (m *wazeroModule) NewInstance(ctx context.Context) (Instance, error) {
-	fsConfig := wazero.NewFSConfig().WithFauxFs(AsyncInteraction, "/parigotvirt/")
+func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezoneDir string) (Instance, error) {
+	args := []string{}
+	envp := make(map[string]string)
+	hid := id.NewHostId()
+	if m.env != nil {
+		args = m.env.Arg()
+		envp = m.env.Environment()
+	}
+
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
-		WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
-		WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
-		WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
+		WithStdout(os.Stdout).
+		WithStderr(os.Stderr).
+		// WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
+		// WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
+		// WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
 		WithRandSource(rand.Reader).
-		WithFSConfig(fsConfig).
+		WithFSConfig(wazero.NewFSConfig()).
 		WithSysNanosleep().
 		WithSysNanotime().
-		WithSysWalltime()
+		WithSysWalltime().
+		WithArgs(strings.Join(append([]string{m.name}, args...), " ")).
+		WithEnv("HOSTID_HIGH", fmt.Sprintf("%x", hid.High())).
+		WithEnv("HOSTID_LOW", fmt.Sprintf("%x", hid.Low())).
+		WithEnv("TZ", timezone)
 
-	mod, err := m.parent.r.InstantiateModule(ctx, m.cm, conf)
+	for k, v := range envp {
+		conf.WithEnv(k, v)
+	}
+	log.Printf("xxx compiled module info : %v, %s", m.cm != nil, m.cm.Name())
+	mod, err := m.parent.rt.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
-		pcontext.Errorf(ctx, "ERR IS %s", err.Error())
+		wazerologger.Error("instantiate module failed in wazero runtime", "error", err, "name", m.name)
 		return nil, err
 	}
+	wazerologger.Info("instantiate module success", "name", m.name)
+
 	i := &wazeroInstance{
 		parent:     m,
-		m:          mod,
+		mod:        mod,
 		returnData: nil,
 	}
-	if err := i.addInstanceInternalFunctions(pcontext.CallTo(ctx, "addInstanceInternalFunctions")); err != nil {
+	if err := i.addInstanceInternalFunctions(ctx); err != nil {
 		return nil, err
 	}
 	if err := i.addMemory(ctx); err != nil {
 		return nil, err
 	}
 
-	m.parent.instantiated[mod.Name()] = i.m
+	m.parent.instantiated[mod.Name()] = i.mod
 	return i, nil
+}
+
+func (e *wazeroEng) AddBuilder(ctx context.Context, builderName string) wazero.HostModuleBuilder {
+	b, ok := e.builder[builderName]
+	if ok {
+		return b
+	}
+	mod := e.rt.NewHostModuleBuilder(builderName)
+	log.Printf("xxx host module builder addeded '%s'", builderName)
+	e.builder[builderName] = mod
+	return mod
 }
 
 func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string, fn api.GoModuleFunction, iType []api.ValueType, oType []api.ValueType) {
 	mod, ok := e.builder[pkg]
 	if !ok {
-		mod = e.r.NewHostModuleBuilder(pkg)
-		e.builder[pkg] = mod
+		mod = e.AddBuilder(ctx, pkg)
 	}
 	mod.NewFunctionBuilder().WithGoModuleFunction(fn, iType, oType).Export(name)
+}
+
+func (e *wazeroEng) HasHostSideFunction(ctx context.Context, pkg string) bool {
+	log.Printf("xxx -- has host side function %s %+v", pkg, e.builder[pkg])
+	_, ok := e.builder[pkg]
+	return ok
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {
@@ -350,37 +423,21 @@ func (e *wazeroEng) AddSupportedFunc_7i32_v(ctx context.Context, pkg, name strin
 		api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32, api.ValueTypeI32}, nil)
 }
 
-func wazeroContext(ctx context.Context) context.Context {
-	tmp := context.WithValue(ctx, pcontext.ParigotSource, pcontext.Wazero)
-	return context.WithValue(tmp, pcontext.ParigotFunc, "wazerolog")
-}
-
-func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (any, error) {
-	// go func(c context.Context, a *AsyncClientInteraction) {
-	// 	time.Sleep(time.Duration(1) * time.Second)
-	// 	c = pcontext.ServerGoContext(pcontext.CallTo(c, "Send(fake)"))
-	// 	err := a.Send("methodcall.v1.AddMultiply", &methodcallmsg.AddMultiplyRequest{
-	// 		Value0: 27,
-	// 		Value1: 918,
-	// 		IsAdd:  true,
-	// 	})
-	// 	if err != nil {
-	// 		pcontext.Errorf(c, "unable to push bundle: %v", err)
+func (e *wazeroEntryPointExtern) Run(ctx context.Context, argv []string, extra interface{}) (uint8, error) {
+	retVal, err := e.wazeroFunctionExtern.Call(ctx)
+	if retVal[0] > 192 {
+		return uint8(retVal[0] & 0xff), err
+	}
+	// if err != nil {
+	// 	return psys.ExitCodeTrapped, err
+	// }
+	// if len(result) > 0 {
+	// 	for i, r := range result {
+	// 		wazerologger.Info("return value from entry point", "index", i, "result", r)
 	// 	}
-	// 	pcontext.Dump(rawLineContext)
-	// 	pcontext.Dump(AsyncInteraction.origCtx)
-	// }(ctx, AsyncInteraction)
-	result, err := e.wazeroFunctionExtern.Call(pcontext.NewContextWithContainer(pcontext.GuestContext(ctx), "call of run()"))
-	if err != nil {
-		return nil, err
-	}
-	pcontext.Debugf(ctx, "Run", "got a return value from entry point... ")
-	for i, r := range result {
-		pcontext.Debugf(ctx, "Run", "result %02d:%x", i, r)
-	}
-	pcontext.Dump(rawLineContext)
-	pcontext.Dump(AsyncInteraction.origCtx)
-	return nil, nil
+	// }
+	code := uint8(retVal[0] & 0xff)
+	return code, nil
 }
 
 // Utility

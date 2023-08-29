@@ -71,10 +71,8 @@ func build(ctx context.Context) error {
 
 	// initialize image fron dockerfile
 	// mount a host directory in the container at the '/workspaces/parigot' path
-	img := client.Container().
-		Build(dockerDir).
-		WithDirectory(
-			"/workspaces/parigot",
+	img := dockerDir.DockerBuild().
+		WithDirectory("/workspaces/parigot",
 			client.Host().Directory("."),
 			dagger.ContainerWithDirectoryOpts{Exclude: []string{".devcontainer/", "ci/", "build/", "g/"}},
 		).
@@ -132,23 +130,14 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	if err != nil {
 		return img, err
 	}
-	_, err = fs.FindFilesWithPattern("apishared/id/*.go")
+	_, err = fs.FindFilesWithPattern("api/shared/id/*.go")
 	if err != nil {
 		return img, err
 	}
-	_, err = fs.FindFilesWithPattern("apiwasm/*.go")
+	_, err = fs.FindFilesWithPattern("api/plugin/*")
 	if err != nil {
 		return img, err
 	}
-	_, err = fs.FindFilesWithPattern("apiplugin/*")
-	if err != nil {
-		return img, err
-	}
-	_, err = fs.FindFilesWithPattern("wazero-src-1.1/fauxfd.go")
-	if err != nil {
-		return img, err
-	}
-
 	// set up HOST env variables
 	for key, value := range goEnvVarsHost {
 		img = img.WithEnvVariable(key, value)
@@ -159,9 +148,7 @@ func buildRunner(ctx context.Context, img *dagger.Container) (*dagger.Container,
 	img = img.WithExec([]string{"rm", "-f", target})
 	// go build
 	goCmd := []string{goToHost, "build"}
-	for _, arg := range extraHostArgs {
-		goCmd = append(goCmd, arg)
-	}
+	goCmd = append(goCmd, extraHostArgs...)
 	goCmd = append(goCmd, "-o", target, packagePath)
 	img = img.WithExec(goCmd)
 
@@ -194,17 +181,12 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 		return img, err
 	}
 	// SHARED_SRC
-	_, err = fs.FindFilesWithSuffixRecursively("apishared", ".go")
+	_, err = fs.FindFilesWithSuffixRecursively("api/shared", ".go")
 	if err != nil {
 		return img, err
 	}
 	// check apiplugin/*.go
-	_, err = fs.FindFilesWithPattern("apiplugin/*.go")
-	if err != nil {
-		return img, err
-	}
-	// check wazero-src-1.1/fauxfd.go
-	_, err = fs.FindFilesWithPattern("wazero-src-1.1/fauxfd.go")
+	_, err = fs.FindFilesWithPattern("api/plugin/*.go")
 	if err != nil {
 		return img, err
 	}
@@ -216,25 +198,25 @@ func buildPlugins(ctx context.Context, img *dagger.Container) (*dagger.Container
 	}
 
 	// build/syscall.so
-	dir := "apiplugin/syscall"
+	dir := "api/plugin/syscall"
 	target := "build/syscall.so"
-	packagePath := "github.com/iansmith/parigot/apiplugin/syscall"
+	packagePath := "github.com/iansmith/parigot/api/plugin/syscall/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
 	// build/queue.so
-	dir = "apiplugin/queue"
+	dir = "api/plugin/queue"
 	target = "build/queue.so"
-	packagePath = "github.com/iansmith/parigot/apiplugin/queue"
+	packagePath = "github.com/iansmith/parigot/api/plugin/queue/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
 	// build/file.so
-	dir = "apiplugin/file"
+	dir = "api/plugin/file"
 	target = "build/file.so"
-	packagePath = "github.com/iansmith/parigot/apiplugin/file"
+	packagePath = "github.com/iansmith/parigot/api/plugin/file/main"
 	img, err = buildAPlugin(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
@@ -250,7 +232,7 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	 *		build/test.p.wasm,
 	 *		build/queue.p.wasm
 	 */
-	syscallClientSide := "apiwasm/syscall/*.go"
+	syscallClientSide := "api/guest/syscall/*.go"
 	_, err := fs.FindFilesWithPattern(syscallClientSide)
 	if err != nil {
 		return img, err
@@ -262,25 +244,25 @@ func buildClientSideOfAPIs(ctx context.Context, img *dagger.Container) (*dagger.
 	}
 
 	// build/file.p.wasm
-	dir := "apiwasm/file"
+	dir := "api/guest/file"
 	target := "build/file.p.wasm"
-	packagePath := "github.com/iansmith/parigot/apiwasm/file"
+	packagePath := "github.com/iansmith/parigot/api/guest/file"
 	img, err = buildAClientService(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
 	}
 	// build/test.p.wasm
-	dir = "apiwasm/test"
-	target = "build/test.p.wasm"
-	packagePath = "github.com/iansmith/parigot/apiwasm/test"
-	img, err = buildAClientService(ctx, img, dir, target, packagePath)
-	if err != nil {
-		return img, err
-	}
+	// dir = "api/guest/test"
+	// target = "build/test.p.wasm"
+	// packagePath = "github.com/iansmith/parigot/api/guest/test"
+	// img, err = buildAClientService(ctx, img, dir, target, packagePath)
+	// if err != nil {
+	// 	return img, err
+	// }
 	// build/queue.p.wasm
-	dir = "apiwasm/queue"
+	dir = "api/guest/queue"
 	target = "build/queue.p.wasm"
-	packagePath = "github.com/iansmith/parigot/apiwasm/queue"
+	packagePath = "github.com/iansmith/parigot/api/guest/queue"
 	img, err = buildAClientService(ctx, img, dir, target, packagePath)
 	if err != nil {
 		return img, err
@@ -309,9 +291,7 @@ func buildProtocGenParigot(ctx context.Context, img *dagger.Container) (*dagger.
 	}
 	// set extra arguments
 	goCmd := []string{goToHost, "build"}
-	for _, arg := range extraHostArgs {
-		goCmd = append(goCmd, arg)
-	}
+	goCmd = append(goCmd, extraHostArgs...)
 	target := "build/protoc-gen-parigot"
 	packagePath := "github.com/iansmith/parigot/command/protoc-gen-parigot"
 	goCmd = append(goCmd, "-o", target, packagePath)
@@ -358,7 +338,7 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 	 *		g/file/v1/fileid.go,			g/test/v1/testid.go,
 	 *		g/methodcall/v1/methodcallid.go
 	 */
-	apiID := "apishared/id/id.go"
+	apiID := "api/shared/id/id.go"
 	boilerplateid := "command/boilerplateid/main.go"
 	goCmd := []string{goToHost, "run", boilerplateid}
 
@@ -375,19 +355,19 @@ func generateApiID(ctx context.Context, img *dagger.Container) (*dagger.Containe
 		return img, err
 	}
 
-	target := "apishared/id/serviceid.go"
+	target := "api/shared/id/serviceid.go"
 	serviceCmd := append(goCmd, "-i", "-p", "id", "Service", "s", "svc")
 	img, err = generateIdFile(ctx, img, target, serviceCmd)
 	if err != nil {
 		return img, err
 	}
-	target = "apishared/id/methodid.go"
+	target = "api/shared/id/methodid.go"
 	methodCmd := append(goCmd, "-i", "-p", "id", "Method", "m", "method")
 	img, err = generateIdFile(ctx, img, target, methodCmd)
 	if err != nil {
 		return img, err
 	}
-	target = "apishared/id/callid.go"
+	target = "api/shared/id/callid.go"
 	callCmd := append(goCmd, "-i", "-p", "id", "Call", "c", "call")
 	img, err = generateIdFile(ctx, img, target, callCmd)
 	if err != nil {
@@ -479,9 +459,7 @@ func buildAPlugin(ctx context.Context, img *dagger.Container, fileDir string, ta
 	img = img.WithExec([]string{"rm", "-f", target})
 	// go build
 	goCmd := []string{goToPlugin, "build"}
-	for _, arg := range extraPluginArgs {
-		goCmd = append(goCmd, arg)
-	}
+	goCmd = append(goCmd, extraPluginArgs...)
 	goCmd = append(goCmd, "-o", target, packagePath)
 	img = img.WithExec(goCmd)
 
@@ -500,9 +478,7 @@ func buildAClientService(ctx context.Context, img *dagger.Container, fileDir str
 	img = img.WithExec([]string{"rm", "-f", target})
 	// go build
 	goCmd := []string{goToWASM, "build"}
-	for _, arg := range extraWASMCompArgs {
-		goCmd = append(goCmd, arg)
-	}
+	goCmd = append(goCmd, extraWASMCompArgs...)
 	goCmd = append(goCmd, "-tags", `"buildvcs=false"`, "-o", target, packagePath)
 	img = img.WithExec(goCmd)
 
@@ -513,7 +489,7 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 	/*
 	 *	This function is to generate sqlc for queue: apiplugin/queue/db.go
 	 */
-	dir := "apiplugin/queue"
+	dir := "api/plugin/queue"
 	_, err := fs.FindFilesWithSuffixRecursively(dir, ".sql")
 	if err != nil {
 		return img, err
@@ -524,7 +500,7 @@ func sqlcForQueue(ctx context.Context, img *dagger.Container) (*dagger.Container
 		return img, err
 	}
 
-	img = img.WithWorkdir("apiplugin/queue/sqlc").
+	img = img.WithWorkdir("api/plugin/queue/sqlc").
 		WithExec([]string{"sqlc", "generate"}).
 		WithWorkdir("/workspaces/parigot")
 
