@@ -1,6 +1,5 @@
 syntax ="proto3";
 import "protosupport/v1/protosupport.proto";
-import "httpconnector/v1/httpconnector.proto";
 package frontdoor.v1;
 option go_package="frontdoor/v1;frontdoor";
 

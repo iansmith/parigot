@@ -25,6 +25,7 @@ type Service interface {
 	GetPluginPath() string
 	GetPlugin() *plugin.Plugin
 	GetPluginSymbol() string
+	GetPluginAlias() string
 }
 
 type ParigotExitCode uint8
@@ -94,8 +95,13 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	}
 
 	if m.GetPluginPath() != "" {
+		name := m.GetName()
+		if m.GetPluginAlias() != "" {
+			name = m.GetPluginAlias()
+		}
 		err := LoadPluginAndAddHostFunc(context.Background(),
-			m.GetPluginPath(), m.GetPluginSymbol(), engine, m.GetName())
+			m.GetPluginPath(), m.GetPluginSymbol(), engine,
+			name)
 		if err != nil {
 			return nil, err
 		}

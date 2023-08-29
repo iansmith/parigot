@@ -23,6 +23,13 @@ Env=[]
 # frontdoor service
 [config.dev.microservice.frontdoor]
 WasmPath="/workspaces/parigot/example/httpsimple/build/frontdoor.p.wasm"
+PluginPath="/workspaces/parigot/build/httpconn.so"
+PluginSymbol="ParigotInitialize"
+# This alias is needed when building with the -tags noplugin option. 
+# This field the static linker to "see" what this service's host code is. 
+# The normal case, without the build tag, is used with the dynamic linker
+# and .so files, so this is unnecessary. 
+PluginAlias="httpconnector"
 Arg=[]
 Env=[]
 
@@ -30,14 +37,12 @@ Env=[]
 ## our dependencies
 ##
 
-[config.dev.microservice.httpconnector]
-WasmPath="/workspaces/parigot/build/httpconn.p.wasm"
-PluginPath="/workspaces/parigot/build/httpconn.so"
-PluginSymbol="ParigotInitialize"
-Arg=[]
-Env=[]
+#[config.dev.microservice.httpconnector]
+#WasmPath="/workspaces/parigot/build/httpconn.p.wasm"
+#Arg=[]
+#Env=[]
 
-[config.dev.microservice.http]
-WasmPath="/workspaces/parigot/build/http.p.wasm"
-Arg=[]
-Env=[]
+#[config.dev.microservice.http]
+#WasmPath="/workspaces/parigot/build/http.p.wasm"
+#Arg=[]
+#Env=[]

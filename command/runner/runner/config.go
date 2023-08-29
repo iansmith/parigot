@@ -93,12 +93,12 @@ type DeployFlag struct {
 }
 
 // Microservice is the unit of configuration for the DeployConfig. Public fields are data read from the user's
-// configuration and these are checked for sanity before being returned.  Exactly one of Server, Main, and
-// Test must be set to true.
+// configuration and these are checked for sanity before being returned.
 type Microservice struct {
 	WasmPath     string
 	PluginPath   string
 	PluginSymbol string
+	PluginAlias  string
 
 	Arg []string
 	Env []string
@@ -346,6 +346,10 @@ func (m *Microservice) GetPluginPath() string {
 func (m *Microservice) GetPluginSymbol() string {
 	return m.PluginSymbol
 }
+func (m *Microservice) GetPluginAlias() string {
+	return m.PluginAlias
+}
+
 func (m *Microservice) GetPlugin() *plugin.Plugin {
 	return m.plug
 }

@@ -84,14 +84,14 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				}
 			}
 			data := map[string]interface{}{
-				"file":           toGen,
-				"req":            info.GetRequest(),
-				"info":           info,
-				"package":        pkg,
-				"import":         imp,
-				"service":        wasmService,
-				"noMethod":       nomethod,
-				"noMethodsAtAll": noMethodsAtAll,
+				"file":          toGen,
+				"req":           info.GetRequest(),
+				"info":          info,
+				"package":       pkg,
+				"import":        imp,
+				"service":       wasmService,
+				"noMethod":      nomethod,
+				"noMethodAtAll": noMethodsAtAll,
 			}
 			err = executeTemplate(f, t, n, data)
 			if err != nil {
