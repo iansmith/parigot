@@ -2,8 +2,8 @@ package lib
 
 import (
 	"context"
+	"log/slog"
 
-	"github.com/iansmith/parigot/api/guest"
 	"github.com/iansmith/parigot/lib/go/future"
 	"google.golang.org/protobuf/proto"
 
@@ -17,7 +17,7 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 	req := queue.LocateRequest{}
 	req.QueueName = name
 
-	guest.Log(ctx).Info("FindOrCreateQueue: looking for queue '%s'...", name)
+	slog.Info("FindOrCreateQueue: looking for queue '%s'...", name)
 
 	qidFuture := future.NewBase[queue.QueueId]()
 
@@ -40,7 +40,7 @@ func FindOrCreateQueue(ctx context.Context, queueHandle queue.Client, name strin
 			qidFuture.Set(queue.UnmarshalQueueId(resp.Id))
 		})
 		fcreate.Failure(func(raw int32) {
-			guest.Log(ctx).Error("unable to create queue for testing: %s", queue.QueueErr_name[raw])
+			slog.Error("unable to create queue for testing: %s", queue.QueueErr_name[raw])
 			qidFuture.Set(queue.QueueIdZeroValue()) //xxx hack with zero value
 		})
 	})

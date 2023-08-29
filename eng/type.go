@@ -47,6 +47,10 @@ type Engine interface {
 	// the time it was created.  If the name cannot be found the return
 	// value is the error NotFound.
 	InstanceByName(ctx context.Context, name string) (Instance, error)
+	// HasHostSideFunction returns true if the package named pkg has declared
+	// host-side functions in its Init() method. If this is false, there is
+	// no reason to instantiate a host module.
+	HasHostSideFunction(ctx context.Context, pkg string) bool
 }
 
 type Module interface {

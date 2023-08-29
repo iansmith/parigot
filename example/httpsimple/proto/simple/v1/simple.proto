@@ -1,0 +1,22 @@
+syntax ="proto3";
+import "protosupport/v1/protosupport.proto";
+package simple.v1;
+option go_package="simple/v1;simple";
+
+// Simple
+service Simple {
+  // Set the SimpleErr to be a parigot error.
+  option (protosupport.v1.error_id_name) = "SimpleErr";
+
+}
+
+
+// The first four values of any error enum are to be as shown below.
+enum SimpleErr{
+  option (protosupport.v1.parigot_error) = true;
+  NoError = 0; // required
+  DispatchError = 1; // required
+  UnmarshalFailed = 2; // required
+  MarshalFailed = 3; // required
+  UnknownLang = 4;
+}

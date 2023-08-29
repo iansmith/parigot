@@ -16,19 +16,14 @@ import(
 {{- end}} {{/* imports */}}
 {{- $info:=.info }}
 
-    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
     "github.com/iansmith/parigot/lib/go"  
+    syscall "github.com/iansmith/parigot/g/syscall/v1" 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
-    syscall "github.com/iansmith/parigot/g/syscall/v1" 
-    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
-
     "google.golang.org/protobuf/proto"
     "google.golang.org/protobuf/types/known/anypb"
-
-
-
 )   
 
 {{- $needServiceDifferentiation:=true }}
@@ -51,13 +46,14 @@ import(
 // {{$svcCamel}} from {{$file}}
 //
 //service interface
+{{- $protoPkg:=.GetParent.GetPackage }}
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $iParam:=.InputParam.CGType.String $package}}
-{{- $oParam:=.OutputParam.CGType.String $package}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- if .InputCodeNeeded }}
     {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 
@@ -72,8 +68,8 @@ type Client{{$svcDiff}} interface {
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $iParam:=.InputParam.CGType.String $package}}
-{{- $oParam:=.OutputParam.CGType.String $package}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- if .InputCodeNeeded }}
     {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 

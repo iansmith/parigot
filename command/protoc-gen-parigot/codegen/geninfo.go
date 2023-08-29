@@ -222,7 +222,7 @@ func (g *GenInfo) RegisterService(w *WasmService) {
 	if w.GetWasmServiceName() == "" {
 		log.Printf("................. %#v", w.ServiceDescriptorProto.GetName())
 	}
-	g.finder.AddServiceType(w.GetWasmServiceName(), w.ProtoPackage(), w.GetGoPackage(), w)
+	g.finder.AddServiceType(w.GetWasmServiceName(), w.GetProtoPackage(), w.GetGoPackage(), w)
 }
 
 func (g *GenInfo) RegisterMessage(w *WasmMessage) {

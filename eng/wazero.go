@@ -203,6 +203,7 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Envi
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("yyy --- wazero module: %s", path)
 	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 
@@ -305,7 +306,8 @@ func newFunctionExtern(fn api.Function, i *wazeroInstance, name string) Function
 func (m *wazeroEng) InstantiateHostModule(ctx context.Context, pkg string) (Instance, error) {
 	b, ok := m.builder[pkg]
 	if !ok {
-		panic(fmt.Sprintf("unknown builder '%s'", pkg))
+		wazerologger.Info("not instantiating host module", "package", pkg)
+		return nil, nil // they have not declared any functions
 	}
 	inst, err := b.Instantiate(ctx)
 	if err != nil {
@@ -357,11 +359,14 @@ func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezon
 	for k, v := range envp {
 		conf.WithEnv(k, v)
 	}
+	log.Printf("xxx compiled module info : %v, %s", m.cm != nil, m.cm.Name())
 	mod, err := m.parent.rt.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
-		wazerologger.Error("instatiate module failed", "error", err, "name", m.name)
+		wazerologger.Error("instantiate module failed in wazero runtime", "error", err, "name", m.name)
 		return nil, err
 	}
+	wazerologger.Info("instantiate module success", "name", m.name)
+
 	i := &wazeroInstance{
 		parent:     m,
 		mod:        mod,
@@ -378,13 +383,29 @@ func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezon
 	return i, nil
 }
 
+func (e *wazeroEng) AddBuilder(ctx context.Context, builderName string) wazero.HostModuleBuilder {
+	b, ok := e.builder[builderName]
+	if ok {
+		return b
+	}
+	mod := e.rt.NewHostModuleBuilder(builderName)
+	log.Printf("xxx host module builder addeded '%s'", builderName)
+	e.builder[builderName] = mod
+	return mod
+}
+
 func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string, fn api.GoModuleFunction, iType []api.ValueType, oType []api.ValueType) {
 	mod, ok := e.builder[pkg]
 	if !ok {
-		mod = e.rt.NewHostModuleBuilder(pkg)
-		e.builder[pkg] = mod
+		mod = e.AddBuilder(ctx, pkg)
 	}
 	mod.NewFunctionBuilder().WithGoModuleFunction(fn, iType, oType).Export(name)
+}
+
+func (e *wazeroEng) HasHostSideFunction(ctx context.Context, pkg string) bool {
+	log.Printf("xxx -- has host side function %s %+v", pkg, e.builder[pkg])
+	_, ok := e.builder[pkg]
+	return ok
 }
 
 func (e *wazeroEng) AddSupportedFunc(ctx context.Context, pkg, name string, raw func(context.Context, api.Module, []uint64)) {

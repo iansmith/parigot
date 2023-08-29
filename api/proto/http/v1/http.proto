@@ -1,0 +1,136 @@
+syntax="proto3";
+package http.v1;
+option go_package="github.com/iansmith/parigot/g/http/v1;http";
+import "protosupport/v1/protosupport.proto";
+
+// This is the http service for parigot, which provides the most commonly used
+// HTTP methods: GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH, CONNECT, TRACE
+
+service Http {
+	option (protosupport.v1.is_reverse_api) = true;
+
+	// Get should only retrieve data and should have no other effect.
+	rpc Get(GetRequest) returns (GetResponse);
+	// Post is to submit data to be processed to a specified resource. It's
+	// often used when submitting form data or uploading a file.
+	rpc Post(PostRequest) returns (PostResponse);
+	// Put is to update the current resource with the uploaded content.
+	rpc Put(PutRequest) returns (PutResponse);
+	// Delete is to remove the specified resource.
+	rpc Delete(DeleteRequest) returns (DeleteResponse);
+	// Head is similar to Get, but it only requests the headers and not the
+	// actual data. This is useful to check if a resource exists or to retrieve
+	// meta-information.
+	rpc Head(HeadRequest) returns (HeadResponse);
+	// Options describes the communication options for the target resource.
+	// Often used to check which methods are supported by a URL or to use CORS
+	// (Cross-Origin Resource Sharing).
+	rpc Options(OptionsRequest) returns (OptionsResponse);
+	// Patch applies partial modifications to a resource. This method allows
+	// updating a resource by sending only the changes instead of sending the
+	// complete new resource representation.
+	rpc Patch(PatchRequest) returns (PatchResponse);
+	// Connect establishes a network connection to a resource (usually for
+	// network tunneling with SSL).
+	rpc Connect(ConnectRequest) returns (ConnectResponse);
+	// Trace performs a loopback test with the path to the target resource, useful for debugging.
+	rpc Trace(TraceRequest) returns (TraceResponse);
+}
+
+
+// Common message for fields that are used in method requests
+message HttpRequest {
+	string url = 1;
+	map<string, string> header = 2;
+	bytes body = 3;
+	map<string,string> trailer = 4;
+}
+
+message GetRequest {
+	HttpRequest request = 1;
+}
+
+message PostRequest {
+	HttpRequest request = 1;
+}
+
+message PutRequest {
+	HttpRequest request = 1;
+}
+
+message DeleteRequest {
+	HttpRequest request = 1;
+}
+
+message HeadRequest {
+	HttpRequest request = 1;
+}
+
+message OptionsRequest {
+	HttpRequest request = 1;
+}
+
+message PatchRequest {
+	HttpRequest request = 1;
+}
+
+message ConnectRequest {
+	HttpRequest request = 1;
+}
+
+message TraceRequest {
+	HttpRequest request = 1;
+}
+
+// Common message for fields that are used in method responses
+message HttpResponse {
+	int32 status_code = 1; // e.g. 200
+	map<string, string> header = 2;
+	bytes body = 3;
+	int32 content_length = 4; // Note: This could also be inferred from 'body' length.
+	map<string, string> trailer = 5;
+}
+
+message GetResponse {
+	HttpResponse response = 1;
+}
+
+message PostResponse {
+	HttpResponse response = 1;
+}
+
+message PutResponse {
+	HttpResponse response = 1;
+}
+
+message DeleteResponse {
+	HttpResponse response = 1;
+}
+
+message HeadResponse {
+	HttpResponse response = 1;
+}
+
+message OptionsResponse {
+	HttpResponse response = 1;
+}
+
+message PatchResponse {
+	HttpResponse response = 1;
+}
+
+message ConnectResponse {
+	HttpResponse response = 1;
+}
+
+message TraceResponse {
+	HttpResponse response = 1;
+}
+
+enum HttpErr {
+	option (protosupport.v1.parigot_error) = true;
+	NoError = 0; // mandatory
+	DispatchError = 1; //mandatory
+	UnmarshalError = 2; // mandatory
+	MarshalError = 3; // mandatory
+}
