@@ -7,7 +7,7 @@ option go_package="simple/v1;simple";
 service Simple {
   // Set the SimpleErr to be a parigot error.
   option (protosupport.v1.error_id_name) = "SimpleErr";
-
+  option (protosupport.v1.implements_reverse_api) = "http.v1.Http";
 }
 
 
