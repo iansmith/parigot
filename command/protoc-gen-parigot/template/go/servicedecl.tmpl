@@ -16,14 +16,19 @@ import(
 {{- end}} {{/* imports */}}
 {{- $info:=.info }}
 
-    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
-    "github.com/iansmith/parigot/lib/go"  
-    syscall "github.com/iansmith/parigot/g/syscall/v1" 
+// no method? {{.noMethodAtAll}}
+
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
     "google.golang.org/protobuf/proto"
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
+    syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    "github.com/iansmith/parigot/lib/go"  
     "google.golang.org/protobuf/types/known/anypb"
+{{if .noMethodAtAll}}
+{{else}}
+{{end}}{{/* no methods at all */}}
 )   
 
 {{- $needServiceDifferentiation:=true }}
