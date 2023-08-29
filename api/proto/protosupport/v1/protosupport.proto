@@ -19,4 +19,5 @@ extend google.protobuf.MethodOptions {
 extend google.protobuf.ServiceOptions {
   string error_id_name = 543213;
   bool is_reverse_api = 543214;
+  string implements_reverse_api = 543215;
 }
