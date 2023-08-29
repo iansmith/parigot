@@ -3,8 +3,14 @@ FROM ubuntu:22.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
 #RUN apt-get install -y curl 
-RUN apt-get install -y wget make git xz-utils nano clang-15
-RUN apt-get install -y sudo ca-certificates file dpkg zip unzip zsh 
+RUN apt-get install -y wget
+RUN apt-get install -y git
+RUN apt-get install -y xz-utils nano 
+RUN apt-get install sudo ca-certificates file dpkg zip unzip zsh clang-15
+
+#RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
+#    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
+#	clang-15 wabt ack dpkg zip unzip
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
