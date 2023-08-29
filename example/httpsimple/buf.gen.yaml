@@ -1,0 +1,10 @@
+version: v1
+managed:
+  enabled: false
+plugins:
+  - name: parigot
+    out: g/
+    opt: paths=source_relative
+  - name: go
+    out: g/
+    opt: paths=source_relative

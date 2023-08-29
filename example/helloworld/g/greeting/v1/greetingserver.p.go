@@ -14,7 +14,9 @@ import (
 	"log"
 	"log/slog"
 	"runtime/debug"
-    "unsafe" 
+    "unsafe"
+
+ 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	lib "github.com/iansmith/parigot/lib/go"
@@ -330,12 +332,12 @@ func FetchGreetingHost(ctx context.Context,inPtr *FetchGreetingRequest) *FutureF
 }  
 
 // This is interface for invocation.
+
 type invokeFetchGreeting struct {
     fn func(context.Context,*FetchGreetingRequest) *FutureFetchGreeting
 }
 
 func (t *invokeFetchGreeting) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-	// xxx FetchGreetingRequest and 'FetchGreetingRequest{}' why empty?
     in:=&FetchGreetingRequest{}
     err:=a.UnmarshalTo(in)
     if err!=nil {

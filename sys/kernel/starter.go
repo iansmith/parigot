@@ -2,7 +2,6 @@ package kernel
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"strings"
 
@@ -15,9 +14,9 @@ import (
 // the correct order.
 type starter struct {
 	serviceIsLaunched    map[string]struct{}
-	serviceToWaiting     map[string][]fqName
+	serviceToWaiting     map[string][]FQName
 	pkgToServiceImpl     map[string]map[string][]hostServiceBinding
-	serviceToExports     map[string][]fqName
+	serviceToExports     map[string][]FQName
 	serviceToFulfillment map[string]map[string]map[string]hostServiceBinding
 	stringToService      map[string]id.ServiceId
 	serviceToMethMap     map[string]map[string]id.MethodId
@@ -49,9 +48,9 @@ var _ Starter = &starter{}
 func NewStarter() *starter {
 	return &starter{
 		serviceIsLaunched:    map[string]struct{}{},
-		serviceToWaiting:     map[string][]fqName{},
+		serviceToWaiting:     map[string][]FQName{},
 		pkgToServiceImpl:     map[string]map[string][]hostServiceBinding{},
-		serviceToExports:     map[string][]fqName{},
+		serviceToExports:     map[string][]FQName{},
 		serviceToFulfillment: map[string]map[string]map[string]hostServiceBinding{},
 		stringToService:      map[string]id.ServiceId{},
 		serviceToMethMap:     map[string]map[string]id.MethodId{},
@@ -61,42 +60,32 @@ func NewStarter() *starter {
 	}
 }
 
-func (s *starter) Export(req *syscall.ExportRequest, resp *syscall.ExportResponse) syscall.KernelErr {
-	sid := id.UnmarshalServiceId(req.ServiceId)
-	hid := id.UnmarshalHostId(req.HostId)
-
-	if hid.IsZeroOrEmptyValue() {
-		return syscall.KernelErr_BadId
-	}
-	if sid.IsZeroOrEmptyValue() {
-		return syscall.KernelErr_BadId
-	}
+func (s *starter) Export(hid id.HostId, sid id.ServiceId, fqn FQName) syscall.KernelErr {
 	// not registered
 	if _, ok := s.stringToService[sid.String()]; !ok {
-		log.Printf("xxx -- failed to find string %s", sid.String())
+		klog.Errorf("ailed to find string %s", sid.String())
 		return syscall.KernelErr_BadId
 	}
 
-	for _, fqn := range req.GetService() {
-		pkg := fqn.GetPackagePath()
-		name := fqn.GetService()
-		pkg2map, ok := s.pkgToServiceImpl[pkg]
-		if !ok {
-			pkg2map = make(map[string][]hostServiceBinding)
-			s.pkgToServiceImpl[pkg] = pkg2map
-		}
-		allBind, ok := pkg2map[name]
-		if !ok {
-			allBind = []hostServiceBinding{}
-			pkg2map[name] = allBind
-		}
-		allBind = append(allBind, hostServiceBinding{
-			service: sid,
-			host:    hid,
-		})
-		pkg2map[name] = allBind
+	pkg := fqn.Pkg
+	name := fqn.Name
+	pkg2map, ok := s.pkgToServiceImpl[pkg]
+	if !ok {
+		pkg2map = make(map[string][]hostServiceBinding)
 		s.pkgToServiceImpl[pkg] = pkg2map
 	}
+	allBind, ok := pkg2map[name]
+	if !ok {
+		allBind = []hostServiceBinding{}
+		pkg2map[name] = allBind
+	}
+	allBind = append(allBind, hostServiceBinding{
+		service: sid,
+		host:    hid,
+	})
+	pkg2map[name] = allBind
+	s.pkgToServiceImpl[pkg] = pkg2map
+
 	s.findRunnable()
 	return syscall.KernelErr_NoError
 }
@@ -176,11 +165,11 @@ func (s *starter) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 	neededList := s.serviceToWaiting[sid.String()]
 	fulfilled := make(map[string]map[string]hostServiceBinding)
 	for _, need := range neededList {
-		smap, ok := s.pkgToServiceImpl[need.pkg]
+		smap, ok := s.pkgToServiceImpl[need.Pkg]
 		if !ok {
 			return nil
 		}
-		implList, ok := smap[need.name]
+		implList, ok := smap[need.Name]
 		if !ok {
 			return nil
 		}
@@ -198,16 +187,16 @@ func (s *starter) requirementsMet(sid id.ServiceId) map[string]map[string]hostSe
 		if !running {
 			return nil
 		}
-		sv, ok := fulfilled[need.pkg]
+		sv, ok := fulfilled[need.Pkg]
 		if !ok {
 			sv = make(map[string]hostServiceBinding)
-			fulfilled[need.pkg] = sv
+			fulfilled[need.Pkg] = sv
 		}
-		_, ok = sv[need.name]
+		_, ok = sv[need.Name]
 		if !ok {
-			sv[need.name] = winner
+			sv[need.Name] = winner
 		} else {
-			klog.Errorf("unexpected already existing fulfilled value for %s.%s", need.pkg, need.name)
+			klog.Errorf("unexpected already existing fulfilled value for %s.%s", need.Pkg, need.Name)
 		}
 	}
 	return fulfilled
@@ -221,9 +210,9 @@ func (s *starter) detectCycle(hid id.HostId, sid id.ServiceId) bool {
 	for svc, fulfilled := range s.serviceToFulfillment {
 		for pkg, nMap := range fulfilled {
 			for _, ex := range export {
-				if ex.pkg == pkg {
+				if ex.Pkg == pkg {
 					for name, candidate := range nMap {
-						if name == ex.name {
+						if name == ex.Name {
 							if sid.Equal(candidate.service) &&
 								hid.Equal(candidate.host) {
 								klog.Errorf("cycle detected between %s and %s, because %s imports %s.%s and %s exports that service",
@@ -320,21 +309,25 @@ func (s *starter) Bind(_ id.HostId, sid id.ServiceId, mid id.MethodId, methodNam
 // call Launch() before Locate() there is no issue with timing.  Launch blocks
 // until all dependencies are met.
 func (s *starter) Locate(req *syscall.LocateRequest, resp *syscall.LocateResponse) syscall.KernelErr {
-	sid := id.UnmarshalServiceId(req.GetCalledBy())
+	sid := id.ServiceIdEmptyValue()
+	if req.GetCalledBy() != nil {
+		sid = id.UnmarshalServiceId(req.GetCalledBy())
+	}
 	pkg := req.GetPackageName()
 	name := req.GetServiceName()
 	sMap, ok := s.pkgToServiceImpl[pkg]
-
-	if !s.checkAlreadyRequired(sid, pkg, name) {
-		klog.Errorf("service %s did not require service %s.%s but imports it", sid.Short(),
-			pkg, name)
-		return syscall.KernelErr_NotRequired
-	}
 
 	if !ok {
 		klog.Errorf("failed to find service that was requested in Locate (0): %s.%s", strings.ToUpper(pkg), name)
 		return syscall.KernelErr_NotFound
 	}
+
+	if !sid.IsEmptyValue() && !s.checkAlreadyRequired(sid, pkg, name) {
+		klog.Errorf("service %s did not require service %s.%s but imports it", sid.Short(),
+			pkg, name)
+		return syscall.KernelErr_NotRequired
+	}
+
 	target, ok := sMap[name]
 	if !ok {
 		klog.Errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, strings.ToUpper(name))
@@ -375,7 +368,7 @@ func (s *starter) checkAlreadyRequired(sid id.ServiceId, pkg, name string) bool 
 	waiting := s.serviceToWaiting[sid.String()]
 	found := false
 	for _, wait := range waiting {
-		if wait.name == name && wait.pkg == pkg {
+		if wait.Name == name && wait.Pkg == pkg {
 			found = true
 			break
 		}
@@ -386,17 +379,17 @@ func (s *starter) checkAlreadyRequired(sid id.ServiceId, pkg, name string) bool 
 // require
 func (s *starter) Require(req *syscall.RequireRequest, resp *syscall.RequireResponse) syscall.KernelErr {
 	src := id.UnmarshalServiceId(req.GetSource())
-	dest := make([]fqName, len(req.GetDest()))
+	dest := make([]FQName, len(req.GetDest()))
 	for i, d := range req.GetDest() {
-		curr := fqName{
-			pkg:  d.PackagePath,
-			name: d.Service,
+		curr := FQName{
+			Pkg:  d.PackagePath,
+			Name: d.Service,
 		}
 		dest[i] = curr
 	}
 	wait, ok := s.serviceToWaiting[src.String()]
 	if !ok {
-		wait = []fqName{}
+		wait = []FQName{}
 	}
 	for i := 0; i < len(dest); i++ {
 		wait = append(wait, dest[i])

@@ -1,6 +1,8 @@
 package kernel
 
 import (
+	"fmt"
+
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"google.golang.org/protobuf/proto"
@@ -101,6 +103,12 @@ type Registrar interface {
 	Register(hid id.HostId, sid id.ServiceId, debugName string) syscall.KernelErr
 }
 
+// Exporter is an interface that gets notified when a service declares
+// that it implements a particular interface (as an FQName).
+type Exporter interface {
+	Export(hid id.HostId, sid id.ServiceId, fqn FQName) syscall.KernelErr
+}
+
 // Binder is an interface that gets notified when any
 // method is bound.  It connects the name of the method with the service
 // and method id.
@@ -116,6 +124,7 @@ type Binder interface {
 type Starter interface {
 	Registrar
 	Binder
+	Exporter
 	// Require is used to indicate that a given service cannot run until all the given
 	// services are already running.
 	Require(*syscall.RequireRequest, *syscall.RequireResponse) syscall.KernelErr
@@ -123,9 +132,6 @@ type Starter interface {
 	// the number of services left to consider.  If the returned
 	// service id is the zero value, then no service is ready to run.
 	Ready() (launchCompleteBundle, int)
-	// Export declares that the given service exports one or more interfaces,
-	// as strings like "foo.v1.Bar".
-	Export(*syscall.ExportRequest, *syscall.ExportResponse) syscall.KernelErr
 	// Launch is called by a service indicating that all its preliminaries are
 	// complete and it is waiting for the starter the tell
 	// it to run.
@@ -166,6 +172,7 @@ type KLog interface {
 type Nameserver interface {
 	Registrar
 	Binder
+	Exporter
 
 	// AllHosts enumerates all the hosts that are known.
 	AllHosts() []id.HostId
@@ -188,12 +195,28 @@ type Nameserver interface {
 	// In() requests a chan that can be used to read requests
 	// from the network.
 	In() chan proto.Message
+
+	// MethodDetail is used get the detailed information about a service
+	// so you can potentially call one of the methods of it.  The first
+	// two return values are the host/service pair for locating the
+	// service.  If the returned HostId is zero value, then we could not
+	// find the named service requested.  The returned map is a map from
+	// string names of methods to the corresponding method ids.  MethodDetail
+	// is a bit like Bind() in reverse.
+	//
+	// This method is not intended to be called from the guest side, but rather
+	// from plugin code.
+	MethodDetail(fqn FQName, methodName string) (id.HostId, id.ServiceId, id.MethodId, syscall.KernelErr)
 }
 
-// fqName is a fully qualified name of a service, analagous to
+// FQName is a fully qualified name of a service, analagous to
 // syscall.FullyQualifiedName.
-type fqName struct {
-	pkg, name string
+type FQName struct {
+	Pkg, Name string
+}
+
+func (f FQName) String() string {
+	return fmt.Sprintf("%s.%s", f.Pkg, f.Name)
 }
 
 // MakeSidMidCombo is a utility for construction of a key (string) that is
