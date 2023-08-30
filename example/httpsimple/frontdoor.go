@@ -8,7 +8,6 @@ import (
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
-	"github.com/iansmith/parigot/example/httpsimple/g/frontdoor/v1"
 	"github.com/iansmith/parigot/example/httpsimple/g/simple/v1"
 	"github.com/iansmith/parigot/g/httpconnector/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -40,7 +39,7 @@ func main() {
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
 	_, fut, ctx, sid :=
-		frontdoor.Init([]lib.MustRequireFunc{simple.MustRequire, httpconnector.MustRequire}, impl)
+		httpconnector.Init([]lib.MustRequireFunc{simple.MustRequire, httpconnector.MustRequire}, impl)
 
 	// create a logger
 	logger = slog.New(guest.NewParigotHandler(sid))

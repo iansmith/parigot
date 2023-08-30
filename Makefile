@@ -139,17 +139,17 @@ build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/queue
 
-## client side of service impl (httpconn)
-HTTPCON_SERVICE=$(shell find api/guest/httpconnector -type f -regex ".*\.go")
-build/httpconn.p.wasm: $(HTTPCON_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
-	@rm -f $@
-	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/httpconnector
+# ## client side of service impl (httpconn)
+# HTTPCON_SERVICE=$(shell find api/guest/httpconnector -type f -regex ".*\.go")
+# build/httpconn.p.wasm: $(HTTPCON_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
+# 	@rm -f $@
+# 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/httpconnector
 
-## client side of service impl (http)
-HTTP_SERVICE=$(shell find api/guest/http -type f -regex ".*\.go")
-build/http.p.wasm: $(HTTP_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
-	@rm -f $@
-	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/http
+# ## client side of service impl (http)
+# HTTP_SERVICE=$(shell find api/guest/http -type f -regex ".*\.go")
+# build/http.p.wasm: $(HTTP_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
+# 	@rm -f $@
+# 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/http
 
 
 #

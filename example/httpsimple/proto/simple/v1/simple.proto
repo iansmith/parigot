@@ -1,5 +1,6 @@
 syntax ="proto3";
 import "protosupport/v1/protosupport.proto";
+import "http/v1/http.proto";
 package simple.v1;
 option go_package="simple/v1;simple";
 
@@ -7,8 +8,36 @@ option go_package="simple/v1;simple";
 service Simple {
   // Set the SimpleErr to be a parigot error.
   option (protosupport.v1.error_id_name) = "SimpleErr";
-  option (protosupport.v1.implements_reverse_api) = "http.v1.Http";
+  //option (protosupport.v1.implements_reverse_api) = "http.v1.Http";
+  //option (protosupport.v1.error_id_name) = "SimpleErr";
+	// Get should only retrieve data and should have no other effect.
+	rpc Get(http.v1.GetRequest) returns (http.v1.GetResponse);
+	// Post is to submit data to be processed to a specified resource. It's
+	// often used when submitting form data or uploading a file.
+	rpc Post(http.v1.PostRequest) returns (http.v1.PostResponse);
+	// Put is to update the current resource with the uploaded content.
+	rpc Put(http.v1.PutRequest) returns (http.v1.PutResponse);
+	// Delete is to remove the specified resource.
+	rpc Delete(http.v1.DeleteRequest) returns (http.v1.DeleteResponse);
+	// Head is similar to Get, but it only requests the headers and not the
+	// actual data. This is useful to check if a resource exists or to retrieve
+	// meta-information.
+	rpc Head(http.v1.HeadRequest) returns (http.v1.HeadResponse);
+	// Options describes the communication options for the target resource.
+	// Often used to check which methods are supported by a URL or to use CORS
+	// (Cross-Origin Resource Sharing).
+	rpc Options(http.v1.OptionsRequest) returns (http.v1.OptionsResponse);
+	// Patch applies partial modifications to a resource. This method allows
+	// updating a resource by sending only the changes instead of sending the
+	// complete new resource representation.
+	rpc Patch(http.v1.PatchRequest) returns (http.v1.PatchResponse);
+	// Connect establishes a network connection to a resource (usually for
+	// network tunneling with SSL).
+	rpc Connect(http.v1.ConnectRequest) returns (http.v1.ConnectResponse);
+	// Trace performs a loopback test with the path to the target resource, useful for debugging.
+	rpc Trace(http.v1.TraceRequest) returns (http.v1.TraceResponse);
 }
+
 
 
 // The first four values of any error enum are to be as shown below.

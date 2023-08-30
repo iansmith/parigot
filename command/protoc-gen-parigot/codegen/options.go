@@ -10,7 +10,7 @@ import (
 const (
 	serviceOptionForWasmName          = "543210"
 	serviceOptionForReverseAPI        = "543214"
-	serviceOptionImplementsReverseAPI = "54213"
+	serviceOptionImplementsReverseAPI = "543215"
 
 	messageOptionForWasmName = "543210"
 	methodOptionForWasmName  = "543210"
@@ -20,19 +20,6 @@ const (
 
 	parigotOptionForHostFuncName = "543212"
 	parigotOptionForErrorIdName  = "543213"
-	// serviceOptionNoPackage        = "543211"
-	// serviceOptionAlwaysPullParams = "543212"
-	// serviceOptionAlwaysPullOutput = "543213"
-	// serviceOptionKernel           = "543214"
-
-	// methodOptionPullParams = "543211"
-	// methodOptionPullOutput = "543213"
-
-	// if these flags are used in conjunction with a command line flag the generator should output
-	// code for the test methods mentioned in the service defintion.
-	// serviceOptionServiceTest = "543215"
-	// methodOptionMethodTest   = "543216"
-	// serviceOptionErrId       = "543217"
 )
 
 // options to map converts the text string that is the options for a given level
@@ -87,16 +74,21 @@ func isStringOptionPresent(s, target string) (string, bool) {
 	return text, false
 }
 
-// IsReverseAPI looks for the option wasm_service_name inside the given string.
+// isReverseAPI looks for the option that expresses that the currently being defined
+// service is not to be generated associated with the code that defines it.
 func isWasmServiceReverseAPI(s string) bool {
 	_, ok := isBooleanOptionPresent(s, serviceOptionForReverseAPI)
 	return ok
 }
 
-// IsServiceOptionImplementsReverseAPI is the way to tell the code generator that
-// the given service implements an api defined in a different place.
-func IsServiceOptionImplementsReverseAPI(s string) (string, bool) {
-	return isStringOptionPresent(s, serviceOptionImplementsReverseAPI)
+// implementsReverseAPI returns the type that this service truly implements,
+// not the code which is defined inline.
+func implementsReverseAPI(s string) string {
+	s, ok := isStringOptionPresent(s, serviceOptionImplementsReverseAPI)
+	if !ok {
+		return ""
+	}
+	return s
 }
 
 // isWasmServiceName looks for the option wasm_service_name inside the given string.

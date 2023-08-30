@@ -8,3 +8,5 @@ lint:
         - ENUM_VALUE_UPPER_SNAKE_CASE
         - SERVICE_SUFFIX
         - RPC_REQUEST_RESPONSE_UNIQUE
+        # ugh, our use of an extension that indicates which interface you implement breaks this
+        - IMPORT_USED

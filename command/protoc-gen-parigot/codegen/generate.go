@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"log"
 	"strings"
 	"text/template"
 
@@ -29,6 +30,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 		} else {
 			fileSeen[fname] = struct{}{}
 		}
+		log.Printf("xxxxx toGen %s, imp to package %+v", toGen, impToPkg)
 		for i, n := range g.TemplateName() {
 			//gather imports
 			imp := make(map[string]struct{})
@@ -36,6 +38,7 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 				if !IsIgnoredPackage(dep) {
 					imp["\""+impToPkg[dep]+"\""] = struct{}{}
 				}
+				log.Printf("xxxx package mapping %s", dep)
 			}
 			for _, svc := range info.finder.Service() {
 				for _, meth := range svc.GetWasmMethod() {
@@ -132,6 +135,9 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		allSvc := result.GetService(f)
 		for _, svc := range allSvc {
 			w := NewWasmService(result.GetFileByName(f), svc, lang, result.finder)
+			if w.ImplementsReverseAPI() != "" {
+				log.Printf("xxx implements remote %s: %s", w.GetWasmServiceName(), f)
+			}
 			result.RegisterService(w)
 		}
 	}

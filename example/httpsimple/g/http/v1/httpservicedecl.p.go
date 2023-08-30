@@ -9,7 +9,7 @@ package http
 import(
     "context" 
 
-// no method? true
+// no method? false
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  

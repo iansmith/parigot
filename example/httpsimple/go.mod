@@ -6,7 +6,6 @@ replace github.com/iansmith/parigot => /workspaces/parigot
 
 require (
 	github.com/iansmith/parigot v0.0.0-20230724152722-d9d85542a70c
-	github.com/iansmith/parigot/example/helloworld v0.0.0-20230824141946-b86f0489829d
 	google.golang.org/protobuf v1.31.0
 )
 
