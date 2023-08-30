@@ -186,7 +186,7 @@ func ReadOneAndCall{{$svcDiff}}(ctx context.Context, binding *lib.ServiceMethodM
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("{{$svcCamel}}, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -264,7 +264,7 @@ func {{$svcDiffFL}}bind(ctx context.Context,sid id.ServiceId, impl {{$svcCamel}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
 {{- $errId:=.GetWasmServiceErrId }}
 
-// Locate finds a reference to the client interface of {{$svc}}.  
+// Locate finds a reference to the client interface of {{$svcCamel}}.  
 func Locate{{$svcDiff}}(ctx context.Context,sid id.ServiceId) (Client{{$svcDiff}},syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "{{.GetProtoPackage}}","{{$svc}}", sid)
     if kerr!=syscall.KernelErr_NoError{

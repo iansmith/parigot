@@ -61,7 +61,7 @@ type Module interface {
 	// XXX outside.  The timezoneDir is a path on the _host_ that should be
 	// XXX mounted into the guest fs as /tz.  Usually want this to
 	// XXX to be GOROOT/lib/time.
-	NewInstance(ctx context.Context, timezone string, timezoneDir string) (Instance, error)
+	NewInstance(ctx context.Context, timezone string, timezoneDir string, hid id.HostId) (Instance, error)
 	// Name returns the path of the binary that was loaded.
 	Name() string
 }

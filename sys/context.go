@@ -67,8 +67,9 @@ func (c *DeployContext) Process() *sync.Map {
 // for that.
 func (c *DeployContext) CreateAllProcess() error {
 	// load the parigot syscalls, this is done based on the config in the .toml file
+	// note that there is no host id assigned to the parigot system calls
 	err := LoadPluginAndAddHostFunc(context.Background(),
-		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, "parigot")
+		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, id.HostIdZeroValue(), "parigot")
 	if err != nil {
 		return err
 	}
@@ -81,8 +82,8 @@ func (c *DeployContext) CreateAllProcess() error {
 	// create processes
 	for _, name := range c.config.AllName() {
 		m := c.config.Microservice[name]
+		// this is the creation of the new host id for this process
 		hid := id.NewHostId()
-		log.Printf("yyy -- looping on microservices %s,%s", name, hid.Short())
 		p, err := NewProcessFromMicroservice(c.engine, m, c, hid)
 		if err != nil {
 			return fmt.Errorf("unable to create process from module '%s': %v", name, err)

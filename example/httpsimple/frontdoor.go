@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 
 	"github.com/iansmith/parigot/api/guest"
@@ -38,13 +37,11 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	_, fut, ctx, sid :=
-		httpconnector.Init([]lib.MustRequireFunc{simple.MustRequire, httpconnector.MustRequire}, impl)
+	binding, fut, ctx, sid :=
+		httpconnector.Init([]lib.MustRequireFunc{simple.MustRequire}, impl)
 
 	// create a logger
 	logger = slog.New(guest.NewParigotHandler(sid))
-
-	smmap := kernelSetup(ctx, sid, impl)
 
 	fut.Failure(func(err syscall.KernelErr) {
 		logger.Error("failed to launch the frontdoor service: %s", syscall.KernelErr_name[int32(err)])
@@ -56,23 +53,19 @@ func main() {
 			slog.String("frontdoor host", syscallguest.CurrentHostId().Short()))
 	})
 
-	// This loop should never return.  Timeout in millis is used
-	// for the question of how long should we "wait" for a network call
-	// before doing something else.
-	var err syscall.KernelErr
-	for {
-		err = lib.ReadOneAndCallClient(ctx, smmap, timeoutInMillis)
-		if err != syscall.KernelErr_NoError && err != syscall.KernelErr_ReadOneTimeout {
-			break
-		}
-	}
+	// does not return except when the world is broken
+	err := httpconnector.Run(ctx, binding, simple.TimeoutInMillis, nil)
+
 	logger.Error("we got an error that is not normal from ReadOneAndCallClient", "kernel error", syscall.KernelErr_name[int32(err)])
 
 	lib.ExitSelf(ctx, 1, sid)
 }
 
 func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest) *httpconnector.FutureHandle {
-	log.Printf("IN HANDLE")
+	sid := id.UnmarshalServiceId(req.GetServiceId())
+	mid := id.UnmarshalMethodId(req.GetMethodId())
+	logger.Info("Reached handle", "method", req.GetHttpMethod(), "service", sid.Short(), "method", mid.Short(),
+		"current host", syscallguest.CurrentHostId().Short())
 	return httpconnector.NewFutureHandle()
 }
 
@@ -109,7 +102,7 @@ func kernelSetup(ctx context.Context, sid id.ServiceId, impl httpconnector.HttpC
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid, mid, "HttpConnector", "Handle", httpconnector.GenerateHandleInvoker(impl))
 
-	logger.Info("success binding method 'Handle'", "method", mid.Short())
+	logger.Info("success binding method 'Handle'", "method", mid.Short(), "host", syscallguest.CurrentHostId())
 	return smmap
 
 }

@@ -6,6 +6,7 @@ import (
 	_ "unsafe"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/sys/kernel"
@@ -18,7 +19,7 @@ type SyscallPlugin struct {
 
 var ParigotInitialize apiplugin.ParigotInit = &SyscallPlugin{}
 
-func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*SyscallPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	e.AddSupportedFunc(ctx, "parigot", "locate_", locate)
 	e.AddSupportedFunc(ctx, "parigot", "dispatch_", dispatch)
 	e.AddSupportedFunc(ctx, "parigot", "block_until_call_", blockUntilCall)

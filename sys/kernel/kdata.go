@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"log/slog"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -123,12 +122,9 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	slog.Info("xxx got all the bundle", "sid", sid.Short(),
-		"mid", mid.Short(), "cid", cid.Short(), "target hid", targetHid.Short())
 	k.matcher().Dispatch(targetHid, cid, mid)
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
-	slog.Info("xxx fineshed write on channel")
 	resp.CallId = cid.Marshal()
 	resp.TargetHostId = targetHid.Marshal()
 	return syscall.KernelErr_NoError

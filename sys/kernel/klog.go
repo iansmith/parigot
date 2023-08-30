@@ -1,6 +1,7 @@
 package kernel
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 )
@@ -12,13 +13,13 @@ type kernelLogger struct {
 }
 
 func (k *kernelLogger) Errorf(spec string, rest ...interface{}) {
-	k.Logger.Error(spec, rest...)
+	k.Logger.Error(fmt.Sprintf(spec, rest...))
 }
 func (k *kernelLogger) Warnf(spec string, rest ...interface{}) {
-	k.Logger.Warn(spec, rest)
+	k.Logger.Warn(fmt.Sprintf(spec, rest...))
 }
 func (k *kernelLogger) Infof(spec string, rest ...interface{}) {
-	k.Logger.Info(spec, rest...)
+	k.Logger.Info(fmt.Sprintf(spec, rest...))
 }
 
 func newKernelLogger() KLog {

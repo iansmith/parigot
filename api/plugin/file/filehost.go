@@ -14,6 +14,7 @@ import (
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	apishared "github.com/iansmith/parigot/api/shared"
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/file/v1"
 
@@ -92,7 +93,7 @@ func (fs FileStatus) String() string {
 	return []string{"WRITE", "READ", "CLOSE"}[fs]
 }
 
-func (*FilePlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*FilePlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	e.AddSupportedFunc(ctx, "file", "open_", openFileHost) // this should call the "wrapper"
 	e.AddSupportedFunc(ctx, "file", "create_", createFileHost)
 	e.AddSupportedFunc(ctx, "file", "close_", closeFileHost)

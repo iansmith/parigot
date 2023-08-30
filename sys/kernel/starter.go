@@ -330,7 +330,8 @@ func (s *starter) Locate(req *syscall.LocateRequest, resp *syscall.LocateRespons
 
 	target, ok := sMap[name]
 	if !ok {
-		klog.Errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, strings.ToUpper(name))
+		klog.Errorf("failed to find service that was requested in Locate (1): %s.%s", pkg, name)
+		klog.Errorf("full set of smap %+v", sMap)
 		return syscall.KernelErr_NotFound
 	}
 	if len(target) == 0 {

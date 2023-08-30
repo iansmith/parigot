@@ -203,7 +203,6 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Envi
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("yyy --- wazero module: %s", path)
 	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 
@@ -329,15 +328,16 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 	return result, nil
 }
 
-func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezoneDir string) (Instance, error) {
+func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezoneDir string, hid id.HostId) (Instance, error) {
 	args := []string{}
 	envp := make(map[string]string)
-	hid := id.NewHostId()
+
 	if m.env != nil {
 		args = m.env.Arg()
 		envp = m.env.Environment()
 	}
 
+	wazerologger.Info("created new wasm module instance", "name", m.name, "host", hid.Short())
 	conf := wazero.NewModuleConfig().
 		WithStartFunctions().
 		WithName(m.Name()).
@@ -359,7 +359,7 @@ func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezon
 	for k, v := range envp {
 		conf.WithEnv(k, v)
 	}
-	log.Printf("xxx compiled module info : %v, %s", m.cm != nil, m.cm.Name())
+
 	mod, err := m.parent.rt.InstantiateModule(ctx, m.cm, conf)
 	if err != nil {
 		wazerologger.Error("instantiate module failed in wazero runtime", "error", err, "name", m.name)
@@ -389,7 +389,6 @@ func (e *wazeroEng) AddBuilder(ctx context.Context, builderName string) wazero.H
 		return b
 	}
 	mod := e.rt.NewHostModuleBuilder(builderName)
-	log.Printf("xxx host module builder addeded '%s'", builderName)
 	e.builder[builderName] = mod
 	return mod
 }
@@ -403,7 +402,7 @@ func (e *wazeroEng) addSupportFuncAnyType(ctx context.Context, pkg, name string,
 }
 
 func (e *wazeroEng) HasHostSideFunction(ctx context.Context, pkg string) bool {
-	log.Printf("xxx -- has host side function %s %+v", pkg, e.builder[pkg])
+
 	_, ok := e.builder[pkg]
 	return ok
 }

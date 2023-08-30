@@ -51,7 +51,7 @@ func main() {
 		log.Fatalf("unable to create process in main: %v", err)
 	}
 
-	main, code := deployCtx.StartServer(context.Background())
+	main, _ := deployCtx.StartServer(context.Background())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -61,9 +61,6 @@ func main() {
 	}()
 
 	if main == nil {
-		if code != 0 {
-			log.Printf("servers are running")
-		}
 		for {
 			// a year
 			time.Sleep(8760 * time.Hour)
