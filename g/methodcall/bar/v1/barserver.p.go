@@ -164,6 +164,11 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
+	// if we get a nil, the intention is that the invocation be ignored
+	if fut==nil {
+		slog.Warn("ignoring call result for call","call",cid.Short())
+		return syscall.KernelErr_NoError
+	}
 	fut.Success(func (result proto.Message){
 		rvReq:=&syscall.ReturnValueRequest{}
 		rvReq.Bundle=&syscall.MethodBundle{}

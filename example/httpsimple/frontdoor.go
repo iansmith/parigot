@@ -8,9 +8,11 @@ import (
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/example/httpsimple/g/simple/v1"
+	"github.com/iansmith/parigot/g/http/v1"
 	"github.com/iansmith/parigot/g/httpconnector/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+
 	"github.com/iansmith/parigot/lib/go/future"
 
 	_ "time/tzdata"
@@ -66,7 +68,57 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 	logger.Info("Reached handle", "method", req.GetHttpMethod(), "service", sid.Short(), "method", mid.Short(),
 		"current host", syscallguest.CurrentHostId().Short())
-	return httpconnector.NewFutureHandle()
+
+	if req.GetHttpMethod() != "GET" {
+		slog.Info("xxxx method is not get", "method", req.GetHttpMethod())
+		fh := httpconnector.NewFutureHandle()
+		result := &httpconnector.HandleResponse{
+			HttpStatus:   401,
+			HttpResponse: []byte("not permitted, you jerk"),
+			Headers: map[string]string{
+				"try": "GET",
+			},
+		}
+		if e := fh.CompleteMethod(ctx, result, int32(httpconnector.HttpConnectorErr_NoError)); e != syscall.KernelErr_NoError {
+			slog.Error("unable to complete Handle() method future", "kernel error", syscall.KernelErr_name[int32(e)])
+			// not much we can do here, panic?
+			return nil
+		}
+		return fh
+	}
+
+	httpClient, err := http.Locate(ctx, id.ServiceIdZeroValue())
+	if err == syscall.KernelErr_NotFound {
+		badfut := httpconnector.NewFutureHandle()
+		badfut.Method.CompleteMethod(ctx, nil, httpconnector.HttpConnectorErr_NoReceiver)
+		return badfut
+	}
+	if err != syscall.KernelErr_NoError {
+		slog.Error("unable to locate an http receiver", "kernel error", syscall.KernelErr_name[int32(err)])
+		return nil
+	}
+
+	futGet := httpClient.Get(ctx, &http.GetRequest{
+		Request: &http.HttpRequest{
+			Url:     "",
+			Header:  map[string]string{},
+			Body:    []byte{},
+			Trailer: map[string]string{},
+		},
+	})
+	futHandle := httpconnector.NewFutureHandle()
+	futGet.Method.Success(func(resp *http.GetResponse) {
+		slog.Info("received message from GET receiver", "size in bytes", resp.Response.GetContentLength())
+		futHandle.Method.CompleteMethod(ctx, &httpconnector.HandleResponse{
+			HttpStatus: resp.Response.StatusCode,
+			Headers:    resp.Response.Header,
+		}, httpconnector.HttpConnectorErr_NoError)
+	})
+	futGet.Method.Failure(func(err http.HttpErr) {
+		slog.Info("error received from GET receiver", "name", http.HttpErr_name[int32(err)])
+		futHandle.Method.CompleteMethod(ctx, nil, httpconnector.HttpConnectorErr_ReceiverFailed)
+	})
+	return futHandle
 }
 
 func (m *myService) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {

@@ -44,4 +44,5 @@ enum HttpConnectorErr {
 	InternalError = 4; // There are internal issues with the httpconnector service
 
 	NoReceiver = 5; // We could not find any service that implements HttpConnector
+	ReceiverFailed = 6; // We attempted to call the receiver, but got a failure back
 }
