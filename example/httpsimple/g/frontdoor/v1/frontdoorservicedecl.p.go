@@ -7,9 +7,12 @@ package frontdoor
 
 
 import(
-    "context" 
+    "context"
 
-// no method? true
+    "github.com/iansmith/parigot/g/httpconnector/v1"
+  
+
+// no method? false
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -26,11 +29,13 @@ import(
 // Frontdoor from frontdoor/v1/frontdoor.proto
 //
 //service interface
-type Frontdoor interface { 
+type Frontdoor interface {
+    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
-type Client interface { 
+type Client interface {
+    Handle(ctx context.Context,in *httpconnector.HandleRequest) *FutureHandle   
 }
 
 // Client difference from Frontdoor: Ready() 
@@ -38,4 +43,70 @@ type Client_ struct {
     *client.BaseService
 }
 // Check that Client_ is a Client.
-var _ = Client(&Client_{})  
+var _ = Client(&Client_{})
+
+//
+// method: Frontdoor.Handle 
+//
+type FutureHandle struct {
+    Method *future.Method[*httpconnector.HandleResponse,FrontdoorErr]
+} 
+
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+    out:=&httpconnector.HandleResponse{}
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,FrontdoorErr(e)) 
+    return syscall.KernelErr_NoError
+
+}
+func (f *FutureHandle)Success(sfn func (proto.Message)) {
+    x:=func(m *httpconnector.HandleResponse){
+        sfn(m)
+    }
+    f.Method.Success(x)
+} 
+
+func (f *FutureHandle)Failure(ffn func (int32)) {
+    x:=func(err FrontdoorErr) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x) 
+}
+
+func (f *FutureHandle)Completed() bool  {
+    return f.Method.Completed()
+
+}
+func (f *FutureHandle)Cancel()   {
+    f.Method.Cancel()
+}
+func NewFutureHandle() *FutureHandle {
+    f:=&FutureHandle{
+        Method: future.NewMethod[*httpconnector.HandleResponse,FrontdoorErr](nil,nil),
+    } 
+    return f
+}
+func (i *Client_) Handle(ctx context.Context, in *httpconnector.HandleRequest) *FutureHandle { 
+    mid, ok := i.BaseService.MethodIdByName("Handle")
+    if !ok {
+        f:=NewFutureHandle()
+        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+    }
+    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    f:=NewFutureHandle()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        return f
+     }
+
+    ctx, t:=lib.CurrentTime(ctx)
+    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    return f
+}  

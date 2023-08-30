@@ -7,7 +7,7 @@ import "protosupport/v1/protosupport.proto";
 // HTTP methods: GET, POST, PUT, DELETE, HEAD, OPTIONS, PATCH, CONNECT, TRACE
 
 service Http {
-	option (protosupport.v1.is_reverse_api) = true;
+	//option (protosupport.v1.is_reverse_api) = true;
 
 	// Get should only retrieve data and should have no other effect.
 	rpc Get(GetRequest) returns (GetResponse);

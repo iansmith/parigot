@@ -49,53 +49,72 @@ func main() {
 		source = fp
 	}
 	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir, protocVerbose)
-	importToPackageMap := make(map[string]string)
+	log.Printf("XXXXXXXXX MAIN ENTRY with request %d %s", len(genReq.GetFileToGenerate()), genReq.GetFileToGenerate()[0])
 	for _, f := range genReq.GetProtoFile() {
-		pkg := f.GetOptions().GetGoPackage()
-		if index := strings.LastIndex(pkg, ";"); index != -1 {
-			pkg = pkg[:index]
-		}
-		if codegen.IsIgnoredPackage(pkg) {
-			continue
-		}
+		log.Printf("\t %s", *f.Name)
+	}
+
+	importToPackageMap := make(map[string]string)
+	f := genReq.GetProtoFile()[len(genReq.GetProtoFile())-1]
+	pkg := f.GetOptions().GetGoPackage()
+	if index := strings.LastIndex(pkg, ";"); index != -1 {
+		pkg = pkg[:index]
+	}
+	if !codegen.IsIgnoredPackage(pkg) {
+		log.Printf("xxx import to package map: %s,%s", f.GetName(), pkg)
 		importToPackageMap[f.GetName()] = pkg
 	}
-	resp := pluginpb.CodeGeneratorResponse{
-		Error:             nil,
-		SupportedFeatures: nil,
+	gopkg := importToPackageMap[f.GetName()]
+	parts := strings.Split(f.GetName(), "/")
+	if len(parts) < 2 {
+		panic("unable to understand non-qualified package:" + f.GetName())
 	}
-	// generate code, at this point language neutral
-	file, err := generateNeutral(info, genReq, importToPackageMap)
-
-	seen := make(map[string]struct{})
-	// clean up the list of files?
-	outFile := []*util.OutputFile{}
-	for _, f := range file {
-		_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
-		if foundIt {
-			continue
+	qual := strings.Join(parts[:len(parts)-1], "/")
+	log.Printf("xxxx f.GetName() = github.com/iansmith/parigot/g/%s", qual)
+	//if strings.HasPrefix(gopkg, "github.com/iansmith/parigot/g/"+qual) {
+	if gopkg != "foo" {
+		// compute response
+		resp := pluginpb.CodeGeneratorResponse{
+			Error:             nil,
+			SupportedFeatures: nil,
 		}
-		seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
-		outFile = append(outFile, f)
-	}
 
-	// set up the response going back out stdout to the protocol buffers compiler
-	// response with an error filled in or a set of output files
-	if err != nil {
-		resp.Error = new(string)
-		*resp.Error = err.Error()
-	} else {
-		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
-		for i, f := range outFile {
-			resp.File[i] = f.ToGoogleCGResponseFile()
+		// generate code, at this point language neutral
+		file, err := generateNeutral(info, genReq, importToPackageMap)
+
+		seen := make(map[string]struct{})
+		// clean up the list of files?
+		outFile := []*util.OutputFile{}
+		for _, f := range file {
+			_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
+			if foundIt {
+				continue
+			}
+			seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
+			outFile = append(outFile, f)
 		}
-	}
 
-	// send response and exit if not loading from disk
-	if *load == "" && !*terminal {
-		util.MarshalResponseAndExit(&resp)
+		// set up the response going back out stdout to the protocol buffers compiler
+		// response with an error filled in or a set of output files
+		if err != nil {
+			resp.Error = new(string)
+			*resp.Error = err.Error()
+		} else {
+			resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
+			for i, f := range outFile {
+				resp.File[i] = f.ToGoogleCGResponseFile()
+			}
+		}
+
+		// send response and exit if not loading from disk
+		if *load == "" && !*terminal {
+			util.MarshalResponseAndExit(&resp)
+		} else {
+			util.OutputTerminal(file)
+		}
+
 	} else {
-		util.OutputTerminal(file)
+		log.Printf("ignoring builtin proto %s", f.GetName())
 	}
 }
 
@@ -115,6 +134,7 @@ func isGenerate(fullName string, genReq *pluginpb.CodeGeneratorRequest) bool {
 // generateNeutral starts the process of code generation and it does not care
 // about the languages being used.  those get set at the point we compute genMap
 func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
+	log.Printf("xxxx -- generate neutral version of map %+v", impToPkg)
 	fileList := []*util.OutputFile{}
 	// compute the set of descriptors that will need to be generated... have to do this firest because
 	// there can be multiple protos in the same package
@@ -157,6 +177,7 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 	}
 	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
+	log.Printf("xxx??? %d, %d", len(genReq.GetFileToGenerate()), len(generatorMap))
 	for _, desc := range genReq.GetProtoFile() {
 		for lang, generator := range generatorMap {
 			codegen.Collect(info, generator.LanguageText())
@@ -173,6 +194,10 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 					return nil, err
 				}
 				file, err := generator.Generate(t, info, impToPkg)
+				log.Printf("xxx --- about to generate for %s,%s => %+v", desc.GetName(), desc.GetPackage(), impToPkg)
+				for _, f := range file {
+					log.Printf("xxx \t\t %s", f.ToGoogleCGResponseFile().GetName())
+				}
 				if err != nil {
 					return nil, err
 				}

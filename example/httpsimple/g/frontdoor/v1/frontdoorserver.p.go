@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
- 
+"github.com/iansmith/parigot/g/httpconnector/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	"github.com/iansmith/parigot/api/shared/id"
@@ -51,7 +51,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Frontdoor) *future.Base[
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-func Init(require []lib.MustRequireFunc, impl lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
+func Init(require []lib.MustRequireFunc, impl Frontdoor) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister()
@@ -193,6 +193,31 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 
+func bind(ctx context.Context,sid id.ServiceId, impl Frontdoor) (*lib.ServiceMethodMap, syscall.KernelErr) {
+	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
+//
+// frontdoor.v1.Frontdoor.Handle
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Handle"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Frontdoor","Handle",
+		GenerateHandleInvoker(impl)) 
+	return smmap,syscall.KernelErr_NoError
+}
  
 
 // Locate finds a reference to the client interface of frontdoor.  
@@ -268,7 +293,11 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
 }
 
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchService(ctx context.Context, sid id.ServiceId, impl  Frontdoor) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+	smmap, err:=bind(ctx,sid, impl)
+	if err!=0{
+		return  nil,nil,syscall.KernelErr(err)
+	}
 
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
@@ -280,10 +309,11 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker
 	fut:=syscallguest.Launch(ctx,req)
 
 
-    return nil,fut,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 
 }
-func MustLaunchService(ctx context.Context, sid id.ServiceId, impl lib.ReadyChecker) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) { 
+func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Frontdoor) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
@@ -296,4 +326,35 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl lib.ReadyChec
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//   
+//  
+
+//go:wasmimport frontdoor handle_
+func Handle_(int32,int32,int32,int32) int64
+func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureHandle {
+	outProtoPtr := (*httpconnector.HandleResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
+	f:=NewFutureHandle()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+}   
+
+// This is interface for invocation.
+
+type invokeHandle struct {
+    fn func(context.Context,*httpconnector.HandleRequest) *FutureHandle
+}
+
+func (t *invokeHandle) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&httpconnector.HandleRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateHandleInvoker(impl Frontdoor) future.Invoker {
+	return &invokeHandle{fn:impl.Handle} 
+}  

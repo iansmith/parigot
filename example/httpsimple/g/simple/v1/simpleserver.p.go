@@ -16,7 +16,7 @@ import (
 	"runtime/debug"
     "unsafe"
 
- 
+"github.com/iansmith/parigot/g/http/v1" 
     // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"  
 	"github.com/iansmith/parigot/api/shared/id"
@@ -51,7 +51,7 @@ func Launch(ctx context.Context, sid id.ServiceId, impl Simple) *future.Base[boo
 // Note that  Init returns a future, but the case of failure is covered
 // by this definition so the caller need only deal with Success case.
 // The context passed here does not need to contain a logger, one will be created.
-func Init(require []lib.MustRequireFunc, impl lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
+func Init(require []lib.MustRequireFunc, impl Simple) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture, context.Context, id.ServiceId){ 
 	// tricky, this context really should not be used but is
 	// passed so as to allow printing if things go wrong
 	ctx, myId := MustRegister()
@@ -193,6 +193,167 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 }
 
 
+func bind(ctx context.Context,sid id.ServiceId, impl Simple) (*lib.ServiceMethodMap, syscall.KernelErr) {
+	smmap:=lib.NewServiceMethodMap()
+	var mid id.MethodId
+	var bindReq *syscall.BindMethodRequest
+	var resp *syscall.BindMethodResponse
+	var err syscall.KernelErr
+//
+// simple.v1.Simple.Get
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Get"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Get",
+		GenerateGetInvoker(impl))
+//
+// simple.v1.Simple.Post
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Post"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Post",
+		GeneratePostInvoker(impl))
+//
+// simple.v1.Simple.Put
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Put"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Put",
+		GeneratePutInvoker(impl))
+//
+// simple.v1.Simple.Delete
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Delete"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Delete",
+		GenerateDeleteInvoker(impl))
+//
+// simple.v1.Simple.Head
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Head"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Head",
+		GenerateHeadInvoker(impl))
+//
+// simple.v1.Simple.Options
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Options"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Options",
+		GenerateOptionsInvoker(impl))
+//
+// simple.v1.Simple.Patch
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Patch"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Patch",
+		GeneratePatchInvoker(impl))
+//
+// simple.v1.Simple.Connect
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Connect"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Connect",
+		GenerateConnectInvoker(impl))
+//
+// simple.v1.Simple.Trace
+//
+
+	bindReq = &syscall.BindMethodRequest{}
+	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
+	bindReq.ServiceId = sid.Marshal()
+	bindReq.MethodName = "Trace"
+	resp, err=syscallguest.BindMethod(ctx, bindReq)
+	if err!=syscall.KernelErr_NoError {
+		return nil, err
+	}
+	mid=id.UnmarshalMethodId(resp.GetMethodId())
+
+	// completer already prepared elsewhere
+	smmap.AddServiceMethod(sid,mid,"Simple","Trace",
+		GenerateTraceInvoker(impl)) 
+	return smmap,syscall.KernelErr_NoError
+}
  
 
 // Locate finds a reference to the client interface of simple.  
@@ -268,7 +429,11 @@ func MustExport(ctx context.Context, sid id.ServiceId) {
 }
 
 
-func LaunchService(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+func LaunchService(ctx context.Context, sid id.ServiceId, impl  Simple) (*lib.ServiceMethodMap,*syscallguest.LaunchFuture,syscall.KernelErr) {
+	smmap, err:=bind(ctx,sid, impl)
+	if err!=0{
+		return  nil,nil,syscall.KernelErr(err)
+	}
 
 	cid:=id.NewCallId()
 	req:=&syscall.LaunchRequest{
@@ -280,10 +445,11 @@ func LaunchService(ctx context.Context, sid id.ServiceId, impl  lib.ReadyChecker
 	fut:=syscallguest.Launch(ctx,req)
 
 
-    return nil,fut,syscall.KernelErr_NoError
+    return smmap,fut,syscall.KernelErr_NoError
 
 }
-func MustLaunchService(ctx context.Context, sid id.ServiceId, impl lib.ReadyChecker) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) { 
+func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Simple) (*lib.ServiceMethodMap, *syscallguest.LaunchFuture) {
+ 
     smmap,fut,err:=LaunchService(ctx,sid,impl)
     if err!=syscall.KernelErr_NoError {
         panic("Unable to call LaunchService successfully: "+syscall.KernelErr_name[int32(err)])
@@ -296,4 +462,283 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl lib.ReadyChec
 // <methodName>Host from your server implementation. These will be optimized 
 // away by the compiler if you don't use them--in other words, if you want to 
 // implement everything on the guest side).
-//   
+//  
+
+//go:wasmimport simple get_
+func Get_(int32,int32,int32,int32) int64
+func GetHost(ctx context.Context,inPtr *http.GetRequest) *FutureGet {
+	outProtoPtr := (*http.GetResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
+	f:=NewFutureGet()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple post_
+func Post_(int32,int32,int32,int32) int64
+func PostHost(ctx context.Context,inPtr *http.PostRequest) *FuturePost {
+	outProtoPtr := (*http.PostResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
+	f:=NewFuturePost()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple put_
+func Put_(int32,int32,int32,int32) int64
+func PutHost(ctx context.Context,inPtr *http.PutRequest) *FuturePut {
+	outProtoPtr := (*http.PutResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
+	f:=NewFuturePut()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple delete_
+func Delete_(int32,int32,int32,int32) int64
+func DeleteHost(ctx context.Context,inPtr *http.DeleteRequest) *FutureDelete {
+	outProtoPtr := (*http.DeleteResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
+	f:=NewFutureDelete()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple head_
+func Head_(int32,int32,int32,int32) int64
+func HeadHost(ctx context.Context,inPtr *http.HeadRequest) *FutureHead {
+	outProtoPtr := (*http.HeadResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
+	f:=NewFutureHead()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple options_
+func Options_(int32,int32,int32,int32) int64
+func OptionsHost(ctx context.Context,inPtr *http.OptionsRequest) *FutureOptions {
+	outProtoPtr := (*http.OptionsResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
+	f:=NewFutureOptions()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple patch_
+func Patch_(int32,int32,int32,int32) int64
+func PatchHost(ctx context.Context,inPtr *http.PatchRequest) *FuturePatch {
+	outProtoPtr := (*http.PatchResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
+	f:=NewFuturePatch()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple connect_
+func Connect_(int32,int32,int32,int32) int64
+func ConnectHost(ctx context.Context,inPtr *http.ConnectRequest) *FutureConnect {
+	outProtoPtr := (*http.ConnectResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
+	f:=NewFutureConnect()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+} 
+
+//go:wasmimport simple trace_
+func Trace_(int32,int32,int32,int32) int64
+func TraceHost(ctx context.Context,inPtr *http.TraceRequest) *FutureTrace {
+	outProtoPtr := (*http.TraceResponse)(nil)
+	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
+	f:=NewFutureTrace()
+	f.CompleteMethod(ctx,ret,raw)
+	return f
+}   
+
+// This is interface for invocation.
+
+type invokeGet struct {
+    fn func(context.Context,*http.GetRequest) *FutureGet
+}
+
+func (t *invokeGet) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.GetRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateGetInvoker(impl Simple) future.Invoker {
+	return &invokeGet{fn:impl.Get} 
+}
+
+// This is interface for invocation.
+
+type invokePost struct {
+    fn func(context.Context,*http.PostRequest) *FuturePost
+}
+
+func (t *invokePost) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.PostRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePostInvoker(impl Simple) future.Invoker {
+	return &invokePost{fn:impl.Post} 
+}
+
+// This is interface for invocation.
+
+type invokePut struct {
+    fn func(context.Context,*http.PutRequest) *FuturePut
+}
+
+func (t *invokePut) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.PutRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePutInvoker(impl Simple) future.Invoker {
+	return &invokePut{fn:impl.Put} 
+}
+
+// This is interface for invocation.
+
+type invokeDelete struct {
+    fn func(context.Context,*http.DeleteRequest) *FutureDelete
+}
+
+func (t *invokeDelete) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.DeleteRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateDeleteInvoker(impl Simple) future.Invoker {
+	return &invokeDelete{fn:impl.Delete} 
+}
+
+// This is interface for invocation.
+
+type invokeHead struct {
+    fn func(context.Context,*http.HeadRequest) *FutureHead
+}
+
+func (t *invokeHead) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.HeadRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateHeadInvoker(impl Simple) future.Invoker {
+	return &invokeHead{fn:impl.Head} 
+}
+
+// This is interface for invocation.
+
+type invokeOptions struct {
+    fn func(context.Context,*http.OptionsRequest) *FutureOptions
+}
+
+func (t *invokeOptions) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.OptionsRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateOptionsInvoker(impl Simple) future.Invoker {
+	return &invokeOptions{fn:impl.Options} 
+}
+
+// This is interface for invocation.
+
+type invokePatch struct {
+    fn func(context.Context,*http.PatchRequest) *FuturePatch
+}
+
+func (t *invokePatch) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.PatchRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GeneratePatchInvoker(impl Simple) future.Invoker {
+	return &invokePatch{fn:impl.Patch} 
+}
+
+// This is interface for invocation.
+
+type invokeConnect struct {
+    fn func(context.Context,*http.ConnectRequest) *FutureConnect
+}
+
+func (t *invokeConnect) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.ConnectRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateConnectInvoker(impl Simple) future.Invoker {
+	return &invokeConnect{fn:impl.Connect} 
+}
+
+// This is interface for invocation.
+
+type invokeTrace struct {
+    fn func(context.Context,*http.TraceRequest) *FutureTrace
+}
+
+func (t *invokeTrace) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
+    in:=&http.TraceRequest{}
+    err:=a.UnmarshalTo(in)
+    if err!=nil {
+        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
+        return nil
+    }
+    return t.fn(ctx,in) 
+
+}
+
+func GenerateTraceInvoker(impl Simple) future.Invoker {
+	return &invokeTrace{fn:impl.Trace} 
+}  

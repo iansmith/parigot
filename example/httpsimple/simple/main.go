@@ -28,7 +28,7 @@ func main() {
 
 	// Init initiaizes a service and normally receives a list of functions
 	// that indicate dependencies, but we don't have any here.
-	binding, fut, ctx, sid := simple.Init([]lib.MustRequireFunc{http.MustRequire}, impl)
+	binding, fut, ctx, sid := http.Init([]lib.MustRequireFunc{http.MustRequire}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 
@@ -52,7 +52,7 @@ func main() {
 type myService struct{}
 
 // test at compile time that myService has appropriate methods.
-var _ = simple.Simple(&myService{})
+var _ = http.Http(&myService{})
 
 func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetResponse, http.HttpErr) {
 	msg := []byte("hello, http protocal")
@@ -90,4 +90,40 @@ func (m *myService) Ready(_ context.Context, _ id.ServiceId) *future.Base[bool] 
 	fut := future.NewBase[bool]()
 	fut.Set(true)
 	return fut
+}
+
+//
+// These methods are required by the API, but are not used.
+//
+
+func (m *myService) Post(ctx context.Context, req *http.PostRequest) *http.FuturePost {
+	panic("Post")
+}
+
+func (m *myService) Put(ctx context.Context, req *http.PutRequest) *http.FuturePut {
+	panic("Put")
+}
+
+func (m *myService) Delete(ctx context.Context, req *http.DeleteRequest) *http.FutureDelete {
+	panic("Delete")
+}
+
+func (m *myService) Head(ctx context.Context, req *http.HeadRequest) *http.FutureHead {
+	panic("Head")
+}
+
+func (m *myService) Options(ctx context.Context, req *http.OptionsRequest) *http.FutureOptions {
+	panic("Options")
+}
+
+func (m *myService) Patch(ctx context.Context, req *http.PatchRequest) *http.FuturePatch {
+	panic("Patch")
+}
+
+func (m *myService) Connect(ctx context.Context, req *http.ConnectRequest) *http.FutureConnect {
+	panic("Connect")
+}
+
+func (m *myService) Trace(ctx context.Context, req *http.TraceRequest) *http.FutureTrace {
+	panic("Trace")
 }

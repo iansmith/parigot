@@ -1,5 +1,6 @@
 syntax ="proto3";
 import "protosupport/v1/protosupport.proto";
+import "httpconnector/v1/httpconnector.proto";
 package frontdoor.v1;
 option go_package="frontdoor/v1;frontdoor";
 
@@ -10,6 +11,8 @@ service Frontdoor {
   // code generated will use FrontdoorErr as the type for error retuns.
   option (protosupport.v1.error_id_name) = "FrontdoorErr";
   option (protosupport.v1.implements_reverse_api) = "httpconnector.v1.HttpConnector";
+  rpc Handle(httpconnector.v1.HandleRequest) returns (httpconnector.v1.HandleResponse);
+
 }
 
 // The first four values of any error enum are to be as shown below.

@@ -9,7 +9,7 @@ import "google/protobuf/any.proto";
 // http requests
 
 service HttpConnector {
-	option (protosupport.v1.is_reverse_api) = true;
+	//option (protosupport.v1.is_reverse_api) = true;
 	rpc Handle(HandleRequest) returns (HandleResponse);
 }
 

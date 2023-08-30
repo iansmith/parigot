@@ -64,6 +64,9 @@ func (w *WasmService) GetWasmServiceName() string {
 func (w *WasmService) IsWasmServiceReverseAPI() bool {
 	return isWasmServiceReverseAPI(w.ServiceDescriptorProto.GetOptions().String())
 }
+func (w *WasmService) ImplementsReverseAPI() string {
+	return implementsReverseAPI(w.ServiceDescriptorProto.GetOptions().String())
+}
 
 // GetWasmServiceErrId gets the string that is the type name
 // of the return type of this service.  It will be
