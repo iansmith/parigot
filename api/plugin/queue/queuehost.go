@@ -44,7 +44,7 @@ type QueuePlugin struct{}
 
 // This init functions points the host functions at the functions that
 // are the ones to a short setup before calling the real implementation.
-func (*QueuePlugin) Init(ctx context.Context, e eng.Engine) bool {
+func (*QueuePlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	e.AddSupportedFunc(ctx, "queue", "create_queue_", createQueueHost)
 	e.AddSupportedFunc(ctx, "queue", "delete_queue_", deleteQueueHost)
 	e.AddSupportedFunc(ctx, "queue", "length_", lengthHost)

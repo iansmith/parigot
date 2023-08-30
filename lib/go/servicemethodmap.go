@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	"github.com/iansmith/parigot/lib/go/future"
@@ -167,16 +168,14 @@ func (s *ServiceMethodMap) Func(sid id.ServiceId, mid id.MethodId) future.Invoke
 	m := s.forward[sid.String()]
 
 	if m == nil {
-		slog.Info("Func, no such service", sid.Short(), "s.forward", fmt.Sprintf("%+v", s.forward))
+		slog.Warn("Func, no such service", "sid", sid.Short(), "current host", syscallguest.CurrentHostId().Short())
 		return nil
 	}
-	slog.Info("service method map FUNC,found key in map", "s.forward", fmt.Sprintf("%+v", s.forward))
 	fn, ok := m[mid.String()]
 	if !ok {
-		slog.Info("Func, no such method", "method", mid.Short())
+		slog.Warn("Func, no such method", "method", mid.Short(), "current host", syscallguest.CurrentHostId().Short())
 		return nil
 	}
-	slog.Info("succeeded in finding the method in Func")
 	return fn
 }
 

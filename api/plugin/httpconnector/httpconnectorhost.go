@@ -3,7 +3,6 @@ package httpconnector
 import (
 	"context"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -39,26 +38,16 @@ type ParigotRequestWrapper interface {
 	GetRequest() *phttp.HttpRequest
 }
 
-var handleMethod id.MethodId
-
-func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine) bool {
-	//????
-	//e.AddSupportedFunc(ctx, "httpconnector", "handle_", handleHost)
-
-	// setup logger
+func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})).With("plugin", "httpconnector")
-	logger.Info("about to create connector")
 
 	// create the connector
 	connector = newHtttpConnectorImpl()
 
 	// run the loop that is listening on the http port (9000)
-	logger.Info("about to run connector")
 	go runHttpListener(connector)
 
 	kernel.K.AddReceiver(connector)
-
-	logger.Info("httpconnecter Init() complete")
 
 	return true
 }
@@ -80,17 +69,14 @@ func newHtttpConnectorImpl() *httpConnectorImpl {
 func runHttpListener(connector *httpConnectorImpl) {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
 		if req != nil {
-			logger.Info("got HTTP request", "method", req.Method)
 			result := connector.makeReadOneResult(req)
 			if result != nil {
 				connector.kernelCh <- result
 			}
 		}
 	}
-	logger.Info("setting up the handler")
 	http.HandleFunc("/", h1)
 
-	slog.Info("start the HTTP listerner")
 	http.ListenAndServe(port, nil)
 }
 
@@ -98,7 +84,6 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 
 	var parigotReq *anypb.Any
 	var err httpconnector.HttpConnectorErr
-	log.Printf("dispatching a call to %s", req.Method)
 	switch strings.ToUpper(req.Method) {
 	case "GET":
 		get := &phttp.GetRequest{Request: convertFieldsHttp(req)}
@@ -133,7 +118,6 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 		return nil
 	}
 	hid, sid, mid, err := findHttpConnector()
-	logger.Info("finished finding HTTP connector")
 	if err != httpconnector.HttpConnectorErr_NoError {
 		return nil
 	}
@@ -143,7 +127,6 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 		MethodId:   mid.Marshal(),
 		ReqAny:     parigotReq,
 	}
-	slog.Info("created handle req", "method", mid.Short())
 
 	if hid.IsZeroOrEmptyValue() || sid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
 		logger.Error("failed to get id set back corectly from MethodDetail", "host", hid,
@@ -155,7 +138,7 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 	if err := handleAny.MarshalFrom(handleReq); err != nil {
 		logger.Error("unable to marshal handle req into any", "error", err)
 	}
-	logger.Info("about to hit the response to the client side")
+
 	bundle := &syscall.MethodBundle{
 		HostId:    hid.Marshal(), // why is this needed?
 		ServiceId: sid.Marshal(),
@@ -169,22 +152,11 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 		Param:  handleAny,
 	}
 	dispResp := &syscall.DispatchResponse{}
-	logger.Info("sending dispatch!")
 	kerr := kernel.K.Dispatch(dispReq, dispResp)
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("unable to dispatch Handle() message in httpconnector", "kernel error", kerr)
 	}
-	log.Printf("finished the send of the message")
-
-	rd := &syscall.ReadOneResponse{
-		Timeout:       false,
-		Bundle:        bundle,
-		ParamOrResult: handleAny,
-		ResultErr:     0,
-		Resolved:      nil,
-		Exit:          nil,
-	}
-	return rd
+	return nil
 }
 
 func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.HttpConnectorErr) {
@@ -235,11 +207,10 @@ func convertFieldsHttp(req *http.Request) *phttp.HttpRequest {
 func findHttpConnector() (id.HostId, id.ServiceId, id.MethodId, httpconnector.HttpConnectorErr) {
 	locReq := &syscall.LocateRequest{
 		PackageName: "httpconnector.v1",
-		ServiceName: "httpconnector",
+		ServiceName: "http_connector", // this is the name in WASM terms
 		CalledBy:    nil,
 	}
 	locResp := &syscall.LocateResponse{}
-	log.Printf("xxx -- about do real locate")
 	kerr := kernel.K.Locate(locReq, locResp)
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("unable to find service with (internal) Locate",
@@ -261,7 +232,5 @@ func findHttpConnector() (id.HostId, id.ServiceId, id.MethodId, httpconnector.Ht
 			"package", locReq.GetPackageName(), "service", locReq.GetServiceName())
 		return id.HostIdZeroValue(), id.ServiceIdZeroValue(), id.MethodIdZeroValue(), httpconnector.HttpConnectorErr_NoReceiver
 	}
-	logger.Info("xxx -- received locate", "host", hid.Short(), "service", sid.Short(),
-		"method", mid.Short())
 	return hid, sid, mid, httpconnector.HttpConnectorErr_NoError
 }

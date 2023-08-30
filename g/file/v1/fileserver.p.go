@@ -160,7 +160,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("File, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -339,7 +339,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl File) (*lib.ServiceMethodMa
 }
  
 
-// Locate finds a reference to the client interface of file.  
+// Locate finds a reference to the client interface of File.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "file.v1","file", sid)
     if kerr!=syscall.KernelErr_NoError{

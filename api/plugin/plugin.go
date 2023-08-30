@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"plugin"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 )
 
@@ -12,7 +13,7 @@ import (
 // initialized. It is expected that they will use the supplied
 // Engine in the call to Init to register Host functions.
 type ParigotInit interface {
-	Init(ctx context.Context, e eng.Engine) bool
+	Init(ctx context.Context, e eng.Engine, h id.HostId) bool
 }
 
 // LoadAndReturnInit is a utility function for plugins that

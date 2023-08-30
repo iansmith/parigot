@@ -160,7 +160,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("HttpConnector, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -220,7 +220,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl HttpConnector) (*lib.Servic
 }
  
 
-// Locate finds a reference to the client interface of http_connector.  
+// Locate finds a reference to the client interface of HttpConnector.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "httpconnector.v1","http_connector", sid)
     if kerr!=syscall.KernelErr_NoError{

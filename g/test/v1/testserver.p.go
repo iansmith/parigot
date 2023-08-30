@@ -161,7 +161,7 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("Test, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -238,7 +238,7 @@ func testbind(ctx context.Context,sid id.ServiceId, impl Test) (*lib.ServiceMeth
 }
  
 
-// Locate finds a reference to the client interface of test.  
+// Locate finds a reference to the client interface of Test.  
 func LocateTest(ctx context.Context,sid id.ServiceId) (ClientTest,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "test.v1","test", sid)
     if kerr!=syscall.KernelErr_NoError{
@@ -539,7 +539,7 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("MethodCallSuite, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -616,7 +616,7 @@ func methodCallSuitebind(ctx context.Context,sid id.ServiceId, impl MethodCallSu
 }
  
 
-// Locate finds a reference to the client interface of method_call_suite.  
+// Locate finds a reference to the client interface of MethodCallSuite.  
 func LocateMethodCallSuite(ctx context.Context,sid id.ServiceId) (ClientMethodCallSuite,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "test.v1","method_call_suite", sid)
     if kerr!=syscall.KernelErr_NoError{
@@ -917,7 +917,7 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("UnderTest, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -977,7 +977,7 @@ func underTestbind(ctx context.Context,sid id.ServiceId, impl UnderTest) (*lib.S
 }
  
 
-// Locate finds a reference to the client interface of under_test.  
+// Locate finds a reference to the client interface of UnderTest.  
 func LocateUnderTest(ctx context.Context,sid id.ServiceId) (ClientUnderTest,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "test.v1","under_test", sid)
     if kerr!=syscall.KernelErr_NoError{

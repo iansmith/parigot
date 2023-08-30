@@ -10,7 +10,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
-guest: build/file.p.wasm  build/queue.p.wasm build/httpconn.p.wasm build/http.p.wasm #build/test.p.wasm
+guest: build/file.p.wasm  build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so
 sqlc: api/plugin/queue/db.go

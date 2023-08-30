@@ -160,7 +160,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("Http, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -356,7 +356,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl Http) (*lib.ServiceMethodMa
 }
  
 
-// Locate finds a reference to the client interface of http.  
+// Locate finds a reference to the client interface of Http.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "http.v1","http", sid)
     if kerr!=syscall.KernelErr_NoError{

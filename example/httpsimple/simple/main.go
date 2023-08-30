@@ -39,7 +39,7 @@ func main() {
 
 	// Run waits for calls to our methods and should not return.
 	// The context provided here is passed through to calls on your methods.
-	kerr := simple.Run(ctx, binding, simple.TimeoutInMillis, nil)
+	kerr := http.Run(ctx, binding, simple.TimeoutInMillis, nil)
 
 	// Should not happen.
 	if kerr != syscall.KernelErr_NoError {

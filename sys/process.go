@@ -101,16 +101,14 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 		}
 		err := LoadPluginAndAddHostFunc(context.Background(),
 			m.GetPluginPath(), m.GetPluginSymbol(), engine,
-			name)
+			hid, name)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	log.Printf("xxx everything ok up to newinstance '%s'", proc.module.Name())
-	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone, ctx.config.TimezoneDir)
+	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone, ctx.config.TimezoneDir, hid)
 	if err != nil {
-		log.Printf("xxxx error %s", err)
 		return nil, err
 	}
 
@@ -118,19 +116,16 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	return proc, nil
 }
 
-func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, name string) error {
-	log.Printf("xxx load plugin and add host func: %s,%s", pluginPath, name)
+func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, hid id.HostId, name string) error {
 	i, err := LoadPlugin(ctx, pluginPath, pluginSymbol, name)
 	if err != nil {
 		return err
 	}
-	log.Printf("xxx init %s,%s", pluginPath, name)
-	if !i.Init(ctx, engine) {
+	if !i.Init(ctx, engine, hid) {
 		return fmt.Errorf("unable to load plugin: %v", err.Error())
 	}
 
 	if engine.HasHostSideFunction(ctx, name) {
-		log.Printf("xxx instantiate %s,%s", pluginPath, name)
 		if _, err := engine.InstantiateHostModule(ctx, name); err != nil {
 			return fmt.Errorf("instantiate host module failed: %s", err.Error())
 		}

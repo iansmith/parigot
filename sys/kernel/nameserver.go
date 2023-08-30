@@ -131,11 +131,12 @@ func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelE
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
+	klog.Infof("Register in Nameserver called: %s => %s", sid.Short(), hid.Short())
 	n.serviceToHost[sid.String()] = hid
 	return syscall.KernelErr_NoError
 }
 
-// BindMethod is called when any service registers.  We are building the list
+// BindMethod is called when any service does bind request.  We are building the list
 // of known methods of a given service so we copy much of this info.
 func (n *ns) Bind(hid id.HostId, sid id.ServiceId, mid id.MethodId, methName string) syscall.KernelErr {
 	n.lock.Lock()

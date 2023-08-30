@@ -160,7 +160,7 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	fn:=binding.Func(sid,mid)
 	if fn==nil {
 		slog.Error("MethodCallSuite, readOneAndCall:unable to find binding for method on service, ignoring","mid",mid.Short(),"sid", sid.Short(),
-			"current host",syscallguest.CurrentHostId())
+			"current host",syscallguest.CurrentHostId().Short())
 		return syscall.KernelErr_NoError
 	}
 	fut:=fn.Invoke(ctx,resp.GetParamOrResult())
@@ -237,7 +237,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl MethodCallSuite) (*lib.Serv
 }
  
 
-// Locate finds a reference to the client interface of method_call_suite.  
+// Locate finds a reference to the client interface of MethodCallSuite.  
 func Locate(ctx context.Context,sid id.ServiceId) (Client,syscall.KernelErr) {
     cs, kerr:=client.LocateDynamic(ctx, "methodcall.v1","method_call_suite", sid)
     if kerr!=syscall.KernelErr_NoError{
