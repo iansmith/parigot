@@ -84,6 +84,10 @@ type Kernel interface {
 	// or the whole network of services.
 	Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) syscall.KernelErr
 
+	// HostDispatch mimics Dispatch but instead of returning a value to the
+	// guest side code, it returns the value to the callback function passed here.
+	HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr
+
 	// Nameserver gets the nameserver for the kernel.  This
 	// does not lock.
 	Nameserver() Nameserver

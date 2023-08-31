@@ -108,8 +108,23 @@ func (k *kdata) matcher() callMatcher {
 // Dispatch is used to send a call to a remote machine.  If this
 // returns a kernel error it is because the dispatch call itself could
 // not be made, not that the dispatch worked ok and an error was returned
-// by the remote code.
+// by the remote code. This function is the end of the sequence
+// of calls that start with some guest-side code calling a remote
+// method.
 func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse) syscall.KernelErr {
+	return k.dispatchWithHostFunc(req, resp, nil)
+}
+
+// HostDispatch is used to send a call to a remote machine with the caller
+// being host-side code that wants the result via the given callback function.
+func (k *kdata) HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr {
+	return k.dispatchWithHostFunc(req, resp, hostFunc)
+}
+
+// The client and host side calls of Dispatch are wrappers around
+// this function with different values for host func.
+func (k *kdata) dispatchWithHostFunc(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr {
+
 	// we don't want to lock here because we could block somebody
 	// else who is reading from the same channel
 
@@ -122,7 +137,7 @@ func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchRes
 		return syscall.KernelErr_BadId
 	}
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	k.matcher().Dispatch(targetHid, cid, mid)
+	k.matcher().Dispatch(targetHid, cid, mid, hostFunc)
 	ch := k.Nameserver().FindHostChan(targetHid)
 	ch <- req
 	resp.CallId = cid.Marshal()
@@ -155,7 +170,8 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 
 	// save for later
-	k.matcher().Dispatch(hid, cid, mid)
+	k.matcher().Dispatch(hid, cid, mid, nil)
+	klog.Infof("xxx saved as a dispatch for later:%s,%s,%s,%s", sid.Short(), cid.Short(), hid.Short(), mid.Short())
 	return k.start.Launch(sid, cid, hid, mid)
 }
 
@@ -258,10 +274,10 @@ func (k *kdata) Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) sysca
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 
 	// save for later
-	k.matcher().Dispatch(hid, cid, mid)
+	k.matcher().Dispatch(hid, cid, mid, nil)
 	if req.ShutdownAll {
 		for _, host := range k.ns.AllHosts() {
-			kerr := k.matcher().Dispatch(host, cid, mid)
+			kerr := k.matcher().Dispatch(host, cid, mid, nil)
 			if kerr != syscall.KernelErr_NoError {
 				return syscall.KernelErr_ExitFailed
 			}

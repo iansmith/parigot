@@ -23,7 +23,7 @@ message HandleRequest {
 message HandleResponse {
 	int32 http_status = 1;
 	bytes http_response = 2;
-	map<string,string> headers = 3;
+	map<string,string> header = 3;
 }
 
 message CheckRequest{

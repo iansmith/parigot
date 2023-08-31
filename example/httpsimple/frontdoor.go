@@ -12,6 +12,7 @@ import (
 	"github.com/iansmith/parigot/g/httpconnector/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/iansmith/parigot/lib/go/future"
 
@@ -27,7 +28,7 @@ var timeoutInMillis = int32(50)
 var logger *slog.Logger
 
 type myService struct {
-	simple simple.Client
+	myId id.ServiceId
 }
 
 var _ httpconnector.HttpConnector = &myService{}
@@ -38,9 +39,9 @@ func main() {
 	impl := &myService{}
 
 	// Init initiaizes a service and normally receives a list of functions
-	// that indicate dependencies, but we don't have any here.
+	// that indicate dependencies.  We depend only on simple.
 	binding, fut, ctx, sid :=
-		httpconnector.Init([]lib.MustRequireFunc{simple.MustRequire}, impl)
+		httpconnector.Init([]lib.MustRequireFunc{http.MustRequire}, impl)
 
 	// create a logger
 	logger = slog.New(guest.NewParigotHandler(sid))
@@ -75,11 +76,16 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 		result := &httpconnector.HandleResponse{
 			HttpStatus:   401,
 			HttpResponse: []byte("not permitted, you jerk"),
-			Headers: map[string]string{
-				"try": "GET",
+			Header: map[string]string{
+				"try-different-verb": "GET",
 			},
 		}
-		if e := fh.CompleteMethod(ctx, result, int32(httpconnector.HttpConnectorErr_NoError)); e != syscall.KernelErr_NoError {
+		a := &anypb.Any{}
+		if e := a.MarshalFrom(result); e != nil {
+			slog.Error("unable to marshal", "error", e)
+			return nil
+		}
+		if e := fh.CompleteMethod(ctx, a, int32(httpconnector.HttpConnectorErr_NoError)); e != syscall.KernelErr_NoError {
 			slog.Error("unable to complete Handle() method future", "kernel error", syscall.KernelErr_name[int32(e)])
 			// not much we can do here, panic?
 			return nil
@@ -87,7 +93,7 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 		return fh
 	}
 
-	httpClient, err := http.Locate(ctx, id.ServiceIdZeroValue())
+	httpClient, err := http.Locate(ctx, m.myId)
 	if err == syscall.KernelErr_NotFound {
 		badfut := httpconnector.NewFutureHandle()
 		badfut.Method.CompleteMethod(ctx, nil, httpconnector.HttpConnectorErr_NoReceiver)
@@ -97,7 +103,7 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 		slog.Error("unable to locate an http receiver", "kernel error", syscall.KernelErr_name[int32(err)])
 		return nil
 	}
-
+	slog.Info("http connector about to call httpClient (GET)")
 	futGet := httpClient.Get(ctx, &http.GetRequest{
 		Request: &http.HttpRequest{
 			Url:     "",
@@ -106,12 +112,14 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 			Trailer: map[string]string{},
 		},
 	})
+	slog.Info("http connector finished call to http (GET)")
+
 	futHandle := httpconnector.NewFutureHandle()
 	futGet.Method.Success(func(resp *http.GetResponse) {
 		slog.Info("received message from GET receiver", "size in bytes", resp.Response.GetContentLength())
 		futHandle.Method.CompleteMethod(ctx, &httpconnector.HandleResponse{
 			HttpStatus: resp.Response.StatusCode,
-			Headers:    resp.Response.Header,
+			Header:     resp.Response.Header,
 		}, httpconnector.HttpConnectorErr_NoError)
 	})
 	futGet.Method.Failure(func(err http.HttpErr) {
@@ -122,7 +130,7 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 }
 
 func (m *myService) Ready(ctx context.Context, sid id.ServiceId) *future.Base[bool] {
-	m.simple = simple.MustLocate(ctx, sid)
+	m.myId = sid
 	return future.NewBaseWithValue[bool](true)
 }
 
