@@ -6,7 +6,7 @@ RUN apt-get clean
 RUN apt-get install -y wget
 RUN apt-get install -y git
 RUN apt-get install -y xz-utils nano 
-RUN apt-get install sudo ca-certificates file \
+RUN apt-get install -y sudo ca-certificates file \
 	dpkg zip unzip zsh 
 
 #RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
