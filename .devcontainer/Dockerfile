@@ -2,7 +2,7 @@
 FROM ubuntu:22.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
-#RUN apt-get install -y curl 
+RUN apt-get install -y curl 
 RUN apt-get install -y wget
 RUN apt-get install -y git
 RUN apt-get install -y xz-utils nano 
