@@ -39,6 +39,7 @@ func setCompleter(ctx context.Context, t time.Time, hid id.HostId, cid id.CallId
 	key := completerKey(hid, cid)
 	internalFuture[key] = t
 	cidToCompleter[key] = f
+	log.Printf("xxxx set completer reached,cidtocompleter=%+v, with f %T", cidToCompleter, f)
 }
 
 func delCompleted(hid id.HostId, cid id.CallId) {

@@ -1,42 +1,24 @@
 package guest
 
 import (
-	"bytes"
 	"context"
 	"log/slog"
+	"os"
 
 	"github.com/iansmith/parigot/api/shared/id"
-
-	"github.com/fatih/color"
 )
 
 const LoggerCtxKey = "logger_context_key"
 
-var colorSeq []color.Attribute = []color.Attribute{
-	color.FgHiGreen,
-	color.FgHiYellow,
-	color.FgHiBlue,
-	color.FgHiMagenta,
-	color.FgHiCyan,
-	color.FgGreen,
-	color.FgYellow,
-	color.FgBlue,
-	color.FgMagenta,
-	color.FgCyan,
-}
-
 var handlerCount = 0
 
 type ParigotHandler struct {
-	h   slog.Handler
-	buf *bytes.Buffer
-	clr *color.Color
+	h slog.Handler
 }
 
 func NewParigotHandler(sid id.ServiceId) slog.Handler {
-	buf := &bytes.Buffer{}
 
-	th := slog.NewTextHandler(buf, &slog.HandlerOptions{
+	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		AddSource: false,
 		Level:     slog.LevelDebug,
 	})
@@ -45,9 +27,7 @@ func NewParigotHandler(sid id.ServiceId) slog.Handler {
 	})
 
 	result := &ParigotHandler{
-		h:   h,
-		clr: color.New(colorSeq[handlerCount%len(colorSeq)]),
-		buf: buf,
+		h: h,
 	}
 	handlerCount++
 	return result
@@ -58,12 +38,7 @@ func (p *ParigotHandler) Enabled(_ context.Context, _ slog.Level) bool {
 }
 
 func (p *ParigotHandler) Handle(ctx context.Context, rec slog.Record) error {
-	p.buf.Reset()
-	if err := p.h.Handle(ctx, rec); err != nil {
-		return err
-	}
-	p.clr.Print(p.buf.String())
-	return nil
+	return p.h.Handle(ctx, rec)
 }
 
 func (p *ParigotHandler) WithAttrs(attr []slog.Attr) slog.Handler {

@@ -1,6 +1,7 @@
 package httpconnector
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -69,7 +70,7 @@ func newHtttpConnectorImpl() *httpConnectorImpl {
 func runHttpListener(connector *httpConnectorImpl) {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
 		if req != nil {
-			result := connector.makeReadOneResult(req)
+			result := connector.makeReadOneResult(req, w)
 			if result != nil {
 				connector.kernelCh <- result
 			}
@@ -80,7 +81,7 @@ func runHttpListener(connector *httpConnectorImpl) {
 	http.ListenAndServe(port, nil)
 }
 
-func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOneResponse {
+func (h *httpConnectorImpl) makeReadOneResult(req *http.Request, httpresp http.ResponseWriter) *syscall.ReadOneResponse {
 
 	var parigotReq *anypb.Any
 	var err httpconnector.HttpConnectorErr
@@ -146,17 +147,54 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request) *syscall.ReadOn
 		CallId:    id.NewCallId().Marshal(),
 	}
 
-	// do we really need this dispatch?
 	dispReq := &syscall.DispatchRequest{
 		Bundle: bundle,
 		Param:  handleAny,
 	}
 	dispResp := &syscall.DispatchResponse{}
-	kerr := kernel.K.Dispatch(dispReq, dispResp)
+
+	kerr := kernel.K.HostDispatch(dispReq, dispResp, func(rc *syscall.ResolvedCall) {
+		callbackFromHandle(httpresp, rc)
+	})
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("unable to dispatch Handle() message in httpconnector", "kernel error", kerr)
 	}
 	return nil
+}
+
+func callbackFromHandle(writer http.ResponseWriter, rc *syscall.ResolvedCall) {
+	//xxx this should probably be doing bookkeeping so that we can respond to
+	//xxx http messages in the order received. this would require keeping a list
+	//xxx of outstanding requests and their associated call ids so if
+	//xxx we get an out of order response, we should just hold it until
+	//xxx it reaches the front of the list.
+
+	if rc.GetResult() == nil {
+		// better have an error cause all we can do is show it
+		logger.Error("failed to get response from Handle",
+			"error", httpconnector.HttpConnectorErr_name[rc.GetResultError()])
+		return
+	}
+
+	result := &httpconnector.HandleResponse{}
+	if e := rc.GetResult().UnmarshalTo(result); e != nil {
+		logger.Error("unmarshal failed getting response from Handle",
+			"error", e.Error())
+		return
+	}
+
+	for key, hdr := range result.GetHeader() {
+		writer.Header().Set(key, hdr)
+	}
+	writer.WriteHeader(int(result.GetHttpStatus()))
+
+	rd := bytes.NewBuffer(result.GetHttpResponse())
+	l, err := io.Copy(writer, rd)
+	if err != nil {
+		logger.Error("unable to write bytes of response", "error", err)
+		return
+	}
+	logger.Info("wrote reply", "number of bytes", l)
 }
 
 func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.HttpConnectorErr) {

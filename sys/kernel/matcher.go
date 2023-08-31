@@ -8,11 +8,16 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+type waitingCall struct {
+	inner        *syscall.ResolvedCall
+	hostCallback func(*syscall.ResolvedCall)
+}
+
 type matcher struct {
 	// waiting and ready are maps from hostId to call id to matchingInfo
 	// waiting is only a partially filled structure, it is completed
 	// and then moved to ready by Response()
-	waiting map[string]*syscall.ResolvedCall
+	waiting map[string]*waitingCall
 	ready   map[string][]*syscall.ResolvedCall
 }
 
@@ -21,7 +26,7 @@ type matcher struct {
 // the system.
 func newCallMatcher() *matcher {
 	return &matcher{
-		waiting: make(map[string]*syscall.ResolvedCall),
+		waiting: make(map[string]*waitingCall),
 		ready:   make(map[string][]*syscall.ResolvedCall),
 	}
 }
@@ -32,14 +37,21 @@ func (c *matcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.Kerne
 	if cid.IsZeroOrEmptyValue() {
 		return syscall.KernelErr_BadId
 	}
-	rc, ok := c.waiting[cid.String()]
+	waiter, ok := c.waiting[cid.String()]
 	if !ok {
 		return syscall.KernelErr_BadId
 	}
 	delete(c.waiting, cid.String())
-	rc.Result = a
-	rc.ResultError = err
-	hid := id.UnmarshalHostId(rc.HostId)
+	waiter.inner.Result = a
+	waiter.inner.ResultError = err
+	hid := id.UnmarshalHostId(waiter.inner.HostId)
+
+	// check to see if this is actually a host only receiver
+	if waiter.hostCallback != nil {
+		waiter.hostCallback(waiter.inner)
+		return syscall.KernelErr_NoError
+	}
+
 	// we are now ready to move to the ready list
 	cidList, ok := c.ready[hid.String()]
 	if !ok {
@@ -53,11 +65,11 @@ func (c *matcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.Kerne
 			return syscall.KernelErr_BadId
 		}
 	}
-	c.ready[hid.String()] = append(cidList, rc)
+	c.ready[hid.String()] = append(cidList, waiter.inner)
 	return syscall.KernelErr_NoError
 }
 
-func (c *matcher) Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId) syscall.KernelErr {
+func (c *matcher) Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId, fn func(*syscall.ResolvedCall)) syscall.KernelErr {
 
 	if hid.IsZeroOrEmptyValue() || cid.IsZeroOrEmptyValue() {
 		return syscall.KernelErr_BadId
@@ -75,7 +87,11 @@ func (c *matcher) Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId) syscal
 		Result:      nil,
 		ResultError: 0,
 	}
-	c.waiting[cid.String()] = rc
+	waiter := &waitingCall{
+		hostCallback: fn,
+		inner:        rc,
+	}
+	c.waiting[cid.String()] = waiter
 	return syscall.KernelErr_NoError
 }
 
@@ -145,7 +161,10 @@ type callMatcher interface {
 	// a future call to Response.  The value returned is
 	// related to the Dispatch itself, it is not related
 	// to the execution of the call being registered.
-	Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId) syscall.KernelErr
+	// The function that is the last param is only use if
+	// some host-side call is calling dispatch and wants to
+	// receive the result.
+	Dispatch(hid id.HostId, cid id.CallId, mid id.MethodId, fn func(*syscall.ResolvedCall)) syscall.KernelErr
 	// Ready returns a resolved call or nil if no outstanding
 	// resolutions are ready.
 	Ready(hid id.HostId) (*syscall.ResolvedCall, syscall.KernelErr)

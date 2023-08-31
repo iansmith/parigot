@@ -27,8 +27,9 @@ func main() {
 	impl := &myService{}
 
 	// Init initiaizes a service and normally receives a list of functions
-	// that indicate dependencies, but we don't have any here.
-	binding, fut, ctx, sid := http.Init([]lib.MustRequireFunc{http.MustRequire}, impl)
+	// that indicate dependencies, but we don't have any here. We *ARE* the http
+	// implementation, we don't depend on it.
+	binding, fut, ctx, sid := http.Init([]lib.MustRequireFunc{}, impl)
 
 	logger = slog.New(guest.NewParigotHandler(sid))
 
@@ -41,7 +42,7 @@ func main() {
 	// The context provided here is passed through to calls on your methods.
 	kerr := http.Run(ctx, binding, simple.TimeoutInMillis, nil)
 
-	// Should not happen.
+	// Should not happen.star
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("error caused run to exit in simple", "kernel error", syscall.KernelErr_name[int32(kerr)])
 	}
@@ -49,7 +50,9 @@ func main() {
 }
 
 // myService is the true implementation of the greeting service.
-type myService struct{}
+type myService struct {
+	myId id.ServiceId
+}
 
 // test at compile time that myService has appropriate methods.
 var _ = http.Http(&myService{})
@@ -86,7 +89,8 @@ func (m *myService) Get(ctx context.Context, req *http.GetRequest) *http.FutureG
 // references to other services.  The second parameter is
 // passed here with the ServiceId of myService (the receiver
 // of this method call) but it is not needed.
-func (m *myService) Ready(_ context.Context, _ id.ServiceId) *future.Base[bool] {
+func (m *myService) Ready(_ context.Context, sid id.ServiceId) *future.Base[bool] {
+	m.myId = sid
 	fut := future.NewBase[bool]()
 	fut.Set(true)
 	return fut
