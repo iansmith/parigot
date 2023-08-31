@@ -2,7 +2,7 @@ name: Tests and Build
 'on':
   push:
     branches:
-      - bhs/docker
+      - alternate
     tags:
       - v*
 jobs:
