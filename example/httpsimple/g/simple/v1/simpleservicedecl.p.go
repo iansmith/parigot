@@ -124,7 +124,7 @@ func (i *Client_) Get(ctx context.Context, in *http.GetRequest) *FutureGet {
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -191,7 +191,7 @@ func (i *Client_) Post(ctx context.Context, in *http.PostRequest) *FuturePost {
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -258,7 +258,7 @@ func (i *Client_) Put(ctx context.Context, in *http.PutRequest) *FuturePut {
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -325,7 +325,7 @@ func (i *Client_) Delete(ctx context.Context, in *http.DeleteRequest) *FutureDel
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -392,7 +392,7 @@ func (i *Client_) Head(ctx context.Context, in *http.HeadRequest) *FutureHead {
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -459,7 +459,7 @@ func (i *Client_) Options(ctx context.Context, in *http.OptionsRequest) *FutureO
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -526,7 +526,7 @@ func (i *Client_) Patch(ctx context.Context, in *http.PatchRequest) *FuturePatch
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -593,7 +593,7 @@ func (i *Client_) Connect(ctx context.Context, in *http.ConnectRequest) *FutureC
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -660,6 +660,6 @@ func (i *Client_) Trace(ctx context.Context, in *http.TraceRequest) *FutureTrace
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  

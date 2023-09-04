@@ -108,6 +108,6 @@ func (i *Client_) Handle(ctx context.Context, in *httpconnector.HandleRequest) *
 
     ctx, t:=lib.CurrentTime(ctx)
     source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/iansmith/parigot/api/guest"
@@ -68,10 +67,6 @@ func main() {
 var notGet = "not permitted, you jerk!\n"
 
 func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest) *httpconnector.FutureHandle {
-	sid := id.UnmarshalServiceId(req.GetServiceId())
-	mid := id.UnmarshalMethodId(req.GetMethodId())
-	logger.Info("Reached handle", "method", req.GetHttpMethod(), "service", sid.Short(), "method", mid.Short(),
-		"current host", syscallguest.CurrentHostId().Short())
 
 	if req.GetHttpMethod() != "GET" {
 		fh := httpconnector.NewFutureHandle()
@@ -82,19 +77,16 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 				"try-different-verb": "GET",
 			},
 		}
-		slog.Info("handle1")
 		a := &anypb.Any{}
 		if e := a.MarshalFrom(result); e != nil {
 			slog.Error("unable to marshal", "error", e)
 			return nil
 		}
-		slog.Info("handle2")
 		if e := fh.CompleteMethod(ctx, a, int32(httpconnector.HttpConnectorErr_NoError), syscallguest.CurrentHostId()); e != syscall.KernelErr_NoError {
 			slog.Error("unable to complete Handle() method future", "kernel error", syscall.KernelErr_name[int32(e)])
 			// not much we can do here, panic?
 			return nil
 		}
-		slog.Info("handle3", "done?", fh.Completed())
 		return fh
 	}
 
@@ -108,25 +100,22 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 		slog.Error("unable to locate an http receiver", "kernel error", syscall.KernelErr_name[int32(err)])
 		return nil
 	}
-	slog.Info("http connector about to call httpClient (GET)", "type", fmt.Sprintf("%T", httpClient))
 	futGet := httpClient.Get(ctx, &http.GetRequest{
 		Request: &http.HttpRequest{
-			Url:     "",
+			Url:     req.GetUrl(),
 			Header:  map[string]string{},
 			Body:    []byte{},
 			Trailer: map[string]string{},
 		},
 	})
-	slog.Info("http connector finished call to http (GET)")
 
 	futHandle := httpconnector.NewFutureHandle()
-	slog.Info("http connector got back a future from GET")
 
 	futGet.Method.Success(func(resp *http.GetResponse) {
-		slog.Info("received message from GET receiver", "size in bytes", resp.Response.GetContentLength())
 		futHandle.Method.CompleteMethod(ctx, &httpconnector.HandleResponse{
-			HttpStatus: resp.Response.StatusCode,
-			Header:     resp.Response.Header,
+			HttpStatus:   resp.Response.StatusCode,
+			Header:       resp.Response.Header,
+			HttpResponse: resp.Response.Body,
 		}, httpconnector.HttpConnectorErr_NoError)
 	})
 	futGet.Method.Failure(func(err http.HttpErr) {

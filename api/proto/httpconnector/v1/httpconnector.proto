@@ -15,9 +15,10 @@ service HttpConnector {
 
 message HandleRequest {
 	string http_method = 1;
-	protosupport.v1.IdRaw service_id = 2;
-	protosupport.v1.IdRaw method_id = 3;
-	google.protobuf.Any req_any = 4;
+	string url =  2;
+	protosupport.v1.IdRaw service_id = 3;
+	protosupport.v1.IdRaw method_id = 4;
+	google.protobuf.Any req_any = 5;
 }
 
 message HandleResponse {

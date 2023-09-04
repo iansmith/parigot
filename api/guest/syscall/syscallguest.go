@@ -2,7 +2,6 @@ package syscall
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -244,12 +243,6 @@ func ReadOne_(int32, int32, int32, int32) int64
 func ReadOne(ctx context.Context, in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
 	out := &syscall.ReadOneResponse{}
 	resultErr := standardGuestSide(ctx, in, out, ReadOne_, "ReadOne")
-	//slog.Info("read one response in client", "out", fmt.Sprintf("%+v", out))
-	if out.Resolved != nil {
-		mid := id.UnmarshalMethodId(out.Resolved.MethodId)
-		slog.Info("ReadOne on client side", "current host", CurrentHostId().Short(),
-			"method", mid.Short(), "result type", out.GetResolved().GetResult().TypeUrl, "resultErr?", resultErr != 0)
-	}
 	return out, resultErr
 }
 
