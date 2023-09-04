@@ -117,7 +117,7 @@ type Future{{$svcDiff}}{{$methCamel}} struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
     if a!=nil {
@@ -199,21 +199,22 @@ func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *F
     mid, ok := i.BaseService.MethodIdByName("{{.WasmMethodName}}")
     if !ok {
         f:=NewFuture{{$svcDiff}}{{$methCamel}}()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
 {{- if .InputCodeNeeded }}
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,{{$inbound}})
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,{{$inbound}})
 {{- else }}
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,nil)
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,nil)
 {{- end }} {{/* end of input needed */}}
     f:=NewFuture{{$svcDiff}}{{$methCamel}}()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 {{- end}} {{/*ranging over methods*/}}

@@ -3,6 +3,7 @@ package syscall
 import (
 	"context"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 	future "github.com/iansmith/parigot/lib/go/future"
 
@@ -14,7 +15,7 @@ type LaunchCompleter struct {
 	fut *LaunchFuture
 }
 
-func (l *LaunchCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr {
+func (l *LaunchCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32, orig id.HostId) syscall.KernelErr {
 	out := &syscall.LaunchResponse{}
 	if err := a.(*anypb.Any).UnmarshalTo(out); err != nil {
 		return syscall.KernelErr_UnmarshalFailed
@@ -53,7 +54,7 @@ type ExitCompleter struct {
 	fut *ExitFuture
 }
 
-func (l *ExitCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32) syscall.KernelErr {
+func (l *ExitCompleter) CompleteMethod(ctx context.Context, a proto.Message, e int32, orig id.HostId) syscall.KernelErr {
 	out := &syscall.ExitResponse{}
 	if err := a.(*anypb.Any).UnmarshalTo(out); err != nil {
 		return syscall.KernelErr_UnmarshalFailed

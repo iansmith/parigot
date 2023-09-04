@@ -3,6 +3,7 @@ package httpconnector
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -30,36 +31,41 @@ var logger *slog.Logger
 type HttpConnectorPlugin struct {
 }
 
+//var _ = kernel.GeneralReceiver(&httpConnectorImpl{})
+
 type httpConnectorImpl struct {
-	httpChan chan *http.Request
-	kernelCh chan *syscall.ReadOneResponse
+	//kernelCh   chan *syscall.ReadOneResponse
+	resultChan chan *httpconnector.HandleResponse
+
+	host id.HostId
 }
 
-type ParigotRequestWrapper interface {
-	GetRequest() *phttp.HttpRequest
-}
+// type ParigotRequestWrapper interface {
+// 	GetRequest() *phttp.HttpRequest
+// }
 
-func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
+func (h *HttpConnectorPlugin) Init(ctx context.Context, e eng.Engine, host id.HostId) bool {
 	logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})).With("plugin", "httpconnector")
 
 	// create the connector
-	connector = newHtttpConnectorImpl()
+	connector = newHtttpConnectorImpl(host)
 
 	// run the loop that is listening on the http port (9000)
-	go runHttpListener(connector)
+	go connector.runHttpListener()
 
-	kernel.K.AddReceiver(connector)
+	//kernel.K.AddReceiver(connector)
 
 	return true
 }
 
 var connector *httpConnectorImpl
 
-func newHtttpConnectorImpl() *httpConnectorImpl {
+func newHtttpConnectorImpl(host id.HostId) *httpConnectorImpl {
 
 	c := &httpConnectorImpl{
-		httpChan: make(chan *http.Request, bufferSizeOnChan),
-		kernelCh: make(chan *syscall.ReadOneResponse, bufferSizeOnChan),
+		//kernelCh:   make(chan *syscall.ReadOneResponse, bufferSizeOnChan),
+		resultChan: make(chan *httpconnector.HandleResponse),
+		host:       host,
 	}
 
 	return c
@@ -67,21 +73,49 @@ func newHtttpConnectorImpl() *httpConnectorImpl {
 
 // runHttpListener starts an HTTP listener on port 9000 and listens for incoming requests from outside.
 // When a request is received, it is sent to the httpChan channel of the provided httpConnectorImpl instance.
-func runHttpListener(connector *httpConnectorImpl) {
+func (c *httpConnectorImpl) runHttpListener() {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
+		slog.Info("runhttpListener 0")
 		if req != nil {
-			result := connector.makeReadOneResult(req, w)
-			if result != nil {
-				connector.kernelCh <- result
+			slog.Info("runhttpListener 1")
+			ok := connector.callHostDispatch(req, w)
+			slog.Info("runhttpListener 2", "ok?", ok)
+			if ok {
+				slog.Info("runnhttp listener reached send to kernel")
+				//c.kernelCh <- result
+				//slog.Info("runnhttp listener reached receive")
+				ourResp := <-c.resultChan
+				slog.Info("finished receive", "our response?", ourResp != nil)
+				if ourResp != nil {
+					c.writeResponse(ourResp, w)
+				}
 			}
 		}
 	}
 	http.HandleFunc("/", h1)
-
 	http.ListenAndServe(port, nil)
 }
 
-func (h *httpConnectorImpl) makeReadOneResult(req *http.Request, httpresp http.ResponseWriter) *syscall.ReadOneResponse {
+func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, writer http.ResponseWriter) {
+	for k, v := range result.Header {
+		writer.Header().Set(k, v)
+	}
+	raw := result.GetHttpResponse()
+	writer.WriteHeader(int(result.GetHttpStatus()))
+	rd := bytes.NewBuffer(raw)
+	_, err := io.Copy(writer, rd)
+	if err != nil {
+		logger.Error("io.Copy failed", "error", err)
+		return
+	}
+	if err != nil {
+		logger.Error("unable to write bytes of response", "error", err)
+		return
+	}
+	logger.Info("finished with response")
+}
+
+func (h *httpConnectorImpl) callHostDispatch(req *http.Request, httpresp http.ResponseWriter) bool {
 
 	var parigotReq *anypb.Any
 	var err httpconnector.HttpConnectorErr
@@ -112,16 +146,22 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request, httpresp http.R
 		parigotReq, err = convertHttpReqToParigot(trace)
 	default:
 		logger.Warn("knknown HTTP method type, ignoring", "method", req.Method)
-		return nil
+		return false
 	}
 	if err != httpconnector.HttpConnectorErr_NoError {
 		logger.Error("swallowing httpconnector error", "httpconnector error", httpconnector.HttpConnectorErr_name[int32(err)])
-		return nil
+		return false
 	}
 	hid, sid, mid, err := findHttpConnector()
 	if err != httpconnector.HttpConnectorErr_NoError {
-		return nil
+		return false
 	}
+
+	for k := range httpresp.Header() {
+		slog.Info(fmt.Sprintf("----->  %s -> %s", k, httpresp.Header().Get(k)))
+	}
+	//httpresp.Header().Set("Content-Length", "-1")
+
 	handleReq := &httpconnector.HandleRequest{
 		HttpMethod: req.Method,
 		ServiceId:  sid.Marshal(),
@@ -132,12 +172,13 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request, httpresp http.R
 	if hid.IsZeroOrEmptyValue() || sid.IsZeroOrEmptyValue() || mid.IsZeroOrEmptyValue() {
 		logger.Error("failed to get id set back corectly from MethodDetail", "host", hid,
 			"service", sid, "method", mid)
-		return nil
+		return false
 	}
 
 	handleAny := &anypb.Any{}
 	if err := handleAny.MarshalFrom(handleReq); err != nil {
 		logger.Error("unable to marshal handle req into any", "error", err)
+		return false
 	}
 
 	bundle := &syscall.MethodBundle{
@@ -153,48 +194,60 @@ func (h *httpConnectorImpl) makeReadOneResult(req *http.Request, httpresp http.R
 	}
 	dispResp := &syscall.DispatchResponse{}
 
+	wrapper := &wrapper{httpresp}
+	slog.Info("Host Callback 0")
 	kerr := kernel.K.HostDispatch(dispReq, dispResp, func(rc *syscall.ResolvedCall) {
-		callbackFromHandle(httpresp, rc)
-	})
+		slog.Info("Host Callback 1")
+		h.callbackFromHandle(httpresp, rc)
+	}, wrapper)
 	if kerr != syscall.KernelErr_NoError {
 		logger.Error("unable to dispatch Handle() message in httpconnector", "kernel error", kerr)
+		return false
 	}
-	return nil
+	return true
 }
 
-func callbackFromHandle(writer http.ResponseWriter, rc *syscall.ResolvedCall) {
+type wrapper struct {
+	inner io.Writer
+}
+
+func (w *wrapper) Write(data []byte) (int, error) {
+	slog.Warn("somebody is messing with the writer", "string", string(data), "size", len(data))
+	return w.inner.Write(data)
+}
+
+func (h *httpConnectorImpl) callbackFromHandle(writer http.ResponseWriter, rc *syscall.ResolvedCall) {
+
+	slog.Info("callbackFromHandle reached", "rc", fmt.Sprintf("%+v", rc))
 	//xxx this should probably be doing bookkeeping so that we can respond to
 	//xxx http messages in the order received. this would require keeping a list
 	//xxx of outstanding requests and their associated call ids so if
 	//xxx we get an out of order response, we should just hold it until
 	//xxx it reaches the front of the list.
 
+	slog.Info("callbackfromhandle 1")
 	if rc.GetResult() == nil {
+		slog.Info("callbackfromhandle 2")
 		// better have an error cause all we can do is show it
 		logger.Error("failed to get response from Handle",
 			"error", httpconnector.HttpConnectorErr_name[rc.GetResultError()])
+		h.resultChan <- nil
 		return
 	}
 
+	slog.Info("callbackfromhandle 3")
 	result := &httpconnector.HandleResponse{}
 	if e := rc.GetResult().UnmarshalTo(result); e != nil {
+		slog.Info("callbackfromhandle 4")
 		logger.Error("unmarshal failed getting response from Handle",
 			"error", e.Error())
+		h.resultChan <- nil
 		return
 	}
 
-	for key, hdr := range result.GetHeader() {
-		writer.Header().Set(key, hdr)
-	}
-	writer.WriteHeader(int(result.GetHttpStatus()))
-
-	rd := bytes.NewBuffer(result.GetHttpResponse())
-	l, err := io.Copy(writer, rd)
-	if err != nil {
-		logger.Error("unable to write bytes of response", "error", err)
-		return
-	}
-	logger.Info("wrote reply", "number of bytes", l)
+	slog.Info("callbackfromhandle 5", "result", fmt.Sprintf("%+v", result))
+	h.resultChan <- result
+	slog.Info("callbackfromhandle 6", "result", fmt.Sprintf("%+v", result))
 }
 
 func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.HttpConnectorErr) {
@@ -207,11 +260,15 @@ func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.
 }
 
 func (h *httpConnectorImpl) TimeoutInMillis() int {
-	return 20
+	return 50
 }
 
-func (h *httpConnectorImpl) Ch() chan *syscall.ReadOneResponse {
-	return h.kernelCh
+// func (h *httpConnectorImpl) Ch() chan *syscall.ReadOneResponse {
+// 	return h.kernelCh
+// }
+
+func (h *httpConnectorImpl) HostId() id.HostId {
+	return h.host
 }
 
 func convertFieldsHttp(req *http.Request) *phttp.HttpRequest {

@@ -29,12 +29,12 @@ type ns struct {
 
 	serviceNameToSidSet map[string][]id.ServiceId
 
+	sendNetChannel map[string]chan proto.Message
+
 	host    hostSet
 	service serviceSet
 
 	matcher matcher
-
-	net chan proto.Message
 }
 
 // NewSimpleNameServer returns a fully initialized instance of the NameServer
@@ -49,8 +49,8 @@ func NewSimpleNameServer(net chan proto.Message) *ns {
 		hostSvcMethodToName: make(map[string]string),
 		hostSvcNameSet:      make(map[string]id.MethodId),
 		serviceNameToSidSet: make(map[string][]id.ServiceId),
+		sendNetChannel:      make(map[string]chan proto.Message),
 		matcher:             *newCallMatcher(),
-		net:                 net,
 	}
 }
 
@@ -92,10 +92,16 @@ func (n *ns) FindHost(sid id.ServiceId) id.HostId {
 	return hid
 }
 
-// FindHostChan will return the channel that allows messages to
-// be written to the host.
-func (n *ns) FindHostChan(hid id.HostId) chan<- proto.Message {
-	return n.net
+// FindHostChan returns a chan that you can write messages
+// to and a remote host will receive them.  The remote host
+// is indicated by the parameter.  If the host is not known
+// the result will be nil
+
+func (n *ns) FindHostChan(hid id.HostId) chan proto.Message {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	return n.sendNetChannel[hid.String()]
 }
 
 // PickService will return one of the services that is registered
@@ -118,11 +124,6 @@ func (n *ns) PickService(fqn FQName) id.ServiceId {
 	return set[i]
 }
 
-// In() returns the channel for reading input requests.
-func (n *ns) In() chan proto.Message {
-	return n.net
-}
-
 // Register is called when any service registers. We copy in the host provided.
 func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelErr {
 	n.AddHost(hid)
@@ -131,8 +132,13 @@ func (n *ns) Register(hid id.HostId, sid id.ServiceId, _ string) syscall.KernelE
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	klog.Infof("Register in Nameserver called: %s => %s", sid.Short(), hid.Short())
 	n.serviceToHost[sid.String()] = hid
+
+	if _, ok := n.sendNetChannel[hid.String()]; !ok {
+		msgChan := make(chan proto.Message, maxConcRecv)
+		n.sendNetChannel[hid.String()] = msgChan
+	}
+
 	return syscall.KernelErr_NoError
 }
 

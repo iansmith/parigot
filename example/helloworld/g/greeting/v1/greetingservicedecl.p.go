@@ -9,17 +9,16 @@ package greeting
 import(
     "context" 
 
-    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    "github.com/iansmith/parigot/lib/go"  
+// no method? false
+
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
-    syscall "github.com/iansmith/parigot/g/syscall/v1" 
-    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
-
     "google.golang.org/protobuf/proto"
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
+    syscall "github.com/iansmith/parigot/g/syscall/v1" 
+    "github.com/iansmith/parigot/lib/go"  
     "google.golang.org/protobuf/types/known/anypb"
-
 
 
 )  
@@ -53,7 +52,7 @@ type FutureFetchGreeting struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&FetchGreetingResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -95,16 +94,17 @@ func (i *Client_) FetchGreeting(ctx context.Context, in *FetchGreetingRequest) *
     mid, ok := i.BaseService.MethodIdByName("FetchGreeting")
     if !ok {
         f:=NewFutureFetchGreeting()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureFetchGreeting()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  

@@ -441,7 +441,7 @@ func CreateQueueHost(ctx context.Context,inPtr *CreateQueueRequest) *FutureCreat
 	outProtoPtr := (*CreateQueueResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, CreateQueue_)
 	f:=NewFutureCreateQueue()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -451,7 +451,7 @@ func LocateHost(ctx context.Context,inPtr *LocateRequest) *FutureLocate {
 	outProtoPtr := (*LocateResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	f:=NewFutureLocate()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -461,7 +461,7 @@ func DeleteQueueHost(ctx context.Context,inPtr *DeleteQueueRequest) *FutureDelet
 	outProtoPtr := (*DeleteQueueResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, DeleteQueue_)
 	f:=NewFutureDeleteQueue()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -471,7 +471,7 @@ func ReceiveHost(ctx context.Context,inPtr *ReceiveRequest) *FutureReceive {
 	outProtoPtr := (*ReceiveResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Receive_)
 	f:=NewFutureReceive()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -481,7 +481,7 @@ func MarkDoneHost(ctx context.Context,inPtr *MarkDoneRequest) *FutureMarkDone {
 	outProtoPtr := (*MarkDoneResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, MarkDone_)
 	f:=NewFutureMarkDone()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -491,7 +491,7 @@ func LengthHost(ctx context.Context,inPtr *LengthRequest) *FutureLength {
 	outProtoPtr := (*LengthResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Length_)
 	f:=NewFutureLength()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -501,7 +501,7 @@ func SendHost(ctx context.Context,inPtr *SendRequest) *FutureSend {
 	outProtoPtr := (*SendResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Send_)
 	f:=NewFutureSend()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

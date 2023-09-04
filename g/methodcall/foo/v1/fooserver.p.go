@@ -373,7 +373,7 @@ func AddMultiplyHost(ctx context.Context,inPtr *AddMultiplyRequest) *FutureAddMu
 	outProtoPtr := (*AddMultiplyResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddMultiply_)
 	f:=NewFutureAddMultiply()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -383,7 +383,7 @@ func LucasSequenceHost(ctx context.Context,inPtr *LucasSequenceRequest) *FutureL
 	outProtoPtr := (*LucasSequenceResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LucasSequence_)
 	f:=NewFutureLucasSequence()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -393,7 +393,7 @@ func WritePiHost(ctx context.Context,inPtr *WritePiRequest) *FutureWritePi {
 	outProtoPtr := (*WritePiResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, WritePi_)
 	f:=NewFutureWritePi()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

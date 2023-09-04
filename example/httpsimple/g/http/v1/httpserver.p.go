@@ -475,7 +475,7 @@ func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
 	outProtoPtr := (*GetResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
 	f:=NewFutureGet()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -485,7 +485,7 @@ func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
 	outProtoPtr := (*PostResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
 	f:=NewFuturePost()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -495,7 +495,7 @@ func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
 	outProtoPtr := (*PutResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
 	f:=NewFuturePut()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -505,7 +505,7 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 	outProtoPtr := (*DeleteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -515,7 +515,7 @@ func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
 	outProtoPtr := (*HeadResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
 	f:=NewFutureHead()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -525,7 +525,7 @@ func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
 	outProtoPtr := (*OptionsResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
 	f:=NewFutureOptions()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -535,7 +535,7 @@ func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
 	outProtoPtr := (*PatchResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
 	f:=NewFuturePatch()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -545,7 +545,7 @@ func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
 	outProtoPtr := (*ConnectResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
 	f:=NewFutureConnect()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -555,7 +555,7 @@ func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
 	outProtoPtr := (*TraceResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
 	f:=NewFutureTrace()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

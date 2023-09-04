@@ -339,7 +339,7 @@ func HandleHost(ctx context.Context,inPtr *httpconnector.HandleRequest) *FutureH
 	outProtoPtr := (*httpconnector.HandleResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
 	f:=NewFutureHandle()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

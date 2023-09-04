@@ -2,6 +2,7 @@ package syscall
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -108,7 +109,7 @@ func Launch(ctx context.Context, inPtr *syscall.LaunchRequest) *LaunchFuture {
 	}
 	fut := NewLaunchFuture()
 	comp := NewLaunchCompleter(fut)
-	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, cid, comp)
+	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, CurrentHostId(), cid, comp)
 	return fut
 }
 
@@ -176,7 +177,7 @@ func Exit(ctx context.Context, inPtr *syscall.ExitRequest) *ExitFuture {
 	}
 	fut := NewExitFuture()
 	comp := NewExitCompleter(fut)
-	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, cid, comp)
+	MatchCompleter(ctx, copyOfCurrentTime(ctx), hid, CurrentHostId(), cid, comp)
 
 	outProtoPtr.Pair = inPtr.GetPair()
 	a := &anypb.Any{}
@@ -242,7 +243,14 @@ func MustBindMethodName(ctx context.Context, in *syscall.BindMethodRequest) id.M
 func ReadOne_(int32, int32, int32, int32) int64
 func ReadOne(ctx context.Context, in *syscall.ReadOneRequest) (*syscall.ReadOneResponse, syscall.KernelErr) {
 	out := &syscall.ReadOneResponse{}
-	return out, standardGuestSide(ctx, in, out, ReadOne_, "ReadOne")
+	resultErr := standardGuestSide(ctx, in, out, ReadOne_, "ReadOne")
+	//slog.Info("read one response in client", "out", fmt.Sprintf("%+v", out))
+	if out.Resolved != nil {
+		mid := id.UnmarshalMethodId(out.Resolved.MethodId)
+		slog.Info("ReadOne on client side", "current host", CurrentHostId().Short(),
+			"method", mid.Short(), "result type", out.GetResolved().GetResult().TypeUrl, "resultErr?", resultErr != 0)
+	}
+	return out, resultErr
 }
 
 // standardGuestSide is a wrapper around ClientSide that knows how

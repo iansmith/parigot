@@ -357,7 +357,7 @@ func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *Futur
 	outProtoPtr := (*AddTestSuiteResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddTestSuite_)
 	f:=NewFutureTestAddTestSuite()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -367,7 +367,7 @@ func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
 	outProtoPtr := (*StartResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Start_)
 	f:=NewFutureTestStart()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 
@@ -740,7 +740,7 @@ func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMeth
 	outProtoPtr := (*ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureMethodCallSuiteExec()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -750,7 +750,7 @@ func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportReques
 	outProtoPtr := (*SuiteReportResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	f:=NewFutureMethodCallSuiteSuiteReport()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 
@@ -1106,7 +1106,7 @@ func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureU
 	outProtoPtr := (*ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureUnderTestExec()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

@@ -19,7 +19,7 @@ type ParigotHandler struct {
 func NewParigotHandler(sid id.ServiceId) slog.Handler {
 
 	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: false,
+		AddSource: true,
 		Level:     slog.LevelDebug,
 	})
 	h := th.WithAttrs([]slog.Attr{

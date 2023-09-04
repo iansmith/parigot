@@ -1,6 +1,8 @@
 package kernel
 
 import (
+	"io"
+	"log/slog"
 	"sync"
 
 	"github.com/iansmith/parigot/api/shared/id"
@@ -51,27 +53,33 @@ func (k *kdata) AddReceiver(r GeneralReceiver) {
 
 // SetApproach sets a number of key subsystems in the kernel and should only be
 // called when the kernel is a fresh state, as this call resets many internal data
-// structures.
-func (k *kdata) SetApproach(r GeneralReceiver, f GeneralReceiver, n Nameserver, st Starter) syscall.KernelErr {
-
-	//k.rawSend = append(k.rawSend, s)
-	k.rawRecv = append(k.rawRecv, r)
-	k.rawRecv = append(k.rawRecv, f)
+// structures.  The last three arguments are simple "extra slots" in their respective
+// lists.  These three can be nil
+func (k *kdata) SetApproach(n Nameserver, st Starter, r Registrar, b Binder, e Exporter) syscall.KernelErr {
 
 	k.ns = n
 	k.start = st
 
-	for _, candidate := range []interface{}{r, f, n, st} {
+	for _, candidate := range []interface{}{n, st, r} {
+		if candidate == nil {
+			continue
+		}
 		if reg, ok := candidate.(Registrar); ok {
 			k.reg = append(k.reg, reg)
 		}
 	}
-	for _, candidate := range []interface{}{r, f, n, st} {
+	for _, candidate := range []interface{}{n, st, b} {
+		if candidate == nil {
+			continue
+		}
 		if b, ok := candidate.(Binder); ok {
 			k.bind = append(k.bind, b)
 		}
 	}
-	for _, candidate := range []interface{}{r, f, n, st} {
+	for _, candidate := range []interface{}{n, st, e} {
+		if candidate == nil {
+			continue
+		}
 		if e, ok := candidate.(Exporter); ok {
 			k.exporter = append(k.exporter, e)
 		}
@@ -112,47 +120,57 @@ func (k *kdata) matcher() callMatcher {
 // of calls that start with some guest-side code calling a remote
 // method.
 func (k *kdata) Dispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse) syscall.KernelErr {
-	return k.dispatchWithHostFunc(req, resp, nil)
+	return k.dispatchWithHostFunc(req, resp, nil, nil)
 }
 
 // HostDispatch is used to send a call to a remote machine with the caller
 // being host-side code that wants the result via the given callback function.
-func (k *kdata) HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr {
-	return k.dispatchWithHostFunc(req, resp, hostFunc)
+func (k *kdata) HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall), w io.Writer) syscall.KernelErr {
+	return k.dispatchWithHostFunc(req, resp, hostFunc, w)
 }
 
 // The client and host side calls of Dispatch are wrappers around
 // this function with different values for host func.
-func (k *kdata) dispatchWithHostFunc(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr {
+func (k *kdata) dispatchWithHostFunc(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall), w io.Writer) syscall.KernelErr {
 
 	// we don't want to lock here because we could block somebody
 	// else who is reading from the same channel
 
 	sid := id.UnmarshalServiceId(req.GetBundle().GetServiceId())
-	//hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
 	mid := id.UnmarshalMethodId(req.GetBundle().GetMethodId())
 
 	targetHid := k.Nameserver().FindHost(sid)
 	if targetHid.IsZeroOrEmptyValue() {
 		return syscall.KernelErr_BadId
 	}
+
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	k.matcher().Dispatch(targetHid, cid, mid, hostFunc)
+	k.matcher().Dispatch(targetHid, hid, cid, mid, hostFunc, w)
 	ch := k.Nameserver().FindHostChan(targetHid)
+	if ch == nil {
+		slog.Error("unable to find output net channel", "host", targetHid.Short())
+		panic("failed to get network for dispatch from nameserver.FindHostChan")
+	}
+	slog.Info("found the send chan for host", "host", targetHid.Short(), "channel?", ch != nil)
 	ch <- req
 	resp.CallId = cid.Marshal()
 	resp.TargetHostId = targetHid.Marshal()
+
 	return syscall.KernelErr_NoError
 }
 
-// ReturnValue is used to finish a previous Dispatch call.  This is where the
 // original caller will get his call completed.
 func (k *kdata) ReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) syscall.KernelErr {
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
+	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+
+	slog.Info("kdata.ReturnValue 0 called", "host", hid.Short(), "call", cid.Short())
 	kerr := k.matcher().Response(cid, req.Result, req.ResultError)
 	if kerr != syscall.KernelErr_NoError {
 		return kerr
 	}
+	slog.Info("kdata.ReturnValue  1(found match)", "hid", hid.Short(), "cid", cid.Short())
 
 	return syscall.KernelErr_NoError
 }
@@ -170,7 +188,7 @@ func (k *kdata) Launch(req *syscall.LaunchRequest, resp *syscall.LaunchResponse)
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 
 	// save for later
-	k.matcher().Dispatch(hid, cid, mid, nil)
+	k.matcher().Dispatch(hid, id.HostIdZeroValue(), cid, mid, nil, nil)
 	klog.Infof("xxx saved as a dispatch for later:%s,%s,%s,%s", sid.Short(), cid.Short(), hid.Short(), mid.Short())
 	return k.start.Launch(sid, cid, hid, mid)
 }
@@ -248,6 +266,7 @@ func (k *kdata) Nameserver() Nameserver {
 
 func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) syscall.KernelErr {
 	rc, err := k.matcher().Ready(hid)
+	//slog.Info("response ready check", "host", hid.Short(), "rc?", rc != nil)
 	if err != syscall.KernelErr_NoError {
 		return err
 	}
@@ -261,7 +280,7 @@ func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) sysc
 	resp.ResultErr = 0
 	resp.Resolved = rc
 	resp.Exit = &syscall.ExitPair{}
-
+	slog.Info("created response ready")
 	return syscall.KernelErr_NoError
 }
 
@@ -274,10 +293,10 @@ func (k *kdata) Exit(req *syscall.ExitRequest, resp *syscall.ExitResponse) sysca
 	mid := id.UnmarshalMethodId(req.GetMethodId())
 
 	// save for later
-	k.matcher().Dispatch(hid, cid, mid, nil)
+	k.matcher().Dispatch(hid, id.HostIdZeroValue(), cid, mid, nil, nil)
 	if req.ShutdownAll {
 		for _, host := range k.ns.AllHosts() {
-			kerr := k.matcher().Dispatch(host, cid, mid, nil)
+			kerr := k.matcher().Dispatch(host, id.HostIdZeroValue(), cid, mid, nil, nil)
 			if kerr != syscall.KernelErr_NoError {
 				return syscall.KernelErr_ExitFailed
 			}

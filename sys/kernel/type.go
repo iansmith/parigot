@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/syscall/v1"
@@ -31,8 +32,9 @@ type Kernel interface {
 	// SetApproach should be called once, at startup, to indicate what type of
 	// deployment you are using.  Each type of deployment has exactly one approach
 	// that does message send, receive, and finish.  Usually the Nameserver and
-	// Starter also need to be coordinated to make the approach work.
-	SetApproach(GeneralReceiver, GeneralReceiver, Nameserver, Starter) syscall.KernelErr
+	// Starter also need to be coordinated to make the approach work. The last
+	// three arguments are optional and can be nil.
+	SetApproach(Nameserver, Starter, Registrar, Binder, Exporter) syscall.KernelErr
 
 	// AddRecevier is the generic version of a receiver.  This is usually the most
 	// useful if you want listen for an external network protocol.
@@ -86,7 +88,7 @@ type Kernel interface {
 
 	// HostDispatch mimics Dispatch but instead of returning a value to the
 	// guest side code, it returns the value to the callback function passed here.
-	HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall)) syscall.KernelErr
+	HostDispatch(req *syscall.DispatchRequest, resp *syscall.DispatchResponse, hostFunc func(*syscall.ResolvedCall), w io.Writer) syscall.KernelErr
 
 	// Nameserver gets the nameserver for the kernel.  This
 	// does not lock.
@@ -148,23 +150,7 @@ type Starter interface {
 type GeneralReceiver interface {
 	Ch() chan *syscall.ReadOneResponse
 	TimeoutInMillis() int
-}
-
-// type GeneralSender interface {
-// 	Send(any) syscall.KernelErr
-// 	TimeoutInMillis() int
-// }
-
-// Receiver only
-type HttpConnector struct {
-}
-
-// Sender and Finisher but not receiver
-type HttpProxy struct {
-}
-
-// Sender only
-type KernelLogger struct {
+	HostId() id.HostId
 }
 
 type KLog interface {
@@ -189,16 +175,14 @@ type Nameserver interface {
 	// HostId zero value if this fails.
 	FindHost(id.ServiceId) id.HostId
 
-	// FindHosChan returns the channel one can write on to send a message
-	// to that host. It return nil if this fails.
-	FindHostChan(id.HostId) chan<- proto.Message
+	// FindHostChan returns a chan that you can write messages
+	// to and a remote host will receive them.  The remote host
+	// is indicated by the parameter.  If the host is not known
+	// the result will be nil
+	FindHostChan(host id.HostId) chan proto.Message
 
 	// FindMethod returns the name of a method, given host, service, and method id.
 	FindMethod(id.HostId, id.ServiceId, id.MethodId) string
-
-	// In() requests a chan that can be used to read requests
-	// from the network.
-	In() chan proto.Message
 
 	// MethodDetail is used get the detailed information about a service
 	// so you can potentially call one of the methods of it.  The first
