@@ -54,7 +54,7 @@ type FutureTestAddTestSuite struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&AddTestSuiteResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -96,17 +96,18 @@ func (i *ClientTest_) TestAddTestSuite(ctx context.Context, in *AddTestSuiteRequ
     mid, ok := i.BaseService.MethodIdByName("AddTestSuite")
     if !ok {
         f:=NewFutureTestAddTestSuite()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureTestAddTestSuite()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -120,7 +121,7 @@ type FutureTestStart struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&StartResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -162,17 +163,18 @@ func (i *ClientTest_) TestStart(ctx context.Context, in *StartRequest) *FutureTe
     mid, ok := i.BaseService.MethodIdByName("Start")
     if !ok {
         f:=NewFutureTestStart()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureTestStart()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  
 //
@@ -207,7 +209,7 @@ type FutureMethodCallSuiteExec struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -249,17 +251,18 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteExec(ctx context.Context, in *Ex
     mid, ok := i.BaseService.MethodIdByName("Exec")
     if !ok {
         f:=NewFutureMethodCallSuiteExec()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureMethodCallSuiteExec()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }
 
@@ -273,7 +276,7 @@ type FutureMethodCallSuiteSuiteReport struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureMethodCallSuiteSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureMethodCallSuiteSuiteReport) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     f.Base.Set(TestErr(e)) 
     return syscall.KernelErr_NoError
 
@@ -306,17 +309,18 @@ func (i *ClientMethodCallSuite_) MethodCallSuiteSuiteReport(ctx context.Context,
     mid, ok := i.BaseService.MethodIdByName("SuiteReport")
     if !ok {
         f:=NewFutureMethodCallSuiteSuiteReport()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureMethodCallSuiteSuiteReport()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  
 //
@@ -349,7 +353,7 @@ type FutureUnderTestExec struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -391,16 +395,17 @@ func (i *ClientUnderTest_) UnderTestExec(ctx context.Context, in *ExecRequest) *
     mid, ok := i.BaseService.MethodIdByName("Exec")
     if !ok {
         f:=NewFutureUnderTestExec()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureUnderTestExec()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  

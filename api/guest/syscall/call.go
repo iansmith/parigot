@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
+	"log/slog"
 	"time"
 
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -15,36 +15,57 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var cidToCompleter = make(map[string]future.Completer)
+var xxcidToCompleter = make(map[string]*completionInfo)
+
+type completionInfo struct {
+	completer      future.Completer
+	originalSource id.HostId
+}
+
+func newCompletionInfo(completer future.Completer, hid id.HostId) *completionInfo {
+	return &completionInfo{completer, hid}
+
+}
 
 // MatchCompleter is a utility for adding a new
 // cid and completer to the tables used to look up
 // the location where response values should be sent.  The time value has
 // be passed in from the outside.
-func MatchCompleter(ctx context.Context, t time.Time, hid id.HostId, cid id.CallId, comp future.Completer) {
-	if getCompleter(hid, cid) != nil {
+func MatchCompleter(ctx context.Context, t time.Time, hid id.HostId, origHost id.HostId, cid id.CallId, comp future.Completer) {
+	cand, _ := getCompleter(hid, cid)
+	if cand != nil {
 		panic("unexpected duplicate call id for matching to client side")
 	}
-	setCompleter(ctx, t, hid, cid, comp)
+	slog.Info("....... match completer called FLIP", "hid", hid.Short(), "origHost?", !origHost.IsZeroOrEmptyValue())
+	setCompleter(ctx, t, hid, origHost, cid, newCompletionInfo(comp, origHost))
+	//setCompleter(ctx, t, hid, origHost, cid, newCompletionInfo(comp, origHost))
 }
 
 func completerKey(hid id.HostId, cid id.CallId) string {
 	return fmt.Sprintf("%s;%s", hid.Short(), cid.Short())
 }
-func getCompleter(hid id.HostId, cid id.CallId) future.Completer {
+func getCompleter(hid id.HostId, cid id.CallId) (future.Completer, id.HostId) {
 	key := completerKey(hid, cid)
-	return cidToCompleter[key]
+	result := xxcidToCompleter[key]
+	if result == nil {
+		return nil, id.HostIdZeroValue()
+	}
+	slog.Info("getCompeter called", "key", key, "original source", xxcidToCompleter[key].originalSource.Short(), "completer?", xxcidToCompleter[key].completer != nil,
+		"all completer", fmt.Sprintf("%+v", xxcidToCompleter))
+	return result.completer, result.originalSource
 }
-func setCompleter(ctx context.Context, t time.Time, hid id.HostId, cid id.CallId, f future.Completer) {
+func setCompleter(ctx context.Context, t time.Time, hid id.HostId, origHost id.HostId, cid id.CallId, info *completionInfo) {
 	key := completerKey(hid, cid)
 	internalFuture[key] = t
-	cidToCompleter[key] = f
-	log.Printf("xxxx set completer reached,cidtocompleter=%+v, with f %T", cidToCompleter, f)
+	xxcidToCompleter[key] = info
+	slog.Info("setCompleter called", "key", key, "orig host", origHost, "completer?", info.completer != nil, "all completer",
+		fmt.Sprintf("%+v", xxcidToCompleter))
 }
 
 func delCompleted(hid id.HostId, cid id.CallId) {
 	key := completerKey(hid, cid)
-	delete(cidToCompleter, key)
+	slog.Info("delete completed??", "hid", hid.Short(), "cid", cid.Short())
+	delete(xxcidToCompleter, key)
 	delete(internalFuture, key)
 }
 
@@ -54,16 +75,18 @@ var iter = 0
 // prior dispatch call to be completed. The matching is done
 // based on the cid.
 func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
-	iter++
-	if iter == 20 {
-		os.Exit(1)
-	}
-	comp := getCompleter(hid, cid)
+	comp, orig := getCompleter(hid, cid)
+	slog.Info("trying complete call", "host", hid.Short(), "call", cid.Short(),
+		"orig host", orig.Short(), "completer?", comp)
 	if comp == nil {
+		slog.Info("trying to complete call failed", "host", hid.Short(),
+			"entire list", fmt.Sprintf("%+v", xxcidToCompleter))
+		slog.Warn("ComplteCall received, but no invoke found, ignoring")
 		return syscall.KernelErr_NotFound
 	}
 	delCompleted(hid, cid)
-	comp.CompleteMethod(ctx, result, resultErr)
+	slog.Info("XXXX REVERSE ", "type", result.TypeUrl)
+	comp.CompleteMethod(ctx, result, resultErr, orig)
 	return syscall.KernelErr_NoError
 }
 
@@ -82,12 +105,12 @@ var internalFuture = make(map[string]time.Time)
 func ExpireMethod(ctx context.Context, curr time.Time) {
 	dead := make([]string, 0)
 	for key, elem := range internalFuture {
-		comp, ok := cidToCompleter[key]
+		comp, ok := xxcidToCompleter[key]
 		if !ok {
 			log.Printf("unable to find matching completer for key %s", key)
 			continue
 		}
-		if !comp.Completed() {
+		if comp.completer != nil {
 			diff := curr.Sub(elem)
 			if diff.Milliseconds() > apishared.FunctionTimeoutInMillis {
 				dead = append(dead, key)
@@ -99,9 +122,10 @@ func ExpireMethod(ctx context.Context, curr time.Time) {
 	}
 	// don't want delete as we iterate on internalFuture
 	for _, key := range dead {
-		f := cidToCompleter[key]
+		f := xxcidToCompleter[key]
 		delete(internalFuture, key)
-		f.Cancel()
-		delete(cidToCompleter, key)
+		f.completer.Cancel()
+		slog.Info("expiring completer", "key", key)
+		delete(xxcidToCompleter, key)
 	}
 }

@@ -52,7 +52,7 @@ type FutureHandle struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&HandleResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -94,16 +94,17 @@ func (i *Client_) Handle(ctx context.Context, in *HandleRequest) *FutureHandle {
     mid, ok := i.BaseService.MethodIdByName("Handle")
     if !ok {
         f:=NewFutureHandle()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureHandle()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,targetHid,source,cid,f)
     return f
 }  

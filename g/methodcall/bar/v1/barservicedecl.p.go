@@ -52,7 +52,7 @@ type FutureAccumulate struct {
 // This is the same API for output needed or not because of the Completer interface.
 // Note that the return value refers to the process of the setup/teardown, not the
 // execution of the user level code.
-func (f * FutureAccumulate) CompleteMethod(ctx context.Context,a proto.Message, e int32) syscall.KernelErr{
+func (f * FutureAccumulate) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&AccumulateResponse{}
     if a!=nil {
         if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
@@ -94,16 +94,17 @@ func (i *Client_) Accumulate(ctx context.Context, in *AccumulateRequest) *Future
     mid, ok := i.BaseService.MethodIdByName("Accumulate")
     if !ok {
         f:=NewFutureAccumulate()
-        f.CompleteMethod(ctx,nil,1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
     }
-    _,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureAccumulate()
     if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1)/*dispatch error*/
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f
      }
 
     ctx, t:=lib.CurrentTime(ctx)
-    syscallguest.MatchCompleter(ctx,t,syscallguest.CurrentHostId(),cid,f)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
     return f
 }  

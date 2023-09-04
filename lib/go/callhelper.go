@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"math/rand"
 	"os"
 
@@ -155,6 +156,9 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 	if err != syscall.KernelErr_NoError {
 		return err
 	}
+	if resp.Timeout && resp.GetResolved() != nil {
+		// what would this mean?
+	}
 	// is timeout?
 	if resp.Timeout {
 		return syscall.KernelErr_ReadOneTimeout
@@ -164,7 +168,9 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 		//sid := id.UnmarshalServiceId(resp.Exit.GetServiceId())
 		os.Exit(int(resp.Exit.GetCode()))
 	}
-
+	bhid := id.UnmarshalHostId(resp.Bundle.GetHostId())
+	slog.Info("got a response in ReadOneANdCall", "rc?", resp.Resolved != nil, "host", syscallguest.CurrentHostId().Short(),
+		"in bundle", bhid.Short())
 	// check for finished futures from within our address space
 	ctx, t := CurrentTime(ctx)
 	syscallguest.ExpireMethod(ctx, t)
@@ -177,7 +183,9 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 			}
 		}()
 		cid := id.UnmarshalCallId(r.GetCallId())
+		slog.Info("--- about call CompleteCall with the RC values")
 		syscallguest.CompleteCall(ctx, syscallguest.CurrentHostId(), cid, r.GetResult(), r.GetResultError())
+		slog.Info("--- CompleteCall ok")
 		return syscall.KernelErr_NoError
 	}
 

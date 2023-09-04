@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/iansmith/parigot/api/guest"
+	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/methodcall/bar/v1"
 	"github.com/iansmith/parigot/g/methodcall/foo/v1"
@@ -96,7 +97,7 @@ func (b *barServer) Accumulate(ctx context.Context, req *bar.AccumulateRequest) 
 		resp.Product = 1
 		resp.Sum = 0
 		f := bar.NewFutureAccumulate()
-		f.CompleteMethod(ctx, resp, 0)
+		f.CompleteMethod(ctx, resp, 0, syscallguest.CurrentHostId())
 		return f
 	}
 

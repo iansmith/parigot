@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"reflect"
 	"time"
@@ -18,6 +19,9 @@ import (
 // the components.  The copmonents are the receiver and the listener channels,
 // represented by the Receiver and Finisher types.
 func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneResponse) syscall.KernelErr {
+	k.lock.Lock()
+	defer k.lock.Unlock()
+
 	unified := make([]reflect.SelectCase, maxCases)
 	count := 0
 	minTimeoutMillis := math.MaxInt
@@ -54,6 +58,8 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 	}
 	if resp.GetResolved() != nil {
 		mid := id.UnmarshalMethodId(resp.GetResolved().GetMethodId())
+		slog.Info("Got a call resolution", "host", hid.Short(), "mid", mid.Short(),
+			"type", resp.GetResolved().Result.TypeUrl)
 		if mid.Equal(apishared.ExitMethod) {
 			//xxxx how to get sid?
 			var sid id.ServiceId
@@ -62,12 +68,24 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 				Code:      102,
 			}
 		}
+		slog.Info("call resolution returned", "host", hid.Short(), "mid", mid.Short())
+
 		// we got a resolution and we are done
 		return syscall.KernelErr_NoError
 	}
 
+	var target id.HostId
 	// we want to check all the receivers
+	//slog.Info("checking general receivers", "host", hid.Short())
 	for _, r := range k.rawRecv {
+
+		// is this a receiver for all channels or the right channel
+		cand := r.HostId()
+		target = id.UnmarshalHostId(req.GetHostId())
+		if !cand.IsZeroValue() && !cand.Equal(target) {
+			continue
+		}
+
 		c := r.Ch()
 		if c != nil {
 			selectCase := reflect.SelectCase{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(c)}
@@ -118,8 +136,7 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 		// somebody trying to stop this method running
 		return syscall.KernelErr_NoError
 	}
-	// exit?
-
+	slog.Info("winner chosen", "chosen", chosen, "host", hid.Short(), "num choices", count)
 	//
 	// All readers work the same way
 	//

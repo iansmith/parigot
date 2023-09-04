@@ -2,7 +2,6 @@ package kernel
 
 import (
 	"fmt"
-	"log/slog"
 	"math/rand"
 	"strings"
 
@@ -252,7 +251,6 @@ func (s *starter) isRunningOrPending(sid id.ServiceId) bool {
 func (s *starter) findRunnable() {
 	change := true
 	var result []launchData
-	slog.Info("find runnable:", "size of wait list", len(s.waitList))
 	if len(s.waitList) == 0 {
 		return
 	}
@@ -261,17 +259,14 @@ func (s *starter) findRunnable() {
 		result = []launchData{}
 		for _, wait := range s.waitList {
 			fulfillment := s.requirementsMet(wait.sid)
-			slog.Info("checking requirements", "wait sid", wait.sid.Short(), "fulfilled?", fulfillment != nil)
 			if fulfillment != nil {
 				change = true
 				s.serviceToFulfillment[wait.sid.String()] = fulfillment
-				slog.Info("fulfilled, moved to pending", "sid", wait.sid)
 				s.moveToPending(wait)
 			} else {
 				result = append(result, wait)
 			}
 		}
-		slog.Info("waitlist updated", "new size", len(s.waitList))
 		s.waitList = result
 	}
 }

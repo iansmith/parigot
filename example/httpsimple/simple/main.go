@@ -72,14 +72,19 @@ func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetRes
 }
 
 func (m *myService) Get(ctx context.Context, req *http.GetRequest) *http.FutureGet {
+	slog.Info("Get 0")
 	resp, err := m.get(ctx, req)
+	slog.Info("Get 1")
 	fut := http.NewFutureGet()
+	slog.Info("Get 2")
 	if err != http.HttpErr_NoError {
 		fut.Method.CompleteMethod(ctx, nil, err)
 	} else {
 		// err is NoError
+		slog.Info("get2.5 complete")
 		fut.Method.CompleteMethod(ctx, resp, err)
 	}
+	slog.Info("Get 3")
 	return fut
 }
 

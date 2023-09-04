@@ -58,6 +58,7 @@ func afterLaunch(ctx context.Context, _ *syscall.LaunchResponse, myId id.Service
 		Tongue: greeting.Tongue_French,
 	}
 
+	logger.Info("we are hitting the greet service with a call")
 	// Make the call to the greeting service.
 	greetFuture := greetService.FetchGreeting(ctx, req)
 

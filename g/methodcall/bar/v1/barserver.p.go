@@ -339,7 +339,7 @@ func AccumulateHost(ctx context.Context,inPtr *AccumulateRequest) *FutureAccumul
 	outProtoPtr := (*AccumulateResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Accumulate_)
 	f:=NewFutureAccumulate()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

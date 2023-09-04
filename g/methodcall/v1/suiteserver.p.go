@@ -356,7 +356,7 @@ func ExecHost(ctx context.Context,inPtr *ExecRequest) *FutureExec {
 	outProtoPtr := (*ExecResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureExec()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 } 
 
@@ -366,7 +366,7 @@ func SuiteReportHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureSuite
 	outProtoPtr := (*SuiteReportResponse)(nil)
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	f:=NewFutureSuiteReport()
-	f.CompleteMethod(ctx,ret,raw)
+	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
 }   
 

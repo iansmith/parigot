@@ -15,7 +15,7 @@ import (
 // type can be "completed" at a later time.  This is used
 // only for Methods.
 type Completer interface {
-	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32) syscall.KernelErr
+	CompleteMethod(ctx context.Context, msg proto.Message, resultErr int32, orig id.HostId) syscall.KernelErr
 	Success(func(proto.Message))
 	Failure(func(int32))
 	Completed() bool
