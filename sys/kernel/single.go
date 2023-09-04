@@ -2,7 +2,6 @@ package kernel
 
 import (
 	"log"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -111,9 +110,7 @@ func (s *SingleApproach) Register(hid id.HostId, sid id.ServiceId, debugName str
 	}()
 
 	_, ok := s.seen[hid.String()]
-	if ok {
-		slog.Info("ignoring register, seen before", "host", hid.Short())
-	} else {
+	if !ok {
 		d := make(chan *syscall.ReadOneResponse)
 		f := make(chan *syscall.ReadOneResponse)
 		s.dispatchChannel[hid.String()] = d
@@ -180,9 +177,7 @@ func (s *SingleApproach) ReadNetworkMessages(host id.HostId) {
 	count := 0
 	for {
 		time.Sleep(100 * time.Millisecond)
-		slog.Info("about to try to get host", "host", host.Short())
 		in = s.ns.FindHostChan(host)
-		slog.Info("got host chan", "host", host.Short())
 		if in == nil && count > 10 {
 			klog.Errorf("unable to find way to send to host", "host", host.Short())
 			time.Sleep(500 * time.Millisecond)
@@ -201,7 +196,6 @@ func (s *SingleApproach) ReadNetworkMessages(host id.HostId) {
 			dispChan := s.DispatchChan(host)
 			err = s.HandleDispatch((*syscall.DispatchRequest)(req.(*syscall.DispatchRequest)), dispChan)
 		case "syscall.v1.ReturnValueRequest":
-			slog.Info("return value being handled in block ", "host", host.String())
 			finishChan := s.FinishChan(host)
 			err = s.HandleReturnValue((*syscall.ReturnValueRequest)(req.(*syscall.ReturnValueRequest)), finishChan)
 		default:

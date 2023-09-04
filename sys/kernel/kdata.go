@@ -152,7 +152,6 @@ func (k *kdata) dispatchWithHostFunc(req *syscall.DispatchRequest, resp *syscall
 		slog.Error("unable to find output net channel", "host", targetHid.Short())
 		panic("failed to get network for dispatch from nameserver.FindHostChan")
 	}
-	slog.Info("found the send chan for host", "host", targetHid.Short(), "channel?", ch != nil)
 	ch <- req
 	resp.CallId = cid.Marshal()
 	resp.TargetHostId = targetHid.Marshal()
@@ -163,14 +162,12 @@ func (k *kdata) dispatchWithHostFunc(req *syscall.DispatchRequest, resp *syscall
 // original caller will get his call completed.
 func (k *kdata) ReturnValue(req *syscall.ReturnValueRequest, resp *syscall.ReturnValueResponse) syscall.KernelErr {
 	cid := id.UnmarshalCallId(req.GetBundle().GetCallId())
-	hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
+	//hid := id.UnmarshalHostId(req.GetBundle().GetHostId())
 
-	slog.Info("kdata.ReturnValue 0 called", "host", hid.Short(), "call", cid.Short())
 	kerr := k.matcher().Response(cid, req.Result, req.ResultError)
 	if kerr != syscall.KernelErr_NoError {
 		return kerr
 	}
-	slog.Info("kdata.ReturnValue  1(found match)", "hid", hid.Short(), "cid", cid.Short())
 
 	return syscall.KernelErr_NoError
 }
@@ -266,7 +263,6 @@ func (k *kdata) Nameserver() Nameserver {
 
 func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) syscall.KernelErr {
 	rc, err := k.matcher().Ready(hid)
-	//slog.Info("response ready check", "host", hid.Short(), "rc?", rc != nil)
 	if err != syscall.KernelErr_NoError {
 		return err
 	}
@@ -280,7 +276,6 @@ func (k *kdata) responseReady(hid id.HostId, resp *syscall.ReadOneResponse) sysc
 	resp.ResultErr = 0
 	resp.Resolved = rc
 	resp.Exit = &syscall.ExitPair{}
-	slog.Info("created response ready")
 	return syscall.KernelErr_NoError
 }
 

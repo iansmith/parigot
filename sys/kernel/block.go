@@ -2,7 +2,6 @@ package kernel
 
 import (
 	"fmt"
-	"log/slog"
 	"math"
 	"reflect"
 	"time"
@@ -58,8 +57,6 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 	}
 	if resp.GetResolved() != nil {
 		mid := id.UnmarshalMethodId(resp.GetResolved().GetMethodId())
-		slog.Info("Got a call resolution", "host", hid.Short(), "mid", mid.Short(),
-			"type", resp.GetResolved().Result.TypeUrl)
 		if mid.Equal(apishared.ExitMethod) {
 			//xxxx how to get sid?
 			var sid id.ServiceId
@@ -68,7 +65,6 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 				Code:      102,
 			}
 		}
-		slog.Info("call resolution returned", "host", hid.Short(), "mid", mid.Short())
 
 		// we got a resolution and we are done
 		return syscall.KernelErr_NoError
@@ -136,7 +132,6 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 		// somebody trying to stop this method running
 		return syscall.KernelErr_NoError
 	}
-	slog.Info("winner chosen", "chosen", chosen, "host", hid.Short(), "num choices", count)
 	//
 	// All readers work the same way
 	//

@@ -3,7 +3,6 @@ package httpconnector
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,8 +18,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-const bufferSizeOnChan = 8
 
 const port = ":9000"
 
@@ -75,17 +72,10 @@ func newHtttpConnectorImpl(host id.HostId) *httpConnectorImpl {
 // When a request is received, it is sent to the httpChan channel of the provided httpConnectorImpl instance.
 func (c *httpConnectorImpl) runHttpListener() {
 	h1 := func(w http.ResponseWriter, req *http.Request) {
-		slog.Info("runhttpListener 0")
 		if req != nil {
-			slog.Info("runhttpListener 1")
 			ok := connector.callHostDispatch(req, w)
-			slog.Info("runhttpListener 2", "ok?", ok)
 			if ok {
-				slog.Info("runnhttp listener reached send to kernel")
-				//c.kernelCh <- result
-				//slog.Info("runnhttp listener reached receive")
 				ourResp := <-c.resultChan
-				slog.Info("finished receive", "our response?", ourResp != nil)
 				if ourResp != nil {
 					c.writeResponse(ourResp, w)
 				}
@@ -103,7 +93,7 @@ func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, 
 	raw := result.GetHttpResponse()
 	writer.WriteHeader(int(result.GetHttpStatus()))
 	rd := bytes.NewBuffer(raw)
-	_, err := io.Copy(writer, rd)
+	l, err := io.Copy(writer, rd)
 	if err != nil {
 		logger.Error("io.Copy failed", "error", err)
 		return
@@ -112,7 +102,7 @@ func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, 
 		logger.Error("unable to write bytes of response", "error", err)
 		return
 	}
-	logger.Info("finished with response")
+	logger.Info("response written", "result bytes", l)
 }
 
 func (h *httpConnectorImpl) callHostDispatch(req *http.Request, httpresp http.ResponseWriter) bool {
@@ -157,12 +147,8 @@ func (h *httpConnectorImpl) callHostDispatch(req *http.Request, httpresp http.Re
 		return false
 	}
 
-	for k := range httpresp.Header() {
-		slog.Info(fmt.Sprintf("----->  %s -> %s", k, httpresp.Header().Get(k)))
-	}
-	//httpresp.Header().Set("Content-Length", "-1")
-
 	handleReq := &httpconnector.HandleRequest{
+		Url:        req.RequestURI,
 		HttpMethod: req.Method,
 		ServiceId:  sid.Marshal(),
 		MethodId:   mid.Marshal(),
@@ -195,9 +181,7 @@ func (h *httpConnectorImpl) callHostDispatch(req *http.Request, httpresp http.Re
 	dispResp := &syscall.DispatchResponse{}
 
 	wrapper := &wrapper{httpresp}
-	slog.Info("Host Callback 0")
 	kerr := kernel.K.HostDispatch(dispReq, dispResp, func(rc *syscall.ResolvedCall) {
-		slog.Info("Host Callback 1")
 		h.callbackFromHandle(httpresp, rc)
 	}, wrapper)
 	if kerr != syscall.KernelErr_NoError {
@@ -218,16 +202,13 @@ func (w *wrapper) Write(data []byte) (int, error) {
 
 func (h *httpConnectorImpl) callbackFromHandle(writer http.ResponseWriter, rc *syscall.ResolvedCall) {
 
-	slog.Info("callbackFromHandle reached", "rc", fmt.Sprintf("%+v", rc))
 	//xxx this should probably be doing bookkeeping so that we can respond to
 	//xxx http messages in the order received. this would require keeping a list
 	//xxx of outstanding requests and their associated call ids so if
 	//xxx we get an out of order response, we should just hold it until
 	//xxx it reaches the front of the list.
 
-	slog.Info("callbackfromhandle 1")
 	if rc.GetResult() == nil {
-		slog.Info("callbackfromhandle 2")
 		// better have an error cause all we can do is show it
 		logger.Error("failed to get response from Handle",
 			"error", httpconnector.HttpConnectorErr_name[rc.GetResultError()])
@@ -235,19 +216,15 @@ func (h *httpConnectorImpl) callbackFromHandle(writer http.ResponseWriter, rc *s
 		return
 	}
 
-	slog.Info("callbackfromhandle 3")
 	result := &httpconnector.HandleResponse{}
 	if e := rc.GetResult().UnmarshalTo(result); e != nil {
-		slog.Info("callbackfromhandle 4")
 		logger.Error("unmarshal failed getting response from Handle",
 			"error", e.Error())
 		h.resultChan <- nil
 		return
 	}
 
-	slog.Info("callbackfromhandle 5", "result", fmt.Sprintf("%+v", result))
 	h.resultChan <- result
-	slog.Info("callbackfromhandle 6", "result", fmt.Sprintf("%+v", result))
 }
 
 func convertHttpReqToParigot[T proto.Message](raw T) (*anypb.Any, httpconnector.HttpConnectorErr) {

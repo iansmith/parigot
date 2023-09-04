@@ -79,20 +79,17 @@ func (c *matcher) Response(cid id.CallId, a *anypb.Any, err int32) syscall.Kerne
 	if !ok {
 		return syscall.KernelErr_BadId
 	}
-	slog.Info("waiter retrieved for call", "call", cid.Short(),
-		"callback", waiter.hostCallback != nil)
 
 	delete(c.waiting, cid.String())
 	waiter.inner.Result = a
 	waiter.inner.ResultError = err
 	hid := id.UnmarshalHostId(waiter.inner.HostId)
 	if hid.IsZeroOrEmptyValue() {
-		slog.Info("we just pulled a bad hid from waiting list", "cid", cid.Short())
+		slog.Warn("bad hid from waiting list", "call", cid.Short(), "host", hid.Short())
 	}
 
 	// check to see if this is actually a host only receiver
 	if waiter.hostCallback != nil {
-		slog.Info("callback found, about to do callback")
 		waiter.hostCallback(waiter.inner)
 		return syscall.KernelErr_NoError
 	}
@@ -198,7 +195,7 @@ func (c *matcher) readyImpl(hid id.HostId, isPeek bool) (*syscall.ResolvedCall, 
 		panic("bad value put in matcher")
 	}
 
-	dumpReadyImpl(hid, c.ready)
+	//dumpReadyImpl(hid, c.ready)
 	cidList, ok := c.ready[hid.String()]
 	if !ok || len(cidList) == 0 {
 		return nil, syscall.KernelErr_NoError

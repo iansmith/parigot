@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/iansmith/parigot/api/guest"
@@ -56,14 +57,15 @@ type myService struct {
 
 // test at compile time that myService has appropriate methods.
 var _ = http.Http(&myService{})
+var start = []byte("hello, http protocol")
 
 func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetResponse, http.HttpErr) {
-	msg := []byte("hello, http protocal")
+	msg := fmt.Sprintf("%s (%s %s)\n", start, "GET", req.Request.Url)
 	resp := &http.GetResponse{
 		Response: &http.HttpResponse{
 			StatusCode:    200,
 			Header:        map[string]string{},
-			Body:          msg,
+			Body:          []byte(msg),
 			ContentLength: int32(len(msg)),
 			Trailer:       map[string]string{},
 		},
@@ -72,19 +74,14 @@ func (m *myService) get(ctx context.Context, req *http.GetRequest) (*http.GetRes
 }
 
 func (m *myService) Get(ctx context.Context, req *http.GetRequest) *http.FutureGet {
-	slog.Info("Get 0")
 	resp, err := m.get(ctx, req)
-	slog.Info("Get 1")
 	fut := http.NewFutureGet()
-	slog.Info("Get 2")
 	if err != http.HttpErr_NoError {
 		fut.Method.CompleteMethod(ctx, nil, err)
 	} else {
 		// err is NoError
-		slog.Info("get2.5 complete")
 		fut.Method.CompleteMethod(ctx, resp, err)
 	}
-	slog.Info("Get 3")
 	return fut
 }
 
