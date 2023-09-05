@@ -7,9 +7,9 @@ import (
 
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
-	"github.com/iansmith/parigot/example/methodcall/g/id"
-	"github.com/iansmith/parigot/example/methodcall/g/methodcall/bar/v1"
-	"github.com/iansmith/parigot/example/methodcall/g/methodcall/foo/v1"
+	"github.com/iansmith/parigot/api/shared/id"
+	"github.com/iansmith/parigot/g/methodcall/bar/v1"
+	"github.com/iansmith/parigot/g/methodcall/foo/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"

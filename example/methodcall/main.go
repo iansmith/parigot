@@ -11,11 +11,11 @@ import (
 	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"
 
-	bar "github.com/iansmith/parigot/g/methodcall/bar/v1"
-	foo "github.com/iansmith/parigot/g/methodcall/foo/v1"
-	methodcall "github.com/iansmith/parigot/g/methodcall/v1"
+	bar "github.com/iansmith/parigot/example/methodcall/g/methodcall/bar/v1"
+	foo "github.com/iansmith/parigot/example/methodcall/g/methodcall/foo/v1"
+	methodcall "github.com/iansmith/parigot/example/methodcall/g/methodcall/v1"
 
-	const_ "github.com/iansmith/parigot/test/func/methodcall/impl/foo/const_"
+	const_ "github.com/iansmith/parigot/test/example/methodcall/impl/foo/const_"
 )
 
 var exitCode = int32(0)
