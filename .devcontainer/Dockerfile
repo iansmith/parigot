@@ -24,6 +24,7 @@ ENV GOLANG_VERSION_HOST_SHORT="1.21"
 ## wasmtime version
 ENV WASMTIME_VERSION=10.0.1
 
+
 # hugo version for website
 ENV HUGO_VERSION=0.114.1
 # protoc because some plugins don't work with buf
