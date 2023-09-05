@@ -11,6 +11,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+      - name: debug print
+        run: ls -l
+      - name: yet another debug print
+        run: pwd
       - name: build
         run: make test
       - name: Build Docker image
