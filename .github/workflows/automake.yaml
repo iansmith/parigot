@@ -14,7 +14,7 @@ jobs:
       - name: debug print
         run: ls -l api
       - name: yet another debug print
-        run: pwd
+        run: which sqlc
       - name: build
         run: make test
       - name: Build Docker image
