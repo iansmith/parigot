@@ -52,9 +52,9 @@ RUN set -e; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
 
-#RUN tar xzf go.tar.gz
-#RUN rm go.tar.gz 
-#RUN mv go go${GOLANG_VERSION_HOST}
+RUN tar xzf go.tar.gz
+RUN rm go.tar.gz 
+RUN mv go go${GOLANG_VERSION_HOST}
 ## client side go install
 WORKDIR /home/parigot/deps
 
@@ -63,11 +63,11 @@ WORKDIR /home/parigot/deps
 #ENV GOLANG_VERSION_GUEST="1.21.0"
 #RUN mv go go${GOLANG_VERSION_GUEST}
 #WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
-#ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_GUEST}
+ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_HOST}
 #ENV GOROOT_BOOTSTRAP=/home/parigot/deps/go${GOLANG_VERSION_HOST}
 #RUN  ./make.bash
-ENV GOROOT=
-ENV GOROOT_BOOTSTRAP=
+#ENV GOROOT=
+#ENV GOROOT_BOOTSTRAP=
 
 # install Hugo
 WORKDIR /home/parigot/deps
@@ -82,10 +82,10 @@ RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
 
 ## install wasmtime
-#WORKDIR /home/parigot/deps
-#RUN unxz wasmtime.tar.xz
-#RUN tar xf wasmtime.tar
-#RUN rm wasmtime.tar
+WORKDIR /home/parigot/deps
+RUN unxz wasmtime.tar.xz
+RUN tar xf wasmtime.tar
+RUN rm wasmtime.tar
 
 #RUN mkdir /home/parigot/deps/bin
 #WORKDIR /home/parigot/deps/bin
@@ -109,8 +109,9 @@ ENV PB_REL=""
 # RUN git clone --depth 1 --branch ${TINYGO_VERSION} https://github.com/tinygo-org/tinygo.git
 # WORKDIR /usr/local/tinygo
 # # these two env vars are temporary until we get tinygo built
-# ENV PATH=/home/parigot/deps/go${GOLANG_VERSION}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION}
+ ENV PATH=/home/parigot/tools/bin:/home/parigot/deps/go${GOLANG_VERSION_HOST}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+#GOROOT changed to test
+ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_HOST}
 # RUN which go
 # RUN make llvm-source
 # RUN make llvm-build 
@@ -182,9 +183,9 @@ RUN chsh -s /usr/bin/zsh parigot
 
 #temporary PATH hack
 USER parigot
-ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/bin
+#ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/bin
 
-RUN echo $PATH
+#RUN echo $PATH
 RUN file  /home/parigot/deps/go1.21/bin/go
 
 ENV PROTOC_GO_VERSION=1.28.1
@@ -192,7 +193,7 @@ ENV PROTOC_GRPC_VERSION=1.51.0
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
-RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@v1.17
+RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@1.17                         
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
@@ -201,26 +202,27 @@ RUN go${GOLANG_VERSION_HOST} install github.com/princjef/gomarkdoc/cmd/gomarkdoc
 RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
 
 #RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
-#RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-#RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2/ginkgo
+RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2@latest
+RUN go${GOLANG_VERSION_HOST} get github.com/onsi/gomega/...
 
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
 
-RUN mkdir ~/.ssh
-RUN chmod 700 ~/.ssh
-RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+#RUN mkdir ~/.ssh
+#RUN chmod 700 ~/.ssh
+#RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
 # set some vars
-WORKDIR /home/parigot/src
+#WORKDIR /home/parigot/src
 ENV TOOLS=/home/parigot/tools
-ENV WABTTOOLS=/home/parigot/tools/wabt
-ENV PARIGOT_TOOLS=/home/parigot/tools
-ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
+#ENV WABTTOOLS=/home/parigot/tools/wabt
+#ENV PARIGOT_TOOLS=/home/parigot/tools
+#ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
-ENV CC=/usr/lib/llvm-15/bin/clang
-ENV GOFLAGS="-buildvcs=false"
+#ENV CC=/usr/lib/llvm-15/bin/clang
+#ENV GOFLAGS="-buildvcs=false"
 
-ENTRYPOINT ["bash"]
+#ENTRYPOINT ["bash"]
 
