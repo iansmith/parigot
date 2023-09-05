@@ -7,7 +7,7 @@ package {{.pkg}}
 import (
 {{if .idNoImport }}
 {{else}}	
-    "github.com/iansmith/parigot/apishared/id"
+    "github.com/iansmith/parigot/api/shared/id"
 {{end}}
 	protosupport "github.com/iansmith/parigot/g/protosupport/v1"
 )
@@ -33,6 +33,7 @@ func (f {{.primaryName}}Id) Marshal() *protosupport.IdRaw {
 	raw.Low = f.Low()
 	return raw
 }
+
 func {{.primaryName}}IdZeroValue() {{.primaryName}}Id {
 	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](0xffffffffffffff,0xffffffffffffffff))
 }
@@ -71,6 +72,15 @@ func Unmarshal{{.primaryName}}Id(b *protosupport.IdRaw) {{.primaryName}}Id {
 	l:=b.GetLow()
 	h:=b.GetHigh()
 	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](h,l))
+}
+
+// FromPair is probably not something you want to use unless you
+// are pulling values from external storage or files.  If you pulling
+// values from the network, use the Marshal() ad Unmarshal()
+// functions to work with Ids.  Absolutely no checking is done
+// on the values provided, so much caution is advised.
+func {{.primaryName}}IdFromPair(high, low uint64) {{.primaryName}}Id {
+	return {{.primaryName}}Id({{.idPkg}}NewIdTyped[Def{{.primaryName}}](high,low))
 }
 
 //

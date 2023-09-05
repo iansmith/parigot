@@ -13,18 +13,11 @@ import (
 // should be accessed by .GetWasmMethod in the templates.
 type WasmMethod struct {
 	*descriptorpb.MethodDescriptorProto
-	wasmMethodName string
-	parent         *WasmService
-	input          *InputParam
-	output         *OutputParam
-	HostFuncName   string
-	// these values doesn't matter if your parent service has the "always"
-	// version of it set
-	pullParameters bool
-	pullOutput     bool
-	abiCall        bool
-	// we generate a warning if you set isTest but your service does not
-	isTest               bool
+	wasmMethodName       string
+	parent               *WasmService
+	input                *InputParam
+	output               *OutputParam
+	HostFuncName         string
 	protoPackageOverride *string
 }
 
@@ -43,15 +36,12 @@ func (w *WasmMethod) GetOutputFields() []*WasmField {
 	}
 	return w.CGOutput().GetCGType().CompositeType().GetField()
 }
-func (w *WasmMethod) IsTest() bool {
-	return w.isTest
-}
 
 func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	fullName := m.GetFullName()
 	parts := strings.Split(fullName, ".")
-	addr := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
-	log.Printf("importForMessage: addr=%s => fullname=%s", addr, fullName)
+	// addr := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
+	// log.Printf("\t[%s]importForMessage: addr=%s => fullname=%s", fullName, addr, fullName)
 	formattedName := w.Finder().AddressingNameFromMessage(w.ProtoPackage(), m)
 	if len(parts) > 2 {
 		return fmt.Sprintf("github.com/iansmith/parigot/g/%s", strings.Join(parts[:len(parts)-1], "/"))
@@ -61,28 +51,30 @@ func (w *WasmMethod) importForMessage(m *WasmMessage) string {
 	return ""
 }
 func (w *WasmMethod) addImportForInput(comp *WasmMessage, imp map[string]struct{}) {
-	imp[w.importForMessage(comp)] = struct{}{}
+	qn := w.importForMessage(comp)
+	if w.Parent().GetProtoPackage() == comp.GetProtoPackage() {
+		// cannot import self
+		return
+	}
+	imp["\""+qn+"\""] = struct{}{}
 }
 func (w *WasmMethod) addImportForOutput(comp *WasmMessage, imp map[string]struct{}) {
-	imp[w.importForMessage(comp)] = struct{}{}
+	if w.Parent().GetProtoPackage() == comp.GetProtoPackage() {
+		// cannot import self
+		return
+	}
+	imp["\""+w.importForMessage(comp)+"\""] = struct{}{}
 }
 func (w *WasmMethod) AddImportsNeeded(imp map[string]struct{}) {
 	w.addImportForInput(w.CGInput().CGType().CompositeType(), imp)
 	w.addImportForOutput(w.CGOutput().GetCGType().CompositeType(), imp)
 }
 
-func (w *WasmMethod) HasAbiCallOption() bool {
-	return w.abiCall
-}
-func (w *WasmMethod) HasMethodTestOption() bool {
-	return w.isTest
-}
-
 func (w *WasmMethod) ProtoPackage() string {
 	if w.protoPackageOverride != nil {
 		return *w.protoPackageOverride
 	}
-	return w.Parent().ProtoPackage()
+	return w.Parent().GetProtoPackage()
 }
 func (w *WasmMethod) Finder() Finder {
 	return w.Parent().Finder()
@@ -101,6 +93,7 @@ func (w *WasmMethod) GoPackage() string {
 func (w *WasmMethod) CGInput() *InputParam {
 	return w.input
 }
+
 func (w *WasmMethod) CGOutput() *OutputParam {
 	return w.output
 }

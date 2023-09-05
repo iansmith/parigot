@@ -25,7 +25,7 @@ var templateFS embed.FS
 
 var generatorMap = map[string]codegen.Generator{}
 
-var save = flag.Bool("s", false, "save a copy of the input to temp dir")
+var save = flag.Bool("s", true, "save a copy of the input to temp dir")
 var load = flag.String("l", "", "load a previously saved input (filename)")
 var terminal = flag.Bool("t", false, "dump the generated code to stdout instead of using protobuf format")
 var tmpDir = flag.String("d", "tmp", "provide a directory to use as the temp directior, defaults to ./tmp")
@@ -49,53 +49,73 @@ func main() {
 		source = fp
 	}
 	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir, protocVerbose)
+	if len(genReq.GetFileToGenerate()) != 1 {
+		log.Fatalf("unable to understand the input files, expected 1 file, got %d", len(genReq.GetFileToGenerate()))
+	}
+
+	p := genReq.GetFileToGenerate()[0]
+	if util.IsSystemLibrary(p) {
+		log.Printf("skipping system library '%s'", p)
+		return
+	}
+
 	importToPackageMap := make(map[string]string)
-	for _, f := range genReq.GetProtoFile() {
-		pkg := f.GetOptions().GetGoPackage()
-		if index := strings.LastIndex(pkg, ";"); index != -1 {
-			pkg = pkg[:index]
-		}
-		if codegen.IsIgnoredPackage(pkg) {
-			continue
-		}
+	f := genReq.GetProtoFile()[len(genReq.GetProtoFile())-1]
+	pkg := f.GetOptions().GetGoPackage()
+	if index := strings.LastIndex(pkg, ";"); index != -1 {
+		pkg = pkg[:index]
+	}
+	if !codegen.IsIgnoredPackage(pkg) {
 		importToPackageMap[f.GetName()] = pkg
 	}
-	resp := pluginpb.CodeGeneratorResponse{
-		Error:             nil,
-		SupportedFeatures: nil,
+	gopkg := importToPackageMap[f.GetName()]
+	parts := strings.Split(f.GetName(), "/")
+	if len(parts) < 2 {
+		panic("unable to understand non-qualified package:" + f.GetName())
 	}
-	// generate code, at this point language neutral
-	file, err := generateNeutral(info, genReq, importToPackageMap)
-
-	seen := make(map[string]struct{})
-	// clean up the list of files?
-	outFile := []*util.OutputFile{}
-	for _, f := range file {
-		_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
-		if foundIt {
-			continue
+	//qual := strings.Join(parts[:len(parts)-1], "/")
+	//if strings.HasPrefix(gopkg, "github.com/iansmith/parigot/g/"+qual) {
+	if gopkg != "foo" {
+		// compute response
+		resp := pluginpb.CodeGeneratorResponse{
+			Error:             nil,
+			SupportedFeatures: nil,
 		}
-		seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
-		outFile = append(outFile, f)
-	}
 
-	// set up the response going back out stdout to the protocol buffers compiler
-	// response with an error filled in or a set of output files
-	if err != nil {
-		resp.Error = new(string)
-		*resp.Error = err.Error()
-	} else {
-		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
-		for i, f := range outFile {
-			resp.File[i] = f.ToGoogleCGResponseFile()
+		// generate code, at this point language neutral
+		file, err := generateNeutral(info, genReq, importToPackageMap)
+
+		seen := make(map[string]struct{})
+		// clean up the list of files?
+		outFile := []*util.OutputFile{}
+		for _, f := range file {
+			_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
+			if foundIt {
+				continue
+			}
+			seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
+			outFile = append(outFile, f)
 		}
-	}
 
-	// send response and exit if not loading from disk
-	if *load == "" && !*terminal {
-		util.MarshalResponseAndExit(&resp)
-	} else {
-		util.OutputTerminal(file)
+		// set up the response going back out stdout to the protocol buffers compiler
+		// response with an error filled in or a set of output files
+		if err != nil {
+			resp.Error = new(string)
+			*resp.Error = err.Error()
+		} else {
+			resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
+			for i, f := range outFile {
+				resp.File[i] = f.ToGoogleCGResponseFile()
+			}
+		}
+
+		// send response and exit if not loading from disk
+		if *load == "" && !*terminal {
+			util.MarshalResponseAndExit(&resp)
+		} else {
+			util.OutputTerminal(file)
+		}
+
 	}
 }
 

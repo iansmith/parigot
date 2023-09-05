@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/tetratelabs/wazero/api"
 )
 
@@ -15,8 +16,17 @@ var ErrNotFound = errors.New("unable to find requested object")
 // addresses that are out of range.
 var ErrOutOfRange = errors.New("attempted to read memory that is out of range")
 
+// Environment is an interface that allows a module to be initialized properly.
+// This should contain inofrmation that would normally come from the environment
+// has to be explicitly created because we are in a wasm container.
+type Environment interface {
+	Host() id.HostId
+	Environment() map[string]string
+	Arg() []string
+}
+
 type Engine interface {
-	NewModuleFromFile(ctx context.Context, path string) (Module, error)
+	NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error)
 	// AddSupportedFunc defines a function that is implemented on the host.
 	// The only version AddSupportedFunc() that does not have the suffix
 	// is the one that is the "standard" one for exchanging protobufs.
@@ -37,13 +47,21 @@ type Engine interface {
 	// the time it was created.  If the name cannot be found the return
 	// value is the error NotFound.
 	InstanceByName(ctx context.Context, name string) (Instance, error)
+	// HasHostSideFunction returns true if the package named pkg has declared
+	// host-side functions in its Init() method. If this is false, there is
+	// no reason to instantiate a host module.
+	HasHostSideFunction(ctx context.Context, pkg string) bool
 }
 
 type Module interface {
 	// NewInstance creates an Intance in the host machine and
 	// if this returns without error that instance has been
 	// initialized, linked, and start_ called without error.
-	NewInstance(ctx context.Context) (Instance, error)
+	// XXX The timezone parameter must be passed in from the
+	// XXX outside.  The timezoneDir is a path on the _host_ that should be
+	// XXX mounted into the guest fs as /tz.  Usually want this to
+	// XXX to be GOROOT/lib/time.
+	NewInstance(ctx context.Context, timezone string, timezoneDir string, hid id.HostId) (Instance, error)
 	// Name returns the path of the binary that was loaded.
 	Name() string
 }
@@ -64,12 +82,22 @@ type Instance interface {
 	// GetEntryPointExport returns the entry point function
 	// even if you don't know its exact name.
 	EntryPoint(ctx context.Context) (EntryPointExtern, error)
+
+	// ValueReturns a reference to a value from the instance. This is
+	// used to grab values from a previously running instance.  Using this
+	// while the instance is running is undefined and a bad idea.
+	Value(ctx context.Context, name string) (ExternValue, error)
 }
 
 // Extern is the base interface all the Extern types.  It only
 // has a name for use in debugging.
 type Extern interface {
 	Name() string
+}
+
+type ExternValue interface {
+	GetU64() uint64
+	GetU16() uint16
 }
 
 // FunctionExtern represents an exposed function be the module.  Note that Go modules compiled by
@@ -111,7 +139,7 @@ type MemoryExtern interface {
 type EntryPointExtern interface {
 	FunctionExtern
 	// Run has extra parameters that are specific to the paritcular wasm engine.
-	Run(ctx context.Context, argv []string, extra interface{}) (any, error)
+	Run(ctx context.Context, argv []string, extra interface{}) (uint8, error)
 }
 
 type Utility interface {

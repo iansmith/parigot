@@ -12,205 +12,210 @@ import(
 {{- range $j,$i := .import }}
 {{ if ne $j "" }}
     {{$j}}
-{{ end }}
+{{ end }} {{/* if not empty import */}}
 {{- end}} {{/* imports */}}
 {{- $info:=.info }}
 
-    // this set of imports is _unrelated_ to the particulars of what the .proto imported... those are above
-    lib "github.com/iansmith/parigot/lib/go"  
-    pcontext "github.com/iansmith/parigot/context"  
-    "github.com/iansmith/parigot/apishared/id"  
+// no method? {{.noMethodAtAll}}
+
+    "github.com/iansmith/parigot/lib/go/future"  
+    "github.com/iansmith/parigot/lib/go/client"  
+    "github.com/iansmith/parigot/api/shared/id"
+    "google.golang.org/protobuf/proto"
+    syscallguest "github.com/iansmith/parigot/api/guest/syscall" 
     syscall "github.com/iansmith/parigot/g/syscall/v1" 
-    syscallguest "github.com/iansmith/parigot/apiwasm/syscall" 
-
-
-{{/* this special case for log.Log kinda stinks */}}
-{{- $needLog:=true}}
-{{- range .service }}
-    {{- if eq "LogService" .GetWasmServiceName }}
-        // found the log service 
-        {{- $needLog = false }}
-    {{- end }}
-{{- end}}
+    "github.com/iansmith/parigot/lib/go"  
+    "google.golang.org/protobuf/types/known/anypb"
+{{if .noMethodAtAll}}
+{{else}}
+{{end}}{{/* no methods at all */}}
 )   
 
+{{- $needServiceDifferentiation:=true }}
+{{- $svcLen := len .service }}
+{{- if eq $svcLen 1 }}
+{{- $needServiceDifferentiation = false}}
+{{- end}} {{/* end of need differentiation check */}}
 {{- range .service }}
 {{- $svc:=.GetWasmServiceName }}
-{{- $errId:=.GetWasmServiceErrId}}
 {{- $svcCamel:=toCamelCase .GetWasmServiceName }}
+{{- $svcDiff:=""}}
+{{- $svcCamelFL:=toCamelCaseFirstLower .GetWasmServiceName }}
+{{- $errId:=.GetWasmServiceErrId }}
+{{- $svcDiffFL:=""}}
+{{- if $needServiceDifferentiation}}
+{{- $svcDiff = $svcCamel }}
+{{- $svcDiffFL = $svcCamelFL }}
+{{- end}} {{/* end of need differentiation */}}
 //
 // {{$svcCamel}} from {{$file}}
 //
+//service interface
+{{- $protoPkg:=.GetParent.GetPackage }}
 type {{$svcCamel}} interface {
 {{- range .GetWasmMethod}}
-
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
-{{- $iParam:=.InputParam.CGType.String $package}}
-{{- $oParam:=.OutputParam.CGType.String $package}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 {{- if .InputCodeNeeded }}
-    {{$methCamel}}(ctx context.Context,in *{{$iParam}}) 
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
 {{- else }} 
-    {{$methCamel}}(ctx context.Context) 
-{{- end -}} 
-{{- if .OutputCodeNeeded -}}
-    (*{{$oParam}}, {{$errId}}) 
-{{- else -}}
-    {{$errId}}
-{{- end -}} {{/* end of output code needed for declaration */}}
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}}
+{{- end }}  {{/* end of input needed */}}
+{{- end }} {{/* end of range over methods */}}
+    Ready(context.Context,id.ServiceId) *future.Base[bool]
+}
+
+type Client{{$svcDiff}} interface {
+{{- range .GetWasmMethod}}
+{{- $methCamel:=toCamelCase .WasmMethodName}}
+{{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $iParam:=.InputParam.CGType.String $protoPkg}}
+{{- $oParam:=.OutputParam.CGType.String $protoPkg}}
+{{- if .InputCodeNeeded }}
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context,in *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}}
+{{- else }} 
+    {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}}
+{{- end }}  {{/* end of input needed */}}
 {{- end }} {{/* end of range over methods */}}
 }
-{{- end}} {{/* closes service, the interface stuff*/}}
 
-{{- range .service }}
-{{ $svc:=.GetWasmServiceName }}
-{{ $svcCamel:=.GetWasmServiceName }}
-{{ $errId:=.GetWasmServiceErrId }}
-
-type {{$svcCamel}}Client {{$svcCamel}}
-type {{$svcCamel}}Client_ struct {
-    *lib.ClientSideService
+// Client{{$svcDiff}} difference from {{$svcCamel}}: Ready() 
+type Client{{$svcDiff}}_ struct {
+    *client.BaseService
 }
+// Check that Client_ is a Client.
+var _ = Client{{$svcDiff}}(&Client{{$svcDiff}}_{})
 
-// Locate finds a reference to the client interface of {{$svc}}.  
-func Locate{{$svc}}(ctx context.Context,sid id.ServiceId) ({{$svcCamel}}Client,syscall.KernelErr) {
-	req := &syscall.LocateRequest{
-        PackageName:"{{.ProtoPackage}}",
-        ServiceName: "{{$svc}}",
-        CalledBy: sid.Marshal(),
-	}
-
-    resp,errId:=syscallguest.Locate(req)
-    print("locate ","{{.ProtoPackage}} ","{{$svc}}"," sid ",sid.String()," result ",resp," error ",errId.String(),"\n")
-    if errId!=syscall.KernelErr_NoError{
-        pcontext.Errorf(ctx,"UnmarshalServiceId failed: %s",syscall.KernelErr_name[int32(errId)])
-        return nil, errId
-    }
-    serviceId:=id.UnmarshalServiceId(resp.GetServiceId())
-
-    cs := lib.NewClientSideService(ctx, serviceId, "{{$svc}}Client")
-    return &{{$svc}}Client_{
-        ClientSideService: cs,
-    },syscall.KernelErr_NoError
-}
-
-func MustLocate{{$svc}}(ctx context.Context, sid id.ServiceId) {{$svcCamel}}Client {
-
-    result, err:=Locate{{$svc}}(ctx, sid)
-
-    name:=syscall.KernelErr_name[int32(err)]
-    normal:="unable to locate {{.ProtoPackage}}.{{$svc}}:"+name
-    if err!=0 {
-        pcontext.Debugf(ctx,"kernel error was  %s",name)
-        if err == syscall.KernelErr_NotRequired {
-            pcontext.Errorf(ctx,"service was located, but it was not required")
-            panic("locate attempted on a service that was not required")
-        }
-        panic(normal)
-    }
-    return result
-}
-
-func Register{{$svc}}(ctx context.Context) (id.ServiceId, syscall.KernelErr){
-    req := &syscall.RegisterRequest{}
-	fqs := &syscall.FullyQualifiedService{
-		PackagePath: "{{.ProtoPackage}}",
-		Service:     "{{$svc}}",
-	}
-	req.Fqs = fqs
-    req.IsClient = false
-
-	resp, err := syscallguest.Register(req)
-    if err!=0 {
-        return id.ServiceIdZeroValue(), err
-    }
-    sid:=id.UnmarshalServiceId(resp.Id)
-    return sid,syscall.KernelErr_NoError
-}
-func MustRegister{{$svc}}(ctx context.Context) id.ServiceId {
-    sid, err:=Register{{$svc}}(ctx)
-    if err!=syscall.KernelErr_NoError {
-        pcontext.Fatalf(ctx,"unable to register %s.%s","{{.ProtoPackage}}","{{$svc}}")
-        panic("unable to register "+"{{$svc}}")
-    }
-    return sid
-}
-
-func MustRequire{{$svc}}(ctx context.Context, sid id.ServiceId) {
-    _, err:=lib.Require1("{{.ProtoPackage}}","{{$svc}}",sid)
-    if err!=syscall.KernelErr_NoError {
-        if err==syscall.KernelErr_DependencyCycle{
-            pcontext.Errorf(ctx,"unable to require %s.%s because it creates a dependcy loop: %s","{{.ProtoPackage}}","{{$svc}}",syscall.KernelErr_name[int32(err)])
-            panic("require {{.ProtoPackage}}.{{$svc}} creates a dependency loop")
-        }
-        pcontext.Errorf(ctx,"unable to require %s.%s:%s","{{.ProtoPackage}}","{{$svc}}",syscall.KernelErr_name[int32(err)])
-        panic("not able to require {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
-    }
-}
-
-func MustExport{{$svc}}(ctx context.Context) {
-    _, err:=lib.Export1("{{.ProtoPackage}}","{{$svc}}")
-    if err!=syscall.KernelErr_NoError{
-        pcontext.Fatalf(ctx, "unable to export %s.%s","{{.ProtoPackage}}","{{$svc}}")
-        panic("not able to export {{.ProtoPackage}}.{{$svc}}:"+syscall.KernelErr_name[int32(err)])
-    }
-}
-func MustWaitSatisfied{{$svc}}(sid id.ServiceId) {
-    s:=sid.Marshal()
-	syscallguest.Run(&syscall.RunRequest{Wait: true, ServiceId:s })
-
-}
-
-{{range .GetWasmMethod}}
-
+{{- range .GetWasmMethod}}
 {{- $meth:=.WasmMethodName}}
 {{- $methCamel:=toCamelCase .WasmMethodName}}
 {{- $inbound:=call .FuncChoice.Inbound .InputCodeNeeded .OutputCodeNeeded false false . }}
 {{- $inParam:=call .FuncChoice.InputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
+{{- $inParamDecl:=call .FuncChoice.InParamDecl .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParam:=call .FuncChoice.OutputParam .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $outParamDecl:=call .FuncChoice.OutParamDecl .InputCodeNeeded .OutputCodeNeeded false false .}}
 {{- $dispatchResult:=call .FuncChoice.DispatchResult .InputCodeNeeded .OutputCodeNeeded false false .}}
 
+//
+// method: {{$svcCamel}}.{{$methCamel}} 
+//
 
-{{- if .InputCodeNeeded -}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context, in {{$inParam}}) 
-{{- else -}}
-// ouch {{.InputCodeNeeded}} {{.OutputCodeNeeded}}
-func (i *{{$svcCamel}}Client_) {{$methCamel}}(ctx context.Context) 
-{{- end -}}
-{{- if .OutputCodeNeeded -}}
-    ({{$outParam}}, {{$errId}}) {
-{{- else -}}
-    {{$errId}} {
-{{- end -}} {{/* end of output code needed for declaration */}}
+{{- if .OutputCodeNeeded }}
+type Future{{$svcDiff}}{{$methCamel}} struct {
+    Method *future.Method[{{$outParam}},{{$errId}}]
+}
+{{- else}}
+type Future{{$svcDiff}}{{$methCamel}} struct {
+    Base *future.Base[{{$errId}}]
+}
+{{- end }} {{/*end of output code needed */}}
 
+// This is the same API for output needed or not because of the Completer interface.
+// Note that the return value refers to the process of the setup/teardown, not the
+// execution of the user level code.
+func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
-    {{$dispatchResult}}, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
-{{- else }} {{/* other side of output code needed */}}
-    _, err:= i.ClientSideService.Dispatch("{{.WasmMethodName}}",{{$inbound}})
-{{ end }} {{/* end of output code needed for dispatch call */}}
+    if a!=nil {
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+        }
+    }
+    f.Method.CompleteMethod(ctx,out,{{$errId}}(e))
+{{- else }}
+    f.Base.Set({{$errId}}(e))
+{{- end }} {{/* end output needed */}}
+    return syscall.KernelErr_NoError
 
-    if int32(err)!=0{
+}
+
+{{- if .OutputCodeNeeded}}
+func (f *Future{{$svcDiff}}{{$methCamel}})Success(sfn func (proto.Message)) {
+    x:=func(m {{$outParam}}){
+        sfn(m)
+    }
+    f.Method.Success(x)
+}
+{{- else }} 
+func (f *Future{{$svcDiff}}{{$methCamel}})Success(sfn func (proto.Message)) {
+    // no way for this to be called
+}
+{{- end }} {{/* end of output code needed*/}}
+
+func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func (int32)) {
+{{- if .OutputCodeNeeded}}
+    x:=func(err {{$errId}}) {
+        ffn(int32(err))
+    }
+    f.Method.Failure(x)
+{{- else }}
+    x:=func(err {{$errId}}) {
+        ffn(int32(err))
+    }
+    f.Base.Handle(x)
+{{- end }} {{/* end of output code needed*/}}
+}
+
+func (f *Future{{$svcDiff}}{{$methCamel}})Completed() bool  {
 {{- if .OutputCodeNeeded }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
-        return nil,{{$errId}}_DispatchError
+    return f.Method.Completed()
+{{- else }}
+    return f.Base.Completed()
+{{- end }}
+
+}
+func (f *Future{{$svcDiff}}{{$methCamel}})Cancel()   {
+{{- if .OutputCodeNeeded }}
+    f.Method.Cancel()
+{{- else }}
+    f.Base.Cancel()
+{{- end }}
+}
+
+
+{{- if .OutputCodeNeeded }}
+func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
+    f:=&Future{{$svcDiff}}{{$methCamel}}{
+        Method: future.NewMethod[{{$outParam}},{{$errId}}](nil,nil),
     }
 {{- else }}
-        pcontext.Errorf(ctx,"dispatch syscall failed: %s",syscall.KernelErr_name[int32(err)])
-        return {{$errId}}_DispatchError
+func NewFuture{{$svcDiff}}{{$methCamel}}() *Future{{$svcDiff}}{{$methCamel}} {
+    f:=&Future{{$svcDiff}}{{$methCamel}}{
+        Base: future.NewBase[{{$errId}}](),
     }
-{{ end }} {{/* end of output code needed for return */}}
-{{- if .OutputCodeNeeded }}
-    unmarsh := resp.Result.UnmarshalTo(out)
-    if unmarsh!=nil {
-        return nil,{{$errId}}_UnmarshalError
-    }
-    return out,{{$errId}}_NoError
-{{- else }} {{/* other side of output code needed */}}
-    return {{$errId}}_NoError
-{{- end }} {{/* output code needed */}}
+{{- end}} {{/*end of output needed */}}
+    return f
 }
-{{end}} {{/*ranging over methods*/}}
+
+{{- if .InputCodeNeeded }}
+func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context, in {{$inParam}}) *Future{{$svcDiff}}{{$methCamel}} {
+{{- else }}
+func (i *Client{{$svcDiff}}_) {{$svcDiff}}{{$methCamel}}(ctx context.Context) *Future{{$svcDiff}}{{$methCamel}} {
+{{- end }} {{/* end of input needed */}}
+    mid, ok := i.BaseService.MethodIdByName("{{.WasmMethodName}}")
+    if !ok {
+        f:=NewFuture{{$svcDiff}}{{$methCamel}}()
+        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
+    }
+{{- if .InputCodeNeeded }}
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,{{$inbound}})
+{{- else }}
+    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,nil)
+{{- end }} {{/* end of input needed */}}
+    f:=NewFuture{{$svcDiff}}{{$methCamel}}()
+    if kerr!=syscall.KernelErr_NoError{
+        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
+        return f
+     }
+
+    ctx, t:=lib.CurrentTime(ctx)
+    source:=syscallguest.CurrentHostId()
+    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
+    return f
+}
+{{- end}} {{/*ranging over methods*/}}
 {{- end}} {{/*ranging over services*/}}

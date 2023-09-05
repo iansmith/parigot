@@ -1,0 +1,21 @@
+syntax ="proto3";
+import "google/protobuf/descriptor.proto";
+package protosupport.v1;
+option go_package="github.com/iansmith/parigot/g/protosupport/v1;protosupport";
+
+message IdRaw {
+  uint64 high = 1;
+  uint64 low = 2;
+}
+
+extend google.protobuf.EnumOptions {
+  bool parigot_error = 543211;
+}
+
+extend google.protobuf.MethodOptions {
+  string host_func_name = 543212;
+}
+
+extend google.protobuf.ServiceOptions {
+  string error_id_name = 543213;
+}

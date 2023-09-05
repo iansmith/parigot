@@ -2,12 +2,8 @@
 FROM ubuntu:22.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
-RUN apt-get install -y curl 
-RUN apt-get install -y wget
-RUN apt-get install -y git
-RUN apt-get install -y xz-utils nano 
-RUN apt-get install -y sudo ca-certificates file \
-	dpkg zip unzip zsh 
+RUN apt-get install -y curl wget git xz-utils nano
+RUN apt-get install -y sudo ca-certificates file dpkg zip unzip zsh clang-15
 
 #RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
 #    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
@@ -24,8 +20,10 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ## golang version
 ENV GOLANG_VERSION_HOST="1.21.0"
+ENV GOLANG_VERSION_HOST_SHORT="1.21"
 ## wasmtime version
 ENV WASMTIME_VERSION=10.0.1
+
 
 # hugo version for website
 ENV HUGO_VERSION=0.114.1
@@ -58,20 +56,12 @@ RUN mv go go${GOLANG_VERSION_HOST}
 ## client side go install
 WORKDIR /home/parigot/deps
 
-#install from source
-#RUN git clone --depth 1 https://github.com/golang/go.git
-#ENV GOLANG_VERSION_GUEST="1.21.0"
-#RUN mv go go${GOLANG_VERSION_GUEST}
-#WORKDIR /home/parigot/deps/go${GOLANG_VERSION_GUEST}/src
 ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_HOST}
-#ENV GOROOT_BOOTSTRAP=/home/parigot/deps/go${GOLANG_VERSION_HOST}
-#RUN  ./make.bash
-#ENV GOROOT=
-#ENV GOROOT_BOOTSTRAP=
+
+ENV GOROOT_BOOTSTRAP=
 
 # install Hugo
 WORKDIR /home/parigot/deps
-RUN ls -l 
 RUN dpkg -i hugo_${HUGO_VERSION}.deb
 RUN rm -f hugo_${HUGO_VERSION}.deb
 
@@ -81,19 +71,22 @@ WORKDIR /home/parigot/deps/protoc-${PROTOC_VERSION}
 RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
 
+# install golang
+WORKDIR /home/parigot/deps
+RUN tar xvf go.tar.gz
+RUN mv go go${GOLANG_VERSION_HOST}
+RUN rm go.tar.gz
+
 ## install wasmtime
 WORKDIR /home/parigot/deps
 RUN unxz wasmtime.tar.xz
 RUN tar xf wasmtime.tar
 RUN rm wasmtime.tar
 
-#RUN mkdir /home/parigot/deps/bin
-#WORKDIR /home/parigot/deps/bin
-
 # protocol buffers 
 ENV PB_VERSION="21.12"
 ENV PB_REL="https://github.com/protocolbuffers/protobuf/releases"
-RUN curl -s -LO $PB_REL/download/v${PB_VERSION}/protoc-${PB_VERSION}-linux-x86_64.zip
+#RUN curl -s -LO $PB_REL/download/v${PB_VERSION}/protoc-${PB_VERSION}-linux-x86_64.zip
 RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 ENV PB_REL=""
@@ -109,7 +102,7 @@ ENV PB_REL=""
 # RUN git clone --depth 1 --branch ${TINYGO_VERSION} https://github.com/tinygo-org/tinygo.git
 # WORKDIR /usr/local/tinygo
 # # these two env vars are temporary until we get tinygo built
- ENV PATH=/home/parigot/tools/bin:/home/parigot/deps/go${GOLANG_VERSION_HOST}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV PATH=/home/parigot/tools/bin:/home/parigot/deps/go${GOLANG_VERSION_HOST}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #GOROOT changed to test
 ENV GOROOT=/home/parigot/deps/go${GOLANG_VERSION_HOST}
 # RUN which go
@@ -135,7 +128,9 @@ RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST} /home/parigot/tools
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_HOST}
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
+
 RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
+
 RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
 
 # RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
@@ -190,6 +185,8 @@ RUN file  /home/parigot/deps/go1.21/bin/go
 
 ENV PROTOC_GO_VERSION=1.28.1
 ENV PROTOC_GRPC_VERSION=1.51.0
+RUN  ls -l /home/parigot/deps/
+RUN echo go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest

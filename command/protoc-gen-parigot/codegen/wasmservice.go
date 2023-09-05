@@ -1,8 +1,6 @@
 package codegen
 
 import (
-	"log"
-
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -18,10 +16,6 @@ type WasmService struct {
 	lang             LanguageText
 	finder           Finder
 	errorIdName      string
-	// alwaysPullParameters bool
-	// alwaysPullOutput     bool
-	// kernel               bool
-	// isTest               bool
 }
 
 func (w *WasmService) Finder() Finder {
@@ -32,23 +26,12 @@ func (w *WasmService) GetLanguage() LanguageText {
 	return w.lang
 }
 
-// func (w *WasmService) HasKernelOption() bool {
-// 	return w.kernel
-// }
-// func (w *WasmService) NoKernelOption() bool {
-// 	return !w.kernel
-// }
-
-func (w *WasmService) ProtoPackage() string {
+func (w *WasmService) GetProtoPackage() string {
 	return w.GetParent().GetPackage()
 }
 func (w *WasmService) GetGoPackage() string {
 	return w.GetParent().GetOptions().GetGoPackage()
 }
-
-// func (w *WasmService) IsTest() bool {
-// 	return w.isTest
-// }
 
 // GetWasmServiceName looks through the data structure given that represents the
 // original protobuf structure trying to fin constructs like this:
@@ -78,6 +61,13 @@ func (w *WasmService) GetWasmServiceName() string {
 	return w.wasmServiceName
 }
 
+func (w *WasmService) IsWasmServiceReverseAPI() bool {
+	return isWasmServiceReverseAPI(w.ServiceDescriptorProto.GetOptions().String())
+}
+func (w *WasmService) ImplementsReverseAPI() string {
+	return implementsReverseAPI(w.ServiceDescriptorProto.GetOptions().String())
+}
+
 // GetWasmServiceErrId gets the string that is the type name
 // of the return type of this service.  It will be
 // <serviceName>Err.  It caches this value after it is
@@ -98,23 +88,19 @@ func (s *WasmService) GetWasmMethod() []*WasmMethod {
 	return s.method
 }
 
+// NoMethod returns true if the length of the slice of Methods is zero.
+func (s *WasmService) NoMethod() bool {
+	return len(s.GetWasmMethod()) == 0 || s.IsWasmServiceReverseAPI()
+}
+
 // GetParent returns the parent of this wasm service, which is a descriptor
 // for the file containing it.
 func (s *WasmService) GetParent() *descriptorpb.FileDescriptorProto {
 	return s.parent
 }
 
-// func (s *WasmService) AlwaysPullParameters() bool {
-// 	return s.alwaysPullParameters
-// }
-
-// func (s *WasmService) AlwaysPullOutput() bool {
-// 	return s.alwaysPullOutput
-// }
-
 func (s *WasmService) AddImportsNeeded(imp map[string]struct{}) {
 	for _, m := range s.GetWasmMethod() {
-		log.Printf("wasm method %s needs %+v", m.GetName(), imp)
 		m.AddImportsNeeded(imp)
 	}
 }

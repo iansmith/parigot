@@ -8,7 +8,10 @@ import (
 
 // This file does lots of option processing.
 const (
-	serviceOptionForWasmName = "543210"
+	serviceOptionForWasmName          = "543210"
+	serviceOptionForReverseAPI        = "543214"
+	serviceOptionImplementsReverseAPI = "543215"
+
 	messageOptionForWasmName = "543210"
 	methodOptionForWasmName  = "543210"
 	fieldOptionForWasmName   = "543210"
@@ -17,20 +20,6 @@ const (
 
 	parigotOptionForHostFuncName = "543212"
 	parigotOptionForErrorIdName  = "543213"
-
-	// serviceOptionNoPackage        = "543211"
-	// serviceOptionAlwaysPullParams = "543212"
-	// serviceOptionAlwaysPullOutput = "543213"
-	// serviceOptionKernel           = "543214"
-
-	// methodOptionPullParams = "543211"
-	// methodOptionPullOutput = "543213"
-
-	// if these flags are used in conjunction with a command line flag the generator should output
-	// code for the test methods mentioned in the service defintion.
-	// serviceOptionServiceTest = "543215"
-	// methodOptionMethodTest   = "543216"
-	// serviceOptionErrId       = "543217"
 )
 
 // options to map converts the text string that is the options for a given level
@@ -85,67 +74,29 @@ func isStringOptionPresent(s, target string) (string, bool) {
 	return text, false
 }
 
+// isReverseAPI looks for the option that expresses that the currently being defined
+// service is not to be generated associated with the code that defines it.
+func isWasmServiceReverseAPI(s string) bool {
+	_, ok := isBooleanOptionPresent(s, serviceOptionForReverseAPI)
+	return ok
+}
+
+// implementsReverseAPI returns the type that this service truly implements,
+// not the code which is defined inline.
+func implementsReverseAPI(s string) string {
+	s, ok := isStringOptionPresent(s, serviceOptionImplementsReverseAPI)
+	if !ok {
+		return ""
+	}
+	return s
+}
+
 // isWasmServiceName looks for the option wasm_service_name inside the given string.
 func isWasmServiceName(s string) (string, bool) {
 	return isStringOptionPresent(s, serviceOptionForWasmName)
 }
 
-// isWasmServiceErrId looks for the option wasm_err_id inside the given string.
-// func isWasmServiceErrId(s string) (string, bool) {
-// 	return isStringOptionPresent(s, serviceOptionErrId)
-// }
-
 // isWasmMessageName looks for the option wasm_message_name inside the given string.
 func isWasmMessageName(s string) (string, bool) {
 	return isStringOptionPresent(s, messageOptionForWasmName)
 }
-
-func isServiceMarkedParigot(s string) bool {
-	_, ok := isBooleanOptionPresent(s, messageOptionForWasmName)
-	return ok
-}
-func IsEnumMarkedParigot(s string) bool {
-	s, ok := isBooleanOptionPresent(s, parigotOptionForEnum)
-	if !ok {
-		return false
-	}
-	return s != ""
-}
-
-// func hasNoPackageOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionNoPackage)
-// 	return b
-// }
-
-// func hasServiceTestOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionServiceTest)
-// 	return b
-// }
-// func hasMethodTestOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionMethodTest)
-// 	return b
-// }
-
-// func hasKernelOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionKernel)
-// 	return b
-// }
-
-// func alwaysPullParamsOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullParams)
-// 	return b
-// }
-
-// func alwaysPullOutputOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, serviceOptionAlwaysPullOutput)
-// 	return b
-// }
-
-// func pullParamsOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionPullParams)
-// 	return b
-// }
-// func pullOutputOption(s string) bool {
-// 	_, b := isBooleanOptionPresent(s, methodOptionPullOutput)
-// 	return b
-// }

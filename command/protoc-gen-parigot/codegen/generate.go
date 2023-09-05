@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"io"
+	"log"
 	"strings"
 	"text/template"
 
@@ -23,6 +24,10 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	result := []*util.OutputFile{}
 	for _, toGen := range info.request.FileToGenerate {
 		fname := info.GetFileByName(toGen).GetName()
+		if util.IsSystemLibrary(fname) {
+			log.Printf("skipping ")
+			continue
+		}
 		_, ok := fileSeen[fname]
 		if ok {
 			continue
@@ -37,19 +42,25 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 					imp["\""+impToPkg[dep]+"\""] = struct{}{}
 				}
 			}
+			for _, svc := range info.finder.Service() {
+				for _, meth := range svc.GetWasmMethod() {
+					meth.AddImportsNeeded(imp)
+				}
+			}
 			if !strings.HasSuffix(toGen, ".proto") {
 				panic(fmt.Sprintf("unable to understand protocol buffer file with name %s, does not end in .proto", toGen))
 			}
 			path2 := strings.TrimSuffix(toGen, ".proto") + resultName[i]
 			f := util.NewOutputFile(path2)
 			wasmService := []*WasmService{}
-
+			nomethod := make(map[string]bool)
 			for _, pb := range info.GetAllServiceByName(toGen) {
 				desc := info.GetFileByName(toGen)
 				w := info.FindServiceByName(desc.GetPackage(), pb.GetName())
 				if w == nil {
 					panic(fmt.Sprintf("can't find service %s", toGen))
 				}
+				nomethod[w.GetWasmServiceName()] = w.NoMethod()
 				wasmService = append(wasmService, w)
 			}
 			wasmMessage := []*WasmMessage{}
@@ -70,13 +81,22 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 			if err != nil {
 				return nil, err
 			}
+			noMethodsAtAll := true
+			for _, value := range nomethod {
+				if !value {
+					noMethodsAtAll = false
+					break
+				}
+			}
 			data := map[string]interface{}{
-				"file":    toGen,
-				"req":     info.GetRequest(),
-				"info":    info,
-				"package": pkg,
-				"import":  imp,
-				"service": wasmService,
+				"file":          toGen,
+				"req":           info.GetRequest(),
+				"info":          info,
+				"package":       pkg,
+				"import":        imp,
+				"service":       wasmService,
+				"noMethod":      nomethod,
+				"noMethodAtAll": noMethodsAtAll,
 			}
 			err = executeTemplate(f, t, n, data)
 			if err != nil {
@@ -117,6 +137,9 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		allSvc := result.GetService(f)
 		for _, svc := range allSvc {
 			w := NewWasmService(result.GetFileByName(f), svc, lang, result.finder)
+			// if w.ImplementsReverseAPI() != "" {
+			// 	log.Printf("xxx implements remote %s: %s", w.GetWasmServiceName(), f)
+			// }
 			result.RegisterService(w)
 		}
 	}

@@ -21,6 +21,7 @@ var FuncMap = template.FuncMap{
 	"toLowerNoService":      ToLowerNoService,
 	"LastSegmentOfPackage":  LastSegmentOfPackage,
 	"BasicTypeToString":     BasicTypeToString,
+	"RemoveDots":            RemoveDots,
 }
 
 func ToCamelCaseFirstLower(snake string) string {
@@ -145,4 +146,9 @@ func isVersion(possibleVersion string) bool {
 
 func BasicTypeToString(l LanguageText, s string, panicOnFail bool) string {
 	return l.BasicTypeToString(s, panicOnFail)
+}
+
+// RemoveDots takes a string and returns it without dots.
+func RemoveDots(str string) string {
+	return strings.Replace(str, ".", "", -1)
 }

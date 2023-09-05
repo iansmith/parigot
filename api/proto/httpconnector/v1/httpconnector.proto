@@ -1,0 +1,49 @@
+syntax="proto3";
+package httpconnector.v1;
+option go_package="github.com/iansmith/parigot/g/httpconnector/v1;httpconnector";
+import "protosupport/v1/protosupport.proto";
+import "google/protobuf/any.proto";
+
+// This is the httpconnector service for parigot. It provides an api that
+// inspects external http requests and converts them into parigot's internal
+// http requests
+
+service HttpConnector {
+	//option (protosupport.v1.is_reverse_api) = true;
+	rpc Handle(HandleRequest) returns (HandleResponse);
+}
+
+message HandleRequest {
+	string http_method = 1;
+	string url =  2;
+	protosupport.v1.IdRaw service_id = 3;
+	protosupport.v1.IdRaw method_id = 4;
+	google.protobuf.Any req_any = 5;
+}
+
+message HandleResponse {
+	int32 http_status = 1;
+	bytes http_response = 2;
+	map<string,string> header = 3;
+}
+
+message CheckRequest{
+	bool success = 1;
+}
+
+message CheckResponse {
+	// Whether receive a http request from outside
+	bool success = 1;
+}
+
+enum HttpConnectorErr {
+	option (protosupport.v1.parigot_error) = true;
+	NoError = 0; // mandatory
+	DispatchError = 1; //mandatory
+	UnmarshalError = 2; // mandatory
+	MarshalError = 3; // mandatory
+	InternalError = 4; // There are internal issues with the httpconnector service
+
+	NoReceiver = 5; // We could not find any service that implements HttpConnector
+	ReceiverFailed = 6; // We attempted to call the receiver, but got a failure back
+}

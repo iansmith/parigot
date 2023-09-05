@@ -1,0 +1,48 @@
+# there is no main "program" these two services just exist in the void...
+
+## Note that because this file is expected to be consumed in a dev container
+## so the files have absolute paths that are correct for the container.
+
+## dev configuration in general
+[config.dev]
+## Load parigot code from shared object
+ParigotLibPath="/workspaces/parigot/build/syscall.so"
+ParigotLibSymbol="ParigotInitialize"
+Timezone = "US/Eastern"
+
+[config.dev.Timeout]
+Startup = 100 # millis
+Complete = 20 # millis
+
+# the simple service
+[config.dev.microservice.simple]
+WasmPath="/workspaces/parigot/example/httpsimple/build/simple.p.wasm"
+Arg=[]
+Env=[]
+
+# frontdoor service
+[config.dev.microservice.frontdoor]
+WasmPath="/workspaces/parigot/example/httpsimple/build/frontdoor.p.wasm"
+PluginPath="/workspaces/parigot/build/httpconn.so"
+PluginSymbol="ParigotInitialize"
+# This alias is needed when building with the -tags noplugin option. 
+# This field the static linker to "see" what this service's host code is. 
+# The normal case, without the build tag, is used with the dynamic linker
+# and .so files, so this is unnecessary. 
+PluginAlias="httpconnector"
+Arg=[]
+Env=[]
+
+##
+## our dependencies
+##
+
+#[config.dev.microservice.httpconnector]
+#WasmPath="/workspaces/parigot/build/httpconn.p.wasm"
+#Arg=[]
+#Env=[]
+
+#[config.dev.microservice.http]
+#WasmPath="/workspaces/parigot/build/http.p.wasm"
+#Arg=[]
+#Env=[]

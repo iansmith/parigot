@@ -1,0 +1,36 @@
+## Note that because this is consumed from the parigot root dir, the paths provided
+## are relative to that dir, not this dir
+
+[config.dev]
+ParigotLibPath="build/syscall.so"
+ParigotLibSymbol="ParigotInitialize"
+#ArrangementName = "localDocker" 
+#SizeName="extraLarge"
+
+# the names here have no significance, they are just for humans
+[config.dev.microservice.foo]
+WasmPath="build/methodcallfoo.p.wasm"
+Arg=["methodcallfoo.p.wasm"]
+Env=["PARIGOT_GOOD=bad"]
+
+[config.dev.microservice.bar]
+WasmPath="build/methodcallbar.p.wasm"
+Arg=["methodcallbar.p.wasm"]
+Env=["PARIGOT_SOFT=hard"]
+
+[config.microservice.dev.test]
+WasmPath="build/test.p.wasm"
+Arg=["test.p.wasm"]
+
+[config.dev.microservice.queue]
+WasmPath="build/queue.p.wasm"
+Arg=["queue.p.wasm"]
+PluginPath="build/queue.so"
+PluginSymbol="ParigotInitialize"
+
+[config.dev.microservice.methodcall_test]
+WasmPath="build/methodcalltest.p.wasm"
+Arg=["methodcalltest.p.wasm"]
+Env=["PARIGOT_ENV=true"]
+Test=true
+
