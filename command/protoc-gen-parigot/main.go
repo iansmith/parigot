@@ -49,9 +49,14 @@ func main() {
 		source = fp
 	}
 	genReq := util.ReadStdinIntoBuffer(source, *save, *tmpDir, protocVerbose)
-	log.Printf("XXXXXXXXX MAIN ENTRY with request %d %s", len(genReq.GetFileToGenerate()), genReq.GetFileToGenerate()[0])
-	for _, f := range genReq.GetProtoFile() {
-		log.Printf("\t %s", *f.Name)
+	if len(genReq.GetFileToGenerate()) != 1 {
+		log.Fatalf("unable to understand the input files, expected 1 file, got %d", len(genReq.GetFileToGenerate()))
+	}
+
+	p := genReq.GetFileToGenerate()[0]
+	if util.IsSystemLibrary(p) {
+		log.Printf("skipping system library '%s'", p)
+		return
 	}
 
 	importToPackageMap := make(map[string]string)
@@ -61,7 +66,6 @@ func main() {
 		pkg = pkg[:index]
 	}
 	if !codegen.IsIgnoredPackage(pkg) {
-		log.Printf("xxx import to package map: %s,%s", f.GetName(), pkg)
 		importToPackageMap[f.GetName()] = pkg
 	}
 	gopkg := importToPackageMap[f.GetName()]
@@ -69,8 +73,7 @@ func main() {
 	if len(parts) < 2 {
 		panic("unable to understand non-qualified package:" + f.GetName())
 	}
-	qual := strings.Join(parts[:len(parts)-1], "/")
-	log.Printf("xxxx f.GetName() = github.com/iansmith/parigot/g/%s", qual)
+	//qual := strings.Join(parts[:len(parts)-1], "/")
 	//if strings.HasPrefix(gopkg, "github.com/iansmith/parigot/g/"+qual) {
 	if gopkg != "foo" {
 		// compute response
@@ -113,8 +116,6 @@ func main() {
 			util.OutputTerminal(file)
 		}
 
-	} else {
-		log.Printf("ignoring builtin proto %s", f.GetName())
 	}
 }
 
@@ -134,7 +135,6 @@ func isGenerate(fullName string, genReq *pluginpb.CodeGeneratorRequest) bool {
 // generateNeutral starts the process of code generation and it does not care
 // about the languages being used.  those get set at the point we compute genMap
 func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorRequest, impToPkg map[string]string) ([]*util.OutputFile, error) {
-	log.Printf("xxxx -- generate neutral version of map %+v", impToPkg)
 	fileList := []*util.OutputFile{}
 	// compute the set of descriptors that will need to be generated... have to do this firest because
 	// there can be multiple protos in the same package
@@ -177,7 +177,6 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 	}
 	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
-	log.Printf("xxx??? %d, %d", len(genReq.GetFileToGenerate()), len(generatorMap))
 	for _, desc := range genReq.GetProtoFile() {
 		for lang, generator := range generatorMap {
 			codegen.Collect(info, generator.LanguageText())
@@ -194,10 +193,6 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 					return nil, err
 				}
 				file, err := generator.Generate(t, info, impToPkg)
-				log.Printf("xxx --- about to generate for %s,%s => %+v", desc.GetName(), desc.GetPackage(), impToPkg)
-				for _, f := range file {
-					log.Printf("xxx \t\t %s", f.ToGoogleCGResponseFile().GetName())
-				}
 				if err != nil {
 					return nil, err
 				}

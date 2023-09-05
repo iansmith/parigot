@@ -1,7 +1,6 @@
 
 all: commands \
 	guest \
-	methodcalltest \
 	sqlc \
 	plugins 
 		
@@ -9,7 +8,6 @@ all: commands \
 # GROUPS OF TARGETS
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
-methodcalltest: build/methodcallfoo.p.wasm build/methodcallbar.p.wasm #build/methodcalltest.p.wasm 
 guest: build/file.p.wasm  build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so
@@ -30,7 +28,8 @@ SYSCALL_CLIENT_SIDE=api/guest/syscall/*.go
 LIB_SRC=$(shell find lib -type f -regex ".*\.go")
 API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
-
+#we are the systemb library makefile so we want the libraries generated
+GEN_SYS_LIB=1
 CC=/usr/lib/llvm-15/bin/clang
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
@@ -54,7 +53,7 @@ REP=g/file/$(API_VERSION)/file.pb.go
 $(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
 	@rm -rf g/*
 	buf lint
-	buf generate
+	GEN_SYS_LIB=$(GEN_SYS_LIB) buf generate
 
 #
 # PROTOC EXTENSION
@@ -93,8 +92,7 @@ API_ID= \
 	g/queue/v1/rowid.go \
 	g/queue/v1/queuemsgid.go \
 	g/file/v1/fileid.go \
-	g/test/v1/testid.go \
-	g/methodcall/v1/methodcallid.go  
+	g/test/v1/testid.go 
 
 api/shared/id/serviceid.go:api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
 	$(GO_TO_HOST) run command/boilerplateid/main.go -i -p id Service s svc > api/shared/id/serviceid.go	
@@ -152,32 +150,6 @@ build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 # 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/http
 
 
-#
-# METHODCALL TEST
-#
-g/methodcall/v1/methodcallid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
-	$(GO_TO_HOST) run command/boilerplateid/main.go -p methodcall Methodcall m methcall > g/methodcall/v1/methodcallid.go
-
-## methodcall test code
-METHODCALLTEST_SRC=test/func/methodcall/*.go
-METHODCALLTEST_SVC=build/methodcallbar.p.wasm build/methodcallfoo.p.wasm 
-METHODCALL_TOML=test/func/methodcall/methodcall.toml
-build/methodcalltest.p.wasm: $(METHODCALLTEST_SRC) $(API_CLIENT_SIDE) $(METHODCALLTEST_SVC) $(METHODCALL_TOML) g/methodcall/v1/methodcallid.go
-	@rm -f $@
-	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall
-
-
-## methodcall service impl: methodcall.FooService
-FOO_SERVICE=test/func/methodcall/impl/foo/*.go
-build/methodcallfoo.p.wasm: $(FOO_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go test/func/methodcall/proto/methodcall/foo/v1/foo.proto
-	@rm -f $@
-	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/foo
-
-## methodcall service impl: methodcall.BarService
-BAR_SERVICE=test/func/methodcall/impl/bar/*.go 
-build/methodcallbar.p.wasm: $(BAR_SERVICE) $(API_CLIENT_SIDE) g/methodcall/v1/methodcallid.go test/func/methodcall/proto/methodcall/bar/v1/bar.proto
-	@rm -f $@
-	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/test/func/methodcall/impl/bar
 
 #
 # SQL generator 
