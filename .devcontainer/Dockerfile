@@ -4,7 +4,7 @@
 FROM ubuntu:22.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
-RUN apt-get install -y curl wget git xz-utils nano
+RUN apt-get install -y curl wget git xz-utils nano make
 RUN apt-get install -y sudo ca-certificates file dpkg zip unzip zsh clang-15
 
 #RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
@@ -74,10 +74,10 @@ RUN mv ../protoc-${PROTOC_VERSION}.zip .
 RUN unzip protoc-${PROTOC_VERSION}.zip
 
 # install golang
-WORKDIR /home/parigot/deps
-RUN tar xvf go.tar.gz
-RUN mv go go${GOLANG_VERSION_HOST}
-RUN rm go.tar.gz
+# WORKDIR /home/parigot/deps
+# RUN tar xvf go.tar.gz
+# RUN mv go go${GOLANG_VERSION_HOST}
+# RUN rm go.tar.gz
 
 ## install wasmtime
 WORKDIR /home/parigot/deps
@@ -192,7 +192,7 @@ RUN echo go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/gr
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
-RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@1.17                         
+#RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@1.17                         
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest
@@ -202,8 +202,8 @@ RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/pr
 
 #RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2@latest
-RUN go${GOLANG_VERSION_HOST} get github.com/onsi/gomega/...
+#RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2@latest
+#RUN go${GOLANG_VERSION_HOST} get github.com/onsi/gomega/...
 
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
