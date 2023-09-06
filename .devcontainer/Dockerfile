@@ -1,11 +1,9 @@
 
-
-
-FROM ubuntu:22.04
+FROM ubuntu:23.04
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
 RUN apt-get install -y curl wget git xz-utils nano make
-RUN apt-get install -y sudo ca-certificates file dpkg zip unzip zsh clang-15
+RUN apt-get install -y sudo ca-certificates file dpkg zip unzip zsh clang-16
 
 #RUN apt-get install -y wget git cmake ninja-build g++ python3 curl xz-utils nano \
 #    hugo sudo openjdk-18-jdk-headless zsh python3-pip ca-certificates gnupg file \
@@ -220,8 +218,8 @@ ENV TOOLS=/home/parigot/tools
 #ENV PARIGOT_TOOLS=/home/parigot/tools
 #ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
-#ENV CC=/usr/lib/llvm-15/bin/clang
-#ENV GOFLAGS="-buildvcs=false"
+ENV CC=/usr/lib/llvm-16/bin/clang
+ENV GOFLAGS="-buildvcs=false"
 
 #ENTRYPOINT ["bash"]
 
