@@ -116,8 +116,8 @@ RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/t
 
 # docker socket dir?
 RUN mkdir /var/run/parigot
-RUN chown -R parigot /var/run/parigot /home/parigot /workspaces/parigot/g
-RUN chgrp -R parigot /var/run/parigot /home/parigot /workspaces/parigot/g
+RUN chown -R parigot /var/run/parigot /home/parigot 
+RUN chgrp -R parigot /var/run/parigot /home/parigot
 RUN chmod -R 775  /var/run/parigot /home/parigot 
 #RUN chmod g+w /var/run/parigot
 

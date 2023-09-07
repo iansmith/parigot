@@ -49,6 +49,8 @@ API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
 ## we just use a single representative file for all the protobuf generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
 $(REP): $(API_PROTO) build/protoc-gen-parigot
+	chown -R parigot /workspaces/parigot/g
+	chgrp -R parigot /workspaces/parigot/g
 	@rm -rf g/*
 	buf lint
 	GEN_SYS_LIB=$(GEN_SYS_LIB) buf generate
