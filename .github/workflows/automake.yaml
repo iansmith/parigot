@@ -15,13 +15,13 @@ jobs:
       #   run: ls -l api
       # - name: yet another debug print
       #   run: which sqlc
-      - name: build
-        run: make test
+
       - name: Build Docker image
         run: docker build -t my-test-image -f .devcontainer/Dockerfile
-      - name: Run tests using Docker image
-        run: docker run --rm my-test-image make test
-
+      # - name: Run tests using Docker image
+      #   run: docker run --rm my-test-image make test
+      - name: build
+        run: make && make test
 # runs:
 #   using: 'docker'
 #   image: Dockerfile'
