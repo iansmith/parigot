@@ -17,7 +17,7 @@ jobs:
       #   run: which sqlc
 
       - name: Build Docker image
-        run: docker build -t my-test-image .devcontainer/Dockerfile
+        run: docker build -t my-test-image .devcontainer
       # - name: Run tests using Docker image
       #   run: docker run --rm my-test-image make test
       - name: build
