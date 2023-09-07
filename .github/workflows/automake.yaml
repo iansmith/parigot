@@ -2,7 +2,7 @@ name: Tests and Build
 'on':
   push:
     branches:
-      - alternate
+      - alt2
     tags:
       - v*
 jobs:
