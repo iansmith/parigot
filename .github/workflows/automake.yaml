@@ -11,15 +11,17 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-      #- name: debug print
-      #   run: ls -l api
-      # - name: yet another debug print
-      #   run: which sqlc
 
       - name: Build Docker image
         run: docker build -t my-test-image .devcontainer
       # - name: Run tests using Docker image
       #   run: docker run --rm my-test-image make test
+      - name: show $PATH
+        run: echo $PATH
+      - name: show go
+        run: which go
+      - name: show go version
+        run: which go1.21.0
       - name: build Makefile
         run: make && make test
 # runs:
