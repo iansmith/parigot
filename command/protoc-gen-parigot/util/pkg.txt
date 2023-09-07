@@ -1,0 +1,3 @@
+# we never want to generate things referring to these packages
+google.protobuf
+google.anypb

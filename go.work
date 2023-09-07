@@ -4,5 +4,4 @@ use (
 	.
 	example/helloworld
 	example/httpsimple
-	example/methodcall
 )

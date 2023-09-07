@@ -23,23 +23,33 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 	resultName := g.ResultName()
 	result := []*util.OutputFile{}
 	for _, toGen := range info.request.FileToGenerate {
-		fname := info.GetFileByName(toGen).GetName()
-		if util.IsSystemLibrary(fname) {
-			log.Printf("skipping ")
-			continue
-		}
-		_, ok := fileSeen[fname]
+		// pkgName := splitPackage(toGen)
+		// if util.IsSystemLibrary(fname) {
+		// 	log.Printf("skipping ")
+		// 	continue
+		// }
+		_, ok := fileSeen[toGen]
 		if ok {
 			continue
 		} else {
-			fileSeen[fname] = struct{}{}
+			fileSeen[toGen] = struct{}{}
+		}
+		candPkg := splitPackage(stripProtoToProtoName(toGen))
+		if util.IsSystemLibrary(candPkg) {
+			continue
 		}
 		for i, n := range g.TemplateName() {
 			//gather imports
 			imp := make(map[string]struct{})
 			for _, dep := range info.GetFileByName(toGen).GetDependency() {
-				if !IsIgnoredPackage(dep) {
-					imp["\""+impToPkg[dep]+"\""] = struct{}{}
+				candPkg = splitPackage(stripProtoToProtoName(dep))
+				if !util.IsSystemLibrary(candPkg) {
+					key := "\"" + impToPkg[dep] + "\""
+					if key == "\"\"" {
+						log.Printf("WARNING: dep produced key that is empty: %s", dep)
+					}
+				} else {
+					continue
 				}
 			}
 			for _, svc := range info.finder.Service() {
@@ -109,14 +119,8 @@ func BasicGenerate(g Generator, t *template.Template, info *GenInfo, impToPkg ma
 
 }
 
-func IsIgnoredPackage(s string) bool {
-	switch s {
-	case "google.golang.org/protobuf/types/known/anypb",
-		"google.golang.org/protobuf/types/known/timestamppb",
-		"github.com/iansmith/parigot/g/protosupport/v1":
-		return false
-	}
-	return true
+func addSpecialChars(imp map[string]struct{}, key string) {
+	imp["\n"+key+"\n"] = struct{}{}
 }
 
 // executeTemplate actually runs a template and makes sure errors are collected.
@@ -175,4 +179,20 @@ func Collect(result *GenInfo, lang LanguageText) *GenInfo {
 		}
 	}
 	return result
+}
+
+func stripProtoToProtoName(fullNameAsPath string) string {
+	if !strings.HasSuffix(fullNameAsPath, ".proto") {
+		panic("unexpected pathname in splitPackage:" + fullNameAsPath)
+	}
+	p := strings.TrimSuffix(fullNameAsPath, ".proto")
+	return strings.ReplaceAll(p, "/", ".")
+}
+
+func splitPackage(name string) string {
+	part := strings.Split(name, ".")
+	if len(part) != 3 {
+		panic("unexpected package name:" + name)
+	}
+	return strings.Join(part[:2], ".")
 }

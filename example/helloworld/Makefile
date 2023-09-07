@@ -1,7 +1,7 @@
 # all builds the necessary parts of the two wasm files and the
 # parigot system call library. because it is go, it doesn't
 # build things it doesn't need to.
-all:  hello.p.wasm greeting.p.wasm
+all:  generate hello.p.wasm greeting.p.wasm
 
 PARIGOT_VERSION=0.3.0
 GO_VERSION=1.21.0
@@ -36,7 +36,7 @@ generate:
 .PHONY:clean
 clean:
 	rm -rf build/hello.p.wasm build/greeting.p.wasm
-	rm -rf g/greeting
+	rm -rf g/*
 	
 
 
