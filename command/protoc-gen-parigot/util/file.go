@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"log"
 	"os"
+	"strings"
 )
 
 //go:embed syslib.txt
@@ -28,6 +29,11 @@ func isInEmbeddedList(s string, buf []byte) bool {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	for scanner.Scan() {
 		line := scanner.Text()
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		//log.Printf("xxxxx testing %s vs %s (%v)", line, s, line == s)
 		if line == s {
 			return true
 		}
@@ -40,6 +46,9 @@ func isInEmbeddedList(s string, buf []byte) bool {
 }
 
 func IsIgnoredPackage(s string) bool {
+	if wantsSysLib() {
+		return false
+	}
 	return isInEmbeddedList(s, ignored)
 }
 

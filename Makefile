@@ -30,7 +30,6 @@ API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 #we are the systemb library makefile so we want the libraries generated
 GEN_SYS_LIB=1
-CC=/usr/lib/llvm-15/bin/clang
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
 
@@ -46,7 +45,6 @@ GO_TO_PLUGIN=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} go1.21.0
 # PROTOBUF FILES
 #
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
-#TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 ## we just use a single representative file for all the protobuf generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
@@ -142,11 +140,13 @@ build/queue.p.wasm: $(QUEUE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 # build/httpconn.p.wasm: $(HTTPCON_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 # 	@rm -f $@
 # 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/httpconnector
+
 # ## client side of service impl (http)
 # HTTP_SERVICE=$(shell find api/guest/http -type f -regex ".*\.go")
 # build/http.p.wasm: $(HTTP_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) $(API_ID)
 # 	@rm -f $@
 # 	$(GO_TO_WASM) build $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/http
+
 
 
 #

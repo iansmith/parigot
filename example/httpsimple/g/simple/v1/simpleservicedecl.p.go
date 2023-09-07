@@ -12,8 +12,6 @@ import(
     "github.com/iansmith/parigot/g/http/v1"
   
 
-// no method? false
-
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"

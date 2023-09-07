@@ -1,9 +1,9 @@
 # all builds the necessary parts of the two wasm files and the
 # parigot system call library. because it is go, it doesn't
 # build things it doesn't need to.
-all:  hello.p.wasm greeting.p.wasm
+all:  generate hello.p.wasm greeting.p.wasm
 
-PARIGOT_VERSION=2b6ab108677333b917dd8b34eabda59e427f697b
+PARIGOT_VERSION=0.3.0
 GO_VERSION=1.21.0
 
 # run unit test... this is tricky because you have to run this inside a wasm host
@@ -36,7 +36,7 @@ generate:
 .PHONY:clean
 clean:
 	rm -rf build/hello.p.wasm build/greeting.p.wasm
-	rm -rf g/greeting
+	rm -rf g/*
 	
 
 

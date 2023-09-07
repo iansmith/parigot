@@ -77,7 +77,7 @@ func (c *httpConnectorImpl) runHttpListener() {
 			if ok {
 				ourResp := <-c.resultChan
 				if ourResp != nil {
-					c.writeResponse(ourResp, w)
+					c.writeResponse(ourResp, w, req)
 				}
 			}
 		}
@@ -86,7 +86,7 @@ func (c *httpConnectorImpl) runHttpListener() {
 	http.ListenAndServe(port, nil)
 }
 
-func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, writer http.ResponseWriter) {
+func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, writer http.ResponseWriter, req *http.Request) {
 	for k, v := range result.Header {
 		writer.Header().Set(k, v)
 	}
@@ -102,7 +102,7 @@ func (h *httpConnectorImpl) writeResponse(result *httpconnector.HandleResponse, 
 		logger.Error("unable to write bytes of response", "error", err)
 		return
 	}
-	logger.Info("response written", "result bytes", l)
+	logger.Info("response written", "status", result.GetHttpStatus(), "result bytes", l, "method", req.Method, "url", req.URL.Path)
 }
 
 func (h *httpConnectorImpl) callHostDispatch(req *http.Request, httpresp http.ResponseWriter) bool {

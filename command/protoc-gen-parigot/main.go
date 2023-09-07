@@ -53,70 +53,61 @@ func main() {
 		log.Fatalf("unable to understand the input files, expected 1 file, got %d", len(genReq.GetFileToGenerate()))
 	}
 
-	p := genReq.GetFileToGenerate()[0]
-	if util.IsSystemLibrary(p) {
-		log.Printf("skipping system library '%s'", p)
-		return
-	}
+	//p := genReq.GetFileToGenerate()[0]
+	// if util.IsSystemLibrary(p) {
+	// 	log.Printf("skipping system library '%s'", p)
+	// 	return
+	// }
 
 	importToPackageMap := make(map[string]string)
-	f := genReq.GetProtoFile()[len(genReq.GetProtoFile())-1]
-	pkg := f.GetOptions().GetGoPackage()
-	if index := strings.LastIndex(pkg, ";"); index != -1 {
-		pkg = pkg[:index]
-	}
-	if !codegen.IsIgnoredPackage(pkg) {
+	for i := range genReq.GetProtoFile() {
+		f := genReq.GetProtoFile()[i]
+		pkg := f.GetOptions().GetGoPackage()
+		if index := strings.LastIndex(pkg, ";"); index != -1 {
+			pkg = pkg[:index]
+		}
 		importToPackageMap[f.GetName()] = pkg
 	}
-	gopkg := importToPackageMap[f.GetName()]
-	parts := strings.Split(f.GetName(), "/")
-	if len(parts) < 2 {
-		panic("unable to understand non-qualified package:" + f.GetName())
+	// compute response
+	resp := pluginpb.CodeGeneratorResponse{
+		Error:             nil,
+		SupportedFeatures: nil,
 	}
-	//qual := strings.Join(parts[:len(parts)-1], "/")
-	//if strings.HasPrefix(gopkg, "github.com/iansmith/parigot/g/"+qual) {
-	if gopkg != "foo" {
-		// compute response
-		resp := pluginpb.CodeGeneratorResponse{
-			Error:             nil,
-			SupportedFeatures: nil,
+
+	// generate code, at this point language neutral
+	file, err := generateNeutral(info, genReq, importToPackageMap)
+
+	seen := make(map[string]struct{})
+	// clean up the list of files?
+	outFile := []*util.OutputFile{}
+	for _, f := range file {
+		_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
+		if foundIt {
+			continue
 		}
-
-		// generate code, at this point language neutral
-		file, err := generateNeutral(info, genReq, importToPackageMap)
-
-		seen := make(map[string]struct{})
-		// clean up the list of files?
-		outFile := []*util.OutputFile{}
-		for _, f := range file {
-			_, foundIt := seen[*f.ToGoogleCGResponseFile().Name]
-			if foundIt {
-				continue
-			}
-			seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
-			outFile = append(outFile, f)
-		}
-
-		// set up the response going back out stdout to the protocol buffers compiler
-		// response with an error filled in or a set of output files
-		if err != nil {
-			resp.Error = new(string)
-			*resp.Error = err.Error()
-		} else {
-			resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
-			for i, f := range outFile {
-				resp.File[i] = f.ToGoogleCGResponseFile()
-			}
-		}
-
-		// send response and exit if not loading from disk
-		if *load == "" && !*terminal {
-			util.MarshalResponseAndExit(&resp)
-		} else {
-			util.OutputTerminal(file)
-		}
-
+		seen[*f.ToGoogleCGResponseFile().Name] = struct{}{}
+		outFile = append(outFile, f)
 	}
+
+	// set up the response going back out stdout to the protocol buffers compiler
+	// response with an error filled in or a set of output files
+	if err != nil {
+		resp.Error = new(string)
+		*resp.Error = err.Error()
+	} else {
+		resp.File = make([]*pluginpb.CodeGeneratorResponse_File, len(outFile))
+		for i, f := range outFile {
+			resp.File[i] = f.ToGoogleCGResponseFile()
+		}
+	}
+
+	// send response and exit if not loading from disk
+	if *load == "" && !*terminal {
+		util.MarshalResponseAndExit(&resp)
+	} else {
+		util.OutputTerminal(file)
+	}
+
 }
 
 // isGenerateTestsIf a specific file given by desc is in the list of files contained
@@ -145,6 +136,9 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 	enumTypeToValue := make(map[string][]*descriptorpb.EnumValueDescriptorProto)
 
 	for _, desc := range genReq.GetProtoFile() {
+		// if util.IsIgnoredPackage(desc.GetPackage()) {
+		// 	log.Printf("NO NO NO skipping package that is defined elsewhere: %s", desc.GetPackage())
+		// }
 		nameToFile[desc.GetName()] = desc
 		isGen := isGenerate(desc.GetName(), genReq)
 		var svc []*descriptorpb.ServiceDescriptorProto
@@ -175,9 +169,13 @@ func generateNeutral(info *codegen.GenInfo, genReq *pluginpb.CodeGeneratorReques
 			fileToMsg[desc.GetName()] = allMsg
 		}
 	}
+
 	info.SetReqAndFileMappings(genReq, nameToFile, fileToSvc, fileToMsg, enumType, enumTypeToValue)
 	// walk all the proto files indicated in the request
 	for _, desc := range genReq.GetProtoFile() {
+		// if util.IsIgnoredPackage(desc.GetPackage()) {
+		// 	continue
+		// }
 		for lang, generator := range generatorMap {
 			codegen.Collect(info, generator.LanguageText())
 			if info.Contains(desc.GetName()) {

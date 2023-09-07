@@ -1,7 +1,7 @@
 # all builds the necessary parts of the two wasm files and the
 # parigot system call library. because it is go, it doesn't
 # build things it doesn't need to.
-all:  build/frontdoor.p.wasm build/simple.p.wasm
+all: generate build/frontdoor.p.wasm build/simple.p.wasm
 
 GO_VERSION=1.21.0
 PARIGOT_VERSION=0.3-atlanta
@@ -32,12 +32,13 @@ PARIGOT_PROTO=$(shell find /workspaces/parigot/api/proto -type f -regex ".*\.pro
 generate: proto/simple/v1/simple.proto proto/frontdoor/v1/frontdoor.proto $(PARIGOT_PROTO)
 	buf lint
 	buf generate
+	./removesingle.sh
 
 # clean
 .PHONY:clean
 clean:
 	rm -rf build/frontdoor.p.wasm build/simple.p.wasm
-	rm -rf g/frontdoor g/simple
+	rm -rf g/*
 	
 
 # this pulls down copies of the parigot tools from the internet ... it is
