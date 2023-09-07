@@ -190,7 +190,7 @@ RUN echo go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/gr
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install google.golang.org/protobuf/cmd/protoc-gen-go@v${PROTOC_GO_VERSION}
 RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/connect-go/cmd/protoc-gen-connect-go@latest
-#RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@1.17                         
+RUN go${GOLANG_VERSION_HOST} install github.com/bufbuild/buf/cmd/buf@v1.26                      
 RUN go${GOLANG_VERSION_HOST} install golang.org/x/tools/gopls@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/go-delve/delve/cmd/dlv@latest
 RUN go${GOLANG_VERSION_HOST} install honnef.co/go/tools/cmd/staticcheck@latest

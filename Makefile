@@ -46,11 +46,11 @@ GO_TO_PLUGIN=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} go1.21.0
 # PROTOBUF FILES
 #
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
-TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
+#TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 ## we just use a single representative file for all the protobuf generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
-$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
+$(REP): $(API_PROTO) build/protoc-gen-parigot
 	@rm -rf g/*
 	buf lint
 	GEN_SYS_LIB=$(GEN_SYS_LIB) buf generate
