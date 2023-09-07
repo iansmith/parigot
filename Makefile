@@ -30,7 +30,6 @@ API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 
 #we are the systemb library makefile so we want the libraries generated
 GEN_SYS_LIB=1
-CC=/usr/lib/llvm-15/bin/clang
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
 
@@ -46,11 +45,10 @@ GO_TO_PLUGIN=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} go1.21.0
 # PROTOBUF FILES
 #
 API_PROTO=$(shell find api/proto -type f -regex ".*\.proto")
-TEST_PROTO=$(shell find test -type f -regex ".*\.proto")
 
 ## we just use a single representative file for all the protobuf generated code from
 REP=g/file/$(API_VERSION)/file.pb.go
-$(REP): $(API_PROTO) $(TEST_PROTO) build/protoc-gen-parigot
+$(REP): $(API_PROTO) build/protoc-gen-parigot
 	@rm -rf g/*
 	buf lint
 	GEN_SYS_LIB=$(GEN_SYS_LIB) buf generate

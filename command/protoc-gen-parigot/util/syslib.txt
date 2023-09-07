@@ -1,7 +1,7 @@
-protosupport/v1/protosupport.proto
-test/v1/test.proto
-file/v1/file.proto
-queue/v1/queue.proto
-http/v1/http.proto
-httpconnector/v1/httpconnector.proto
-syscall/v1/syscall.proto
+protosupport.v1
+test.v1
+file.v1
+queue.v1
+http.v1
+httpconnector.v1
+syscall.v1

@@ -9,8 +9,6 @@ package httpconnector
 import(
     "context" 
 
-// no method? false
-
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
     "github.com/iansmith/parigot/api/shared/id"
