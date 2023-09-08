@@ -11,12 +11,10 @@ jobs:
     container:
       image: composer:latest
       volumes: 
-        - ${{ github.workspace }}:/workspaces/parigot"    
+        - ${{ github.workspace }}:/workspaces/parigot   
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-      - name: Running composer install
-        run: composer install  
 
       - name: Build Docker image
         run: docker build -t my-test-image .devcontainer
