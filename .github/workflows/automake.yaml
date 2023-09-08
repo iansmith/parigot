@@ -11,8 +11,7 @@ jobs:
     container:
       image: composer:latest
       volumes: 
-        - "{{ github.workspaces }}:/parigot"
-    
+        - ${{ github.workspace }}:/workspaces/parigot"    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
