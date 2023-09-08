@@ -16,8 +16,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Build Docker image
-        run: docker build -t my-test-image .devcontainer
+      # - name: Build Docker image
+      #   run: docker build -t my-test-image .devcontainer
       # - name: Run tests using Docker image
       #   run: docker run --rm my-test-image make test
 
