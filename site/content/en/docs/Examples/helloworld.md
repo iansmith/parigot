@@ -36,9 +36,8 @@ textually small program could be self-contained and do something useful.
  B. Kernighan, 1973.
 
 We are going to walk through all the files in the
-[helloworld](https://github.com/iansmith/parigot-example/tree/master/helloworld)
-example part of the [parigot-expample](http://github.com/iasmith/parigot)
-repository.  We will pay special attention to the make targets as these are
+[helloworld](https://github.com/iansmith/parigot/tree/master/example/helloworld)
+example. We will pay special attention to the make targets as these are
 re-usable and in many cases explain "how to do things" with parigot.
 
 ## Boilerplate files
@@ -49,7 +48,7 @@ if their content can be largely ignored for now.
 
 ### Makefile
 
-The project's [Makefile](https://github.com/iansmith/parigot-example/blob/master/helloworld/Makefile) is really just a repository for useful commands, not
+The project's [Makefile](https://github.com/iansmith/parigot/blob/master/example/helloworld/Makefile) is really just a repository for useful commands, not
 something that does builds by looking at files and computing new files based
 on recipies. Because golang has a much better build ability than most other
 languages, typically you can just do `make` anytime and let the Makefile try
@@ -62,12 +61,16 @@ is needed.
 
 `all` builds the two wasm files that make up the program, `hello.p.wasm` and
  `greeting.p.wasm`.  This is the default command, so it is run if you type
- just `make`.
+ just `make`.  The two wasm files are built into the `build` subdirectory.
+ The build is sufficiently fast that doing `make clean; make` is also ok.
 
-{{% alert title="Limitation" color="warning" %}}
-Currently, parigot uses two different versions of the go compiler from google.
-We use go version 1.21RC2 for the guest code and go version 1.20 for the host
-side code. This will be remedied as soon as the 1.21 version is fully released.
+{{% alert title="Deep cut" color="info" %}}
+parigot uses the traditional go compiler, version 1.21.x, from google's go team for the parigot
+infrastructure. However, sometimes the infrastructure needs to build programs
+for the local host (native code) such as  the `runner` program. Other times it builds 
+wasm files that 
+are libraries that your code can use in _wasmland_.  When building programs
+like example/helloworld it is used only to build wasm code.
 {{% /alert %}}
 
 The `all` command invokes the compiler to build the wasm (guest) code.  This
@@ -98,7 +101,7 @@ framework. This test command is useful if you want to run unit tests that are
 completely guest-side code.  Because WASM isn't directly executable,
 `go test` will
 not work, you have build a "program" that is the test and then run that program
-via a Host.  This test uses [wasmtime](http://wasmtime.dev) as the
+via a Host.  This test uses [wazero CLI](https://wazero.io) as the
 Host, since it is already present in our dev container, but any host should
 work.
 
@@ -124,7 +127,11 @@ is no longer maintained.
 "generate" is the most key-to-parigot make target, as it generates stubs. These
 stubs implement the golang-specific type safe code that makes the parigot
 programming model work for golang developers.  You need to run this anytime you
-change the `greeting.proto` protobuf schema definition.
+change the `greeting.proto` protobuf schema definition contained in the `proto`
+directory.
+
+The default make target all runs `generate` just to be safe, even if it is not
+needed.
 
 {{< /blocks/section  >}}
 
@@ -136,7 +143,8 @@ The `generate` target is a key part of the Makefile
 and the build process more generally.  This make target runs three key commands.
 First, it uses [buf](https://buf.build) to run a lint pass over your .proto files.
 Then it uses buf to generate the typical golang types that derive from your
-protobuf schema.  Third, it uses `protoc-gen-parigot` which is a plugin for
+protobuf schema (contained in the `proto` directory).  Third, it uses 
+`protoc-gen-parigot` which is a plugin for
 the `protoc` protobuf compiler that generates parigot's stubs.  
 
 In the case of `helloworld` you'll notice that the file 
@@ -178,6 +186,11 @@ that other protobuf implementations (perhaps [gogobuf](https://github.com/gogo/p
 [molecule](https://pkg.go.dev/github.com/richardartoul/molecule)?) will
 generate code that does not use reflection capabilities that are excluded from Tinygo.
 
+Possibly of interest for dodging the protobuf problem:
+* [go-plugin](https://github.com/knqyf263/go-plugin)
+* [vtprotobuf](https://github.com/planetscale/vtprotobuf)
+
+
 {{%/alert %}}
 
 ##### clean
@@ -187,25 +200,6 @@ and the compiled binaries (`.p.wasm` files) in `build`.  The 'g' stands for gene
 automated tool's output belongs there. `make clean` does not remove the tools
 installed by `make tools` in the next section.
 
-{{% alert title="Change coming" color="warning" %}}
-Currently, the parigot system library, `syscall.so` is also resident in the
-build directory.  This will changed soon.
-{{% /alert %}}
-
-##### tools
-
-`make tools` is something that you should only have to do once, when
-you begin working with the source code of `hello world`.  This command
-downloads, compiles, and installs the two key tools that are needed to
-do development using parigot: `runner` and `protoc-gen-parigot`.  The former
-runs parigot binaries and the latter generates the stubs referred to in the
-[generate]({{< ref "#generate" >}}) section above.  You will need to run this
-again if you change versions of parigot or relaunch the dev container since that
-starts with a fresh filesystem.
-
-`make tools` also installs the
-parigot system's key host-side library `syscall.so` in the `plugin` directory.
-At the moment, if you remove `plugin/syscall.so` you have to `make tools` again.
 
 ### buf.gen.yaml, buf.work.yaml
 Both of
@@ -215,7 +209,7 @@ and
 are configuration files that most folks do not need to change.  The
 `buf.gen.yaml` file tells `buf` what code generators to use.  These are currently the
 golang (standard) one and the parigot one.  The `buf.work.yml` file tells `buf`
-where to look for your protobuf schema files, but is recommended by parigot that
+where to look for your protobuf schema files, but is recommended that
 all your protobuf files be in a top level directory called `proto`.
 
 ## Source code files
@@ -259,33 +253,41 @@ is probably enough for most projects when they are starting out.
 ### helloworld.toml
 
 This file is the [delpoyment
-descriptor](https://github.com/iansmith/parigot-example/blob/master/helloworld/helloworld.toml)
+descriptor](https://github.com/iansmith/parigot/blob/master/example/helloworld/helloworld.toml)
 for the hello world program.  Its contents tell the [runner]({{< ref "#tools"
 >}}) program the information about the microservices, tests, and programs that
 need to be deployed to make the entire application run.  The contents as of the
 time of writing are:
 
 ```toml
-	## Note that because this is consumed from the hello-world root dir, the paths 
-	## are relative to that dir, not the root of the parigot-example repository.
+## Note that because this file is expected to be consumed in a dev container
+## so the files have absolute paths that are correct for the container.
 
-	ParigotLibPath="build/syscall.so"
-	ParigotLibSymbol="ParigotInitialize"
+## dev configuration in general
+[config.dev]
+## Load parigot code from shared object
+ParigotLibPath="/workspaces/parigot/build/syscall.so"
+ParigotLibSymbol="ParigotInitialize"
+Timezone = "US/Eastern"
+[config.dev.Timeout]
+Startup = 100 # millis
+Complete = 20 # millis
 
-	# the names of the microservices here have no significance, they are just for humans
-	[microservice.greet]
-	WasmPath="build/greeting.p.wasm"
-	Arg=[]
-	Env=[]
 
+# greeting service
+[config.dev.microservice.greet]
+WasmPath="/workspaces/parigot/example/helloworld/build/greeting.p.wasm"
+Arg=[]
+Env=[]
 
-	# helloworld, it has no services that it implements, it just consumes greet.
-	[microservice.helloworld]
-	WasmPath="build/hello.p.wasm"
-	Arg=[]
-	Env=[]
-	# this is the crucial line for parigot. "this is just a client and should run to completion".
-	Main=true
+# helloworld, it has no services that it implements, it just consumes greet and
+# runs to the end of main.
+[config.dev.microservice.helloworld]
+WasmPath="/workspaces/parigot/example/helloworld/build/hello.p.wasm"
+Arg=[]
+Env=[]
+# this is the crucial line for parigot. "this is just a client and should run to completion".
+Main=true
 ```
 
 ### main.go
@@ -319,7 +321,7 @@ import (
 The imports are quite straightforward and should be supplied automatically by
 any sensible IDE (especially if your IDE uses
 [gopls](https://pkg.go.dev/golang.org/x/tools/gopls#section-readme)). Of mild
-interest are the aliases `syscallguest`, `pcontext` and `lib`.
+interest are the aliases `syscallguest` and `lib`.
 
 * syscallguest:  This alias is necessary to not conflict with the import of
 `github.com/iansmith/parigot/g/syscall/v1` which is imported as `syscall`.
@@ -328,14 +330,6 @@ has the implementation to the system calls (of parigot) for guest code in
 golang. The syscall one is the definitions of the system calls generated from
 [the proto
 spec](https://github.com/iansmith/parigot/blob/master/api/proto/syscall/v1/syscall.proto).
-
-* pcontext: This is our standard alias to avoid a conflict between parigot's [context manipulation code](https://github.com/iansmith/parigot/tree/master/context)
-and standard library's  `context`.
-
-{{% alert title="Change coming" color="warning" %}}
-All of the parigot logging machinery is the in the "pcontext" library. This is going
-to be completely overhauled in an upcoming version.
-{{% /alert %}}
 
 * lib: The golang guest side library uses the import name "lib" despite being
 `.../lib/go`.  The alias is actually superfluous but was inserted by VSCode.
@@ -355,19 +349,19 @@ library will remain as a model for other implementors of language bindings.
 
 In the initialization part of `helloworld` there is one key thing to notice:
 
-[futures in launch](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L46)
+[futures in launch](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/main.go#L20)
 
-The call to `Launch()` in theory would block the code from proceeding until all of it is
+The call to `LaunchClient()` in theory would block the code from proceeding until all of it is
 dependencies listed above `MustInitClient` are up and running.  Since in practice
 we cannot block, the returned value is a future that we attach success and failure
 functions to.
 
-[MustRunClient](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L61)
+The [mainloop](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/main.go#L42)
+of hello world is the critical portion, centered around `ReadOneAndCallClient`.
+This is primarily for exposition, the call [MustRunClient](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/lib/go/callhelper.go#L37)
+is more commonly used in such a situation.
 
-`MustRunClient` is the "main loop" of the program.  It is constantly checking to see if there
-are incoming requests or responses to previous calls.  
-
-[afterLaunch](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/main.go#L68)
+[afterLaunch](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/main.go#L53)
 
 `afterLaunch()` is called from the success branch of the launch future.  It does two things. One, it "locates" 
 some service that implements the greeting service protocol.  It then calls the method `FetchGreeting()` on the located
@@ -384,7 +378,7 @@ has the functions
 Per our exposition above, this version of the library uses [continuations]({{<
 ref"continuations" >}}) and you seem them in action with the method call of
 `FetchGreeting` which is defined by [greeting's protobuf
-specification](https://github.com/iansmith/parigot-example/blob/master/helloworld/proto/greeting/v1/greeting.proto).
+specification](https://github.com/iansmith/parigot/blob/master/example/helloworld/proto/greeting/v1/greeting.proto).
 This continuation, in short, means that we do not yet know the outcome of the
 call, so you need to handle both the `Success` and `Failure` cases.  In this
 example, it just prints out a message on the terminal.
@@ -396,23 +390,26 @@ example, it just prints out a message on the terminal.
 Every service--and every program like helloworld--has a `main()` function to initialize
 data structures and the like at startup.
 
-[Init](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L27)
+[MustInitClient](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/lib/go/callhelper.go#L80)
 
-The service implementation of greet uses the generated function Init() to initialize and
+The service implementation of greet uses the generated function [Init()](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/g/greeting/v1/greetingserver.p.go#L54) 
+to initialize and
 launch itself.  As we saw with the `main()` function of helloworld, we are returned
 a future that represents the success or failure of launching the program (and waiting
-on its dependencies). An additional paramater returned from `Init()` is a set of
+on its dependencies). An additional parameter returned from `Init()` is a set of
 method bindings called `bindings`.  This set of bindings is only useful if you want
 to manipulate the set of methods that this service responds to.  It is not something
-that many programs will ever need.
+that many programs will ever need.  This service method map will passed to
+the generated [Run()](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/greeting/main.go#L41) method.
 
-[fetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L59) and
-[FetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/main.go#L75) are
+[fetchGreeting](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/greeting/main.go#L67) and
+[FetchGreeting](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/greeting/main.go#L83) are
 now defined by the implementation of the greeting service.  Because the greeting service has a 
 known method, `FetchGreeting`, no futher initialization work is needed and the method can be implemented as `FetchGreeting`
 (as seen in the greeting.proto file).  The of the "split" versions of "FetchGreeting" is so that the true call implementation,
 `fetchGreeting()` can be called directly from a test.  The return value of `FetchGreeting` is naturally a future and these
-can be hard to test without running the "main loop" of parigot.  See `greeting_test` for how a method like `fetchGreeting`
+can be hard to test without running the "main loop" of parigot.  See [greeting_test](https://github.com/iansmith/parigot/blob/master/example/helloworld/greeting/greeting_test.go)
+ for how a method like `fetchGreeting`
 is tested without using futures.  
 
 ## The Big Trick
@@ -437,7 +434,7 @@ The careful reader will have noticed that this four point definition above could
 generalized slightly from "processes" to "processes that run on different machines separated
 by a network" since all the same properties apply. Parigot does indeed generalize
 this and decides how to _deploy_ the application based on the
-[deployment descriptor](http://localhost:1313/docs/examples/helloworld/#helloworldtoml).
+[deployment descriptor](https://github.com/iansmith/parigot/blob/master/example/helloworld/helloworld.toml).
 With the code remaining unchanged but with a different deployment descriptor,
 you can run your application as these "guest" processes inside a single WASM Host
 (and on a single host!), or it will create multiple WASM host programs on multiple
@@ -449,7 +446,7 @@ are network calls. That's a microservice architecture!
 
 The greeting test is quite simple: send one request (not using any
 parigot machinery) to the private, implementation function 
-[fetchGreeting](https://github.com/iansmith/parigot-example/blob/f10983cf91de637dc46b7cdae5978d00092a7f16/helloworld/greeting/greeting_test.go#L11).
+[fetchGreeting](https://github.com/iansmith/parigot/blob/master/example/helloworld/greeting/greeting_test.go).
 
 We test that we got back what we expected in terms of the response object
 and the error code.  Then we repeat the test, but with an out of bounds

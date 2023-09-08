@@ -1,7 +1,7 @@
 +++
 title= "I know how this works"
 description= """Quick start for folks that know about distributed systems."""
-date='2023-07-31'
+date='2023-08-08'
 weight= 2
 +++
 
@@ -16,34 +16,42 @@ parigot is an RPC toolkit for building microservices.  By virtue of its API, it 
 as a single process (e.g. a debugger works) or a separate processes connected by a network.
 
 #### Setup
-* Start with the hello world [Makefile](https://github.com/iansmith/parigot-example/blob/master/helloworld/Makefile)
-* Use `make tools` from the Makefile to download a copy of program `runner`, a copy of
-the protobuf plugin `protoc-gen-parigot` and the library `syscall.so`.
+* Start with the [hello world example](https://github.com/iansmith/parigot/tree/master/example/helloworld)
+* Copy all the files in helloworld to a new directory under `examples`, like `examples/myprog`.
 
 #### a simple program
-* Define the protocols between your services as a .proto file
-* Generate code via the `make generate` approach from the Makefile.
-* Define a `main()` that is your program, like [helloworld](https://github.com/iansmith/parigot-example/blob/master/helloworld/main.go).  
-	* Use `Launch()` to start your program.  It'll return a future.
-	* On `Success()` proceed to your program proper.
-	* Call methods on other services via the [generated guest code](https://github.com/iansmith/parigot-example/tree/master/helloworld/g/greeting/v1).
-	* You _must_ run the loop that checks for events. For clients, 
-	[MustRunClient](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/main.go#L55) is the usual approach.
-	* Use the `Exit()` and its returned future to exit.
+* "program" here means a program that runs to completion.
+* Define the protocols between your services as a .proto file. You can look at 
+[the greeting service](https://github.com/iansmith/parigot/tree/master/example/helloworld).
+* The .proto should be placed in the same place as they are in helloworld, the
+top level directory "proto".
+* Generate code via the [make generate](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/Makefile#L30) approach 
+from the helloworld Makefile.
+* Define a `main()` that is your program, like [helloworld](https://github.com/iansmith/parigot-example/blob/master/helloworld/main.go).   It is expected that this
+program will use `ExitSelf()` to end at some point.
+* Use `LaunchClient()` to start your program.  It'll return a future.
+* On `Success()` proceed to your program proper.
+* Call methods on other services via the generated guest code like [this](https://github.com/iansmith/parigot/tree/master/example/helloworld/g/greeting/v1) for greeting service.
+* You _must_ run the loop that checks for events. For programs that run to completion, 
+[MustRunClient](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/lib/go/callhelper.go#L131) is the usual approach.
 
 
 #### a simple service
-* A simple service should probably start with [greenting/main.go](https://github.com/iansmith/parigot-example/blob/master/helloworld/greeting/main.go)
-* As above, you need to launch the service and deal with the future on startup.
+* A simple service should have a main that sets up the service. Here is the
+example from [greenting/main.go](https://github.com/iansmith/parigot-example/blob/master/helloworld/greeting/main.go)
+* As above, you need to launch the service and deal with the future on startup. Although,
+the generated `Init()` function for your type is easier than doing a bunch of setup.
+Here is the [generated Init](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/g/greeting/v1/greetingserver.p.go#L54) from greeting service.
 * If you need references to other services to implement your services, do that
-in the [Ready](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/greeting/main.go#L87) method that is called just after launch. 
+in the [Ready](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/greeting/main.go#L101) method that is called just after launch. 
 	* Use `Locate()`to find the other service. Locate is defined by the generated code of
-	the other service.
+	the other service,e.g. ServiceINeed.Locate().
 * Implement the methods from the .proto.  It's best to do them with the 
-[two parts](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/greeting/main.go#L52) that different by a capital first letter. 
+two parts that differ by a capital first letter.  It makes for easier unit testing.
+An example is [here](https://github.com/iansmith/parigot/blob/19e3202376bb2298a389186cc6fd8ce388bfd4e2/example/helloworld/greeting/main.go#L67C1-L93C2)
 * Methods defined in the .proto will automatically be hooked up to the event loop.
-* You can call [Run()](https://github.com/iansmith/parigot-example/blob/ddb4801f62167aff79e9d36005b21280f2e378b2/helloworld/greeting/main.go#L29) and
-the implementations of your methods will be called when other services or
+* You can call [Run()] that has been generated for your type. 
+The implementations of your methods will be called when other services or
 programs call them.
 
 
