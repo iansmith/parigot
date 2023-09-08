@@ -12,7 +12,7 @@ the `atlanta-0.3` version of parigot.
 
 {{% alert title="Repo" color="warning" %}}
 
-You can see all the code of the examples in the
-[parigot-examples](http://github.com/iansmith/parigot-examples) repository.
+You can see all the code of the examples in the [example](https://github.com/iansmith/parigot/tree/master/example)
+directory  of the repository.
 
 {{% /alert %}}

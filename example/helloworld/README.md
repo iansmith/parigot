@@ -3,8 +3,8 @@
 Quickstart:
 
 * This is for people that know golang.
-* Create a codespace.
-* Make sure you are in the `helloworld` directory, not `parigot-example`.
+* Create a codespace on github.
+* Make sure you are in the `helloworld` directory, not the root of the repo.
 
 #### The most important files
 * `main.go`: the hello world program that calls the greeting service

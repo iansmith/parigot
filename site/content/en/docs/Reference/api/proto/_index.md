@@ -1,6 +1,6 @@
 ---
 title: Protobuf Schema
-date: _2023-08-04
+date: _2023-09-08
 description: These are the protobuf definitions for [parigot itself]({{< ref "#syscall_v1_syscall-proto" >}}) and the built in services. 
 
 ---
@@ -54,6 +54,7 @@ description: These are the protobuf definitions for [parigot itself]({{< ref "#s
     - [LocateRequest](#syscall-v1-LocateRequest)
     - [LocateResponse](#syscall-v1-LocateResponse)
     - [MethodBinding](#syscall-v1-MethodBinding)
+    - [MethodBundle](#syscall-v1-MethodBundle)
     - [ReadOneRequest](#syscall-v1-ReadOneRequest)
     - [ReadOneResponse](#syscall-v1-ReadOneResponse)
     - [RegisterRequest](#syscall-v1-RegisterRequest)
@@ -68,8 +69,6 @@ description: These are the protobuf definitions for [parigot itself]({{< ref "#s
     - [ServiceByNameRequest](#syscall-v1-ServiceByNameRequest)
     - [ServiceByNameResponse](#syscall-v1-ServiceByNameResponse)
     - [ServiceMethodCall](#syscall-v1-ServiceMethodCall)
-    - [SynchronousExitRequest](#syscall-v1-SynchronousExitRequest)
-    - [SynchronousExitResponse](#syscall-v1-SynchronousExitResponse)
   
     - [KernelErr](#syscall-v1-KernelErr)
     - [MethodDirection](#syscall-v1-MethodDirection)
@@ -98,6 +97,8 @@ description: These are the protobuf definitions for [parigot itself]({{< ref "#s
 - [protosupport/v1/protosupport.proto](#protosupport_v1_protosupport-proto)
     - [IdRaw](#protosupport-v1-IdRaw)
   
+    - [File-level Extensions](#protosupport_v1_protosupport-proto-extensions)
+    - [File-level Extensions](#protosupport_v1_protosupport-proto-extensions)
     - [File-level Extensions](#protosupport_v1_protosupport-proto-extensions)
     - [File-level Extensions](#protosupport_v1_protosupport-proto-extensions)
     - [File-level Extensions](#protosupport_v1_protosupport-proto-extensions)
@@ -620,11 +621,8 @@ DispatchRequest is a request by a client to invoke a particular method with the 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
-| method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| bundle | [MethodBundle](#syscall-v1-MethodBundle) |  |  |
 | param | [google.protobuf.Any](#google-protobuf-Any) |  | inside is another Request object, but we don&#39;t know its type |
-| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
-| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 
 
 
@@ -643,6 +641,7 @@ to map to additional info about the call.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| target_host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 
 
 
@@ -682,6 +681,7 @@ services running that need to be notified.
 | call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 | host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
 | method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  | reserved for internal use |
+| shutdown_all | [bool](#bool) |  |  |
 
 
 
@@ -691,13 +691,8 @@ services running that need to be notified.
 <a name="syscall-v1-ExitResponse"></a>
 
 ### ExitResponse
-ExitResponse is needed because the exit request does
-not cause the shutdown immediately. It causes the 
-exit machinery to be invoked at some (soonish) point
-in the future.  Note that due to concurrent calls to Exit() the exit
-code received may not be the same as the one sent via ExitRequest!
-Note that _only_ the caller of Exit() receives this response; if other
-processes need to be shutdown, that is handled via SynchExit.
+ExitResponse will not happen.  The stack will unwind before this 
+message could be received.
 
 
 | Field | Type | Label | Description |
@@ -859,6 +854,26 @@ service&#39;s &#34;location&#34;.
 
 
 
+<a name="syscall-v1-MethodBundle"></a>
+
+### MethodBundle
+MessageBundle tells the receiver all the necessary info to make a call
+on a method.  Note that when this is sent to a particular server, the HostId
+is the host id of the _caller_ not the place where the service is implemented.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+
+
+
+
+
+
 <a name="syscall-v1-ReadOneRequest"></a>
 
 ### ReadOneRequest
@@ -877,7 +892,6 @@ point in the execution of the calling program.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| call | [ServiceMethodCall](#syscall-v1-ServiceMethodCall) | repeated |  |
 | timeout_in_millis | [int32](#int32) |  |  |
 | host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 
@@ -917,11 +931,11 @@ it may be nil.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | timeout | [bool](#bool) |  |  |
-| call | [ServiceMethodCall](#syscall-v1-ServiceMethodCall) |  |  |
-| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
-| param | [google.protobuf.Any](#google-protobuf-Any) |  |  |
+| bundle | [MethodBundle](#syscall-v1-MethodBundle) |  |  |
+| param_or_result | [google.protobuf.Any](#google-protobuf-Any) |  |  |
+| result_err | [int32](#int32) |  |  |
 | resolved | [ResolvedCall](#syscall-v1-ResolvedCall) |  |  |
-| exit | [bool](#bool) |  |  |
+| exit | [ExitPair](#syscall-v1-ExitPair) |  |  |
 
 
 
@@ -931,15 +945,14 @@ it may be nil.
 <a name="syscall-v1-RegisterRequest"></a>
 
 ### RegisterRequest
-Register informs the kernel you are one of the known services
-that can be accessed.  Clients use this so they can participate
-in the dependency graph for startup order.
+Register informs the kernel you are one of the running services
+and you want a service id.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| fqs | [FullyQualifiedService](#syscall-v1-FullyQualifiedService) |  |  |
 | host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| debug_name | [string](#string) |  |  |
 
 
 
@@ -955,7 +968,7 @@ the new service or not.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| service_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | existed_previously | [bool](#bool) |  |  |
 
 
@@ -996,13 +1009,16 @@ RequireResponse is currently empty.
 
 ### ResolvedCall
 ResolvedCall is used to hold the output of a service/method call while we
-are waiting for the future to be resolved.
+are waiting for the future to be resolved.  Note that the host_id here is the
+host id of the SENDER of this message, so the place that the result was
+calculated.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| method_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
 | result | [google.protobuf.Any](#google-protobuf-Any) |  |  |
 | result_error | [int32](#int32) |  |  |
 
@@ -1021,8 +1037,7 @@ of a call to a service/method function.
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| host_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
-| call_id | [protosupport.v1.IdRaw](#protosupport-v1-IdRaw) |  |  |
+| bundle | [MethodBundle](#syscall-v1-MethodBundle) |  |  |
 | result | [google.protobuf.Any](#google-protobuf-Any) |  |  |
 | result_error | [int32](#int32) |  |  |
 
@@ -1122,40 +1137,6 @@ ServiceMethodCall is the structure that holds &#34;what&#39;s been called&#34; i
 
 
 
-
-<a name="syscall-v1-SynchronousExitRequest"></a>
-
-### SynchronousExitRequest
-SynchronousExit is sent to a program (a service) that is being told
-by the parigot system to run its cleanup (AtExit) handlers because it
-is going down.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| pair | [ExitPair](#syscall-v1-ExitPair) |  |  |
-
-
-
-
-
-
-<a name="syscall-v1-SynchronousExitResponse"></a>
-
-### SynchronousExitResponse
-Synchronous exit response is sent to the at exit handlers for a service or
-program.  There is no way to stop the shutdown once this is received, it
-can be used only to clean up resources that need to be released.
-
-
-| Field | Type | Label | Description |
-| ----- | ---- | ----- | ----------- |
-| pair | [ExitPair](#syscall-v1-ExitPair) |  |  |
-
-
-
-
-
  
 
 
@@ -1169,7 +1150,7 @@ can be used only to clean up resources that need to be released.
 | NoError | 0 |  |
 | LocateError | 1 | LocateError is return when the kernel cannot find the requested service, given by a package name and service name pair. |
 | UnmarshalFailed | 2 | UnmarshalFailed is used to indicate that in unmarshaling a request or result, the protobuf layer returned an error. |
-| IdDispatch | 3 | IdDispatch means that a dispatch call failed due to an MethodId or ServiceId was not found. |
+| IdDispatch | 3 | IdDispatch means that a dispatch call failed due to an MethodId or ServiceId was not found. This is also used when binding a method if the name is invalid. |
 | NamespaceExhausted | 4 | NamespaceExhausted is returned when the kernel can no along accept additional packages, services, or methods. This is used primarily to thwart attempts at DOS attacks. |
 | NotFound | 5 | NotFound means that a package, service, or method that was requested could not be found. |
 | DataTooLarge | 6 | DataTooLarge means that the size of some part of method call was bigger than the buffer allocated to receive it. This could be a problem either on the call side or the return side. |
@@ -1196,7 +1177,10 @@ can be used only to clean up resources that need to be released.
 | NotRequired | 28 | NotRequired that a service has tried to Locate() another service that that the first service did not Require() previously. |
 | RunTimeout | 29 | RunTimeout means that the programs timeout has expired when waiting for all the required dependencies to be fulfilled. |
 | ReadOneTimeout | 30 | ReadOneTimeout means that the program was trying to request a service/method pair to invoke, but the request timed out. |
-| BadCallId | 31 | BadCallId is returned when trying to match up the results and the call of a function resulting in a promise. It is returned if either there is no such cid registered yet or the cid is already in use. |
+| WriteTimeout | 31 | WriteTimeout means that the program was trying to send a request to another service, but timed out before it could do so. |
+| BadCallId | 32 | BadCallId is returned when trying to match up the results and the call of a function resulting in a promise. It is returned if either there is no such cid registered yet or the cid is already in use. |
+| ChannelClosed | 33 | ChannelClosed indicates that one of the internal channels used in waiting for input has been closed unexpectedly. is already in use. |
+| ExitFailed | 34 | ExitFailed means that we were tyring to send an orderly shutdown but could not reach all the of the hosts that we needed to notify. |
 
 
 
@@ -1566,6 +1550,8 @@ may be delivered out of order or delivered multiple times.
 | parigot_error | bool | .google.protobuf.EnumOptions | 543211 |  |
 | host_func_name | string | .google.protobuf.MethodOptions | 543212 |  |
 | error_id_name | string | .google.protobuf.ServiceOptions | 543213 |  |
+| implements_reverse_api | string | .google.protobuf.ServiceOptions | 543215 |  |
+| is_reverse_api | bool | .google.protobuf.ServiceOptions | 543214 |  |
 
  
 

@@ -12,7 +12,7 @@ GO_VERSION=1.21.0
 .PHONY: test
 test:
 	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} test -c -o tester ./greeting
-	wasmtime -- tester -test.v
+	wazero run tester -test.v
 
 # first WASM file, compiled with GOOS and GOARCH set 
 .PHONY: hello.p.wasm
