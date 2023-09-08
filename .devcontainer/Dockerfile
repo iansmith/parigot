@@ -161,7 +161,6 @@ RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/pr
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
-
 RUN mkdir ~/.ssh
 RUN chmod 700 ~/.ssh
 RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
