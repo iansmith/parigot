@@ -172,6 +172,7 @@ ENV TOOLS=/home/parigot/tools
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin
 ENV CC=clang
 ENV GOFLAGS="-buildvcs=false"
+ENV GITHUB_WORKSPACE=/workspaces/parigot
 
 ENTRYPOINT ["bash"]
 

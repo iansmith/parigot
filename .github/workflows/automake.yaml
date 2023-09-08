@@ -16,6 +16,10 @@ jobs:
         run: docker build -t my-test-image .devcontainer
       # - name: Run tests using Docker image
       #   run: docker run --rm my-test-image make test
+      - name: show workspace location
+        run: echo $GITHUB_WORKSPACE
+      - name: list top level files
+        run: ls -l /workspaces/parigot
       - name: show $PATH
         run: echo $PATH
       - name: show go
@@ -24,7 +28,5 @@ jobs:
         run: which go1.21.0
       - name: build Makefile
         run: make && make test
-# runs:
-#   using: 'docker'
-#   image: Dockerfile'
+
 
