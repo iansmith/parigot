@@ -8,6 +8,11 @@ name: Tests and Build
 jobs:
   my-job:
     runs-on: ubuntu-latest
+    container:
+      image: composer:latest
+      volumes: 
+        - "{{ github.workspaces }}:/parigot"
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -16,6 +21,7 @@ jobs:
         run: docker build -t my-test-image .devcontainer
       # - name: Run tests using Docker image
       #   run: docker run --rm my-test-image make test
+
       - name: show workspace location
         run: echo $GITHUB_WORKSPACE
       - name: list top level files
