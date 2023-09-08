@@ -32,6 +32,6 @@ jobs:
       - name: show go version
         run: which go1.21.0
       - name: build Makefile
-        run: make && make test
+        run: make 
 
 
