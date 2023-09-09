@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"unicode"
 
@@ -43,18 +41,12 @@ func (w *wrappedParigotErr) Error() string {
 }
 
 func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
-	e.AddSupportedFunc(ctx, "nutsdb", "open_", openNutsDBHost) // call the wrapper
+	e.AddSupportedFunc(ctx, "nutsdb", "open_", openNutsDBHost)            // call the wrapper
+	e.AddSupportedFunc(ctx, "nutsdb", "close_", closeNutsDBHost)          // call the wrapper
+	e.AddSupportedFunc(ctx, "nutsdb", "read_pair_", readPairNutsDBHost)   // call the wrapper
+	e.AddSupportedFunc(ctx, "nutsdb", "write_pair_", writePairNutsDBHost) // call the wrapper
 
 	return true
-}
-
-// openFileHost is a wrapper around the guest interaction code in hostBase that
-// ends up calling open
-func openNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
-	req := &nutsdb.OpenRequest{}
-	resp := &nutsdb.OpenResponse{}
-
-	apiplugin.HostBase(ctx, "[nutsdb]open", nutsdbSvc.open, m, stack, req, resp)
 }
 
 func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
@@ -151,17 +143,13 @@ func (n *nutsdbSvcImpl) writePair(ctx context.Context, req *nutsdb.WritePairRequ
 		return int32(nutsdb.NutsDBErr_BadId)
 	}
 	// end of preamble
-
 	err := db.Update(
 		func(tx *nuts.Tx) error {
 			k := req.Pair.GetKey()
 			v := req.Pair.GetValue()
 			b := req.Pair.GetBucketPath()
 			err := tx.Put(b, k, v, nuts.Persistent)
-			if err == nil {
-				return nil
-			}
-			return makeWrappedErrorFromNutsError(err)
+			return err
 		})
 	if err == nil {
 		return int32(nutsdb.NutsDBErr_NoError)
@@ -175,6 +163,7 @@ func (n *nutsdbSvcImpl) writePair(ctx context.Context, req *nutsdb.WritePairRequ
 	}
 	return int32(perr.err)
 }
+
 func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairRequest,
 	resp *nutsdb.ReadPairResponse) int32 {
 
@@ -197,6 +186,8 @@ func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairReques
 	}
 	// end of preamble
 
+	wasNotFound := false
+
 	raw := db.View(
 		func(tx *nuts.Tx) error {
 			k := req.Pair.GetKey()
@@ -210,7 +201,8 @@ func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairReques
 			if nuts.IsKeyNotFound(err) {
 				// arg the returned error is actually a Rollback error because
 				// we are in a transaction and nutsdb is not using Wrap/Unwrap
-				return err
+				// so we use this hack, ugh
+				wasNotFound = true
 			}
 			return err
 		})
@@ -218,12 +210,17 @@ func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairReques
 		return int32(nutsdb.NutsDBErr_NoError)
 	}
 	// this is awful, see above
-	if strings.Contains(raw.Error(), "key not found") {
+	if wasNotFound {
+		if len(req.Pair.Value) != 0 {
+			resp.Pair.Value = req.Pair.Value
+			return int32(nutsdb.NutsDBErr_NoError)
+		}
 		return int32(nutsdb.NutsDBErr_PairNotFound)
 	}
 
 	return int32(nutsdb.NutsDBErr_InternalError)
 }
+
 func (n *nutsdbSvcImpl) createBucketParent(_ context.Context, path string) bool {
 	_, ok := n.parent[path]
 	if ok {
@@ -261,28 +258,34 @@ func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (boo
 	return true, dir
 }
 
-func makeWrappedErrorFromNutsError(err error) *wrappedParigotErr {
-	if err == nil {
-		return nil
-	}
+// boiler plate to hook up the native functions
 
-	wrapped := nutsdb.NutsDBErr_NoError
-	if nuts.IsBucketNotFound(err) {
-		wrapped = nutsdb.NutsDBErr_BucketNotFound
-	}
-	if nuts.IsDBClosed(err) {
-		wrapped = nutsdb.NutsDBErr_DBIsClosed
-	}
-	if nuts.IsKeyEmpty(err) {
-		wrapped = nutsdb.NutsDBErr_KeyEmpty
-	}
-	if nuts.IsKeyNotFound(err) {
-		wrapped = nutsdb.NutsDBErr_PairNotFound
-	}
-	inner := errors.Unwrap(err)
-	log.Printf("xxx %T, %T, %T", err, inner, errors.Unwrap(inner))
-	return &wrappedParigotErr{
-		err: int32(wrapped),
-		e:   err,
-	}
+// openFileHost is a wrapper around the guest interaction code in hostBase that
+// ends up calling open
+func openNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &nutsdb.OpenRequest{}
+	resp := &nutsdb.OpenResponse{}
+
+	apiplugin.HostBase(ctx, "[nutsdb]open", nutsdbSvc.open, m, stack, req, resp)
+}
+
+func closeNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &nutsdb.CloseRequest{}
+	resp := &nutsdb.CloseResponse{}
+
+	apiplugin.HostBase(ctx, "[nutsdb]close", nutsdbSvc.close, m, stack, req, resp)
+}
+
+func readPairNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &nutsdb.ReadPairRequest{}
+	resp := &nutsdb.ReadPairResponse{}
+
+	apiplugin.HostBase(ctx, "[nutsdb]readPair", nutsdbSvc.readPair, m, stack, req, resp)
+}
+
+func writePairNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
+	req := &nutsdb.WritePairRequest{}
+	resp := &nutsdb.WritePairResponse{}
+
+	apiplugin.HostBase(ctx, "[nutsdb]writePair", nutsdbSvc.writePair, m, stack, req, resp)
 }
