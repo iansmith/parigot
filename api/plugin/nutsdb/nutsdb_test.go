@@ -12,12 +12,11 @@ func TestOpen(t *testing.T) {
 	impl := newNutsDBImpl()
 	ctx := context.Background()
 
-	path, err := os.MkdirTemp("/tmp", "nutsdb")
-	if err != nil {
-		t.Errorf("unable to create temp directory for nutsdb: %v", err)
-		t.FailNow()
-	}
+	path := mustMakeTempDir(t)
 	impl.datadir = path // just because we are a test, not for user consumption
+	defer func() {
+		os.RemoveAll(path)
+	}()
 
 	// tests
 
@@ -42,7 +41,60 @@ func TestOpen(t *testing.T) {
 		t.Errorf("unexpected error in db open: %s", nutsdb.NutsDBErr_name[e])
 	}
 	id := nutsdb.UnmarshalNutsDBId(resp.GetNutsdbId())
-	t.Logf("got back an id %s", id.Short())
+	if id.IsZeroOrEmptyValue() {
+		t.Errorf("bad id returned by open")
+	}
+
+}
+
+func TestClose(t *testing.T) {
+	impl := newNutsDBImpl()
+	ctx := context.Background()
+
+	path := mustMakeTempDir(t)
+	impl.datadir = path // just because we are a test, not for user consumption
+	defer func() {
+		os.RemoveAll(path)
+	}()
+
+	// tests
+
+	badId := nutsdb.NutsDBIdZeroValue()
+	req := &nutsdb.CloseRequest{}
+	resp := &nutsdb.CloseResponse{}
+
+	req.NutsdbId = badId.Marshal()
+	e := impl.close(ctx, req, resp)
+	err := nutsdb.NutsDBErr(e)
+	if err != nutsdb.NutsDBErr_BadId {
+		t.Errorf("tried to close the zero value for db id and got %s", nutsdb.NutsDBErr_name[e])
+	}
+
+	openReq := &nutsdb.OpenRequest{
+		DbName:        "foobie",
+		ErrIfNotFound: false,
+	}
+	openResp := &nutsdb.OpenResponse{}
+	e = impl.open(ctx, openReq, openResp)
+	err = nutsdb.NutsDBErr(e)
+	if err != nutsdb.NutsDBErr_NoError {
+		t.Errorf("unexpected error opening db: %s", nutsdb.NutsDBErr_name[e])
+	}
+	req.NutsdbId = openResp.GetNutsdbId()
+	e = impl.close(ctx, req, resp)
+	if e != 0 {
+		nid := nutsdb.UnmarshalNutsDBId(req.GetNutsdbId())
+		t.Errorf("unable to close db %s: %s", nid.Short(), nutsdb.NutsDBErr_name[e])
+	}
+
+	e = impl.close(ctx, req, resp)
+	err = nutsdb.NutsDBErr(e)
+
+	if err != nutsdb.NutsDBErr_DBNotFound {
+		nid := nutsdb.UnmarshalNutsDBId(req.GetNutsdbId())
+		t.Errorf("expected to not be able to lose db %s: %s", nid.Short(), nutsdb.NutsDBErr_name[e])
+	}
+
 }
 
 //
@@ -78,4 +130,14 @@ func helperDbNotExist(t *testing.T, ctx context.Context, impl *nutsdbSvcImpl, na
 	if err != nutsdb.NutsDBErr_DBNotFound {
 		t.Errorf("failed to raise correct error when checking for db not exist: %s", name)
 	}
+}
+
+func mustMakeTempDir(t *testing.T) string {
+	t.Helper()
+	path, err := os.MkdirTemp("/tmp", "nutsdb")
+	if err != nil {
+		t.Errorf("unable to create temp directory for nutsdb: %v", err)
+		t.FailNow()
+	}
+	return path
 }

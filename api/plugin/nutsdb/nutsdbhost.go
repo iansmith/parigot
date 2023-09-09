@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"unicode"
 
 	apiplugin "github.com/iansmith/parigot/api/plugin"
@@ -24,6 +25,7 @@ var nutsdbSvc *nutsdbSvcImpl
 type nutsdbSvcImpl struct {
 	datadir string
 	idToDB  map[string]*nuts.DB
+	lock    sync.Mutex
 }
 
 func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
@@ -43,6 +45,9 @@ func openNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
 
 func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 	resp *nutsdb.OpenResponse) int32 {
+
+	n.lock.Lock()
+	defer n.lock.Unlock()
 
 	name := req.GetDbName()
 	for _, n := range name {
@@ -80,4 +85,28 @@ func newNutsDBImpl() *nutsdbSvcImpl {
 		datadir: "nutsdb",
 		idToDB:  make(map[string]*nuts.DB),
 	}
+}
+
+func (n *nutsdbSvcImpl) close(ctx context.Context, req *nutsdb.CloseRequest,
+	resp *nutsdb.CloseResponse) int32 {
+
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	nid := nutsdb.UnmarshalNutsDBId(req.GetNutsdbId())
+	if nid.IsZeroOrEmptyValue() {
+		return int32(nutsdb.NutsDBErr_BadId)
+	}
+
+	db, ok := n.idToDB[nid.String()]
+	if !ok {
+		return int32(nutsdb.NutsDBErr_DBNotFound)
+	}
+
+	if e := db.Close(); e != nil {
+		nutsdblogger.Error("error closing nutsdb", "error", e)
+	}
+	delete(n.idToDB, nid.String())
+
+	return int32(nutsdb.NutsDBErr_NoError)
 }

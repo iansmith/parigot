@@ -143,4 +143,5 @@ enum NutsDBErr {
   BadDBName = 6;
   DBNotFound = 7;
   InternalErr = 8;
+  BadId = 9;
 }
