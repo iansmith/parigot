@@ -9,7 +9,6 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/g/nutsdb/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
-	lib "github.com/iansmith/parigot/lib/go"
 	"github.com/iansmith/parigot/lib/go/future"
 )
 
@@ -18,7 +17,7 @@ var logger *slog.Logger
 
 func main() {
 	f := &myNutsDB{}
-	binding, fut, ctx, sid := nutsdb.Init([]lib.MustRequireFunc{}, f)
+	binding, fut, ctx, sid := nutsdb.Init(nil, f)
 	logger = slog.New(guest.NewParigotHandler(sid))
 
 	fut.Success(func(_ *syscall.LaunchResponse) {
