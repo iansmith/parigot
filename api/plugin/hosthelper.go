@@ -156,3 +156,13 @@ func InvokeImplFromStack[T proto.Message, U proto.Message](ctx context.Context, 
 		panic("unable to push response back to guest memory")
 	}
 }
+
+func HostBase[T proto.Message, U proto.Message](ctx context.Context, fnName string,
+	fn func(context.Context, T, U) int32, m api.Module, stack []uint64, req T, resp U) {
+	defer func() {
+		if r := recover(); r != nil {
+			print(">>>>>>>> Trapped recover in set up for   ", fnName, "<<<<<<<<<<\n")
+		}
+	}()
+	InvokeImplFromStack(ctx, fnName, m, stack, fn, req, resp)
+}

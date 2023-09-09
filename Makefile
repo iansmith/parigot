@@ -10,7 +10,7 @@ all: commands \
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 guest: build/file.p.wasm  build/queue.p.wasm 
 commands: 	build/protoc-gen-parigot build/runner 
-plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so
+plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so build/nutsdb.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
 
@@ -90,6 +90,7 @@ API_ID= \
 	g/queue/v1/rowid.go \
 	g/queue/v1/queuemsgid.go \
 	g/file/v1/fileid.go \
+	g/nutsdb/v1/nutsdbid.go \
 	g/test/v1/testid.go 
 
 api/shared/id/serviceid.go:api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
@@ -110,6 +111,16 @@ FILE_SERVICE=$(shell find api/guest/file -type f -regex ".*\.go")
 build/file.p.wasm: $(FILE_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/file/v1/fileid.go $(API_ID)
 	@rm -f $@
 	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/file
+
+#id cruft
+g/nutsdb/v1/nutsdbid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p nutsdb NutsDB n nutsdb  > g/nutsdb/v1/nutsdbid.go
+
+## client side of the nutsdb service
+NUTSDB_SERVICE=$(shell find api/guest/nutsdb -type f -regex ".*\.go")
+build/nutsdb.p.wasm: $(NUTSDB_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/nutsdb/v1/nutsdb.go $(API_ID)
+	@rm -f $@
+	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/nutsdb
 
 #id cruft
 g/test/v1/testid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl 
@@ -166,6 +177,11 @@ QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+
+NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
+build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
+	@rm -f $@
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/nutsdb/main
 
 FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 

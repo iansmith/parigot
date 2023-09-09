@@ -1,0 +1,146 @@
+syntax ="proto3";
+package nutsdb.v1;
+option go_package="github.com/iansmith/parigot/g/nutsdb/v1;nutsdb";
+import "protosupport/v1/protosupport.proto";
+
+
+// This is the nutsdb service for parigot.  See https://nutsdb.github.io/nutsdb/
+
+
+// This is the service definition for NutsDB.
+service NutsDB {
+  // Open returns an id that represents the given NutsDB.  It will error if
+  // the database is not present and the flag in OpenRequest is true.  The
+  // default is to create a database that is not found.
+  rpc Open(OpenRequest) returns (OpenResponse);
+  // Close releases all the resources associated with the given nutsdb id.
+  // Note it is an error to delete a nutsdb twice.
+  rpc Close(CloseRequest) returns (CloseResponse);
+  // ReadPair finds the value for the given key in the given bucket.  If provided,
+  // the value is returned when the key is not found.
+  rpc ReadPair(ReadPairRequest) returns (ReadPairResponse);
+  // WritePair writes or overwrites the value of the given key in the given
+  // bucket. A value of the empty slice of bytes is allowed.   
+  rpc WritePair(WritePairRequest) returns (WritePairResponse);
+  // DeletePair writes or overwrites the value of the given key in the given
+  // bucket.  It returns an error for key not found only if the 
+  // flag not found error is set in the Request.
+  rpc DeletePair(DeletePairRequest) returns (DeletePairResponse);
+  // CreateBucket allows the creation of a bucket within the database.
+  // The parent path must be a fully qualified path and must resolve
+  // to an existing bucket.  The parent path '/' indicates to create
+  // a toplevel bucket. 
+  rpc CreateBucket(CreateBucketRequest) returns (CreateBucketResponse);
+  // Delete bucket causes a bucket and all its content to be deleted.
+  // The flag err_not_found can be used to cause an error if the parent
+  // bucket does not exist as the default behavior is to ignore this.
+  rpc DeleteBucket(DeleteBucketRequest) returns (DeleteBucketResponse);
+}
+
+message OpenRequest {
+  string db_name  = 1;
+  bool err_if_not_found = 2;
+}
+
+message OpenResponse {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+}
+
+message CloseRequest {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+}
+
+message CloseResponse {
+}
+
+// Pair is a bit of a misnomer because this also includes the bucket path. 
+message Pair {
+  bytes bucket_path = 1;
+  bytes key = 2;
+  bytes value = 3;
+}
+
+// ReadPairRequest requests a read of the key in the pair. If the key is not
+// found and there is a value in the pair's value, that value is used for
+// the response and there is no error returned.
+message ReadPairRequest {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+}
+
+// ReadPairResponse returns the value of a requested key in the response.
+// It defaults to using the value given in the response if the key is
+// not found.
+message ReadPairResponse {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+}
+
+// WritePairRequest requests a write or overwrite of the key in the pair. 
+message WritePairRequest {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+}
+
+// WritePairesponse echos back the requested values on success.
+message WritePairResponse{
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+}
+
+// DeletePairRequest requests the removal of a key value pair.  The value passed
+// in the pair is ignored. The flag err_not_found can be used to cause an
+// error to be returned if the key does not exist, since the default is to
+// ignore such a request. 
+message DeletePairRequest {
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+  bool err_not_found = 3;
+
+}
+
+// DeletePairResponse echos back the deleted pair value on success.
+message DeletePairResponse{
+  protosupport.v1.IdRaw nutsdb_id = 1;
+  Pair pair = 2;
+}
+
+// CreateBucketRequest is used to add a child bucket to a given parent.
+message CreateBucketRequest {
+  string parent_path = 1;  // "/" is always a valid parent path
+  string new_child = 2; 
+}
+
+// CreateBucketResponse is used to indicate a create success.  The values
+// of the request are echoed back in the response.
+message CreateBucketResponse {
+  string parent_path = 1; 
+  string new_child = 2; 
+}
+
+// DeleteBucketRequest is used to delete a child bucket from a given parent.
+message DeleteBucketRequest {
+  string parent_path = 1;  // "/" is always a valid parent path
+  string child_to_delete = 2; 
+}
+
+// DeleteBucketResponse is used to indicate a delete success.  The values
+// of the request are echoed back in the response.
+message DeleteBucketResponse {
+  string parent_path = 1; 
+  string child_to_delete = 2; 
+}
+
+enum NutsDBErr {
+  option (protosupport.v1.parigot_error) = true;
+  NoError = 0; // mandatory
+  DispatchError = 1; //mandatory
+  UnmarshalError = 2; // mandatory
+  MarshalError = 3; // mandatory
+
+  BadBucketPath = 4;
+  PairNotFound = 5;
+  BadDBName = 6;
+  DBNotFound = 7;
+  InternalErr = 8;
+}
