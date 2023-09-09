@@ -29,9 +29,7 @@ type NutsDB interface {
     Close(ctx context.Context,in *CloseRequest) *FutureClose  
     ReadPair(ctx context.Context,in *ReadPairRequest) *FutureReadPair  
     WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair  
-    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair  
-    CreateBucket(ctx context.Context,in *CreateBucketRequest) *FutureCreateBucket  
-    DeleteBucket(ctx context.Context,in *DeleteBucketRequest) *FutureDeleteBucket   
+    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
@@ -40,9 +38,7 @@ type Client interface {
     Close(ctx context.Context,in *CloseRequest) *FutureClose  
     ReadPair(ctx context.Context,in *ReadPairRequest) *FutureReadPair  
     WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair  
-    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair  
-    CreateBucket(ctx context.Context,in *CreateBucketRequest) *FutureCreateBucket  
-    DeleteBucket(ctx context.Context,in *DeleteBucketRequest) *FutureDeleteBucket   
+    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair   
 }
 
 // Client difference from NutsDB: Ready() 
@@ -367,140 +363,6 @@ func (i *Client_) DeletePair(ctx context.Context, in *DeletePairRequest) *Future
     }
     targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureDeletePair()
-    if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
-        return f
-     }
-
-    ctx, t:=lib.CurrentTime(ctx)
-    source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
-    return f
-}
-
-//
-// method: NutsDB.CreateBucket 
-//
-type FutureCreateBucket struct {
-    Method *future.Method[*CreateBucketResponse,NutsDBErr]
-} 
-
-// This is the same API for output needed or not because of the Completer interface.
-// Note that the return value refers to the process of the setup/teardown, not the
-// execution of the user level code.
-func (f * FutureCreateBucket) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
-    out:=&CreateBucketResponse{}
-    if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
-        }
-    }
-    f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
-    return syscall.KernelErr_NoError
-
-}
-func (f *FutureCreateBucket)Success(sfn func (proto.Message)) {
-    x:=func(m *CreateBucketResponse){
-        sfn(m)
-    }
-    f.Method.Success(x)
-} 
-
-func (f *FutureCreateBucket)Failure(ffn func (int32)) {
-    x:=func(err NutsDBErr) {
-        ffn(int32(err))
-    }
-    f.Method.Failure(x) 
-}
-
-func (f *FutureCreateBucket)Completed() bool  {
-    return f.Method.Completed()
-
-}
-func (f *FutureCreateBucket)Cancel()   {
-    f.Method.Cancel()
-}
-func NewFutureCreateBucket() *FutureCreateBucket {
-    f:=&FutureCreateBucket{
-        Method: future.NewMethod[*CreateBucketResponse,NutsDBErr](nil,nil),
-    } 
-    return f
-}
-func (i *Client_) CreateBucket(ctx context.Context, in *CreateBucketRequest) *FutureCreateBucket { 
-    mid, ok := i.BaseService.MethodIdByName("CreateBucket")
-    if !ok {
-        f:=NewFutureCreateBucket()
-        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
-    }
-    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
-    f:=NewFutureCreateBucket()
-    if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
-        return f
-     }
-
-    ctx, t:=lib.CurrentTime(ctx)
-    source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
-    return f
-}
-
-//
-// method: NutsDB.DeleteBucket 
-//
-type FutureDeleteBucket struct {
-    Method *future.Method[*DeleteBucketResponse,NutsDBErr]
-} 
-
-// This is the same API for output needed or not because of the Completer interface.
-// Note that the return value refers to the process of the setup/teardown, not the
-// execution of the user level code.
-func (f * FutureDeleteBucket) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
-    out:=&DeleteBucketResponse{}
-    if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
-        }
-    }
-    f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
-    return syscall.KernelErr_NoError
-
-}
-func (f *FutureDeleteBucket)Success(sfn func (proto.Message)) {
-    x:=func(m *DeleteBucketResponse){
-        sfn(m)
-    }
-    f.Method.Success(x)
-} 
-
-func (f *FutureDeleteBucket)Failure(ffn func (int32)) {
-    x:=func(err NutsDBErr) {
-        ffn(int32(err))
-    }
-    f.Method.Failure(x) 
-}
-
-func (f *FutureDeleteBucket)Completed() bool  {
-    return f.Method.Completed()
-
-}
-func (f *FutureDeleteBucket)Cancel()   {
-    f.Method.Cancel()
-}
-func NewFutureDeleteBucket() *FutureDeleteBucket {
-    f:=&FutureDeleteBucket{
-        Method: future.NewMethod[*DeleteBucketResponse,NutsDBErr](nil,nil),
-    } 
-    return f
-}
-func (i *Client_) DeleteBucket(ctx context.Context, in *DeleteBucketRequest) *FutureDeleteBucket { 
-    mid, ok := i.BaseService.MethodIdByName("DeleteBucket")
-    if !ok {
-        f:=NewFutureDeleteBucket()
-        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
-    }
-    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
-    f:=NewFutureDeleteBucket()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f

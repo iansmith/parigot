@@ -288,41 +288,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl NutsDB) (*lib.ServiceMethod
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"NutsDB","DeletePair",
-		GenerateDeletePairInvoker(impl))
-//
-// nutsdb.v1.NutsDB.CreateBucket
-//
-
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "CreateBucket"
-	resp, err=syscallguest.BindMethod(ctx, bindReq)
-	if err!=syscall.KernelErr_NoError {
-		return nil, err
-	}
-	mid=id.UnmarshalMethodId(resp.GetMethodId())
-
-	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"NutsDB","CreateBucket",
-		GenerateCreateBucketInvoker(impl))
-//
-// nutsdb.v1.NutsDB.DeleteBucket
-//
-
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "DeleteBucket"
-	resp, err=syscallguest.BindMethod(ctx, bindReq)
-	if err!=syscall.KernelErr_NoError {
-		return nil, err
-	}
-	mid=id.UnmarshalMethodId(resp.GetMethodId())
-
-	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"NutsDB","DeleteBucket",
-		GenerateDeleteBucketInvoker(impl)) 
+		GenerateDeletePairInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
  
@@ -483,26 +449,6 @@ func DeletePairHost(ctx context.Context,inPtr *DeletePairRequest) *FutureDeleteP
 	f:=NewFutureDeletePair()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
-} 
-
-//go:wasmimport nutsdb create_bucket_
-func CreateBucket_(int32,int32,int32,int32) int64
-func CreateBucketHost(ctx context.Context,inPtr *CreateBucketRequest) *FutureCreateBucket {
-	outProtoPtr := (*CreateBucketResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, CreateBucket_)
-	f:=NewFutureCreateBucket()
-	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
-	return f
-} 
-
-//go:wasmimport nutsdb delete_bucket_
-func DeleteBucket_(int32,int32,int32,int32) int64
-func DeleteBucketHost(ctx context.Context,inPtr *DeleteBucketRequest) *FutureDeleteBucket {
-	outProtoPtr := (*DeleteBucketResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, DeleteBucket_)
-	f:=NewFutureDeleteBucket()
-	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
-	return f
 }   
 
 // This is interface for invocation.
@@ -608,46 +554,4 @@ func (t *invokeDeletePair) Invoke(ctx context.Context,a *anypb.Any) future.Compl
 
 func GenerateDeletePairInvoker(impl NutsDB) future.Invoker {
 	return &invokeDeletePair{fn:impl.DeletePair} 
-}
-
-// This is interface for invocation.
-
-type invokeCreateBucket struct {
-    fn func(context.Context,*CreateBucketRequest) *FutureCreateBucket
-}
-
-func (t *invokeCreateBucket) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-    in:=&CreateBucketRequest{}
-    err:=a.UnmarshalTo(in)
-    if err!=nil {
-        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
-        return nil
-    }
-    return t.fn(ctx,in) 
-
-}
-
-func GenerateCreateBucketInvoker(impl NutsDB) future.Invoker {
-	return &invokeCreateBucket{fn:impl.CreateBucket} 
-}
-
-// This is interface for invocation.
-
-type invokeDeleteBucket struct {
-    fn func(context.Context,*DeleteBucketRequest) *FutureDeleteBucket
-}
-
-func (t *invokeDeleteBucket) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-    in:=&DeleteBucketRequest{}
-    err:=a.UnmarshalTo(in)
-    if err!=nil {
-        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
-        return nil
-    }
-    return t.fn(ctx,in) 
-
-}
-
-func GenerateDeleteBucketInvoker(impl NutsDB) future.Invoker {
-	return &invokeDeleteBucket{fn:impl.DeleteBucket} 
 }  

@@ -2,9 +2,13 @@ package nutsdb
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"unicode"
 
@@ -29,6 +33,15 @@ type nutsdbSvcImpl struct {
 	parent  map[string]struct{}
 }
 
+type wrappedParigotErr struct {
+	err int32
+	e   error
+}
+
+func (w *wrappedParigotErr) Error() string {
+	return w.e.Error()
+}
+
 func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	e.AddSupportedFunc(ctx, "nutsdb", "open_", openNutsDBHost) // call the wrapper
 
@@ -51,8 +64,8 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 	defer n.lock.Unlock()
 
 	name := req.GetDbName()
-	for _, n := range name {
-		if !unicode.IsLetter(n) {
+	for i, n := range name {
+		if !unicode.IsLetter(n) && !(i > 0 && unicode.IsNumber(n)) {
 			return int32(nutsdb.NutsDBErr_BadDBName)
 		}
 	}
@@ -63,17 +76,20 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 	}
 	// stat is nil if it does not exist
 	if stat != nil && !stat.IsDir() {
-		return int32(nutsdb.NutsDBErr_InternalErr)
+		return int32(nutsdb.NutsDBErr_InternalError)
 	}
 
 	id := nutsdb.NewNutsDBId()
+
+	opts := nuts.DefaultOptions
+	//opts.SyncEnable = false
 	db, e := nuts.Open(
-		nuts.DefaultOptions,
+		opts,
 		nuts.WithDir(dbDir),
 	)
 	if e != nil {
 		nutsdblogger.Error("error opening nutsdb", "error", e)
-		return int32(nutsdb.NutsDBErr_InternalErr)
+		return int32(nutsdb.NutsDBErr_InternalError)
 	}
 	n.idToDB[id.String()] = db
 	resp.NutsdbId = id.Marshal()
@@ -115,6 +131,99 @@ func (n *nutsdbSvcImpl) close(ctx context.Context, req *nutsdb.CloseRequest,
 	return int32(nutsdb.NutsDBErr_NoError)
 }
 
+func (n *nutsdbSvcImpl) writePair(ctx context.Context, req *nutsdb.WritePairRequest,
+	resp *nutsdb.WritePairResponse) int32 {
+
+	nid := nutsdb.UnmarshalNutsDBId(req.GetNutsdbId())
+	if nid.IsZeroOrEmptyValue() {
+		return int32(nutsdb.NutsDBErr_BadId)
+	}
+	ok, _ := n.isValidBucketPath(ctx, req.Pair.GetBucketPath())
+	if !ok {
+		return int32(nutsdb.NutsDBErr_BadBucketPath)
+	}
+	bpath := req.Pair.GetBucketPath()
+	if bpath == "" {
+		bpath = "/"
+	}
+	db, ok := n.idToDB[nid.String()]
+	if !ok {
+		return int32(nutsdb.NutsDBErr_BadId)
+	}
+	// end of preamble
+
+	err := db.Update(
+		func(tx *nuts.Tx) error {
+			k := req.Pair.GetKey()
+			v := req.Pair.GetValue()
+			b := req.Pair.GetBucketPath()
+			err := tx.Put(b, k, v, nuts.Persistent)
+			if err == nil {
+				return nil
+			}
+			return makeWrappedErrorFromNutsError(err)
+		})
+	if err == nil {
+		return int32(nutsdb.NutsDBErr_NoError)
+	}
+
+	perr, ok := err.(*wrappedParigotErr)
+	if !ok {
+		inner := errors.Unwrap(err)
+		nutsdblogger.Error("unable to understand returned error from nutsdb, not a parigot error", "error", err, "type", fmt.Sprintf("%T", err), "inner", inner, "inner type", fmt.Sprintf("%T", inner))
+		return int32(nutsdb.NutsDBErr_InternalError)
+	}
+	return int32(perr.err)
+}
+func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairRequest,
+	resp *nutsdb.ReadPairResponse) int32 {
+
+	nid := nutsdb.UnmarshalNutsDBId(req.GetNutsdbId())
+	if nid.IsZeroOrEmptyValue() {
+		return int32(nutsdb.NutsDBErr_BadId)
+	}
+	ok, _ := n.isValidBucketPath(ctx, req.Pair.GetBucketPath())
+	if !ok {
+		return int32(nutsdb.NutsDBErr_BadBucketPath)
+	}
+	bpath := req.Pair.GetBucketPath()
+	if bpath == "" {
+		bpath = "/"
+	}
+
+	db, ok := n.idToDB[nid.String()]
+	if !ok {
+		return int32(nutsdb.NutsDBErr_BadId)
+	}
+	// end of preamble
+
+	raw := db.View(
+		func(tx *nuts.Tx) error {
+			k := req.Pair.GetKey()
+			b := bpath
+
+			value, err := tx.Get(b, k)
+			if err == nil {
+				resp.Pair.Value = value.Value
+				return nil
+			}
+			if nuts.IsKeyNotFound(err) {
+				// arg the returned error is actually a Rollback error because
+				// we are in a transaction and nutsdb is not using Wrap/Unwrap
+				return err
+			}
+			return err
+		})
+	if raw == nil {
+		return int32(nutsdb.NutsDBErr_NoError)
+	}
+	// this is awful, see above
+	if strings.Contains(raw.Error(), "key not found") {
+		return int32(nutsdb.NutsDBErr_PairNotFound)
+	}
+
+	return int32(nutsdb.NutsDBErr_InternalError)
+}
 func (n *nutsdbSvcImpl) createBucketParent(_ context.Context, path string) bool {
 	_, ok := n.parent[path]
 	if ok {
@@ -126,8 +235,13 @@ func (n *nutsdbSvcImpl) createBucketParent(_ context.Context, path string) bool 
 }
 
 func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (bool, string) {
+	//special case
+	if path == "" {
+		return true, ""
+	}
+
 	for _, c := range path {
-		if c != '/' && !unicode.IsLetter(c) {
+		if c != '/' && !unicode.IsLetter(c) && !unicode.IsNumber(c) {
 			nutsdblogger.Warn("bad character in bucket path", "path", path)
 			return false, ""
 		}
@@ -145,4 +259,30 @@ func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (boo
 		}
 	}
 	return true, dir
+}
+
+func makeWrappedErrorFromNutsError(err error) *wrappedParigotErr {
+	if err == nil {
+		return nil
+	}
+
+	wrapped := nutsdb.NutsDBErr_NoError
+	if nuts.IsBucketNotFound(err) {
+		wrapped = nutsdb.NutsDBErr_BucketNotFound
+	}
+	if nuts.IsDBClosed(err) {
+		wrapped = nutsdb.NutsDBErr_DBIsClosed
+	}
+	if nuts.IsKeyEmpty(err) {
+		wrapped = nutsdb.NutsDBErr_KeyEmpty
+	}
+	if nuts.IsKeyNotFound(err) {
+		wrapped = nutsdb.NutsDBErr_PairNotFound
+	}
+	inner := errors.Unwrap(err)
+	log.Printf("xxx %T, %T, %T", err, inner, errors.Unwrap(inner))
+	return &wrappedParigotErr{
+		err: int32(wrapped),
+		e:   err,
+	}
 }
