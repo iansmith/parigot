@@ -97,6 +97,47 @@ func TestClose(t *testing.T) {
 
 }
 
+func TestBucketPath(t *testing.T) {
+	impl := newNutsDBImpl()
+	ctx := context.Background()
+
+	path := mustMakeTempDir(t)
+	impl.datadir = path // just because we are a test, not for user consumption
+	defer func() {
+		os.RemoveAll(path)
+	}()
+
+	// tests
+
+	fail := []string{
+		"foo",
+		"foo/bar",
+		"/foo$",
+		"/foo.bar",
+	}
+	good := []string{
+		"/",
+		"/foo",
+		"//",
+		"//baz//",
+		"/baz/bar",
+		"/baz/bar/quuux/",
+		"/baz/bar/quuux",
+	}
+	for _, f := range fail {
+		ok, _ := impl.isValidBucketPath(ctx, f)
+		if ok {
+			t.Errorf("did not expect %s to be a valid bucket path", f)
+		}
+	}
+	for _, f := range good {
+		ok, _ := impl.isValidBucketPath(ctx, f)
+		if !ok {
+			t.Errorf("expected %s to be a valid bucket path", f)
+		}
+	}
+}
+
 //
 // HELPERS
 //

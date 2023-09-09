@@ -16,7 +16,7 @@ import (
 	"github.com/tetratelabs/wazero/api"
 )
 
-var nutsdblogger = slog.Default().With("source", "file", "plugin", "true")
+var nutsdblogger = slog.Default().With("plugin", "nutsdb")
 
 type NutsDBPlugin struct{}
 
@@ -26,6 +26,7 @@ type nutsdbSvcImpl struct {
 	datadir string
 	idToDB  map[string]*nuts.DB
 	lock    sync.Mutex
+	parent  map[string]struct{}
 }
 
 func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
@@ -81,10 +82,13 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 }
 
 func newNutsDBImpl() *nutsdbSvcImpl {
-	return &nutsdbSvcImpl{
+	impl := &nutsdbSvcImpl{
 		datadir: "nutsdb",
 		idToDB:  make(map[string]*nuts.DB),
+		parent:  make(map[string]struct{}),
 	}
+	impl.parent["/"] = struct{}{}
+	return impl
 }
 
 func (n *nutsdbSvcImpl) close(ctx context.Context, req *nutsdb.CloseRequest,
@@ -109,4 +113,36 @@ func (n *nutsdbSvcImpl) close(ctx context.Context, req *nutsdb.CloseRequest,
 	delete(n.idToDB, nid.String())
 
 	return int32(nutsdb.NutsDBErr_NoError)
+}
+
+func (n *nutsdbSvcImpl) createBucketParent(_ context.Context, path string) bool {
+	_, ok := n.parent[path]
+	if ok {
+		nutsdblogger.Warn("creating directory as parent multiple times", "directory", path)
+		return true
+	}
+	n.parent[path] = struct{}{}
+	return true
+}
+
+func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (bool, string) {
+	for _, c := range path {
+		if c != '/' && !unicode.IsLetter(c) {
+			nutsdblogger.Warn("bad character in bucket path", "path", path)
+			return false, ""
+		}
+	}
+	path = filepath.Clean(path)
+	dir := filepath.Dir(path)
+	if dir[0] != '/' {
+		nutsdblogger.Warn("not fully qualified bucket path (must start with /)", "path", path)
+		return false, ""
+	}
+	if _, ok := n.parent[dir]; !ok {
+		if !n.createBucketParent(ctx, dir) {
+			nutsdblogger.Error("unable to create parent bucket", "directory", dir)
+			return false, ""
+		}
+	}
+	return true, dir
 }

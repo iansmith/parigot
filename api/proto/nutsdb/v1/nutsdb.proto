@@ -5,7 +5,15 @@ import "protosupport/v1/protosupport.proto";
 
 
 // This is the nutsdb service for parigot.  See https://nutsdb.github.io/nutsdb/
-
+//
+// Unlike nutsdb proper, this api allows buckets to be nested, although in a very
+// simpleminded way.  Buckets are created by using their bucket path.  If a
+// bucket path "/foo" is used, then the bucket "/foo" is created.  If later
+// the bucket path "/foo/bar" is used, then "/foo/bar" is created.  Note that
+// if later the path "/foo/bar/baz/quux" is used, the request will fail because
+// the parent "/foo/bar/baz" has not be used.  If you prefer to not use this
+// hierarchical construction, you can just "/" for the default bucket or 
+// "/name" for a flat namespace.
 
 // This is the service definition for NutsDB.
 service NutsDB {
