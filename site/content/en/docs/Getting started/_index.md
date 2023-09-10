@@ -65,3 +65,26 @@ set up image you can use in your editor.
 
 In the past, we have demonstrated that this method works with [goland](https://www.jetbrains.com/go/) and  that one can have an environment much like the VSCode one.
 
+You can also build and run the container image from a terminal shell. To build the image, run:
+
+```
+docker build -t iansmith/parigot .devcontainer
+```
+
+Once you built the image, you will want to start the image by binding the `parigot`
+root folder to the path `/workspaces/parigot`, and start the shell:
+
+```
+docker run --rm -it -v "$(pwd)":/workspaces/parigot iansmith/parigot
+```
+
+From there, you can run the `helloworld` example by running `make` in both the
+root and `examples/helloworld`:
+
+```
+# In the docker container
+make
+cd examples/helloworld
+make
+runner helloworld.toml
+```
