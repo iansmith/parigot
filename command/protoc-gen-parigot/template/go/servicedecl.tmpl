@@ -8,6 +8,7 @@ package {{ .package }}
 {{ $package:=.package}}
 import(
     "context"
+    "log"
 
 {{- range $j,$i := .import }}
 {{ if ne $j "" }}
@@ -119,8 +120,12 @@ func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a
 {{- if .OutputCodeNeeded }}
     out:=&{{$outParamDecl}}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.({{$outParam}})
+        if !ok {
+            log.Printf("%T inside an Any (Future{{$svcDiff}}{{$methCamel}}) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,{{$errId}}(e))

@@ -7,7 +7,8 @@ package http
 
 
 import(
-    "context" 
+    "context"
+    "log" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -69,8 +70,12 @@ type FutureGet struct {
 func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&GetResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*GetResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureGet) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -136,8 +141,12 @@ type FuturePost struct {
 func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PostResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*PostResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FuturePost) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -203,8 +212,12 @@ type FuturePut struct {
 func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PutResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*PutResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FuturePut) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -270,8 +283,12 @@ type FutureDelete struct {
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&DeleteResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*DeleteResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureDelete) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -337,8 +354,12 @@ type FutureHead struct {
 func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&HeadResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*HeadResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureHead) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -404,8 +425,12 @@ type FutureOptions struct {
 func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OptionsResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*OptionsResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureOptions) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -471,8 +496,12 @@ type FuturePatch struct {
 func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PatchResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*PatchResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FuturePatch) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -538,8 +567,12 @@ type FutureConnect struct {
 func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ConnectResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*ConnectResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureConnect) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -605,8 +638,12 @@ type FutureTrace struct {
 func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&TraceResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*TraceResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureTrace) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 

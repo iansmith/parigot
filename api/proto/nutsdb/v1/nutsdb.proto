@@ -35,7 +35,7 @@ service NutsDB {
   // DeletePair writes or overwrites the value of the given key in the given
   // bucket.  It returns an error for key not found only if the 
   // flag not found error is set in the Request.
-  rpc DeletePair(DeletePairRequest) returns (DeletePairResponse);
+  //rpc DeletePair(DeletePairRequest) returns (DeletePairResponse);
 }
 
 message OpenRequest {

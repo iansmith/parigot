@@ -271,24 +271,7 @@ func bind(ctx context.Context,sid id.ServiceId, impl NutsDB) (*lib.ServiceMethod
 
 	// completer already prepared elsewhere
 	smmap.AddServiceMethod(sid,mid,"NutsDB","WritePair",
-		GenerateWritePairInvoker(impl))
-//
-// nutsdb.v1.NutsDB.DeletePair
-//
-
-	bindReq = &syscall.BindMethodRequest{}
-	bindReq.HostId = syscallguest.CurrentHostId().Marshal()
-	bindReq.ServiceId = sid.Marshal()
-	bindReq.MethodName = "DeletePair"
-	resp, err=syscallguest.BindMethod(ctx, bindReq)
-	if err!=syscall.KernelErr_NoError {
-		return nil, err
-	}
-	mid=id.UnmarshalMethodId(resp.GetMethodId())
-
-	// completer already prepared elsewhere
-	smmap.AddServiceMethod(sid,mid,"NutsDB","DeletePair",
-		GenerateDeletePairInvoker(impl)) 
+		GenerateWritePairInvoker(impl)) 
 	return smmap,syscall.KernelErr_NoError
 }
  
@@ -439,16 +422,6 @@ func WritePairHost(ctx context.Context,inPtr *WritePairRequest) *FutureWritePair
 	f:=NewFutureWritePair()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
 	return f
-} 
-
-//go:wasmimport nutsdb delete_pair_
-func DeletePair_(int32,int32,int32,int32) int64
-func DeletePairHost(ctx context.Context,inPtr *DeletePairRequest) *FutureDeletePair {
-	outProtoPtr := (*DeletePairResponse)(nil)
-	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, DeletePair_)
-	f:=NewFutureDeletePair()
-	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
-	return f
 }   
 
 // This is interface for invocation.
@@ -533,25 +506,4 @@ func (t *invokeWritePair) Invoke(ctx context.Context,a *anypb.Any) future.Comple
 
 func GenerateWritePairInvoker(impl NutsDB) future.Invoker {
 	return &invokeWritePair{fn:impl.WritePair} 
-}
-
-// This is interface for invocation.
-
-type invokeDeletePair struct {
-    fn func(context.Context,*DeletePairRequest) *FutureDeletePair
-}
-
-func (t *invokeDeletePair) Invoke(ctx context.Context,a *anypb.Any) future.Completer {
-    in:=&DeletePairRequest{}
-    err:=a.UnmarshalTo(in)
-    if err!=nil {
-        slog.Error("unmarshal inside Invoke() failed","error",err.Error())
-        return nil
-    }
-    return t.fn(ctx,in) 
-
-}
-
-func GenerateDeletePairInvoker(impl NutsDB) future.Invoker {
-	return &invokeDeletePair{fn:impl.DeletePair} 
 }  

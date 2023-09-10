@@ -17,7 +17,8 @@ var logger *slog.Logger
 
 func main() {
 	f := &myNutsDB{}
-	binding, fut, ctx, sid := nutsdb.Init(nil, f)
+	binding, fut, ctx, sid :=
+		nutsdb.Init(nil, f)
 	logger = slog.New(guest.NewParigotHandler(sid))
 
 	fut.Success(func(_ *syscall.LaunchResponse) {

@@ -7,7 +7,8 @@ package queue
 
 
 import(
-    "context" 
+    "context"
+    "log" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -65,8 +66,12 @@ type FutureCreateQueue struct {
 func (f * FutureCreateQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&CreateQueueResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*CreateQueueResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureCreateQueue) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -132,8 +137,12 @@ type FutureLocate struct {
 func (f * FutureLocate) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&LocateResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*LocateResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureLocate) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -199,8 +208,12 @@ type FutureDeleteQueue struct {
 func (f * FutureDeleteQueue) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&DeleteQueueResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*DeleteQueueResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureDeleteQueue) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -266,8 +279,12 @@ type FutureReceive struct {
 func (f * FutureReceive) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ReceiveResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*ReceiveResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureReceive) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -333,8 +350,12 @@ type FutureMarkDone struct {
 func (f * FutureMarkDone) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&MarkDoneResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*MarkDoneResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureMarkDone) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -400,8 +421,12 @@ type FutureLength struct {
 func (f * FutureLength) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&LengthResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*LengthResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureLength) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 
@@ -467,8 +492,12 @@ type FutureSend struct {
 func (f * FutureSend) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&SendResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*SendResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureSend) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,QueueErr(e)) 

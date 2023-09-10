@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -46,12 +47,18 @@ func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 	e.AddSupportedFunc(ctx, "nutsdb", "read_pair_", readPairNutsDBHost)   // call the wrapper
 	e.AddSupportedFunc(ctx, "nutsdb", "write_pair_", writePairNutsDBHost) // call the wrapper
 
+	// he is the one, true service
+	nutsdbSvc = newNutsDBImpl()
+
 	return true
 }
 
 func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 	resp *nutsdb.OpenResponse) int32 {
 
+	if n == nil {
+		log.Printf("OOOOOOOOOUCH")
+	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
 

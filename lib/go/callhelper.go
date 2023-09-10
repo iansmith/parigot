@@ -1,3 +1,5 @@
+//go:build wasip1
+
 package lib
 
 import (
@@ -6,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"runtime/debug"
 
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
 	apishared "github.com/iansmith/parigot/api/shared"
@@ -177,6 +180,7 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("trapped xxx panic ---'%v' on %s", r, syscallguest.CurrentHostId())
+				debug.PrintStack()
 			}
 		}()
 		cid := id.UnmarshalCallId(r.GetCallId())

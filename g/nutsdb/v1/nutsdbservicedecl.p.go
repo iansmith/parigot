@@ -7,7 +7,8 @@ package nutsdb
 
 
 import(
-    "context" 
+    "context"
+    "log" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -28,8 +29,7 @@ type NutsDB interface {
     Open(ctx context.Context,in *OpenRequest) *FutureOpen  
     Close(ctx context.Context,in *CloseRequest) *FutureClose  
     ReadPair(ctx context.Context,in *ReadPairRequest) *FutureReadPair  
-    WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair  
-    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair   
+    WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair   
     Ready(context.Context,id.ServiceId) *future.Base[bool]
 }
 
@@ -37,8 +37,7 @@ type Client interface {
     Open(ctx context.Context,in *OpenRequest) *FutureOpen  
     Close(ctx context.Context,in *CloseRequest) *FutureClose  
     ReadPair(ctx context.Context,in *ReadPairRequest) *FutureReadPair  
-    WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair  
-    DeletePair(ctx context.Context,in *DeletePairRequest) *FutureDeletePair   
+    WritePair(ctx context.Context,in *WritePairRequest) *FutureWritePair   
 }
 
 // Client difference from NutsDB: Ready() 
@@ -61,8 +60,12 @@ type FutureOpen struct {
 func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OpenResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*OpenResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureOpen) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
@@ -186,8 +189,12 @@ type FutureReadPair struct {
 func (f * FutureReadPair) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ReadPairResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*ReadPairResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureReadPair) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
@@ -253,8 +260,12 @@ type FutureWritePair struct {
 func (f * FutureWritePair) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&WritePairResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*WritePairResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureWritePair) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
@@ -296,73 +307,6 @@ func (i *Client_) WritePair(ctx context.Context, in *WritePairRequest) *FutureWr
     }
     targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
     f:=NewFutureWritePair()
-    if kerr!=syscall.KernelErr_NoError{
-        f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
-        return f
-     }
-
-    ctx, t:=lib.CurrentTime(ctx)
-    source:=syscallguest.CurrentHostId()
-    syscallguest.MatchCompleter(ctx,t,source,targetHid,cid,f)
-    return f
-}
-
-//
-// method: NutsDB.DeletePair 
-//
-type FutureDeletePair struct {
-    Method *future.Method[*DeletePairResponse,NutsDBErr]
-} 
-
-// This is the same API for output needed or not because of the Completer interface.
-// Note that the return value refers to the process of the setup/teardown, not the
-// execution of the user level code.
-func (f * FutureDeletePair) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
-    out:=&DeletePairResponse{}
-    if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
-        }
-    }
-    f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
-    return syscall.KernelErr_NoError
-
-}
-func (f *FutureDeletePair)Success(sfn func (proto.Message)) {
-    x:=func(m *DeletePairResponse){
-        sfn(m)
-    }
-    f.Method.Success(x)
-} 
-
-func (f *FutureDeletePair)Failure(ffn func (int32)) {
-    x:=func(err NutsDBErr) {
-        ffn(int32(err))
-    }
-    f.Method.Failure(x) 
-}
-
-func (f *FutureDeletePair)Completed() bool  {
-    return f.Method.Completed()
-
-}
-func (f *FutureDeletePair)Cancel()   {
-    f.Method.Cancel()
-}
-func NewFutureDeletePair() *FutureDeletePair {
-    f:=&FutureDeletePair{
-        Method: future.NewMethod[*DeletePairResponse,NutsDBErr](nil,nil),
-    } 
-    return f
-}
-func (i *Client_) DeletePair(ctx context.Context, in *DeletePairRequest) *FutureDeletePair { 
-    mid, ok := i.BaseService.MethodIdByName("DeletePair")
-    if !ok {
-        f:=NewFutureDeletePair()
-        f.CompleteMethod(ctx,nil,1,syscallguest.CurrentHostId())/*dispatch error*/
-    }
-    targetHid,cid,kerr:= i.BaseService.Dispatch(ctx,mid,in) 
-    f:=NewFutureDeletePair()
     if kerr!=syscall.KernelErr_NoError{
         f.CompleteMethod(ctx,nil, 1,syscallguest.CurrentHostId())/*dispatch error*/
         return f

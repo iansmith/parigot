@@ -8,6 +8,7 @@ import (
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/plugin/file"
 	"github.com/iansmith/parigot/api/plugin/httpconnector"
+	"github.com/iansmith/parigot/api/plugin/nutsdb"
 	"github.com/iansmith/parigot/api/plugin/queue"
 	"github.com/iansmith/parigot/api/plugin/syscall"
 )
@@ -27,6 +28,8 @@ func LoadPlugin(ctx context.Context, plugin, symbol, name string) (apiplugin.Par
 		return &syscall.SyscallPlugin{}, nil
 	case "httpconnector":
 		return &httpconnector.HttpConnectorPlugin{}, nil
+	case "nutsdb":
+		return &nutsdb.NutsDBPlugin{}, nil
 	}
 	panic("unknown name for LoadPlugin:" + name)
 }

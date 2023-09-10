@@ -1,3 +1,5 @@
+//go:build wasip1
+
 // The concept of a "future" is important in parigot.  For
 // any programming language that can create closures,
 // this concept allows one to write parigot programs

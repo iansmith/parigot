@@ -7,7 +7,8 @@ package test
 
 
 import(
-    "context" 
+    "context"
+    "log" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -55,8 +56,12 @@ type FutureTestAddTestSuite struct {
 func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&AddTestSuiteResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*AddTestSuiteResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureTestAddTestSuite) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -122,8 +127,12 @@ type FutureTestStart struct {
 func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&StartResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*StartResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureTestStart) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -210,8 +219,12 @@ type FutureMethodCallSuiteExec struct {
 func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*ExecResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureMethodCallSuiteExec) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -354,8 +367,12 @@ type FutureUnderTestExec struct {
 func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        out, ok:=a.(*ExecResponse)
+        if !ok {
+            log.Printf("%T inside an Any (FutureUnderTestExec) CompleteMethod)",out)
+            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+                return syscall.KernelErr_UnmarshalFailed
+            }
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 

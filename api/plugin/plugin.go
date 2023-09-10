@@ -28,7 +28,7 @@ func LoadAndReturnInit(ctx context.Context, pluginPath, pluginSymbol, _ string) 
 	}
 	plug, err := plugin.Open(pluginPath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to open plugin %v: %v", plug, err)
+		return nil, fmt.Errorf("unable to open plugin %s: %v", pluginPath, err)
 	}
 	sym, err := plug.Lookup(pluginSymbol)
 	if err != nil {
