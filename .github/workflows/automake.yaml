@@ -35,9 +35,13 @@ jobs:
         run: echo $PATH
       - name: show go
         run: which go
-      - name: show go version
+      - name: show go version 
         run: which go1.21.0
       - name: build Makefile
         run: make 
+      - name: run hello world, make clean, and make
+        run: cd example/helloworld && make clean && make
+      - name: run http simple, make clean, and make
+        run: cd example/httpsimple && make clean && make
 
 
