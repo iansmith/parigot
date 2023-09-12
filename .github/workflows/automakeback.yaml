@@ -1,15 +1,10 @@
 name: Tests and Build
-
-on:
+'on':
   push:
     branches:
-      - "*"
-  pull_request:
-    branches:
-      - master
-  # tags:
-  #   - 'v*'
-
+      - alt2
+    tags:
+      - v*
 jobs:
   my-job:
     runs-on: ubuntu-latest
@@ -20,7 +15,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
 
       # - name: Build Docker image
       #   run: docker build -t my-test-image .devcontainer
