@@ -70,10 +70,11 @@ var iter = 0
 func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *anypb.Any, resultErr int32) syscall.KernelErr {
 	comp, orig := getCompleter(hid, cid)
 	if comp == nil {
-		slog.Warn("ComplteCall received, but no invoke found, ignoring")
+		slog.Warn("CompleteCall received, but no invoke found, ignoring")
 		return syscall.KernelErr_NotFound
 	}
 	delCompleted(hid, cid)
+	log.Printf("xxx --- cmplete call %s", result.TypeUrl)
 	comp.CompleteMethod(ctx, result, resultErr, orig)
 	return syscall.KernelErr_NoError
 }

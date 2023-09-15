@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -56,9 +55,6 @@ func (*NutsDBPlugin) Init(ctx context.Context, e eng.Engine, _ id.HostId) bool {
 func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 	resp *nutsdb.OpenResponse) int32 {
 
-	if n == nil {
-		log.Printf("OOOOOOOOOUCH")
-	}
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
@@ -91,6 +87,7 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 		return int32(nutsdb.NutsDBErr_InternalError)
 	}
 	n.idToDB[id.String()] = db
+	nutsdblogger.Info("open succeed in nutsdb", "id", id.Short())
 	resp.NutsdbId = id.Marshal()
 
 	return int32(nutsdb.NutsDBErr_NoError)

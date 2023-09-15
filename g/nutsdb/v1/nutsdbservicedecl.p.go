@@ -60,12 +60,15 @@ type FutureOpen struct {
 func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OpenResponse{}
     if a!=nil {
-        out, ok:=a.(*OpenResponse)
+        tmp, ok:=a.(*OpenResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureOpen) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
@@ -189,12 +192,15 @@ type FutureReadPair struct {
 func (f * FutureReadPair) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ReadPairResponse{}
     if a!=nil {
-        out, ok:=a.(*ReadPairResponse)
+        tmp, ok:=a.(*ReadPairResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureReadPair) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 
@@ -260,12 +266,15 @@ type FutureWritePair struct {
 func (f * FutureWritePair) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&WritePairResponse{}
     if a!=nil {
-        out, ok:=a.(*WritePairResponse)
+        tmp, ok:=a.(*WritePairResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureWritePair) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,NutsDBErr(e)) 

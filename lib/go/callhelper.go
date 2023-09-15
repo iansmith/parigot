@@ -179,7 +179,7 @@ func ReadOneAndCallClient(ctx context.Context, binding *ServiceMethodMap,
 	if r := resp.GetResolved(); r != nil {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("trapped xxx panic ---'%v' on %s", r, syscallguest.CurrentHostId())
+				log.Printf("trapped xxx panic ---'%v' on %s", r, syscallguest.CurrentHostId().Short())
 				debug.PrintStack()
 			}
 		}()

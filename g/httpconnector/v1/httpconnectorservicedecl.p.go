@@ -54,12 +54,15 @@ type FutureHandle struct {
 func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&HandleResponse{}
     if a!=nil {
-        out, ok:=a.(*HandleResponse)
+        tmp, ok:=a.(*HandleResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureHandle) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpConnectorErr(e)) 

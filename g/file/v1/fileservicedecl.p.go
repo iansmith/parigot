@@ -68,12 +68,15 @@ type FutureOpen struct {
 func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OpenResponse{}
     if a!=nil {
-        out, ok:=a.(*OpenResponse)
+        tmp, ok:=a.(*OpenResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureOpen) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -139,12 +142,15 @@ type FutureCreate struct {
 func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&CreateResponse{}
     if a!=nil {
-        out, ok:=a.(*CreateResponse)
+        tmp, ok:=a.(*CreateResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureCreate) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -210,12 +216,15 @@ type FutureClose struct {
 func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&CloseResponse{}
     if a!=nil {
-        out, ok:=a.(*CloseResponse)
+        tmp, ok:=a.(*CloseResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureClose) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -281,12 +290,15 @@ type FutureLoadTestData struct {
 func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&LoadTestDataResponse{}
     if a!=nil {
-        out, ok:=a.(*LoadTestDataResponse)
+        tmp, ok:=a.(*LoadTestDataResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureLoadTestData) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -352,12 +364,15 @@ type FutureRead struct {
 func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ReadResponse{}
     if a!=nil {
-        out, ok:=a.(*ReadResponse)
+        tmp, ok:=a.(*ReadResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureRead) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -423,12 +438,15 @@ type FutureWrite struct {
 func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&WriteResponse{}
     if a!=nil {
-        out, ok:=a.(*WriteResponse)
+        tmp, ok:=a.(*WriteResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureWrite) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -494,12 +512,15 @@ type FutureDelete struct {
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&DeleteResponse{}
     if a!=nil {
-        out, ok:=a.(*DeleteResponse)
+        tmp, ok:=a.(*DeleteResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureDelete) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -565,12 +586,15 @@ type FutureStat struct {
 func (f * FutureStat) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&StatResponse{}
     if a!=nil {
-        out, ok:=a.(*StatResponse)
+        tmp, ok:=a.(*StatResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureStat) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
+        } else {
+            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
