@@ -151,7 +151,7 @@ RUN go${GOLANG_VERSION_HOST} install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.20.0
 RUN go${GOLANG_VERSION_HOST} install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 RUN go${GOLANG_VERSION_HOST} install github.com/tetratelabs/wazero/cmd/wazero@v1.5.0
-
+RUN go${GOLANG_VERSION_HOST} install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
 #RUN go${GOLANG_VERSION_HOST} install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v${PROTOC_GRPC_VERSION}
 #RUN go${GOLANG_VERSION_HOST} install github.com/onsi/ginkgo/v2/ginkgo
 

@@ -23,28 +23,68 @@ environment" or "IDE") and the editor knows how to work with the dev container
 for doing things like running programs, launching the debugger, using the
 shell *inside* the container.
 
-#### The quick and mostly easy way
+### What to try
+
+Here is a [video](https://youtu.be/gJEEHfl-n6I) that can show you some things 
+to try in the dev container, like running the hello world example.
 
 
+### Github codespaces
 
-* What do your users need to do to start using your project? This could include downloading/installation instructions, including any prerequisites or system requirements.
+You can launch a complete editor and working shell in your browser with parigot's 
+tooling already configured.  You can do this with the `codespaces` tab under
+the code button on the github repository.
 
-* Introductory “Hello World” example, if appropriate. More complex tutorials should live in the Tutorials section.
+[Example screencap](/codespaces-scap.png)
 
-Consider using the headings below for your getting started page. You can delete any that are not applicable to your project.
+Althought this is convenient, the machines that back codespace are quite slow, 
+and it can take several minutes to do the launch of a codespace.
 
-## Prerequisites
+### Github classic way
 
-Are there any system requirements for using your project? What languages are supported (if any)? Do users need to already have any software or tools installed?
+* Clone the repo (`http://github.com/iansmith/parigot`) using git
+* Launch vscode on our configured workspace, `parigot.code-workspace` at the
+root of the repo.  If you have vscode installed in the normal way, you
+can use `code parigot.code-workspace` at the root of the repo.
+* When you get the popup in the lower right of vscode that says "reopen in
+dev container" click "Reopen in Container" or other affirmative button.
+* You will be given your copy of the repo's code, plus a shell that is
+pre-configured to work with parigot, as in the video above.
 
-## Installation
+[Screencap of VS Code startup](/vscode-scap.png)
 
-Where can your user find your project code? How can they install it (binaries, installable package, build from source)? Are there multiple options/versions they can install and how should they choose the right one for them?
+### Other editors
 
-## Setup
+First, VSCode is the recommended way to edit code in parigot simply because it
+is so much easier.
 
-Is there any initial setup users need to do after installation to try your project?
+If you are wanting to use another editor that understands containers, the
+Dockerfile that builds the dev container is in `.devcontainer/Dockerfile` and
+should build on your local copy of Docker. From this point, you'll have a properly
+set up image you can use in your editor.
 
-## Try it out!
+In the past, we have demonstrated that this method works with [goland](https://www.jetbrains.com/go/) and  that one can have an environment much like the VSCode one.
 
-Can your users test their installation, for example by running a command or deploying a Hello World example?
+You can also build and run the container image from a terminal shell. To build the image, run:
+
+```
+docker build -t iansmith/parigot .devcontainer
+```
+
+Once you built the image, you will want to start the image by binding the `parigot`
+root folder to the path `/workspaces/parigot`, and start the shell:
+
+```
+docker run --rm -it -v "$(pwd)":/workspaces/parigot iansmith/parigot
+```
+
+From there, you can run the `helloworld` example by running `make` in both the
+root and `examples/helloworld`:
+
+```
+# In the docker container
+make
+cd examples/helloworld
+make
+runner helloworld.toml
+```
