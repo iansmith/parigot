@@ -3,6 +3,7 @@ package syscall
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"runtime/debug"
 	"unsafe"
@@ -64,12 +65,15 @@ func ClientSide[T proto.Message, U proto.Message](ctx context.Context, t T, u U,
 	if int32(ptr) != out { //sanity
 		print(fmt.Sprintf("WARNING! mismatched pointers in host call/return %x, %x\n", ptr, out))
 	}
-	if unsafe.Pointer(asPtr(u)) == nil {
-		return u, int32(syscall.KernelErr_NoError), false
-	}
+	// a := asPtr(u)
+	// log.Printf("xxxx checking asPtr %T,%p, %v", u, u, a)
+	// if unsafe.Pointer(a) == nil {
+	// 	log.Printf("xxx client side 2: %T is nil", u)
+	// 	return u, int32(syscall.KernelErr_NoError), false
+	// }
 	if l > 0 {
 		if err := proto.Unmarshal(outBuf[:l], u); err != nil {
-			print(fmt.Sprintf("found the source of a 2 -- %d, %s", l, err.Error()))
+			slog.Error("found a nil, expected empty, result buffer", "size in bytes", l, "type", fmt.Sprintf("%T", u))
 			myId := syscall.KernelErr_UnmarshalFailed
 			outErr = int32(myId)
 		}

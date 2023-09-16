@@ -14,6 +14,7 @@ import (
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 	"github.com/iansmith/parigot/g/nutsdb/v1"
+
 	nuts "github.com/nutsdb/nutsdb"
 	"github.com/tetratelabs/wazero/api"
 )
@@ -57,6 +58,8 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 
 	n.lock.Lock()
 	defer n.lock.Unlock()
+
+	//k.matcher().Dispatch(targetHid, hid, cid, mid, hostFunc, w)
 
 	name := req.GetDbName()
 	for i, n := range name {
@@ -269,7 +272,6 @@ func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (boo
 func openNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
 	req := &nutsdb.OpenRequest{}
 	resp := &nutsdb.OpenResponse{}
-
 	apiplugin.HostBase(ctx, "[nutsdb]open", nutsdbSvc.open, m, stack, req, resp)
 }
 

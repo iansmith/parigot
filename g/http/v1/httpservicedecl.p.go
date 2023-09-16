@@ -7,8 +7,7 @@ package http
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -72,12 +71,10 @@ func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32
     if a!=nil {
         tmp, ok:=a.(*GetResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureGet) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -146,12 +143,10 @@ func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*PostResponse)
         if !ok {
-            log.Printf("%T inside an Any (FuturePost) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -220,12 +215,10 @@ func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32
     if a!=nil {
         tmp, ok:=a.(*PutResponse)
         if !ok {
-            log.Printf("%T inside an Any (FuturePut) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -294,12 +287,10 @@ func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*DeleteResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureDelete) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -368,12 +359,10 @@ func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*HeadResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureHead) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -442,12 +431,10 @@ func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*OptionsResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureOptions) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -516,12 +503,10 @@ func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int
     if a!=nil {
         tmp, ok:=a.(*PatchResponse)
         if !ok {
-            log.Printf("%T inside an Any (FuturePatch) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -590,12 +575,10 @@ func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*ConnectResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureConnect) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -664,12 +647,10 @@ func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int
     if a!=nil {
         tmp, ok:=a.(*TraceResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureTrace) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

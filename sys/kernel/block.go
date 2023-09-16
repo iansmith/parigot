@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"reflect"
 	"time"
@@ -136,6 +137,7 @@ func (k *kdata) ReadOne(req *syscall.ReadOneRequest, resp *syscall.ReadOneRespon
 	// All readers work the same way
 	//
 	selectReturn := value.Interface().(*syscall.ReadOneResponse)
+	log.Printf("Reader in block: %T, %+v", selectReturn.ParamOrResult, selectReturn.ParamOrResult)
 	proto.Merge(resp, selectReturn)
 	return syscall.KernelErr_NoError
 }

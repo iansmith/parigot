@@ -455,7 +455,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl File) (*lib.S
 //go:wasmimport file open_
 func Open_(int32,int32,int32,int32) int64
 func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
-	outProtoPtr := (*OpenResponse)(nil)
+	outProtoPtr := &OpenResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Open_)
 	f:=NewFutureOpen()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -465,7 +465,7 @@ func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
 //go:wasmimport file create_
 func Create_(int32,int32,int32,int32) int64
 func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
-	outProtoPtr := (*CreateResponse)(nil)
+	outProtoPtr := &CreateResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Create_)
 	f:=NewFutureCreate()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -475,7 +475,7 @@ func CreateHost(ctx context.Context,inPtr *CreateRequest) *FutureCreate {
 //go:wasmimport file close_
 func Close_(int32,int32,int32,int32) int64
 func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
-	outProtoPtr := (*CloseResponse)(nil)
+	outProtoPtr := &CloseResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Close_)
 	f:=NewFutureClose()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -485,7 +485,7 @@ func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
 //go:wasmimport file load_test_data_
 func LoadTestData_(int32,int32,int32,int32) int64
 func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoadTestData {
-	outProtoPtr := (*LoadTestDataResponse)(nil)
+	outProtoPtr := &LoadTestDataResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, LoadTestData_)
 	f:=NewFutureLoadTestData()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -495,7 +495,7 @@ func LoadTestDataHost(ctx context.Context,inPtr *LoadTestDataRequest) *FutureLoa
 //go:wasmimport file read_
 func Read_(int32,int32,int32,int32) int64
 func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
-	outProtoPtr := (*ReadResponse)(nil)
+	outProtoPtr := &ReadResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Read_)
 	f:=NewFutureRead()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -505,7 +505,7 @@ func ReadHost(ctx context.Context,inPtr *ReadRequest) *FutureRead {
 //go:wasmimport file write_
 func Write_(int32,int32,int32,int32) int64
 func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
-	outProtoPtr := (*WriteResponse)(nil)
+	outProtoPtr := &WriteResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Write_)
 	f:=NewFutureWrite()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -515,7 +515,7 @@ func WriteHost(ctx context.Context,inPtr *WriteRequest) *FutureWrite {
 //go:wasmimport file delete_
 func Delete_(int32,int32,int32,int32) int64
 func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
-	outProtoPtr := (*DeleteResponse)(nil)
+	outProtoPtr := &DeleteResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -525,7 +525,7 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 //go:wasmimport file stat_
 func Stat_(int32,int32,int32,int32) int64
 func StatHost(ctx context.Context,inPtr *StatRequest) *FutureStat {
-	outProtoPtr := (*StatResponse)(nil)
+	outProtoPtr := &StatResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Stat_)
 	f:=NewFutureStat()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

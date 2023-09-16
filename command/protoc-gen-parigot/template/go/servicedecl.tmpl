@@ -8,7 +8,6 @@ package {{ .package }}
 {{ $package:=.package}}
 import(
     "context"
-    "log"
 
 {{- range $j,$i := .import }}
 {{ if ne $j "" }}
@@ -122,12 +121,10 @@ func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a
     if a!=nil {
         tmp, ok:=a.({{$outParam}})
         if !ok {
-            log.Printf("%T inside an Any (Future{{$svcDiff}}{{$methCamel}}) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

@@ -438,7 +438,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Queue) (*lib.
 //go:wasmimport queue create_queue_
 func CreateQueue_(int32,int32,int32,int32) int64
 func CreateQueueHost(ctx context.Context,inPtr *CreateQueueRequest) *FutureCreateQueue {
-	outProtoPtr := (*CreateQueueResponse)(nil)
+	outProtoPtr := &CreateQueueResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, CreateQueue_)
 	f:=NewFutureCreateQueue()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -448,7 +448,7 @@ func CreateQueueHost(ctx context.Context,inPtr *CreateQueueRequest) *FutureCreat
 //go:wasmimport queue locate_
 func Locate_(int32,int32,int32,int32) int64
 func LocateHost(ctx context.Context,inPtr *LocateRequest) *FutureLocate {
-	outProtoPtr := (*LocateResponse)(nil)
+	outProtoPtr := &LocateResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Locate_)
 	f:=NewFutureLocate()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -458,7 +458,7 @@ func LocateHost(ctx context.Context,inPtr *LocateRequest) *FutureLocate {
 //go:wasmimport queue delete_queue_
 func DeleteQueue_(int32,int32,int32,int32) int64
 func DeleteQueueHost(ctx context.Context,inPtr *DeleteQueueRequest) *FutureDeleteQueue {
-	outProtoPtr := (*DeleteQueueResponse)(nil)
+	outProtoPtr := &DeleteQueueResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, DeleteQueue_)
 	f:=NewFutureDeleteQueue()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -468,7 +468,7 @@ func DeleteQueueHost(ctx context.Context,inPtr *DeleteQueueRequest) *FutureDelet
 //go:wasmimport queue receive_
 func Receive_(int32,int32,int32,int32) int64
 func ReceiveHost(ctx context.Context,inPtr *ReceiveRequest) *FutureReceive {
-	outProtoPtr := (*ReceiveResponse)(nil)
+	outProtoPtr := &ReceiveResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Receive_)
 	f:=NewFutureReceive()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -478,7 +478,7 @@ func ReceiveHost(ctx context.Context,inPtr *ReceiveRequest) *FutureReceive {
 //go:wasmimport queue mark_done_
 func MarkDone_(int32,int32,int32,int32) int64
 func MarkDoneHost(ctx context.Context,inPtr *MarkDoneRequest) *FutureMarkDone {
-	outProtoPtr := (*MarkDoneResponse)(nil)
+	outProtoPtr := &MarkDoneResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, MarkDone_)
 	f:=NewFutureMarkDone()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -488,7 +488,7 @@ func MarkDoneHost(ctx context.Context,inPtr *MarkDoneRequest) *FutureMarkDone {
 //go:wasmimport queue length_
 func Length_(int32,int32,int32,int32) int64
 func LengthHost(ctx context.Context,inPtr *LengthRequest) *FutureLength {
-	outProtoPtr := (*LengthResponse)(nil)
+	outProtoPtr := &LengthResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Length_)
 	f:=NewFutureLength()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -498,7 +498,7 @@ func LengthHost(ctx context.Context,inPtr *LengthRequest) *FutureLength {
 //go:wasmimport queue send_
 func Send_(int32,int32,int32,int32) int64
 func SendHost(ctx context.Context,inPtr *SendRequest) *FutureSend {
-	outProtoPtr := (*SendResponse)(nil)
+	outProtoPtr := &SendResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Send_)
 	f:=NewFutureSend()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

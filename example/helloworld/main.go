@@ -25,7 +25,7 @@ func main() {
 	logger = slog.New(guest.NewParigotHandler(myId))
 
 	fut.Failure(func(err syscall.KernelErr) {
-		logger.Error("failed to launch the hello world service: %s", syscall.KernelErr_name[int32(err)])
+		logger.Error("failed to launch the hello world service", "kernel error", syscall.KernelErr_name[int32(err)])
 		lib.ExitSelf(ctx, 1, myId)
 	})
 

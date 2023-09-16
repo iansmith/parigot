@@ -336,7 +336,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector
 //go:wasmimport httpconnector handle_
 func Handle_(int32,int32,int32,int32) int64
 func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
-	outProtoPtr := (*HandleResponse)(nil)
+	outProtoPtr := &HandleResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
 	f:=NewFutureHandle()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

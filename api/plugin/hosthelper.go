@@ -10,6 +10,8 @@ import (
 	"github.com/iansmith/parigot/eng"
 	syscall "github.com/iansmith/parigot/g/syscall/v1"
 
+	_ "time/tzdata"
+
 	"github.com/tetratelabs/wazero/api"
 	"google.golang.org/protobuf/proto"
 )
@@ -60,7 +62,6 @@ func writeKernelErrToGuest(m api.Memory, offset uint32, kerr syscall.KernelErr) 
 // exit has been called.  All
 // other errors are returned in-band as kernel errors.
 func pushResponseToStack(ctx context.Context, m api.Module, resp proto.Message, respErr int32, stack []uint64) bool {
-	log.Printf("pushResponseToStack: %T, %v", resp, resp != nil)
 	errPtr := eng.Util.DecodeU32(stack[3])
 	if respErr&0x7fffff00 != 0 {
 		errCopy := respErr

@@ -7,8 +7,7 @@ package greeting
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -56,12 +55,10 @@ func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Messag
     if a!=nil {
         tmp, ok:=a.(*FetchGreetingResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureFetchGreeting) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

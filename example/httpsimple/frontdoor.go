@@ -47,7 +47,7 @@ func main() {
 	logger = slog.New(guest.NewParigotHandler(sid))
 
 	fut.Failure(func(err syscall.KernelErr) {
-		logger.Error("failed to launch the frontdoor service: %s", syscall.KernelErr_name[int32(err)])
+		logger.Error("failed to launch the frontdoor service", "kernel error", syscall.KernelErr_name[int32(err)])
 		lib.ExitSelf(ctx, 1, sid)
 	})
 

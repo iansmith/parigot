@@ -7,8 +7,7 @@ package queue
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -68,12 +67,10 @@ func (f * FutureCreateQueue) CompleteMethod(ctx context.Context,a proto.Message,
     if a!=nil {
         tmp, ok:=a.(*CreateQueueResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureCreateQueue) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -142,12 +139,10 @@ func (f * FutureLocate) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*LocateResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureLocate) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -216,12 +211,10 @@ func (f * FutureDeleteQueue) CompleteMethod(ctx context.Context,a proto.Message,
     if a!=nil {
         tmp, ok:=a.(*DeleteQueueResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureDeleteQueue) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -290,12 +283,10 @@ func (f * FutureReceive) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*ReceiveResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureReceive) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -364,12 +355,10 @@ func (f * FutureMarkDone) CompleteMethod(ctx context.Context,a proto.Message, e 
     if a!=nil {
         tmp, ok:=a.(*MarkDoneResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureMarkDone) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -438,12 +427,10 @@ func (f * FutureLength) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*LengthResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureLength) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -512,12 +499,10 @@ func (f * FutureSend) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*SendResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureSend) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

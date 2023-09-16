@@ -472,7 +472,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.S
 //go:wasmimport http get_
 func Get_(int32,int32,int32,int32) int64
 func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
-	outProtoPtr := (*GetResponse)(nil)
+	outProtoPtr := &GetResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
 	f:=NewFutureGet()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -482,7 +482,7 @@ func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
 //go:wasmimport http post_
 func Post_(int32,int32,int32,int32) int64
 func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
-	outProtoPtr := (*PostResponse)(nil)
+	outProtoPtr := &PostResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
 	f:=NewFuturePost()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -492,7 +492,7 @@ func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
 //go:wasmimport http put_
 func Put_(int32,int32,int32,int32) int64
 func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
-	outProtoPtr := (*PutResponse)(nil)
+	outProtoPtr := &PutResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
 	f:=NewFuturePut()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -502,7 +502,7 @@ func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
 //go:wasmimport http delete_
 func Delete_(int32,int32,int32,int32) int64
 func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
-	outProtoPtr := (*DeleteResponse)(nil)
+	outProtoPtr := &DeleteResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -512,7 +512,7 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 //go:wasmimport http head_
 func Head_(int32,int32,int32,int32) int64
 func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
-	outProtoPtr := (*HeadResponse)(nil)
+	outProtoPtr := &HeadResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
 	f:=NewFutureHead()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -522,7 +522,7 @@ func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
 //go:wasmimport http options_
 func Options_(int32,int32,int32,int32) int64
 func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
-	outProtoPtr := (*OptionsResponse)(nil)
+	outProtoPtr := &OptionsResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
 	f:=NewFutureOptions()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -532,7 +532,7 @@ func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
 //go:wasmimport http patch_
 func Patch_(int32,int32,int32,int32) int64
 func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
-	outProtoPtr := (*PatchResponse)(nil)
+	outProtoPtr := &PatchResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
 	f:=NewFuturePatch()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -542,7 +542,7 @@ func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
 //go:wasmimport http connect_
 func Connect_(int32,int32,int32,int32) int64
 func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
-	outProtoPtr := (*ConnectResponse)(nil)
+	outProtoPtr := &ConnectResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
 	f:=NewFutureConnect()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -552,7 +552,7 @@ func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
 //go:wasmimport http trace_
 func Trace_(int32,int32,int32,int32) int64
 func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
-	outProtoPtr := (*TraceResponse)(nil)
+	outProtoPtr := &TraceResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
 	f:=NewFutureTrace()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

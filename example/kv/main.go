@@ -26,7 +26,7 @@ func main() {
 	logger = slog.New(guest.NewParigotHandler(myId))
 
 	fut.Failure(func(err syscall.KernelErr) {
-		logger.Error("failed to launch the kv service: %s", syscall.KernelErr_name[int32(err)])
+		logger.Error("failed to launch the kv service", "kernel error", syscall.KernelErr_name[int32(err)])
 		lib.ExitSelf(ctx, 1, myId)
 	})
 

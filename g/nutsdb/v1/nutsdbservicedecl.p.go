@@ -7,8 +7,7 @@ package nutsdb
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -62,12 +61,10 @@ func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*OpenResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureOpen) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -194,12 +191,10 @@ func (f * FutureReadPair) CompleteMethod(ctx context.Context,a proto.Message, e 
     if a!=nil {
         tmp, ok:=a.(*ReadPairResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureReadPair) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -268,12 +263,10 @@ func (f * FutureWritePair) CompleteMethod(ctx context.Context,a proto.Message, e
     if a!=nil {
         tmp, ok:=a.(*WritePairResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureWritePair) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

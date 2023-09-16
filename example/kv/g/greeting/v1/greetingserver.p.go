@@ -336,7 +336,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Greeting) (*l
 //go:wasmimport greeting fetch_greeting_
 func FetchGreeting_(int32,int32,int32,int32) int64
 func FetchGreetingHost(ctx context.Context,inPtr *FetchGreetingRequest) *FutureFetchGreeting {
-	outProtoPtr := (*FetchGreetingResponse)(nil)
+	outProtoPtr := &FetchGreetingResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, FetchGreeting_)
 	f:=NewFutureFetchGreeting()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

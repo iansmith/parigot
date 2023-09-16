@@ -74,7 +74,8 @@ func CompleteCall(ctx context.Context, hid id.HostId, cid id.CallId, result *any
 		return syscall.KernelErr_NotFound
 	}
 	delCompleted(hid, cid)
-	log.Printf("xxx --- cmplete call %s", result.TypeUrl)
+	//log.Printf("xxx --- cmplete call %s", result.TypeUrl)
+	//debug.PrintStack()
 	comp.CompleteMethod(ctx, result, resultErr, orig)
 	return syscall.KernelErr_NoError
 }

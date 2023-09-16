@@ -387,7 +387,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl NutsDB) (*lib
 //go:wasmimport nutsdb open_
 func Open_(int32,int32,int32,int32) int64
 func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
-	outProtoPtr := (*OpenResponse)(nil)
+	outProtoPtr := &OpenResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Open_)
 	f:=NewFutureOpen()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -397,7 +397,7 @@ func OpenHost(ctx context.Context,inPtr *OpenRequest) *FutureOpen {
 //go:wasmimport nutsdb close_
 func Close_(int32,int32,int32,int32) int64
 func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
-	outProtoPtr := (*CloseResponse)(nil)
+	outProtoPtr := &CloseResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Close_)
 	f:=NewFutureClose()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -407,7 +407,7 @@ func CloseHost(ctx context.Context,inPtr *CloseRequest) *FutureClose {
 //go:wasmimport nutsdb read_pair_
 func ReadPair_(int32,int32,int32,int32) int64
 func ReadPairHost(ctx context.Context,inPtr *ReadPairRequest) *FutureReadPair {
-	outProtoPtr := (*ReadPairResponse)(nil)
+	outProtoPtr := &ReadPairResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, ReadPair_)
 	f:=NewFutureReadPair()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -417,7 +417,7 @@ func ReadPairHost(ctx context.Context,inPtr *ReadPairRequest) *FutureReadPair {
 //go:wasmimport nutsdb write_pair_
 func WritePair_(int32,int32,int32,int32) int64
 func WritePairHost(ctx context.Context,inPtr *WritePairRequest) *FutureWritePair {
-	outProtoPtr := (*WritePairResponse)(nil)
+	outProtoPtr := &WritePairResponse{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, WritePair_)
 	f:=NewFutureWritePair()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

@@ -7,8 +7,7 @@ package httpconnector
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -56,12 +55,10 @@ func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*HandleResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureHandle) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }

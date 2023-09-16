@@ -396,7 +396,6 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 {{- $iParam:=.InputParam.CGType.String $protoPkg}}
 {{- $oParam:=.OutputParam.CGType.String $protoPkg}}
 
-
 {{- $hostFuncName:= $methCamel}}
 {{- $hostFuncNameSnake:= $methSnake}}
 {{- if ne .HostFuncName ""}} 
@@ -407,7 +406,7 @@ func MustLaunchService{{$svcDiff}}(ctx context.Context, sid id.ServiceId, impl {
 //go:wasmimport {{packageToGoName $pkg}} {{$hostFuncNameSnake}}{{$svcDiff}}_
 func {{$hostFuncName}}_(int32,int32,int32,int32) int64
 func {{$hostFuncName}}{{$svcDiff}}Host(ctx context.Context,inPtr *{{$iParam}}) *Future{{$svcDiff}}{{$methCamel}} {
-	outProtoPtr := (*{{$oParam}})(nil)
+	outProtoPtr := &{{$oParam}}{}
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, {{$methCamel}}_)
 	f:=NewFuture{{$svcDiff}}{{$methCamel}}()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

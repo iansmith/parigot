@@ -7,8 +7,7 @@ package test
 
 
 import(
-    "context"
-    "log" 
+    "context" 
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -58,12 +57,10 @@ func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Mes
     if a!=nil {
         tmp, ok:=a.(*AddTestSuiteResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureTestAddTestSuite) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -132,12 +129,10 @@ func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e
     if a!=nil {
         tmp, ok:=a.(*StartResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureTestStart) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -227,12 +222,10 @@ func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.
     if a!=nil {
         tmp, ok:=a.(*ExecResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureMethodCallSuiteExec) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
@@ -378,12 +371,10 @@ func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Messag
     if a!=nil {
         tmp, ok:=a.(*ExecResponse)
         if !ok {
-            log.Printf("%T inside an Any (FutureUnderTestExec) CompleteMethod)",out)
             if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
                 return syscall.KernelErr_UnmarshalFailed
             }
         } else {
-            log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
         }
     }
