@@ -11,10 +11,6 @@ package test
 import (
 	"context"
 	"fmt"
-<<<<<<< HEAD
-=======
-	"log"
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	"log/slog"
 	"runtime/debug"
     "unsafe"
@@ -133,14 +129,8 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
-<<<<<<< HEAD
 				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 				slog.Error("completing method failed due to panic")
-=======
-				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
-				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
-					mid.Short(), sid.Short(), r)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -159,14 +149,6 @@ func ReadOneAndCallTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-<<<<<<< HEAD
-=======
-	//if mid.Equal(apishared.ExitMethod) {
-	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
-	//	os.Exit(51)
-	//}
-
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -365,11 +347,7 @@ func MustLaunchServiceTest(ctx context.Context, sid id.ServiceId, impl Test) (*l
 //go:wasmimport test add_test_suiteTest_
 func AddTestSuite_(int32,int32,int32,int32) int64
 func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *FutureTestAddTestSuite {
-<<<<<<< HEAD
 	outProtoPtr := &AddTestSuiteResponse{}
-=======
-	outProtoPtr := (*AddTestSuiteResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, AddTestSuite_)
 	f:=NewFutureTestAddTestSuite()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -379,11 +357,7 @@ func AddTestSuiteTestHost(ctx context.Context,inPtr *AddTestSuiteRequest) *Futur
 //go:wasmimport test startTest_
 func Start_(int32,int32,int32,int32) int64
 func StartTestHost(ctx context.Context,inPtr *StartRequest) *FutureTestStart {
-<<<<<<< HEAD
 	outProtoPtr := &StartResponse{}
-=======
-	outProtoPtr := (*StartResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Start_)
 	f:=NewFutureTestStart()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -532,14 +506,8 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
-<<<<<<< HEAD
 				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 				slog.Error("completing method failed due to panic")
-=======
-				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
-				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
-					mid.Short(), sid.Short(), r)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -558,14 +526,6 @@ func ReadOneAndCallMethodCallSuite(ctx context.Context, binding *lib.ServiceMeth
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-<<<<<<< HEAD
-=======
-	//if mid.Equal(apishared.ExitMethod) {
-	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
-	//	os.Exit(51)
-	//}
-
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -764,11 +724,7 @@ func MustLaunchServiceMethodCallSuite(ctx context.Context, sid id.ServiceId, imp
 //go:wasmimport test execMethodCallSuite_
 func Exec_(int32,int32,int32,int32) int64
 func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMethodCallSuiteExec {
-<<<<<<< HEAD
 	outProtoPtr := &ExecResponse{}
-=======
-	outProtoPtr := (*ExecResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureMethodCallSuiteExec()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -778,11 +734,7 @@ func ExecMethodCallSuiteHost(ctx context.Context,inPtr *ExecRequest) *FutureMeth
 //go:wasmimport test suite_reportMethodCallSuite_
 func SuiteReport_(int32,int32,int32,int32) int64
 func SuiteReportMethodCallSuiteHost(ctx context.Context,inPtr *SuiteReportRequest) *FutureMethodCallSuiteSuiteReport {
-<<<<<<< HEAD
 	outProtoPtr := &SuiteReportResponse{}
-=======
-	outProtoPtr := (*SuiteReportResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, SuiteReport_)
 	f:=NewFutureMethodCallSuiteSuiteReport()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -931,14 +883,8 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
-<<<<<<< HEAD
 				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 				slog.Error("completing method failed due to panic")
-=======
-				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
-				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
-					mid.Short(), sid.Short(), r)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -957,14 +903,6 @@ func ReadOneAndCallUnderTest(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-<<<<<<< HEAD
-=======
-	//if mid.Equal(apishared.ExitMethod) {
-	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
-	//	os.Exit(51)
-	//}
-
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -1146,11 +1084,7 @@ func MustLaunchServiceUnderTest(ctx context.Context, sid id.ServiceId, impl Unde
 //go:wasmimport test exec_under_testUnderTest_
 func ExecUnderTest_(int32,int32,int32,int32) int64
 func ExecUnderTestUnderTestHost(ctx context.Context,inPtr *ExecRequest) *FutureUnderTestExec {
-<<<<<<< HEAD
 	outProtoPtr := &ExecResponse{}
-=======
-	outProtoPtr := (*ExecResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Exec_)
 	f:=NewFutureUnderTestExec()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

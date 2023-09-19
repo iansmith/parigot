@@ -11,10 +11,6 @@ package httpconnector
 import (
 	"context"
 	"fmt"
-<<<<<<< HEAD
-=======
-	"log"
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	"log/slog"
 	"runtime/debug"
     "unsafe"
@@ -132,14 +128,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
-<<<<<<< HEAD
 				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 				slog.Error("completing method failed due to panic")
-=======
-				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
-				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
-					mid.Short(), sid.Short(), r)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -158,14 +148,6 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
-<<<<<<< HEAD
-=======
-	//if mid.Equal(apishared.ExitMethod) {
-	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
-	//	os.Exit(51)
-	//}
-
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -347,11 +329,7 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl HttpConnector
 //go:wasmimport httpconnector handle_
 func Handle_(int32,int32,int32,int32) int64
 func HandleHost(ctx context.Context,inPtr *HandleRequest) *FutureHandle {
-<<<<<<< HEAD
 	outProtoPtr := &HandleResponse{}
-=======
-	outProtoPtr := (*HandleResponse)(nil)
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Handle_)
 	f:=NewFutureHandle()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())

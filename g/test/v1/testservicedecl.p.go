@@ -55,7 +55,6 @@ type FutureTestAddTestSuite struct {
 func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&AddTestSuiteResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*AddTestSuiteResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -66,10 +65,6 @@ func (f * FutureTestAddTestSuite) CompleteMethod(ctx context.Context,a proto.Mes
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -83,14 +78,6 @@ func (f *FutureTestAddTestSuite)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureTestAddTestSuite)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureTestAddTestSuite)Failure(ffn func (int32)) {
     x:=func(err TestErr) {
         ffn(int32(err))
@@ -143,7 +130,6 @@ type FutureTestStart struct {
 func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&StartResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*StartResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -154,10 +140,6 @@ func (f * FutureTestStart) CompleteMethod(ctx context.Context,a proto.Message, e
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -171,14 +153,6 @@ func (f *FutureTestStart)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureTestStart)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureTestStart)Failure(ffn func (int32)) {
     x:=func(err TestErr) {
         ffn(int32(err))
@@ -252,7 +226,6 @@ type FutureMethodCallSuiteExec struct {
 func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*ExecResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -263,10 +236,6 @@ func (f * FutureMethodCallSuiteExec) CompleteMethod(ctx context.Context,a proto.
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -280,14 +249,6 @@ func (f *FutureMethodCallSuiteExec)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureMethodCallSuiteExec)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureMethodCallSuiteExec)Failure(ffn func (int32)) {
     x:=func(err TestErr) {
         ffn(int32(err))
@@ -346,12 +307,6 @@ func (f *FutureMethodCallSuiteSuiteReport)Success(sfn func (proto.Message)) {
     // no way for this to be called
 } 
 
-<<<<<<< HEAD
-func (f *FutureMethodCallSuiteSuiteReport)VerifyRejectPresent() { 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureMethodCallSuiteSuiteReport)Failure(ffn func (int32)) {
     x:=func(err TestErr) {
         ffn(int32(err))
@@ -423,7 +378,6 @@ type FutureUnderTestExec struct {
 func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ExecResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*ExecResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -434,10 +388,6 @@ func (f * FutureUnderTestExec) CompleteMethod(ctx context.Context,a proto.Messag
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,TestErr(e)) 
@@ -451,14 +401,6 @@ func (f *FutureUnderTestExec)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureUnderTestExec)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureUnderTestExec)Failure(ffn func (int32)) {
     x:=func(err TestErr) {
         ffn(int32(err))

@@ -82,11 +82,6 @@ func (f *FutureOpen)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-func (f *FutureOpen)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
 func (f *FutureOpen)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
         ffn(int32(err))
@@ -144,9 +139,6 @@ func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int
 func (f *FutureClose)Success(sfn func (proto.Message)) {
     // no way for this to be called
 } 
-
-func (f *FutureClose)VerifyRejectPresent() { 
-}
 
 func (f *FutureClose)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
@@ -223,11 +215,6 @@ func (f *FutureReadPair)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-func (f *FutureReadPair)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
 func (f *FutureReadPair)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
         ffn(int32(err))
@@ -302,11 +289,6 @@ func (f *FutureWritePair)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
-
-func (f *FutureWritePair)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
 
 func (f *FutureWritePair)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {

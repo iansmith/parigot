@@ -66,23 +66,16 @@ type Method[T proto.Message, U ErrorType] struct {
 // from a previous call to the Method.  The error value, U, is typically
 // a named enum that is used for error signaling by the method called.
 func NewMethod[T proto.Message, U ErrorType](resolve func(T), reject func(U)) *Method[T, U] {
-<<<<<<< HEAD
 	result := &Method[T, U]{
-=======
-	return &Method[T, U]{
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 		resolveFn: resolve,
 		rejectFn:  reject,
 		waitingId: id.NewCallId(),
 	}
-<<<<<<< HEAD
 	// raw := uintptr(unsafe.Pointer(result))
 	// log.Printf("--------------------------------- %x\n\n", raw)
 	// debug.PrintStack()
 	// log.Printf("---------------------------------END %x\n\n", raw)
 	return result
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 }
 
 // WaitingId is useful only to the go client side library.  The WaitingId
@@ -187,18 +180,6 @@ func (f *Method[T, U]) ValueErr() U {
 	return f.rejectedValue
 }
 
-<<<<<<< HEAD
-func (f *Method[T, U]) VerifyRejectPresent() {
-	if f.rejectFn == nil {
-		panic("NO REJECT")
-	}
-	if f.rejectSucc == nil {
-		panic("no reject successor")
-	}
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 // String() returns a human-friendly version of this Method future.
 // It shows it is resolved and if so, if the completion was an error.
 func (f *Method[T, U]) String() string {
@@ -214,13 +195,9 @@ func (f *Method[T, U]) String() string {
 			buf.WriteString("success")
 		}
 	} else {
-<<<<<<< HEAD
 		haveSuccess := fmt.Sprintf("have success?%v", f.resolveFn != nil)
 		haveFailure := fmt.Sprintf("have failure?%v", f.rejectFn != nil)
 		buf.WriteString("waiting. " + haveSuccess + "," + haveFailure)
-=======
-		buf.WriteString("waiting")
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	}
 	return buf.String()
 }
@@ -255,10 +232,6 @@ func (f *Method[T, U]) Failure(fn func(U)) {
 	last := f.findLast(false)
 	next := NewMethod[T, U](nil, fn)
 	last.rejectSucc = next
-<<<<<<< HEAD
-=======
-
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 }
 
 // WasSuccess returns true if the Method is completed and finished

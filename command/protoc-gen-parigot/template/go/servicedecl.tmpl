@@ -152,12 +152,6 @@ func (f *Future{{$svcDiff}}{{$methCamel}})Success(sfn func (proto.Message)) {
 }
 {{- end }} {{/* end of output code needed*/}}
 
-func (f *Future{{$svcDiff}}{{$methCamel}})VerifyRejectPresent() {
-{{- if .OutputCodeNeeded}}
-    f.Method.VerifyRejectPresent()
-{{ end }} {{/* end of verify, do nothing if no output */}}
-}
-
 func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func (int32)) {
 {{- if .OutputCodeNeeded}}
     x:=func(err {{$errId}}) {

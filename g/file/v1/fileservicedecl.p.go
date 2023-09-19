@@ -67,7 +67,6 @@ type FutureOpen struct {
 func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OpenResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*OpenResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -78,10 +77,6 @@ func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int3
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -95,14 +90,6 @@ func (f *FutureOpen)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureOpen)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureOpen)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -155,7 +142,6 @@ type FutureCreate struct {
 func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&CreateResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*CreateResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -166,10 +152,6 @@ func (f * FutureCreate) CompleteMethod(ctx context.Context,a proto.Message, e in
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -183,14 +165,6 @@ func (f *FutureCreate)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureCreate)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureCreate)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -243,7 +217,6 @@ type FutureClose struct {
 func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&CloseResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*CloseResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -254,10 +227,6 @@ func (f * FutureClose) CompleteMethod(ctx context.Context,a proto.Message, e int
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -271,14 +240,6 @@ func (f *FutureClose)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureClose)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureClose)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -331,7 +292,6 @@ type FutureLoadTestData struct {
 func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&LoadTestDataResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*LoadTestDataResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -342,10 +302,6 @@ func (f * FutureLoadTestData) CompleteMethod(ctx context.Context,a proto.Message
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -359,14 +315,6 @@ func (f *FutureLoadTestData)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureLoadTestData)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureLoadTestData)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -419,7 +367,6 @@ type FutureRead struct {
 func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ReadResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*ReadResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -430,10 +377,6 @@ func (f * FutureRead) CompleteMethod(ctx context.Context,a proto.Message, e int3
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -447,14 +390,6 @@ func (f *FutureRead)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureRead)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureRead)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -507,7 +442,6 @@ type FutureWrite struct {
 func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&WriteResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*WriteResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -518,10 +452,6 @@ func (f * FutureWrite) CompleteMethod(ctx context.Context,a proto.Message, e int
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -535,14 +465,6 @@ func (f *FutureWrite)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureWrite)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureWrite)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -595,7 +517,6 @@ type FutureDelete struct {
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&DeleteResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*DeleteResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -606,10 +527,6 @@ func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e in
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -623,14 +540,6 @@ func (f *FutureDelete)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureDelete)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureDelete)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
@@ -683,7 +592,6 @@ type FutureStat struct {
 func (f * FutureStat) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&StatResponse{}
     if a!=nil {
-<<<<<<< HEAD
         tmp, ok:=a.(*StatResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -694,10 +602,6 @@ func (f * FutureStat) CompleteMethod(ctx context.Context,a proto.Message, e int3
             }
         } else {
             proto.Merge(out,tmp)
-=======
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,FileErr(e)) 
@@ -711,14 +615,6 @@ func (f *FutureStat)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-<<<<<<< HEAD
-func (f *FutureStat)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
-=======
->>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureStat)Failure(ffn func (int32)) {
     x:=func(err FileErr) {
         ffn(int32(err))
