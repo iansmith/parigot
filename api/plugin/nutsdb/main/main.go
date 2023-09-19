@@ -5,6 +5,8 @@ package main
 import (
 	apiplugin "github.com/iansmith/parigot/api/plugin"
 	"github.com/iansmith/parigot/api/plugin/nutsdb"
+
+	_ "time/tzdata"
 )
 
 var ParigotInitialize apiplugin.ParigotInit = &nutsdb.NutsDBPlugin{}

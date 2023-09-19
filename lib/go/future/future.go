@@ -1,6 +1,9 @@
-//go:build wasip1
-
 package future
+
+// tricky: this code runs completely on the client
+// side of a parigot program.  however, to run the
+// tests easily, it cannot have //go:build wasip1 because
+// that prevents the tests from running locally.
 
 import (
 	"bytes"
@@ -63,11 +66,16 @@ type Method[T proto.Message, U ErrorType] struct {
 // from a previous call to the Method.  The error value, U, is typically
 // a named enum that is used for error signaling by the method called.
 func NewMethod[T proto.Message, U ErrorType](resolve func(T), reject func(U)) *Method[T, U] {
-	return &Method[T, U]{
+	result := &Method[T, U]{
 		resolveFn: resolve,
 		rejectFn:  reject,
 		waitingId: id.NewCallId(),
 	}
+	// raw := uintptr(unsafe.Pointer(result))
+	// log.Printf("--------------------------------- %x\n\n", raw)
+	// debug.PrintStack()
+	// log.Printf("---------------------------------END %x\n\n", raw)
+	return result
 }
 
 // WaitingId is useful only to the go client side library.  The WaitingId
@@ -172,6 +180,15 @@ func (f *Method[T, U]) ValueErr() U {
 	return f.rejectedValue
 }
 
+func (f *Method[T, U]) VerifyRejectPresent() {
+	if f.rejectFn == nil {
+		panic("NO REJECT")
+	}
+	if f.rejectSucc == nil {
+		panic("no reject successor")
+	}
+}
+
 // String() returns a human-friendly version of this Method future.
 // It shows it is resolved and if so, if the completion was an error.
 func (f *Method[T, U]) String() string {
@@ -187,7 +204,9 @@ func (f *Method[T, U]) String() string {
 			buf.WriteString("success")
 		}
 	} else {
-		buf.WriteString("waiting")
+		haveSuccess := fmt.Sprintf("have success?%v", f.resolveFn != nil)
+		haveFailure := fmt.Sprintf("have failure?%v", f.rejectFn != nil)
+		buf.WriteString("waiting. " + haveSuccess + "," + haveFailure)
 	}
 	return buf.String()
 }
@@ -222,7 +241,6 @@ func (f *Method[T, U]) Failure(fn func(U)) {
 	last := f.findLast(false)
 	next := NewMethod[T, U](nil, fn)
 	last.rejectSucc = next
-
 }
 
 // WasSuccess returns true if the Method is completed and finished

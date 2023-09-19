@@ -55,8 +55,11 @@ func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Messag
     if a!=nil {
         tmp, ok:=a.(*FetchGreetingResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -72,6 +75,11 @@ func (f *FutureFetchGreeting)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureFetchGreeting)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureFetchGreeting)Failure(ffn func (int32)) {
     x:=func(err GreetErr) {

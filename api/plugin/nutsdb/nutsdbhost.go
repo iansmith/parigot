@@ -25,6 +25,10 @@ type NutsDBPlugin struct{}
 
 var nutsdbSvc *nutsdbSvcImpl
 
+const maxBucketPathLen = 4096
+const maxKeySize = 4096
+const maxValueSize = 4096 << 3
+
 type nutsdbSvcImpl struct {
 	datadir string
 	idToDB  map[string]*nuts.DB
@@ -90,7 +94,6 @@ func (n *nutsdbSvcImpl) open(ctx context.Context, req *nutsdb.OpenRequest,
 		return int32(nutsdb.NutsDBErr_InternalError)
 	}
 	n.idToDB[id.String()] = db
-	nutsdblogger.Info("open succeed in nutsdb", "id", id.Short())
 	resp.NutsdbId = id.Marshal()
 
 	return int32(nutsdb.NutsDBErr_NoError)
@@ -149,26 +152,39 @@ func (n *nutsdbSvcImpl) writePair(ctx context.Context, req *nutsdb.WritePairRequ
 	if !ok {
 		return int32(nutsdb.NutsDBErr_BadId)
 	}
+	l := checkLength(req.Pair.GetBucketPath(),
+		req.Pair.GetKey(), req.Pair.GetValue())
+	if l != nutsdb.NutsDBErr_NoError {
+		return int32(l)
+	}
 	// end of preamble
 	err := db.Update(
 		func(tx *nuts.Tx) error {
-			k := req.Pair.GetKey()
-			v := req.Pair.GetValue()
+			k := make([]byte, len(req.Pair.GetKey()))
+			copy(k, req.Pair.GetKey())
+			v := make([]byte, len(req.Pair.GetValue()))
+			copy(v, req.Pair.GetValue())
 			b := req.Pair.GetBucketPath()
 			err := tx.Put(b, k, v, nuts.Persistent)
 			return err
 		})
-	if err == nil {
-		return int32(nutsdb.NutsDBErr_NoError)
+	if err != nil {
+		perr, ok := err.(*wrappedParigotErr)
+		if !ok {
+			inner := errors.Unwrap(err)
+			nutsdblogger.Error("unable to understand returned error from nutsdb, not a parigot error", "error", err, "type", fmt.Sprintf("%T", err), "inner", inner, "inner type", fmt.Sprintf("%T", inner))
+			return int32(nutsdb.NutsDBErr_InternalError)
+		}
+		return perr.err
 	}
+	resp.Pair = &nutsdb.Pair{}
+	resp.Pair.Key = make([]byte, len(req.GetPair().GetKey()))
+	copy(resp.GetPair().GetKey(), req.GetPair().GetKey())
+	resp.Pair.Value = make([]byte, len(req.GetPair().GetValue()))
+	copy(resp.GetPair().GetValue(), req.GetPair().GetValue())
+	resp.GetPair().BucketPath = req.GetPair().GetBucketPath()
 
-	perr, ok := err.(*wrappedParigotErr)
-	if !ok {
-		inner := errors.Unwrap(err)
-		nutsdblogger.Error("unable to understand returned error from nutsdb, not a parigot error", "error", err, "type", fmt.Sprintf("%T", err), "inner", inner, "inner type", fmt.Sprintf("%T", inner))
-		return int32(nutsdb.NutsDBErr_InternalError)
-	}
-	return int32(perr.err)
+	return int32(nutsdb.NutsDBErr_NoError)
 }
 
 func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairRequest,
@@ -194,7 +210,11 @@ func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairReques
 	// end of preamble
 
 	wasNotFound := false
-
+	l := checkLength(req.Pair.GetBucketPath(), req.Pair.GetKey(), req.Pair.GetValue())
+	if l != nutsdb.NutsDBErr_NoError {
+		return int32(l)
+	}
+	resp.Pair = &nutsdb.Pair{}
 	raw := db.View(
 		func(tx *nuts.Tx) error {
 			k := req.Pair.GetKey()
@@ -202,7 +222,11 @@ func (n *nutsdbSvcImpl) readPair(ctx context.Context, req *nutsdb.ReadPairReques
 
 			value, err := tx.Get(b, k)
 			if err == nil {
-				resp.Pair.Value = value.Value
+				resp.Pair.Value = make([]byte, len(value.Value))
+				copy(resp.Pair.Value, value.Value)
+				resp.Pair.BucketPath = req.Pair.GetBucketPath()
+				resp.Pair.Key = make([]byte, len(req.Pair.GetKey()))
+				copy(resp.Pair.Key, req.Pair.Key)
 				return nil
 			}
 			if nuts.IsKeyNotFound(err) {
@@ -294,4 +318,17 @@ func writePairNutsDBHost(ctx context.Context, m api.Module, stack []uint64) {
 	resp := &nutsdb.WritePairResponse{}
 
 	apiplugin.HostBase(ctx, "[nutsdb]writePair", nutsdbSvc.writePair, m, stack, req, resp)
+}
+
+func checkLength(path string, k []byte, v []byte) nutsdb.NutsDBErr {
+	if len(path) > maxBucketPathLen {
+		return nutsdb.NutsDBErr_BucketPathTooLong
+	}
+	if len(k) > maxKeySize {
+		return nutsdb.NutsDBErr_KeyTooLarge
+	}
+	if len(v) > maxValueSize {
+		return nutsdb.NutsDBErr_ValueTooLarge
+	}
+	return nutsdb.NutsDBErr_NoError
 }

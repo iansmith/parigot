@@ -1,11 +1,10 @@
-//go:build wasip1
-
 package future
 
 import (
 	"context"
 	"testing"
 
+	"github.com/iansmith/parigot/g/nutsdb/v1"
 	"github.com/iansmith/parigot/g/syscall/v1"
 )
 
@@ -288,4 +287,27 @@ func setupAll(successX3 *bool, ptr **syscall.DispatchRequest) (*Method[*syscall.
 
 	fut := All(x1, x2, x3)
 	return x1, x2, x3, fut
+}
+
+func TestFailure(t *testing.T) {
+
+	counter := 7
+
+	succ := func(resp *nutsdb.ReadPairResponse) {
+		t.Errorf("should never call success")
+	}
+
+	fail1 := func(nerr nutsdb.NutsDBErr) {
+		counter++
+	}
+
+	m := NewMethod[*nutsdb.ReadPairResponse, nutsdb.NutsDBErr](succ, fail1)
+	if counter != 7 {
+		panic("7 should equal 7")
+	}
+
+	m.CompleteMethod(context.Background(), nil, nutsdb.NutsDBErr_PairNotFound)
+	if counter != 8 {
+		t.Errorf("unable to update corectly on failure of the method")
+	}
 }

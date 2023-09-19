@@ -11,7 +11,6 @@ package greeting
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"runtime/debug"
     "unsafe"
@@ -129,9 +128,8 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
-				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
-				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
-					mid.Short(), sid.Short(), r)
+				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+				slog.Error("completing method failed due to panic")
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -149,11 +147,6 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
-
-	//if mid.Equal(apishared.ExitMethod) {
-	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
-	//	os.Exit(51)
-	//}
 
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed

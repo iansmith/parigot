@@ -71,8 +71,11 @@ func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32
     if a!=nil {
         tmp, ok:=a.(*GetResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -88,6 +91,11 @@ func (f *FutureGet)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureGet)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureGet)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -143,8 +151,11 @@ func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*PostResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -160,6 +171,11 @@ func (f *FuturePost)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FuturePost)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FuturePost)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -215,8 +231,11 @@ func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32
     if a!=nil {
         tmp, ok:=a.(*PutResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -232,6 +251,11 @@ func (f *FuturePut)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FuturePut)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FuturePut)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -287,8 +311,11 @@ func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*DeleteResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -304,6 +331,11 @@ func (f *FutureDelete)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureDelete)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureDelete)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -359,8 +391,11 @@ func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*HeadResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -376,6 +411,11 @@ func (f *FutureHead)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureHead)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureHead)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -431,8 +471,11 @@ func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*OptionsResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -448,6 +491,11 @@ func (f *FutureOptions)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureOptions)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureOptions)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -503,8 +551,11 @@ func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int
     if a!=nil {
         tmp, ok:=a.(*PatchResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -520,6 +571,11 @@ func (f *FuturePatch)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FuturePatch)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FuturePatch)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -575,8 +631,11 @@ func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*ConnectResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -592,6 +651,11 @@ func (f *FutureConnect)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureConnect)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureConnect)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
@@ -647,8 +711,11 @@ func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int
     if a!=nil {
         tmp, ok:=a.(*TraceResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -664,6 +731,11 @@ func (f *FutureTrace)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureTrace)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureTrace)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {

@@ -61,8 +61,11 @@ func (f * FutureOpen) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*OpenResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -78,6 +81,11 @@ func (f *FutureOpen)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureOpen)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureOpen)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
@@ -137,6 +145,9 @@ func (f *FutureClose)Success(sfn func (proto.Message)) {
     // no way for this to be called
 } 
 
+func (f *FutureClose)VerifyRejectPresent() { 
+}
+
 func (f *FutureClose)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
         ffn(int32(err))
@@ -191,8 +202,11 @@ func (f * FutureReadPair) CompleteMethod(ctx context.Context,a proto.Message, e 
     if a!=nil {
         tmp, ok:=a.(*ReadPairResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -208,6 +222,11 @@ func (f *FutureReadPair)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureReadPair)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureReadPair)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {
@@ -263,8 +282,11 @@ func (f * FutureWritePair) CompleteMethod(ctx context.Context,a proto.Message, e
     if a!=nil {
         tmp, ok:=a.(*WritePairResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -280,6 +302,11 @@ func (f *FutureWritePair)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureWritePair)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureWritePair)Failure(ffn func (int32)) {
     x:=func(err NutsDBErr) {

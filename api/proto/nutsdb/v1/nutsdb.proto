@@ -149,4 +149,7 @@ enum NutsDBErr {
   DBIsClosed = 11;
   Expired = 12;
   KeyEmpty = 13;
+  BucketPathTooLong = 14;
+  KeyTooLarge = 15;
+  ValueTooLarge = 16;
 }

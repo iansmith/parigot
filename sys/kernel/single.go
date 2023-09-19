@@ -1,7 +1,6 @@
 package kernel
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -61,7 +60,6 @@ func (s *SingleApproach) HandleDispatch(req *syscall.DispatchRequest,
 	// special case for exit
 	//
 	if sid.Equal(apishared.ExitService) && mid.Equal(id.MethodId(apishared.ExitMethod)) {
-		log.Printf("xxx -- got an exit request")
 		pair := syscall.ExitPair{}
 		if e := req.Param.UnmarshalTo(&pair); e != nil {
 			klog.Errorf("unable to unmarshal into exit pair: %v", e)

@@ -121,8 +121,11 @@ func (f * Future{{$svcDiff}}{{$methCamel}}) CompleteMethod(ctx context.Context,a
     if a!=nil {
         tmp, ok:=a.({{$outParam}})
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -148,6 +151,12 @@ func (f *Future{{$svcDiff}}{{$methCamel}})Success(sfn func (proto.Message)) {
     // no way for this to be called
 }
 {{- end }} {{/* end of output code needed*/}}
+
+func (f *Future{{$svcDiff}}{{$methCamel}})VerifyRejectPresent() {
+{{- if .OutputCodeNeeded}}
+    f.Method.VerifyRejectPresent()
+{{ end }} {{/* end of verify, do nothing if no output */}}
+}
 
 func (f *Future{{$svcDiff}}{{$methCamel}})Failure(ffn func (int32)) {
 {{- if .OutputCodeNeeded}}

@@ -67,8 +67,11 @@ func (f * FutureCreateQueue) CompleteMethod(ctx context.Context,a proto.Message,
     if a!=nil {
         tmp, ok:=a.(*CreateQueueResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -84,6 +87,11 @@ func (f *FutureCreateQueue)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureCreateQueue)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureCreateQueue)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -139,8 +147,11 @@ func (f * FutureLocate) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*LocateResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -156,6 +167,11 @@ func (f *FutureLocate)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureLocate)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureLocate)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -211,8 +227,11 @@ func (f * FutureDeleteQueue) CompleteMethod(ctx context.Context,a proto.Message,
     if a!=nil {
         tmp, ok:=a.(*DeleteQueueResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -228,6 +247,11 @@ func (f *FutureDeleteQueue)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureDeleteQueue)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureDeleteQueue)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -283,8 +307,11 @@ func (f * FutureReceive) CompleteMethod(ctx context.Context,a proto.Message, e i
     if a!=nil {
         tmp, ok:=a.(*ReceiveResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -300,6 +327,11 @@ func (f *FutureReceive)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureReceive)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureReceive)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -355,8 +387,11 @@ func (f * FutureMarkDone) CompleteMethod(ctx context.Context,a proto.Message, e 
     if a!=nil {
         tmp, ok:=a.(*MarkDoneResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -372,6 +407,11 @@ func (f *FutureMarkDone)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureMarkDone)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureMarkDone)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -427,8 +467,11 @@ func (f * FutureLength) CompleteMethod(ctx context.Context,a proto.Message, e in
     if a!=nil {
         tmp, ok:=a.(*LengthResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -444,6 +487,11 @@ func (f *FutureLength)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureLength)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureLength)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
@@ -499,8 +547,11 @@ func (f * FutureSend) CompleteMethod(ctx context.Context,a proto.Message, e int3
     if a!=nil {
         tmp, ok:=a.(*SendResponse)
         if !ok {
-            if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-                return syscall.KernelErr_UnmarshalFailed
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
             }
         } else {
             proto.Merge(out,tmp)
@@ -516,6 +567,11 @@ func (f *FutureSend)Success(sfn func (proto.Message)) {
     }
     f.Method.Success(x)
 } 
+
+func (f *FutureSend)VerifyRejectPresent() {
+    f.Method.VerifyRejectPresent()
+ 
+}
 
 func (f *FutureSend)Failure(ffn func (int32)) {
     x:=func(err QueueErr) {
