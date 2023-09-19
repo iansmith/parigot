@@ -7,8 +7,12 @@ package greeting
 
 
 import(
+<<<<<<< HEAD
     "context"
     "log" 
+=======
+    "context" 
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 
     "github.com/iansmith/parigot/lib/go/future"  
     "github.com/iansmith/parigot/lib/go/client"  
@@ -54,6 +58,7 @@ type FutureFetchGreeting struct {
 func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&FetchGreetingResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*FetchGreetingResponse)
         if !ok {
             log.Printf("%T inside an Any (FutureFetchGreeting) CompleteMethod)",out)
@@ -63,6 +68,10 @@ func (f * FutureFetchGreeting) CompleteMethod(ctx context.Context,a proto.Messag
         } else {
             log.Printf("%T was directly pulled from result %+v",tmp, tmp)
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,GreetErr(e)) 

@@ -53,6 +53,7 @@ type FutureHandle struct {
 func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&HandleResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*HandleResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -63,6 +64,10 @@ func (f * FutureHandle) CompleteMethod(ctx context.Context,a proto.Message, e in
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpConnectorErr(e)) 
@@ -76,11 +81,14 @@ func (f *FutureHandle)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureHandle)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureHandle)Failure(ffn func (int32)) {
     x:=func(err HttpConnectorErr) {
         ffn(int32(err))

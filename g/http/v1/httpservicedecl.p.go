@@ -69,6 +69,7 @@ type FutureGet struct {
 func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&GetResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*GetResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -79,6 +80,10 @@ func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -92,11 +97,14 @@ func (f *FutureGet)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureGet)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureGet)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -149,6 +157,7 @@ type FuturePost struct {
 func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PostResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*PostResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -159,6 +168,10 @@ func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int3
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -172,11 +185,14 @@ func (f *FuturePost)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FuturePost)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FuturePost)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -229,6 +245,7 @@ type FuturePut struct {
 func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PutResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*PutResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -239,6 +256,10 @@ func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -252,11 +273,14 @@ func (f *FuturePut)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FuturePut)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FuturePut)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -309,6 +333,7 @@ type FutureDelete struct {
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&DeleteResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*DeleteResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -319,6 +344,10 @@ func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e in
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -332,11 +361,14 @@ func (f *FutureDelete)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureDelete)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureDelete)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -389,6 +421,7 @@ type FutureHead struct {
 func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&HeadResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*HeadResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -399,6 +432,10 @@ func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int3
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -412,11 +449,14 @@ func (f *FutureHead)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureHead)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureHead)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -469,6 +509,7 @@ type FutureOptions struct {
 func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&OptionsResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*OptionsResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -479,6 +520,10 @@ func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e i
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -492,11 +537,14 @@ func (f *FutureOptions)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureOptions)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureOptions)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -549,6 +597,7 @@ type FuturePatch struct {
 func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&PatchResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*PatchResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -559,6 +608,10 @@ func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -572,11 +625,14 @@ func (f *FuturePatch)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FuturePatch)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FuturePatch)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -629,6 +685,7 @@ type FutureConnect struct {
 func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&ConnectResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*ConnectResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -639,6 +696,10 @@ func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e i
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -652,11 +713,14 @@ func (f *FutureConnect)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureConnect)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureConnect)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))
@@ -709,6 +773,7 @@ type FutureTrace struct {
 func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&TraceResponse{}
     if a!=nil {
+<<<<<<< HEAD
         tmp, ok:=a.(*TraceResponse)
         if !ok {
             cvt:=a.(*anypb.Any)
@@ -719,6 +784,10 @@ func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int
             }
         } else {
             proto.Merge(out,tmp)
+=======
+        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
+            return syscall.KernelErr_UnmarshalFailed
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
         }
     }
     f.Method.CompleteMethod(ctx,out,HttpErr(e)) 
@@ -732,11 +801,14 @@ func (f *FutureTrace)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
+<<<<<<< HEAD
 func (f *FutureTrace)VerifyRejectPresent() {
     f.Method.VerifyRejectPresent()
  
 }
 
+=======
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 func (f *FutureTrace)Failure(ffn func (int32)) {
     x:=func(err HttpErr) {
         ffn(int32(err))

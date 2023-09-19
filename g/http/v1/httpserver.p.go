@@ -11,6 +11,10 @@ package http
 import (
 	"context"
 	"fmt"
+<<<<<<< HEAD
+=======
+	"log"
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	"log/slog"
 	"runtime/debug"
     "unsafe"
@@ -128,8 +132,14 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 		defer func() {
 			if r:=recover(); r!=nil {
 				sid:=id.UnmarshalServiceId(resp.GetBundle().GetServiceId())
+<<<<<<< HEAD
 				//mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 				slog.Error("completing method failed due to panic")
+=======
+				mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
+				log.Printf("completing method %s on service %s failed due to panic: '%s', exiting",
+					mid.Short(), sid.Short(), r)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 				debug.PrintStack()
 				syscallguest.Exit(ctx, &syscall.ExitRequest{
 					Pair: &syscall.ExitPair {
@@ -148,6 +158,14 @@ func ReadOneAndCall(ctx context.Context, binding *lib.ServiceMethodMap,
 	mid:=id.UnmarshalMethodId(resp.GetBundle().GetMethodId())
 	cid:=id.UnmarshalCallId(resp.GetBundle().GetCallId())
 
+<<<<<<< HEAD
+=======
+	//if mid.Equal(apishared.ExitMethod) {
+	// log.Printf("xxx -- got an exit marked read one %s", hid.Short())
+	//	os.Exit(51)
+	//}
+
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	// we let the invoker handle the unmarshal from anypb.Any because it
 	// knows the precise type to be consumed
 	fn:=binding.Func(sid,mid)
@@ -465,7 +483,11 @@ func MustLaunchService(ctx context.Context, sid id.ServiceId, impl Http) (*lib.S
 //go:wasmimport http get_
 func Get_(int32,int32,int32,int32) int64
 func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
+<<<<<<< HEAD
 	outProtoPtr := &GetResponse{}
+=======
+	outProtoPtr := (*GetResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Get_)
 	f:=NewFutureGet()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -475,7 +497,11 @@ func GetHost(ctx context.Context,inPtr *GetRequest) *FutureGet {
 //go:wasmimport http post_
 func Post_(int32,int32,int32,int32) int64
 func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
+<<<<<<< HEAD
 	outProtoPtr := &PostResponse{}
+=======
+	outProtoPtr := (*PostResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Post_)
 	f:=NewFuturePost()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -485,7 +511,11 @@ func PostHost(ctx context.Context,inPtr *PostRequest) *FuturePost {
 //go:wasmimport http put_
 func Put_(int32,int32,int32,int32) int64
 func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
+<<<<<<< HEAD
 	outProtoPtr := &PutResponse{}
+=======
+	outProtoPtr := (*PutResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Put_)
 	f:=NewFuturePut()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -495,7 +525,11 @@ func PutHost(ctx context.Context,inPtr *PutRequest) *FuturePut {
 //go:wasmimport http delete_
 func Delete_(int32,int32,int32,int32) int64
 func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
+<<<<<<< HEAD
 	outProtoPtr := &DeleteResponse{}
+=======
+	outProtoPtr := (*DeleteResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Delete_)
 	f:=NewFutureDelete()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -505,7 +539,11 @@ func DeleteHost(ctx context.Context,inPtr *DeleteRequest) *FutureDelete {
 //go:wasmimport http head_
 func Head_(int32,int32,int32,int32) int64
 func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
+<<<<<<< HEAD
 	outProtoPtr := &HeadResponse{}
+=======
+	outProtoPtr := (*HeadResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Head_)
 	f:=NewFutureHead()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -515,7 +553,11 @@ func HeadHost(ctx context.Context,inPtr *HeadRequest) *FutureHead {
 //go:wasmimport http options_
 func Options_(int32,int32,int32,int32) int64
 func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
+<<<<<<< HEAD
 	outProtoPtr := &OptionsResponse{}
+=======
+	outProtoPtr := (*OptionsResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Options_)
 	f:=NewFutureOptions()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -525,7 +567,11 @@ func OptionsHost(ctx context.Context,inPtr *OptionsRequest) *FutureOptions {
 //go:wasmimport http patch_
 func Patch_(int32,int32,int32,int32) int64
 func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
+<<<<<<< HEAD
 	outProtoPtr := &PatchResponse{}
+=======
+	outProtoPtr := (*PatchResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Patch_)
 	f:=NewFuturePatch()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -535,7 +581,11 @@ func PatchHost(ctx context.Context,inPtr *PatchRequest) *FuturePatch {
 //go:wasmimport http connect_
 func Connect_(int32,int32,int32,int32) int64
 func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
+<<<<<<< HEAD
 	outProtoPtr := &ConnectResponse{}
+=======
+	outProtoPtr := (*ConnectResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Connect_)
 	f:=NewFutureConnect()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
@@ -545,7 +595,11 @@ func ConnectHost(ctx context.Context,inPtr *ConnectRequest) *FutureConnect {
 //go:wasmimport http trace_
 func Trace_(int32,int32,int32,int32) int64
 func TraceHost(ctx context.Context,inPtr *TraceRequest) *FutureTrace {
+<<<<<<< HEAD
 	outProtoPtr := &TraceResponse{}
+=======
+	outProtoPtr := (*TraceResponse)(nil)
+>>>>>>> f55e11b83568f34b26177ccf320367871e9af01c
 	ret, raw, _:= syscallguest.ClientSide(ctx, inPtr, outProtoPtr, Trace_)
 	f:=NewFutureTrace()
 	f.CompleteMethod(ctx,ret,raw, syscallguest.CurrentHostId())
