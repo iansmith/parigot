@@ -40,7 +40,6 @@ clean:
 	rm -rf build/frontdoor.p.wasm build/simple.p.wasm
 	rm -rf g/*
 	
-
 # this pulls down copies of the parigot tools from the internet ... it is
 # use only if you are building outside the parigot root.  it is here mostly
 # for reference.

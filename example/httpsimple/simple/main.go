@@ -86,7 +86,7 @@ func (m *myService) Get(ctx context.Context, req *http.GetRequest) *http.FutureG
 }
 
 // Ready simply returns an already completed future with the value
-// false because it does not have anything to do.  Many Ready()
+// true because it does not have anything to do.  Many Ready()
 // functions use this function to MustLocateXXX() calls to obtain
 // references to other services.  The second parameter is
 // passed here with the ServiceId of myService (the receiver

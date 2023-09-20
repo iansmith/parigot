@@ -276,7 +276,7 @@ func (n *nutsdbSvcImpl) isValidBucketPath(ctx context.Context, path string) (boo
 	}
 	path = filepath.Clean(path)
 	dir := filepath.Dir(path)
-	if dir[0] != '/' {
+	if dir[0] != '/' && dir != "" {
 		nutsdblogger.Warn("not fully qualified bucket path (must start with /)", "path", path)
 		return false, ""
 	}

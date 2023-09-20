@@ -211,9 +211,11 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 test: sqlc helloworldtest
 	go test -v github.com/iansmith/parigot/api/plugin/queue
 	go test -v github.com/iansmith/parigot/api/plugin/file
+	go test -v github.com/iansmith/parigot/api/plugin/nutsdb
 	go test -v github.com/iansmith/parigot/lib/go/future
-	#go test -v github.com/iansmith/parigot/api/plugin/syscall
-
+	go test -v github.com/iansmith/parigot/api/plugin/syscall
+	cd example/kv && make clean && make && runner kv.toml
+	cd example/helloworld && make clean && make && runner helloworld.toml
 ###
 ### DOCS
 ###

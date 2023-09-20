@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/iansmith/parigot/api/guest"
 	syscallguest "github.com/iansmith/parigot/api/guest/syscall"
@@ -122,6 +123,10 @@ func (m *myService) Handle(ctx context.Context, req *httpconnector.HandleRequest
 		slog.Info("error received from GET receiver", "name", http.HttpErr_name[int32(err)])
 		futHandle.Method.CompleteMethod(ctx, nil, httpconnector.HttpConnectorErr_ReceiverFailed)
 	})
+	if strings.HasSuffix(req.Url, "/exit") {
+		logger.Info("exit requested")
+		lib.ExitSelf(ctx, 1, m.myId)
+	}
 	return futHandle
 }
 

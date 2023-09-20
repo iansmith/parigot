@@ -72,8 +72,16 @@ type FutureGet struct {
 func (f * FutureGet) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.GetResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.GetResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -139,8 +147,16 @@ type FuturePost struct {
 func (f * FuturePost) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.PostResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.PostResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -206,8 +222,16 @@ type FuturePut struct {
 func (f * FuturePut) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.PutResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.PutResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -273,8 +297,16 @@ type FutureDelete struct {
 func (f * FutureDelete) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.DeleteResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.DeleteResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -340,8 +372,16 @@ type FutureHead struct {
 func (f * FutureHead) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.HeadResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.HeadResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -407,8 +447,16 @@ type FutureOptions struct {
 func (f * FutureOptions) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.OptionsResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.OptionsResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -474,8 +522,16 @@ type FuturePatch struct {
 func (f * FuturePatch) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.PatchResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.PatchResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -541,8 +597,16 @@ type FutureConnect struct {
 func (f * FutureConnect) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.ConnectResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.ConnectResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 
@@ -608,8 +672,16 @@ type FutureTrace struct {
 func (f * FutureTrace) CompleteMethod(ctx context.Context,a proto.Message, e int32, orig id.HostId) syscall.KernelErr{
     out:=&http.TraceResponse{}
     if a!=nil {
-        if err:= a.(*anypb.Any).UnmarshalTo(out); err!=nil {
-            return syscall.KernelErr_UnmarshalFailed
+        tmp, ok:=a.(*http.TraceResponse)
+        if !ok {
+            cvt:=a.(*anypb.Any)
+            if cvt!=nil {
+                if err:=cvt.UnmarshalTo(out); err!=nil {
+                    return syscall.KernelErr_UnmarshalFailed
+                }
+            }
+        } else {
+            proto.Merge(out,tmp)
         }
     }
     f.Method.CompleteMethod(ctx,out,SimpleErr(e)) 

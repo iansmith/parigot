@@ -76,11 +76,6 @@ func (f *FutureFetchGreeting)Success(sfn func (proto.Message)) {
     f.Method.Success(x)
 } 
 
-func (f *FutureFetchGreeting)VerifyRejectPresent() {
-    f.Method.VerifyRejectPresent()
- 
-}
-
 func (f *FutureFetchGreeting)Failure(ffn func (int32)) {
     x:=func(err GreetErr) {
         ffn(int32(err))

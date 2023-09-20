@@ -19,7 +19,7 @@ RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 ENV GOLANG_VERSION_HOST="1.21.0"
 ENV GOLANG_VERSION_HOST_SHORT="1.21"
 ## wasmtime version
-ENV WASMTIME_VERSION=10.0.1
+ENV WASMTIME_VERSION=12.0.2
 
 
 # hugo version for website
@@ -95,6 +95,8 @@ WORKDIR /home/parigot/tools/bin
 
 #RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST} /home/parigot/tools
 #RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_GUEST}
+
+RUN ln -s /home/parigot/deps/go${WASMTIME_VERSION}} /home/parigot/tools/bin/wasmtime
 
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST} /home/parigot/tools
