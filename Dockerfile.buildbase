@@ -7,6 +7,8 @@ RUN go mod tidy
 #RUN go mod download
 RUN go mod verify
 RUN go build -o /app/build/runner /parigot/command/runner
+RUN go clean github.com/iansmith/parigot/...
+RUN go clean -modcache
 RUN rm -rf /parigot
 
 
