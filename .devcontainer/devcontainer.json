@@ -1,6 +1,6 @@
 {
 	//"build": { "dockerfile": "Dockerfile" },
-	"image": "iansmith/parigot-devcont-atlanta-0.3",
+	"image": "iansmith/parigot-dev-0.3.1",
 	"customizations": {
 	  "vscode": {
 		"extensions": ["golang.go","ms-vscode.makefile-tools","ms-azuretools.vscode-docker",

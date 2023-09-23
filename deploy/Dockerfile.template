@@ -1,0 +1,8 @@
+FROM alpine:3.18
+RUN mkdir -p /app/build
+COPY app/build/* /app/build
+COPY app/app.toml /app/app.toml
+RUN ls -l /app
+RUN ls -l /app/build
+WORKDIR /app
+CMD ["/app/build/runner","/app/app.toml"]

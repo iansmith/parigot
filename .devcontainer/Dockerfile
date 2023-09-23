@@ -1,10 +1,12 @@
+FROM ubuntu:22.04
 
-FROM ubuntu:23.04
+ENV CLANG_VERSION=15
+
 RUN apt-get update --fix-missing && apt-get upgrade -y
 RUN apt-get clean
 RUN apt-get install -y curl wget git xz-utils nano make
 RUN apt-get install -y sudo ca-certificates file dpkg 
-RUN apt-get install -y zip unzip zsh clang-16
+RUN apt-get install -y zip unzip zsh clang-${CLANG_VERSION}
 
 RUN useradd -m -d /home/parigot -s /bin/bash -G sudo parigot
 RUN usermod -aG sudo parigot
@@ -104,16 +106,16 @@ RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
 
-RUN ln -s /usr/lib/llvm-16/bin/clang /home/parigot/tools/bin/clang 
-RUN ln -s /usr/lib/llvm-16/bin/clang /home/parigot/tools/bin/cc 
+RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin/clang 
+RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin/cc 
 
 RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
 
 RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
 
 # RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
-# RUN ln -s /usr/lib/llvm-15/bin/clang /home/parigot/tools/bin
-# RUN ln -s /usr/lib/llvm-15/bin/clang /usr/bin  # compiled in somewhere
+# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin
+# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /usr/bin  # compiled in somewhere
 
 
 # docker socket dir?
@@ -136,10 +138,21 @@ RUN chgrp -R parigot /home/parigot/deps
 #zsh    
 RUN chsh -s /usr/bin/zsh parigot
 
+# get ready for koyeb completions
+RUN mkdir -p /etc/bash_completion.d
+RUN touch /etc/bash_completion.d/koyeb
+RUN chown parigot /etc/bash_completion.d/koyeb
+RUN chgrp  parigot /etc/bash_completion.d/koyeb
+
+
 #temporary PATH hack
 USER parigot
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/parigot/tools/bin
 
+
+## koyeb -- this installs koyeb for parigot
+RUN curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh
+RUN /home/parigot/.koyeb/bin/koyeb completion bash > /etc/bash_completion.d/koyeb
 
 ENV PROTOC_GO_VERSION=1.28.1
 ENV PROTOC_GRPC_VERSION=1.51.0
@@ -167,13 +180,16 @@ RUN mkdir ~/.ssh
 RUN chmod 700 ~/.ssh
 RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
+ENV KOYEB_BIN=/home/parigot/.koyeb/bin
+
+
 # set some vars
 WORKDIR /workspaces/parigot
 #ENV TOOLS=/home/parigot/tools
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV TOOLS=/home/parigot/tools
 #ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
-ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin
+ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:$KOYEB_BIN
 ENV CC=clang
 ENV GOFLAGS="-buildvcs=false"
 
