@@ -46,4 +46,5 @@ cp $1/build/* $BUILDDIR
 
 cp "$1/$2" $TMPDIR/app/app.toml
 
+
 docker build --no-cache $TMPDIR 

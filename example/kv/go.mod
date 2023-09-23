@@ -1,7 +1,7 @@
 module github.com/iansmith/parigot/example/kv
 
 go 1.21
-replace github.com/iansmith/parigot => /workspaces/parigot
+//replace github.com/iansmith/parigot => /workspaces/parigot
 
 require (
 	github.com/iansmith/parigot v0.0.0-20230724152722-d9d85542a70c
