@@ -40,10 +40,12 @@ RUN set -e; \
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
+		WASMTIME_SUFFIX="v${WASMTIME_VERSION}-aarch64-linux"; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
+		WASMTIME_SUFFIX="v${WASMTIME_VERSION}-x86_64-linux"; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
@@ -76,6 +78,7 @@ WORKDIR /home/parigot/deps
 RUN unxz wasmtime.tar.xz
 RUN tar xf wasmtime.tar
 RUN rm wasmtime.tar
+RUN mv /home/parigot/deps/wasmtime-${WASMTIME_SUFFIX} /home/parigot/deps/wasmtime
 
 # protocol buffers 
 ENV PB_VERSION="21.12"
@@ -95,14 +98,12 @@ ENV PB_REL=""
 RUN mkdir /home/parigot/tools/bin
 WORKDIR /home/parigot/tools/bin
 
-#RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST} /home/parigot/tools
-#RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_GUEST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_GUEST}
-
-RUN ln -s /home/parigot/deps/go${WASMTIME_VERSION}} /home/parigot/tools/bin/wasmtime
+RUN ln -s /home/parigot/deps/wasmtime/wasmtime /home/parigot/tools/bin/wasmtime
 
 RUN ln -s /usr/bin/python3 /home/parigot/tools/bin/python
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST} /home/parigot/tools
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go${GOLANG_VERSION_HOST}
+
 ## if something called "go" is not in your path, the dev container will not run
 RUN ln -s /home/parigot/deps/go${GOLANG_VERSION_HOST}/bin/go /home/parigot/tools/bin/go
 
@@ -115,8 +116,7 @@ RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/t
 
 # RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
 # RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin
-# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /usr/bin  # compiled in somewhere
-
+# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /usr/bin  
 
 # docker socket dir?
 RUN mkdir /var/run/parigot
@@ -125,9 +125,6 @@ RUN chgrp parigot /var/run/parigot /home/parigot
 #RUN chmod g+w /var/run/parigot
 
 # safety
-#WORKDIR /home/parigot
-#RUN chown -R parigot .
-#RUN chgrp -R parigot .
 RUN mkdir -p /home/parigot/tools/bin
 RUN chown -R parigot /home/parigot/tools
 RUN chgrp -R parigot /home/parigot/tools
@@ -185,10 +182,8 @@ ENV KOYEB_BIN=/home/parigot/.koyeb/bin
 
 # set some vars
 WORKDIR /workspaces/parigot
-#ENV TOOLS=/home/parigot/tools
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV TOOLS=/home/parigot/tools
-#ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2/protobuf
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:$KOYEB_BIN
 ENV CC=clang
 ENV GOFLAGS="-buildvcs=false"

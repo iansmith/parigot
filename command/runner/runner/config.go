@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 	"plugin"
 	"strings"
 
@@ -127,6 +128,16 @@ const maxServer = 32
 
 func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 	var deployment Deployment
+	if _, err := os.Open(path); err != nil {
+		log.Fatalf("unable to find file %s", path)
+	} else {
+		base := filepath.Dir(path)
+		wd, _ := os.Getwd()
+		_ = os.Chdir(base)
+		defer func() {
+			_ = os.Chdir(wd)
+		}()
+	}
 	md, err := toml.DecodeFile(path, &deployment)
 	if err != nil {
 		return nil, err

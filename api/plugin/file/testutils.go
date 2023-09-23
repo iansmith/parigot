@@ -59,6 +59,7 @@ func createTestFilesOnHost(path string, content string) {
 	f2 := filepath.Join(path, "t1/unreadable.txt")
 	f3 := filepath.Join(path, "t1/t2/foo.txt")
 
+	filelogger.Info("createTestFilesOnHost", "path", path, "content", content)
 	for _, f := range []string{f1, f2, f3} {
 		createDirOnHost(filepath.Dir(f))
 
@@ -77,7 +78,8 @@ func createTestFilesOnHost(path string, content string) {
 	}
 
 	// Make unreadable.txt unreadable
-	err := os.Chmod(f2, 0000)
+	fm := os.FileMode(0222)
+	err := os.Chmod(f2, fm)
 	if err != nil {
 		log.Fatal("Failed to make file unreadable: ", err)
 	}
