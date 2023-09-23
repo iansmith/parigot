@@ -1,13 +1,6 @@
-FROM golang:1.21.1-alpine3.18
-RUN mkdir -p /app/build
-RUN go build -o /app/build/runner /parigot/command/runner
+FROM iansmith/parigot-koyeb-base-0.3.1
 
-
-# COPY app/build/* /app/build
-# COPY app/app.toml /app/app.toml
-# RUN apk update
-# RUN apk add file
-# RUN ls -l /app
-# RUN ls -l /app/build
-# WORKDIR /app
-# CMD ["/app/build/runner","/app/app.toml"]
+COPY app/build/* /app/build
+COPY app/app.toml /app/app.toml
+WORKDIR /app
+CMD ["/app/build/runner","/app/app.toml"]

@@ -41,7 +41,7 @@ MYDIR="$(dirname "$(readlink -f "$0")")"
 echo $MYDIR
 
 cp $MYDIR/Dockerfile.template $TMPDIR/Dockerfile
-cp $PARIGOT_SOURCE/build/* $BUILDDIR
+cp $PARIGOT_SOURCE/build/*.p.wasm $BUILDDIR
 cp $1/build/* $BUILDDIR
 
 cp "$1/$2" $TMPDIR/app/app.toml
