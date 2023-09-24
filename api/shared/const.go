@@ -85,3 +85,7 @@ var ExitMethod = id.MethodId(id.NewIdTyped[id.DefMethod](^uint64(0), 0xfffffffff
 
 // this is the value used for a panic that is intended to be a controlled exit
 var ControlledExit = "controlled exit via panic:"
+
+// we look in these dirs for modules and plugins (shared objects)
+// this value is used when you don't configure this yourself in the deployment file.
+var DefaultSearchDir = []string{"/workspaces/parigot/build", "build"}

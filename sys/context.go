@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/command/runner/runner"
 	"github.com/iansmith/parigot/eng"
@@ -62,14 +63,26 @@ func (c *DeployContext) Process() *sync.Map {
 	return c.process
 }
 
+func (c *DeployContext) SearchDir() []string {
+	if c.config.SearchDir != nil {
+		return c.config.SearchDir
+	}
+	return apishared.DefaultSearchDir
+}
+
 // CreateAllProcess returns an error if it could not create a process (and an underlying store) for each
 // module that was configured.  CreateAllProcess does not start the processes running, see Start()
 // for that.
 func (c *DeployContext) CreateAllProcess() error {
+	if c.config.SearchDir == nil {
+		c.config.SearchDir = apishared.DefaultSearchDir
+	}
+
 	// load the parigot syscalls, this is done based on the config in the .toml file
 	// note that there is no host id assigned to the parigot system calls
 	err := LoadPluginAndAddHostFunc(context.Background(),
-		c.config.ParigotLibPath, c.config.ParigotLibSymbol, c.engine, id.HostIdZeroValue(), "parigot")
+		c.config.ParigotLibPath, c.config.ParigotLibSymbol,
+		c.SearchDir(), c.engine, id.HostIdZeroValue(), "parigot")
 	if err != nil {
 		return err
 	}

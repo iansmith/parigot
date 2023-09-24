@@ -6,7 +6,7 @@
 ## dev configuration in general
 [config.dev]
 ## Load parigot code from shared object
-ParigotLibPath="../../build/syscall.so"
+ParigotLibPath="syscall.so" #uses SearchDir
 ParigotLibSymbol="ParigotInitialize"
 Timezone = "US/Eastern"
 [config.dev.Timeout]

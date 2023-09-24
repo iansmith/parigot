@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
@@ -181,8 +182,12 @@ func (e *wazeroMemoryExtern) WriteUint64LittleEndian(memoryOffset uint32, value 
 	e.m.WriteUint64Le(memoryOffset, value)
 }
 
-func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error) {
-	fp, err := os.Open(path)
+func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, searchDir []string, env Environment) (Module, error) {
+	truePath := trySearchDir(path, searchDir)
+	if truePath == "" {
+		return nil, fmt.Errorf("unable to find file %s", path)
+	}
+	fp, err := os.Open(truePath)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +208,7 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, env Envi
 	if err != nil {
 		return nil, err
 	}
+	wazerologger.Info("compiled module created", "path", path, "mod", mod.Name(), "truePath", truePath)
 	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 
@@ -328,6 +334,25 @@ func (m *wazeroInstance) Memory(ctx context.Context) ([]MemoryExtern, error) {
 	return result, nil
 }
 
+// this is a copy of the same thing in sys but to prevent
+// needing to import sys we copy it
+func trySearchDir(path string, search []string) string {
+	_, err := os.Stat(path)
+	if err == nil {
+		return path
+	}
+	for _, prefix := range search {
+		clean := filepath.Clean(prefix)
+		candidate := filepath.Join(clean, path)
+		_, err = os.Stat(candidate)
+		if err == nil {
+			return candidate
+		}
+	}
+	log.Printf("unable to find file %s, checked in %+v", path, search)
+	return ""
+}
+
 func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezoneDir string, hid id.HostId) (Instance, error) {
 	args := []string{}
 	envp := make(map[string]string)
@@ -343,9 +368,6 @@ func (m *wazeroModule) NewInstance(ctx context.Context, timezone string, timezon
 		WithName(m.Name()).
 		WithStdout(os.Stdout).
 		WithStderr(os.Stderr).
-		// WithStdout(newRawLineReader(rawLineContext, pcontext.GuestOut)).
-		// WithStderr(newRawLineReader(rawLineContext, pcontext.GuestErr)).
-		// WithStdin(os.Stdin). // xxx this should probably be fixed to be in config file
 		WithRandSource(rand.Reader).
 		WithFSConfig(wazero.NewFSConfig()).
 		WithSysNanosleep().

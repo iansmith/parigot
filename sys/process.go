@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"plugin"
 	"sync"
@@ -99,15 +100,16 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 		if m.GetPluginAlias() != "" {
 			name = m.GetPluginAlias()
 		}
+
 		err := LoadPluginAndAddHostFunc(context.Background(),
-			m.GetPluginPath(), m.GetPluginSymbol(), engine,
+			m.GetPluginPath(), m.GetPluginSymbol(), ctx.SearchDir(), engine,
 			hid, name)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	instance, err := proc.module.NewInstance(context.Background(), ctx.config.Timezone, ctx.config.TimezoneDir, hid)
+	instance, err := proc.module.NewInstance(context.Background(), ctx.Timezone(), ctx.config.TimezoneDir, hid)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +118,29 @@ func NewProcessFromMicroservice(engine eng.Engine, m Service, ctx *DeployContext
 	return proc, nil
 }
 
-func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, engine eng.Engine, hid id.HostId, name string) error {
-	i, err := LoadPlugin(ctx, pluginPath, pluginSymbol, name)
+func trySearchDir(path string, search []string) string {
+	_, err := os.Stat(path)
+	if err == nil {
+		return path
+	}
+	for _, prefix := range search {
+		clean := filepath.Clean(prefix)
+		candidate := filepath.Join(clean, path)
+		_, err = os.Stat(candidate)
+		if err == nil {
+			return candidate
+		}
+	}
+	log.Printf("unable to find file %s, checked in %+v", path, search)
+	return ""
+}
+
+func LoadPluginAndAddHostFunc(ctx context.Context, pluginPath string, pluginSymbol string, searchDir []string, engine eng.Engine, hid id.HostId, name string) error {
+	truePath := trySearchDir(pluginPath, searchDir)
+	if truePath == "" {
+		return fmt.Errorf("file %s not found ", pluginPath)
+	}
+	i, err := LoadPlugin(ctx, truePath, pluginSymbol, name)
 	if err != nil {
 		return err
 	}

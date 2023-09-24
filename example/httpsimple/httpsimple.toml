@@ -6,7 +6,7 @@
 ## dev configuration in general
 [config.dev]
 ## Load parigot code from shared object
-ParigotLibPath="/workspaces/parigot/build/syscall.so"
+ParigotLibPath="syscall.so"  #uses searchDir
 ParigotLibSymbol="ParigotInitialize"
 Timezone = "US/Eastern"
 
@@ -16,14 +16,14 @@ Complete = 20 # millis
 
 # the simple service
 [config.dev.microservice.simple]
-WasmPath="/workspaces/parigot/example/httpsimple/build/simple.p.wasm"
+WasmPath="simple.p.wasm" #uses searchDir
 Arg=[]
 Env=[]
 
 # frontdoor service
 [config.dev.microservice.frontdoor]
-WasmPath="/workspaces/parigot/example/httpsimple/build/frontdoor.p.wasm"
-PluginPath="/workspaces/parigot/build/httpconn.so"
+WasmPath="frontdoor.p.wasm"
+PluginPath="httpconn.so" #uses searchDir
 PluginSymbol="ParigotInitialize"
 # This alias is needed when building with the -tags noplugin option. 
 # This field the static linker to "see" what this service's host code is. 

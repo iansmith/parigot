@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	apishared "github.com/iansmith/parigot/api/shared"
 	"github.com/iansmith/parigot/api/shared/id"
 	"github.com/iansmith/parigot/eng"
 )
@@ -51,6 +52,7 @@ type DeployConfig struct {
 	Microservice     map[string]*Microservice
 	Flag             *DeployFlag
 	ParigotLibPath   string
+	SearchDir        []string
 	ParigotLibSymbol string
 	Arrangement      DeployArrangement
 	ArrangementName  string
@@ -97,8 +99,8 @@ type DeployFlag struct {
 // configuration and these are checked for sanity before being returned.
 type Microservice struct {
 	WasmPath     string
-	PluginPath   string
 	PluginSymbol string
+	PluginPath   string
 	PluginAlias  string
 
 	Arg []string
@@ -171,6 +173,11 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 		// these are just copied to the microservice for convience
 		m.name = name
 
+		searchDir := result.SearchDir
+		if searchDir == nil {
+			searchDir = apishared.DefaultSearchDir
+		}
+
 		// get rid of spaces at the end and start of strings
 		m.WasmPath = strings.TrimSpace(m.WasmPath)
 		arg := make([]string, len(m.Arg))
@@ -197,7 +204,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 		if m.WasmPath == "" {
 			return nil, fmt.Errorf("bad microservice configuration (%s): Path is a required field", name)
 		}
-		err := pathExists(m.name, m.WasmPath, false)
+		err := pathExists(m.name, m.WasmPath, false, searchDir)
 		if err != nil {
 			return nil, err
 		}
@@ -228,7 +235,7 @@ func Parse(path string, flag *DeployFlag) (*DeployConfig, error) {
 			return nil, fmt.Errorf("bad microservice configuration (%s): PluginPath is only allowed for microservices that are servers", m.name)
 		}
 		if m.Server && m.PluginPath != "" {
-			err := pathExists(m.name, m.PluginPath, true)
+			err := pathExists(m.name, m.PluginPath, true, searchDir)
 			if err != nil {
 				return nil, err
 			}
@@ -285,7 +292,11 @@ func (c *DeployConfig) LoadSingleModule(engine eng.Engine, name string) (eng.Mod
 		envp: envp,
 		hid:  id.NewHostId(),
 	}
-	mod, err := engine.NewModuleFromFile(context.Background(), m.WasmPath, &env)
+	dir := c.SearchDir
+	if dir == nil {
+		dir = apishared.DefaultSearchDir
+	}
+	mod, err := engine.NewModuleFromFile(context.Background(), m.WasmPath, dir, &env)
 	if err != nil {
 		log.Printf("new module failed to create from file %s: %v", m.WasmPath, err.Error())
 		return nil, fmt.Errorf("unable to load microservice (%s): cannot convert %s into a module: %v",
@@ -368,7 +379,7 @@ func (m *Microservice) GetModule() eng.Module {
 	return m.module
 }
 
-func pathExists(serviceName, path string, isPlugin bool) error {
+func pathExists(serviceName, path string, isPlugin bool, searchDir []string) error {
 	pathType := "wasm path"
 	if isPlugin {
 		pathType = "plugin path"
@@ -381,12 +392,24 @@ func pathExists(serviceName, path string, isPlugin bool) error {
 		info, err = os.Stat(path)
 	}
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("bad microservice configuration (%s): %s '%s' does not exist",
-				serviceName, pathType, path)
+		found := false
+		for _, d := range searchDir {
+			clean := filepath.Clean(d)
+			cand := filepath.Join(clean, path)
+			_, err = os.Stat(cand)
+			if err == nil {
+				found = true
+				break
+			}
 		}
-		return fmt.Errorf("bad microservice configuration (%s): %s '%s': %v",
-			serviceName, pathType, path, err)
+		if !found {
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("bad microservice configuration (%s): %s '%s' does not exist",
+					serviceName, pathType, path)
+			}
+			return fmt.Errorf("bad microservice configuration (%s): %s '%s': %v",
+				serviceName, pathType, path, err)
+		}
 	}
 	// in the simple case where we link the plugins it returns nil
 	// as the file info.

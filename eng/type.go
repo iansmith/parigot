@@ -26,7 +26,7 @@ type Environment interface {
 }
 
 type Engine interface {
-	NewModuleFromFile(ctx context.Context, path string, env Environment) (Module, error)
+	NewModuleFromFile(ctx context.Context, path string, searchDir []string, env Environment) (Module, error)
 	// AddSupportedFunc defines a function that is implemented on the host.
 	// The only version AddSupportedFunc() that does not have the suffix
 	// is the one that is the "standard" one for exchanging protobufs.
