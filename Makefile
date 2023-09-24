@@ -205,6 +205,15 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 
 #
+# PREP FOR DEPLOYBASE
+#
+.PHONY: prepdeploybase
+prepdeploybase:
+	mkdir -p /workspaces/parigot/deploy/build
+	rm -f /workspaces/parigot/deploy/build/*
+	cp build/*.so build/runner /workspaces/parigot/deploy/build
+
+#
 # TEST
 #
 .PHONY: test
