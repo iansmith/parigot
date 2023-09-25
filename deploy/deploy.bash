@@ -2,7 +2,6 @@
 
 set -e
 
-echo "num args $#"
 if [ $# != 3 ] && [ $# != 4 ]; then
 	echo not enough command line arguments
 	echo usage: $0 \"your app directory\" \"toml deployment file\" \"docker tag for result\" \[ \"parigot source directory\" \]
@@ -36,7 +35,6 @@ fi
 
 ### create a temporary dir
 TMPDIR=$(mktemp -d)
-echo "$0"
 
 ### set it up for use by the Dockerfile
 mkdir -p $TMPDIR/app/build
@@ -44,7 +42,6 @@ BUILDDIR=$TMPDIR/app/build
 
 ### get OUR dircetory name (place where this script is)
 MYDIR="$(dirname "$(readlink -f "$0")")"
-echo $MYDIR
 
 ### copy dockerfile to tmp dir
 cp $MYDIR/Dockerfile.template $TMPDIR/Dockerfile
@@ -57,4 +54,5 @@ cp $1/build/* $BUILDDIR
 cp "$1/$2" $TMPDIR/app/app.toml
 
 ### build it
+echo building image with docker: $3, this can take a few minutes
 docker build -t "$3" --no-cache $TMPDIR 
