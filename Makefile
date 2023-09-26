@@ -76,10 +76,12 @@ build/protoc-gen-parigot: $(TEMPLATE) $(GENERATOR_SRC)
 RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
+STATIC_LINK= -tags netgo,osusergob -ldflags "-linkmode 'external' -extldflags '-static'"
+STATIC_LINK_SO=-tags netgo,osusergob -ldflags "-linkmode 'external'"
 PLUGIN= build/queue.so build/file.so build/syscall.so build/nutsdb.so
 build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
 	@rm -f $@
-	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS) -o $@ github.com/iansmith/parigot/command/runner
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -tags netgo,osusergo $(STATIC_LINK) -o $@ github.com/iansmith/parigot/command/runner
 
 
 #
@@ -182,27 +184,27 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
 build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/nutsdb/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/nutsdb/main
 
 FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/file/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/file/main
 
 HTTPCON_PLUGIN=$(shell find api/plugin/httpconnector -type f -regex ".*\.go")
 build/httpconn.so: $(HTTPCON_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/httpconnector/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/httpconnector/main
 
 SYSCALL_PLUGIN=$(shell find api/plugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 
 #
 # PREP FOR DEPLOYBASE
