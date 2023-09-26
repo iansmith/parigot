@@ -40,12 +40,16 @@ RUN set -e; \
 	case $unamearch in \
 		aarch64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-arm64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
-		WASMTIME_SUFFIX="v${WASMTIME_VERSION}-aarch64-linux"; \
+		export WASMTIME_SUFFIX="v${WASMTIME_VERSION}-aarch64-linux"; \
+		echo "export WASMTIME_SUFFIX=${WASMTIME_SUFFIX}" > .suffix; \
+		echo wrote .suffix file;\
+		cat .suffix ;\
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
-		WASMTIME_SUFFIX="v${WASMTIME_VERSION}-x86_64-linux"; \
+		export WASMTIME_SUFFIX="v${WASMTIME_VERSION}-x86_64-linux"; \
+		echo "export WASMTIME_SUFFIX=${WASMTIME_SUFFIX}" > .suffix; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
@@ -69,7 +73,7 @@ RUN unzip protoc-${PROTOC_VERSION}.zip
 
 # install golang
 WORKDIR /home/parigot/deps
-RUN tar xvf go.tar.gz
+RUN tar xf go.tar.gz
 RUN mv go go${GOLANG_VERSION_HOST}
 RUN rm go.tar.gz
 
@@ -78,7 +82,8 @@ WORKDIR /home/parigot/deps
 RUN unxz wasmtime.tar.xz
 RUN tar xf wasmtime.tar
 RUN rm wasmtime.tar
-RUN mv /home/parigot/deps/wasmtime-${WASMTIME_SUFFIX} /home/parigot/deps/wasmtime
+RUN . /home/parigot/deps/.suffix; mv wasmtime-$WASMTIME_SUFFIX wasmtime
+
 
 # protocol buffers 
 ENV PB_VERSION="21.12"

@@ -1,12 +1,14 @@
 {
-	//"build": { "dockerfile": "Dockerfile" },
-	"image": "iansmith/parigot-dev-0.3.1",
+	"build": { "dockerfile": "Dockerfile" },
+	//"image": "iansmith/parigot-dev-0.3.1",
 	"customizations": {
 	  "vscode": {
 		"extensions": ["golang.go","ms-vscode.makefile-tools","ms-azuretools.vscode-docker",
 			"stkb.rewrap"]
 	  }
 	},
-	"mounts":[],
-	"forwardPorts": []
+	"mounts":[]//"source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind"]],
+	//"forwardPorts": [],
+	//"runArgs": ["--add-host=host.docker.internal:host-gateway"],
+	//"containerUser":"parigot"
   }

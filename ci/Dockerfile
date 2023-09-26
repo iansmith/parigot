@@ -167,6 +167,9 @@ RUN go${GOLANG_VERSION_HOST} install github.com/kyleconroy/sqlc/cmd/sqlc@latest
 RUN ln -s /home/parigot/go/bin/* /home/parigot/tools/bin
 RUN ln -s /workspaces/parigot/build/protoc-gen-parigot /home/parigot/tools/bin/protoc-gen-parigot
 
+## docker from docker
+COPY --from=docker:latest /usr/local/bin/docker  /usr/local/bin/
+
 # RUN mkdir ~/.ssh
 # RUN chmod 700 ~/.ssh
 # RUN ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
@@ -181,6 +184,7 @@ ENV PARIGOT_IMPORT_PATH=/home/parigot/go/pkg/mod/github.com/gogo/protobuf@v1.3.2
 ENV PATH=/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:/home/parigot/.local/bin
 ENV CC=/usr/lib/llvm-15/bin/clang
 ENV GOFLAGS="-buildvcs=false"
+
 
 # ENTRYPOINT ["bash"]
 
