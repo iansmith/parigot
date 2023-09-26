@@ -29,6 +29,11 @@ ENV HUGO_VERSION=0.114.1
 # protoc because some plugins don't work with buf
 ENV PROTOC_VERSION=23.3
 
+ENV docker_url="https://download.docker.com/linux/static/stable/${docker_arch}"
+ENV docker_version="24.0.6"
+
+
+
 #figure out ARCH and download correct tarballs
 RUN set -e; \
 	unamearch="$(uname -m)" ; \
@@ -42,16 +47,18 @@ RUN set -e; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-aarch64-linux.tar.xz ; \
 		export WASMTIME_SUFFIX="v${WASMTIME_VERSION}-aarch64-linux"; \
 		echo "export WASMTIME_SUFFIX=${WASMTIME_SUFFIX}" > .suffix; \
-		echo wrote .suffix file;\
-		cat .suffix ;\
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
-		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip;; \
+		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip; \
+		docker_url="https://download.docker.com/linux/static/stable/aarch64"; \
+		curl -fsSL $docker_url/docker-$docker_version.tgz | tar zxvf - --strip 1 -C /usr/bin docker/docker;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
 		export WASMTIME_SUFFIX="v${WASMTIME_VERSION}-x86_64-linux"; \
 		echo "export WASMTIME_SUFFIX=${WASMTIME_SUFFIX}" > .suffix; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
-		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip;; \
+		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip; \
+		docker_url="https://download.docker.com/linux/static/stable/x86_64"; \
+		curl -fsSL $docker_url/docker-$docker_version.tgz | tar zxvf - --strip 1 -C /usr/bin docker/docker;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
 
@@ -186,6 +193,8 @@ ENV KOYEB_BIN=/home/parigot/.koyeb/bin
 
 
 # set some vars
+ENV DOCKER_HOST=unix:///var/run/docker-host.sock 
+ENV BUILDKIT_PROGRESS=plain
 WORKDIR /workspaces/parigot
 ENV WABTTOOLS=/home/parigot/tools/wabt
 ENV TOOLS=/home/parigot/tools

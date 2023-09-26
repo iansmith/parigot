@@ -145,7 +145,7 @@ func buildContentTarball(code, toml, root string) string {
 	if err != nil {
 		log.Fatalf("error opening '%s':%v", toml, err)
 	}
-	tomlOut, err := os.Create(filepath.Join(tmpdir, "app.toml"))
+	tomlOut, err := os.Create(filepath.Join(tmpdir, "app", "app.toml"))
 	if err != nil {
 		log.Fatalf("error creating tmp file:%v", err)
 	}
