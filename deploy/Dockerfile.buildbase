@@ -1,9 +1,7 @@
 #make then make prepdeploybase is required to populate build
-FROM alpine:3.18
-RUN apk update
-# it would be better to actually us a container to build against proper alpine (with musl)
-RUN apk add libc6-compat
+FROM menci/archlinuxarm
+RUN pacman -Syu --noconfirm
 RUN mkdir -p /app/build
 COPY build/* /app/build/
 WORKDIR /app
-ENTRYPOINT ["ash"]
+RUN chmod 755 build/*

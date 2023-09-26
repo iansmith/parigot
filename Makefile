@@ -27,7 +27,7 @@ helloworld: build/greeting.p.wasm build/helloworld.p.wasm
 
 # with plugins (build/*.so) setup
 EXTRA_HOST_ARGS=
-EXTRA_PLUGIN_ARGS=-buildmode=plugin
+EXTRA_PLUGIN_ARGS=-buildmode=plugin 
 
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 SYSCALL_CLIENT_SIDE=api/guest/syscall/*.go 
@@ -38,14 +38,12 @@ API_CLIENT_SIDE=$(LIB_SRC) $(CTX_SRC) $(SHARED_SRC) $(API_ID)
 GEN_SYS_LIB=1
 SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 
-
-GO_CLIENT_VERSION=go1.21.0
 #
 # GO
 #
-GO_TO_WASM=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} GOOS=wasip1 GOARCH=wasm ${GO_CLIENT_VERSION}
-GO_TO_HOST=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} go1.21.0
-GO_TO_PLUGIN=GOROOT=/home/parigot/deps/${GO_CLIENT_VERSION} go1.21.0
+GO_TO_WASM=GOOS=wasip1 GOARCH=wasm go
+GO_TO_HOST=go
+GO_TO_PLUGIN=go
 
 #
 # PROTOBUF FILES
@@ -77,11 +75,11 @@ RUNNER_SRC=$(shell find command/runner -type f -regex ".*\.go")
 SYS_SRC=$(shell find sys -type f -regex ".*\.go")
 ENG_SRC=$(shell find eng -type f -regex ".*\.go")
 STATIC_LINK= -tags netgo,osusergob -ldflags "-linkmode 'external' -extldflags '-static'"
-STATIC_LINK_SO=-tags netgo,osusergob -ldflags "-linkmode 'external'"
+STATIC_LINK_SO=-tags netgo,osusergob
 PLUGIN= build/queue.so build/file.so build/syscall.so build/nutsdb.so
 build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
 	@rm -f $@
-	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -tags netgo,osusergo $(STATIC_LINK) -o $@ github.com/iansmith/parigot/command/runner
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/runner
 
 
 #
@@ -128,7 +126,7 @@ g/nutsdb/v1/nutsdbid.go: api/shared/id/id.go command/boilerplateid/main.go comma
 NUTSDB_SERVICE=$(shell find api/guest/nutsdb -type f -regex ".*\.go")
 build/nutsdb.p.wasm: $(NUTSDB_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/nutsdb/v1/nutsdbid.go $(API_ID)
 	@rm -f $@
-	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -tags "buildvcs=false" -o $@ github.com/iansmith/parigot/api/guest/nutsdb
+	$(GO_TO_WASM) build  $(EXTRA_WASM_COMP_ARGS) -o $@ github.com/iansmith/parigot/api/guest/nutsdb
 
 #id cruft
 g/test/v1/testid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl 
@@ -184,27 +182,27 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
 build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/nutsdb/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/nutsdb/main
 
 FILE_PLUGIN=$(shell find api/plugin/file -type f -regex ".*\.go")
 build/file.so: $(FILE_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/file/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/file/main
 
 HTTPCON_PLUGIN=$(shell find api/plugin/httpconnector -type f -regex ".*\.go")
 build/httpconn.so: $(HTTPCON_PLUGIN) $(SYS_SRC) $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/httpconnector/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/httpconnector/main
 
 SYSCALL_PLUGIN=$(shell find api/plugin/syscall -type f -regex ".*\.go")
 build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_ID) 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS) $(STATIC_LINK_SO) -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 
 #
 # PREP FOR DEPLOYBASE

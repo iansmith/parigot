@@ -18,7 +18,7 @@ WORKDIR /home/parigot/deps
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 ## golang version
-ENV GOLANG_VERSION_HOST="1.21.0"
+ENV GOLANG_VERSION_HOST="1.21.1"
 ENV GOLANG_VERSION_HOST_SHORT="1.21"
 ## wasmtime version
 ENV WASMTIME_VERSION=12.0.2

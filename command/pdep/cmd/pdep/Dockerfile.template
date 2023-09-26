@@ -1,6 +1,5 @@
-FROM iansmith/parigot-koyeb-base-0.3
-RUN apk add libc6-compat
+FROM iansmith/parigot-koyeb-base-0.3.1:arm64
 COPY app/build/* /app/build/
 COPY app/app.toml /app/app.toml
 WORKDIR /app
-CMD ["/app/build/runner","/app/app.toml"]
+ENTRYPOINT ["build/runner","app.toml"]
