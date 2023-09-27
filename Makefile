@@ -9,7 +9,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 guest: build/file.p.wasm  build/queue.p.wasm build/nutsdb.p.wasm
-commands: 	build/protoc-gen-parigot build/runner 
+commands: 	build/protoc-gen-parigot build/runner build/pdep
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so build/nutsdb.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
@@ -80,6 +80,12 @@ PLUGIN= build/queue.so build/file.so build/syscall.so build/nutsdb.so
 build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/runner
+
+PDEP_SRC=$(shell find command/pdep -type f -regex ".*\.go")
+PDEP_TEMPL_SRC=$(shell find command/pdep -type f -regex ".*\.template")
+build/pdep: $(PDEP_SRC) $(PDEP_TEMPL_SRC)
+	@rm -f $@
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/pdep/cmd/pdep
 
 
 #
@@ -205,15 +211,17 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 
 #
-# PREP FOR DEPLOYBASE
+# deploy using our scripts
 #
-.PHONY: prepdeploybase
-prepdeploybase:
+HTTPSIMPLE_GO_SRC=$(shell find example/httpsimple -type f -regex ".*\.go")
+HTTPSIMPLE_PROTO_SRC=$(shell find example/httpsimple -type f -regex ".*\.proto")
+deploy-httpsimple: build/pdep deploy/Dockerfile.buildbase command/pdep/cmd/pdep/*.template $(HTTPSIMPLE_GO_SRC) $(HTTPSIMPLE_PROTO_SRC)
 	mkdir -p /workspaces/parigot/deploy/build
 	rm -f /workspaces/parigot/deploy/build/*
-	cp build/*.so build/runner /workspaces/parigot/deploy/build
-	cp /home/parigot/deps/caddy /workspaces/parigot/deploy/build
-
+	cp /home/parigot/deps/caddy build/*.so build/runner /workspaces/parigot/deploy/build
+	cd example/httpsimple && make 
+	docker build -t iansmith/parigot-koyeb-base-0.3.1:arm64 --no-cache -f deploy/Dockerfile.buildbase deploy
+	pdep example/httpsimple
 #
 # TEST
 #

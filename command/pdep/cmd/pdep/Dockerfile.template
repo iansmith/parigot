@@ -1,5 +1,8 @@
 FROM iansmith/parigot-koyeb-base-0.3.1:arm64
 COPY app/build/* /app/build/
 COPY app/app.toml /app/app.toml
+COPY app/Caddyfile /app/Caddyfile
 WORKDIR /app
-ENTRYPOINT ["build/runner","app.toml"]
+EXPOSE 80
+EXPOSE 443 
+ENTRYPOINT ["build/caddy","run","--config","Caddyfile"]

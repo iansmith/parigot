@@ -1,6 +1,0 @@
-FROM iansmith/parigot-koyeb-base-0.3.1
-
-COPY app/build/* /app/build
-COPY app/app.toml /app/app.toml
-WORKDIR /app
-CMD ["/app/build/runner","/app/app.toml"]

@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +23,7 @@ import (
 const (
 	BaseImageName   = "docker.io/iansmith/parigot-koyeb-0.3"
 	MaxTarEntrySize = 1024 * 1024 * 256
+	Verbose         = false
 )
 
 var (
@@ -35,6 +35,9 @@ var (
 
 //go:embed cmd/pdep/Dockerfile.template
 var Dockerfile []byte
+
+//go:embed cmd/pdep/Caddyfile.template
+var Caddyfile []byte
 
 func Main() {
 	flag.StringVar(&fTomlName, "c", "", "filename of the configuration file (toml format) to use")
@@ -51,7 +54,7 @@ func Main() {
 	validateArgs()
 
 	contentDir := buildContentTarball(fCodeDirectory, fTomlName, fParigotRoot)
-	log.Printf("content tarball: %s", contentDir)
+	log.Printf("pdep:built content tarball in %s", contentDir)
 	tar, err := archive.TarWithOptions(contentDir+"/", &archive.TarOptions{})
 	if err != nil {
 		log.Fatalf("unable to create tar file: %v", err)
@@ -73,9 +76,12 @@ func Main() {
 	}
 	defer res.Body.Close()
 
-	if err := print(res.Body); err != nil {
-		log.Fatalf("unable to print the response from docker: %v", err)
+	builtId, err := print(res.Body)
+	if err != nil {
+		log.Fatalf("unable to build image (from docker): %s", err)
 	}
+	log.Printf("pdep:tagged '%s' with '%s'", builtId, fImageName)
+	//os.RemoveAll(contentDir)
 
 }
 
@@ -112,7 +118,7 @@ func testCodeDir(dir, configPath string) string {
 
 	if configPath == "" {
 		configPath = filepath.Base(dir) + ".toml"
-		log.Printf("using '%s' as the configuration file", configPath)
+		log.Printf("pdep:using '%s' as the configuration file", configPath)
 	}
 
 	toml := filepath.Join(dir, configPath)
@@ -126,44 +132,35 @@ func testCodeDir(dir, configPath string) string {
 	return toml
 }
 
-type tarFileEntry struct {
-	Name   string
-	Buffer string
-}
-
 // by the time this is called, the arguments have been validated
 func buildContentTarball(code, toml, root string) string {
 	tmpdir := tempDir()
-	log.Printf("tmp dir %s", tmpdir)
 	err := os.MkdirAll(filepath.Join(tmpdir, "app", "build"), 0777)
 	if err != nil {
 		log.Fatalf("unable to create directories for building docker image: %v", err)
 	}
 
-	// copy toml file
-	tomlIn, err := os.Open(toml)
-	if err != nil {
-		log.Fatalf("error opening '%s':%v", toml, err)
-	}
-	tomlOut, err := os.Create(filepath.Join(tmpdir, "app", "app.toml"))
-	if err != nil {
-		log.Fatalf("error creating tmp file:%v", err)
-	}
-	if _, err := io.Copy(tomlOut, tomlIn); err != nil {
-		log.Fatalf("error copying tmpl file:%v", err)
-	}
-	tomlIn.Close()
-	tomlOut.Close()
+	// copy burned in Dockerfile
+	buf := bytes.NewBuffer(Dockerfile)
+	copyFileFromReader(tmpdir, "Dockerfile", buf)
 
-	dfile, err := os.Create(filepath.Join(tmpdir, "Dockerfile"))
-	if err != nil {
-		log.Fatalf("error creating new dockerfile:%v", err)
-	}
-	dockerIn := bytes.NewBuffer(Dockerfile)
-	if _, err := io.Copy(dfile, dockerIn); err != nil {
-		log.Fatalf("error copying tmpl file:%v", err)
-	}
-	dfile.Close()
+	// copy toml file from disk
+	buf = readFileToBuffer(toml)
+	copyFileFromReader(tmpdir, filepath.Join("app", "app.toml"), buf)
+
+	// copy burned-in CaddyFile
+	buf = bytes.NewBuffer(Caddyfile)
+	copyFileFromReader(tmpdir, filepath.Join("app", "Caddyfile"), buf)
+
+	// dfile, err := os.Create(filepath.Join(tmpdir, "Dockerfile"))
+	// if err != nil {
+	// 	log.Fatalf("error creating new dockerfile:%v", err)
+	// }
+	// dockerIn := bytes.NewBuffer(Dockerfile)
+	// if _, err := io.Copy(dfile, dockerIn); err != nil {
+	// 	log.Fatalf("error copying tmpl file:%v", err)
+	// }
+	// dfile.Close()
 
 	addEntries := func(path string, d fs.DirEntry, e error) error {
 		if e != nil {
@@ -171,12 +168,10 @@ func buildContentTarball(code, toml, root string) string {
 		}
 		if strings.HasSuffix(path, ".p.wasm") {
 			base := filepath.Join(tmpdir, "app", "build", filepath.Base(path))
-			log.Printf("base %s", base)
 			out, err := os.Create(base)
 			if err != nil {
 				log.Fatalf("cannot create file in docker image: %v", err)
 			}
-			log.Printf("path %s", path)
 			in, err := os.Open(path)
 			if err != nil {
 				log.Fatalf("cannot read file building in docker image: %v", err)
@@ -200,51 +195,6 @@ func buildContentTarball(code, toml, root string) string {
 	return tmpdir
 }
 
-// func readFileToBuffer(path string) *bytes.Buffer {
-// 	fp, err := os.Open(path)
-// 	if err != nil {
-// 		log.Fatalf("unable to open '%s' for reading: %v", path, err)
-// 	}
-// 	rd := io.LimitReader(fp, MaxTarEntrySize)
-// 	data, err := io.ReadAll(rd)
-// 	if err != nil {
-// 		log.Printf("failed to read all of '%s': %v", path, err)
-// 	}
-// 	return bytes.NewBuffer(data)
-// }
-
-// func writeFileToTar(tarW *tar.Writer, readPath, targetPath string) {
-// 	// just read it in before calling writeReaderToTar
-// 	buf := readFileToBuffer(readPath)
-// 	writeReaderToTar(tarW, targetPath, buf, int64(buf.Len()))
-// }
-
-// func writeReaderToTar(tarW *tar.Writer, path string, rd io.Reader, size int64) {
-// 	hdr := &tar.Header{}
-// 	hdr.Name = path
-// 	hdr.Size = size
-// 	hdr.Mode = 0644
-// 	hdr.ModTime = time.Now()
-// 	hdr.Uid = 0
-// 	hdr.Uname = "root"
-// 	hdr.Gid = 0
-// 	hdr.Gname = "root"
-
-// 	tarW.WriteHeader(hdr)
-// 	if _, err := io.Copy(tarW, rd); err != nil {
-// 		log.Fatalf("error copy tar file content: %v", err)
-// 	}
-// }
-
-type ErrorDetail struct {
-	Message string `json:"message"`
-}
-
-type ErrorLine struct {
-	Error       string      `json:"error"`
-	ErrorDetail ErrorDetail `json:"errorDetail"`
-}
-
 func tempDir() string {
 	d := os.TempDir()
 	if _, extraErr := os.Stat("tmp"); extraErr == nil {
@@ -260,24 +210,85 @@ func tempDir() string {
 	return tmpdir
 }
 
-func print(rd io.Reader) error {
-	var lastLine string
+type BuiltId struct {
+	Id string `json:"ID"`
+}
+type OutLine struct {
+	Stream string  `json:"stream"`
+	Aux    BuiltId `json:"aux"`
+}
+type ErrorDetail struct {
+	Message string `json:"message"`
+}
 
+type ErrorLine struct {
+	ErrorBase   string      `json:"error"`
+	ErrorDetail ErrorDetail `json:"errorDetail"`
+}
+
+func (e *ErrorLine) Error() string {
+	return fmt.Sprintf("%s [%s]", e.ErrorBase, e.ErrorDetail.Message)
+}
+
+func print(rd io.Reader) (string, error) {
+	var lastLine string
+	var finalId string
 	scanner := bufio.NewScanner(rd)
 	for scanner.Scan() {
 		lastLine = scanner.Text()
-		fmt.Println(scanner.Text())
+		if err := scanner.Err(); err != nil {
+			return "", err
+		}
+		dec := json.NewDecoder(strings.NewReader(lastLine))
+		result := &OutLine{}
+		if err := dec.Decode(result); err != nil {
+			log.Fatalf("unable to decode line received from docker '%s', error %s", lastLine, err)
+		}
+		errLine := &ErrorLine{}
+		json.Unmarshal([]byte(lastLine), errLine)
+		if errLine.ErrorBase != "" {
+			return "", errLine
+		}
+		if result.Aux.Id != "" {
+			parts := strings.Split(result.Aux.Id, ":")
+			if len(parts) != 2 {
+				return "", fmt.Errorf("unable to understand id returned by docker: %s", result.Aux.Id)
+			}
+			finalId = parts[1]
+			log.Printf("pdep:built image '%s'", parts[1])
+		}
+		if Verbose && result.Stream != "" {
+			log.Printf("%s", result.Stream)
+		}
+	}
+	return finalId, nil
+}
+
+func copyFileFromReader(tmpdir, name string, rd io.Reader) {
+	dfile, err := os.Create(filepath.Join(tmpdir, name))
+	if err != nil {
+		log.Fatalf("error creating new file '%s':%v", name, err)
+	}
+	log.Printf("copy file created %s,%s", tmpdir, name)
+	copied, err := io.Copy(dfile, rd)
+	if err != nil {
+		log.Fatalf("error copying tmpl file:%v", err)
+	}
+	log.Printf("copyfile wrote %s,%d", filepath.Join(tmpdir, name), copied)
+	dfile.Close()
+
+}
+
+func readFileToBuffer(path string) *bytes.Buffer {
+	fp, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("unable to open '%s' for reading: %v", path, err)
+	}
+	rd := io.LimitReader(fp, MaxTarEntrySize)
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		log.Printf("failed to read all of '%s': %v", path, err)
 	}
 
-	errLine := &ErrorLine{}
-	json.Unmarshal([]byte(lastLine), errLine)
-	if errLine.Error != "" {
-		return errors.New(errLine.Error)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	return nil
+	return bytes.NewBuffer(data)
 }
