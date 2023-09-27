@@ -212,6 +212,7 @@ prepdeploybase:
 	mkdir -p /workspaces/parigot/deploy/build
 	rm -f /workspaces/parigot/deploy/build/*
 	cp build/*.so build/runner /workspaces/parigot/deploy/build
+	cp /home/parigot/deps/caddy /workspaces/parigot/deploy/build
 
 #
 # TEST

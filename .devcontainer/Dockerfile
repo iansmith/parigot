@@ -29,6 +29,9 @@ ENV HUGO_VERSION=0.114.1
 # protoc because some plugins don't work with buf
 ENV PROTOC_VERSION=23.3
 
+# caddy 
+ENV CADDY_VERSION=2.7.4
+
 ENV docker_url="https://download.docker.com/linux/static/stable/${docker_arch}"
 ENV docker_version="24.0.6"
 
@@ -50,6 +53,7 @@ RUN set -e; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-arm64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-aarch_64.zip; \
 		docker_url="https://download.docker.com/linux/static/stable/aarch64"; \
+		curl -L -o /home/parigot/deps/caddy${CADDY_VERSION}.tar.gz https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_arm64.tar.gz; \
 		curl -fsSL $docker_url/docker-$docker_version.tgz | tar zxvf - --strip 1 -C /usr/bin docker/docker;; \
 		x86_64) wget -O go.tar.gz -q https://go.dev/dl/go${GOLANG_VERSION_HOST}.linux-amd64.tar.gz ; \
 		wget -O wasmtime.tar.xz -q https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz ; \
@@ -58,6 +62,7 @@ RUN set -e; \
 		wget -O hugo_${HUGO_VERSION}.deb -q https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.deb; \
 		wget -O protoc-${PROTOC_VERSION}.zip https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip; \
 		docker_url="https://download.docker.com/linux/static/stable/x86_64"; \
+		curl -L -o /home/parigot/deps/caddy${CADDY_VERSION}.tar.gz https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz; \
 		curl -fsSL $docker_url/docker-$docker_version.tgz | tar zxvf - --strip 1 -C /usr/bin docker/docker;; \
         *) echo "unknown architecture type, or not running in a linux container: aborting..."; return 1 ;; \
 	esac;
@@ -91,14 +96,21 @@ RUN tar xf wasmtime.tar
 RUN rm wasmtime.tar
 RUN . /home/parigot/deps/.suffix; mv wasmtime-$WASMTIME_SUFFIX wasmtime
 
+## install caddy
+WORKDIR /home/parigot/deps
+RUN tar xzf caddy${CADDY_VERSION}.tar.gz caddy
+RUN rm caddy${CADDY_VERSION}.tar.gz
 
-# protocol buffers 
+
+# install protocol buffers 
 ENV PB_VERSION="21.12"
 ENV PB_REL="https://github.com/protocolbuffers/protobuf/releases"
 #RUN curl -s -LO $PB_REL/download/v${PB_VERSION}/protoc-${PB_VERSION}-linux-x86_64.zip
 RUN mkdir /home/parigot/tools
 WORKDIR /home/parigot/tools
 ENV PB_REL=""
+
+
 
 ## tinygo does not support enough of reflect package to run "standard" go protobufs
 ## using the google tools ... there are other implementation of protobufs that
@@ -125,10 +137,7 @@ RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin/cc
 RUN ln -s /usr/local/bin/hugo /home/parigot/tools/bin
 
 RUN ln -s /home/parigot/deps/protoc-${PROTOC_VERSION}/bin/protoc /home/parigot/tools/bin
-
-# RUN ln -s /usr/local/tinygo/build/tinygo /home/parigot/tools/bin
-# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /home/parigot/tools/bin
-# RUN ln -s /usr/lib/llvm-${CLANG_VERSION}/bin/clang /usr/bin  
+RUN ln -s /home/parigot/deps/caddy /home/parigot/tools/bin
 
 # docker socket dir?
 RUN mkdir /var/run/parigot
