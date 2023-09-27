@@ -221,7 +221,8 @@ deploy-httpsimple: build/pdep deploy/Dockerfile.buildbase command/pdep/cmd/pdep/
 	cp /home/parigot/deps/caddy build/*.so build/runner /workspaces/parigot/deploy/build
 	cd example/httpsimple && make 
 	docker build -t iansmith/parigot-koyeb-base-0.3.1:arm64 --no-cache -f deploy/Dockerfile.buildbase deploy
-	pdep example/httpsimple
+	pdep -u iansmith example/httpsimple
+	docker push iansmith/example/httpsimple
 #
 # TEST
 #

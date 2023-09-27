@@ -31,6 +31,8 @@ var (
 	fTomlName      string
 	fImageName     string
 	fParigotRoot   string
+	fUser          string
+	fRepo          string
 )
 
 //go:embed cmd/pdep/Dockerfile.template
@@ -43,6 +45,8 @@ func Main() {
 	flag.StringVar(&fTomlName, "c", "", "filename of the configuration file (toml format) to use")
 	flag.StringVar(&fParigotRoot, "p", ".", "directory name of the root of the parigot library")
 	flag.StringVar(&fImageName, "t", "", "docker tag to associate with the resulting image")
+	flag.StringVar(&fUser, "u", "", "docker user name on the docker repository")
+	flag.StringVar(&fRepo, "r", "docker.io", "docker repo name")
 
 	flag.Parse()
 
@@ -61,7 +65,7 @@ func Main() {
 	}
 	opts := types.ImageBuildOptions{
 		Dockerfile: "Dockerfile",
-		Tags:       []string{fImageName},
+		Tags:       []string{strings.Join([]string{fRepo, fUser, fImageName}, "/")},
 		Remove:     true,
 	}
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -104,6 +108,14 @@ func validateArgs() {
 	}
 	if fImageName == "" {
 		fImageName = filepath.Base(fTomlName)
+	}
+	if fUser == "" {
+		u := os.Getenv("USER")
+		if u == "" {
+			log.Fatalf("must have a docker repo user, either with USER or -u flag")
+		}
+		log.Printf("using '%s' as docker repository username")
+		fUser = u
 	}
 }
 
