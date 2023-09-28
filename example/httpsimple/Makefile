@@ -3,7 +3,7 @@
 # build things it doesn't need to.
 all: generate build/frontdoor.p.wasm build/simple.p.wasm
 
-GO_VERSION=1.21.0
+GO_VERSION=1.21.1
 PARIGOT_VERSION=0.3-atlanta
 
 # run unit test... this is tricky because you have to run this inside a wasm host
@@ -11,18 +11,18 @@ PARIGOT_VERSION=0.3-atlanta
 # implementation
 .PHONY: test
 test:
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} test -c -o tester . ./simple
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} test -c -o tester . ./simple
 	wasmtime -- tester -test.v
 
 # first WASM file, compiled with GOOS and GOARCH set 
 .PHONY: build/frontdoor.p.wasm
 build/frontdoor.p.wasm:
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/frontdoor.p.wasm ./frontdoor.go
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/frontdoor.p.wasm ./frontdoor.go
 
 # second WASM file, compiled with GOOS and GOARCH set
 .PHONY: build/simple.p.wasm
 build/simple.p.wasm: 
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/simple.p.wasm ./simple/main.go
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/simple.p.wasm ./simple/main.go
 
 # this needs to be called to regenerate the generated files in
 # g/ that are derived from the .proto files.  
