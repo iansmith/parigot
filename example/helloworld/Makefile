@@ -4,25 +4,25 @@
 all:  generate hello.p.wasm greeting.p.wasm
 
 PARIGOT_VERSION=0.3.0
-GO_VERSION=1.21.0
+GO_VERSION=1.21.1
 
 # run unit test... this is tricky because you have to run this inside a wasm host
 # and this approach will not work if you have native code in your server
 # implementation
 .PHONY: test
 test:
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} test -c -o tester ./greeting
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} test -c -o tester ./greeting
 	wazero run tester -test.v
 
 # first WASM file, compiled with GOOS and GOARCH set 
 .PHONY: hello.p.wasm
 hello.p.wasm:
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/hello.p.wasm ./main.go
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/hello.p.wasm ./main.go
 
 # second WASM file, compiled with GOOS and GOARCH set
 .PHONY: greeting.p.wasm
 greeting.p.wasm: 
-	GOROOT=/home/parigot/deps/go${GO_VERSION} GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/greeting.p.wasm ./greeting/main.go
+	GOOS=wasip1 GOARCH=wasm go${GO_VERSION} build -o build/greeting.p.wasm ./greeting/main.go
 
 # this needs to be called to regenerate the generated files in
 # g/ that are derived from the .proto files.  You only need this
