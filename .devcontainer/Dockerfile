@@ -156,11 +156,11 @@ RUN chgrp -R parigot /home/parigot/deps
 #zsh    
 RUN chsh -s /usr/bin/zsh parigot
 
-# get ready for koyeb completions
-RUN mkdir -p /etc/bash_completion.d
-RUN touch /etc/bash_completion.d/koyeb
-RUN chown parigot /etc/bash_completion.d/koyeb
-RUN chgrp  parigot /etc/bash_completion.d/koyeb
+# get ready for koyeb completions... does not work with multiarch builds
+#RUN mkdir -p /etc/bash_completion.d
+#RUN touch /etc/bash_completion.d/koyeb
+#RUN chown parigot /etc/bash_completion.d/koyeb
+#RUN chgrp  parigot /etc/bash_completion.d/koyeb
 
 
 #temporary PATH hack

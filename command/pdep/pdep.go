@@ -63,10 +63,22 @@ func Main() {
 	if err != nil {
 		log.Fatalf("unable to create tar file: %v", err)
 	}
+	imageName := strings.Join([]string{fRepo, fUser, fImageName}, "/")
 	opts := types.ImageBuildOptions{
 		Dockerfile: "Dockerfile",
-		Tags:       []string{strings.Join([]string{fRepo, fUser, fImageName}, "/")},
-		Remove:     true,
+		Tags:       []string{imageName},
+		//Remove:    true,
+		Version: types.BuilderV1,
+		//BuildArgs: buildArg,
+		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
+			Type: "image",
+			Attrs: map[string]string{
+				"name": imageName,
+				"load": "true",
+				"push": "true",
+			},
+		},
+		},
 	}
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -85,7 +97,6 @@ func Main() {
 		log.Fatalf("unable to build image (from docker): %s", err)
 	}
 	log.Printf("pdep:tagged '%s' with '%s'", builtId, fImageName)
-	//os.RemoveAll(contentDir)
 
 }
 
@@ -222,12 +233,19 @@ func tempDir() string {
 	return tmpdir
 }
 
+// this is only used by the v1 builder
 type BuiltId struct {
 	Id string `json:"ID"`
 }
+
 type OutLine struct {
-	Stream string  `json:"stream"`
-	Aux    BuiltId `json:"aux"`
+	// Used only by v1 builder
+	Stream string `json:"stream"`
+	// different setup for the v1 builder
+	//Aux BuiltId
+	Aux interface{} `json:"aux"`
+	// used by v2, but is always moby.image.id
+	Id string `json:"id"`
 }
 type ErrorDetail struct {
 	Message string `json:"message"`
@@ -246,6 +264,7 @@ func print(rd io.Reader) (string, error) {
 	var lastLine string
 	var finalId string
 	scanner := bufio.NewScanner(rd)
+	buf := &bytes.Buffer{}
 	for scanner.Scan() {
 		lastLine = scanner.Text()
 		if err := scanner.Err(); err != nil {
@@ -261,16 +280,21 @@ func print(rd io.Reader) (string, error) {
 		if errLine.ErrorBase != "" {
 			return "", errLine
 		}
-		if result.Aux.Id != "" {
-			parts := strings.Split(result.Aux.Id, ":")
-			if len(parts) != 2 {
-				return "", fmt.Errorf("unable to understand id returned by docker: %s", result.Aux.Id)
+		var ok bool
+		if result.Aux != nil {
+			var s string
+			s, ok = result.Aux.(string)
+			if ok {
+				buf.WriteString(s)
+				continue
 			}
-			finalId = parts[1]
-			log.Printf("pdep:built image '%s'", parts[1])
-		}
-		if Verbose && result.Stream != "" {
-			log.Printf("%s", result.Stream)
+			var m map[string]interface{}
+			m, ok = result.Aux.(map[string]interface{})
+			if ok {
+				log.Printf("result of build: %s", m["ID"])
+				continue
+			}
+			log.Printf("unable to understand json result in result from docker: %+v", result.Aux)
 		}
 	}
 	return finalId, nil
@@ -281,12 +305,10 @@ func copyFileFromReader(tmpdir, name string, rd io.Reader) {
 	if err != nil {
 		log.Fatalf("error creating new file '%s':%v", name, err)
 	}
-	log.Printf("copy file created %s,%s", tmpdir, name)
-	copied, err := io.Copy(dfile, rd)
+	_, err = io.Copy(dfile, rd)
 	if err != nil {
 		log.Fatalf("error copying tmpl file:%v", err)
 	}
-	log.Printf("copyfile wrote %s,%d", filepath.Join(tmpdir, name), copied)
 	dfile.Close()
 
 }

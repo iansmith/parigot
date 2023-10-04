@@ -1,6 +1,6 @@
 #make then make prepdeploybase is required to populate build
 FROM menci/archlinuxarm
-RUN pacman -Syu --noconfirm
+#RUN pacman -Syu --noconfirm
 RUN mkdir -p /app/build
 COPY build/* /app/build/
 WORKDIR /app

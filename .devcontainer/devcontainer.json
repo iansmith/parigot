@@ -1,6 +1,6 @@
 {
 	//"build": { "dockerfile": "Dockerfile" },
-	"image": "iansmith/parigot-dev-0.3.1:arm64",
+	"image": "iansmith/parigot-dev-0.3.2",
 	"customizations": {
 	  "vscode": {
 		"extensions": ["golang.go","ms-vscode.makefile-tools","ms-azuretools.vscode-docker",

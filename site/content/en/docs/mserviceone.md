@@ -1,6 +1,7 @@
 
-** Not Goto, Microservices Considered Harmful **
-****** Ian Smith, Sep 2023 ******
+### Not Goto, Microservices Considered Harmful 
+#### Ian Smith, Oct 2023 
+##### Episode 1 
 
 This is the first of a three part series of articles.  The first of these
 explains the problems created by microservices in development.  The second
@@ -15,19 +16,18 @@ of the ACM, by Edsger Dijkstra.
 
 You have two potential designs for the structure of a new product, a single
 program and a distributed system.  If you ask a developer of even the most
-modest experience which is "easier to build", you will certainly get the
-answer that the single program is easier. (If you don't, then you have a
-different problem.) There are certainly other constraints that need to be
-considered when building a new software system other than the ease with which it
-can be built, but frequently the ease of building is wrongly not given its
-proper respect in the heirarchy of constraints.  Software developer cost is
-always the most expensive part of the software build, so not giving ease of
-construction the first priority in terms of the prioritization of goals is going
-to be more expensive.  Second, the time to build--which is the brother or cousin
-of ease of building--is nearly always a key driver of project success.  If it's
-easier to build, you get customer feedback (and failure) faster.  If it's easier
-to build, you have the opportunity to gain first-mover advantage in the
-marketplace.
+modest experience which is "easier to build", you will certainly get the answer
+that the single program is easier. (If you don't, then you have a different
+problem.) There are certainly other constraints that need to be considered when
+building a new software system other than the ease with which it can be built,
+but frequently the ease of building is wrongly not given its proper respect in
+the heirarchy of constraints.  Software developer cost is always the most
+expensive part of the software build, so not giving ease of construction the
+primary importance in terms of the prioritization of goals is going to be more
+expensive.  Second, the time to build--which is the brother or cousin of ease of
+building--is nearly always a key driver of project success.  If it's easier to
+build, you get customer feedback (and failure) faster.  If it's easier to build,
+you have the opportunity to gain first-mover advantage in the marketplace.
 
 ****Is a microservice architecture always a distributed system?****
 
@@ -35,7 +35,7 @@ Since distributed systems are harder to build, is it fair to characterize any
 microservice-based architecture as a distributed system?  I argue that it is.
 The problem is that if you remove the distributed system part of anything that
 claims to be microservices, you are left with just the (much older) idea of
-"modularization" software.   Few, if any, would argue against modularization
+"modularization".   Few, if any, would argue against modularization
 in software, so the term "microservice" must imply a particular, distributed 
 type of modularization, or there is no point in such a word.
 
@@ -51,24 +51,25 @@ debugging, failure handling (or not), and testing.
 
 ****Symptom:Debugging****
 
-All of the debugging problems flow from the distributed nature of the microservices
-architecture.  The most obvious problem is the name of this symptom: debuggers.
-Modern debuggers are designed to work on a single program.  Although it's possible
-to run several copies of a debugger on the different microservices that you need
-to debug, this is a big hassle and likely not pssible for larger microservice
-deployments.  If you have 300 microservices running, which ones do you run the
-debugger on?  How would one determine what those are, due to the modularity (concealment)
-of the microservices?   Even if you can get debuggers running in the needed places,
-the debuggers are likely to have a substantial effect on the ordering of operations
-when considering the system as a whole, since a debugger changes the CPU profile of
-an application.
+All of the debugging problems flow from the distributed nature of the
+microservices architecture.  The most obvious problem is the name of this
+symptom: debuggers.  Modern debuggers are designed to work on a single program.
+Although it's possible to run several copies of a debugger on the different
+microservices that you need to debug, this is a big hassle and likely not
+pssible for larger microservice deployments.  If you have 300 microservices
+running, which ones do you run the debugger on?  How would one determine what
+those are, due to the modularity (concealment) of the microservices?   Even if
+you can get debuggers running in the needed places, the debuggers are likely to
+have a substantial effect on the ordering of operations when considering the
+system as a whole, since a debugger changes the CPU profile of an application.
 
 The usual step before trying to run multiple debuggers is to use logs.  If you
 consider multiple log files being generated on different machines,  the
 difficulty is obvious that these have to be collected and then "merged in your
 head" or with tools to see the complete picture of what is happening.  With
-clock drift between machines, its possible that this "merge" cannot be done at
-all, especially on the timescales that modern servers operate on.  With the use
+clock drift between machines, it's possible that this "merge" cannot be done at
+all, especially on the timescales that modern servers operate on.  What is the
+cost of not knowing the causal ordering of different services?  With the use
 of centralized logging tool of some type, this problem can be largely be
 obviated.  However, in practice several well-known tech companies do not use
 such a tool/system _for developers._  The operational complexity and cost seems
@@ -86,22 +87,25 @@ rather than production.
 
 ****Symptom:Failure Handling (or not)****
 
-Broadly speaking, failure/error handling in a distribute system is known to be
+Broadly speaking, failure/error handling in a distributed system is known to be
 hard. Like, predicting the stock market kind of hard!  For those not familiar
-with this problem, it hinges on a quite simple fact: The program that
-notices/receives the failure does have the global information necessary to make
-a good decision about error handling.  If you think about a caller and callee
-where a request flows from caller to callee, the callee is impaired in making a
-"good" decision about erors that receives because it doesn't have even have
-knowlege of the caller, much less global knowlege.  Even if the error is simply
-propagated back  to the caller, the same issue results.  The "right thing to do"
-about many errors requires global knowlege about the state of the system (to
-say nothing of the user!)  The simplest possible example here the difference between
-product and testing; in one case a system failure is expected/desired, in
-the other case it is not It should be noted that the microservice design
-considers the isolation of knowlege and accompanying responsibility as a
-**feature**.   This is frequently termed "separation of concerns" when viewed as
-a positive for the microservice approach.
+with this problem, it hinges on a quite simple fact: The (separate) program that
+notices/receives the failure may not (does notå) have the global information
+necessary to make a good decision about error handling.  If you think about a
+caller and callee where a request flows from caller to callee, and the callee is
+seriously impaired, making a "good" decision about errors that the broken
+receives is difficult.  This difficulty comes from the fact the broken service
+doesn't have even have knowlege of the caller, much less global knowlege.  Even
+if the error is simply propagated back  to the caller, the same issue results.
+
+The "right thing to do" about many errors requires global knowlege about the
+state of the system (to say nothing of the user!)  The simplest possible example
+here the difference between product and testing; in one case a system failure is
+expected/desired, in the other case it is not. It should be noted that the
+microservice design considers the isolation of knowlege and accompanying
+responsibility as a **feature**.   This is frequently termed "separation of
+concerns" when viewed as a positive for the microservice approach.  I might be
+tempted to call it "moving the problem".
 
 ****Symptom:Testing****
 
@@ -121,39 +125,41 @@ production system.  For those without the resources to spending multiple enginee
 heads on development tooling, things look far grimmer.  It is not uncommon for
 even mid-sized technology companies to have no easy way to create a complete copy
 of the production system for a developers' personal use.  Many of these
-types of organizions (a few of which I spoke to personally) had various "dodges"
+types of organizions (several of which I spoke to personally) had various "dodges"
 to avoid needing complete copies of the running system.  The two most common
 dodges were "partial production" or "shared staging environment."  In the former
 case the developer declares that some services (usually on the scale of 3-5) are
 to be run locally and the remainder are to use the existing production system.
-The latter is simply the creation of a single copy of the production system that
-developers can/must use individually. This coordination problem with this latter
-approach here is obvious.
+The latter is simply the creation of a single copy of the production system, and
+a plausible data set, that developers can/must use individually. This 
+coordination problem with this latter approach here is obvious.
 
 Returning to testing more directly, the problems above with respect to logging
-in a distributed system reappear here.  Because of the network latencies, scheduler
-choices, and generally just randomness, a distributed system is hard to get into a "particular
-state" for a test.  This is true of nearly any test where multiple services are
-involved, because the interactions of services matter.  Getting the world into a particular
-state is critical to the very concept of testing, particularly when the world
-state is a bad one. If you used the "partial production" approach above, are you
-going to be willing to force production services into known bad states so that
-a developer can run a test? No.   The worst outcome of trying to test
-a microservice based system can be heard in many engineering offices, "Oh, try
-running the tests again."  This means that the developers no longer believe in
-the test results they are receiving which is the route to catastrophic failures.
+in a distributed system reappear here.  Because of the network latencies,
+scheduler choices, and generally just randomness, a distributed system is hard
+to get into a "particular state" for a test.  This is true of nearly any test
+where multiple services are involved, because the interactions of services
+matter.  Getting the world into a particular state is critical to the very
+concept of testing, particularly when the world state is a bad one. If you used
+the "partial production" approach above, are you going to be willing to force
+production services into known bad states so that a developer can run a test?
+No.   The worst outcome of trying to test a microservice based system can be
+heard in many engineering offices, "Oh, try running the tests again."  This
+means that the developers no longer believe in the test results they are
+receiving, which is the dark and directå route to catastrophic failures.
 
 ****Bonus Symptom:Startup****
-For most developers, the way to create a workable integration test structure is to start
-up a fresh copy of the "system" (see above) and run specific requests to test
-the results.  The key here is "fresh system".  Because systems typically start
-in a well-known and predictable state, that is the easiest way to control things for a test.
-However, if your system has, say 20 or 30 services that need to be started, variance
-in the startup timing can be significant.  If you are trying to test service A,
-how are you to know that service A's dependency on service B depends materially
-on whether B is "already up" when A starts?   In effect, your test now has a hidden
-dependency on the startup ordering.  A distributed system can be 71% up, a 
-single program cannot.
+
+For most developers, the way to create a workable integration test structure is
+to start up a fresh copy of the "system" (see above) and run specific requests
+to test the results.  The key here is "fresh system".  Because systems typically
+start in a well-known and predictable state, that is the easiest way to control
+things for a test.  However, if your system has, say 20 or 30 services that need
+to be started, variance in the startup timing can be significant.  If you are
+trying to test service A, how are you to know that service A's dependency on
+service B depends materially on whether B is "already up" when A starts?   In
+effect, your test now has a hidden dependency on the startup ordering.  A
+distributed system can be 71% up, a single program cannot.
 
 With the needed apologies to The Bard and Marc Anthony, I have written this article to bury
 microservices, not to praise them.  For a developer, the symptoms above are

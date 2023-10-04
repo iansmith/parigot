@@ -211,6 +211,13 @@ build/syscall.so: $(SYSCALL_PLUGIN) $(SYS_SRC) $(ENG_SRC)  $(SHARED_SRC) $(API_I
 	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/syscall/main
 
 
+## this is only used for building the (multi-arch) container that is used for the base
+## of (non-multiarch) apps, most people don't need to care about this
+.PHONY: koyeb
+koyeb:
+	docker buildx build --platform linux/amd64,linux/arm64 -t iansmith/parigot-koyeb-base-0.3.1 --push -f deploy/Dockerfile.buildbase --push deploy 
+
+
 #
 # deploy using our scripts
 #
@@ -221,9 +228,10 @@ deploy-httpsimple: build/pdep deploy/Dockerfile.buildbase command/pdep/cmd/pdep/
 	rm -f /workspaces/parigot/deploy/build/*
 	cp /home/parigot/deps/caddy build/*.so build/runner /workspaces/parigot/deploy/build
 	cd example/httpsimple && make 
-	docker build -t iansmith/parigot-koyeb-base-0.3.1:arm64 --no-cache -f deploy/Dockerfile.buildbase deploy
+	@### if you get
+	@### ERROR: Multiple platforms feature is currently not supported for docker driver. Please switch to a different driver (eg. "docker buildx create --use")
+	@## then type the command suggested at the end and then the makefile will work
 	pdep -u iansmith example/httpsimple
-	docker push iansmith/example/httpsimple
 #
 # TEST
 #
