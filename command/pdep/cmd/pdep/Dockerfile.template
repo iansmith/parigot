@@ -1,9 +1,10 @@
 FROM iansmith/parigot-koyeb-base-0.3.1
 COPY app/build/* /app/build/
 COPY app/app.toml /app/app.toml
-COPY app/Caddyfile /app/Caddyfile
+#COPY app/Caddyfile /app/Caddyfile
 WORKDIR /app
 EXPOSE 80
 EXPOSE 9000
 EXPOSE 443 
-ENTRYPOINT ["build/caddy","run","--config","Caddyfile"]
+#ENTRYPOINT ["build/caddy","run","--config","Caddyfile"]
+ENTRYPOINT ["build/runner","app.toml"]

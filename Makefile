@@ -319,8 +319,6 @@ helloworldtest:
 build/tester: example/helloworld/greeting/greeting_test.go
 	${GO_TO_WASM} test -c -o build/tester github.com/iansmith/parigot/example/helloworld/greeting
 	
-
-
 # CLEAN
 #
 .PHONY: protoclean

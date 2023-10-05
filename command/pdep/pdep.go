@@ -68,7 +68,8 @@ func Main() {
 		Dockerfile: "Dockerfile",
 		Tags:       []string{imageName},
 		//Remove:    true,
-		Version: types.BuilderV1,
+		Version:  types.BuilderBuildKit,
+		Platform: "linux/amd64",
 		//BuildArgs: buildArg,
 		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
 			Type: "image",
