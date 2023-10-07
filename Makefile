@@ -9,7 +9,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 guest: build/file.p.wasm  build/queue.p.wasm build/nutsdb.p.wasm
-commands: 	build/protoc-gen-parigot build/runner build/pdep
+commands: 	build/protoc-gen-parigot build/runner build/pdep arm64
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so build/nutsdb.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
@@ -43,7 +43,7 @@ SHARED_SRC=$(shell find api/shared -type f -regex ".*\.go")
 #
 GO_TO_WASM=GOOS=wasip1 GOARCH=wasm go
 GO_TO_HOST=go
-GO_TO_PLUGIN=go
+GO_TO_PLUGIN=GOOS=$(DEPLOYOS) GOARCH=$(DEPLOYARCH) go
 
 #
 # PROTOBUF FILES
@@ -136,7 +136,7 @@ build/nutsdb.p.wasm: $(NUTSDB_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/nutsdb/v1
 
 #id cruft
 g/test/v1/testid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl 
-	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p test Test t test > g/test/v1/testid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p test Test t test > g/test/v1/testid.go
 
 ## client side of the test service
 TEST_SERVICE=$(shell find api/guest/test -type f -regex ".*\.go")
@@ -146,11 +146,11 @@ build/test.p.wasm: $(TEST_SERVICE) $(REP) $(SYSCALL_CLIENT_SIDE) g/test/v1/testi
 
 #id cruft
 g/queue/v1/queueid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
-	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p queue Queue q queue  > g/queue/v1/queueid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p queue Queue q queue  > g/queue/v1/queueid.go
 g/queue/v1/rowid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
-	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p queue Row r row > g/queue/v1/rowid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p queue Row r row > g/queue/v1/rowid.go
 g/queue/v1/queuemsgid.go: api/shared/id/id.go command/boilerplateid/main.go command/boilerplateid/template/*.tmpl $(REP) 
-	GOOS= GOARCH= $(GO_TO_HOST) run command/boilerplateid/main.go -p queue QueueMsg m msg > g/queue/v1/queuemsgid.go
+	$(GO_TO_HOST) run command/boilerplateid/main.go -p queue QueueMsg m msg > g/queue/v1/queuemsgid.go
 
 ## client side of service impl
 QUEUE_SERVICE=$(shell find api/guest/queue -type f -regex ".*\.go")
@@ -188,7 +188,7 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+	$(GO_TO_PLUGIN) build -x $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
 build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 

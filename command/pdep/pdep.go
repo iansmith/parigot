@@ -41,6 +41,9 @@ var Dockerfile []byte
 //go:embed cmd/pdep/Caddyfile.template
 var Caddyfile []byte
 
+//go:embed cmd/pdep/startup.template
+var Startup []byte
+
 func Main() {
 	flag.StringVar(&fTomlName, "c", "", "filename of the configuration file (toml format) to use")
 	flag.StringVar(&fParigotRoot, "p", ".", "directory name of the root of the parigot library")
@@ -175,6 +178,10 @@ func buildContentTarball(code, toml, root string) string {
 	// copy burned-in CaddyFile
 	buf = bytes.NewBuffer(Caddyfile)
 	copyFileFromReader(tmpdir, filepath.Join("app", "Caddyfile"), buf)
+
+	// copy burned-in script
+	buf = bytes.NewBuffer(Startup)
+	copyFileFromReader(tmpdir, filepath.Join("app", "startup.sh"), buf)
 
 	// dfile, err := os.Create(filepath.Join(tmpdir, "Dockerfile"))
 	// if err != nil {

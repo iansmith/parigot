@@ -1,0 +1,4 @@
+#!/bin/bash
+
+nohup build/caddy run --config Caddyfile 
+build/runner app.toml
