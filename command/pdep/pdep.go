@@ -77,7 +77,7 @@ func Main() {
 		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
 			Type: "registry",
 			Attrs: map[string]string{
-				"name": imageName,
+				"dest": imageName,
 				//"load": "true",
 				"push": "true",
 			},
