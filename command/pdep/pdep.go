@@ -75,11 +75,11 @@ func Main() {
 		Platform: "linux/amd64",
 		//BuildArgs: buildArg,
 		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
-			//Type: "Registry",
+			Type: "registry",
 			Attrs: map[string]string{
 				"name": imageName,
-				"load": "true",
-				//"push": "true",
+				//"load": "true",
+				"push": "true",
 			},
 		},
 		},
