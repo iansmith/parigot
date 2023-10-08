@@ -15,15 +15,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/apenella/go-docker-builder/pkg/build"
+	"github.com/apenella/go-docker-builder/pkg/build/context/path"
+	"github.com/apenella/go-docker-builder/pkg/push"
+	"github.com/apenella/go-docker-builder/pkg/response"
+	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/archive"
 )
 
 const (
-	BaseImageName   = "docker.io/iansmith/parigot-koyeb-0.3"
-	MaxTarEntrySize = 1024 * 1024 * 256
-	Verbose         = false
+	BaseImageName      = "docker.io/iansmith/parigot-koyeb-0.3"
+	MaxTarEntrySize    = 1024 * 1024 * 256
+	Verbose            = false
+	RepoPasswordEnvVar = "IMAGE_REGISTRY_PASSWORD"
 )
 
 var (
@@ -62,46 +66,74 @@ func Main() {
 
 	contentDir := buildContentTarball(fCodeDirectory, fTomlName, fParigotRoot)
 	log.Printf("pdep:built content tarball in %s", contentDir)
-	tar, err := archive.TarWithOptions(contentDir+"/", &archive.TarOptions{})
-	if err != nil {
-		log.Fatalf("unable to create tar file: %v", err)
-	}
+
 	imageName := strings.Join([]string{fRepo, fUser, fImageName}, "/")
-	opts := types.ImageBuildOptions{
-		Dockerfile: "Dockerfile",
-		Tags:       []string{imageName},
-		//Remove:    true,
-		Version:  types.BuilderBuildKit,
-		Platform: "linux/amd64",
-		//BuildArgs: buildArg,
-		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
-			Type: "registry",
-			Attrs: map[string]string{
-				"dest": imageName,
-				//"load": "true",
-				"push": "true",
-			},
-		},
-		},
-	}
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		log.Fatalf("unable to create docker client: %v", err)
 	}
-
-	res, err := cli.ImageBuild(context.Background(),
-		tar, opts)
-	if err != nil {
-		log.Fatalf("unable to build image: %v", err)
-	}
-	defer res.Body.Close()
-
-	builtId, err := print(res.Body)
-	if err != nil {
-		log.Fatalf("unable to build image (from docker): %s", err)
+	outBuffer := &bytes.Buffer{}
+	resp := response.NewDefaultResponse(response.WithWriter(outBuffer))
+	dockerBuilder := &build.DockerBuildCmd{
+		Cli:       cli,
+		ImageName: imageName,
+		Response:  resp,
 	}
 
-	log.Printf("pdep:tagged '%s' with '%s/%s/%s'", builtId, fRepo, fUser, fImageName)
+	dockerBuildContext := &path.PathBuildContext{
+		Path: contentDir,
+	}
+
+	err = dockerBuilder.AddBuildContext(dockerBuildContext)
+	if err != nil {
+		log.Fatalf("unable to add build context to builder: %v", err)
+	}
+	password := os.Getenv(RepoPasswordEnvVar)
+	if password != "" {
+		password := os.Getenv(RepoPasswordEnvVar)
+		err = dockerBuilder.AddAuth(fUser, password, fRepo)
+		if err != nil {
+			log.Fatalf("unable to add authentication to builder: %v", err)
+		}
+	}
+
+	err = dockerBuilder.Run(context.TODO())
+	if err != nil {
+		log.Printf("-------DOCKER ERRROR-------")
+		log.Print(outBuffer.String())
+		log.Printf("-------ENND DOCKER ERRROR-------")
+		log.Fatalf("unable to run docker build: %v", err)
+	}
+
+	log.Printf("pdep:tagged image with '%s'", imageName)
+
+	cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		log.Fatalf("unable to create docker client: %v", err)
+	}
+
+	outBuffer.Reset()
+	resp = response.NewDefaultResponse(response.WithWriter(outBuffer))
+	dockerPush := &push.DockerPushCmd{
+		Cli:              cli,
+		ImageName:        imageName,
+		ImagePushOptions: &dockertypes.ImagePushOptions{},
+		Response:         resp,
+	}
+	if password != "" {
+		dockerPush.AddAuth(fUser, password)
+	} else {
+		log.Fatalf("unable to find enviroment variable to authenticate to registry: %s", RepoPasswordEnvVar)
+	}
+
+	err = dockerPush.Run(context.TODO())
+	if err != nil {
+		log.Printf("-------DOCKER ERRROR-------")
+		log.Print(outBuffer.String())
+		log.Printf("-------ENND DOCKER ERRROR-------")
+		log.Fatalf("unable to push image to repository '%s': %v", fRepo, err)
+	}
+	log.Printf("pdep:pushed image to repository '%s'", fRepo)
 
 }
 

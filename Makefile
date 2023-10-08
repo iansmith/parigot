@@ -231,7 +231,7 @@ deploy-httpsimple: build/pdep deploy/Dockerfile.buildbase command/pdep/cmd/pdep/
 	@### if you get
 	@### ERROR: Multiple platforms feature is currently not supported for docker driver. Please switch to a different driver (eg. "docker buildx create --use")
 	@## then type the command suggested at the end and then the makefile will work
-	pdep -r docker.io -u iansmith -t bleah2 example/httpsimple
+	pdep -r docker.io -u iansmith example/httpsimple
 #
 # TEST
 #
