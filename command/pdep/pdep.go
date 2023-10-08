@@ -79,7 +79,7 @@ func Main() {
 			Attrs: map[string]string{
 				"name": imageName,
 				"load": "true",
-				"push": "true",
+				//"push": "true",
 			},
 		},
 		},
