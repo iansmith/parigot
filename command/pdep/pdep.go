@@ -75,7 +75,7 @@ func Main() {
 		Platform: "linux/amd64",
 		//BuildArgs: buildArg,
 		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
-			Type: "image",
+			Type: "docker",
 			Attrs: map[string]string{
 				"name": imageName,
 				"load": "true",
