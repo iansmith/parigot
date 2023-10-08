@@ -75,10 +75,10 @@ func Main() {
 		Platform: "linux/amd64",
 		//BuildArgs: buildArg,
 		Outputs: []types.ImageBuildOutput{types.ImageBuildOutput{
-			Type: "docker",
+			Type: "registry",
 			Attrs: map[string]string{
 				"name": imageName,
-				"load": "true",
+				//"load": "true",
 				"push": "true",
 			},
 		},
