@@ -100,7 +100,8 @@ func Main() {
 	if err != nil {
 		log.Fatalf("unable to build image (from docker): %s", err)
 	}
-	log.Printf("pdep:tagged '%s' with '%s'", builtId, fImageName)
+
+	log.Printf("pdep:tagged '%s' with '%s/%s/%s'", builtId, fRepo, fUser, fImageName)
 
 }
 
