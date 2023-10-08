@@ -78,7 +78,7 @@ func Main() {
 			//Type: "Registry",
 			Attrs: map[string]string{
 				"name": imageName,
-				//"load": "true",
+				"load": "true",
 				"push": "true",
 			},
 		},
