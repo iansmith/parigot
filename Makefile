@@ -9,7 +9,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 guest: build/file.p.wasm  build/queue.p.wasm build/nutsdb.p.wasm
-commands: 	build/protoc-gen-parigot build/runner build/pdep arm64
+commands: 	build/protoc-gen-parigot build/runner build/pdep
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so build/nutsdb.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
@@ -188,7 +188,7 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build -x $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+	$(GO_TO_PLUGIN) build  $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
 build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 
