@@ -51,8 +51,8 @@ Wait, if I have 100,000 concurrent users, how many requests per second would the
 generate?
 
 Microservices also ignore two key wins of a monolith, especially one that is
-decently well built.  Because it is so much simpler to build _and deploy_ the
-monolith gives you two *time* advantages.  If you can build it more easily, you'll
+decently well built.  Because it is so much simpler to build _and deploy_, the
+monolith gives you two _time_ advantages.  If you can build it more easily, you'll
 be able to get a version of it out to the world quicker.  The benefits first mover
 advantage and fast failure/feedback are covered in detail in many hundreds of
 books both in the software field and the business field.
