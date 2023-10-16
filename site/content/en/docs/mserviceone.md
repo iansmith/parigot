@@ -162,12 +162,12 @@ materially on whether B is "already up" when A starts?   In effect, your test
 now has a hidden dependency on the startup ordering.  A distributed system can
 be 71% up, a single program cannot.
 
-With the needed apologies to The Bard and Marc Anthony, I have written this article to bury
-microservices, not to praise them.  For a developer, the symptoms above are
-sufficient to make him/her question if a new software project **really** wants
-to start with the complexity disease.   The disease may be something that is worth
-tolerating for some specific benefits--but it's not something that a couple of
-aspirin and a morning phone call will fix.
+With the needed apologies to The Bard and Marc Anthony, I have written this
+article to bury microservices, not to praise them.  For a developer, the
+symptoms above are sufficient to make him/her question if a new software project
+**really** wants to start with the complexity disease.   The disease may be
+something that is worth tolerating for some specific benefits--but it's not
+something that a couple of aspirin and a morning phone call will fix.
 
 > Brutus was a microservice advocate,
 > Brutus was an honorable man.
