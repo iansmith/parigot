@@ -66,8 +66,8 @@ it seems that any prudent manager should be considering time to market,
 operational costs, and developer expense when considering a more complex
 architecture.
 
-I have been hard on microservices on this article and I believe with good
-reasons that I have elucidated as well as one could in a short amount of time.
+I have been hard on microservices on this article.  I also believe that I have 
+elucidated issues with microservices as well as one could in a small amount of space.
 The truly awful problem of microservices are the people collecting
 large consulting fees to promote an architecture that *might* be good for your
 business, but said consultant does not fully explain the potential problems.  I

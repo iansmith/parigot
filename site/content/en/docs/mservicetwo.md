@@ -54,7 +54,7 @@ am not saying that deployment doesn't matter, it can be critical in many
 organizations.  However, deployment matters to a different set people at a
 different time than development-time.  Such a unoservice design is certainly not
 harder build than a microservice one, since the abstractions provided are
-effectively the same and the topology is the simpler.
+effectively the same and the topology is simpler.
 
 So, number 4 in the marketing list above makes the claim that *at even earlier
 time* than development-time is somehow (magically?) affected by the a
@@ -122,8 +122,8 @@ doing the expensive computation can handle incoming requests, even while one
 instance of the software is calculating a prime number that has 1 million
 digits.  
 
-Let's return to our prior thought-expirement the unoservice.  If the desire for
-horizontal scaling of a service is one where the service in question is I/O
+Let's return to our prior thought-experiment of the unoservice.  If the desire
+for horizontal scaling of a service is one where the service in question is I/O
 bound and not CPU or memory bound, then the unoservice can simply spawn more
 threads that are running the service in question's code--at least until the
 number of cores in the CPU is equal to the number of OS threads. This same
@@ -145,7 +145,7 @@ advantages are now relevant to our overall design.
 Even in the complexity department, this solution is *still* simpler than a
 standard microservice approach, although not as much as the pure unoservice.  In
 the duoservice design, yes, there is a lot of complexity both for developers and
-operations for the single service that must be replicate. However, price of this
+operations for the single service that must be replicated. However, price of this
 complexity in this case is clearly worth paying because the overall system
 throughput is much improved.  In standard microservice deployment strategy you
 pay this complexity penalty for every service, whether it needs multiple
