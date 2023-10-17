@@ -123,15 +123,15 @@ func Main() {
 	if password != "" {
 		dockerPush.AddAuth(fUser, password)
 	} else {
-		log.Fatalf("unable to find enviroment variable to authenticate to registry: %s", RepoPasswordEnvVar)
+		log.Printf("no environment variable '%s' found, assuming no password", RepoPasswordEnvVar)
 	}
 
 	err = dockerPush.Run(context.TODO())
 	if err != nil {
-		log.Printf("-------DOCKER ERRROR-------")
-		log.Print(outBuffer.String())
-		log.Printf("-------ENND DOCKER ERRROR-------")
-		log.Fatalf("unable to push image to repository '%s': %v", fRepo, err)
+		log.Printf("-------DOCKER ERROR-------")
+		log.Printf("\n%v\n", err)
+		log.Printf("-------END DOCKER ERROR-------")
+		log.Fatalf("failed push image to repository '%s'", fRepo)
 	}
 	log.Printf("pdep:pushed image to repository '%s'", fRepo)
 
