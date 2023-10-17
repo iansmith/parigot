@@ -7,4 +7,4 @@ EXPOSE 80
 EXPOSE 9000
 EXPOSE 443 
 #ENTRYPOINT ["build/caddy","run","--config","Caddyfile"]
-ENTRYPOINT ["startup.sh"]
+ENTRYPOINT ["/app/startup.sh"]
