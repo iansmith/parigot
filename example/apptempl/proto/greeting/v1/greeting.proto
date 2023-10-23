@@ -1,0 +1,58 @@
+syntax ="proto3";
+import "protosupport/v1/protosupport.proto";
+package greeting.v1;
+option go_package="greeting/v1;greeting";
+
+// Greeting is a microservice with a very simple job, return a greeting in
+// language selected from the Tongue enum.
+service Greeting {
+  // This option binds the type "GreetErr" to this Greeting service and
+  // code generated will use GreetErr as the type for error retuns.
+  option (protosupport.v1.error_id_name) = "GreetErr";
+
+  // FetchGreeting returns a greeting in the language given by the 
+  // Request, field "tongue".
+  rpc FetchGreeting(FetchGreetingRequest) returns (FetchGreetingResponse);
+}
+
+// which language do you want?
+enum Tongue{
+  Unspecified = 0;
+  English = 1;
+  French = 2;
+  German = 3;
+}
+
+
+
+// The first four values of any error enum are to be as shown below.
+enum GreetErr{
+  option (protosupport.v1.parigot_error) = true;
+  NoError = 0; // required
+  // Dispatch error occurs when we are trying to call a service 
+  // implemented elsewhere.  This error indicates that the process
+  // of the call itself had problems, not the execution of the
+  // service's method.
+  DispatchError = 1; // required
+  // UnmarshalFailed is used to indicate that in unmarshaling
+  // a request or result, the protobuf layer returned an error.
+  UnmarshalFailed = 2; // required
+  // MarshalFailed is used to indicate that in unmarshaling
+  // a request or result, the protobuf layer returned an error.
+  MarshalFailed = 3; // required
+
+  // FetchGreeting returns this when the parameter presented to 
+  // it is not a language in it's list.
+  UnknownLang = 4;
+}
+
+// FetchGreet is called to retreive a common greeting, like 
+// Bonjuor in french.
+message FetchGreetingRequest {
+    Tongue tongue = 1;
+}
+// FetchGreetingResponse is returned to a caller who sent a request
+// to the FetchGreeting endpoint.
+message FetchGreetingResponse {
+  string greeting = 1;
+}

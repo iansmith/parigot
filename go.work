@@ -5,4 +5,5 @@ use (
 	example/helloworld
 	example/httpsimple
 	example/kv
+	example/apptempl
 )

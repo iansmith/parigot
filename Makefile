@@ -9,7 +9,7 @@ all: commands \
 #
 protos: g/file/$(API_VERSION)/file.pb.go # only need one file to trigger all being built
 guest: build/file.p.wasm  build/queue.p.wasm build/nutsdb.p.wasm
-commands: 	build/protoc-gen-parigot build/runner build/pdep
+commands: 	build/protoc-gen-parigot build/runner build/pdep build/parigotbase
 plugins: build/queue.so build/file.so build/syscall.so build/httpconn.so build/nutsdb.so
 sqlc: api/plugin/queue/db.go
 helloworld: build/greeting.p.wasm build/helloworld.p.wasm
@@ -80,6 +80,14 @@ PLUGIN= build/queue.so build/file.so build/syscall.so build/nutsdb.so
 build/runner: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
 	@rm -f $@
 	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/runner
+
+PARIGOTBSE_SRC=$(shell find command/parigotbase -type f -regex ".*\.go")
+STATIC_LINK= -tags netgo,osusergob -ldflags "-linkmode 'external' -extldflags '-static'"
+STATIC_LINK_SO=-tags netgo,osusergob
+PLUGIN= build/queue.so build/file.so build/syscall.so build/nutsdb.so
+build/parigotbase: $(PLUGIN) $(RUNNER_SRC) $(REP) $(ENG_SRC) $(SYS_SRC) $(SHARED_SRC)
+	@rm -f $@
+	$(GO_TO_HOST) build $(EXTRA_HOST_ARGS)  -o $@ github.com/iansmith/parigot/command/parigotbase
 
 PDEP_SRC=$(shell find command/pdep -type f -regex ".*\.go")
 PDEP_TEMPL_SRC=$(shell find command/pdep -type f -regex ".*\.template")
@@ -188,7 +196,7 @@ api/plugin/queue/db.go: $(QUEUE_SQL) api/plugin/queue/sqlc/sqlc.yaml
 QUEUE_PLUGIN=$(shell find api/plugin/queue -type f -regex ".*\.go")
 build/queue.so: $(QUEUE_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) api/plugin/queue/db.go 
 	@rm -f $@
-	$(GO_TO_PLUGIN) build  $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
+	$(GO_TO_PLUGIN) build $(EXTRA_PLUGIN_ARGS)  -o $@ github.com/iansmith/parigot/api/plugin/queue/main
 
 NUTSDB_PLUGIN=$(shell find api/plugin/nutsdb -type f -regex ".*\.go")
 build/nutsdb.so: $(NUTSDB_PLUGIN)  $(ENG_SRC) $(SHARED_SRC) $(API_ID) 

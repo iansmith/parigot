@@ -12,15 +12,19 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/apenella/go-docker-builder/pkg/build"
 	"github.com/apenella/go-docker-builder/pkg/build/context/path"
-	"github.com/apenella/go-docker-builder/pkg/push"
+
+	//"github.com/apenella/go-docker-builder/pkg/push"
 	"github.com/apenella/go-docker-builder/pkg/response"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-units"
 )
 
 const (
@@ -75,9 +79,53 @@ func Main() {
 	outBuffer := &bytes.Buffer{}
 	resp := response.NewDefaultResponse(response.WithWriter(outBuffer))
 	dockerBuilder := &build.DockerBuildCmd{
-		Cli:       cli,
-		ImageName: imageName,
-		Response:  resp,
+		Cli:             cli,
+		ImageName:       imageName,
+		Response:        resp,
+		PullParentImage: true,
+		PushAfterBuild:  true,
+		ImagePushOptions: &dockertypes.ImagePushOptions{
+			All:           false,
+			RegistryAuth:  "",
+			PrivilegeFunc: nil,
+			Platform:      "",
+		},
+		ImageBuildOptions: &dockertypes.ImageBuildOptions{
+			Tags:           []string{imageName},
+			SuppressOutput: false,
+			RemoteContext:  "",
+			NoCache:        false,
+			Remove:         false,
+			ForceRemove:    false,
+			PullParent:     true,
+			Isolation:      "",
+			CPUSetCPUs:     "",
+			CPUSetMems:     "",
+			CPUShares:      0,
+			CPUQuota:       0,
+			CPUPeriod:      0,
+			Memory:         0,
+			MemorySwap:     0,
+			CgroupParent:   "",
+			NetworkMode:    "",
+			ShmSize:        0,
+			Dockerfile:     "",
+			Ulimits:        []*units.Ulimit{},
+			BuildArgs:      map[string]*string{},
+			AuthConfigs:    map[string]registry.AuthConfig{},
+			Context:        nil,
+			Labels:         map[string]string{},
+			Squash:         false,
+			CacheFrom:      []string{},
+			SecurityOpt:    []string{},
+			ExtraHosts:     []string{},
+			Target:         "",
+			SessionID:      "",
+			Platform:       "",
+			Version:        "",
+			BuildID:        "",
+			Outputs:        []dockertypes.ImageBuildOutput{},
+		},
 	}
 
 	dockerBuildContext := &path.PathBuildContext{
@@ -99,41 +147,41 @@ func Main() {
 
 	err = dockerBuilder.Run(context.TODO())
 	if err != nil {
-		log.Printf("-------DOCKER ERRROR-------")
-		log.Print(outBuffer.String())
-		log.Printf("-------ENND DOCKER ERRROR-------")
-		log.Fatalf("unable to run docker build: %v", err)
-	}
-
-	log.Printf("pdep:tagged image with '%s'", imageName)
-
-	cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		log.Fatalf("unable to create docker client: %v", err)
-	}
-
-	outBuffer.Reset()
-	resp = response.NewDefaultResponse(response.WithWriter(outBuffer))
-	dockerPush := &push.DockerPushCmd{
-		Cli:              cli,
-		ImageName:        imageName,
-		ImagePushOptions: &dockertypes.ImagePushOptions{},
-		Response:         resp,
-	}
-	if password != "" {
-		dockerPush.AddAuth(fUser, password)
-	} else {
-		log.Printf("no environment variable '%s' found, assuming no password", RepoPasswordEnvVar)
-	}
-
-	err = dockerPush.Run(context.TODO())
-	if err != nil {
 		log.Printf("-------DOCKER ERROR-------")
-		log.Printf("\n%v\n", err)
+		log.Print(outBuffer.String())
 		log.Printf("-------END DOCKER ERROR-------")
-		log.Fatalf("failed push image to repository '%s'", fRepo)
+		log.Fatalf("unable to run docker build: %v\n%+v\n%T\n", err, dockerBuilder, dockerBuilder.ImagePushOptions)
 	}
-	log.Printf("pdep:pushed image to repository '%s'", fRepo)
+
+	log.Printf("pdep:tagged image with '%s'\n%+v\n%T", imageName, dockerBuilder, dockerBuilder.ImagePushOptions)
+
+	// cli, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	// if err != nil {
+	// 	log.Fatalf("unable to create docker client: %v", err)
+	// }
+
+	// outBuffer.Reset()
+	// resp = response.NewDefaultResponse(response.WithWriter(outBuffer))
+	// dockerPush := &push.DockerPushCmd{
+	// 	Cli:              cli,
+	// 	ImageName:        imageName,
+	// 	ImagePushOptions: &dockertypes.ImagePushOptions{},
+	// 	Response:         resp,
+	// }
+	// if password != "" {
+	// 	dockerPush.AddAuth(fUser, password)
+	// } else {
+	// 	log.Printf("no environment variable '%s' found, assuming no password", RepoPasswordEnvVar)
+	// }
+
+	// err = dockerPush.Run(context.TODO())
+	// if err != nil {
+	// 	log.Printf("-------DOCKER ERROR-------")
+	// 	log.Printf("\n%v\n", err)
+	// 	log.Printf("-------END DOCKER ERROR-------")
+	// 	log.Fatalf("failed push image to repository '%s'", fRepo)
+	// }
+	// log.Printf("pdep:pushed image to repository '%s'\n%+v", fRepo,dockerPush)
 
 }
 
@@ -157,6 +205,7 @@ func validateArgs() {
 	if fImageName == "" {
 		fImageName = filepath.Base(fTomlName)
 	}
+	log.Printf("xxxx image name %s", fImageName)
 	if fUser == "" {
 		u := os.Getenv("USER")
 		if u == "" {
@@ -215,6 +264,13 @@ func buildContentTarball(code, toml, root string) string {
 	// copy burned-in script
 	buf = bytes.NewBuffer(Startup)
 	copyFileFromReader(tmpdir, filepath.Join("app", "startup.sh"), buf)
+
+	path, err := exec.LookPath("caddy")
+	if err != nil {
+		log.Fatalf("unable to find 'caddy' in path")
+	}
+	buf = readFileToBuffer(path)
+	copyFileFromReader(tmpdir, filepath.Join("app", "build", "caddy"), buf)
 
 	// dfile, err := os.Create(filepath.Join(tmpdir, "Dockerfile"))
 	// if err != nil {

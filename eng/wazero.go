@@ -208,7 +208,9 @@ func (e *wazeroEng) NewModuleFromFile(ctx context.Context, path string, searchDi
 	if err != nil {
 		return nil, err
 	}
-	wazerologger.Info("compiled module created", "path", path, "mod", mod.Name(), "truePath", truePath)
+	wazerologger.Info("compiled module created",
+
+		"path", path, "mod", mod.Name(), "truePath", truePath)
 	return &wazeroModule{cm: mod, parent: e, name: path, env: env}, nil
 }
 

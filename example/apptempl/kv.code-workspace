@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"workbench.editor.limit.excludeDirty": false,
+		"workbench.colorTheme": "Visual Studio Light",
+		"go.buildTags": "wasip1"
+	}
+}

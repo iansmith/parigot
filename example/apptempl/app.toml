@@ -1,0 +1,26 @@
+## Note that because this file is expected to be consumed in a dev container
+## so the files can have absolute paths that are correct for the container.
+
+## dev configuration in general
+[config.dev]
+## Load parigot code from shared object
+ParigotLibPath="syscall.so"  #uses searchDir
+ParigotLibSymbol="ParigotInitialize"
+Timezone = "US/Eastern"
+[config.dev.Timeout]
+Startup = 100 # millis
+Complete = 20 # millis
+
+# nutsdb service
+[config.dev.microservice.nutsdb]
+WasmPath="nutsdb.p.wasm" #uses searchDir
+PluginPath="nutsdb.so" # uses searchDir
+PluginSymbol="ParigotInitialize"
+
+
+# app is a service not a program
+[config.dev.microservice.app]
+WasmPath="app.p.wasm"
+Arg=[]
+Env=[]
+
