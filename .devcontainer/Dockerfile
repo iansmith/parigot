@@ -141,17 +141,14 @@ RUN ln -s /home/parigot/deps/caddy /home/parigot/tools/bin
 
 # docker socket dir?
 RUN mkdir /var/run/parigot
-RUN chown parigot /var/run/parigot /home/parigot
-RUN chgrp parigot /var/run/parigot /home/parigot
+RUN chown -R parigot /var/run/parigot /home/parigot 
+RUN chgrp -R parigot /var/run/parigot /home/parigot
+RUN chmod -R 775  /var/run/parigot /home/parigot 
 #RUN chmod g+w /var/run/parigot
 
 # safety
 RUN mkdir -p /home/parigot/tools/bin
-RUN chown -R parigot /home/parigot/tools
-RUN chgrp -R parigot /home/parigot/tools
 RUN mkdir -p /home/parigot/deps
-RUN chown -R parigot /home/parigot/deps
-RUN chgrp -R parigot /home/parigot/deps
 
 #zsh    
 RUN chsh -s /usr/bin/zsh parigot
@@ -210,6 +207,7 @@ ENV TOOLS=/home/parigot/tools
 ENV PATH=/workspaces/parigot/build:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:$TOOLS/bin:$WABTTOOLS/bin:$KOYEB_BIN
 ENV CC=clang
 ENV GOFLAGS="-buildvcs=false"
+#ENV GITHUB_WORKSPACE=/workspaces/parigot
 
 ENTRYPOINT ["bash"]
 

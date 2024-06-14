@@ -1,0 +1,29 @@
+name: Tests and Build
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    container:
+      image: iansmith/parigot-devcont-atlanta-0.3:amd64
+      volumes: 
+        - ${{ github.workspace }}:/workspaces/parigot   
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: build Makefile
+        run: make 
+      - name: run hello world, make clean, and make
+        run: cd example/helloworld && make clean && make
+      - name: run http simple, make clean, and make
+        run: cd example/httpsimple && make clean && make
+
+
